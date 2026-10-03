@@ -28,6 +28,29 @@ impl CompositeReleaseProvider {
 
 #[async_trait]
 impl ReleaseProvider for CompositeReleaseProvider {
+    async fn resolve_scoped(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        match scope {
+            Some(scope) if port.release.provider == ReleaseSource::Github => {
+                self.github
+                    .resolve_scoped(port, channel, platform, Some(scope))
+                    .await
+            }
+            Some(_) => Err(PortcoveError::unsupported(
+                "provider has no qualified managed GitHub acquisition",
+            )),
+            None => self
+                .resolve(port, channel, platform)
+                .await
+                .map(crate::ScopedResolvedRelease::legacy),
+        }
+    }
+
     async fn resolve(
         &self,
         port: &PortDefinition,

@@ -21,6 +21,14 @@ const saved: GameFileRoot = {
   created_at: 1,
   updated_at: 1,
 };
+function rootsWithAvailability(available: number, unavailable: number): GameFileRoot[] {
+  return Array.from({ length: available + unavailable }, (_, index) => ({
+    ...saved,
+    id: `root-${index}`,
+    path: `D:/Games-${index}`,
+    availability: index < available ? "available" : "unavailable",
+  }));
+}
 const snapshot: GameFileScanSnapshot = {
   format_version: 3,
   catalog_sha256: "a".repeat(64),
@@ -57,6 +65,25 @@ const snapshot: GameFileScanSnapshot = {
     issues_omitted: 0,
   },
 };
+function mockCompletedScan(roots: GameFileRoot[]) {
+  const available = roots.filter((root) => root.availability === "available");
+  const scanned: GameFileScanSnapshot = {
+    ...snapshot,
+    roots,
+    report: {
+      ...snapshot.report,
+      searched_roots: available.map((root) => root.path),
+      candidates: snapshot.report.candidates.map((candidate) => ({
+        ...candidate,
+        path: `${available[0].path}/game.z64`,
+      })),
+    },
+  };
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation(async () => {
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(scanned);
+    return scanned;
+  });
+}
 let root: Root;
 function button(label: string) {
   const found = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
@@ -765,7 +792,7 @@ it("caps saved roots at the core scan limit and explains the recovery", async ()
   );
   expect(button("Add folder").disabled).toBe(true);
   expect(button("Scan saved folders").disabled).toBe(false);
-  expect(document.body.textContent).toContain("at most eight saved folders");
+  expect(document.body.textContent).toContain("at most eight available folders");
   expect(add).not.toHaveBeenCalled();
 });
 
@@ -780,4 +807,122 @@ it("rechecks availability when a previously unavailable root is scanned", async 
   await click("Scan saved folders");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
   expect(document.body.textContent).toContain("Available");
+});
+
+it.each([
+  [1, 8],
+  [8, 1],
+])(
+  "scans %i available folders while keeping %i disconnected folders saved",
+  async (available, unavailable) => {
+    const roots = rootsWithAvailability(available, unavailable);
+    vi.mocked(desktopApi.gameFileRoots).mockResolvedValue(roots);
+    mockCompletedScan(roots);
+    await act(async () =>
+      root.render(<GameFileLibraries key="mixed-roots" ports={[]} profiles={[]} />),
+    );
+    expect(button("Scan saved folders").disabled).toBe(false);
+    expect(button("Add folder").disabled).toBe(available === 8);
+    expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+    await click("Scan saved folders");
+    expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+    expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
+      snapshot.limits,
+      expect.any(Function),
+    );
+    expect(document.body.textContent).toContain("Unavailable saved folders were not searched.");
+    expect(document.body.textContent).toContain(roots[available].path);
+    expect(desktopApi.importSource).not.toHaveBeenCalled();
+  },
+);
+
+it("allows another available folder without removing disconnected saved folders", async () => {
+  const roots = rootsWithAvailability(7, 2);
+  const added: GameFileRoot = { ...saved, id: "added-root", path: "E:/More Games" };
+  vi.mocked(desktopApi.gameFileRoots)
+    .mockResolvedValueOnce(roots)
+    .mockResolvedValueOnce(roots)
+    .mockResolvedValue([...roots, added]);
+  const add = vi.spyOn(desktopApi, "addGameFileRoot").mockResolvedValue(added);
+  const remove = vi.spyOn(desktopApi, "removeGameFileRoot");
+  await act(async () =>
+    root.render(<GameFileLibraries key="add-mixed-roots" ports={[]} profiles={[]} />),
+  );
+  expect(button("Add folder").disabled).toBe(false);
+  expect(add).not.toHaveBeenCalled();
+  await click("Add folder");
+  expect(add).toHaveBeenCalledOnce();
+  expect(add).toHaveBeenCalledWith(added.path);
+  expect(remove).not.toHaveBeenCalled();
+  expect(document.body.textContent).toContain(roots[7].path);
+  expect(button("Add folder").disabled).toBe(true);
+  expect(button("Scan saved folders").disabled).toBe(false);
+  expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("rechecks available folders after choosing a folder before adding it", async () => {
+  const initial = rootsWithAvailability(7, 2);
+  const reconnected = rootsWithAvailability(8, 1);
+  vi.mocked(desktopApi.gameFileRoots).mockResolvedValueOnce(initial).mockResolvedValue(reconnected);
+  const add = vi.spyOn(desktopApi, "addGameFileRoot");
+  await act(async () =>
+    root.render(<GameFileLibraries key="reconnected-add" ports={[]} profiles={[]} />),
+  );
+  expect(button("Add folder").disabled).toBe(false);
+  await click("Add folder");
+  expect(picker.pickInstallFolder).toHaveBeenCalledWith("");
+  expect(add).not.toHaveBeenCalled();
+  expect(button("Add folder").disabled).toBe(true);
+  expect(document.body.textContent).toContain("at most eight available folders");
+});
+
+it("uses fresh availability when disconnected folders can now be scanned", async () => {
+  const initial = rootsWithAvailability(0, 9);
+  const reconnected = rootsWithAvailability(1, 8);
+  vi.mocked(desktopApi.gameFileRoots).mockResolvedValueOnce(initial).mockResolvedValue(reconnected);
+  mockCompletedScan(reconnected);
+  await act(async () =>
+    root.render(<GameFileLibraries key="reconnected-mixed-scan" ports={[]} profiles={[]} />),
+  );
+  expect(button("Scan saved folders").disabled).toBe(false);
+  expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+  await click("Scan saved folders");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+  expect(document.body.textContent).toContain("Unavailable saved folders were not searched.");
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("blocks a scan when refreshed availability exceeds eight and keeps prior evidence stale", async () => {
+  const initial = rootsWithAvailability(8, 1);
+  const reconnected = rootsWithAvailability(9, 0);
+  vi.mocked(desktopApi.gameFileRoots).mockResolvedValueOnce(initial).mockResolvedValue(reconnected);
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...snapshot,
+    roots: initial,
+    freshness: "inputs_changed",
+  });
+  await act(async () =>
+    root.render(<GameFileLibraries key="too-many-reconnected" ports={[]} profiles={[]} />),
+  );
+  expect(button("Scan saved folders").disabled).toBe(false);
+  await click("Scan saved folders");
+  expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+  expect(button("Scan saved folders").disabled).toBe(true);
+  expect(document.body.textContent).toContain("at most eight available folders");
+  expect(document.body.textContent).toContain(snapshot.report.candidates[0].path);
+  expect(button("Review game files").disabled).toBe(true);
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("explains that all nine saved folders are unavailable without starting a scan", async () => {
+  vi.mocked(desktopApi.gameFileRoots).mockResolvedValue(rootsWithAvailability(0, 9));
+  await act(async () =>
+    root.render(<GameFileLibraries key="all-offline-roots" ports={[]} profiles={[]} />),
+  );
+  expect(button("Scan saved folders").disabled).toBe(false);
+  await click("Scan saved folders");
+  expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+  expect(document.body.textContent).toContain("No saved folder is available");
+  expect(document.body.textContent).toContain("D:/Games-8");
 });

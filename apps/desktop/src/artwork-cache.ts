@@ -203,6 +203,16 @@ export class ArtworkCache {
     return result;
   }
 
+  async refreshAfterChange(
+    portId: string,
+    slot: ArtworkSlot,
+    stillInterested: () => boolean = () => true,
+  ): Promise<void> {
+    // A replacement cache may already be reading the choice from before the commit.
+    await this.pending.get(this.key(portId, slot));
+    if (stillInterested()) await this.load(portId, slot, true, stillInterested);
+  }
+
   change(
     portId: string,
     slot: ArtworkSlot,

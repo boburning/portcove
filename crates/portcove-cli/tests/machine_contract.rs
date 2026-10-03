@@ -1460,6 +1460,21 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
     std::fs::remove_dir(&unavailable).unwrap();
     std::fs::write(available.join("first.fixture"), b"first original").unwrap();
     std::fs::write(available.join("second.fixture"), b"second original").unwrap();
+    let immediate = portcove(&library, &["source", "roots", "scan", "--max-entries", "1"]);
+    assert!(immediate.status.success(), "{immediate:?}");
+    let immediate = String::from_utf8(immediate.stdout).unwrap();
+    assert!(immediate.contains("Scan limits reached: entries; results may be incomplete."));
+    assert!(immediate.contains("Unavailable folders at scan: 1."));
+    assert!(immediate.contains("does not mean its files were deleted"));
+    assert!(!immediate.contains(available.to_str().unwrap()));
+    assert!(!immediate.contains(unavailable.to_str().unwrap()));
+    let saved = portcove(&library, &["source", "roots", "snapshot"]);
+    assert!(saved.status.success(), "{saved:?}");
+    assert_eq!(immediate, String::from_utf8(saved.stdout).unwrap());
+    assert_eq!(
+        json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
+        serde_json::json!([])
+    );
     let scan = json_stdout(&portcove(
         &library,
         &["--json", "source", "roots", "scan", "--max-entries", "1"],
@@ -1521,6 +1536,54 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
         output.contains("Recorded inputs changed; run source roots scan to refresh the evidence.")
     );
     assert!(output.contains("Unavailable folders at scan: 1."));
+}
+
+#[test]
+fn human_saved_scan_completion_without_limits_keeps_machine_readback_unchanged() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let root = temporary.path().join("empty-root");
+    std::fs::create_dir(&root).unwrap();
+    let added = portcove(
+        &library,
+        &["--json", "source", "roots", "add", root.to_str().unwrap()],
+    );
+    assert!(added.status.success(), "{added:?}");
+    let immediate = portcove(&library, &["source", "roots", "scan"]);
+    assert!(immediate.status.success(), "{immediate:?}");
+    let output = String::from_utf8(immediate.stdout).unwrap();
+    assert!(output.starts_with("Game-file folder scan\n"));
+    assert!(output.contains("No recorded scan limits reached."));
+    assert!(output.contains("Unavailable folders at scan: 0."));
+    assert!(output.contains("Candidates: 0"));
+    assert!(!output.contains("scan is complete"));
+    assert!(!output.contains(root.to_str().unwrap()));
+    let before = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "snapshot"],
+    ));
+    assert_eq!(before["command"], "source.roots.snapshot");
+    assert_eq!(before["ok"], true);
+    assert_eq!(
+        before["data"]["report"]["candidates"],
+        serde_json::json!([])
+    );
+    assert_eq!(
+        before["data"]["report"]["limits_reached"],
+        serde_json::json!([])
+    );
+    let saved = portcove(&library, &["source", "roots", "snapshot"]);
+    assert!(saved.status.success(), "{saved:?}");
+    assert_eq!(output, String::from_utf8(saved.stdout).unwrap());
+    let after = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "snapshot"],
+    ));
+    assert_eq!(before, after);
+    assert_eq!(
+        json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
+        serde_json::json!([])
+    );
 }
 
 #[test]
@@ -2319,4 +2382,89 @@ fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_l
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "about");
     assert_eq!(response["data"]["product"], "Portcove");
+}
+
+#[test]
+fn status_disclosure_explains_real_core_decisions_without_changing_machine_output() {
+    let root = tempfile::tempdir().unwrap();
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status", "lighthouse"]));
+    assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(stream["type"], "result");
+    assert_eq!(machine["data"], stream["data"]);
+    let install = machine["data"]["port_actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|assessment| assessment["action"] == "install")
+        .unwrap();
+    assert_eq!(install["availability"], "waiting");
+    assert_eq!(install["reason"], "missing_source");
+    let output = portcove(root.path(), &["status", "lighthouse"]);
+    let human = human_stdout(&output);
+    assert!(
+        human.contains(
+            "install: waiting (missing_source): Add the required game files with source add."
+        ),
+        "actual CLI output has no explanation for the core's missing-game-files decision:\n{human}"
+    );
+    assert!(human.contains("EXTERNAL (USER-OWNED)"), "{human}");
+}
+
+#[test]
+fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
+    let root = tempfile::tempdir().unwrap();
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status"]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status"]));
+    assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(stream["type"], "result");
+    assert_eq!(machine["data"], stream["data"]);
+    let output = portcove(root.path(), &["status"]);
+    let human = human_stdout(&output);
+    let statuses = machine["data"].as_array().unwrap();
+    assert!(!statuses.is_empty());
+    for status in statuses {
+        let id = status["port_id"].as_str().unwrap();
+        let heading = format!("\n{id}:\n");
+        let assessments = status["port_actions"].as_array();
+        if assessments.is_none_or(|assessments| assessments.is_empty()) {
+            assert!(!human.contains(&heading), "{id}: {human}");
+            continue;
+        }
+        assert!(
+            human.contains(&heading),
+            "actual all-port CLI output omitted the core action group for {id}:\n{human}"
+        );
+        let group = human.split_once(&heading).unwrap().1;
+        let group = group.split("\n\n").next().unwrap();
+        for assessment in assessments.unwrap() {
+            let reason = assessment["definition"]["reason"]
+                .as_str()
+                .or_else(|| assessment["reason"].as_str())
+                .unwrap();
+            let prefix = format!(
+                "  {}: {} ({reason}): ",
+                assessment["action"].as_str().unwrap(),
+                assessment["availability"].as_str().unwrap()
+            );
+            let explanation = group
+                .lines()
+                .find_map(|line| line.strip_prefix(&prefix))
+                .unwrap_or_else(|| panic!("{id}: {group}"));
+            assert!(!explanation.trim().is_empty(), "{id}: {group}");
+        }
+    }
+    let single = portcove(root.path(), &["status", "lighthouse"]);
+    let single = human_stdout(&single);
+    assert_eq!(
+        single.split_once("\nlighthouse:\n").unwrap().1.trim(),
+        human
+            .split_once("\nlighthouse:\n")
+            .unwrap()
+            .1
+            .split("\n\n")
+            .next()
+            .unwrap()
+            .trim()
+    );
 }

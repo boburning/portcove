@@ -15,6 +15,7 @@ mod catalog;
 mod catalog_store;
 mod catalog_update;
 mod database;
+mod definition_acquisition;
 mod definition_candidate;
 mod definition_capabilities;
 mod definition_eligibility;
@@ -94,9 +95,10 @@ pub use auth::{
 };
 pub use authorization::DestructiveAuthorization;
 pub use cancellation::{CancellationPhase, CancellationState};
-pub use catalog::Catalog;
+pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
 pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
+pub use definition_acquisition::{DefinitionAcquisitionScope, ScopedResolvedRelease};
 pub use definition_candidate::{
     DefinitionCandidateAvailability, DefinitionPublisherObservation, DefinitionPublisherStatus,
     EligibleDefinitionCandidate,

@@ -360,6 +360,14 @@ rebuilds missing/corrupt entries, and evicts entries in deterministic filename o
 One bounded pending file for each kind is recognized for interrupted-write retry
 or cache clearing; publication of an original may require up to 16 MiB of
 temporary working space.
+Catalog cover retrieval checks validated cached bytes before process-local retry
+state. Request timeout/connect failures and HTTP 408, 429 or 5xx responses
+retain their network error for 30 seconds after completion. At most 256 exact
+canonical-root/durable-library/image/content request identities are retained; same-identity requests
+serialize, idle entries may be evicted and a full active registry refuses new
+retrieval. Integrity, decode, filesystem, publication and other HTTP failures
+are not retained. Cache clearing detaches that library's retry state, including
+in-flight requests, without changing choices or imported originals.
 Unexpected files or symlink paths are retained and rejected, never traversed.
 
 Library metadata format 3 exports logical choices and local asset identities with
@@ -378,7 +386,13 @@ when their view no longer needs them. Visible cards load asynchronously and pres
 the cached image while refreshing. PNG data URLs carry only bounded core thumbnails;
 the renderer never reads original files or changes the content-security policy.
 Picker cancellation, closing the editor, changing ports or changing libraries
-invalidates the pending intent before mutation. Core still checks the selected slot
+invalidates the pending intent before mutation. Pending picker and queued-change
+intent also binds the exact display-cache instance, including catalog changes in
+the same library. An already-dispatched change still belongs to core; after it
+settles, a replacement cache reads the current choice after any earlier pending
+read instead of reusing obsolete catalog results. Controls remain busy during
+reconciliation, disclose read failures separately from the committed change and
+avoid restoring focus from an obsolete cache. Core still checks the selected slot
 revision. Titles, status and actions stay outside portrait/letterboxed covers;
 detail images are optional. Reset preserves imported originals. Source information
 reports the original filename, dimensions and import time, with author/license
@@ -547,6 +561,19 @@ The existing Cargo-metadata architecture gate retains the core/adapter dependenc
 rules. Rust module privacy keeps backup implementation helpers inside their owner;
 the public API doctest pairs an available action type with a rejected internal
 manifest import. Other service responsibilities remain incremental #925 work.
+
+Managed launch input observation belongs to the private
+`service::launch_preparation` module. It reads the retained catalog, current
+definition restrictions, source identity, readiness, preparation receipt and
+immutable installation qualification without collecting/restoring saves or
+preparing adapter files. Its private input representation describes current
+facts; it grants no mutation or process authority and is not retained across
+requests. The existing launch supervisor consumes it immediately under its port
+lock and operation checkpoints. Explicit preparation preserves save collection
+and restoration, then rechecks the executable, prepares adapter data, rechecks
+source identity and refreshes the setup manifest before the unchanged supervised
+spawn. External-runtime preparation and durable launch-session ownership remain
+with the existing service facade.
 
 Creation locks the port, reconciles launched user data, writes and syncs a
 bounded preparation identity before copying, then writes the private payload and
@@ -724,6 +751,16 @@ used for copying, and destination/saved-data identity is checked again before
 publication. Catalog-selected saved data is merged with matching files replaced;
 there is no automatic safety backup. Original folders and retained versions remain.
 Existing journal recovery may finish verified publication and saved-data transfer.
+
+The shared saved-data transfer checks destination directories, files and their
+ancestors before creating directories or copying files. It refuses observable
+symbolic links, including dangling links and ordinary Windows junctions, and
+continues to skip source links. These checks are non-atomic and ignore metadata
+errors; they do not provide race-free containment, hard-link protection or coverage
+of every reparse-point class. A refusal after metadata commitment retains the
+registered installation, staged saved data and journal for correction and recovery.
+Earlier matching regular files may already have been replaced; this is neither an
+atomic whole-tree merge nor automatic rollback.
 
 Desktop transports this core preview under the selected library generation and
 retains backend-owned native confirmation. Its detailed review names destination,
@@ -1954,11 +1991,27 @@ directly, and the former root `use-portcove.ts` compatibility module is removed
 without a re-export. None of this shell state is persisted or authoritative for
 domain behavior.
 
+The `features/source-health` read owner records each requested saved-file
+inspection as pending, current, failed or cancelled. Settings presents a settled
+inspection failure separately from verified file identity and offers an explicit
+read-only retry for that profile. Healthy sibling inspections and existing source
+verification outcomes retain their own meaning. Concurrent reads for one current
+profile share the pending request; registration/catalog/selection changes and
+disposal invalidate older responses. Failed inspections provide no current report
+and cannot grant registration, setup or mutation authority. Core remains the
+owner of source matching, verification and typed diagnostic/recovery facts.
+
 The `features/bootstrap` unit owns the initial bootstrap-status read, normalized
 startup failure state and the choose, switch and reset library handoff. A
 successful result publishes the returned generation so App remounts all
-library-owned state; cancelling the native folder picker leaves the current
-library untouched. Recovery presentation remains application composition. Tauri
+library-owned state. A private synchronous pending guard prevents overlapping
+selection commands and disables the startup recovery selection controls while a
+picker or handoff is pending. Cancelling the native picker releases that guard
+without switching libraries. Disposed or superseded startup reads and obsolete
+picker completions cannot publish state or dispatch another selection; accepted
+host snapshots cannot regress the current generation. Already dispatched native
+mutations are not cancelled by renderer disposal. Recovery presentation remains
+application composition. Tauri
 and core still own library opening, lease exclusion, persistence and generation
 assignment.
 

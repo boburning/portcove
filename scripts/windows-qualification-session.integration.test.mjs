@@ -843,9 +843,19 @@ test(
           ...baseEnvironment,
           PORTCOVE_FIXTURE_UNINSTALL_RELEASE: releaseMarker,
         },
-        stdio: "ignore",
+        stdio: ["ignore", "pipe", "pipe"],
       },
     );
+    // Retain only bounded output from this owned fixture, including early abort
+    // errors that otherwise leave a generic running-attempt assertion behind.
+    let abortStdout = "";
+    let abortStderr = "";
+    child.stdout.on("data", (chunk) => {
+      abortStdout = (abortStdout + chunk.toString()).slice(-16_384);
+    });
+    child.stderr.on("data", (chunk) => {
+      abortStderr = (abortStderr + chunk.toString()).slice(-16_384);
+    });
     const exited = once(child, "exit");
     const sessionPath = path.join(item.session, "session.json");
     let state;
@@ -854,9 +864,19 @@ test(
       while (Date.now() < deadline) {
         state = JSON.parse(readFileSync(sessionPath, "utf8"));
         if (state.abort_attempts?.some((attempt) => attempt.status === "running")) break;
+        if (child.exitCode !== null || child.signalCode !== null) break;
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      assert.ok(state.abort_attempts.some((attempt) => attempt.status === "running"));
+      assert.ok(
+        state.abort_attempts.some((attempt) => attempt.status === "running"),
+        JSON.stringify({
+          abort_exit_code: child.exitCode,
+          abort_signal: child.signalCode,
+          journal: state,
+          stdout_tail: abortStdout,
+          stderr_tail: abortStderr,
+        }),
+      );
       assert.equal(child.exitCode, null);
       assert.ok(child.kill(), "the owned runner must still be alive at interruption");
       await exited;

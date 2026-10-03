@@ -146,17 +146,35 @@ fn require_install_publication_authority(
 ) -> Result<()> {
     if !matches!(
         operation.kind,
-        LifecycleOperationKind::Install | LifecycleOperationKind::Adopt
+        LifecycleOperationKind::Install
+            | LifecycleOperationKind::Adopt
+            | LifecycleOperationKind::Prepare
     ) {
         return Ok(());
     }
     if let Some(catalog) = Installer::new(service.library.clone())?.retained_catalog(install)? {
         let port = catalog.port(&install.port_id)?;
+        if operation.kind == LifecycleOperationKind::Prepare
+            && !catalog
+                .definition_selection(&install.port_id)
+                .is_some_and(|identity| {
+                    crate::definition_acquisition::restricted_grant(&identity.grant_id)
+                })
+        {
+            return Ok(());
+        }
+        if operation.kind == LifecycleOperationKind::Adopt {
+            service.require_definition_adoption(&catalog, port)?;
+        }
         service.require_definition_operation(
             &catalog,
             port,
             crate::definition_eligibility::DefinitionOperationContext::observed(
-                crate::DefinitionOperation::Install,
+                if operation.kind == LifecycleOperationKind::Prepare {
+                    crate::DefinitionOperation::Prepare
+                } else {
+                    crate::DefinitionOperation::Install
+                },
                 false,
                 true,
             ),

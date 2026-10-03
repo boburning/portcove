@@ -2,6 +2,18 @@
 
 ## Using the CLI
 
+Maintainer proposal checks use `portcove --json catalog inspect-proposal FILE`.
+This inert command reads at most 4 MiB and uses core's existing catalog/schema,
+source-reference and declared path/contract validators. Its separate format-1
+receipt binds the exact input bytes and canonical typed per-port declaration
+hashes. It runs before host preferences or a library are opened. It does not
+resolve an upstream release, validate an actual artifact/source, qualify gameplay,
+establish publisher trust, change a catalog or permit application. Existing catalog
+parsing semantics remain unchanged; the check is not signed-definition admission.
+Legacy parsing tolerates unknown fields: raw input hashes bind them, but typed
+port hashes and declaration checks do not validate discarded fields.
+Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
+
 Run `portcove --help` to see commands and `portcove COMMAND --help` to check
 arguments before a consequential action. The commands below use `PORT_ID` from
 `catalog list`. For a source command, `portcove --json catalog show PORT_ID`
@@ -65,6 +77,15 @@ Without a machine-output flag, Portcove renders concise human output. Catalog, s
 Human operation progress goes to standard error. An interactive terminal receives an updating inline byte counter. When standard error is redirected, Portcove emits a bounded line for each phase start and its final observed byte count instead of carriage-return updates for every chunk. A partial final count does not imply success; read the command result or retained activity for the authoritative outcome. Machine clients should use `--jsonl` for the full versioned event stream.
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
+
+Human `status` keeps managed active/staged versions separate from the registered
+external version, labeled user-owned. Both `status PORT_ID` and all-port `status`
+group core action assessments by operational port ID and explain their existing
+availability and reason codes, including game-file versus BIOS prerequisites and
+definition holds. Ports without recorded assessments have no invented action
+group. These read-only explanations do not authorize an operation or establish
+complete runtime verification, native qualification or gameplay; execution
+rechecks its own current inputs and consent. JSON/JSONL contracts are unchanged.
 
 `schema export --contract input` describes values accepted by Rust deserialization,
 including omitted fields with defaults. `schema export --contract output`
@@ -142,7 +163,7 @@ Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
 `source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
 exported schema. Scan uses core's bounded limits and emits the existing
 `discover_sources` operation events under `--jsonl`; snapshot readback reports
-`inputs_match` or `inputs_changed` rather than treating older evidence as current. Human snapshot output also reports recorded limits, issue and omitted-issue counts, and unavailable folders at scan time. Matching recorded inputs does not prove complete coverage or revalidate file contents. Unavailable folders do not mean deleted files; changed inputs require a new scan. Use `--json source roots snapshot` for recorded details; human summaries omit raw issue messages and paths.
+`inputs_match` or `inputs_changed` rather than treating older evidence as current. Human scan completion and snapshot readback share a summary of recorded limits, issue and omitted-issue counts, and unavailable folders at scan time. Matching recorded inputs does not prove complete coverage or revalidate file contents. Unavailable folders do not mean deleted files; changed inputs require a new scan. Use `--json source roots snapshot` for recorded details; human summaries omit raw issue messages and paths. The scan result uses the same summary rather than dumping the full serialized record; `--json` and `--jsonl` retain the complete result and operation-event contracts.
 Candidates remain unregistered until separately accepted.
 
 Schema 52 adds the `source.roots` capability, the `source roots` add, list,

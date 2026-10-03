@@ -2,6 +2,20 @@
 
 ## Default covers
 
+For a whole ordinary catalog proposal, use
+`node scripts/generate-catalog.mjs --prepare-proposal PROPOSAL.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY`.
+Optional artwork facts/credentials/refresh flags are the same as below. This
+mode snapshots the explicitly selected CLI, checks accepted/input/output catalog
+declarations through `catalog inspect-proposal`, and prepares existing artwork in
+the same output. `proposal-evidence.json` adds exact input-byte/core receipts,
+typed per-port declaration hashes and the complete accepted-to-proposed diff;
+`artwork-evidence.json` retains its distinct cover reasons and provider costs.
+All files remain unsigned proposals. No publisher grant, artifact authenticity,
+actual source/operation/gameplay qualification or production delivery is inferred.
+An unavailable validator or failed declaration check stops this proposal, retains
+its process receipts and leaves the accepted catalog/libraries unchanged. A new
+output directory is required; an interrupted or prior batch is never overwritten.
+
 Prepare a cover beside each new port definition. Search its public project name
 and known aliases first; accept an exact port record only after checking the
 underlying title and project identity. Keep the original-game identity separate.
@@ -22,7 +36,76 @@ The [2026-09-30 identity receipt](archive/2026-09-30-igdb-catalog-cover-identiti
 records the catalog-wide preparation, accepted port and original identities, and
 port-specific exceptions. It is dated evidence, not another scheduling tracker.
 Preserve accepted mappings when adding entries; investigate only additions or
-changed references. Generate the embedded catalog with
+changed references. Ordinary schema-2 catalog proposals can prepare covers and
+their evidence in the same batch using the existing generator:
+
+```text
+node scripts/generate-catalog.mjs --prepare-artwork PROPOSAL.json --identities FACTS.json --credentials-file PRIVATE.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY
+```
+
+The optional facts document is keyed by stable port ID. Ordinary port matching
+uses the definition's public name and exact project URL without a supplied IGDB
+ID; a unique exact name/alias plus matching provider project website is required.
+Its optional `port` and `underlying_game` records supply public `names` and
+attributable HTTPS `evidence_url`, with an exact `project_url` for name-based port
+matching or known `platform_ids` and any specific `edition` for original-game
+matching. An independently established positive IGDB `game_id` and exact `slug`
+may pin a known identity. These are proposal inputs, not admission authority.
+Names alone, a sequel, wrong edition or truncated result set cannot establish a
+match. All required identity facts must agree before image acquisition. A coverless port falls
+through to its identified original game. Missing, ambiguous, mismatched or
+unusable assets produce specific nonblocking cover exceptions and generated
+fallback; a decoded image cannot establish semantic identity.
+
+The current authoring catalog is the accepted baseline. Unchanged port/source
+identities reuse accepted mappings without provider requests; distinct ports may
+reuse a uniquely accepted original-game mapping without merging their identities.
+An ordinary executable release does not trigger artwork searches. For an assessed
+reference change, `--refresh-artwork PORT_ID,OTHER_ID` explicitly refreshes those
+batch entries. A failed refresh retains the matching permitted accepted mapping
+for uncertain or transient failures, including HTTP404, authentication/network
+errors and rate limits, without claiming live validation. HTTP410 from the fixed
+IGDB image request identifies that exact image as Gone: preparation excludes it
+from every reference in the output batch, regardless of record order, and records
+its image identity/status. Existing exact-port/original selection can supply a
+checked replacement; otherwise the generated/text fallback applies. Gone for a
+different candidate image does not invalidate an accepted mapping. Unchanged
+entries still make no provider requests. This bounded observation changes only
+the unsigned proposal; accepted inputs, client choices/cache and protected
+acceptance remain unchanged. It does not establish live provider removal or a
+legal withdrawal.
+
+The new output directory is required to be absent. It receives
+`catalog-proposal.json` and `artwork-evidence.json`, including exact input/baseline
+digests, artwork differences, per-cover reasons/checks/exceptions and request/byte
+counts. No source catalog, client preference, signature or published feed changes.
+Fresh image bytes pass the existing core decoder through the explicitly selected
+trusted CLI and fresh task-owned scratch libraries. No new decoder or publisher
+is introduced. Credentials stay maintainer-side; output carries fixed references
+and digests, never credentials or image payloads. Scratch libraries retain local
+validation material and are not a distributable image archive.
+
+The provider route is sequential, has one lazy authentication attempt, no retries,
+and bounds metadata/image requests, bytes and execution time. A valid `Retry-After`
+on a captured metadata 429 or 503 postpones the next metadata request, preserving
+the normal 300 ms floor. All three HTTP-date forms are interpreted in UTC,
+including the zoneless asctime form, independently of the authoring host timezone.
+Decimal seconds and HTTP dates stay within the existing
+15 minute batch deadline; a pause reaching that deadline refuses further metadata
+requests without sleeping past the budget. Waits remain cancellable, failed
+identities are not retried, and uncertain failures retain eligible accepted
+metadata. Image requests retain their existing policy. Fixed OAuth, metadata and image responses
+are consumed within those byte bounds or their unfinished bodies are cancelled
+when refused, including status, content-type and early length checks. Cleanup
+does not drain rejected payloads or await an arbitrary cancellation promise;
+reader locks are released and the original result or failure is preserved.
+Request signals, deadlines, request/byte counters and authentication policy
+remain unchanged. Retained references are not fresh source-health evidence.
+This command prepares the cover role only;
+other roles, full backlog coverage, protected acceptance/publication and installed
+or physical-platform evidence retain their own acceptance.
+
+Generate the embedded catalog with
 `node scripts/generate-catalog.mjs`, then run selected local checks and the opt-in
 `just desktop-verify --scenario native-default-cover-display --require-clean`.
 That scenario derives its cover inventory from the actual native catalog, checks
@@ -213,6 +296,35 @@ establish gameplay, a physical-controller path, or a platform not exercised.
 Retain the historical `automated_tested_platforms` and
 `manually_validated_platforms` field names and their existing recorded claims;
 this clarification creates no new qualification record or platform support.
+
+### Qualification evidence preparation
+
+`node scripts/qualification-report.mjs --cli <executable> --library <library> --output <new-directory>`
+captures existing versioned core snapshots and a checklist for active managed
+installs and non-owning external registrations. Format 1 retains managed fields
+and adds `runtime_kind`, a distinct `registration_id`, and available platform,
+runtime/executable paths and immutable-tree identity. External `artifact_sha256`
+is the registration's accepted archive identity, not a new download observation;
+its immutable-tree hash is a separate fact. External platform comes from its
+registration. Managed records lack artifact-platform identity, which remains
+unknown; the capture host's platform stays in the doctor response separately.
+
+Missing optional version, hash, platform, path or readiness facts remain null
+(unknown), rather than borrowing current catalog or host facts for a retained
+external record. Missing required port/record IDs, duplicate identities within a
+route, conflicting managed/external records or a changed record owner refuse the
+capture before report publication. Existing capture directories are preserved.
+`installed_ports` still counts managed installs; `registered_ports` counts
+external registrations and `reported_ports` counts both.
+
+Backup listings and the backup/restore checklist apply only to managed installs.
+External rows do not establish save locations or Portcove ownership; their
+`user_data_root` and unbound source-profile reference remain unknown. Exact source
+facts, when available, stay in the captured core source responses. Gameplay,
+audio, controller and save/load observations start null (unassessed), regardless
+of readiness or historical qualification. Record exact operation, method, scope,
+date and actual result separately. Neither capture nor synthetic CLI responses
+grant runtime/gameplay qualification or modify catalog evidence.
 
 Legacy Project `Port stage = Supported` means that at least one declared
 platform is present in both historical arrays. That historical claim is limited

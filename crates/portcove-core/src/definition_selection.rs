@@ -353,6 +353,7 @@ impl Library {
         role: &str,
     ) -> Result<()> {
         identity.validate_snapshot(snapshot)?;
+        crate::definition_acquisition::refuse_restricted_portability(&identity.grant_id)?;
         let stored = StoredDefinitionSelection {
             namespace: identity.namespace.clone(),
             stable_id: identity.stable_id.clone(),
@@ -562,9 +563,8 @@ impl Library {
             .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Scoped)
             && crate::definition_repository::publisher_policy::allows_operation(
                 &transaction,
-                &identity.namespace,
-                &identity.stable_id,
-                context.operation,
+                identity,
+                context,
             )?;
         let publisher_revoked = policy
             .as_ref()
@@ -585,7 +585,13 @@ impl Library {
             required_source_missing: context.required_source_missing,
             source_mismatch: context.source_mismatch,
             mandatory_checks_passed: true,
-            fresh_metadata: Self::now() < expiration_unix(&identity.provenance)?,
+            fresh_metadata: Self::now() < expiration_unix(&identity.provenance)?
+                && crate::definition_repository::publisher_policy::availability_expiration(
+                    &transaction,
+                    &identity.namespace,
+                    &identity.stable_id,
+                )?
+                .is_none_or(|expires| Self::now() < expires),
             replayed_metadata,
             refresh_interrupted: false,
             retained_contract: context.retained_contract,

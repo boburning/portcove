@@ -11,6 +11,24 @@ use crate::{
 
 const EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 
+/// Inert declaration checks only; neither trust nor artifact/runtime acceptance.
+#[derive(Debug, serde::Serialize, schemars::JsonSchema)]
+pub struct CatalogProposalInspection {
+    pub format_version: u32,
+    pub input_sha256: String,
+    pub input_bytes: u64,
+    pub catalog_schema: u32,
+    pub ports: Vec<CatalogProposalPortInspection>,
+    pub scope: &'static str,
+}
+
+#[derive(Debug, serde::Serialize, schemars::JsonSchema)]
+pub struct CatalogProposalPortInspection {
+    pub port_id: String,
+    pub definition_sha256: String,
+    pub check: &'static str,
+}
+
 #[derive(Debug, Clone)]
 pub struct Catalog {
     document: CatalogDocument,
@@ -19,6 +37,36 @@ pub struct Catalog {
 }
 
 impl Catalog {
+    /// Reuse the ordinary validator on one bounded input, without opening a
+    /// library, resolving releases, executing a template or establishing trust.
+    pub fn inspect_proposal(path: &Path) -> Result<CatalogProposalInspection> {
+        use sha2::{Digest, Sha256};
+        let bytes = crate::path::read_bounded_regular(path, 4 * 1024 * 1024)?;
+        let _: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
+        let value = std::str::from_utf8(&bytes)
+            .map_err(|_| PortcoveError::usage("catalog proposal must be valid UTF-8"))?;
+        let catalog = Self::from_json(value)?;
+        let ports = catalog
+            .ports()
+            .iter()
+            .map(|port| {
+                Ok(CatalogProposalPortInspection {
+                    port_id: port.id.clone(),
+                    definition_sha256: hex::encode(Sha256::digest(serde_json::to_vec(port)?)),
+                    check: "catalog-declared-contract-validation",
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(CatalogProposalInspection {
+            format_version: 1,
+            input_sha256: hex::encode(Sha256::digest(&bytes)),
+            input_bytes: bytes.len() as u64,
+            catalog_schema: catalog.document().schema_version,
+            ports,
+            scope: "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+        })
+    }
+
     pub fn embedded() -> Result<Self> {
         #[cfg(feature = "qualification-fixtures")]
         if let Some(path) = std::env::var_os("PORTCOVE_QUALIFICATION_CATALOG") {
@@ -1266,6 +1314,71 @@ fn is_crc32(value: &str) -> bool {
 mod tests {
     use super::*;
     use sha2::{Digest, Sha256};
+
+    #[test]
+    fn proposal_inspection_binds_declared_checks_to_exact_bytes_without_mutation() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("proposal.json");
+        std::fs::write(&path, EMBEDDED_CATALOG).unwrap();
+        let report = Catalog::inspect_proposal(&path).unwrap();
+        assert_eq!(
+            report.input_sha256,
+            hex::encode(Sha256::digest(EMBEDDED_CATALOG.as_bytes()))
+        );
+        assert_eq!(report.input_bytes, EMBEDDED_CATALOG.len() as u64);
+        let catalog = Catalog::embedded().unwrap();
+        assert_eq!(report.ports.len(), catalog.ports().len());
+        for (checked, port) in report.ports.iter().zip(catalog.ports()) {
+            assert_eq!(checked.port_id, port.id);
+            assert_eq!(
+                checked.definition_sha256,
+                hex::encode(Sha256::digest(serde_json::to_vec(port).unwrap()))
+            );
+            assert_eq!(checked.check, "catalog-declared-contract-validation");
+        }
+        assert!(report.scope.contains("no trust"));
+        assert_eq!(std::fs::read(&path).unwrap(), EMBEDDED_CATALOG.as_bytes());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn proposal_inspection_refuses_unsafe_or_unsupported_declarations_and_duplicate_keys() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("proposal.json");
+        for field in [
+            "persistent_paths",
+            "executable_hints",
+            "adapter",
+            "source_profile",
+        ] {
+            let mut value: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+            value["ports"][0][field] = match field {
+                "persistent_paths" => serde_json::json!(["../escape"]),
+                "executable_hints" => serde_json::json!({"windows-x86-64": ["../escape.exe"]}),
+                "adapter" => serde_json::json!("unimplemented-policy-template"),
+                _ => serde_json::json!("missing-proposal-source"),
+            };
+            std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+            assert!(Catalog::inspect_proposal(&path).is_err(), "{field}");
+        }
+        std::fs::write(
+            &path,
+            br#"{"schema_version":2,"ports":[],"ports":[],"source_catalog":{}}"#,
+        )
+        .unwrap();
+        assert!(Catalog::inspect_proposal(&path).is_err());
+    }
+
+    #[test]
+    fn proposal_inspection_bounds_file_and_refuses_malformed_inputs() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("proposal.json");
+        assert!(Catalog::inspect_proposal(root.path()).is_err());
+        for bytes in [vec![0xff], b"{".to_vec(), vec![b' '; 4 * 1024 * 1024 + 1]] {
+            std::fs::write(&path, bytes).unwrap();
+            assert!(Catalog::inspect_proposal(&path).is_err());
+        }
+    }
 
     const SCHEMA_1_ADMISSION_BASELINE: &str =
         include_str!("../catalog/catalog-schema1-admission-baseline.json");

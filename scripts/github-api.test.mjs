@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
@@ -161,6 +162,135 @@ test("the shared runner preserves command failures without echoing stdin", () =>
       error.code === "command_failed" &&
       error.message === "request rejected" &&
       !error.message.includes("secret query"),
+  );
+});
+
+function outputFixture(stdout, stderr = "", options = {}) {
+  return createGitHubRunner({
+    ...options,
+    spawn: (_command, _args, spawnOptions) =>
+      spawnSync(
+        process.execPath,
+        [
+          "-e",
+          "const input = JSON.parse(require('node:fs').readFileSync(0, 'utf8')); process.stdout.write(input.stdout); process.stderr.write(input.stderr);",
+        ],
+        { ...spawnOptions, input: JSON.stringify({ stdout, stderr }) },
+      ),
+  });
+}
+
+test("the ordinary runner collects complete JSON above the former one MiB limit", () => {
+  const body = { data: { value: "x".repeat(1100000) } };
+  const client = new GitHubApiClient(outputFixture(JSON.stringify(body)));
+  assert.deepEqual(client.graphql("query { value }").data, body.data);
+});
+
+test("the runner passes a bounded default and preserves explicit finite overrides", () => {
+  for (const limit of [undefined, 1024, 32 * 1024 * 1024]) {
+    let options;
+    const run = createGitHubRunner({
+      ...(limit === undefined ? {} : { maxBuffer: limit }),
+      spawn: (_command, _args, observed) => {
+        options = observed;
+        return { status: 0, stdout: "{}", stderr: "" };
+      },
+    });
+    assert.equal(run(["api", "graphql", "--include"], "private input"), "{}");
+    assert.equal(options.maxBuffer, limit ?? 16 * 1024 * 1024);
+    assert.equal(options.input, "private input");
+    assert.equal(options.encoding, "utf8");
+    assert.deepEqual(options.stdio, ["pipe", "pipe", "pipe"]);
+    assert.equal(options.windowsHide, true);
+  }
+});
+
+test("invalid output limits fail before any subprocess is started", () => {
+  for (const maxBuffer of [
+    null,
+    0,
+    -1,
+    1.5,
+    NaN,
+    Infinity,
+    -Infinity,
+    "1024",
+    true,
+    {},
+    Number.MAX_SAFE_INTEGER + 1,
+  ]) {
+    let calls = 0;
+    assert.throws(
+      () =>
+        createGitHubRunner({
+          maxBuffer,
+          spawn: () => {
+            calls += 1;
+          },
+        }),
+      /positive safe integer/,
+    );
+    assert.equal(calls, 0);
+  }
+});
+
+test("stdout and stderr overflow refuse even valid partial output without exposing payloads", () => {
+  for (const [stdout, stderr] of [
+    [JSON.stringify({ data: { value: "private-output".repeat(1000) } }), ""],
+    ['{"data":', "private-stderr".repeat(1000)],
+    [JSON.stringify({ data: { value: "complete but untrusted" } }), "private-stderr".repeat(1000)],
+  ]) {
+    const client = new GitHubApiClient(outputFixture(stdout, stderr, { maxBuffer: 1024 }));
+    assert.throws(
+      () => client.graphql("query { privateInput }"),
+      (error) => {
+        assert.ok(error instanceof GitHubApiError);
+        assert.equal(error.code, "command_failed");
+        assert.equal(error.cause.code, "ENOBUFS");
+        assert.match(error.message, /1024-byte collection limit/);
+        assert.doesNotMatch(error.message, /private|untrusted|data/);
+        assert.equal(error.status, null);
+        assert.equal(error.rateLimit, null);
+        return true;
+      },
+    );
+  }
+});
+
+test("overflow diagnostics discard the raw subprocess error as well as its output", () => {
+  const run = createGitHubRunner({
+    maxBuffer: 1024,
+    spawn: () => ({
+      status: 0,
+      error: Object.assign(new Error("authorization: github_pat_private"), { code: "ENOBUFS" }),
+      stdout: '{"data":{"accepted":true}}',
+      stderr: "token=ghp_private",
+    }),
+  });
+  assert.throws(
+    () => run(["api", "graphql", "--include"], "secret input"),
+    (error) => {
+      assert.equal(error.code, "command_failed");
+      assert.equal(error.cause.code, "ENOBUFS");
+      assert.doesNotMatch(
+        `${error.message} ${error.cause.message}`,
+        /private|secret|authorization|token/,
+      );
+      assert.match(error.message, /1024-byte collection limit/);
+      return true;
+    },
+  );
+});
+
+test("truncated JSON below the cap remains a response failure rather than an overflow", () => {
+  const client = new GitHubApiClient(outputFixture('{"data":', "", { maxBuffer: 1024 }));
+  assert.throws(
+    () => client.graphql("query { value }"),
+    (error) => {
+      assert.equal(error.code, "invalid_response");
+      assert.doesNotMatch(error.message, /collection limit/);
+      return true;
+    },
   );
 });
 

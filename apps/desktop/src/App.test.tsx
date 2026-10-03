@@ -59,6 +59,18 @@ describe("Portcove app shell", () => {
     expect(html).not.toContain("Check the configured library path");
   });
 
+  it("marks only startup selection controls pending while recovery is active", () => {
+    const html = renderToStaticMarkup(
+      <BootstrapRecovery error={missingBootstrapError} recoveryPending />,
+    );
+    expect(html).toContain('class="button-row" aria-busy="true"');
+    expect(html).toMatch(/disabled=""[^>]*>Choose library<\/button>/);
+    expect(html).toMatch(/disabled=""[^>]*>Use platform default<\/button>/);
+    const retry = html.match(/<button([^>]*)>Retry startup<\/button>/)?.[1];
+    expect(retry).toBeDefined();
+    expect(retry).not.toMatch(/\sdisabled(?:=|\s|$)/);
+  });
+
   it("uses import recovery for an interrupted import", () => {
     const html = renderToStaticMarkup(
       <BootstrapRecovery

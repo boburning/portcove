@@ -1261,7 +1261,7 @@ fn inspect_file_set_representation(
     {
         return Ok(None);
     }
-    let mut archive = if is_zip && directory_member.is_none() {
+    let archive = if is_zip && directory_member.is_none() {
         Some(
             zip::ZipArchive::new(File::open(path)?)
                 .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?,
@@ -1269,6 +1269,22 @@ fn inspect_file_set_representation(
     } else {
         None
     };
+    inspect_file_set_representation_from_archive(
+        profile_id,
+        path,
+        members,
+        directory_member,
+        archive,
+    )
+}
+
+fn inspect_file_set_representation_from_archive(
+    profile_id: &str,
+    path: &Path,
+    members: &[crate::SourceMemberIdentity],
+    directory_member: &mut Option<ObservedFileSetReader<'_>>,
+    mut archive: Option<zip::ZipArchive<File>>,
+) -> Result<Option<(Vec<ObservedSourceComponent>, SourceRecord, bool)>> {
     let mut components = Vec::with_capacity(members.len());
     let mut hashes = Vec::with_capacity(members.len());
     let mut total_size = 0_u64;
@@ -1341,8 +1357,10 @@ fn inspect_file_set_representation(
         .and_then(|reader| reader.storage.as_ref())
     {
         storage.clone()
-    } else if is_zip {
-        let (_, sha256, _, size) = hash_source(File::open(path)?)?;
+    } else if let Some(archive) = archive {
+        let mut file = archive.into_inner();
+        file.rewind()?;
+        let (_, sha256, _, size) = hash_source(file)?;
         (sha256, size)
     } else {
         (aggregate.clone(), total_size)
@@ -1944,6 +1962,8 @@ mod tests {
     fn compound_handle_guard_rejects_resize_replacement_and_symlinks() {
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("package");
+        fs::write(&path, b"LIVE").unwrap();
+        let path = fs::canonicalize(path).unwrap();
         for size in [2, 6] {
             fs::write(&path, b"LIVE").unwrap();
             let input = File::open(&path).unwrap();
@@ -2205,6 +2225,89 @@ mod tests {
             }
         ));
         assert!(result.record.is_none());
+    }
+
+    #[test]
+    fn manual_zip_identity_retains_the_opened_artifact_after_path_replacement() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("source-set.zip");
+        let displaced = temporary.path().join("original.zip");
+        let fixtures = [
+            ("baserom.us.rev0.z64", b"cartridge".as_slice()),
+            ("baserom.translated.ek.ndd", b"expansion".as_slice()),
+            ("N64DDIPLROM.n64", b"ipl".as_slice()),
+        ];
+        let catalog = catalog_with_identity("g-diffuser-source-set", |profile| {
+            let SourceRepresentationKind::FileSet { members } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                unreachable!()
+            };
+            for (member, (_, bytes)) in members.iter_mut().zip(fixtures) {
+                member.identities = vec![DigestIdentity {
+                    scope: DigestScope::FileSetMember,
+                    sha1: None,
+                    sha256: Some(hex::encode(Sha256::digest(bytes))),
+                    crc32: None,
+                }];
+            }
+        });
+        let mut writer = zip::ZipWriter::new(File::create(&path).unwrap());
+        for (name, bytes) in fixtures {
+            writer
+                .start_file(name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(bytes).unwrap();
+        }
+        writer.finish().unwrap();
+        let original = fs::read(&path).unwrap();
+        let archive = zip::ZipArchive::new(File::open(&path).unwrap()).unwrap();
+        fs::rename(&path, &displaced).unwrap();
+        let mut replacement = original.clone();
+        let name = fixtures[0].0.as_bytes();
+        let locations = replacement
+            .windows(name.len())
+            .enumerate()
+            .filter_map(|(index, bytes)| (bytes == name).then_some(index))
+            .collect::<Vec<_>>();
+        assert_eq!(locations.len(), 2);
+        for index in locations {
+            replacement[index] = replacement[index].to_ascii_uppercase();
+        }
+        fs::write(&path, &replacement).unwrap();
+        let identity = &catalog
+            .document()
+            .source_catalog
+            .as_ref()
+            .unwrap()
+            .identities
+            .iter()
+            .find(|identity| identity.id == "g-diffuser-source-set")
+            .unwrap();
+        let SourceRepresentationKind::FileSet { members } =
+            &identity.variants[0].representations[0].kind
+        else {
+            unreachable!()
+        };
+        let (components, record, matched) = inspect_file_set_representation_from_archive(
+            "g-diffuser-source-set",
+            &path,
+            members,
+            &mut None,
+            Some(archive),
+        )
+        .unwrap()
+        .unwrap();
+        assert!(matched);
+        assert_eq!(components.len(), fixtures.len());
+        assert_eq!(record.size, 21);
+        assert_eq!(
+            record.storage_sha256,
+            hex::encode(Sha256::digest(&original))
+        );
+        assert_eq!(record.storage_size, original.len() as u64);
+        assert_eq!(fs::read(&path).unwrap(), replacement);
+        assert_eq!(fs::read(&displaced).unwrap(), original);
     }
 
     #[test]

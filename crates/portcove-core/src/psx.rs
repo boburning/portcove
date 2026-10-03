@@ -191,7 +191,23 @@ where
     Ok(destination)
 }
 
-pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) -> Result<()> {
+pub(crate) fn prepare_install(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+) -> (Result<()>, bool) {
+    let mut quiesced = true;
+    let result = prepare_install_inner(root, preparation, operation, &mut quiesced);
+    (result, quiesced)
+}
+
+fn prepare_install_inner(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+) -> Result<()> {
+    operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     if let Some(bios) = &preparation.bios {
         crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
@@ -204,13 +220,16 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         ));
     }
     let python = toolchain_python(&preparation.toolchain_root)?;
-    let temporary = tempfile::Builder::new()
-        .prefix("psx-source-")
-        .tempdir_in(root.parent().unwrap_or(root))?;
     let primary_source = preparation.source_paths.first().ok_or_else(|| {
         PortcoveError::source("managed PS1 preparation has no verified disc source")
     })?;
-    let cue = materialize_psx_chd(primary_source, temporary.path())?;
+    operation.checkpoint()?;
+    let temporary = retained_source_workspace(root)?;
+    // This existing CHD helper exposes no quiescence observer. A later builder
+    // callback cannot erase its uncertainty, even on a contained platform.
+    *quiesced = false;
+    let cue = materialize_psx_chd(primary_source, &temporary)?;
+    operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     let config_path = crate::path::unicode(&config, "managed build config")?;
     let project_root = crate::path::unicode(root, "managed build root")?;
@@ -236,6 +255,8 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         root,
         &preparation.toolchain_root,
         generate_arguments,
+        operation,
+        quiesced,
     )?;
     if let Some(bios) = &preparation.bios {
         crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
@@ -265,6 +286,8 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
             "build-intermediates".into(),
             "--json-progress".into(),
         ],
+        operation,
+        quiesced,
     )?;
     let executable = platform_executable(&build_dir, &preparation.executable_basename);
     if !executable.is_file() {
@@ -274,6 +297,8 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
         )));
     }
     let runtime_sources = if let Some(relative) = &preparation.runtime_source_directory {
+        operation.checkpoint()?;
+        *quiesced = false;
         materialize_runtime_raw_set(&build_dir, relative, preparation)?
     } else {
         preparation.source_paths.clone()
@@ -304,46 +329,471 @@ pub(crate) fn prepare_install(root: &Path, preparation: &PsxManagedPreparation) 
 }
 
 pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<()> {
+    if sources.is_empty() {
+        return Err(config_error("no verified disc sources"));
+    }
     let body = fs::read_to_string(config)?;
-    let mut output = Vec::new();
-    let mut in_game = false;
-    let mut skipping_discs = false;
-    for line in body.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with('[') {
-            in_game = trimmed == "[game]";
-            skipping_discs = false;
+    let (tokens, comments) = config_tokens(&body)?;
+    let (header_end, field) = config_disc_field(&body, &tokens)?;
+    let newline = if body.contains("\r\n") { "\r\n" } else { "\n" };
+    let sources = sources
+        .iter()
+        .map(|source| {
+            // JSON and TOML 1.0 basic strings share these escapes, except that
+            // TOML also requires DEL to be escaped.
+            Ok(
+                serde_json::to_string(&crate::path::unicode(source, "PS1 source")?)?
+                    .replace('\u{7f}', "\\u007F"),
+            )
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let key = if sources.len() == 1 { "disc" } else { "discs" };
+    let retained_comments = field
+        .as_ref()
+        .map(|(_, value)| {
+            comments
+                .iter()
+                .filter(|comment| value.start <= comment.start && comment.end <= value.end)
+                .map(|comment| &body[comment.clone()])
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let mut value = if sources.len() == 1 {
+        sources[0].clone()
+    } else {
+        format!("[{newline}")
+    };
+    if sources.len() > 1 {
+        for source in &sources {
+            value.push_str(&format!("    {source},{newline}"));
         }
-        if in_game && (trimmed.starts_with("disc =") || trimmed.starts_with("discs =")) {
-            skipping_discs = trimmed.starts_with("discs =") && !trimmed.contains(']');
-            continue;
+        for comment in &retained_comments {
+            value.push_str(&format!("    {comment}{newline}"));
         }
-        if skipping_discs {
-            if trimmed.contains(']') {
-                skipping_discs = false;
-            }
-            continue;
-        }
-        output.push(line.to_string());
-        if trimmed == "[game]" {
-            if sources.len() == 1 {
-                output.push(format!(
-                    "disc = {}",
-                    serde_json::to_string(&crate::path::unicode(&sources[0], "PS1 source")?)?
-                ));
-            } else {
-                output.push("discs = [".into());
-                for source in sources {
-                    output.push(format!(
-                        "    {},",
-                        serde_json::to_string(&crate::path::unicode(source, "PS1 source")?)?
-                    ));
-                }
-                output.push("]".into());
-            }
+        value.push(']');
+    } else if !retained_comments.is_empty() {
+        value.push_str(newline);
+        value.push_str(&retained_comments.join(newline));
+        // Keep the original trailing comment separate from comments that were
+        // inside the replaced array; leave the original EOF/newline untouched.
+        let suffix = &body[field.as_ref().expect("comments have a field").1.end..];
+        if suffix.trim_start_matches([' ', '\t']).starts_with('#') {
+            value.push_str(newline);
         }
     }
-    fs::write(config, format!("{}\n", output.join("\n")))?;
+
+    // Only the key/value spans change. UTF-8, unrelated text, line endings and
+    // the final newline are retained; comments within old values remain in order.
+    // This is an editor for the fixed game/disc contract, not a TOML validator.
+    let mut output = body.clone();
+    if let Some((old_key, old_value)) = field {
+        output.replace_range(old_value, &value);
+        if config_key(&body, tokens_for_range(&tokens, &old_key))? != [key] {
+            let replacement = match body.as_bytes()[old_key.start] {
+                b'\'' => format!("'{key}'"),
+                b'"' => format!("\"{key}\""),
+                _ => key.to_string(),
+            };
+            output.replace_range(old_key, &replacement);
+        }
+    } else {
+        let separator = if body[..header_end].ends_with('\n') {
+            ""
+        } else {
+            newline
+        };
+        let ending = if header_end < body.len() || body.ends_with('\n') {
+            newline
+        } else {
+            ""
+        };
+        output.insert_str(header_end, &format!("{separator}{key} = {value}{ending}"));
+    }
+    fs::write(config, output)?;
+    Ok(())
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum ConfigTokenKind {
+    Text,
+    String,
+    Symbol(u8),
+    Newline,
+}
+
+struct ConfigToken {
+    kind: ConfigTokenKind,
+    span: std::ops::Range<usize>,
+}
+
+fn config_error(reason: &str) -> PortcoveError {
+    PortcoveError::install(format!("cannot rewrite PS1 disc configuration: {reason}"))
+}
+
+fn config_escape(body: &str, start: usize) -> Result<(usize, char)> {
+    let bytes = body.as_bytes();
+    let escaped = *bytes
+        .get(start + 1)
+        .ok_or_else(|| config_error("unfinished escape"))?;
+    let simple = match escaped {
+        b'b' => Some('\u{8}'),
+        b't' => Some('\t'),
+        b'n' => Some('\n'),
+        b'f' => Some('\u{c}'),
+        b'r' => Some('\r'),
+        b'"' => Some('"'),
+        b'\\' => Some('\\'),
+        _ => None,
+    };
+    if let Some(character) = simple {
+        return Ok((start + 2, character));
+    }
+    let digits = match escaped {
+        b'u' => 4,
+        b'U' => 8,
+        _ => return Err(config_error("invalid TOML 1.0 escape")),
+    };
+    let end = start + 2 + digits;
+    let hexadecimal = body
+        .get(start + 2..end)
+        .ok_or_else(|| config_error("unfinished Unicode escape"))?;
+    if !hexadecimal.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(config_error("invalid Unicode escape"));
+    }
+    let character = u32::from_str_radix(hexadecimal, 16)
+        .ok()
+        .and_then(char::from_u32)
+        .ok_or_else(|| config_error("invalid Unicode scalar"))?;
+    Ok((end, character))
+}
+
+fn config_string_end(body: &str, start: usize) -> Result<usize> {
+    let bytes = body.as_bytes();
+    let quote = bytes[start];
+    let multiline = bytes
+        .get(start..start + 3)
+        .is_some_and(|run| run == [quote; 3]);
+    let mut cursor = start + if multiline { 3 } else { 1 };
+    while cursor < bytes.len() {
+        let byte = bytes[cursor];
+        if byte == quote {
+            let count = bytes[cursor..]
+                .iter()
+                .take_while(|byte| **byte == quote)
+                .count();
+            if !multiline {
+                return Ok(cursor + 1);
+            }
+            if count >= 3 {
+                if count > 5 {
+                    return Err(config_error("invalid multiline string delimiter"));
+                }
+                return Ok(cursor + count);
+            }
+            cursor += count;
+        } else if byte == b'\\' && quote == b'"' {
+            let mut next = cursor + 1;
+            while multiline
+                && bytes
+                    .get(next)
+                    .is_some_and(|byte| matches!(byte, b' ' | b'\t'))
+            {
+                next += 1;
+            }
+            if multiline
+                && bytes
+                    .get(next)
+                    .is_some_and(|byte| matches!(byte, b'\r' | b'\n'))
+            {
+                while bytes
+                    .get(next)
+                    .is_some_and(|byte| matches!(byte, b' ' | b'\t' | b'\r' | b'\n'))
+                {
+                    if bytes[next] == b'\r' && bytes.get(next + 1) != Some(&b'\n') {
+                        return Err(config_error("invalid newline"));
+                    }
+                    next += 1;
+                }
+                cursor = next;
+            } else {
+                cursor = config_escape(body, cursor)?.0;
+            }
+        } else if byte == b'\n' || byte == b'\r' {
+            if !multiline || (byte == b'\r' && bytes.get(cursor + 1) != Some(&b'\n')) {
+                return Err(config_error("invalid string newline"));
+            }
+            cursor += if byte == b'\r' { 2 } else { 1 };
+        } else {
+            if matches!(byte, 0..=8 | 11..=31 | 127) {
+                return Err(config_error("invalid string control character"));
+            }
+            cursor += 1;
+        }
+    }
+    Err(config_error("unterminated string"))
+}
+
+type ConfigSpans = (Vec<ConfigToken>, Vec<std::ops::Range<usize>>);
+
+fn config_tokens(body: &str) -> Result<ConfigSpans> {
+    let bytes = body.as_bytes();
+    let mut tokens = Vec::new();
+    let mut comments = Vec::new();
+    let mut cursor = 0;
+    while cursor < bytes.len() {
+        let start = cursor;
+        let kind = match bytes[cursor] {
+            b' ' | b'\t' => {
+                cursor += 1;
+                continue;
+            }
+            b'\r' | b'\n' => {
+                if bytes[cursor] == b'\r' {
+                    if bytes.get(cursor + 1) != Some(&b'\n') {
+                        return Err(config_error("invalid newline"));
+                    }
+                    cursor += 1;
+                }
+                cursor += 1;
+                ConfigTokenKind::Newline
+            }
+            b'#' => {
+                while cursor < bytes.len() && !matches!(bytes[cursor], b'\r' | b'\n') {
+                    if matches!(bytes[cursor], 0..=8 | 11..=31 | 127) {
+                        return Err(config_error("invalid comment control character"));
+                    }
+                    cursor += 1;
+                }
+                comments.push(start..cursor);
+                continue;
+            }
+            b'\'' | b'"' => {
+                cursor = config_string_end(body, cursor)?;
+                ConfigTokenKind::String
+            }
+            symbol @ (b'[' | b']' | b'{' | b'}' | b'=' | b'.' | b',') => {
+                cursor += 1;
+                ConfigTokenKind::Symbol(symbol)
+            }
+            _ => {
+                while cursor < bytes.len()
+                    && !matches!(
+                        bytes[cursor],
+                        b' ' | b'\t'
+                            | b'\r'
+                            | b'\n'
+                            | b'#'
+                            | b'\''
+                            | b'"'
+                            | b'['
+                            | b']'
+                            | b'{'
+                            | b'}'
+                            | b'='
+                            | b'.'
+                            | b','
+                    )
+                {
+                    if bytes[cursor].is_ascii_control() {
+                        return Err(config_error("invalid control character"));
+                    }
+                    cursor += 1;
+                }
+                ConfigTokenKind::Text
+            }
+        };
+        tokens.push(ConfigToken {
+            kind,
+            span: start..cursor,
+        });
+    }
+    Ok((tokens, comments))
+}
+
+fn tokens_for_range<'a>(
+    tokens: &'a [ConfigToken],
+    span: &std::ops::Range<usize>,
+) -> &'a [ConfigToken] {
+    let start = tokens.partition_point(|token| token.span.start < span.start);
+    let end = tokens.partition_point(|token| token.span.end <= span.end);
+    &tokens[start..end]
+}
+
+fn config_key(body: &str, tokens: &[ConfigToken]) -> Result<Vec<String>> {
+    let mut parts = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        if index % 2 == 1 {
+            if token.kind != ConfigTokenKind::Symbol(b'.') {
+                return Err(config_error("invalid dotted key"));
+            }
+            continue;
+        }
+        let text = &body[token.span.clone()];
+        let part = match token.kind {
+            ConfigTokenKind::Text
+                if text
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-')) =>
+            {
+                text.to_string()
+            }
+            ConfigTokenKind::String if !text.starts_with("\"\"\"") && !text.starts_with("'''") => {
+                let mut part = String::new();
+                let mut cursor = token.span.start + 1;
+                while cursor < token.span.end - 1 {
+                    if body.as_bytes()[cursor] == b'\\' && text.starts_with('"') {
+                        let (next, character) = config_escape(body, cursor)?;
+                        part.push(character);
+                        cursor = next;
+                    } else {
+                        let character = body[cursor..].chars().next().expect("character in string");
+                        part.push(character);
+                        cursor += character.len_utf8();
+                    }
+                }
+                part
+            }
+            _ => return Err(config_error("invalid key")),
+        };
+        parts.push(part);
+    }
+    if tokens.is_empty() || tokens.len().is_multiple_of(2) {
+        return Err(config_error("unfinished key"));
+    }
+    Ok(parts)
+}
+
+type ConfigDiscField = (
+    usize,
+    Option<(std::ops::Range<usize>, std::ops::Range<usize>)>,
+);
+
+fn config_disc_field(body: &str, tokens: &[ConfigToken]) -> Result<ConfigDiscField> {
+    let mut cursor = 0;
+    let mut in_game = false;
+    let mut header_end = None;
+    let mut field = None;
+    while cursor < tokens.len() {
+        if tokens[cursor].kind == ConfigTokenKind::Newline {
+            cursor += 1;
+            continue;
+        }
+        let start = cursor;
+        if tokens[cursor].kind == ConfigTokenKind::Symbol(b'[') {
+            let end = tokens[cursor..]
+                .iter()
+                .position(|token| token.kind == ConfigTokenKind::Newline)
+                .map_or(tokens.len(), |offset| cursor + offset);
+            let array = tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == ConfigTokenKind::Symbol(b'['));
+            let delimiters = if array { 2 } else { 1 };
+            if end <= cursor + delimiters * 2
+                || !tokens[end - delimiters..end]
+                    .iter()
+                    .all(|token| token.kind == ConfigTokenKind::Symbol(b']'))
+            {
+                return Err(config_error("invalid table header"));
+            }
+            let key = config_key(body, &tokens[cursor + delimiters..end - delimiters])?;
+            in_game = key == ["game"];
+            if key.first().is_some_and(|key| key == "game")
+                && key
+                    .get(1)
+                    .is_some_and(|key| matches!(key.as_str(), "disc" | "discs"))
+            {
+                return Err(config_error("disc field is a table"));
+            }
+            if in_game {
+                if array || header_end.is_some() {
+                    return Err(config_error("ambiguous game table"));
+                }
+                header_end = Some(tokens.get(end).map_or(body.len(), |token| token.span.end));
+            }
+            cursor = end;
+            continue;
+        }
+        while cursor < tokens.len()
+            && !matches!(
+                tokens[cursor].kind,
+                ConfigTokenKind::Symbol(b'=') | ConfigTokenKind::Newline
+            )
+        {
+            cursor += 1;
+        }
+        if tokens
+            .get(cursor)
+            .is_none_or(|token| token.kind != ConfigTokenKind::Symbol(b'='))
+        {
+            return Err(config_error("missing assignment"));
+        }
+        let equals = cursor;
+        let key = config_key(body, &tokens[start..equals])?;
+        cursor += 1;
+        let value_start = cursor;
+        let mut nesting = Vec::new();
+        while cursor < tokens.len() {
+            match tokens[cursor].kind {
+                ConfigTokenKind::Newline if nesting.is_empty() => break,
+                ConfigTokenKind::Symbol(b'[') => nesting.push(b']'),
+                ConfigTokenKind::Symbol(b'{') => nesting.push(b'}'),
+                ConfigTokenKind::Symbol(close @ (b']' | b'}')) if nesting.pop() != Some(close) => {
+                    return Err(config_error("mismatched value delimiter"));
+                }
+                _ => {}
+            }
+            cursor += 1;
+        }
+        if !nesting.is_empty() || cursor == value_start {
+            return Err(config_error("unfinished value"));
+        }
+        if in_game
+            && key
+                .first()
+                .is_some_and(|key| matches!(key.as_str(), "disc" | "discs"))
+        {
+            if key.len() != 1 || field.is_some() {
+                return Err(config_error("ambiguous disc field"));
+            }
+            validate_disc_tokens(&tokens[value_start..cursor], key[0] == "discs")?;
+            field = Some((
+                tokens[start].span.start..tokens[equals - 1].span.end,
+                tokens[value_start].span.start..tokens[cursor - 1].span.end,
+            ));
+        }
+    }
+    Ok((
+        header_end.ok_or_else(|| config_error("missing game table"))?,
+        field,
+    ))
+}
+
+fn validate_disc_tokens(tokens: &[ConfigToken], plural: bool) -> Result<()> {
+    if !plural {
+        return if tokens.len() == 1 && tokens[0].kind == ConfigTokenKind::String {
+            Ok(())
+        } else {
+            Err(config_error("disc must be a string"))
+        };
+    }
+    if tokens
+        .first()
+        .is_none_or(|token| token.kind != ConfigTokenKind::Symbol(b'['))
+        || tokens
+            .last()
+            .is_none_or(|token| token.kind != ConfigTokenKind::Symbol(b']'))
+    {
+        return Err(config_error("discs must be a string array"));
+    }
+    let mut expect_string = true;
+    for token in &tokens[1..tokens.len() - 1] {
+        match token.kind {
+            ConfigTokenKind::Newline => {}
+            ConfigTokenKind::String if expect_string => expect_string = false,
+            ConfigTokenKind::Symbol(b',') if !expect_string => expect_string = true,
+            _ => return Err(config_error("invalid disc array member")),
+        }
+    }
     Ok(())
 }
 
@@ -402,29 +852,73 @@ fn materialize_runtime_raw_set(
     Ok(runtime_sources)
 }
 
+fn retained_source_workspace(root: &Path) -> Result<PathBuf> {
+    // Disarm automatic removal before any possible native owner, including
+    // unwind. The Install journal owns this directory beneath staging.
+    Ok(tempfile::Builder::new()
+        .prefix("psx-source-")
+        .tempdir_in(root.parent().unwrap_or(root))?
+        .keep())
+}
+
 fn run_cli(
     python: &Path,
     cli: &Path,
     project_root: &Path,
     toolchain_root: &Path,
     arguments: impl IntoIterator<Item = String>,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
 ) -> Result<()> {
-    let output = ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?
+    let mut command =
+        ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?;
+    command
         .arg(cli)
         .args(arguments)
         .current_dir(project_root)
         .env("RETCOMM_TOOLCHAIN_DIR", toolchain_root)
-        .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root)
-        .output()
-        .map_err(|error| PortcoveError::install(format!("could not start PS1 builder: {error}")))?;
+        .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root);
+    let previous_quiescence = *quiesced;
+    *quiesced = false;
+    let mut command_quiesced = false;
+    let mut captured = None;
+    let output = crate::tool_process::run_tool(
+        &mut command,
+        &|| operation.checkpoint(),
+        crate::tool_process::ToolProcessObserver {
+            diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
+                activity_id: operation.operation_id(),
+                phase: "install.ps1.builder",
+                record: &mut |snapshot| {
+                    captured = Some(snapshot.clone());
+                    Ok(())
+                },
+            }),
+            quiesced: Some(&mut || {
+                command_quiesced = true;
+                Ok(())
+            }),
+        },
+    );
+    *quiesced = previous_quiescence && command_quiesced;
+    let output = output.map_err(|error| {
+        if error.code == crate::ErrorCode::Launch {
+            PortcoveError::install(format!("could not run PS1 builder: {error}"))
+        } else {
+            error
+        }
+    })?;
     if output.status.success() {
         return Ok(());
     }
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let detail = stderr
+    // Preserve the builder's stderr/stdout failure ordering while using the
+    // existing bounded, redacted per-stream capture, not unbounded output().
+    let captured = captured.expect("supervisor provides final builder capture");
+    let mut detail = captured
+        .stderr
+        .text
         .lines()
-        .chain(stdout.lines())
+        .chain(captured.stdout.text.lines())
         .rev()
         .take(20)
         .collect::<Vec<_>>()
@@ -432,9 +926,16 @@ fn run_cli(
         .rev()
         .collect::<Vec<_>>()
         .join("\n");
+    let mut end = detail.len().min(64 * 1024);
+    while !detail.is_char_boundary(end) {
+        end -= 1;
+    }
+    let truncated = captured.stdout.truncated || captured.stderr.truncated || end < detail.len();
+    detail.truncate(end);
     Err(
         PortcoveError::install(format!("PS1 builder exited with {}", output.status))
-            .detail("output_tail", detail),
+            .detail("output_tail", detail)
+            .detail("output_truncated", truncated.to_string()),
     )
 }
 
@@ -576,6 +1077,285 @@ fn locate_pack_root(unpacked: &Path) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        thread,
+        time::{Duration, Instant},
+    };
+
+    const BUILDER_FIXTURE: &str = "psx::tests::managed_builder_fixture_child";
+
+    // Execute this repository's native test binary through the production
+    // builder boundary. No upstream Python, compiler, game or source is run.
+    fn run_builder_fixture(root: &Path, operation: &OperationCoordinator) -> Result<()> {
+        run_cli(
+            &std::env::current_exe().unwrap(),
+            Path::new("--exact"),
+            root,
+            &root.join("owned-toolchain"),
+            [BUILDER_FIXTURE.into(), "--nocapture".into()],
+            operation,
+            &mut true,
+        )
+    }
+
+    #[test]
+    fn managed_builder_fixture_child() {
+        let Ok(mode) = fs::read_to_string("owned-builder-mode") else {
+            return;
+        };
+        fs::write("owned-builder-ready", std::process::id().to_string()).unwrap();
+        match mode.as_str() {
+            "generation" | "rebuild" => {
+                // This finite fallback bounds a failing-before run and ensures
+                // an assertion cannot leave a permanent owned fixture process.
+                thread::sleep(Duration::from_secs(3));
+                fs::write("owned-builder-completed", b"unexpected completion").unwrap();
+            }
+            "success" => println!("owned builder success"),
+            "failure" => {
+                eprintln!("owned builder failure detail");
+                std::process::exit(23);
+            }
+            "flood-failure" | "same-stream-flood" | "clip-failure" => {
+                use std::io::Write;
+                let block = [b'x'; 8192];
+                let blocks = if mode == "clip-failure" { 10 } else { 320 };
+                for _ in 0..blocks {
+                    std::io::stdout().write_all(&block).unwrap();
+                }
+                if mode == "same-stream-flood" {
+                    println!("owned late stdout failure omitted by bounded capture");
+                } else {
+                    eprintln!("owned stderr after verbose stdout");
+                }
+                std::process::exit(23);
+            }
+            _ => panic!("unknown owned builder mode"),
+        }
+    }
+
+    fn assert_builder_cancellation(phase: &str) {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("owned-build");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("owned-builder-mode"), phase).unwrap();
+        let player_source = temporary.path().join("player-source");
+        fs::write(&player_source, b"unchanged external source").unwrap();
+        let service =
+            crate::PortcoveService::new(Library::open(temporary.path().join("library")).unwrap())
+                .unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Library,
+                None,
+            )
+            .unwrap();
+        let observer = crate::PortcoveService::new(service.library().clone()).unwrap();
+        let id = activity.id.clone();
+        let ready = root.join("owned-builder-ready");
+        let request = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(6);
+            while !ready.is_file() {
+                assert!(Instant::now() < deadline, "owned builder did not start");
+                thread::sleep(Duration::from_millis(5));
+            }
+            observer.request_cancellation(&id).unwrap();
+        });
+        let started = Instant::now();
+        let result = run_builder_fixture(&root, &operation);
+        let elapsed = started.elapsed();
+        request.join().unwrap();
+        assert_eq!(
+            fs::read(&player_source).unwrap(),
+            b"unchanged external source"
+        );
+        assert!(
+            operation.checkpoint().is_err(),
+            "real cancellation was accepted"
+        );
+        println!("phase={phase} elapsed={elapsed:?} result={result:?}");
+        let result = service.finish_activity(activity, result);
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
+        assert!(
+            elapsed < Duration::from_secs(2),
+            "builder ignored cancellation"
+        );
+        assert!(!root.join("owned-builder-completed").exists());
+    }
+
+    #[test]
+    fn managed_builder_generation_observes_active_cancellation() {
+        assert_builder_cancellation("generation");
+    }
+
+    #[test]
+    fn managed_builder_rebuild_observes_active_cancellation() {
+        assert_builder_cancellation("rebuild");
+    }
+
+    #[test]
+    fn managed_builder_preserves_success_and_nonzero_failure() {
+        let temporary = tempfile::tempdir().unwrap();
+        let operation = OperationCoordinator::new("owned-builder", None);
+        fs::write(temporary.path().join("owned-builder-mode"), "success").unwrap();
+        run_builder_fixture(temporary.path(), &operation).unwrap();
+        fs::write(temporary.path().join("owned-builder-mode"), "failure").unwrap();
+        let error = run_builder_fixture(temporary.path(), &operation).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert!(error.message.contains("23"));
+        assert!(error.details["output_tail"].contains("owned builder failure detail"));
+        assert_eq!(error.details["output_truncated"], "false");
+    }
+
+    #[test]
+    fn managed_builder_pre_spawn_cancellation_preserves_prior_uncertainty() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            crate::PortcoveService::new(Library::open(temporary.path().join("library")).unwrap())
+                .unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("sample"),
+            )
+            .unwrap();
+        service.request_cancellation(&activity.id).unwrap();
+        for previous in [true, false] {
+            let mut quiesced = previous;
+            let result = run_cli(
+                &std::env::current_exe().unwrap(),
+                Path::new("--exact"),
+                temporary.path(),
+                temporary.path(),
+                [BUILDER_FIXTURE.into(), "--nocapture".into()],
+                &operation,
+                &mut quiesced,
+            );
+            assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
+            assert_eq!(quiesced, previous);
+            assert!(!temporary.path().join("owned-builder-ready").exists());
+        }
+    }
+
+    #[test]
+    fn managed_builder_bounded_output_keeps_both_streams_and_status() {
+        let temporary = tempfile::tempdir().unwrap();
+        fs::write(temporary.path().join("owned-builder-mode"), "flood-failure").unwrap();
+        let error = run_builder_fixture(
+            temporary.path(),
+            &OperationCoordinator::new("owned-builder", None),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert!(error.message.contains("23"));
+        assert!(error.details["output_tail"].contains("owned stderr after verbose stdout"));
+        assert!(error.details["output_tail"].len() <= 64 * 1024);
+    }
+
+    #[test]
+    fn managed_builder_reports_capture_and_error_detail_truncation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let operation = OperationCoordinator::new("owned-builder", None);
+        for mode in ["same-stream-flood", "clip-failure"] {
+            fs::write(temporary.path().join("owned-builder-mode"), mode).unwrap();
+            let error = run_builder_fixture(temporary.path(), &operation).unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Install);
+            assert!(error.message.contains("23"));
+            assert!(error.details["output_tail"].len() <= 64 * 1024);
+            if mode == "same-stream-flood" {
+                assert!(!error.details["output_tail"].contains("owned late stdout failure"));
+            }
+            assert_eq!(
+                error.details.get("output_truncated").map(String::as_str),
+                Some("true"),
+                "{mode}"
+            );
+        }
+    }
+
+    #[test]
+    fn managed_builder_workspace_survives_worker_error_and_unwind() {
+        let staging = tempfile::tempdir().unwrap();
+        let root = staging.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        let workspace = retained_source_workspace(&root).unwrap();
+        fs::write(workspace.join("owned-input"), b"retain across error").unwrap();
+        let result = run_cli(
+            Path::new("missing-owned-builder"),
+            Path::new("fixed-cli"),
+            &root,
+            &root,
+            [],
+            &OperationCoordinator::new("owned-builder", None),
+            &mut true,
+        );
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Install);
+        assert_eq!(
+            fs::read(workspace.join("owned-input")).unwrap(),
+            b"retain across error"
+        );
+        let panic = std::panic::catch_unwind(|| {
+            let owned = retained_source_workspace(&root).unwrap();
+            fs::write(owned.join("owned-panic-input"), b"retain on unwind").unwrap();
+            panic!("owned worker unwind");
+        });
+        assert!(panic.is_err());
+        let retained = fs::read_dir(staging.path())
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .any(|entry| entry.path().join("owned-panic-input").is_file());
+        assert!(retained);
+    }
+
+    #[test]
+    fn managed_builder_stops_ordinary_native_descendants() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let root = tempfile::tempdir().unwrap();
+        let marker = root.path().join("owned-descendant-output");
+        let mut quiesced = true;
+        run_cli(
+            &program,
+            Path::new("--setup-tree"),
+            root.path(),
+            root.path(),
+            [marker.display().to_string(), "exit".into()],
+            &OperationCoordinator::new("owned-builder", None),
+            &mut quiesced,
+        )
+        .unwrap();
+        assert_eq!(quiesced, cfg!(windows));
+        thread::sleep(Duration::from_millis(1200));
+        assert!(!marker.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_builder_escaped_descendant_retains_workspace_without_proof() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let staging = tempfile::tempdir().unwrap();
+        let workspace = retained_source_workspace(&staging.path().join("payload")).unwrap();
+        let marker = workspace.join("owned-escaped-output");
+        let ready = workspace.join("owned-escaped-ready");
+        let mut quiesced = true;
+        run_cli(
+            &program,
+            Path::new("--setup-tree-escape"),
+            &workspace,
+            &workspace,
+            [marker.display().to_string(), ready.display().to_string()],
+            &OperationCoordinator::new("owned-builder", None),
+            &mut quiesced,
+        )
+        .unwrap();
+        assert!(!quiesced);
+        assert!(workspace.is_dir());
+        thread::sleep(Duration::from_millis(1200));
+        assert!(marker.is_file());
+    }
 
     #[test]
     fn toolchain_marker_is_bound_to_current_critical_file_bytes() {
@@ -693,5 +1473,174 @@ mod tests {
         assert!(body.contains(r#"    "runtime-discs/disc-01.cue","#));
         assert!(body.contains(r#"    "runtime-discs/disc-02.cue","#));
         assert!(!body.contains("maintainer"));
+    }
+
+    fn rewrite_config_fixture(body: &str, sources: &[&str]) -> String {
+        let temporary = tempfile::tempdir().unwrap();
+        let config = temporary.path().join("game.toml");
+        fs::write(&config, body).unwrap();
+        let sources = sources.iter().map(PathBuf::from).collect::<Vec<_>>();
+        rewrite_game_discs(&config, &sources).unwrap();
+        fs::read_to_string(config).unwrap()
+    }
+
+    #[test]
+    fn runtime_config_rewrite_handles_brackets_inside_disc_strings() {
+        let body = "[game]\ndiscs = [\n  'maintainer[Disc 1].cue',\n  \"maintainer[Disc 2].cue\",\n]\ndisc_serials = ['ONE', 'TWO']\n";
+        let rewritten = rewrite_config_fixture(body, &["verified/one.cue", "verified/two.cue"]);
+        assert_eq!(
+            rewritten,
+            "[game]\ndiscs = [\n    \"verified/one.cue\",\n    \"verified/two.cue\",\n]\ndisc_serials = ['ONE', 'TWO']\n"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_preserves_array_comments_with_brackets() {
+        let body = "[game]\ndiscs = [ # ordered discs ]\n  # first ]\n  'old-one.cue', # first disc\n  \"old#two].cue\", # second disc\n] # accepted list\nname = 'Example'\n";
+        let rewritten = rewrite_config_fixture(body, &["verified/one.cue", "verified/two.cue"]);
+        assert_eq!(
+            rewritten,
+            "[game]\ndiscs = [\n    \"verified/one.cue\",\n    \"verified/two.cue\",\n    # ordered discs ]\n    # first ]\n    # first disc\n    # second disc\n] # accepted list\nname = 'Example'\n"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_accepts_compact_and_quoted_keys() {
+        for assignment in [
+            "discs=['old.cue']",
+            "'discs' = ['old.cue']",
+            "\"di\\u0073cs\"\t=\t['old.cue']",
+        ] {
+            let body = format!("[game]\n{assignment} # preserved\n[runtime]\ndisc='unrelated.cue'");
+            let rewritten = rewrite_config_fixture(&body, &["verified/one.cue"]);
+            assert!(!rewritten.contains("old.cue"));
+            assert!(rewritten.contains("\"verified/one.cue\" # preserved\n"));
+            assert!(rewritten.ends_with("[runtime]\ndisc='unrelated.cue'"));
+            assert!(!rewritten.contains("discs"));
+        }
+    }
+
+    #[test]
+    fn runtime_config_rewrite_accepts_commented_game_header() {
+        let body = "[game] # selected project\nname = 'Example'\ndisc='old.cue'\n";
+        assert_eq!(
+            rewrite_config_fixture(body, &["verified/one.cue"]),
+            "[game] # selected project\nname = 'Example'\ndisc=\"verified/one.cue\"\n"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_accepts_spaced_and_quoted_game_headers() {
+        for header in [
+            " [ game ]\t",
+            "['game']",
+            r#"["g\u0061me"]"#,
+            r#"["g\U00000061me"]"#,
+        ] {
+            let body = format!("{header}\ndisc = 'old.cue'\n");
+            assert_eq!(
+                rewrite_config_fixture(&body, &["verified/one.cue"]),
+                format!("{header}\ndisc = \"verified/one.cue\"\n")
+            );
+        }
+    }
+
+    #[test]
+    fn runtime_config_rewrite_preserves_utf8_crlf_and_unrelated_multiline_values() {
+        let prefix = "# 日本語\r\n[metadata]\r\nnotes = '''\r\n[game]\r\ndisc='text, not a field'\r\n'''\r\nquoted = \"\"\"escaped \\\" ] # text\r\n[game]\r\n\"\"\"\r\n[game.extra]\r\ndisc = 'unrelated.cue'\r\n[ game ] # retained header\r\n";
+        let suffix =
+            " # retained field comment\r\nname = '例'\r\n[runtime]\r\nwindow_title = '原文'";
+        let body = format!("{prefix}disc='old.cue'{suffix}");
+        assert_eq!(
+            rewrite_config_fixture(&body, &["verified/日本語.cue"]),
+            format!("{prefix}disc=\"verified/日本語.cue\"{suffix}")
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_preserves_comments_when_changing_disc_count() {
+        let body =
+            "[game]\ndiscs = [ # list comment\n 'old.cue', # member comment\n] # closing comment\n";
+        assert_eq!(
+            rewrite_config_fixture(body, &["verified/one.cue"]),
+            "[game]\ndisc = \"verified/one.cue\"\n# list comment\n# member comment\n # closing comment\n"
+        );
+        assert_eq!(
+            rewrite_config_fixture(
+                "[game]\ndisc = 'old.cue' # single comment",
+                &["one.cue", "two.cue"]
+            ),
+            "[game]\ndiscs = [\n    \"one.cue\",\n    \"two.cue\",\n] # single comment"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_rejects_ambiguous_or_unbounded_fields_without_writing() {
+        let temporary = tempfile::tempdir().unwrap();
+        let config = temporary.path().join("game.toml");
+        for body in [
+            "[runtime]\ndisc='old.cue'\n",
+            "[game]\ndisc='one.cue'\ndiscs=['two.cue']\n",
+            "[game]\ndisc='one.cue'\n[ 'game' ]\ndisc='two.cue'\n",
+            "[game]\ndisc = 42\n",
+            "[game]\ndiscs = ['one.cue' 'two.cue']\n",
+            "[game]\ndiscs = [\n 'unterminated.cue\n]\n",
+            "[game]\ndiscs = [\n 'one.cue'\n",
+            "[game]\ndisc.extra = 'not a disc field'\n",
+        ] {
+            fs::write(&config, body).unwrap();
+            assert!(
+                rewrite_game_discs(&config, &[PathBuf::from("verified.cue")]).is_err(),
+                "{body}"
+            );
+            assert_eq!(fs::read_to_string(&config).unwrap(), body);
+        }
+        let body = "[game]\ndisc='old.cue'\n";
+        fs::write(&config, body).unwrap();
+        assert!(rewrite_game_discs(&config, &[]).is_err());
+        assert_eq!(fs::read_to_string(config).unwrap(), body);
+    }
+
+    #[test]
+    fn runtime_config_rewrite_seeds_missing_fields_and_is_idempotent() {
+        for body in [
+            "[game]",
+            "[game] # EOF",
+            "[game]\r\nname='例'\r\n",
+            "[game]\nname='Example'\n[runtime]\ndisc='unrelated'",
+        ] {
+            let temporary = tempfile::tempdir().unwrap();
+            let config = temporary.path().join("game.toml");
+            fs::write(&config, body).unwrap();
+            let sources = [PathBuf::from("verified.cue")];
+            rewrite_game_discs(&config, &sources).unwrap();
+            let once = fs::read_to_string(&config).unwrap();
+            assert!(once.contains("disc = \"verified.cue\""));
+            assert_eq!(once.ends_with('\n'), body.ends_with('\n'));
+            rewrite_game_discs(&config, &sources).unwrap();
+            assert_eq!(fs::read_to_string(config).unwrap(), once);
+        }
+    }
+
+    #[test]
+    fn runtime_config_rewrite_handles_multiline_string_delimiters_and_line_folding() {
+        let body = "[metadata]\nnotes = ''''quoted' [game] disc='not a field' ''''\nfolded = \"\"\"one\\\n  two \"\"\"\n[game]\ndiscs = [\n '''old[one].cue''',\n \"\"\"old\\\n two].cue\"\"\",\n]\n";
+        let rewritten = rewrite_config_fixture(body, &["verified/one.cue", "verified/two.cue"]);
+        assert_eq!(
+            rewritten,
+            "[metadata]\nnotes = ''''quoted' [game] disc='not a field' ''''\nfolded = \"\"\"one\\\n  two \"\"\"\n[game]\ndiscs = [\n    \"verified/one.cue\",\n    \"verified/two.cue\",\n]\n"
+        );
+    }
+
+    #[test]
+    fn runtime_config_rewrite_escapes_del_and_keeps_comment_eof() {
+        assert_eq!(
+            rewrite_config_fixture("[game]\ndisc='old.cue'", &["disc\u{7f}é.cue"]),
+            "[game]\ndisc=\"disc\\u007Fé.cue\""
+        );
+        assert_eq!(
+            rewrite_config_fixture("[game]\ndiscs=[ # retained\n 'old.cue'\n]", &["new.cue"]),
+            "[game]\ndisc=\"new.cue\"\n# retained"
+        );
     }
 }

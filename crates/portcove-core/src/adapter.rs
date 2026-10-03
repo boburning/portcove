@@ -1578,9 +1578,15 @@ pub(crate) fn hash_file(path: &Path) -> Result<(String, u64)> {
 
 pub(crate) fn hash_file_with_checkpoint(
     path: &Path,
+    checkpoint: impl FnMut() -> Result<()>,
+) -> Result<(String, u64)> {
+    hash_reader_with_checkpoint(File::open(path)?, checkpoint)
+}
+
+fn hash_reader_with_checkpoint(
+    mut file: impl Read,
     mut checkpoint: impl FnMut() -> Result<()>,
 ) -> Result<(String, u64)> {
-    let mut file = File::open(path)?;
     let mut digest = Sha256::new();
     let mut buffer = [0_u8; 128 * 1024];
     let mut size = 0_u64;
@@ -1623,7 +1629,7 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
             path.display()
         )));
     }
-    let mut archive = if is_zip {
+    let archive = if is_zip {
         Some(
             zip::ZipArchive::new(File::open(path)?)
                 .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?,
@@ -1631,6 +1637,14 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
     } else {
         None
     };
+    validate_file_set_source_from_archive(profile, path, archive)
+}
+
+fn validate_file_set_source_from_archive(
+    profile: &SourceProfile,
+    path: &Path,
+    mut archive: Option<zip::ZipArchive<File>>,
+) -> Result<SourceRecord> {
     let mut hashes = Vec::with_capacity(profile.members.len());
     let mut total_size = 0_u64;
     for member in &profile.members {
@@ -1716,8 +1730,10 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
         total_size = total_size.saturating_add(size);
     }
     let identity = aggregate_sha256(&hashes);
-    let (storage_sha256, storage_size) = if is_zip {
-        hash_file(path)?
+    let (storage_sha256, storage_size) = if let Some(archive) = archive {
+        let mut file = archive.into_inner();
+        file.rewind()?;
+        hash_reader_with_checkpoint(file, || Ok(()))?
     } else {
         (identity.clone(), total_size)
     };
@@ -4020,6 +4036,64 @@ mod tests {
             std::fs::read(install.join("data/audio.rom")).unwrap(),
             b"audio"
         );
+    }
+
+    #[test]
+    fn adapter_zip_identity_retains_the_opened_artifact_after_path_replacement() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("source.zip");
+        let displaced = temporary.path().join("original.zip");
+        let mut writer = zip::ZipWriter::new(File::create(&path).unwrap());
+        writer
+            .start_file("game.rom", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(b"game").unwrap();
+        writer.finish().unwrap();
+        let profile = SourceProfile {
+            id: "retained-set".into(),
+            label: "Retained set".into(),
+            accepted_extensions: Vec::new(),
+            accepted_sha1: Vec::new(),
+            accepted_sha256: Vec::new(),
+            kind: SourceKind::FileSet,
+            disc: None,
+            members: vec![crate::SourceMemberProfile {
+                id: "game".into(),
+                label: "Game".into(),
+                accepted_filenames: vec!["game.rom".into()],
+                accepted_sha1: Vec::new(),
+                accepted_sha256: vec![hex::encode(Sha256::digest(b"game"))],
+                accepted_crc32: vec![format!("{:08x}", crc32fast::hash(b"game"))],
+            }],
+        };
+        let original = std::fs::read(&path).unwrap();
+        let archive = zip::ZipArchive::new(File::open(&path).unwrap()).unwrap();
+        std::fs::rename(&path, &displaced).unwrap();
+        let mut replacement = original.clone();
+        let name = b"game.rom";
+        let locations = replacement
+            .windows(name.len())
+            .enumerate()
+            .filter_map(|(index, bytes)| (bytes == name).then_some(index))
+            .collect::<Vec<_>>();
+        assert_eq!(locations.len(), 2);
+        for index in locations {
+            replacement[index] = replacement[index].to_ascii_uppercase();
+        }
+        std::fs::write(&path, &replacement).unwrap();
+        let record = validate_file_set_source_from_archive(&profile, &path, Some(archive)).unwrap();
+        assert_eq!(
+            record.sha256,
+            aggregate_sha256(&[format!("game:{}", hex::encode(Sha256::digest(b"game")))])
+        );
+        assert_eq!(record.size, 4);
+        assert_eq!(
+            record.storage_sha256,
+            hex::encode(Sha256::digest(&original))
+        );
+        assert_eq!(record.storage_size, original.len() as u64);
+        assert_eq!(std::fs::read(&path).unwrap(), replacement);
+        assert_eq!(std::fs::read(&displaced).unwrap(), original);
     }
 
     #[test]

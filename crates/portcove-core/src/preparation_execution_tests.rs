@@ -115,7 +115,18 @@ fn isolated_setup_copies_only_declared_generated_outputs() {
 
 impl Fixture {
     fn native(mode: &str) -> Self {
-        let mut fixture = Self::new();
+        Self::native_fixture(mode, None)
+    }
+
+    fn generic_native(mode: &str) -> Self {
+        let catalog = test_phase("preparation fixture: generic catalog", || {
+            generic_preparation_catalog(None)
+        });
+        Self::native_fixture(mode, Some(catalog))
+    }
+
+    fn native_fixture(mode: &str, catalog: Option<Catalog>) -> Self {
+        let mut fixture = Self::with_catalog(catalog);
         let native = tempfile::tempdir().unwrap();
         test_phase("preparation fixture: native probe and copy", || {
             fs::copy(
@@ -137,7 +148,12 @@ impl Fixture {
             .unwrap();
         port.setup_arguments = vec!["--owned-preparation".into()];
         let qualification = test_phase("preparation fixture: native qualification", || {
-            crate::test_fixture::retained_qualification(port, Platform::current().unwrap())
+            let catalog = if port.source_profile.as_deref() == Some("preparation-fixture-disc") {
+                generic_preparation_catalog(Some(port))
+            } else {
+                fixture.service.catalog().clone()
+            };
+            preparation_qualification(&catalog, port, Platform::current().unwrap())
         })
         .unwrap();
         let (manifest, selected, runtime) =
@@ -192,7 +208,7 @@ impl Fixture {
 
 #[test]
 fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update() {
-    let fixture = Fixture::native("success");
+    let fixture = Fixture::generic_native("success");
     let library = fixture.service.library().clone();
     let mut staged = fixture.install.clone();
     staged.id = uuid::Uuid::new_v4().to_string();
@@ -204,7 +220,8 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
     staged.version = "next-fixture".into();
     staged.staged = true;
     crate::service::copy_tree(&fixture.install.path, &staged.path).unwrap();
-    let qualification = crate::test_fixture::retained_qualification(
+    let qualification = preparation_qualification(
+        fixture.service.catalog(),
         fixture.service.catalog().port(PORT).unwrap(),
         Platform::current().unwrap(),
     )
@@ -277,7 +294,7 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
 }
 
 fn assert_private_failure(mode: &str) {
-    let fixture = Fixture::native(mode);
+    let fixture = Fixture::generic_native(mode);
     let before = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
     let error = fixture.run(|_| {}).unwrap_err();
     let expected = match mode {
@@ -800,7 +817,7 @@ fn journal_only_preparation_cleanup_removes_only_the_stale_journal() {
 fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
     use crate::test_fixture::phase;
     let mut fixture = phase("preparation recovery: native fixture", || {
-        Fixture::native("success")
+        Fixture::generic_native("success")
     });
     let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
     phase("preparation recovery: open fault-injected service", || {
@@ -1312,4 +1329,56 @@ fn readiness_rejects_a_symlink_redirect_even_when_marker_bytes_match() {
     let readiness = fixture.service.status(PORT).unwrap().readiness.unwrap();
     assert!(readiness.pending_setup);
     assert!(!readiness.launchable);
+}
+
+#[test]
+fn generic_preparation_manifest_retains_its_complete_independent_graph() {
+    let fixture = Fixture::generic_native("success");
+    let document = fixture.service.catalog().authoritative_document();
+    assert_eq!(document.ports.len(), 1);
+    let source = document.source_catalog.as_ref().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.contracts.len(), 1);
+    assert_eq!(source.validators.len(), 1);
+    assert_eq!(source.evidence.len(), 1);
+    assert_eq!(source.contracts[0].port_id, PORT);
+    assert_eq!(source.contracts[0].profile_id, source.identities[0].id);
+    assert_eq!(
+        source.contracts[0].validator_contract_id.as_ref().unwrap(),
+        &source.validators[0].id
+    );
+    let port = fixture.service.catalog().port(PORT).unwrap();
+    assert_eq!(port.platforms, vec![Platform::current().unwrap()]);
+    assert_eq!(port.setup_arguments, vec!["--owned-preparation"]);
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &fs::read(fixture.install.path.join(".portcove-manifest.json")).unwrap(),
+    )
+    .unwrap();
+    let contract: crate::installed_contract::InstalledContract =
+        serde_json::from_value(manifest["retained_contract"].clone()).unwrap();
+    let retained = contract.catalog(PORT).unwrap();
+    assert_eq!(
+        serde_json::to_value(retained.authoritative_document()).unwrap(),
+        serde_json::to_value(&document).unwrap()
+    );
+    assert!(retained.port("shipwright").is_err());
+    assert_eq!(
+        port.setup_marker.as_deref(),
+        Some("data/out/jak1/iso/0COMMON.TXT")
+    );
+    assert!(
+        port.persistent_paths
+            .iter()
+            .any(|path| path == "OpenGOAL/jak1")
+    );
+    // The unchanged real constructor still owns current-catalog planning facts.
+    let real = Fixture::new();
+    assert_eq!(
+        real.service.catalog().ports().len(),
+        Catalog::embedded().unwrap().ports().len()
+    );
+    assert_ne!(
+        real.service.catalog().port(PORT).unwrap().source_profile,
+        port.source_profile
+    );
 }

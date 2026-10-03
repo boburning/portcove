@@ -1,8 +1,10 @@
 use std::{
+    collections::BTreeMap,
     fs,
     io::Read,
     path::{Path, PathBuf},
-    time::Duration,
+    sync::{Arc, Mutex, OnceLock},
+    time::{Duration, Instant},
 };
 
 use schemars::JsonSchema;
@@ -409,6 +411,7 @@ impl PortcoveService {
         self.library()
             .connection()?
             .execute("DELETE FROM artwork_thumbnails", [])?;
+        clear_igdb_requests(self.library())?;
         Ok(result)
     }
 
@@ -582,18 +585,179 @@ fn igdb_thumbnail(
     revision: u64,
     publish: impl FnOnce(&[u8]) -> Result<()>,
 ) -> Result<ArtworkThumbnail> {
-    let id = igdb_cache_id(artwork);
+    igdb_thumbnail_with_fetch(
+        library,
+        artwork,
+        revision,
+        publish,
+        || fetch_igdb_original(artwork),
+        std::time::Instant::now,
+    )
+}
+
+pub(super) struct IgdbFetchFailure {
+    pub(super) error: PortcoveError,
+    pub(super) retryable: bool,
+}
+
+impl IgdbFetchFailure {
+    fn other(error: PortcoveError) -> Self {
+        Self {
+            error,
+            retryable: false,
+        }
+    }
+}
+
+// Disposable request state only: it never changes selection or admitted bytes.
+const IGDB_RETRY_DELAY: Duration = Duration::from_secs(30);
+const MAX_IGDB_REQUESTS: usize = 256;
+const MAX_IGDB_RETRY_MESSAGE: usize = 2048;
+
+type IgdbRequestKey = (PathBuf, String, String, String);
+type IgdbRequestState = Arc<Mutex<Option<IgdbRetry>>>;
+
+#[derive(Debug)]
+pub(super) struct IgdbRetry {
+    retry_at: Instant,
+    message: String,
+}
+
+#[derive(Default)]
+pub(super) struct IgdbRequests {
+    entries: BTreeMap<IgdbRequestKey, IgdbRequestState>,
+}
+
+impl IgdbRequests {
+    pub(super) fn request(&mut self, key: IgdbRequestKey) -> Result<IgdbRequestState> {
+        if let Some(state) = self.entries.get(&key) {
+            return Ok(Arc::clone(state));
+        }
+        if self.entries.len() >= MAX_IGDB_REQUESTS {
+            // Never evict an active request: that would admit duplicate retrieval.
+            let idle = self
+                .entries
+                .iter()
+                .find_map(|(key, state)| (Arc::strong_count(state) == 1).then(|| key.clone()))
+                .ok_or_else(|| PortcoveError::conflict("cover retrieval is busy; retry shortly"))?;
+            self.entries.remove(&idle);
+        }
+        let state = Arc::new(Mutex::new(None));
+        self.entries.insert(key, Arc::clone(&state));
+        Ok(state)
+    }
+}
+
+fn igdb_requests() -> &'static Mutex<IgdbRequests> {
+    static REQUESTS: OnceLock<Mutex<IgdbRequests>> = OnceLock::new();
+    REQUESTS.get_or_init(|| Mutex::new(IgdbRequests::default()))
+}
+
+fn igdb_request_state(library: &Library, artwork: &crate::IgdbArtwork) -> Result<IgdbRequestState> {
+    let identity = library.identity_record()?;
+    let key = (
+        identity.root,
+        identity.id,
+        artwork.image_id.clone(),
+        artwork.image_sha256.clone(),
+    );
+    igdb_requests()
+        .lock()
+        .map_err(|_| PortcoveError::state("cover request state is unavailable"))?
+        .request(key)
+}
+
+fn clear_igdb_requests(library: &Library) -> Result<()> {
+    // Detached in-flight/waiting callers cannot repopulate this registry after clear.
+    // No per-request mutex is acquired while holding the registry or artwork lock.
+    let identity = library.identity_record()?;
+    igdb_requests()
+        .lock()
+        .map_err(|_| PortcoveError::state("cover request state is unavailable"))?
+        .entries
+        .retain(|(root, id, _, _), _| root != &identity.root || id != &identity.id);
+    Ok(())
+}
+
+fn cached_igdb_thumbnail(
+    library: &Library,
+    artwork: &crate::IgdbArtwork,
+    revision: u64,
+) -> Result<Option<ArtworkThumbnail>> {
     let path = igdb_original_path(library, artwork)?;
     if let Ok(original) =
         crate::path::read_bounded_regular(&path, crate::artwork_image::MAX_ORIGINAL_BYTES)
         && let Ok(decoded) = decode_igdb_original(&original, artwork)
     {
-        return Ok(ArtworkThumbnail {
-            asset_sha256: id,
+        return Ok(Some(ArtworkThumbnail {
+            asset_sha256: igdb_cache_id(artwork),
             choice_revision: revision,
             png: decoded.thumbnail,
-        });
+        }));
     }
+    Ok(None)
+}
+
+pub(super) fn igdb_thumbnail_with_fetch(
+    library: &Library,
+    artwork: &crate::IgdbArtwork,
+    revision: u64,
+    publish: impl FnOnce(&[u8]) -> Result<()>,
+    fetch: impl FnOnce() -> std::result::Result<Vec<u8>, IgdbFetchFailure>,
+    now: impl Fn() -> Instant,
+) -> Result<ArtworkThumbnail> {
+    if let Some(thumbnail) = cached_igdb_thumbnail(library, artwork, revision)? {
+        return Ok(thumbnail);
+    }
+    let state = igdb_request_state(library, artwork)?;
+    let mut retry = state
+        .lock()
+        .map_err(|_| PortcoveError::state("cover request state is unavailable"))?;
+    // A concurrent retrieval may have published while this caller waited.
+    if let Some(thumbnail) = cached_igdb_thumbnail(library, artwork, revision)? {
+        *retry = None;
+        return Ok(thumbnail);
+    }
+    if let Some(failure) = retry.as_ref()
+        && now() < failure.retry_at
+    {
+        return Err(PortcoveError::network(failure.message.clone()));
+    }
+    *retry = None;
+    let original = match fetch() {
+        Ok(original) => original,
+        Err(failure) => {
+            if failure.retryable
+                && failure.error.code == crate::ErrorCode::Network
+                && failure.error.message.len() <= MAX_IGDB_RETRY_MESSAGE
+                && failure.error.details.is_empty()
+            {
+                *retry = Some(IgdbRetry {
+                    retry_at: now() + IGDB_RETRY_DELAY,
+                    message: failure.error.message.clone(),
+                });
+            }
+            return Err(failure.error);
+        }
+    };
+    let decoded = decode_igdb_original(&original, artwork)?;
+    publish(&original)?;
+    Ok(ArtworkThumbnail {
+        asset_sha256: igdb_cache_id(artwork),
+        choice_revision: revision,
+        png: decoded.thumbnail,
+    })
+}
+
+pub(super) fn igdb_status_retryable(status: reqwest::StatusCode) -> bool {
+    status == reqwest::StatusCode::REQUEST_TIMEOUT
+        || status == reqwest::StatusCode::TOO_MANY_REQUESTS
+        || status.is_server_error()
+}
+
+fn fetch_igdb_original(
+    artwork: &crate::IgdbArtwork,
+) -> std::result::Result<Vec<u8>, IgdbFetchFailure> {
     let url = format!(
         "https://images.igdb.com/igdb/image/upload/t_cover_big/{}.jpg",
         artwork.image_id
@@ -603,16 +767,23 @@ fn igdb_thumbnail(
         .connect_timeout(Duration::from_secs(5))
         .timeout(Duration::from_secs(15))
         .build()
-        .map_err(|error| PortcoveError::network(format!("IGDB image client failed: {error}")))?;
-    let response = client
-        .get(url)
-        .send()
-        .map_err(|error| PortcoveError::network(format!("IGDB image request failed: {error}")))?;
+        .map_err(|error| {
+            IgdbFetchFailure::other(PortcoveError::network(format!(
+                "IGDB image client failed: {error}"
+            )))
+        })?;
+    let response = client.get(url).send().map_err(|error| IgdbFetchFailure {
+        retryable: error.is_timeout() || error.is_connect(),
+        error: PortcoveError::network(format!("IGDB image request failed: {error}")),
+    })?;
     if !response.status().is_success() {
-        return Err(PortcoveError::network(format!(
-            "IGDB cover unavailable (HTTP {}).",
-            response.status()
-        )));
+        return Err(IgdbFetchFailure {
+            retryable: igdb_status_retryable(response.status()),
+            error: PortcoveError::network(format!(
+                "IGDB cover unavailable (HTTP {}).",
+                response.status()
+            )),
+        });
     }
     if response
         .headers()
@@ -620,29 +791,24 @@ fn igdb_thumbnail(
         .and_then(|value| value.to_str().ok())
         .is_none_or(|value| !value.starts_with("image/jpeg"))
     {
-        return Err(PortcoveError::verification(
+        return Err(IgdbFetchFailure::other(PortcoveError::verification(
             "IGDB cover did not return JPEG content",
-        ));
+        )));
     }
     if response
         .content_length()
         .is_some_and(|length| length > crate::artwork_image::MAX_ORIGINAL_BYTES)
     {
-        return Err(PortcoveError::verification(
+        return Err(IgdbFetchFailure::other(PortcoveError::verification(
             "IGDB cover exceeds the encoded byte limit",
-        ));
+        )));
     }
     let mut original = Vec::new();
     response
         .take(crate::artwork_image::MAX_ORIGINAL_BYTES + 1)
-        .read_to_end(&mut original)?;
-    let decoded = decode_igdb_original(&original, artwork)?;
-    publish(&original)?;
-    Ok(ArtworkThumbnail {
-        asset_sha256: id,
-        choice_revision: revision,
-        png: decoded.thumbnail,
-    })
+        .read_to_end(&mut original)
+        .map_err(|error| IgdbFetchFailure::other(error.into()))?;
+    Ok(original)
 }
 
 fn decode_igdb_original(

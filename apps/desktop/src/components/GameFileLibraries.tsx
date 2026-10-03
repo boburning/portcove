@@ -28,8 +28,12 @@ const scanLimits = {
   max_hash_bytes: 16 * 1024 * 1024 * 1024,
   max_candidates: 64,
 };
-const maxSavedRootsPerScan = 8;
+const maxAvailableRootsPerScan = 8;
 const setupReturnOrigin = "game-file-libraries-setup";
+
+function availableRootCount(roots: readonly GameFileRoot[]) {
+  return roots.filter((root) => root.availability === "available").length;
+}
 
 function portSetupLabel(status?: PortStatus) {
   if (!status) return "Readiness unavailable; refresh the workspace";
@@ -629,8 +633,10 @@ export function GameFileLibraries({
     run("Choosing folder…", async () => {
       const path = await pickInstallFolder("");
       if (!path) return;
-      if ((await refresh()).length >= maxSavedRootsPerScan) {
-        setNotice("A scan supports at most eight saved folders. Remove one before adding another.");
+      if (availableRootCount(await refresh()) >= maxAvailableRootsPerScan) {
+        setNotice(
+          "A scan supports at most eight available folders. Remove an available folder before adding another.",
+        );
         return;
       }
       await desktopApi.addGameFileRoot(path);
@@ -660,8 +666,10 @@ export function GameFileLibraries({
       setLiveCandidates([]);
       try {
         const currentRoots = await refresh();
-        if (currentRoots.length > maxSavedRootsPerScan) {
-          setNotice("A scan supports at most eight saved folders. Remove a folder and scan again.");
+        if (availableRootCount(currentRoots) > maxAvailableRootsPerScan) {
+          setNotice(
+            "A scan supports at most eight available folders. Remove an available folder and scan again.",
+          );
           return;
         }
         if (!currentRoots.some((root) => root.availability === "available")) {
@@ -793,7 +801,10 @@ export function GameFileLibraries({
           variant="outline"
           size="sm"
           disabled={
-            Boolean(busy) || scanning || roots === undefined || roots.length >= maxSavedRootsPerScan
+            Boolean(busy) ||
+            scanning ||
+            roots === undefined ||
+            availableRootCount(roots) >= maxAvailableRootsPerScan
           }
           onClick={() => void add()}
         >
@@ -804,8 +815,11 @@ export function GameFileLibraries({
         Choose folders on this PC, a mounted network share, or a removable drive. Portcove searches
         only saved folders. Searching does not change the game files or save their locations.
       </p>
-      {roots && roots.length >= maxSavedRootsPerScan && (
-        <p>A scan supports at most eight saved folders. Remove one before adding another.</p>
+      {roots && availableRootCount(roots) >= maxAvailableRootsPerScan && (
+        <p>
+          A scan supports at most eight available folders. Remove an available folder before adding
+          another.
+        </p>
       )}
       <SavedRootRows
         roots={roots}
@@ -833,7 +847,10 @@ export function GameFileLibraries({
           data-focusable
           variant="outline"
           disabled={
-            Boolean(busy) || scanning || !roots?.length || roots.length > maxSavedRootsPerScan
+            Boolean(busy) ||
+            scanning ||
+            !roots?.length ||
+            availableRootCount(roots) > maxAvailableRootsPerScan
           }
           onClick={() => void scan()}
         >
