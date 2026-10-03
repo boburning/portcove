@@ -1142,7 +1142,7 @@ mod tests {
         let player_source = temporary.path().join("player-source");
         fs::write(&player_source, b"unchanged external source").unwrap();
         let service =
-            crate::PortcoveService::new(Library::open(&temporary.path().join("library")).unwrap())
+            crate::PortcoveService::new(Library::open(temporary.path().join("library")).unwrap())
                 .unwrap();
         let (activity, operation) = service
             .begin_cancellable_activity(
