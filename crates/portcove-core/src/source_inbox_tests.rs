@@ -41,6 +41,18 @@ fn catalog_with(
     Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
+fn assert_small_generic_catalog(catalog: &Catalog, profile_id: &str) {
+    catalog.validate().unwrap();
+    assert!(catalog.ports().is_empty());
+    let source = catalog.source_catalog().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.evidence.len(), 1);
+    assert!(source.contracts.is_empty());
+    assert!(source.validators.is_empty());
+    assert!(source.qualification.is_empty());
+    assert_eq!(source.identities[0].id, profile_id);
+}
+
 fn service(catalog: Catalog) -> (tempfile::TempDir, PortcoveService) {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
@@ -308,6 +320,7 @@ fn zip_members_file_sets_and_gamecube_images_use_the_shared_inspector() {
             identities: vec![hashes(zip_bytes, DigestScope::NormalizedContent)],
         };
     });
+    assert_small_generic_catalog(&zip_catalog, "psx-scph-1001-bios");
     let (_temporary, zip_service) = service(zip_catalog);
     let zip_inbox = profile_dir(&zip_service, "psx-scph-1001-bios");
     let zip_path = zip_inbox.join("bios.zip");
@@ -340,6 +353,7 @@ fn zip_members_file_sets_and_gamecube_images_use_the_shared_inspector() {
             member.identities = vec![hashes(bytes, DigestScope::FileSetMember)];
         }
     });
+    assert_small_generic_catalog(&file_set_catalog, "g-diffuser-source-set");
     let (_temporary, file_set_service) = service(file_set_catalog);
     let file_set_inbox = profile_dir(&file_set_service, "g-diffuser-source-set");
     let set = file_set_inbox.join("owned-files");
@@ -367,6 +381,7 @@ fn zip_members_file_sets_and_gamecube_images_use_the_shared_inspector() {
             identities: vec![hashes(disc_bytes, DigestScope::GamecubeNormalizedIso)],
         };
     });
+    assert_small_generic_catalog(&gamecube_catalog, "animal-crossing-gamecube");
     let (_temporary, gamecube_service) = service(gamecube_catalog);
     let gamecube_inbox = profile_dir(&gamecube_service, "animal-crossing-gamecube");
     let disc = gamecube_inbox.join("game.iso");
