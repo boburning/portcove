@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import assert from "node:assert/strict";
 import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -90,8 +91,8 @@ beforeEach(() => {
 afterEach(async () => {
   try {
     await act(async () => root.unmount());
-    expect(frames.size).toBe(0);
-    expect(navigator.getGamepads).toBe(getGamepads);
+    assert.equal(frames.size, 0, "root disposal must cancel every owned frame");
+    assert.equal(navigator.getGamepads, getGamepads, "fixture API must outlive root disposal");
   } finally {
     host.remove();
     if (gamepadsDescriptor) Object.defineProperty(navigator, "getGamepads", gamepadsDescriptor);
@@ -100,9 +101,9 @@ afterEach(async () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   }
-  expect(Object.getOwnPropertyDescriptor(navigator, "getGamepads")).toEqual(gamepadsDescriptor);
-  expect(requestAnimationFrame).toBe(originalRequestFrame);
-  expect(cancelAnimationFrame).toBe(originalCancelFrame);
+  assert.deepEqual(Object.getOwnPropertyDescriptor(navigator, "getGamepads"), gamepadsDescriptor);
+  assert.equal(requestAnimationFrame, originalRequestFrame);
+  assert.equal(cancelAnimationFrame, originalCancelFrame);
 });
 
 describe("bootstrap state", () => {
