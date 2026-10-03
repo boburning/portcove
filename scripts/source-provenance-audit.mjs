@@ -645,6 +645,20 @@ function parseOptions(argv) {
   return options;
 }
 
+function requireCompleteOfflineCollection(value, label) {
+  if (Array.isArray(value)) return;
+  if (!value || !Array.isArray(value.items))
+    throw new Error(`incomplete offline ${label} collection: expected an items array`);
+  if (
+    !Number.isSafeInteger(value.totalCount) ||
+    value.totalCount !== value.items.length ||
+    value.pageInfo?.hasNextPage !== false
+  )
+    throw new Error(
+      `incomplete offline ${label} collection: pagination is unfinished or inconsistent`,
+    );
+}
+
 export async function runSourceProvenanceAudit(argv, { run = runReadOnlyGitHubCommand } = {}) {
   const options = parseOptions(argv);
   if (
@@ -674,6 +688,8 @@ export async function runSourceProvenanceAudit(argv, { run = runReadOnlyGitHubCo
         : [],
       projectState: options["project-items"] ? "fixture" : "unavailable",
     };
+    requireCompleteOfflineCollection(input.issues, "issues");
+    requireCompleteOfflineCollection(input.projectItems, "Project items");
   }
   const catalogPath = path.resolve(options.catalog ?? defaultCatalogPath);
   const catalogText = await readFile(catalogPath, "utf8");

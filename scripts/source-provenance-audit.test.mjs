@@ -879,6 +879,94 @@ test("failed later live pages preserve existing snapshots and create no partial 
   }
 });
 
+test("incomplete offline collections preserve previous provenance snapshots", async (t) => {
+  const directory = await mkdtemp(new URL("../docs/archive/provenance-test-", import.meta.url));
+  const input = fixture();
+  const catalogPath = `${directory}/catalog.json`;
+  const issuesPath = `${directory}/issues.json`;
+  const projectPath = `${directory}/project.json`;
+  const existing = `${directory}/existing.md`;
+  const absent = `${directory}/absent.md`;
+  const args = (output) => [
+    "--catalog",
+    catalogPath,
+    "--issues",
+    issuesPath,
+    "--project-items",
+    projectPath,
+    "--generated-at",
+    input.generatedAt,
+    "--base-commit",
+    input.baseCommit,
+    "--generator-commit",
+    input.generatorCommit,
+    "--output",
+    output,
+  ];
+  try {
+    await writeFile(catalogPath, input.catalogText);
+    await writeFile(existing, "previous verified snapshot\n");
+    for (const [label, collection, metadata] of [
+      [
+        "issues with an unfinished page",
+        "issues",
+        { totalCount: 3, pageInfo: { hasNextPage: true } },
+      ],
+      [
+        "issues with a contradictory total",
+        "issues",
+        { totalCount: 3, pageInfo: { hasNextPage: false } },
+      ],
+      [
+        "Project with an unfinished page",
+        "projectItems",
+        { totalCount: 3, pageInfo: { hasNextPage: true } },
+      ],
+      [
+        "Project with unknown pagination",
+        "projectItems",
+        { totalCount: 2, pageInfo: { hasNextPage: "unknown" } },
+      ],
+      ["issues without pagination metadata", "issues", {}],
+      ["Project without a declared total", "projectItems", { pageInfo: { hasNextPage: false } }],
+    ])
+      await t.test(label, async () => {
+        const issues =
+          collection === "issues" ? { items: input.issues, ...metadata } : input.issues;
+        const projectItems =
+          collection === "projectItems"
+            ? { items: input.projectItems, ...metadata }
+            : input.projectItems;
+        await writeFile(issuesPath, JSON.stringify(issues));
+        await writeFile(projectPath, JSON.stringify(projectItems));
+        for (const output of [existing, absent])
+          await assert.rejects(runSourceProvenanceAudit(args(output)), /incomplete offline/);
+        assert.equal(await readFile(existing, "utf8"), "previous verified snapshot\n");
+        await assert.rejects(readFile(absent), { code: "ENOENT" });
+      });
+    for (const [label, wrap] of [
+      ["complete arrays", (items) => items],
+      [
+        "complete envelopes",
+        (items) => ({
+          items,
+          totalCount: items.length,
+          pageInfo: { hasNextPage: false },
+        }),
+      ],
+    ])
+      await t.test(label, async () => {
+        await writeFile(issuesPath, JSON.stringify(wrap(input.issues)));
+        await writeFile(projectPath, JSON.stringify(wrap(input.projectItems)));
+        await runSourceProvenanceAudit(args(absent));
+        assert.match(await readFile(absent, "utf8"), /- Durable Port issues: 2/);
+        await rm(absent);
+      });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("live blockers resolve referenced PRs independently of Project membership", async (t) => {
   for (const [label, response, expected] of [
     [
