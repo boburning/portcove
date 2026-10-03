@@ -1352,6 +1352,12 @@ try {
   await startDriver();
   await connect();
   await scenario("native-startup-library-recovery", async () => {
+    const chooseOwnedLibrary = nativeConfirmation({
+      application: values.app,
+      getDriverPid: () => driver.pid,
+      output,
+      artifacts,
+    });
     await bootstrapRecoveryScenario({
       browser,
       invoke,

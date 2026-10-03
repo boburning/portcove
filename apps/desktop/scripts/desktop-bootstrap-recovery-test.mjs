@@ -16,7 +16,8 @@ const canonicalPath = (value) => path.toNamespacedPath(path.resolve(value));
 
 export function bootstrapRecoveryEnvironment(environment) {
   const isolated = { ...environment };
-  delete isolated.PORTCOVE_LIBRARY;
+  for (const key of Object.keys(isolated))
+    if (key.toUpperCase() === "PORTCOVE_LIBRARY") delete isolated[key];
   return isolated;
 }
 
