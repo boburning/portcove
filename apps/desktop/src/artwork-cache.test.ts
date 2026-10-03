@@ -7,6 +7,45 @@ import type { ArtworkState } from "./types";
 afterEach(() => vi.restoreAllMocks());
 
 describe("disposable artwork display cache", () => {
+  it("reads post-change state after an earlier pending read completes", async () => {
+    let finish!: (value: ArtworkState) => void;
+    const selected = artworkState("sample", "cover", 1, true);
+    const read = vi
+      .spyOn(desktopApi, "artwork")
+      .mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+      .mockResolvedValue(selected);
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    const initial = cache.load("sample", "cover");
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    const reconciliation = cache.refreshAfterChange("sample", "cover");
+    finish(artworkState("sample", "cover"));
+    await Promise.all([initial, reconciliation]);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(cache.read("sample", "cover").state).toBe(selected);
+    expect(cache.read("sample", "cover").image).toMatch(/^data:image\/png;base64,/);
+  });
+
+  it("does not reconcile a cache that loses its current view while an earlier read is pending", async () => {
+    let finish!: (value: ArtworkState) => void;
+    let interested = true;
+    const read = vi
+      .spyOn(desktopApi, "artwork")
+      .mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    const cache = new ArtworkCache(7);
+    const initial = cache.load("sample", "cover");
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1));
+    const reconciliation = cache.refreshAfterChange("sample", "cover", () => interested);
+    interested = false;
+    finish(artworkState("sample", "cover"));
+    await Promise.all([initial, reconciliation]);
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
   it("binds mapped cover thumbnails to the current catalog image identity", async () => {
     const mapped = {
       ...artworkState("sample", "cover"),

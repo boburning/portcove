@@ -378,7 +378,13 @@ when their view no longer needs them. Visible cards load asynchronously and pres
 the cached image while refreshing. PNG data URLs carry only bounded core thumbnails;
 the renderer never reads original files or changes the content-security policy.
 Picker cancellation, closing the editor, changing ports or changing libraries
-invalidates the pending intent before mutation. Core still checks the selected slot
+invalidates the pending intent before mutation. Pending picker and queued-change
+intent also binds the exact display-cache instance, including catalog changes in
+the same library. An already-dispatched change still belongs to core; after it
+settles, a replacement cache reads the current choice after any earlier pending
+read instead of reusing obsolete catalog results. Controls remain busy during
+reconciliation, disclose read failures separately from the committed change and
+avoid restoring focus from an obsolete cache. Core still checks the selected slot
 revision. Titles, status and actions stay outside portrait/letterboxed covers;
 detail images are optional. Reset preserves imported originals. Source information
 reports the original filename, dimensions and import time, with author/license
