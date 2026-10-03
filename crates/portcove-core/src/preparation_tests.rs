@@ -17,6 +17,10 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
+        Self::with_catalog(None)
+    }
+
+    fn with_catalog(catalog: Option<Catalog>) -> Self {
         let temporary = test_phase(
             "preparation fixture: temporary directory",
             tempfile::tempdir,
@@ -26,10 +30,13 @@ impl Fixture {
             Library::open(temporary.path().join("library"))
         })
         .unwrap();
-        let service = test_phase("preparation fixture: service open", || {
+        let mut service = test_phase("preparation fixture: service open", || {
             PortcoveService::new(library.clone())
         })
         .unwrap();
+        if let Some(catalog) = catalog {
+            service.replace_catalog_for_test(catalog);
+        }
         let port = service.catalog().port(PORT).unwrap();
         let platform = Platform::current().unwrap();
         let artifact = ArtifactIdentity {
@@ -51,7 +58,7 @@ impl Fixture {
             crate::permissions::normalize_archive_entry(&path, false, true).unwrap();
         }
         let qualification = test_phase("preparation fixture: retained qualification", || {
-            crate::test_fixture::retained_qualification(port, platform)
+            preparation_qualification(service.catalog(), port, platform)
         })
         .unwrap();
         let id = uuid::Uuid::new_v4().to_string();
@@ -115,6 +122,86 @@ impl Fixture {
             target: Platform::current().unwrap(),
             mode: PreparationMode::Default,
         }
+    }
+}
+
+// Only generic preparation publication/failure/recovery uses this graph. Planning,
+// real layouts, retained-definition, legacy-launch and cleanup stay on embedded data.
+fn generic_preparation_catalog(port: Option<&crate::PortDefinition>) -> Catalog {
+    let platform = Platform::current().unwrap();
+    let key = serde_json::to_value(platform)
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let executable = if cfg!(windows) { "gk.exe" } else { "gk" };
+    let setup = if cfg!(windows) {
+        "extractor.exe"
+    } else {
+        "extractor"
+    };
+    let mut document = serde_json::json!({
+        "schema_version": 2,
+        "source_catalog": {
+            "evidence": [{
+                "id": "preparation-fixture-evidence", "role": "byte_identity",
+                "authority": "Synthetic preparation fixture", "authority_ref": "fixture-1",
+                "reviewed_at": "2026-10-03", "claim": "Owned synthetic setup input",
+                "immutable_url": "https://example.invalid/fixtures/preparation-v1"
+            }],
+            "identities": [{
+                "id": "preparation-fixture-disc", "label": "Owned fixture input", "kind": "optical-disc",
+                "variants": [{ "id": "fixture-1", "title": "Owned fixture input",
+                    "representations": [{ "id": "fixture-validator", "extensions": ["iso", "chd"],
+                        "kind": "pinned-validator", "validator_contract_id": "preparation-fixture-validator",
+                        "evidence_ids": ["preparation-fixture-evidence"] }],
+                    "evidence_ids": ["preparation-fixture-evidence"] }]
+            }],
+            "contracts": [{
+                "id": "preparation-fixture-game", "port_id": PORT, "role": "game",
+                "profile_id": "preparation-fixture-disc", "admission_mode": "enforced",
+                "validator_contract_id": "preparation-fixture-validator",
+                "evidence_ids": ["preparation-fixture-evidence"], "authority_ref": "fixture-1",
+                "reviewed_at": "2026-10-03", "immutable_review_url": "https://example.invalid/fixtures/preparation-v1"
+            }],
+            "validators": [{ "id": "preparation-fixture-validator", "tool_id": "owned-fixture-setup",
+                "protocol_version": "fixture-1", "evidence_ids": ["preparation-fixture-evidence"] }]
+        },
+        "ports": [{
+            "id": PORT, "name": "Synthetic upstream preparation", "summary": "Owned preparation lifecycle fixture",
+            "project_url": "https://example.invalid/fixtures/preparation", "support_tier": "stable",
+            "channels": ["stable"], "platforms": [platform], "adapter": "upstream-managed-setup",
+            "release": { "repository": "fixture/preparation" },
+            "source_profile": "preparation-fixture-disc", "runtime_source_filename": "source.iso",
+            "runtime_source_materialization": "ps2-iso",
+            "setup_executable_hints": {(key.clone()): [setup]},
+            "setup_arguments": ["--game", "jak1", "--extract", "--decompile", "--compile", "--validate", "--disable-ansi"],
+            "setup_marker": "data/out/jak1/iso/0COMMON.TXT",
+            "launch_arguments": ["--game", "jak1", "--portable"],
+            "executable_hints": {(key): [executable]},
+            "runtime_mutable_paths": ["data/log", "data/imgui.ini"],
+            "persistent_paths": ["OpenGOAL/jak1"],
+            "setup_output_paths": ["data/iso_data", "data/decompiler_out", "data/out"],
+            "presentation": { "installation_method": "upstream-setup", "source_requirements": [{
+                "role": "game", "profile_id": "preparation-fixture-disc", "label": "Owned fixture input",
+                "verification": "upstream-validator" }], "saves_and_settings": "portcove-managed" }
+        }]
+    });
+    if let Some(port) = port {
+        document["ports"][0] = serde_json::to_value(port).unwrap();
+    }
+    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
+fn preparation_qualification(
+    catalog: &Catalog,
+    port: &crate::PortDefinition,
+    platform: Platform,
+) -> Result<crate::InstallQualification> {
+    if port.source_profile.as_deref() == Some("preparation-fixture-disc") {
+        crate::InstallQualification::from_catalog(catalog, &port.id, platform)
+    } else {
+        crate::test_fixture::retained_qualification(port, platform)
     }
 }
 
@@ -378,4 +465,16 @@ fn generated_outputs_cannot_claim_executables_sources_or_persistent_data() {
             )
             .is_ok()
     );
+}
+
+#[test]
+fn generic_preparation_graph_keeps_missing_reference_and_strict_source_rejection() {
+    let catalog = generic_preparation_catalog(None);
+    let mut missing = catalog.authoritative_document();
+    missing.source_catalog.as_mut().unwrap().validators.clear();
+    assert!(Catalog::from_json(&serde_json::to_string(&missing).unwrap()).is_err());
+    let mut unknown = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    unknown["source_catalog"]["identities"][0]["unreviewed_source_fact"] = serde_json::json!(true);
+    assert!(Catalog::from_json(&serde_json::to_string(&unknown).unwrap()).is_err());
+    assert!(generic_preparation_catalog(None).port(PORT).is_ok());
 }
