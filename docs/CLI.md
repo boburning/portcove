@@ -78,6 +78,15 @@ Human operation progress goes to standard error. An interactive terminal receive
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 
+Human `status` keeps managed active/staged versions separate from the registered
+external version, labeled user-owned. Both `status PORT_ID` and all-port `status`
+group core action assessments by operational port ID and explain their existing
+availability and reason codes, including game-file versus BIOS prerequisites and
+definition holds. Ports without recorded assessments have no invented action
+group. These read-only explanations do not authorize an operation or establish
+complete runtime verification, native qualification or gameplay; execution
+rechecks its own current inputs and consent. JSON/JSONL contracts are unchanged.
+
 `schema export --contract input` describes values accepted by Rust deserialization,
 including omitted fields with defaults. `schema export --contract output`
 describes serialized values, including required emitted fields, nullable values
