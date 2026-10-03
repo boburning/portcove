@@ -2329,23 +2329,50 @@ where
     }
 }
 
-pub fn run() {
+#[derive(Clone, Copy)]
+enum EarlyStartupPhase {
+    Preferences,
+    RuntimeLease,
+}
+
+fn early_startup_message(phase: EarlyStartupPhase, error: &DesktopError) -> String {
+    // Before library diagnostics exist, print only fixed copy and the semantic
+    // code. Error messages/details may contain private paths or credentials.
+    let message = match phase {
+        EarlyStartupPhase::Preferences => {
+            "Portcove could not open host preferences. Check the preference file setting, then try again."
+        }
+        EarlyStartupPhase::RuntimeLease if error.code == portcove_core::ErrorCode::Conflict => {
+            "Portcove cannot start while an application update is replacing it. Let the update finish, then try again."
+        }
+        EarlyStartupPhase::RuntimeLease => {
+            "Portcove could not open its runtime lease. Check access to the application state location, then try again."
+        }
+    };
+    format!("{message} [{:?}]", error.code)
+}
+
+pub fn run() -> std::process::ExitCode {
     #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     report_application_update_qualification_stage("process entry");
-    let preferences = host_preference_store();
-    let application_runtime = preferences.as_ref().map_err(Clone::clone).and_then(|_| {
-        HostPreferenceStore::application_runtime_lock_path()
-            .and_then(|path| ApplicationRuntimeGuard::acquire(&path))
-            .map_err(DesktopError::from)
-    });
-    let _application_runtime = match application_runtime {
+    let preferences: DesktopResult<HostPreferenceStore> = match host_preference_store() {
+        Ok(store) => Ok(store),
+        Err(error) => {
+            eprintln!(
+                "{}",
+                early_startup_message(EarlyStartupPhase::Preferences, &error)
+            );
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+    let _application_runtime = match application_runtime_guard() {
         Ok(guard) => guard,
         Err(error) => {
             eprintln!(
-                "Portcove desktop could not acquire its runtime lease: {}",
-                error.message
+                "{}",
+                early_startup_message(EarlyStartupPhase::RuntimeLease, &error.into())
             );
-            return;
+            return std::process::ExitCode::FAILURE;
         }
     };
     #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
@@ -2566,11 +2593,48 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .unwrap_or_else(|error| eprintln!("Portcove desktop stopped: {error}"));
+    std::process::ExitCode::SUCCESS
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn early_startup_diagnostics_distinguish_phase_without_private_error_text() {
+        let error: DesktopError = PortcoveError::usage(
+            "private-user/path?token=private-secret\nmisleading injected diagnostic",
+        )
+        .detail("path", "private-library")
+        .into();
+        let preferences = early_startup_message(EarlyStartupPhase::Preferences, &error);
+        let lease = early_startup_message(EarlyStartupPhase::RuntimeLease, &error);
+        assert_eq!(
+            preferences,
+            "Portcove could not open host preferences. Check the preference file setting, then try again. [Usage]"
+        );
+        assert_eq!(
+            lease,
+            "Portcove could not open its runtime lease. Check access to the application state location, then try again. [Usage]"
+        );
+        for message in [preferences, lease] {
+            assert!(!message.contains("private"));
+            assert!(!message.contains('\n'));
+        }
+    }
+
+    #[test]
+    fn early_startup_conflict_reports_update_contention_only_for_the_runtime_lease() {
+        let error: DesktopError = PortcoveError::conflict("private lease path").into();
+        assert_eq!(
+            early_startup_message(EarlyStartupPhase::RuntimeLease, &error),
+            "Portcove cannot start while an application update is replacing it. Let the update finish, then try again. [Conflict]"
+        );
+        assert_eq!(
+            early_startup_message(EarlyStartupPhase::Preferences, &error),
+            "Portcove could not open host preferences. Check the preference file setting, then try again. [Conflict]"
+        );
+    }
 
     #[test]
     fn invoke_context_gate_rejects_non_main_windows_before_dispatch() {
