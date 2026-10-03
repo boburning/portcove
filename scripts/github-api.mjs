@@ -114,19 +114,35 @@ export function createGitHubRunner({
   cwd = process.cwd(),
   command = "gh",
   spawn = spawnSync,
-  maxBuffer,
+  maxBuffer = 16 * 1024 * 1024,
 } = {}) {
+  if (!Number.isSafeInteger(maxBuffer) || maxBuffer <= 0)
+    throw new RangeError("GitHub API output limit must be a positive safe integer number of bytes");
   return (args, input) => {
     const result = spawn(command, args, {
       cwd,
       encoding: "utf8",
       input,
-      ...(maxBuffer === undefined ? {} : { maxBuffer }),
+      maxBuffer,
       stdio: input === undefined ? ["ignore", "pipe", "pipe"] : ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
     const operation = `gh ${args.slice(0, 3).join(" ")}`;
     if (result.error) {
+      if (result.error.code === "ENOBUFS") {
+        // Neither partially collected output nor the provider's raw error is
+        // trustworthy after overflow. Keep the cause code, not its payload.
+        throw new GitHubApiError(
+          "command_failed",
+          `GitHub API command output exceeded the ${maxBuffer}-byte collection limit`,
+          {
+            operation,
+            cause: Object.assign(new Error("Subprocess output limit exceeded"), {
+              code: "ENOBUFS",
+            }),
+          },
+        );
+      }
       throw new GitHubApiError("command_failed", result.error.message, {
         operation,
         cause: result.error,
