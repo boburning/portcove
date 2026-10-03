@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 33;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 34;
 
 struct Migration {
     version: i64,
@@ -222,7 +222,71 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_33,
         verify: verify_migration_33,
     },
+    Migration {
+        version: 34,
+        name: "accepted exact managed launch decisions",
+        apply: migration_34,
+        verify: verify_migration_34,
+    },
 ];
+
+fn migration_34(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE definition_launch_assessments (
+            namespace TEXT NOT NULL,
+            stable_id TEXT NOT NULL,
+            document_json TEXT NOT NULL CHECK(length(document_json)<=65536),
+            provenance_json TEXT NOT NULL CHECK(length(provenance_json)<=16384),
+            inventory_sha256 TEXT NOT NULL CHECK(length(inventory_sha256)=64),
+            PRIMARY KEY(namespace,stable_id)
+         );
+         CREATE TABLE definition_launch_decisions (
+            namespace TEXT NOT NULL,
+            stable_id TEXT NOT NULL,
+            subject_sha256 TEXT NOT NULL CHECK(length(subject_sha256)=64),
+            check_id TEXT NOT NULL,
+            anchor_sha256 TEXT NOT NULL REFERENCES definition_publisher_authority(anchor_sha256),
+            decision_sha256 TEXT NOT NULL CHECK(length(decision_sha256)=64),
+            decision_json TEXT NOT NULL CHECK(length(decision_json)<=4096),
+            PRIMARY KEY(namespace,stable_id,subject_sha256,check_id)
+         );
+         ALTER TABLE definition_publisher_admission ADD COLUMN launch_assessment_revision
+            INTEGER NOT NULL DEFAULT 0 CHECK(launch_assessment_revision>=0);",
+    )?;
+    verify_migration_34(transaction)
+}
+
+fn verify_migration_34(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "definition_publisher_admission",
+        &["launch_assessment_revision"],
+    )?;
+    require_columns(
+        connection,
+        "definition_launch_assessments",
+        &[
+            "namespace",
+            "stable_id",
+            "document_json",
+            "provenance_json",
+            "inventory_sha256",
+        ],
+    )?;
+    require_columns(
+        connection,
+        "definition_launch_decisions",
+        &[
+            "namespace",
+            "stable_id",
+            "subject_sha256",
+            "check_id",
+            "anchor_sha256",
+            "decision_sha256",
+            "decision_json",
+        ],
+    )
+}
 
 fn migration_33(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -1639,6 +1703,7 @@ mod tests {
         schema_30: 30,
         schema_31: 31,
         schema_32: 32,
+        schema_33: 33,
     }
 
     #[test]

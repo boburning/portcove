@@ -4,6 +4,9 @@ use crate::{PortcoveError, ReleaseChannel};
 
 const ID: &str = "tuf-metadata-fixture";
 
+#[path = "definition_launch_assessment_tests.rs"]
+mod launch_assessments;
+
 fn availability(revision: u64) -> Value {
     let targets = metadata_targets();
     availability_for(&targets, ID, revision)
@@ -798,21 +801,25 @@ async fn managed_fixture_for(
     Catalog,
     crate::DefinitionAcquisitionScope,
 ) {
+    managed_fixture_for_policy(authored, false).await
+}
+
+async fn managed_fixture_for_policy(
+    authored: Catalog,
+    launch_checks: bool,
+) -> (
+    RepositoryFixture,
+    Key,
+    Vec<u8>,
+    TempDir,
+    Library,
+    Catalog,
+    crate::DefinitionAcquisitionScope,
+) {
     let fixture = RepositoryFixture::new();
     let key = Key::new(fixture._directory.path());
     let mut targets = repository_targets_for(&authored, ID);
-    let mut document = availability_for(&targets, ID, 1);
-    document["policy_schema"] = serde_json::json!(2);
-    document["grant_id"] = serde_json::json!("managed-github-v1-fixture");
-    for field in [
-        "status",
-        "repository_id",
-        "artifact_hosts",
-        "max_redirects",
-        "operations",
-    ] {
-        document["decision"][field] = managed_github(1)["decision"][field].clone();
-    }
+    let document = managed_policy_for(&targets, launch_checks);
     targets.push((
         format!("policy/official/{ID}.json"),
         serde_json::to_vec(&document).unwrap(),
@@ -851,6 +858,25 @@ async fn managed_fixture_for(
         .unwrap()
         .unwrap();
     (fixture, key, root, directory, library, catalog, scope)
+}
+
+fn managed_policy_for(targets: &[(String, Vec<u8>)], launch_checks: bool) -> Value {
+    let mut document = availability_for(targets, ID, 1);
+    document["policy_schema"] = serde_json::json!(if launch_checks { 3 } else { 2 });
+    if launch_checks {
+        document["decision"]["scoped_launch_checks"] = 1.into();
+    }
+    document["grant_id"] = serde_json::json!("managed-github-v1-fixture");
+    for field in [
+        "status",
+        "repository_id",
+        "artifact_hosts",
+        "max_redirects",
+        "operations",
+    ] {
+        document["decision"][field] = managed_github(1)["decision"][field].clone();
+    }
+    document
 }
 
 // Owned HTTP fixtures exercise real reqwest consumers without pretending to
