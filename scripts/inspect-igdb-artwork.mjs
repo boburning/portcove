@@ -582,7 +582,9 @@ function metadataRetryAt(header, now, deadline) {
       parsed = earlier.getTime();
     }
   } else {
-    parsed = Date.parse(header);
+    // HTTP's zoneless asctime form is UTC, not the host's local timezone.
+    // Only grammar-accepted input reaches this normalization.
+    parsed = Date.parse(header.endsWith("GMT") ? header : `${header} GMT`);
   }
   const parts =
     header.match(
