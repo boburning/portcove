@@ -141,6 +141,7 @@ pub(crate) struct DefinitionOperationContext {
     pub local_integrity_valid: bool,
     pub required_source_missing: bool,
     pub source_mismatch: bool,
+    pub launch_subject: Option<[u8; 32]>,
 }
 
 impl DefinitionOperationContext {
@@ -155,6 +156,7 @@ impl DefinitionOperationContext {
             local_integrity_valid,
             required_source_missing: false,
             source_mismatch: false,
+            launch_subject: None,
         }
     }
 }

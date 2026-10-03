@@ -123,7 +123,8 @@ pub use definition_repository::{
     DefinitionReplayDisposition, DefinitionReplayFloor, DefinitionRepositorySource,
     acquire_definition_candidate,
     publisher_policy::{
-        AuthenticatedDefinitionPublisherPolicy, acquire_definition_publisher_policy,
+        AuthenticatedDefinitionLaunchAssessment, AuthenticatedDefinitionPublisherPolicy,
+        acquire_definition_launch_assessment, acquire_definition_publisher_policy,
     },
 };
 pub use error::{ErrorCode, PortcoveError, Result};

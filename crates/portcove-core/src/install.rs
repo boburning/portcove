@@ -1543,6 +1543,16 @@ fn immutable_member(install: &InstallRecord, relative: &str) -> Result<ManifestF
         })
 }
 
+pub(crate) fn verified_launch_subject(install: &InstallRecord) -> Result<[u8; 32]> {
+    let manifest = verified_manifest(install)?;
+    let platform = manifest.platform.ok_or_else(|| {
+        PortcoveError::verification("accepted launch checks require the retained manifest platform")
+    })?;
+    crate::definition_repository::publisher_policy::launch_assessment::verified_subject_key(
+        install, platform,
+    )
+}
+
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
     validate_artifact(&install.artifact)?;
     if install.manifest_sha256.len() != 64

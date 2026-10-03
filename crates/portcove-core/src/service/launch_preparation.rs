@@ -21,6 +21,27 @@ pub(super) struct ManagedLaunchInputs {
 }
 
 impl PortcoveService {
+    pub(super) fn managed_launch_context(
+        &self,
+        identity: Option<&crate::DefinitionSelectionIdentity>,
+        active: &InstallRecord,
+    ) -> Result<DefinitionOperationContext> {
+        let mut context = DefinitionOperationContext::observed(
+            DefinitionOperation::Launch,
+            true,
+            active.verified,
+        );
+        if let Some(identity) = identity
+            && crate::definition_repository::publisher_policy::launch_assessment::requires_subject(
+                &self.library.connection()?,
+                identity,
+            )?
+        {
+            context.launch_subject = Some(crate::install::verified_launch_subject(active)?);
+        }
+        Ok(context)
+    }
+
     pub(super) fn observe_managed_launch_inputs(
         &self,
         port: &PortDefinition,
@@ -66,11 +87,7 @@ impl PortcoveService {
         self.require_definition_operation(
             &catalog,
             port,
-            DefinitionOperationContext::observed(
-                DefinitionOperation::Launch,
-                true,
-                active.verified,
-            ),
+            self.managed_launch_context(catalog.definition_selection(&port.id), active)?,
         )?;
         if crate::preparation::managed(port) {
             self.validate_preparation_receipt(port, active, source.as_ref())?;

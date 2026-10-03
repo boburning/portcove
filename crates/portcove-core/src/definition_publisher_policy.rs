@@ -15,6 +15,12 @@ pub(super) const POLICY_ROLE: &str = "official-policy";
 pub(super) const POLICY_PATH: &str = "policy/official/*.json";
 pub(super) const MAX_POLICY_BYTES: u64 = 64 * 1024;
 
+#[path = "definition_launch_assessment.rs"]
+pub(crate) mod launch_assessment;
+pub use launch_assessment::{
+    AuthenticatedDefinitionLaunchAssessment, acquire_definition_launch_assessment,
+};
+
 /// Fetch inert policy under an explicitly supplied independently trusted root.
 /// A library still requires its own installed matching authority before admission.
 pub async fn acquire_definition_publisher_policy(
@@ -55,6 +61,37 @@ where
             "unsupported publisher policy identity",
         ));
     }
+    let (bytes, provenance) = acquire_target_with_transport(
+        trusted_root,
+        metadata_base_url,
+        targets_base_url,
+        transport,
+        &format!("policy/{namespace}/{stable_id}.json"),
+    )
+    .await?;
+    let document = PolicyDocument::parse(&bytes)?;
+    if document.namespace != namespace || document.stable_id != stable_id {
+        return Err(PortcoveError::verification(
+            "publisher policy target identity differs",
+        ));
+    }
+    Ok(AuthenticatedDefinitionPublisherPolicy {
+        document,
+        bytes,
+        provenance,
+    })
+}
+
+async fn acquire_target_with_transport<T>(
+    trusted_root: &[u8],
+    metadata_base_url: reqwest::Url,
+    targets_base_url: reqwest::Url,
+    transport: T,
+    target_path: &str,
+) -> Result<(Vec<u8>, PolicyProvenance)>
+where
+    T: Transport + Send + Sync + 'static,
+{
     let repository =
         super::load_repository(trusted_root, metadata_base_url, targets_base_url, transport)
             .await?;
@@ -63,16 +100,9 @@ where
         .targets
         .as_ref()
         .ok_or_else(|| PortcoveError::verification("publisher policy delegation was not loaded"))?;
-    let name = TargetName::new(format!("policy/{namespace}/{stable_id}.json"))
-        .map_err(super::map_tough_error)?;
+    let name = TargetName::new(target_path).map_err(super::map_tough_error)?;
     let target = super::definition_target(role, &repository, &name)?;
     let bytes = super::read_target(&repository, &name, target, MAX_POLICY_BYTES).await?;
-    let document = PolicyDocument::parse(&bytes)?;
-    if document.namespace != namespace || document.stable_id != stable_id {
-        return Err(PortcoveError::verification(
-            "publisher policy target identity differs",
-        ));
-    }
     let expiration = [
         repository.root().signed.expires,
         repository.timestamp().signed.expires,
@@ -118,11 +148,7 @@ where
         expires_at: expiration.to_string(),
     };
     provenance.require_fresh()?;
-    Ok(AuthenticatedDefinitionPublisherPolicy {
-        document,
-        bytes,
-        provenance,
-    })
+    Ok((bytes, provenance))
 }
 
 fn policy_role(repository: &Repository) -> Result<&tough::schema::DelegatedRole> {
@@ -219,6 +245,12 @@ enum PolicyDecision {
         artifact_hosts: Vec<String>,
         max_redirects: u32,
         operations: Vec<String>,
+        #[serde(
+            rename = "scoped_launch_checks",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        launch_checks: Option<u32>,
     },
     Revoked,
 }
@@ -276,8 +308,20 @@ impl PolicyDocument {
                 "publisher policy exceeds its byte bound",
             ));
         }
+        let raw: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(bytes)?;
         let value: Self = serde_json::from_slice(bytes)?;
-        if !matches!(value.policy_schema, 1 | 2) {
+        if value.policy_schema != 3
+            && raw
+                .0
+                .get("decision")
+                .and_then(serde_json::Value::as_object)
+                .is_some_and(|decision| decision.contains_key("scoped_launch_checks"))
+        {
+            return Err(PortcoveError::unsupported(
+                "legacy policy has an unknown safety field",
+            ));
+        }
+        if !matches!(value.policy_schema, 1..=3) {
             return Err(PortcoveError::unsupported(
                 "unsupported publisher policy schema",
             ));
@@ -285,7 +329,7 @@ impl PolicyDocument {
         let restricted = crate::definition_acquisition::restricted_grant(&value.grant_id);
         if (value.policy_schema == 1
             && (restricted || matches!(value.decision, PolicyDecision::ManagedGithub { .. })))
-            || (value.policy_schema == 2
+            || (matches!(value.policy_schema, 2 | 3)
                 && (!restricted || matches!(value.decision, PolicyDecision::Availability { .. })))
         {
             return Err(PortcoveError::unsupported(
@@ -297,9 +341,17 @@ impl PolicyDocument {
             artifact_hosts,
             max_redirects,
             operations,
+            launch_checks,
             ..
         } = &value.decision
         {
+            if (value.policy_schema == 3 && *launch_checks != Some(1))
+                || (value.policy_schema != 3 && launch_checks.is_some())
+            {
+                return Err(PortcoveError::unsupported(
+                    "publisher policy requires unsupported launch checks",
+                ));
+            }
             crate::DefinitionAcquisitionScope::validate_parameters(
                 *repository_id,
                 artifact_hosts,
@@ -594,6 +646,18 @@ impl Library {
             &policy.document.stable_id,
         )?;
         if let Some((previous, identity)) = &previous {
+            if launch_assessment::established_revision(
+                &transaction,
+                &policy.document.namespace,
+                &policy.document.stable_id,
+            )? > 0
+                && policy.document.policy_schema != 3
+                && !matches!(policy.document.decision, PolicyDecision::Revoked)
+            {
+                return Err(PortcoveError::unsupported(
+                    "accepted launch checks cannot be downgraded",
+                ));
+            }
             if identity.anchor_sha256 != policy.provenance.anchor_sha256 {
                 return Err(PortcoveError::conflict("publisher grant authority changed"));
             }
@@ -612,6 +676,22 @@ impl Library {
             params![policy.document.namespace, policy.document.stable_id],
             |row| row.get(0),
         ).optional()?;
+        if previous.is_none()
+            && current_restrictive_grant(
+                &transaction,
+                &policy.document.namespace,
+                &policy.document.stable_id,
+            )?
+        {
+            return Err(PortcoveError::state(
+                "retained restrictive grant lost its admission",
+            ));
+        }
+        if previous.is_some() && existing_revision.is_none() {
+            return Err(PortcoveError::state(
+                "accepted publisher admission lost its policy",
+            ));
+        }
         if existing_revision.is_some_and(|revision| {
             revision < 1
                 || policy.document.policy_revision < revision as u64
