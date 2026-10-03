@@ -351,7 +351,11 @@ fn zip_members_file_sets_and_gamecube_images_use_the_shared_inspector() {
             kind: SourceRepresentationKind::FileSet {
                 members: [
                     ("cartridge", "baserom.us.rev0.z64", member_bytes[0]),
-                    ("expansion-kit", "baserom.translated.ek.ndd", member_bytes[1]),
+                    (
+                        "expansion-kit",
+                        "baserom.translated.ek.ndd",
+                        member_bytes[1],
+                    ),
                     ("ipl", "N64DDIPLROM.n64", member_bytes[2]),
                 ]
                 .into_iter()
