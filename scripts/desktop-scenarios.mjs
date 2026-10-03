@@ -23,6 +23,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario("empty-library", "Native bootstrap uses the isolated empty library."),
   scenario(
+    "native-startup-library-recovery",
+    "Failed saved-library startup supports native cancellation, selection and a durable healthy restart.",
+    {
+      prerequisites: ["desktop", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-bootstrap-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-design-system-compatibility",
     "Generated styles, themes, nested portals, dismissal, focus, motion and offline assets work in Tauri.",
     {
@@ -419,6 +430,8 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (uniqueRequested.includes("native-startup-library-recovery") && uniqueRequested.length !== 1)
+    throw new Error("native-startup-library-recovery requires one exact standalone scenario");
   const nonRunnable = uniqueRequested.filter((id) => !desktopScenarioById.get(id).runnable);
   if (!selectedProfile && nonRunnable.length)
     throw new Error(`${nonRunnable.join(", ")} is an acceptance gap, not a runnable scenario`);

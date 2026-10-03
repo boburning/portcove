@@ -371,6 +371,17 @@ to see stable IDs, descriptions, profile membership, prerequisites and host-impa
 metadata. `--plan --json` and `--list-scenarios --json` provide machine-readable
 output without building or launching.
 
+`just desktop-verify --scenario native-startup-library-recovery --require-clean`
+selects one Windows-only initial-startup recovery journey, outside every routine
+profile. It seeds isolated saved preferences pointing to an owned regular file,
+observes the real recovery screen, cancels and reopens the native library picker,
+selects an owned usable library, then restarts the application to verify the saved
+choice. The invocation library override is absent in both hosts. Per-host process
+identities, positive cleanup, immutable fixture copies, preference preservation,
+generation-bound IPC and screenshots are retained; host generations are evaluated
+independently after restart. It does not reset the platform default, open a normal
+user library, or establish another platform or physical controller claim.
+
 Selected Steam-entry and game-update reviews seed their own installed port through
 the existing owned CLI/core fixture route. Like backup review, they do not first
 run the full preparation-and-Play journey. The `full` profile still includes that

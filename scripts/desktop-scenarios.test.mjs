@@ -17,6 +17,18 @@ import {
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
 
+test("initial startup recovery remains a standalone opt-in native picker route", () => {
+  const id = "native-startup-library-recovery";
+  const selection = resolveDesktopSelection({ scenarios: [id] });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "native-dialog"]);
+  assert.ok(selection.host_resources.includes("native-dialog"));
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id, "empty-library"] }), /standalone/);
+  assert.equal(desktopHarnessDeadlineMs(selection), 3 * 60_000);
+});
+
 test("cancelled navigation permits only observed GETs and never popup or execution traffic", () => {
   const request = { method: "GET", path: "/untrusted", phase: "navigation-http" };
   assertOwnedBoundaryRequests([]);
