@@ -234,6 +234,93 @@ test("invalid output limits fail before any subprocess is started", () => {
   }
 });
 
+test("GitHub subprocesses have a finite default and validated explicit time bounds", () => {
+  for (const timeoutMs of [undefined, 1000]) {
+    const run = createGitHubRunner({
+      ...(timeoutMs === undefined ? {} : { timeoutMs }),
+      spawn: (_command, _args, options) => {
+        assert.equal(options.timeout, timeoutMs ?? 15_000);
+        assert.equal(options.killSignal, "SIGKILL");
+        return { status: 0, stdout: "{}", stderr: "" };
+      },
+    });
+    assert.equal(run(["api", "graphql"]), "{}");
+  }
+  for (const timeoutMs of [null, 0, -1, 1.5, NaN, Infinity, "1000", 2_147_483_648]) {
+    let calls = 0;
+    assert.throws(
+      () => createGitHubRunner({ timeoutMs, spawn: () => calls++ }),
+      /timeout must be a positive integer/,
+    );
+    assert.equal(calls, 0);
+  }
+});
+
+test("an actually running stalled subprocess is terminated and its complete JSON discarded", () => {
+  let observed;
+  const client = new GitHubApiClient(
+    createGitHubRunner({
+      timeoutMs: 1000,
+      spawn: (_command, _args, options) => {
+        observed = spawnSync(
+          process.execPath,
+          [
+            "-e",
+            'process.on("SIGTERM", () => {}); process.stdout.write(\'{"data":{"accepted":true}}\'); process.stderr.write("private-stderr"); setInterval(() => {}, 1000);',
+          ],
+          options,
+        );
+        return observed;
+      },
+    }),
+  );
+  assert.throws(
+    () => client.graphql("query { privateInput }"),
+    (error) => {
+      assert.equal(error.code, "command_failed");
+      assert.equal(error.cause.code, "ETIMEDOUT");
+      assert.equal(error.status, null);
+      assert.equal(error.rateLimit, null);
+      assert.doesNotMatch(`${error.message} ${error.cause.message}`, /private|accepted/);
+      return true;
+    },
+  );
+  assert.equal(observed.stdout, '{"data":{"accepted":true}}');
+  assert.equal(observed.stderr, "private-stderr");
+  assert.equal(observed.error.code, "ETIMEDOUT");
+});
+
+test("timeout diagnostics discard raw subprocess errors and do not retry mutations", () => {
+  let calls = 0;
+  const client = new GitHubApiClient(
+    createGitHubRunner({
+      spawn: () => {
+        calls++;
+        return {
+          status: 0,
+          error: Object.assign(new Error("authorization: github_pat_private"), {
+            code: "ETIMEDOUT",
+          }),
+          stdout: '{"merged":true}',
+          stderr: "private-stderr",
+        };
+      },
+    }),
+  );
+  assert.throws(
+    () => client.request("PUT", "repos/example/project/pulls/1/merge", { sha: "private-input" }),
+    (error) => {
+      assert.equal(error.cause.code, "ETIMEDOUT");
+      assert.doesNotMatch(
+        `${error.message} ${error.cause.message}`,
+        /private|authorization|merged/,
+      );
+      return true;
+    },
+  );
+  assert.equal(calls, 1);
+});
+
 test("stdout and stderr overflow refuse even valid partial output without exposing payloads", () => {
   for (const [stdout, stderr] of [
     [JSON.stringify({ data: { value: "private-output".repeat(1000) } }), ""],

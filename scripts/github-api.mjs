@@ -115,20 +115,41 @@ export function createGitHubRunner({
   command = "gh",
   spawn = spawnSync,
   maxBuffer = 16 * 1024 * 1024,
+  timeoutMs = 15_000,
 } = {}) {
   if (!Number.isSafeInteger(maxBuffer) || maxBuffer <= 0)
     throw new RangeError("GitHub API output limit must be a positive safe integer number of bytes");
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647)
+    throw new RangeError(
+      "GitHub API timeout must be a positive integer up to 2147483647 milliseconds",
+    );
   return (args, input) => {
     const result = spawn(command, args, {
       cwd,
       encoding: "utf8",
       input,
       maxBuffer,
+      timeout: timeoutMs,
+      killSignal: "SIGKILL",
       stdio: input === undefined ? ["ignore", "pipe", "pipe"] : ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
     const operation = `gh ${args.slice(0, 3).join(" ")}`;
     if (result.error) {
+      if (result.error.code === "ETIMEDOUT") {
+        // A timed-out mutation may have reached GitHub. Discard even complete
+        // output; the caller must reconcile remote state before any retry.
+        throw new GitHubApiError(
+          "command_failed",
+          "GitHub API subprocess collection timed out (ETIMEDOUT)",
+          {
+            operation,
+            cause: Object.assign(new Error("Subprocess collection timed out"), {
+              code: "ETIMEDOUT",
+            }),
+          },
+        );
+      }
       if (result.error.code === "ENOBUFS") {
         // Neither partially collected output nor the provider's raw error is
         // trustworthy after overflow. Keep the cause code, not its payload.
