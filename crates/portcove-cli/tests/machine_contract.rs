@@ -2390,6 +2390,7 @@ fn status_disclosure_explains_real_core_decisions_without_changing_machine_outpu
     let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
     let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status", "lighthouse"]));
     assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(stream["type"], "result");
     assert_eq!(machine["data"], stream["data"]);
     let install = machine["data"]["port_actions"]
         .as_array()
@@ -2402,7 +2403,9 @@ fn status_disclosure_explains_real_core_decisions_without_changing_machine_outpu
     let output = portcove(root.path(), &["status", "lighthouse"]);
     let human = human_stdout(&output);
     assert!(
-        human.contains("install: waiting (missing_source): Add the required game files with source add."),
+        human.contains(
+            "install: waiting (missing_source): Add the required game files with source add."
+        ),
         "actual CLI output has no explanation for the core's missing-game-files decision:\n{human}"
     );
     assert!(human.contains("EXTERNAL (USER-OWNED)"), "{human}");
@@ -2413,19 +2416,28 @@ fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
     let root = tempfile::tempdir().unwrap();
     let machine = json_stdout(&portcove(root.path(), &["--json", "status"]));
     let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status"]));
+    assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(stream["type"], "result");
     assert_eq!(machine["data"], stream["data"]);
     let output = portcove(root.path(), &["status"]);
     let human = human_stdout(&output);
-    for status in machine["data"].as_array().unwrap() {
+    let statuses = machine["data"].as_array().unwrap();
+    assert!(!statuses.is_empty());
+    for status in statuses {
         let id = status["port_id"].as_str().unwrap();
         let heading = format!("\n{id}:\n");
+        let assessments = status["port_actions"].as_array();
+        if assessments.is_none_or(|assessments| assessments.is_empty()) {
+            assert!(!human.contains(&heading), "{id}: {human}");
+            continue;
+        }
         assert!(
             human.contains(&heading),
             "actual all-port CLI output omitted the core action group for {id}:\n{human}"
         );
         let group = human.split_once(&heading).unwrap().1;
         let group = group.split("\n\n").next().unwrap();
-        for assessment in status["port_actions"].as_array().unwrap() {
+        for assessment in assessments.unwrap() {
             let reason = assessment["definition"]["reason"]
                 .as_str()
                 .or_else(|| assessment["reason"].as_str())
@@ -2435,7 +2447,11 @@ fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
                 assessment["action"].as_str().unwrap(),
                 assessment["availability"].as_str().unwrap()
             );
-            assert!(group.contains(&prefix), "{id}: {group}");
+            let explanation = group
+                .lines()
+                .find_map(|line| line.strip_prefix(&prefix))
+                .unwrap_or_else(|| panic!("{id}: {group}"));
+            assert!(!explanation.trim().is_empty(), "{id}: {group}");
         }
     }
     let single = portcove(root.path(), &["status", "lighthouse"]);
