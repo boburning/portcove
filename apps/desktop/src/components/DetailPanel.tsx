@@ -589,7 +589,7 @@ function StatusActionsGroup({
               data-focusable
               variant="outline"
               disabled={Boolean(busy)}
-              onClick={actions.dismissInstallReview}
+              onClick={() => actions.dismissInstallReview()}
             >
               Cancel review
             </Button>
@@ -1845,7 +1845,12 @@ export function InstallAction({
                   Review installation again
                 </Button>
               )}
-              <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(busy)}
+                onClick={() => dismiss()}
+              >
                 Cancel review
               </Button>
             </DialogFooter>

@@ -468,7 +468,11 @@ it("lets a held existing review be dismissed before an allowed snapshot returns"
         setSourcePath={vi.fn()}
         actions={{
           ...actions,
-          dismissInstallReview: () => {
+          dismissInstallReview: (expected?: unknown) => {
+            if (expected !== undefined) {
+              dismiss(expected);
+              return;
+            }
             dismiss();
             setPlan(undefined);
           },
@@ -497,6 +501,53 @@ it("lets a held existing review be dismissed before an allowed snapshot returns"
       ),
     ).toBe(true);
     expect(actions.install).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+it("passes no click event when cancelling an ordinary installation review", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const dismissed = vi.fn();
+  function Harness() {
+    const [plan, setPlan] = useState<InstallPlan | undefined>(ownedInstallPlan);
+    return (
+      <DetailPanel
+        port={portDefinition()}
+        status={{
+          ...portStatus(),
+          port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+        }}
+        installPlan={plan}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={{
+          ...actions,
+          dismissInstallReview: (expected?: unknown) => {
+            if (expected !== undefined) {
+              dismissed(expected);
+              return;
+            }
+            dismissed();
+            setPlan(undefined);
+          },
+        }}
+      />
+    );
+  }
+  try {
+    await act(async () => root.render(<Harness />));
+    const cancel = [
+      ...document.body.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ].find((button) => button.textContent?.trim() === "Cancel review");
+    expect(cancel).toBeDefined();
+    await act(async () => cancel!.click());
+    expect(dismissed).toHaveBeenCalledExactlyOnceWith();
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
     host.remove();
