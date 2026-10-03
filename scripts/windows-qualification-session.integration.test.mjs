@@ -10,6 +10,7 @@ import {
   openSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -122,7 +123,9 @@ function csharpLiteral(value) {
 }
 
 function makeInstallerLifecycleFixture(t) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-installer-lifecycle-"));
+  const root = realpathSync.native(
+    mkdtempSync(path.join(os.tmpdir(), "portcove-installer-lifecycle-")),
+  );
   const keyName = `PortcoveHarness-${path.basename(root)}`;
   const keyPath = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${keyName}`;
   t.after(() => {
@@ -412,7 +415,13 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
       const result = spawnSync(
         process.execPath,
         [
-          path.join(repository, "scripts", "desktop-test-cli.mjs"),
+          path.join(
+            os.tmpdir(),
+            path.basename(item.root),
+            "boundary-repository",
+            "scripts",
+            "desktop-test-cli.mjs",
+          ),
           "--current-installed",
           "--installer",
           item.installer,
@@ -447,6 +456,16 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
         }
         continue;
       }
+      assert.ok(
+        existsSync(path.join(caseRoot, "lifecycle.json")),
+        JSON.stringify({
+          name,
+          status: result.status,
+          error: result.error,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        }),
+      );
       const evidence = JSON.parse(readFileSync(path.join(caseRoot, "lifecycle.json"), "utf8"));
       const observed = JSON.parse(
         readFileSync(

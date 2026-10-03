@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -24,7 +24,7 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
   assert.ok(Boolean(values["current-installed"]) !== Boolean(values["verify-installed-admission"]));
   for (const name of ["installer", "package-evidence", "expected-app"])
     assert.ok(values[name] && path.isAbsolute(values[name]), `--${name} requires an absolute path`);
-  const root = fileURLToPath(new URL("..", import.meta.url));
+  const root = await realpath(fileURLToPath(new URL("..", import.meta.url)));
   const { acquireNativeSessionLock, isProcessAlive } = await import("./native-session-lock.mjs");
   const { fileIdentity } = await import("./development-evidence.mjs");
   const { spawnCommand } = await import("./dev-storage.mjs");
