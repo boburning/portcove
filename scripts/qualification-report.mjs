@@ -5,7 +5,6 @@ import { createReadStream } from "node:fs";
 import { lstat, mkdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { promisify, parseArgs } from "node:util";
-import { fileURLToPath } from "node:url";
 
 function requiredIdentity(value, label) {
   if (typeof value !== "string" || !value.trim())
@@ -179,7 +178,7 @@ See docs/CATALOG.md for platform qualification rules and the live Portcove Roadm
   };
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const { values } = parseArgs({
     options: { cli: { type: "string" }, library: { type: "string" }, output: { type: "string" } },
   });

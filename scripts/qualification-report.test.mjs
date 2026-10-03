@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
 import { captureQualificationReport } from "./qualification-report.mjs";
 
 const subprocess = promisify(execFile);
@@ -102,6 +103,26 @@ function fixture(t, statuses, overrides = {}) {
     checklist: () => readFileSync(path.join(output, "checklist.md"), "utf8"),
   };
 }
+
+test("direct entry validates required arguments through resolved and aliased paths", async () => {
+  const entries = [fileURLToPath(new URL("./qualification-report.mjs", import.meta.url))];
+  // Linux procfs supplies an alias without creating symlinks or invoking a real CLI.
+  if (process.platform === "linux") entries.push("/proc/self/cwd/scripts/qualification-report.mjs");
+  for (const entry of entries)
+    await assert.rejects(
+      subprocess(process.execPath, [entry], {
+        cwd: fileURLToPath(new URL("../", import.meta.url)),
+        windowsHide: true,
+        timeout: 15_000,
+      }),
+      (error) => {
+        assert.equal(error.code, 1, entry);
+        assert.equal(error.stdout, "", entry);
+        assert.match(error.stderr, /--cli is required/, entry);
+        return true;
+      },
+    );
+});
 
 test("mixed inventory reports exact managed and non-owning facts without inherited observations", async (t) => {
   const f = fixture(t, [managed(), external(), { port_id: "uninstalled", active: null }]);
