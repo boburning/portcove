@@ -3460,7 +3460,6 @@ fn one_off_discovery_refreshes_a_claim_before_visiting_the_output_subtree() {
     let healthy = root.join("original.z64");
     let output_file = output.join("generated.z64");
     fs::write(&healthy, payload).unwrap();
-    fs::write(&output_file, payload).unwrap();
     let mut service =
         PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
             .unwrap();
@@ -3482,6 +3481,7 @@ fn one_off_discovery_refreshes_a_claim_before_visiting_the_output_subtree() {
                     0,
                 )
                 .unwrap();
+                fs::write(&output_file, payload).unwrap();
                 claimed = true;
             }
         })
