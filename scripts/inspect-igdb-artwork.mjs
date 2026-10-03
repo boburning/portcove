@@ -22,6 +22,7 @@ const slugPattern = /^[a-z0-9-]{1,255}$/;
 const imagePattern = /^[a-z0-9]{1,128}$/;
 const hashPattern = /^[a-f0-9]{64}$/;
 const positiveId = (value) => Number.isSafeInteger(value) && value > 0;
+const matchesString = (pattern, value) => typeof value === "string" && pattern.test(value);
 
 export function readArtworkJson(file, maximum = 8 * 1024 * 1024) {
   const fd = openSync(file, "r");
@@ -70,7 +71,7 @@ function declaredIdentity(value, kind = value?.kind ?? "port") {
   if (
     !value ||
     (value.game_id != null && !positiveId(value.game_id)) ||
-    (value.slug != null && !slugPattern.test(value.slug)) ||
+    (value.slug != null && !matchesString(slugPattern, value.slug)) ||
     !Array.isArray(value.names) ||
     !value.names.length ||
     value.names.length > 16 ||
@@ -164,7 +165,7 @@ function validObservedMetadata(game) {
     !game ||
     !positiveId(game.id) ||
     typeof game.name !== "string" ||
-    !slugPattern.test(game.slug ?? "")
+    !matchesString(slugPattern, game.slug)
   )
     return false;
   if (
@@ -205,9 +206,9 @@ function validMapping(value) {
     value &&
     positiveId(value.game_id) &&
     positiveId(value.cover_id) &&
-    imagePattern.test(value.image_id ?? "") &&
-    hashPattern.test(value.image_sha256 ?? "") &&
-    slugPattern.test(value.game_slug ?? "") &&
+    matchesString(imagePattern, value.image_id) &&
+    matchesString(hashPattern, value.image_sha256) &&
+    matchesString(slugPattern, value.game_slug) &&
     ["port", "underlying-game"].includes(value.match_kind)
   );
 }
@@ -242,7 +243,7 @@ function exception(kind, reason) {
 function observedContent(value) {
   if (
     !value ||
-    !hashPattern.test(value.sha256 ?? "") ||
+    !matchesString(hashPattern, value.sha256) ||
     !positiveId(value.bytes) ||
     value.bytes > maximumImageBytes ||
     !positiveId(value.width) ||
@@ -321,7 +322,7 @@ async function selectCover(identity, kind, context, exceptions) {
     return null;
   }
   const game = identified.game;
-  if (!positiveId(game.cover?.id) || !imagePattern.test(game.cover?.image_id ?? "")) {
+  if (!positiveId(game.cover?.id) || !matchesString(imagePattern, game.cover?.image_id)) {
     exceptions.push(exception(kind, "no-usable-cover"));
     return null;
   }
@@ -587,7 +588,7 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
       );
     },
     async inspectImage(imageId, remainingBytes = maximumBatchBytes) {
-      if (!imagePattern.test(imageId)) throw new Error("Invalid image identity.");
+      if (!matchesString(imagePattern, imageId)) throw new Error("Invalid image identity.");
       if (metrics.image_requests >= 400 || metrics.image_bytes >= maximumBatchBytes)
         throw new Error("Artwork image budget reached.");
       metrics.image_requests++;

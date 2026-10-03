@@ -422,6 +422,10 @@ test("malformed nested provider responses reject only that cover and the actual 
     { websites: [null] },
     { alternative_names: [null] },
     { platforms: ["invalid"] },
+    { slug: 123 },
+    { slug: ["valid-slug"] },
+    { cover: { id: 3, image_id: 123 } },
+    { cover: { id: 3, image_id: ["co3"] } },
   ]) {
     const transport = createIgdbInspector(
       credentials,
@@ -458,7 +462,10 @@ test("malformed nested provider responses reject only that cover and the actual 
       { ...transport, acceptedCatalog: { ports: [] } },
     );
     assert.equal(result.records[0].reason, "generated-fallback");
-    assert.equal(result.records[0].exceptions[0].reason, "identity-response-invalid");
+    assert.equal(
+      result.records[0].exceptions[0].reason,
+      invalid.cover ? "no-usable-cover" : "identity-response-invalid",
+    );
     assert.equal(result.records[1].reason, "exact-port-cover");
     assert.equal(transport.providerMetrics.authentication_requests, 1);
     assert.equal(transport.providerMetrics.game_requests, 2);
