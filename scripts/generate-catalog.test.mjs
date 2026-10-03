@@ -1109,10 +1109,12 @@ for (const spec of [
         await assert.rejects(inspector.inspectGame(lifecycleIdentity), /batch deadline reached/);
         assert.deepEqual(routes, ["token", "games"]);
       }
-      assert.equal(
-        inspector.providerMetrics.image_bytes,
-        spec.name === "image streaming limit" ? 2048 : 0,
-      );
+      if (spec.name === "image streaming limit") {
+        // Fetch may split the server's write: account for the consumed chunks,
+        // stopping as soon as the remaining budget is exceeded.
+        assert.ok(inspector.providerMetrics.image_bytes > 1024);
+        assert.ok(inspector.providerMetrics.image_bytes <= 2048);
+      } else assert.equal(inspector.providerMetrics.image_bytes, 0);
       assert.equal(
         inspector.providerMetrics.authentication_requests,
         spec.route === "image" ? 0 : 1,
