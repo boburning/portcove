@@ -2383,3 +2383,72 @@ fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_l
     assert_eq!(response["command"], "about");
     assert_eq!(response["data"]["product"], "Portcove");
 }
+
+#[test]
+fn status_disclosure_explains_real_core_decisions_without_changing_machine_output() {
+    let root = tempfile::tempdir().unwrap();
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status", "lighthouse"]));
+    assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(machine["data"], stream["data"]);
+    let install = machine["data"]["port_actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|assessment| assessment["action"] == "install")
+        .unwrap();
+    assert_eq!(install["availability"], "waiting");
+    assert_eq!(install["reason"], "missing_source");
+    let output = portcove(root.path(), &["status", "lighthouse"]);
+    let human = human_stdout(&output);
+    assert!(
+        human.contains("install: waiting (missing_source): Add the required game files with source add."),
+        "actual CLI output has no explanation for the core's missing-game-files decision:\n{human}"
+    );
+    assert!(human.contains("EXTERNAL (USER-OWNED)"), "{human}");
+}
+
+#[test]
+fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
+    let root = tempfile::tempdir().unwrap();
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status"]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status"]));
+    assert_eq!(machine["data"], stream["data"]);
+    let output = portcove(root.path(), &["status"]);
+    let human = human_stdout(&output);
+    for status in machine["data"].as_array().unwrap() {
+        let id = status["port_id"].as_str().unwrap();
+        let heading = format!("\n{id}:\n");
+        assert!(
+            human.contains(&heading),
+            "actual all-port CLI output omitted the core action group for {id}:\n{human}"
+        );
+        let group = human.split_once(&heading).unwrap().1;
+        let group = group.split("\n\n").next().unwrap();
+        for assessment in status["port_actions"].as_array().unwrap() {
+            let reason = assessment["definition"]["reason"]
+                .as_str()
+                .or_else(|| assessment["reason"].as_str())
+                .unwrap();
+            let prefix = format!(
+                "  {}: {} ({reason}): ",
+                assessment["action"].as_str().unwrap(),
+                assessment["availability"].as_str().unwrap()
+            );
+            assert!(group.contains(&prefix), "{id}: {group}");
+        }
+    }
+    let single = portcove(root.path(), &["status", "lighthouse"]);
+    let single = human_stdout(&single);
+    assert_eq!(
+        single.split_once("\nlighthouse:\n").unwrap().1.trim(),
+        human
+            .split_once("\nlighthouse:\n")
+            .unwrap()
+            .1
+            .split("\n\n")
+            .next()
+            .unwrap()
+            .trim()
+    );
+}
