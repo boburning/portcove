@@ -153,17 +153,42 @@ function matchesIdentity(game, declared) {
   return true;
 }
 
-function identifiedGame(matches, declared) {
+function validOptionalList(value, predicate) {
+  return value == null || (Array.isArray(value) && value.length <= 256 && value.every(predicate));
+}
+
+function validObservedMetadata(game) {
   if (
-    !Array.isArray(matches) ||
-    matches.some(
-      (game) =>
-        !game ||
-        !positiveId(game.id) ||
-        typeof game.name !== "string" ||
-        !slugPattern.test(game.slug ?? ""),
+    !game ||
+    !positiveId(game.id) ||
+    typeof game.name !== "string" ||
+    !slugPattern.test(game.slug ?? "")
+  )
+    return false;
+  if (
+    !validOptionalList(
+      game.alternative_names,
+      (name) => name && typeof name.name === "string" && name.name.length <= 255,
     )
   )
+    return false;
+  if (
+    !validOptionalList(
+      game.websites,
+      (site) => site && typeof site.url === "string" && site.url.length <= 2048,
+    )
+  )
+    return false;
+  if (!validOptionalList(game.platforms, positiveId)) return false;
+  return (
+    (game.version_parent == null || positiveId(game.version_parent)) &&
+    (game.version_title == null ||
+      (typeof game.version_title === "string" && game.version_title.length <= 255))
+  );
+}
+
+function identifiedGame(matches, declared) {
+  if (!Array.isArray(matches) || matches.some((game) => !validObservedMetadata(game)))
     return { reason: "identity-response-invalid" };
   if (matches.length >= 21) return { reason: "identity-query-incomplete" };
   if (declared.game_id != null && matches.length !== 1) return { reason: "identity-not-unique" };

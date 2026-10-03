@@ -404,6 +404,59 @@ test("provider requests use fixed origins, bounded metadata and safe strings; au
   );
 });
 
+test("malformed nested provider responses reject only that cover and the actual batch continues", async () => {
+  const { prepareCatalogArtwork, createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-malformed-provider-"));
+  const credentials = join(scratch, "private-fixture.json");
+  writeFileSync(credentials, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
+  for (const invalid of [
+    { websites: [null] },
+    { alternative_names: [null] },
+    { platforms: ["invalid"] },
+  ]) {
+    const transport = createIgdbInspector(
+      credentials,
+      () => ({ width: 12, height: 24, format: "jpeg", validator: "portcove-core" }),
+      async (url, options) => {
+        if (url.includes("oauth2")) return new Response('{"access_token":"fixture"}');
+        if (url.includes("images.igdb.com"))
+          return new Response(
+            readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg")),
+            { headers: { "content-type": "image/jpeg" } },
+          );
+        const good = options.body.includes('"Good"');
+        return new Response(
+          JSON.stringify([
+            {
+              id: good ? 2 : 1,
+              name: good ? "Good" : "Bad",
+              slug: good ? "good" : "bad",
+              websites: [{ url: good ? "https://example.org/good" : "https://example.org/bad" }],
+              cover: { id: 3, image_id: "co3" },
+              ...(good ? {} : invalid),
+            },
+          ]),
+        );
+      },
+    );
+    const result = await prepareCatalogArtwork(
+      {
+        ports: [
+          { id: "bad", name: "Bad", project_url: "https://example.org/bad" },
+          { id: "good", name: "Good", project_url: "https://example.org/good" },
+        ],
+      },
+      { ...transport, acceptedCatalog: { ports: [] } },
+    );
+    assert.equal(result.records[0].reason, "generated-fallback");
+    assert.equal(result.records[0].exceptions[0].reason, "identity-response-invalid");
+    assert.equal(result.records[1].reason, "exact-port-cover");
+    assert.equal(transport.providerMetrics.authentication_requests, 1);
+    assert.equal(transport.providerMetrics.game_requests, 2);
+    assert.equal(transport.providerMetrics.image_requests, 1);
+  }
+});
+
 test("wrong editions and invalid declarations never reach image acquisition", async () => {
   const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mjs");
   const result = await prepareCatalogArtwork(
