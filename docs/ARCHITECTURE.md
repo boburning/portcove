@@ -360,6 +360,14 @@ rebuilds missing/corrupt entries, and evicts entries in deterministic filename o
 One bounded pending file for each kind is recognized for interrupted-write retry
 or cache clearing; publication of an original may require up to 16 MiB of
 temporary working space.
+Catalog cover retrieval checks validated cached bytes before process-local retry
+state. Request timeout/connect failures and HTTP 408, 429 or 5xx responses
+retain their network error for 30 seconds after completion. At most 256 exact
+canonical-root/durable-library/image/content request identities are retained; same-identity requests
+serialize, idle entries may be evicted and a full active registry refuses new
+retrieval. Integrity, decode, filesystem, publication and other HTTP failures
+are not retained. Cache clearing detaches that library's retry state, including
+in-flight requests, without changing choices or imported originals.
 Unexpected files or symlink paths are retained and rejected, never traversed.
 
 Library metadata format 3 exports logical choices and local asset identities with

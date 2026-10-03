@@ -908,3 +908,424 @@ fn oversized_published_thumbnail_is_retained_as_an_unexpected_cache_entry() {
         selected
     );
 }
+
+#[test]
+fn transient_cover_failure_backs_off_without_erasing_the_choice() {
+    use std::{cell::Cell, time::Instant};
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let before = service.artwork("shipwright", ArtworkSlot::Cover).unwrap();
+    let ArtworkResolvedSource::IgdbCover { artwork, .. } = &before.resolved_source else {
+        panic!("mapped cover");
+    };
+    let requests = Cell::new(0);
+    let now = Instant::now();
+    for _ in 0..3 {
+        let error = crate::artwork::igdb_thumbnail_with_fetch(
+            service.library(),
+            artwork,
+            0,
+            |_| panic!("failure cannot publish"),
+            || {
+                requests.set(requests.get() + 1);
+                Err(crate::artwork::IgdbFetchFailure {
+                    error: crate::PortcoveError::network("temporary cover outage"),
+                    retryable: true,
+                })
+            },
+            || now,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert_eq!(error.message, "temporary cover outage");
+    }
+    assert_eq!(
+        serde_json::to_value(service.artwork("shipwright", ArtworkSlot::Cover).unwrap()).unwrap(),
+        serde_json::to_value(before).unwrap()
+    );
+    assert_eq!(
+        requests.get(),
+        1,
+        "one request within the transient backoff window"
+    );
+}
+
+fn backoff_fixture(root: &Path) -> (PortcoveService, crate::IgdbArtwork, Vec<u8>) {
+    let service = open_service(&root.join("library"));
+    let cover = service.artwork("shipwright", ArtworkSlot::Cover).unwrap();
+    let ArtworkResolvedSource::IgdbCover { mut artwork, .. } = cover.resolved_source else {
+        panic!("mapped cover");
+    };
+    let bytes = fs::read(image_file(root, "cover.jpg", image::ImageFormat::Jpeg)).unwrap();
+    artwork.image_sha256 = crate::signed_catalog::digest(&bytes);
+    (service, artwork, bytes)
+}
+
+fn transient_cover_error() -> crate::artwork::IgdbFetchFailure {
+    crate::artwork::IgdbFetchFailure {
+        error: crate::PortcoveError::network("temporary cover outage"),
+        retryable: true,
+    }
+}
+
+fn cover_with_fetch(
+    service: &PortcoveService,
+    artwork: &crate::IgdbArtwork,
+    now: std::time::Instant,
+    fetch: impl FnOnce() -> std::result::Result<Vec<u8>, crate::artwork::IgdbFetchFailure>,
+) -> crate::Result<crate::ArtworkThumbnail> {
+    crate::artwork::igdb_thumbnail_with_fetch(
+        service.library(),
+        artwork,
+        0,
+        |bytes| {
+            let cache = service.library().root().join("artwork-cache");
+            fs::create_dir_all(&cache)?;
+            fs::write(cache.join(format!("{}.jpg", artwork.image_sha256)), bytes)?;
+            Ok(())
+        },
+        fetch,
+        || now,
+    )
+}
+
+#[test]
+fn cover_backoff_expires_from_completion_and_success_recovers() {
+    use std::{
+        cell::Cell,
+        time::{Duration, Instant},
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, bytes) = backoff_fixture(temp.path());
+    let start = Instant::now();
+    let clock = Cell::new(start);
+    let requests = Cell::new(0);
+    crate::artwork::igdb_thumbnail_with_fetch(
+        service.library(),
+        &artwork,
+        0,
+        |_| panic!("no publication"),
+        || {
+            requests.set(1);
+            clock.set(start + Duration::from_secs(15));
+            Err(transient_cover_error())
+        },
+        || clock.get(),
+    )
+    .unwrap_err();
+    cover_with_fetch(&service, &artwork, start + Duration::from_secs(44), || {
+        requests.set(2);
+        Ok(bytes.clone())
+    })
+    .unwrap_err();
+    assert_eq!(requests.get(), 1);
+    let thumbnail = cover_with_fetch(&service, &artwork, start + Duration::from_secs(45), || {
+        requests.set(2);
+        Ok(bytes)
+    })
+    .unwrap();
+    assert_eq!(requests.get(), 2);
+    assert!(!thumbnail.png.is_empty());
+    assert_eq!(thumbnail.choice_revision, 0);
+    let cached = cover_with_fetch(&service, &artwork, start + Duration::from_secs(46), || {
+        panic!("cached success needs no request")
+    })
+    .unwrap();
+    assert_eq!(cached.png, thumbnail.png);
+}
+
+#[test]
+fn validated_cover_cache_precedes_backoff_and_clear_permits_retry() {
+    use std::time::Instant;
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, bytes) = backoff_fixture(temp.path());
+    let now = Instant::now();
+    cover_with_fetch(&service, &artwork, now, || Err(transient_cover_error())).unwrap_err();
+    let cache = service.library().root().join("artwork-cache");
+    fs::create_dir_all(&cache).unwrap();
+    fs::write(cache.join(format!("{}.jpg", artwork.image_sha256)), &bytes).unwrap();
+    assert!(
+        !cover_with_fetch(&service, &artwork, now, || panic!(
+            "valid bytes precede retained outage"
+        ))
+        .unwrap()
+        .png
+        .is_empty()
+    );
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    assert!(cover_with_fetch(&service, &artwork, now, || Ok(bytes)).is_ok());
+}
+
+#[test]
+fn cover_backoff_isolated_by_library_image_and_content_identity() {
+    use std::{cell::Cell, time::Instant};
+    let first = tempfile::tempdir().unwrap();
+    let second = tempfile::tempdir().unwrap();
+    let (service, artwork, _) = backoff_fixture(first.path());
+    let (other, _, _) = backoff_fixture(second.path());
+    let now = Instant::now();
+    let requests = Cell::new(0);
+    let failure = || {
+        requests.set(requests.get() + 1);
+        Err(transient_cover_error())
+    };
+    cover_with_fetch(&service, &artwork, now, failure).unwrap_err();
+    cover_with_fetch(&service, &artwork, now, failure).unwrap_err();
+    assert_eq!(requests.get(), 1);
+    cover_with_fetch(&other, &artwork, now, failure).unwrap_err();
+    let mut different_image = artwork.clone();
+    different_image.image_id.push('a');
+    cover_with_fetch(&service, &different_image, now, failure).unwrap_err();
+    let mut different_content = artwork.clone();
+    different_content.image_sha256 = "0".repeat(64);
+    cover_with_fetch(&service, &different_content, now, failure).unwrap_err();
+    assert_eq!(requests.get(), 4);
+    service.clear_artwork_cache().unwrap();
+    cover_with_fetch(&service, &artwork, now, failure).unwrap_err();
+    cover_with_fetch(&other, &artwork, now, failure).unwrap_err();
+    assert_eq!(
+        requests.get(),
+        5,
+        "clearing one library preserves another's backoff"
+    );
+}
+
+#[test]
+fn permanent_integrity_publication_and_detailed_failures_are_not_cached() {
+    use std::{cell::Cell, time::Instant};
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, bytes) = backoff_fixture(temp.path());
+    let now = Instant::now();
+    let requests = Cell::new(0);
+    for (code, retryable, detailed) in [
+        (crate::ErrorCode::Network, false, false),
+        (crate::ErrorCode::Verification, true, false),
+        (crate::ErrorCode::State, false, false),
+        (crate::ErrorCode::Network, true, true),
+    ] {
+        for _ in 0..2 {
+            let error = cover_with_fetch(&service, &artwork, now, || {
+                requests.set(requests.get() + 1);
+                let mut error = crate::PortcoveError::new(code, "uncached failure");
+                if detailed {
+                    error = error.detail("context", "preserved");
+                }
+                Err(crate::artwork::IgdbFetchFailure { error, retryable })
+            })
+            .unwrap_err();
+            assert_eq!(error.code, code);
+            assert_eq!(error.details.contains_key("context"), detailed);
+        }
+    }
+    assert_eq!(requests.get(), 8);
+    for _ in 0..2 {
+        let error = cover_with_fetch(&service, &artwork, now, || {
+            requests.set(requests.get() + 1);
+            Ok(b"not the accepted JPEG".to_vec())
+        })
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+    }
+    for _ in 0..2 {
+        let error = crate::artwork::igdb_thumbnail_with_fetch(
+            service.library(),
+            &artwork,
+            0,
+            |_| Err(crate::PortcoveError::conflict("stale choice")),
+            || {
+                requests.set(requests.get() + 1);
+                Ok(bytes.clone())
+            },
+            || now,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+    }
+    assert_eq!(requests.get(), 12);
+    assert!(cover_with_fetch(&service, &artwork, now, || Ok(bytes)).is_ok());
+}
+
+#[test]
+fn concurrent_cover_failures_share_one_request_without_holding_registry() {
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            mpsc,
+        },
+        time::Instant,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, _) = backoff_fixture(temp.path());
+    let now = Instant::now();
+    let requests = AtomicUsize::new(0);
+    let (started, waiting) = mpsc::channel();
+    let (release, released) = mpsc::channel();
+    std::thread::scope(|scope| {
+        let service = &service;
+        let artwork = &artwork;
+        let requests = &requests;
+        let first = scope.spawn(move || {
+            cover_with_fetch(service, artwork, now, || {
+                requests.fetch_add(1, Ordering::SeqCst);
+                started.send(()).unwrap();
+                released.recv().unwrap();
+                Err(transient_cover_error())
+            })
+        });
+        waiting.recv().unwrap();
+        let second = scope.spawn(|| {
+            cover_with_fetch(service, artwork, now, || {
+                requests.fetch_add(1, Ordering::SeqCst);
+                Err(transient_cover_error())
+            })
+        });
+        release.send(()).unwrap();
+        assert_eq!(
+            first.join().unwrap().unwrap_err().code,
+            crate::ErrorCode::Network
+        );
+        assert_eq!(
+            second.join().unwrap().unwrap_err().code,
+            crate::ErrorCode::Network
+        );
+    });
+    assert_eq!(requests.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn clearing_cover_backoff_detaches_in_flight_failure() {
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            mpsc,
+        },
+        time::Instant,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, _) = backoff_fixture(temp.path());
+    let now = Instant::now();
+    let requests = AtomicUsize::new(0);
+    let (started, waiting) = mpsc::channel();
+    let (release, released) = mpsc::channel();
+    std::thread::scope(|scope| {
+        let service = &service;
+        let artwork = &artwork;
+        let requests = &requests;
+        let first = scope.spawn(move || {
+            cover_with_fetch(service, artwork, now, || {
+                requests.fetch_add(1, Ordering::SeqCst);
+                started.send(()).unwrap();
+                released.recv().unwrap();
+                Err(transient_cover_error())
+            })
+        });
+        waiting.recv().unwrap();
+        service.clear_artwork_cache().unwrap();
+        cover_with_fetch(service, artwork, now, || {
+            requests.fetch_add(1, Ordering::SeqCst);
+            Err(crate::artwork::IgdbFetchFailure {
+                error: crate::PortcoveError::network("new outage"),
+                retryable: true,
+            })
+        })
+        .unwrap_err();
+        release.send(()).unwrap();
+        first.join().unwrap().unwrap_err();
+    });
+    let error = cover_with_fetch(&service, &artwork, now, || {
+        panic!("old in-flight completion cannot replace new state")
+    })
+    .unwrap_err();
+    assert_eq!(error.message, "new outage");
+    assert_eq!(requests.load(Ordering::SeqCst), 2);
+}
+
+#[test]
+fn cover_request_registry_is_bounded_and_never_evicts_active_requests() {
+    let mut registry = crate::artwork::IgdbRequests::default();
+    let key = |index| {
+        (
+            std::path::PathBuf::from("isolated fixture"),
+            "durable fixture identity".to_owned(),
+            format!("image{index}"),
+            "0".repeat(64),
+        )
+    };
+    let mut active = (0..256)
+        .map(|index| registry.request(key(index)).unwrap())
+        .collect::<Vec<_>>();
+    assert!(std::sync::Arc::ptr_eq(
+        &active[0],
+        &registry.request(key(0)).unwrap()
+    ));
+    assert_eq!(
+        registry.request(key(256)).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+    active.pop();
+    assert!(registry.request(key(256)).is_ok());
+    assert!(std::sync::Arc::ptr_eq(
+        &active[0],
+        &registry.request(key(0)).unwrap()
+    ));
+}
+
+#[test]
+fn only_transient_http_cover_statuses_receive_backoff() {
+    for code in [408, 429, 500, 502, 503, 504, 599] {
+        assert!(crate::artwork::igdb_status_retryable(
+            reqwest::StatusCode::from_u16(code).unwrap()
+        ));
+    }
+    for code in [200, 301, 400, 401, 403, 404, 410, 422] {
+        assert!(!crate::artwork::igdb_status_retryable(
+            reqwest::StatusCode::from_u16(code).unwrap()
+        ));
+    }
+}
+
+#[test]
+fn new_library_at_same_path_does_not_inherit_cover_backoff() {
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, _) = backoff_fixture(temp.path());
+    let old_identity = service.library().identity_record().unwrap();
+    let now = std::time::Instant::now();
+    cover_with_fetch(&service, &artwork, now, || Err(transient_cover_error())).unwrap_err();
+    drop(service);
+    fs::remove_dir_all(&old_identity.root).unwrap();
+    let (replacement, same_artwork, bytes) = backoff_fixture(temp.path());
+    let new_identity = replacement.library().identity_record().unwrap();
+    assert_eq!(old_identity.root, new_identity.root);
+    assert_ne!(old_identity.id, new_identity.id);
+    assert_eq!(artwork.image_sha256, same_artwork.image_sha256);
+    assert!(
+        cover_with_fetch(&replacement, &same_artwork, now, || Ok(bytes)).is_ok(),
+        "new durable identity must make its own first request"
+    );
+}
+
+#[test]
+fn cover_backoff_and_clear_share_canonical_library_alias_identity() {
+    use std::{cell::Cell, time::Instant};
+    let temp = tempfile::tempdir().unwrap();
+    let (service, artwork, _) = backoff_fixture(temp.path());
+    fs::create_dir(temp.path().join("alias")).unwrap();
+    let alias =
+        PortcoveService::new(Library::open(temp.path().join("alias/../library")).unwrap()).unwrap();
+    assert_eq!(
+        service.library().identity_record().unwrap(),
+        alias.library().identity_record().unwrap()
+    );
+    let requests = Cell::new(0);
+    let now = Instant::now();
+    let failure = || {
+        requests.set(requests.get() + 1);
+        Err(transient_cover_error())
+    };
+    cover_with_fetch(&service, &artwork, now, failure).unwrap_err();
+    cover_with_fetch(&alias, &artwork, now, failure).unwrap_err();
+    assert_eq!(requests.get(), 1);
+    alias.clear_artwork_cache().unwrap();
+    cover_with_fetch(&service, &artwork, now, failure).unwrap_err();
+    assert_eq!(requests.get(), 2);
+}
