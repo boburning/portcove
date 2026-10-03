@@ -214,6 +214,35 @@ Retain the historical `automated_tested_platforms` and
 `manually_validated_platforms` field names and their existing recorded claims;
 this clarification creates no new qualification record or platform support.
 
+### Qualification evidence preparation
+
+`node scripts/qualification-report.mjs --cli <executable> --library <library> --output <new-directory>`
+captures existing versioned core snapshots and a checklist for active managed
+installs and non-owning external registrations. Format 1 retains managed fields
+and adds `runtime_kind`, a distinct `registration_id`, and available platform,
+runtime/executable paths and immutable-tree identity. External `artifact_sha256`
+is the registration's accepted archive identity, not a new download observation;
+its immutable-tree hash is a separate fact. External platform comes from its
+registration. Managed records lack artifact-platform identity, which remains
+unknown; the capture host's platform stays in the doctor response separately.
+
+Missing optional version, hash, platform, path or readiness facts remain null
+(unknown), rather than borrowing current catalog or host facts for a retained
+external record. Missing required port/record IDs, duplicate identities within a
+route, conflicting managed/external records or a changed record owner refuse the
+capture before report publication. Existing capture directories are preserved.
+`installed_ports` still counts managed installs; `registered_ports` counts
+external registrations and `reported_ports` counts both.
+
+Backup listings and the backup/restore checklist apply only to managed installs.
+External rows do not establish save locations or Portcove ownership; their
+`user_data_root` and unbound source-profile reference remain unknown. Exact source
+facts, when available, stay in the captured core source responses. Gameplay,
+audio, controller and save/load observations start null (unassessed), regardless
+of readiness or historical qualification. Record exact operation, method, scope,
+date and actual result separately. Neither capture nor synthetic CLI responses
+grant runtime/gameplay qualification or modify catalog evidence.
+
 Legacy Project `Port stage = Supported` means that at least one declared
 platform is present in both historical arrays. That historical claim is limited
 to the port/platform intersection and does not become an unconditional claim
