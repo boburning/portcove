@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import type { UpdateBatchRead } from "./use-update-center";
 import { UpdateCenter } from "../../components/UpdateCenter";
 import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type {
@@ -413,4 +414,98 @@ describe("update center presentation", () => {
     expect(html.toLowerCase()).not.toContain("adopt");
     expect(html).not.toContain("No operations recorded yet");
   });
+});
+
+const priorResult: NonNullable<UpdateCheckOutcome["result"]> = {
+  port_id: port.id,
+  channel: "stable",
+  installed_version: "1.0",
+  installed_artifact: installRecord().artifact,
+  installed_runtime: null,
+  required_runtime: null,
+  update_available: true,
+  release: {
+    published_at: null,
+    version: "2.0",
+    channel: "stable",
+    asset: {
+      name: "sample-2.zip",
+      url: "https://example.com/sample-2.zip",
+      size: 2,
+      sha256: "a".repeat(64),
+    },
+  },
+};
+function batchHtml(batchRead: UpdateBatchRead, outcomes: UpdateCheckOutcome[] = []) {
+  return renderToStaticMarkup(
+    <UpdateCenter
+      generation={1}
+      ports={[port]}
+      statuses={new Map([[port.id, { ...portStatus(), active: installRecord() }]])}
+      activities={[]}
+      outcomes={outcomes}
+      batchRead={batchRead}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />,
+  );
+}
+
+it.each(["pending", "failed", "cancelled"] as const)(
+  "marks retained results as prior-check facts when the batch is %s",
+  (status) => {
+    const html = batchHtml({ status, hasResults: true }, [
+      { port_id: port.id, ok: true, error: null, result: priorResult },
+    ]);
+    expect(html).toContain(">Update available at last check</span>");
+    expect(html).toContain("Earlier update results cover 1 of 1 installed games");
+    expect(html).toContain("Updates at last check");
+    expect(html).toContain("Failed at last check");
+    expect(html).toContain("Latest eligible at last check");
+    expect(html).toContain(">2.0</span>");
+    expect(html).not.toContain(">Update available</span>");
+  },
+);
+
+it("keeps individual failed and unavailable results visible without replacing them with saved success", () => {
+  const failed = batchHtml({ status: "failed", hasResults: true }, [
+    { port_id: port.id, ok: false, result: null, error: failureReport() },
+  ]);
+  expect(failed).toContain(">Earlier check failed</span>");
+  expect(failed).toMatch(/<strong[^>]*>1<\/strong><span[^>]*>Failed at last check<\/span>/u);
+  expect(failed).toContain("Earlier update results cover 0 of 1 installed games");
+  const unavailable = batchHtml({ status: "pending", hasResults: true }, [
+    { port_id: port.id, ok: true, result: null, error: null },
+  ]);
+  expect(unavailable).toContain(">Earlier check result unavailable</span>");
+  expect(unavailable).toContain("Unavailable");
+  expect(unavailable).not.toContain(">Update available at last check</span>");
+});
+
+it("keeps batch failure count unknown when no individual results are available", () => {
+  const html = batchHtml({ status: "failed", hasResults: false });
+  expect(html).toMatch(/<strong[^>]*>Unknown<\/strong><span[^>]*>Failed at last check<\/span>/u);
+  expect(html).toContain(">Not checked</span>");
+  expect(html).not.toContain(">Check failed</span>");
+  expect(html).toContain("Current update results are unavailable");
+  expect(html).toContain("Retry only checks for updates");
+  expect(html).toContain("Retry update check");
+});
+
+it("keeps batch technical diagnostics private and does not infer a mutation result", () => {
+  const failure = failureReport().presentation;
+  failure.technical_message = "private/batch/read/path";
+  failure.technical_context = { path: "private/batch/read/path" };
+  const html = batchHtml({ status: "failed", hasResults: false, failure });
+  const primary = html.slice(0, html.indexOf("<details"));
+  expect(primary).not.toContain("private/batch/read/path");
+  expect(primary).not.toContain("whether anything changed");
+  expect(primary).not.toContain("No files were changed");
+  expect(primary).not.toContain("The change was saved");
+  expect(html).toContain("View technical details");
+  expect(html).toContain("private/batch/read/path");
 });

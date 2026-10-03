@@ -1973,6 +1973,16 @@ its reported outcome. Port selection, newer requests and disposal invalidate
 older readbacks. Core inventory recovery state and fresh backup-action review
 remain authoritative for restore and delete eligibility.
 
+The `features/port-updates` read owner keeps a whole installed-update check's
+pending, completed, failed or cancelled outcome separate from individual port
+results. Earlier completed results remain available during a later check or
+batch failure, with explicit prior-check labels and current-read unavailability.
+A batch failure does not invent individual port failures. Retry repeats only the
+existing update check, never an install, download or update. Newer requests,
+changed installation identity and disposal invalidate older readbacks; current
+saved-check identity, release comparisons and fresh update reviews remain owned
+by their existing core and presentation authorities.
+
 The `features/app-shell` unit owns the remaining ephemeral application UI state:
 primary view, library filter and query, selected detail, source inputs and the
 adoption overlay inputs. Changing the primary view resets the library filter;

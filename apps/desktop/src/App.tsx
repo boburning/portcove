@@ -744,6 +744,7 @@ function CurrentView({
         activities={data.activities}
         activityFeed={data.activityFeed}
         outcomes={updates.outcomes}
+        batchRead={updates.batchRead}
         busy={operations.busy}
         repair={data.doctor?.repair}
         diagnosticsRefreshing={data.diagnosticRefreshing}
@@ -753,9 +754,7 @@ function CurrentView({
         cleanupChanged={() =>
           Promise.allSettled([data.refresh(), data.refreshDiagnosticsAfterMutation()])
         }
-        checkAll={() => {
-          void updates.checkAll();
-        }}
+        checkAll={updates.checkAll}
         onSelect={openPortDetails}
         onOpenSettings={(target, sourceProfileId) => {
           ui.setView("settings");
