@@ -94,8 +94,14 @@ Decimal seconds and HTTP dates stay within the existing
 15 minute batch deadline; a pause reaching that deadline refuses further metadata
 requests without sleeping past the budget. Waits remain cancellable, failed
 identities are not retried, and uncertain failures retain eligible accepted
-metadata. Image requests retain their existing policy. Retained references
-are not fresh source-health evidence. This command prepares the cover role only;
+metadata. Image requests retain their existing policy. Fixed OAuth, metadata and image responses
+are consumed within those byte bounds or their unfinished bodies are cancelled
+when refused, including status, content-type and early length checks. Cleanup
+does not drain rejected payloads or await an arbitrary cancellation promise;
+reader locks are released and the original result or failure is preserved.
+Request signals, deadlines, request/byte counters and authentication policy
+remain unchanged. Retained references are not fresh source-health evidence.
+This command prepares the cover role only;
 other roles, full backlog coverage, protected acceptance/publication and installed
 or physical-platform evidence retain their own acceptance.
 
