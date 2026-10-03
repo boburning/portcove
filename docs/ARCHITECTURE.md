@@ -562,6 +562,19 @@ rules. Rust module privacy keeps backup implementation helpers inside their owne
 the public API doctest pairs an available action type with a rejected internal
 manifest import. Other service responsibilities remain incremental #925 work.
 
+Managed launch input observation belongs to the private
+`service::launch_preparation` module. It reads the retained catalog, current
+definition restrictions, source identity, readiness, preparation receipt and
+immutable installation qualification without collecting/restoring saves or
+preparing adapter files. Its private input representation describes current
+facts; it grants no mutation or process authority and is not retained across
+requests. The existing launch supervisor consumes it immediately under its port
+lock and operation checkpoints. Explicit preparation preserves save collection
+and restoration, then rechecks the executable, prepares adapter data, rechecks
+source identity and refreshes the setup manifest before the unchanged supervised
+spawn. External-runtime preparation and durable launch-session ownership remain
+with the existing service facade.
+
 Creation locks the port, reconciles launched user data, writes and syncs a
 bounded preparation identity before copying, then writes the private payload and
 manifest before publication through the existing backup-directory durability
