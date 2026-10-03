@@ -1040,6 +1040,7 @@ for (const [status, retryAfter] of [
   [429, new Date(providerClockStart + 2000).toUTCString()],
   [503, "Saturday, 03-Oct-26 08:00:02 GMT"],
   [429, "Sat Oct  3 08:00:02 2026"],
+  [503, "Sat Oct 03 08:00:02 2026"],
 ]) {
   test(`metadata${status} honors Retry-After ${retryAfter}`, async (context) => {
     const fixture = await capturedMetadataBackoff(context, { status, retryAfter });
@@ -1060,6 +1061,49 @@ for (const [status, retryAfter] of [
   });
 }
 
+test("HTTP-date metadata backoff preserves UTC semantics across process timezones", (context) => {
+  const env = { ...process.env };
+  // The outer runner marks its workers; a new independent runner must not
+  // inherit that marker and silently refuse recursive discovery.
+  delete env.NODE_TEST_CONTEXT;
+  for (const [timezone, offset] of [
+    ["Etc/UTC", 0],
+    ["America/New_York", 240],
+    ["Asia/Tokyo", -540],
+    ["Pacific/Kiritimati", -840],
+    ["Asia/Kathmandu", -345],
+  ]) {
+    // A fresh process prevents timezone changes from affecting other tests.
+    // Observe the actual timezone so an ignored TZ cannot manufacture coverage.
+    const verifyTimezone = `import assert from "node:assert/strict"; assert.equal(new Date("2026-10-03T08:00:00Z").getTimezoneOffset(), ${offset});`;
+    const result = spawnSync(
+      process.execPath,
+      [
+        `--import=data:text/javascript,${encodeURIComponent(verifyTimezone)}`,
+        "--test",
+        "--test-timeout=30000",
+        "--test-reporter=spec",
+        "--test-name-pattern=^(metadata.*honors Retry-After|unusable or elapsed Retry-After|Retry-After beyond the finite batch budget)",
+        "scripts/generate-catalog.test.mjs",
+      ],
+      { cwd: root, env: { ...env, TZ: timezone }, encoding: "utf8", timeout: 5000 },
+    );
+    assert.equal(result.error, undefined, `${timezone}: ${result.error}`);
+    assert.equal(result.status, 0, `${timezone}: ${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /metadata429 honors Retry-After Sat Oct  3 08:00:02 2026/);
+    assert.match(result.stdout, /unusable or elapsed Retry-After Sat Oct  3 07:59:59 2026/);
+    assert.match(
+      result.stdout,
+      /Retry-After beyond the finite batch budget.*Sat Oct 03 08:15:01 2026/,
+    );
+    const passed = result.stdout.match(/ℹ pass (\d+)/);
+    assert.ok(passed, `${timezone}: child must report executed tests`);
+    context.diagnostic(
+      `${timezone}: ${passed[1]} selected cases passed; observed offset ${offset}`,
+    );
+  }
+});
+
 for (const retryAfter of [
   null,
   "invalid",
@@ -1072,6 +1116,7 @@ for (const retryAfter of [
   "Tuesday, 31-Nov-26 08:00:00 GMT",
   "Tue Nov 31 08:00:00 2026",
   "Saturday, 03-Oct-76 08:00:01 GMT",
+  "Sat Oct  3 07:59:59 2026",
   new Date(providerClockStart - 1000).toUTCString(),
 ]) {
   test(`unusable or elapsed Retry-After ${retryAfter} preserves the metadata rate floor`, async (context) => {
@@ -1242,6 +1287,8 @@ for (const retryAfter of [
   "9007199254740991",
   "Thursday, 01-Jan-60 08:00:00 GMT",
   "Saturday, 03-Oct-76 08:00:00 GMT",
+  "Sat Oct  3 08:15:00 2026",
+  "Sat Oct 03 08:15:01 2026",
   new Date(providerClockStart + 901000).toUTCString(),
 ]) {
   test(`Retry-After beyond the finite batch budget refuses another metadata request: ${retryAfter.slice(0, 40)}`, async (context) => {

@@ -88,7 +88,9 @@ validation material and are not a distributable image archive.
 The provider route is sequential, has one lazy authentication attempt, no retries,
 and bounds metadata/image requests, bytes and execution time. A valid `Retry-After`
 on a captured metadata 429 or 503 postpones the next metadata request, preserving
-the normal 300 ms floor. Decimal seconds and HTTP dates stay within the existing
+the normal 300 ms floor. All three HTTP-date forms are interpreted in UTC,
+including the zoneless asctime form, independently of the authoring host timezone.
+Decimal seconds and HTTP dates stay within the existing
 15 minute batch deadline; a pause reaching that deadline refuses further metadata
 requests without sleeping past the budget. Waits remain cancellable, failed
 identities are not retried, and uncertain failures retain eligible accepted
