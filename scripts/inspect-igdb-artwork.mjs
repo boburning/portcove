@@ -595,6 +595,7 @@ function metadataRetryAt(header, now, deadline) {
       return value && [value[0], value[2], value[1], ...value.slice(3)];
     })();
   const date = new Date(parsed);
+  const explicitYear = header.match(/(?:^| )([0-9]{4})(?: |$)/)?.[1];
   const months = [
     "Jan",
     "Feb",
@@ -611,6 +612,7 @@ function metadataRetryAt(header, now, deadline) {
   ];
   if (
     !parts ||
+    (!shortYear && date.getUTCFullYear() !== Number(explicitYear)) ||
     date.getUTCDate() !== Number(parts[1]) ||
     date.getUTCMonth() !== months.indexOf(parts[2]) ||
     date.getUTCHours() !== Number(parts[3]) ||
