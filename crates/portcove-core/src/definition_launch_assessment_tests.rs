@@ -920,8 +920,7 @@ async fn scoped_launch_admission_serializes_competing_hold_and_releases_on_failu
         competing.busy_timeout(std::time::Duration::ZERO)?;
         let error = competing
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-            .err()
-            .expect("competing admission must not obtain a writer");
+            .expect_err("competing admission must not obtain a writer");
         assert!(matches!(error, rusqlite::Error::SqliteFailure(code, _)
             if code.code == rusqlite::ErrorCode::DatabaseBusy));
         worker = Some(std::thread::spawn(move || {

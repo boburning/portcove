@@ -321,7 +321,7 @@ impl PolicyDocument {
                 "legacy policy has an unknown safety field",
             ));
         }
-        if !matches!(value.policy_schema, 1 | 2 | 3) {
+        if !matches!(value.policy_schema, 1..=3) {
             return Err(PortcoveError::unsupported(
                 "unsupported publisher policy schema",
             ));

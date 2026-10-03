@@ -392,15 +392,14 @@ impl Library {
                 &key,
                 &assessment.check_id,
             )?;
-            if let Some((prior, anchor)) = &prior {
-                if anchor != &accepted.provenance.anchor_sha256
+            if let Some((prior, anchor)) = &prior
+                && (anchor != &accepted.provenance.anchor_sha256
                     || assessment.revision < prior.revision
-                    || (assessment.revision == prior.revision && assessment != prior)
-                {
-                    return Err(PortcoveError::verification(
-                        "launch decision replay or equivocation",
-                    ));
-                }
+                    || (assessment.revision == prior.revision && assessment != prior))
+            {
+                return Err(PortcoveError::verification(
+                    "launch decision replay or equivocation",
+                ));
             }
             if let Decision::Cleared {
                 previous_decision_sha256,
