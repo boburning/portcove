@@ -227,6 +227,33 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
     } else {
         lines.push("Presentation details: unavailable in this catalog".into());
     }
+    if port.release.provider == portcove_core::ReleaseSource::UserPrepared
+        && !port.release.user_prepared.is_empty()
+    {
+        for (platform, runtime) in &port.release.user_prepared {
+            lines.extend([
+                format!(
+                    "Accepted runtime ({}): {}",
+                    platform_name(*platform),
+                    clean(&runtime.version)
+                ),
+                format!(
+                    "Package: {} ({} bytes)",
+                    clean(&runtime.archive_name),
+                    runtime.archive_size
+                ),
+                format!("Package SHA-256: {}", clean(&runtime.archive_sha256)),
+                format!("Executable: {}", clean(&runtime.executable)),
+            ]);
+        }
+        lines.extend([
+            "Maintenance: user-owned; Portcove does not download or update this runtime".into(),
+            format!(
+                "Return to Portcove on the matching platform for exact-file review: portcove external preview {} \"<extracted-folder>\"",
+                clean(&port.id)
+            ),
+        ]);
+    }
     lines.extend([
         format!("Project: {}", clean(&port.project_url)),
         clean(&port.summary),

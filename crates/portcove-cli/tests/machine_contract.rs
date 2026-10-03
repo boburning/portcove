@@ -2472,7 +2472,10 @@ fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
 #[test]
 fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_machine_data() {
     let root = tempfile::tempdir().unwrap();
-    let library = root.path().join("unused-library");
+    let library = root.path().join("catalog-library");
+    let player_file = root.path().join("synthetic-player-file.bin");
+    let player_bytes = b"synthetic player bytes outside the selected library";
+    std::fs::write(&player_file, player_bytes).unwrap();
     let id = "wave-race-64-recomp";
     let catalog = portcove_core::Catalog::embedded().unwrap();
     let port = catalog.port(id).unwrap();
@@ -2523,13 +2526,16 @@ fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_mac
     assert!(!human.contains("Accepted runtime (linux"));
     assert!(!human.contains("Accepted runtime (macos"));
     assert!(!human.contains("n64-recomp-portable"));
-    assert!(!library.exists(), "catalog reads must not create a library");
+    assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
 }
 
 #[test]
-fn catalog_detail_preserves_managed_output_and_library_free_machine_reads() {
+fn catalog_detail_preserves_managed_output_machine_reads_and_a_player_file() {
     let root = tempfile::tempdir().unwrap();
-    let library = root.path().join("unused-library");
+    let library = root.path().join("catalog-library");
+    let player_file = root.path().join("synthetic-player-file.bin");
+    let player_bytes = b"synthetic player bytes outside the selected library";
+    std::fs::write(&player_file, player_bytes).unwrap();
     let catalog = portcove_core::Catalog::embedded().unwrap();
     for id in ["shipwright", "lighthouse"] {
         let output = portcove(&library, &["catalog", "show", id]);
@@ -2548,5 +2554,5 @@ fn catalog_detail_preserves_managed_output_and_library_free_machine_reads() {
             serde_json::to_value(catalog.port(id).unwrap()).unwrap()
         );
     }
-    assert!(!library.exists(), "catalog reads must not create a library");
+    assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
 }
