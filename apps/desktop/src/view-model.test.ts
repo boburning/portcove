@@ -201,6 +201,23 @@ describe("catalog view model", () => {
     expect(summarizeLibrary(ports, statuses).needsSetup).toBe(1);
   });
 
+  it("keeps an unchanged source with incompatible representation in source setup", () => {
+    const incompatible: PortStatus = {
+      ...status,
+      readiness: {
+        launchable: false,
+        blockers: ["incompatible_source"],
+        pending_setup: false,
+        source: "current",
+        required_source_extension: "z64",
+      },
+    };
+    expect(portReadiness(incompatible)).toBe("source");
+    const statuses = indexStatuses([incompatible]);
+    expect(filterPorts(ports, statuses, "library", "ready", "")).toEqual([]);
+    expect(summarizeLibrary(ports, statuses).needsSetup).toBe(1);
+  });
+
   it("treats changed and unreadable registered bytes as setup blockers", () => {
     const changed: PortStatus = {
       ...status,

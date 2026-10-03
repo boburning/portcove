@@ -153,14 +153,33 @@ namespace Portcove.ReferenceClient
         }
         public override IEnumerable<UninstallController> GetUninstallActions(GetUninstallActionsArgs args)
         {
-            if (args.Game.PluginId == Id) yield return new ManagedUninstall(args.Game, RemoveManagedGame);
+            if (args.Game.PluginId == Id) yield return new ManagedUninstall(args.Game, RemoveRegisteredGame);
         }
-        private void RemoveManagedGame(Game game)
+        private void RemoveRegisteredGame(Game game)
         {
             var cli = Connect().GetAwaiter().GetResult();
             if (cli.ApiSchemaVersion < 56)
                 throw new InvalidOperationException("Reviewed managed removal needs Portcove CLI API schema 56 or newer. Update the selected CLI; external installations are not owned by this action.");
             var port = Identity.Port(game.GameId, cli.LibraryId);
+            var current = cli.Read("status", "status", port).GetAwaiter().GetResult();
+            if (Json.Text(current, "port_id") != port)
+                throw new InvalidOperationException("Portcove returned another game's status. Refresh before removal.");
+            if (Json.OptionalObjectField(current, "external_runtime") != null)
+            {
+                cli.RequireReviewedExternal();
+                var external = ExternalRuntimeReview.Read(cli.Read("external.removal-preview", "external",
+                    "removal-preview", port).GetAwaiter().GetResult(), port, null, true);
+                if (!ConfirmRemoval(external.Description))
+                    throw new OperationCanceledException("Removal cancelled. Your runtime remains registered; no files were removed.");
+                cli.AssertIdentity().GetAwaiter().GetResult();
+                var removed = cli.Manage("external.remove", new[] { "external", "remove", port,
+                    "--expected-preview", external.Fingerprint, "--yes" }, null).GetAwaiter().GetResult();
+                external.RequireRemoved(removed);
+                var fresh = cli.Read("status", "status", port).GetAwaiter().GetResult();
+                if (Json.Text(fresh, "port_id") != port || StatusInstallation.Current(fresh) != null)
+                    throw new InvalidOperationException("Portcove still reports an installed route. Refresh activity before deciding whether registration removal completed.");
+                return;
+            }
             var preview = ManagedRemovalReview.Read(
                 cli.Read("remove.preview", "remove-preview", port).GetAwaiter().GetResult(), port);
             if (!ConfirmRemoval(preview.Confirmation(game.Name, cli.LibraryRoot)))

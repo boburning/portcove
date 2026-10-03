@@ -66,7 +66,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–59 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -83,10 +83,28 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56 or schema-57 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57,
+schema-58 or schema-59 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
+
+User-prepared runtimes use **schema 58 plus `external.review`**. Register any
+requested original game/BIOS inputs, then choose the already prepared runtime
+folder in management. Review its accepted version/package identity and checked
+extracted-tree identity before consenting. Portcove uses these files in place;
+it does not download, copy, update, back up or delete them. Their game-owned saves
+and settings remain outside managed save protection. Registration is separate
+from readiness and Play. Playnite Uninstall removes only this reviewed
+registration and verifies the installed route is absent before changing its
+installed state. External files remain. Cancel makes no mutation; Playnite's
+ordinary cancellation dialog must be acknowledged to restore the action.
+
+Schema 59 readiness also supplies the effective runtime's required source
+extension. If a validated ZIP cannot be passed to that runtime, management asks
+for the uncompressed original file of that extension and validates it explicitly
+before replacement registration. This requirement uses the retained runtime
+contract; source identity can remain current while launch waits for that file.
 
 Schema 47 status can include core-owned definition decisions for install,
 preparation and launch. The client shows the exact stable reason and whether the
