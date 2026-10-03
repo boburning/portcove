@@ -23,6 +23,13 @@ const imagePattern = /^[a-z0-9]{1,128}$/;
 const hashPattern = /^[a-f0-9]{64}$/;
 const positiveId = (value) => Number.isSafeInteger(value) && value > 0;
 const matchesString = (pattern, value) => typeof value === "string" && pattern.test(value);
+// Only this module's fixed image request can establish a Gone observation.
+// Provider metadata, generic errors and caller-supplied status properties cannot.
+const goneImageObservations = new WeakMap();
+
+function goneImageException(kind, imageId) {
+  return { ...exception(kind, "image-gone"), image_id: imageId, http_status: 410 };
+}
 
 export function readArtworkJson(file, maximum = 8 * 1024 * 1024) {
   return readArtworkInput(file, maximum).document;
@@ -269,6 +276,7 @@ function acceptedOriginal(declared, context) {
     .filter(
       (mapping) =>
         validMapping(mapping) &&
+        !context.goneImages.has(mapping.image_id) &&
         mapping.match_kind === "underlying-game" &&
         mapping.game_id === declared.game_id &&
         mapping.game_slug === declared.slug,
@@ -354,8 +362,13 @@ async function selectCover(identity, kind, context, exceptions) {
   let content;
   try {
     content = await context.images.get(imageId);
-  } catch {
-    exceptions.push(exception(kind, "image-unavailable-or-invalid"));
+  } catch (error) {
+    if (goneImageObservations.get(error) === imageId) {
+      context.goneImages.add(imageId);
+      exceptions.push(goneImageException(kind, imageId));
+    } else {
+      exceptions.push(exception(kind, "image-unavailable-or-invalid"));
+    }
     return null;
   }
   return {
@@ -369,6 +382,29 @@ async function selectCover(identity, kind, context, exceptions) {
     },
     checks: { identity: declared, content },
   };
+}
+
+function applyGoneImageFallbacks(catalog, records, context) {
+  for (const [index, record] of records.entries()) {
+    const mapping = record.mapping;
+    if (!mapping || !context.goneImages.has(mapping.image_id)) continue;
+    delete catalog.ports[index].presentation.artwork;
+    if (
+      ["accepted-mapping-reused", "accepted-mapping-retained-after-unavailable-refresh"].includes(
+        record.reason,
+      )
+    ) {
+      context.metrics.reused--;
+    } else {
+      context.metrics.selected--;
+      if (record.reason === "accepted-original-game-reused") context.metrics.original_reused--;
+    }
+    context.metrics.fallback++;
+    record.reason = "generated-fallback";
+    record.mapping = null;
+    record.checks = null;
+    record.exceptions.push(goneImageException(mapping.match_kind, mapping.image_id));
+  }
 }
 
 // Proposal preparation only. The accepted baseline is caller-selected trusted
@@ -391,6 +427,7 @@ export async function prepareCatalogArtwork(catalog, options) {
     ...options,
     games: new Map(),
     images: new Map(),
+    goneImages: new Set(),
     acceptedPorts: options.acceptedCatalog?.ports ?? [],
     metrics: {
       ports: catalog.ports.length,
@@ -433,7 +470,7 @@ export async function prepareCatalogArtwork(catalog, options) {
     const selected =
       (await selectCover(declarations?.port, "port", context, exceptions)) ??
       (await selectCover(declarations?.underlying_game, "underlying-game", context, exceptions));
-    if (!selected && reused) {
+    if (!selected && reused && !context.goneImages.has(reused.image_id)) {
       port.presentation = { ...port.presentation, artwork: reused };
       context.metrics.reused++;
       records.push({
@@ -469,6 +506,9 @@ export async function prepareCatalogArtwork(catalog, options) {
       exceptions,
     });
   }
+  // A later refreshed record can observe Gone for an earlier reused mapping.
+  // Apply that exact-image fact to every output reference without extra requests.
+  applyGoneImageFallbacks(result, records, context);
   return { catalog: result, records, metrics: context.metrics };
 }
 
@@ -601,6 +641,11 @@ export function createIgdbInspector(credentialsFile, validateImage, fetchImpl = 
         `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg`,
         { redirect: "error", signal: signal() },
       );
+      if (response.status === 410) {
+        const error = new Error("IGDB image is gone.");
+        goneImageObservations.set(error, imageId);
+        throw error;
+      }
       if (!response.ok || !response.headers.get("content-type")?.startsWith("image/jpeg"))
         throw new Error("IGDB image unavailable.");
       const bytes = await readBounded(

@@ -665,6 +665,327 @@ test("an unavailable explicit refresh retains permitted accepted metadata", asyn
   assert.equal(result.records[0].checks.live_refresh_passed, false);
 });
 
+async function capturedArtworkRefresh({ status = 410, imageId = "coexisting", fault } = {}) {
+  const { prepareCatalogArtwork, createIgdbInspector } = await import("./inspect-igdb-artwork.mjs");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-refresh-"));
+  const credentials = join(scratch, "private-fixture.json");
+  writeFileSync(credentials, JSON.stringify({ client_id: "fixture", client_secret: "fixture" }));
+  const mapping = {
+    game_id: 101,
+    cover_id: 202,
+    image_id: "coexisting",
+    image_sha256: "a".repeat(64),
+    game_slug: "refresh-probe",
+    match_kind: "port",
+  };
+  const accepted = {
+    ports: [
+      {
+        id: "refresh-probe",
+        name: "Refresh Probe",
+        project_url: "https://example.org/refresh-probe",
+        presentation: { artwork: mapping },
+      },
+    ],
+  };
+  const games = [
+    {
+      id: 101,
+      name: "Refresh Probe",
+      slug: "refresh-probe",
+      cover: { id: 202, image_id: imageId },
+    },
+  ];
+  const requests = [];
+  let decodes = 0;
+  const inspector = createIgdbInspector(
+    credentials,
+    () => {
+      decodes++;
+      return { width: 12, height: 24, format: "jpeg", validator: "portcove-core" };
+    },
+    async (url, options) => {
+      requests.push(url);
+      assert.equal(options.redirect, "error");
+      if (url === "https://id.twitch.tv/oauth2/token")
+        return Response.json({ access_token: "fixture" }, { status: fault === "auth" ? 403 : 200 });
+      if (url === "https://api.igdb.com/v4/games")
+        return Response.json(
+          games.filter((game) => options.body.includes(`id = ${game.id};`)),
+          {
+            status: fault === "identity-gone" ? 410 : 200,
+          },
+        );
+      assert.ok(
+        /^https:\/\/images\.igdb\.com\/igdb\/image\/upload\/t_cover_big\/[a-z0-9]+\.jpg$/.test(url),
+      );
+      if (fault === "network") throw new Error("fixture network failure");
+      return new Response(
+        readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg")),
+        {
+          status: url.endsWith("/coexisting.jpg")
+            ? status
+            : imageId === "coexisting"
+              ? 200
+              : status,
+          headers: { "content-type": "image/jpeg" },
+        },
+      );
+    },
+  );
+  const options = {
+    ...inspector,
+    acceptedCatalog: accepted,
+    refreshPortIds: ["refresh-probe"],
+    identities: {
+      "refresh-probe": {
+        port: {
+          game_id: 101,
+          slug: "refresh-probe",
+          names: ["Refresh Probe"],
+          evidence_url: "https://example.org/refresh-probe",
+        },
+      },
+    },
+  };
+  return {
+    accepted,
+    games,
+    requests,
+    options,
+    inspector,
+    decodes: () => decodes,
+    run: (input = accepted) => prepareCatalogArtwork(input, options),
+  };
+}
+
+test("a confirmed Gone response for the accepted image chooses generated fallback", async () => {
+  const fixture = await capturedArtworkRefresh();
+  const before = structuredClone(fixture.accepted);
+  const result = await fixture.run();
+  assert.equal(result.catalog.ports[0].presentation.artwork, undefined);
+  assert.equal(result.records[0].reason, "generated-fallback");
+  assert.deepEqual(result.records[0].exceptions[0], {
+    kind: "port",
+    reason: "image-gone",
+    resume:
+      "Correct the exact identity or asset fact, or retry after a confirmed provider/environment change.",
+    image_id: "coexisting",
+    http_status: 410,
+  });
+  assert.equal(result.records[0].mapping, null);
+  assert.equal(result.metrics.fallback, 1);
+  assert.equal(result.metrics.reused, 0);
+  assert.equal(fixture.inspector.providerMetrics.image_bytes, 0);
+  assert.deepEqual(fixture.accepted, before);
+  assert.equal(fixture.decodes(), 0);
+});
+
+for (const status of [404, 503, 429]) {
+  test(`HTTP${status} retains permitted accepted artwork metadata`, async () => {
+    const fixture = await capturedArtworkRefresh({ status });
+    const before = structuredClone(fixture.accepted);
+    const result = await fixture.run();
+    assert.deepEqual(result.catalog, before);
+    assert.deepEqual(fixture.accepted, before);
+    assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
+    assert.equal(fixture.decodes(), 0);
+  });
+}
+
+test("an unchanged accepted mapping makes no source-health claim or provider request", async () => {
+  const fixture = await capturedArtworkRefresh();
+  fixture.options.refreshPortIds = [];
+  const result = await fixture.run();
+  assert.deepEqual(result.catalog, fixture.accepted);
+  assert.equal(result.records[0].reason, "accepted-mapping-reused");
+  assert.equal(fixture.requests.length, 0);
+});
+
+test("Gone for a different candidate image cannot withdraw accepted artwork", async () => {
+  const fixture = await capturedArtworkRefresh({ imageId: "codifferent" });
+  const result = await fixture.run();
+  assert.deepEqual(result.catalog, fixture.accepted);
+  assert.equal(fixture.decodes(), 0);
+  assert.equal(result.records[0].reason, "accepted-mapping-retained-after-unavailable-refresh");
+});
+
+for (const fault of ["auth", "network", "identity-gone"]) {
+  test(`${fault} failure does not establish Gone for an accepted image`, async () => {
+    const fixture = await capturedArtworkRefresh({ fault });
+    const result = await fixture.run();
+    assert.deepEqual(result.catalog, fixture.accepted);
+    assert.ok(result.records[0].exceptions.every((item) => item.reason !== "image-gone"));
+    assert.equal(fixture.decodes(), 0);
+  });
+}
+
+test("unclassified status properties and another image's Gone error cannot withdraw metadata", async () => {
+  const fixture = await capturedArtworkRefresh({ imageId: "codifferent" });
+  const unrelated = await fixture.inspector.inspectImage("codifferent").catch((error) => error);
+  for (const error of [
+    Object.assign(new Error("IGDB image is gone."), { status: 410, image_id: "coexisting" }),
+    unrelated,
+  ]) {
+    fixture.games[0].cover.image_id = "coexisting";
+    fixture.options.inspectImage = async () => {
+      throw error;
+    };
+    const result = await fixture.run();
+    assert.deepEqual(result.catalog, fixture.accepted);
+    assert.equal(result.records[0].exceptions[0].reason, "image-unavailable-or-invalid");
+  }
+});
+
+for (const refreshedFirst of [true, false]) {
+  test(`same-image accepted references fall back with refreshed entry ${refreshedFirst ? "first" : "last"}`, async () => {
+    const fixture = await capturedArtworkRefresh();
+    const reused = { ...structuredClone(fixture.accepted.ports[0]), id: "reused", name: "Reused" };
+    fixture.accepted.ports = refreshedFirst
+      ? [...fixture.accepted.ports, reused]
+      : [reused, ...fixture.accepted.ports];
+    const before = structuredClone(fixture.accepted);
+    const result = await fixture.run();
+    assert.ok(result.catalog.ports.every((port) => !port.presentation.artwork));
+    assert.ok(
+      result.records.every(
+        (record) => record.reason === "generated-fallback" && record.mapping === null,
+      ),
+    );
+    assert.ok(
+      result.records.every((record) =>
+        record.exceptions.some(
+          (item) => item.image_id === "coexisting" && item.http_status === 410,
+        ),
+      ),
+    );
+    assert.deepEqual(fixture.accepted, before);
+    assert.deepEqual(result.metrics, {
+      ports: 2,
+      reused: 0,
+      original_reused: 0,
+      selected: 0,
+      fallback: 2,
+      game_queries: 1,
+      image_queries: 1,
+      image_bytes: 0,
+    });
+    assert.equal(fixture.requests.length, 3);
+    assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
+    assert.equal(fixture.decodes(), 0);
+  });
+}
+
+for (const refreshedFirst of [true, false]) {
+  test(`accepted original-game reuse cannot restore Gone with refreshed entry ${refreshedFirst ? "first" : "last"}`, async () => {
+    const fixture = await capturedArtworkRefresh();
+    const original = {
+      game_id: 102,
+      game_slug: "original",
+      cover_id: 203,
+      image_id: "coexisting",
+      image_sha256: "b".repeat(64),
+      match_kind: "underlying-game",
+    };
+    fixture.accepted.ports.push({ id: "accepted-original", presentation: { artwork: original } });
+    fixture.games.push(
+      { id: 102, slug: "original", name: "Original", cover: { id: 203, image_id: "coexisting" } },
+      { id: 103, slug: "new", name: "New" },
+    );
+    fixture.options.identities.new = {
+      port: { game_id: 103, slug: "new", names: ["New"], evidence_url: "https://example.org/new" },
+      underlying_game: {
+        game_id: 102,
+        slug: "original",
+        names: ["Original"],
+        evidence_url: "https://example.org/original",
+      },
+    };
+    const added = { id: "new", name: "New", project_url: "https://example.org/new" };
+    const refreshed = fixture.accepted.ports[0];
+    const before = structuredClone(fixture.accepted);
+    const result = await fixture.run({
+      ports: refreshedFirst ? [refreshed, added] : [added, refreshed],
+    });
+    assert.ok(result.catalog.ports.every((port) => !port.presentation?.artwork));
+    assert.ok(
+      result.records.every(
+        (record) => record.reason === "generated-fallback" && record.mapping === null,
+      ),
+    );
+    assert.ok(
+      result.records.every((record) =>
+        record.exceptions.some(
+          (item) => item.image_id === "coexisting" && item.http_status === 410,
+        ),
+      ),
+    );
+    assert.deepEqual(fixture.accepted, before);
+    assert.equal(result.metrics.selected, 0);
+    assert.equal(result.metrics.original_reused, 0);
+    assert.equal(result.metrics.reused, 0);
+    assert.equal(result.metrics.fallback, 2);
+    assert.equal(result.metrics.image_queries, 1);
+    assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
+    assert.equal(fixture.decodes(), 0);
+  });
+}
+
+test("Gone for the port cover still permits a checked exact original-game replacement", async () => {
+  const fixture = await capturedArtworkRefresh();
+  fixture.games.push({
+    id: 102,
+    slug: "original",
+    name: "Original",
+    cover: { id: 203, image_id: "coreplacement" },
+  });
+  fixture.options.identities["refresh-probe"].underlying_game = {
+    game_id: 102,
+    slug: "original",
+    names: ["Original"],
+    evidence_url: "https://example.org/original",
+  };
+  const before = structuredClone(fixture.accepted);
+  const result = await fixture.run();
+  const bytes = readFileSync(join(root, "apps/desktop/scripts/testdata/catalog-artwork-red.jpg"));
+  const { createHash } = await import("node:crypto");
+  assert.equal(result.records[0].reason, "exact-original-game-cover");
+  assert.equal(result.catalog.ports[0].presentation.artwork.image_id, "coreplacement");
+  assert.equal(result.catalog.ports[0].presentation.artwork.match_kind, "underlying-game");
+  assert.equal(
+    result.catalog.ports[0].presentation.artwork.image_sha256,
+    createHash("sha256").update(bytes).digest("hex"),
+  );
+  assert.equal(result.records[0].exceptions[0].http_status, 410);
+  assert.equal(result.records[0].checks.content.bytes, bytes.length);
+  assert.equal(result.metrics.image_bytes, bytes.length);
+  assert.equal(fixture.inspector.providerMetrics.image_bytes, bytes.length);
+  assert.equal(fixture.inspector.providerMetrics.image_requests, 2);
+  assert.equal(fixture.decodes(), 1);
+  assert.deepEqual(fixture.accepted, before);
+});
+
+test("Gone observations still consume the existing finite image-request budget", async () => {
+  const fixture = await capturedArtworkRefresh();
+  for (let request = 0; request < 400; request++)
+    await assert.rejects(fixture.inspector.inspectImage("coexisting"), /image is gone/);
+  await assert.rejects(fixture.inspector.inspectImage("coexisting"), /image budget reached/);
+  assert.equal(fixture.requests.length, 400);
+  assert.equal(fixture.inspector.providerMetrics.image_requests, 400);
+  assert.equal(fixture.inspector.providerMetrics.image_bytes, 0);
+  assert.equal(fixture.decodes(), 0);
+});
+
+test("a successful HTTP image exceeding its remaining byte budget retains accepted metadata", async () => {
+  const fixture = await capturedArtworkRefresh({ status: 200 });
+  fixture.options.inspectImage = (imageId) => fixture.inspector.inspectImage(imageId, 1);
+  const result = await fixture.run();
+  assert.deepEqual(result.catalog, fixture.accepted);
+  assert.equal(result.records[0].exceptions[0].reason, "image-unavailable-or-invalid");
+  assert.equal(fixture.inspector.providerMetrics.image_requests, 1);
+  assert.equal(fixture.decodes(), 0);
+});
+
 test("ordinary generator prepares one complete retained batch and refuses output overwrite", () => {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-generator-"));
   const output = join(scratch, "proposal");

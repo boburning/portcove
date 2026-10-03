@@ -62,8 +62,18 @@ identities reuse accepted mappings without provider requests; distinct ports may
 reuse a uniquely accepted original-game mapping without merging their identities.
 An ordinary executable release does not trigger artwork searches. For an assessed
 reference change, `--refresh-artwork PORT_ID,OTHER_ID` explicitly refreshes those
-batch entries. A failed refresh retains the matching permitted accepted mapping,
-without claiming live validation or processing a known withdrawal.
+batch entries. A failed refresh retains the matching permitted accepted mapping
+for uncertain or transient failures, including HTTP404, authentication/network
+errors and rate limits, without claiming live validation. HTTP410 from the fixed
+IGDB image request identifies that exact image as Gone: preparation excludes it
+from every reference in the output batch, regardless of record order, and records
+its image identity/status. Existing exact-port/original selection can supply a
+checked replacement; otherwise the generated/text fallback applies. Gone for a
+different candidate image does not invalidate an accepted mapping. Unchanged
+entries still make no provider requests. This bounded observation changes only
+the unsigned proposal; accepted inputs, client choices/cache and protected
+acceptance remain unchanged. It does not establish live provider removal or a
+legal withdrawal.
 
 The new output directory is required to be absent. It receives
 `catalog-proposal.json` and `artwork-evidence.json`, including exact input/baseline
