@@ -19,8 +19,20 @@ impl ZipFileSet {
         budget: &mut HashBudget,
     ) -> Result<Option<Self>> {
         validate_location(path)?;
-        let file = File::open(path)?;
+        Self::open_file(File::open(path)?, catalog, profile_ids, maximum, budget)
+    }
+
+    pub(super) fn open_file(
+        file: File,
+        catalog: &Catalog,
+        profile_ids: &[&str],
+        maximum: u64,
+        budget: &mut HashBudget,
+    ) -> Result<Option<Self>> {
         let expected = file.metadata()?.len();
+        // A duplicate handle retains this artifact even if its pathname changes.
+        // The storage pass rewinds it; by_index seeks before each member read.
+        let storage_file = file.try_clone()?;
         let mut archive = zip::ZipArchive::new(file)
             .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?;
         if archive.len() > budget.max_zip_entries {
@@ -63,7 +75,8 @@ impl ZipFileSet {
         {
             return Ok(None);
         }
-        let storage = crate::source_file::read_storage_identity(path, expected, maximum, budget)?;
+        let storage =
+            crate::source_file::read_storage_identity(storage_file, expected, maximum, budget)?;
         Ok(Some(Self {
             archive,
             members,
