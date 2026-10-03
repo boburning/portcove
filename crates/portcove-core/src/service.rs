@@ -5939,6 +5939,16 @@ mod tests {
         JunctionRoot,
     }
 
+    impl AdoptionDestinationLink {
+        fn includes_source_file_link(self) -> bool {
+            match self {
+                #[cfg(windows)]
+                Self::JunctionDirectory | Self::JunctionRoot => false,
+                _ => true,
+            }
+        }
+    }
+
     struct AdoptionDestinationFixture {
         temporary: tempfile::TempDir,
         library: Library,
@@ -5946,11 +5956,25 @@ mod tests {
         user: PathBuf,
         outside: PathBuf,
         previous: InstallRecord,
+        source_file_link: bool,
     }
 
     impl AdoptionDestinationFixture {
-        fn new() -> Self {
+        fn new(kind: AdoptionDestinationLink) -> Self {
             let temporary = tempfile::tempdir().unwrap();
+            let source_file_link = kind.includes_source_file_link();
+            let source = temporary.path().join("existing-install");
+            let outside = temporary.path().join("outside-user-parent/zelda64-recomp");
+            fs::create_dir_all(&source).unwrap();
+            fs::create_dir_all(&outside).unwrap();
+            fs::write(outside.join("graphics.json"), b"outside source-link target").unwrap();
+            if source_file_link {
+                create_adoption_test_symlink(
+                    &outside.join("graphics.json"),
+                    &source.join("graphics.json"),
+                    false,
+                );
+            }
             let library = Library::open(temporary.path().join("library")).unwrap();
             register_zelda_install(&library, "v1", true);
             let previous = library
@@ -5958,9 +5982,7 @@ mod tests {
                 .unwrap()
                 .active
                 .unwrap();
-            let source = temporary.path().join("existing-install");
             let user = library.user_dir("zelda64-recomp");
-            let outside = temporary.path().join("outside-user-parent/zelda64-recomp");
             for root in [&source, &user, &outside] {
                 fs::create_dir_all(root.join("saves")).unwrap();
             }
@@ -5972,12 +5994,6 @@ mod tests {
             fs::write(user.join("unrelated-save"), b"preserved unrelated save").unwrap();
             fs::write(outside.join("general.json"), b"outside settings").unwrap();
             fs::write(outside.join("saves/slot.bin"), b"outside save").unwrap();
-            fs::write(outside.join("graphics.json"), b"outside source-link target").unwrap();
-            create_adoption_test_symlink(
-                &outside.join("graphics.json"),
-                &source.join("graphics.json"),
-                false,
-            );
             Self {
                 temporary,
                 library,
@@ -5985,6 +6001,7 @@ mod tests {
                 user,
                 outside,
                 previous,
+                source_file_link,
             }
         }
 
@@ -6062,12 +6079,15 @@ mod tests {
                 fs::read(self.source.join("saves/slot.bin")).unwrap(),
                 b"incoming save"
             );
-            assert!(
-                fs::symlink_metadata(self.source.join("graphics.json"))
-                    .unwrap()
-                    .file_type()
-                    .is_symlink()
-            );
+            let source_link = fs::symlink_metadata(self.source.join("graphics.json"));
+            if self.source_file_link {
+                assert!(source_link.unwrap().file_type().is_symlink());
+            } else {
+                assert_eq!(
+                    source_link.unwrap_err().kind(),
+                    std::io::ErrorKind::NotFound
+                );
+            }
             assert_eq!(
                 fs::read(self.previous.path.join("engine.dll")).unwrap(),
                 b"critical library"
@@ -6188,9 +6208,15 @@ mod tests {
         }
         #[cfg(windows)]
         if directory {
-            std::os::windows::fs::symlink_dir(target, link).unwrap();
+            std::os::windows::fs::symlink_dir(target, link).unwrap_or_else(|error| {
+                panic!(
+                    "Windows directory symlink fixture requires a symlink-capable executor: {error}"
+                )
+            });
         } else {
-            std::os::windows::fs::symlink_file(target, link).unwrap();
+            std::os::windows::fs::symlink_file(target, link).unwrap_or_else(|error| {
+                panic!("Windows file symlink fixture requires a symlink-capable executor: {error}")
+            });
         }
     }
 
@@ -6227,7 +6253,7 @@ mod tests {
     }
 
     fn assert_adoption_refuses_destination_link(kind: AdoptionDestinationLink) {
-        let fixture = AdoptionDestinationFixture::new();
+        let fixture = AdoptionDestinationFixture::new(kind);
         let (link, retained, directory) = fixture.link_destination(kind);
         let service = service_with_release(fixture.library.clone(), "v2");
         let preview = service
@@ -6265,7 +6291,7 @@ mod tests {
             LifecyclePhase::MetadataCommitted,
             LifecyclePhase::CleanupPending,
         ] {
-            let fixture = AdoptionDestinationFixture::new();
+            let fixture = AdoptionDestinationFixture::new(kind);
             let service = service_with_fault(
                 fixture.library.clone(),
                 LifecycleFaultPoint::AdoptionMetadataCommitted,
@@ -6331,7 +6357,7 @@ mod tests {
             AdoptionDestinationLink::Root,
             AdoptionDestinationLink::Ancestor,
         ] {
-            let fixture = AdoptionDestinationFixture::new();
+            let fixture = AdoptionDestinationFixture::new(kind);
             fixture.link_destination(kind);
             let service = service_with_release(fixture.library.clone(), "v2");
             assert_eq!(
