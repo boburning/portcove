@@ -289,7 +289,10 @@ describe("bootstrap state", () => {
       (button) => button.textContent === "Use platform default",
     )!;
     await act(async () => useDefault.click());
-    expect(host.querySelector("p[role=alert]")?.textContent).toBe("reset refused");
+    expect([...host.querySelectorAll('[role="alert"]')].map((alert) => alert.textContent)).toEqual([
+      "offline",
+      "reset refused",
+    ]);
     expect(useDefault.disabled).toBe(false);
     expect(state.recoveryPending).toBe(false);
     await act(async () => useDefault.click());
