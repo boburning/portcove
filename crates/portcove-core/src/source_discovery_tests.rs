@@ -836,6 +836,48 @@ fn raw_gamecube_catalog(bytes: &[u8]) -> Catalog {
 }
 
 #[test]
+fn raw_gamecube_fixture_has_only_its_valid_discovery_graph() {
+    let bytes = b"synthetic normalized discovery graph";
+    let catalog = raw_gamecube_catalog(bytes);
+    catalog.validate().unwrap();
+    assert!(catalog.ports().is_empty());
+    let source = catalog.source_catalog().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert!(source.contracts.is_empty());
+    assert!(source.validators.is_empty());
+    assert!(source.evidence.is_empty());
+    assert!(source.qualification.is_empty());
+    assert_eq!(catalog.document().source_profiles.len(), 1);
+    let profile = &source.identities[0];
+    assert_eq!(profile.id, "animal-crossing-gamecube");
+    assert_eq!(profile.variants.len(), 1);
+    assert_eq!(profile.variants[0].representations.len(), 1);
+    let representation = &profile.variants[0].representations[0];
+    assert_eq!(
+        representation.extensions,
+        ["iso", "gcm", "rvz", "ciso", "gcz", "wia"]
+    );
+    let crate::SourceRepresentationKind::GamecubeNormalizedIso { identities } =
+        &representation.kind
+    else {
+        panic!("the discovery fixture uses normalized GameCube identities")
+    };
+    assert_eq!(identities.len(), 1);
+    assert_eq!(
+        identities[0].scope,
+        crate::DigestScope::GamecubeNormalizedIso
+    );
+    assert_eq!(
+        identities[0].sha1,
+        Some(hex::encode(sha1::Sha1::digest(bytes)))
+    );
+    assert_eq!(
+        identities[0].sha256,
+        Some(hex::encode(Sha256::digest(bytes)))
+    );
+}
+
+#[test]
 fn raw_gamecube_discovery_matches_manual_inspection_without_registration_or_rewriting() {
     let temporary = tempfile::tempdir().unwrap();
     let bytes = b"synthetic normalized GameCube ISO";
