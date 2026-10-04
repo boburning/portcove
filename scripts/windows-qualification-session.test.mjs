@@ -226,7 +226,8 @@ describe("qualification report evidence preparation", () => {
       calls,
       data,
       execute,
-      capture: () => captureQualificationReport({ cli, library, output }, execute),
+      capture: (transport = execute) =>
+        captureQualificationReport({ cli, library, output }, transport),
       report: () => JSON.parse(readFileSync(path.join(output, "evidence.json"), "utf8")),
       checklist: () => readFileSync(path.join(output, "checklist.md"), "utf8"),
     };
@@ -508,6 +509,139 @@ describe("qualification report evidence preparation", () => {
     await assert.rejects(f.capture(), /status: Snapshot unavailable/);
     assert.equal(existsSync(f.output), false);
     assert.deepEqual(f.calls, [["doctor"], ["catalog", "export"], ["status"]]);
+  });
+
+  test("changed CLI bytes after a snapshot refuse further capture and publication", async (t) => {
+    const f = fixture(t, [managed(), external()]);
+    await assert.rejects(
+      f.capture(async (...args) => {
+        const result = await f.execute(...args);
+        writeFileSync(f.cli, "replacement synthetic CLI bytes\n");
+        return result;
+      }),
+      /Selected CLI identity changed/,
+    );
+    assert.deepEqual(f.calls, [["doctor"]]);
+    assert.equal(existsSync(f.output), false);
+  });
+
+  for (const replacement of ["directory", "missing"]) {
+    test(`${replacement} CLI after a snapshot refuses further capture and publication`, async (t) => {
+      const f = fixture(t, [external()]);
+      await assert.rejects(
+        f.capture(async (...args) => {
+          const result = await f.execute(...args);
+          rmSync(f.cli);
+          if (replacement === "directory") mkdirSync(f.cli);
+          return result;
+        }),
+        (error) => {
+          assert.match(error.message, /Selected CLI identity changed/);
+          if (replacement === "missing") assert.equal(error.cause.code, "ENOENT");
+          else assert.match(error.cause.message, /not a regular file/);
+          return true;
+        },
+      );
+      assert.deepEqual(f.calls, [["doctor"]]);
+      assert.equal(existsSync(f.output), false);
+    });
+  }
+
+  test("CLI drift during the last managed backup refuses report publication", async (t) => {
+    const f = fixture(t, [managed(), external()]);
+    await assert.rejects(
+      f.capture(async (...args) => {
+        const result = await f.execute(...args);
+        if (args[1][4] === "backup") writeFileSync(f.cli, "changed final backup CLI\n");
+        return result;
+      }),
+      /Selected CLI identity changed/,
+    );
+    assert.equal(f.calls.length, 7);
+    assert.deepEqual(f.calls.at(-1), ["backup", "list", "managed-probe"]);
+    assert.equal(f.calls.filter(([command]) => command === "backup").length, 1);
+    assert.equal(existsSync(f.output), false);
+  });
+
+  test("unchanged CLI preserves the exact original transport failure", async (t) => {
+    const f = fixture(t, [external()]);
+    const original = new Error("Owned fixture transport failed");
+    await assert.rejects(
+      f.capture(async (...args) => {
+        await f.execute(...args);
+        throw original;
+      }),
+      (error) => error === original,
+    );
+    assert.deepEqual(f.calls, [["doctor"]]);
+    assert.equal(existsSync(f.output), false);
+  });
+
+  test("transport failure and CLI drift retain both actual errors", async (t) => {
+    const f = fixture(t, [external()]);
+    const original = new Error("Owned fixture transport failed");
+    await assert.rejects(
+      f.capture(async (...args) => {
+        await f.execute(...args);
+        writeFileSync(f.cli, "changed failed transport CLI\n");
+        throw original;
+      }),
+      (error) => {
+        assert.ok(error instanceof AggregateError);
+        assert.equal(error.errors.length, 2);
+        assert.equal(error.errors[0], original);
+        assert.equal(error.cause, original);
+        assert.match(error.errors[1].message, /Selected CLI identity changed/);
+        assert.match(error.errors[1].cause.message, /SHA-256 differs/);
+        return true;
+      },
+    );
+    assert.deepEqual(f.calls, [["doctor"]]);
+    assert.equal(existsSync(f.output), false);
+  });
+
+  test("core refusal and CLI drift retain the command failure before the identity failure", async (t) => {
+    const f = fixture(t, [external()], {
+      doctor: { fixture_error: { ok: false, error: { message: "Snapshot unavailable" } } },
+    });
+    await assert.rejects(
+      f.capture(async (...args) => {
+        const result = await f.execute(...args);
+        writeFileSync(f.cli, "changed core refusal CLI\n");
+        return result;
+      }),
+      (error) => {
+        assert.ok(error instanceof AggregateError);
+        assert.equal(error.errors.length, 2);
+        assert.equal(error.errors[0].message, "doctor: Snapshot unavailable");
+        assert.equal(error.cause, error.errors[0]);
+        assert.match(error.errors[1].message, /Selected CLI identity changed/);
+        return true;
+      },
+    );
+    assert.deepEqual(f.calls, [["doctor"]]);
+    assert.equal(existsSync(f.output), false);
+  });
+
+  test("malformed JSON and CLI drift retain the parse failure before the identity failure", async (t) => {
+    const f = fixture(t, [external()]);
+    await assert.rejects(
+      f.capture(async (...args) => {
+        await f.execute(...args);
+        writeFileSync(f.cli, "changed malformed response CLI\n");
+        return { stdout: "{malformed fixture JSON" };
+      }),
+      (error) => {
+        assert.ok(error instanceof AggregateError);
+        assert.equal(error.errors.length, 2);
+        assert.ok(error.errors[0] instanceof SyntaxError);
+        assert.equal(error.cause, error.errors[0]);
+        assert.match(error.errors[1].message, /Selected CLI identity changed/);
+        return true;
+      },
+    );
+    assert.deepEqual(f.calls, [["doctor"]]);
+    assert.equal(existsSync(f.output), false);
   });
 
   test("an existing capture directory is preserved", async (t) => {

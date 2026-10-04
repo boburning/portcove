@@ -814,23 +814,41 @@ fn journal_only_preparation_cleanup_removes_only_the_stale_journal() {
     );
 }
 
-fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
-    assert_recovery_with_family(point, publishable, false, false);
+#[derive(Clone, Copy)]
+enum RecoveryScenario {
+    Ordinary,
+    Reclassified,
+    ReclassifiedReviewedCleanup,
+    ActivationRefused,
+    ActivationRefusedCleanup,
 }
 
-fn assert_recovery_with_family(
+fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
+    assert_recovery_scenario(point, publishable, RecoveryScenario::Ordinary);
+}
+
+fn assert_recovery_scenario(
     point: LifecycleFaultPoint,
     publishable: bool,
-    reclassify: bool,
-    reviewed_cleanup: bool,
+    scenario: RecoveryScenario,
 ) {
     use crate::test_fixture::phase;
+    let reclassify = matches!(
+        scenario,
+        RecoveryScenario::Reclassified | RecoveryScenario::ReclassifiedReviewedCleanup
+    );
+    let reviewed_cleanup = matches!(scenario, RecoveryScenario::ReclassifiedReviewedCleanup);
+    let activation_refused = matches!(
+        scenario,
+        RecoveryScenario::ActivationRefused | RecoveryScenario::ActivationRefusedCleanup
+    );
+    let refusal = reclassify || activation_refused;
     let mut fixture = phase("preparation recovery: native fixture", || {
         Fixture::generic_native("success")
     });
     let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
     let library = fixture.service.library().clone();
-    let staged = reclassify.then(|| {
+    let staged = refusal.then(|| {
         let mut staged = fixture.install.clone();
         staged.id = uuid::Uuid::new_v4().to_string();
         staged.artifact.sha256 = crate::signed_catalog::digest(b"family recovery staged artifact");
@@ -867,7 +885,7 @@ fn assert_recovery_with_family(
     let staged_tree = staged
         .as_ref()
         .map(|install| crate::library_transfer::reviewed_tree(&install.path).unwrap());
-    let source = reclassify.then(|| fs::read(&fixture.source).unwrap());
+    let source = refusal.then(|| fs::read(&fixture.source).unwrap());
     phase("preparation recovery: open fault-injected service", || {
         fixture.set_faults(Arc::new(Fault(point)))
     });
@@ -902,7 +920,15 @@ fn assert_recovery_with_family(
         store.put(&mut journal).unwrap();
         fs::rename(&private, quarantine).unwrap();
     }
-    if reclassify {
+    if matches!(scenario, RecoveryScenario::ActivationRefusedCleanup) {
+        // The registered fault leaves the derivative active. Model a later
+        // cleanup failure with that same validated, registered envelope.
+        assert_eq!(journal.phase, LifecyclePhase::MetadataCommitted);
+        assert!(journal.install.is_some());
+        journal.phase = LifecyclePhase::CleanupPending;
+        store.put(&mut journal).unwrap();
+    }
+    if refusal {
         let installs = serde_json::to_value(library.all_installs().unwrap()).unwrap();
         let status = fixture.service.status(PORT).unwrap();
         let pointers =
@@ -924,22 +950,40 @@ fn assert_recovery_with_family(
             (path, inventory)
         })
         .collect::<Vec<_>>();
-        for kind in [
-            LifecycleOperationKind::Install,
-            LifecycleOperationKind::Adopt,
-        ] {
+        let kinds = if reclassify {
+            vec![
+                LifecycleOperationKind::Install,
+                LifecycleOperationKind::Adopt,
+            ]
+        } else {
+            vec![LifecycleOperationKind::Prepare]
+        };
+        let refusal_message = if activation_refused {
+            "prepared publication requires activation"
+        } else {
+            "publication operation kind does not own its preparation payload"
+        };
+        for kind in kinds {
             journal.kind = kind;
+            if activation_refused {
+                assert!(journal.activate);
+                journal.activate = false;
+            }
             store.put(&mut journal).unwrap();
             let mut expected = journal.clone();
             fixture.service.recover_pending_operations().unwrap();
             journal = store.all().unwrap().remove(0);
-            assert!(
-                journal
-                    .last_error
-                    .as_deref()
-                    .unwrap()
-                    .contains("publication operation kind does not own its preparation payload")
-            );
+            if activation_refused {
+                assert_eq!(journal.last_error.as_deref(), Some(refusal_message));
+            } else {
+                assert!(
+                    journal
+                        .last_error
+                        .as_deref()
+                        .unwrap()
+                        .contains(refusal_message)
+                );
+            }
             // Recovery may persist its refusal diagnostic and retry timestamp;
             // every other journal field must retain the attempted envelope.
             expected.last_error = journal.last_error.clone();
@@ -949,17 +993,18 @@ fn assert_recovery_with_family(
                 let _guard = library
                     .try_lock_port(PORT, "family recovery refusal")
                     .unwrap();
-                let error = crate::recovery::recover_published_install(
-                    &fixture.service,
-                    &store,
-                    &mut journal,
-                )
+                let error = if activation_refused {
+                    super::super::recover(&fixture.service, &store, &mut journal)
+                } else {
+                    crate::recovery::recover_published_install(
+                        &fixture.service,
+                        &store,
+                        &mut journal,
+                    )
+                }
                 .unwrap_err();
                 assert_eq!(error.code, ErrorCode::State);
-                assert_eq!(
-                    error.message,
-                    "publication operation kind does not own its preparation payload"
-                );
+                assert_eq!(error.message, refusal_message);
                 assert_eq!(format!("{journal:?}"), format!("{expected:?}"));
             }
             assert_eq!(
@@ -985,6 +1030,15 @@ fn assert_recovery_with_family(
             );
         }
         journal.kind = LifecycleOperationKind::Prepare;
+        if activation_refused {
+            journal.activate = true;
+            if point == LifecycleFaultPoint::PreparationPublished {
+                // A validated publication envelope with the legacy nullable
+                // quiescence field remains recoverable. This does not claim
+                // process proof for unfinished private preparation.
+                journal.preparation_process_quiesced = None;
+            }
+        }
         store.put(&mut journal).unwrap();
         fixture.service.recover_pending_operations().unwrap();
     }
@@ -994,7 +1048,7 @@ fn assert_recovery_with_family(
             .library()
             .try_lock_port(PORT, "owned recovery fixture")
             .unwrap();
-        if reclassify && (reviewed_cleanup || publishable) {
+        if refusal && (reviewed_cleanup || publishable) {
             assert!(store.all().unwrap().is_empty());
             Ok(())
         } else {
@@ -1018,6 +1072,20 @@ fn assert_recovery_with_family(
             journal.id
         );
         assert!(store.all().unwrap().is_empty());
+        if activation_refused {
+            let status = fixture.service.status(PORT).unwrap();
+            assert_eq!(status.previous.unwrap().id, fixture.install.id);
+            assert_eq!(
+                fs::read(status.active.unwrap().path.join("OpenGOAL/jak1/save.bin")).unwrap(),
+                b"preserved player save"
+            );
+            let installs = serde_json::to_value(library.all_installs().unwrap()).unwrap();
+            fixture.service.recover_pending_operations().unwrap();
+            assert_eq!(
+                serde_json::to_value(library.all_installs().unwrap()).unwrap(),
+                installs
+            );
+        }
     } else {
         assert!(recovered.is_err());
         assert_eq!(
@@ -1052,9 +1120,28 @@ fn assert_recovery_with_family(
 macro_rules! preparation_family_cases {
     ($($name:ident: $point:ident, $publishable:literal, $cleanup:literal),+ $(,)?) => {
         $(#[test] fn $name() {
-            assert_recovery_with_family(LifecycleFaultPoint::$point, $publishable, true, $cleanup);
+            assert_recovery_scenario(
+                LifecycleFaultPoint::$point,
+                $publishable,
+                if $cleanup { RecoveryScenario::ReclassifiedReviewedCleanup }
+                else { RecoveryScenario::Reclassified },
+            );
         })+
     };
+}
+
+macro_rules! preparation_activation_cases {
+    ($($name:ident: $point:ident, $scenario:ident),+ $(,)?) => {
+        $(#[test] fn $name() {
+            assert_recovery_scenario(LifecycleFaultPoint::$point, true, RecoveryScenario::$scenario);
+        })+
+    };
+}
+preparation_activation_cases! {
+    nonactivating_prepared_preparation_refuses_startup_publication: PreparationPrepared, ActivationRefused,
+    nonactivating_published_preparation_refuses_startup_registration: PreparationPublished, ActivationRefused,
+    nonactivating_registered_preparation_refuses_startup_cleanup: PreparationRegistered, ActivationRefused,
+    nonactivating_cleanup_pending_preparation_retains_registered_work: PreparationRegistered, ActivationRefusedCleanup,
 }
 preparation_family_cases! {
     reclassified_prepared_preparation_refuses_startup_publication: PreparationPrepared, true, false,
