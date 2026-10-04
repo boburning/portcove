@@ -11,6 +11,11 @@ import {
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
+import { DatabaseSync } from "node:sqlite";
+import {
+  librarySwitchRecoverySelection,
+  prepareLibrarySwitchRecoveryFixture,
+} from "../apps/desktop/scripts/desktop-library-switch-recovery-test.mjs";
 import {
   bootstrapRecoveryEnvironment,
   bootstrapRecoverySelection,
@@ -23,6 +28,61 @@ import {
   DESKTOP_SCENARIOS,
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
+
+test("library switch recovery refuses unsupported hosts and mixed setup before launch", () => {
+  const selection = resolveDesktopSelection({ scenarios: ["native-library-switch-recovery"] });
+  assert.equal(librarySwitchRecoverySelection(selection, "win32"), true);
+  for (const platform of ["linux", "darwin"])
+    assert.throws(() => librarySwitchRecoverySelection(selection, platform), /requires Windows/);
+  assert.throws(() =>
+    librarySwitchRecoverySelection({ ...selection, setup_scenarios: ["empty-library"] }, "win32"),
+  );
+  assert.throws(
+    () =>
+      resolveDesktopSelection({ scenarios: ["native-library-switch-recovery", "empty-library"] }),
+    /standalone/,
+  );
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "native-dialog"]);
+  assert.ok(selection.host_resources.includes("native-dialog"));
+  for (const ids of Object.values(DESKTOP_PROFILES))
+    assert.ok(!ids.includes("native-library-switch-recovery"));
+  assert.equal(desktopHarnessDeadlineMs(selection), 3 * 60_000);
+});
+
+test("future library fixture has a real SQLite ledger and cannot reseed a saved choice", async (t) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-library-switch-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const fixture = await prepareLibrarySwitchRecoveryFixture(output);
+  const bytes = await readFile(fixture.futureDatabase);
+  assert.equal(bytes.subarray(0, 16).toString(), "SQLite format 3\0");
+  const database = new DatabaseSync(fixture.futureDatabase, { readOnly: true });
+  try {
+    assert.deepEqual(
+      database
+        .prepare("SELECT version, applied_at FROM schema_migrations")
+        .all()
+        .map((row) => ({ ...row })),
+      [{ version: 999, applied_at: 0 }],
+    );
+  } finally {
+    database.close();
+  }
+  assert.deepEqual(await readFile(fixture.futureDatabase), bytes);
+  assert.equal(
+    JSON.parse(await readFile(fixture.preferences, "utf8")).library_root,
+    fixture.currentRoot,
+  );
+  const recovered = Buffer.from(
+    JSON.stringify({ format_version: 1, library_root: fixture.healthyRoot }),
+  );
+  await writeFile(fixture.preferences, recovered);
+  await assert.rejects(prepareLibrarySwitchRecoveryFixture(output), { code: "EEXIST" });
+  assert.deepEqual(await readFile(fixture.preferences), recovered);
+  assert.deepEqual(await readFile(fixture.futureDatabase), bytes);
+  for (const marker of ["currentMarker", "futureMarker"])
+    assert.deepEqual(await readFile(fixture[marker]), await readFile(fixture.before[marker]));
+});
 
 test("startup recovery refuses unsupported host and mixed setup before launch", () => {
   const selection = {
