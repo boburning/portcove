@@ -842,6 +842,59 @@ it("does not describe an already absent root as a new removal", async () => {
   expect(document.body.textContent).not.toContain("Saved folder removed.");
 });
 
+it.each(["success", "failure"] as const)(
+  "ignores superseded initial-read %s after root-change recovery",
+  async (initialOutcome) => {
+    let finishInitialRoots!: (roots: GameFileRoot[]) => void;
+    let finishInitialSnapshot!: (value: GameFileScanSnapshot) => void;
+    let failInitialSnapshot!: (error: Error) => void;
+    vi.mocked(desktopApi.gameFileRoots).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishInitialRoots = resolve;
+      }),
+    );
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockReturnValueOnce(
+      new Promise((resolve, reject) => {
+        finishInitialSnapshot = resolve;
+        failInitialSnapshot = reject;
+      }),
+    );
+    await act(async () =>
+      root.render(<GameFileLibraries key="slow-start" ports={[]} profiles={[]} />),
+    );
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+    await click("Refresh folders");
+    const replacement = { ...saved, path: "E:/More Games" };
+    const relink = vi.spyOn(desktopApi, "relinkGameFileRoot").mockImplementation(async () => {
+      vi.mocked(desktopApi.gameFileRoots).mockRejectedValue(new Error("read unavailable"));
+      return replacement;
+    });
+    await click("Relink");
+    expect(button("Review game files").disabled).toBe(true);
+    vi.mocked(desktopApi.gameFileRoots).mockResolvedValue([replacement]);
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+      ...snapshot,
+      freshness: "inputs_changed",
+    });
+    await click("Refresh folders");
+    await act(async () => {
+      finishInitialRoots([{ ...saved, path: "D:/Old Folder" }]);
+      if (initialOutcome === "success") finishInitialSnapshot(snapshot);
+      else failInitialSnapshot(new Error("old initial read failed"));
+    });
+    expect(document.body.textContent).toContain(replacement.path);
+    expect(document.body.textContent).not.toContain("D:/Old Folder");
+    expect(document.body.textContent).not.toContain("Saved roots and catalog match this snapshot");
+    expect(document.body.textContent).toContain("Scan again before using these results");
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(button("Review game files").disabled).toBe(true);
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+    await click("Refresh folders");
+    expect(button("Review game files").disabled).toBe(false);
+    expect(relink).toHaveBeenCalledOnce();
+  },
+);
+
 it.each(["failure", "cancellation"] as const)(
   "preserves a confirmed scan on a root mutation %s",
   async (outcome) => {

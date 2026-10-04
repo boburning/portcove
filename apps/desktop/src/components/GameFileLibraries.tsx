@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
+import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type {
   GameFileRoot,
   GameFileScanSnapshot,
@@ -512,7 +513,8 @@ export function GameFileLibraries({
 }) {
   const [roots, setRoots] = useState<GameFileRoot[]>();
   const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
-  const [rootReadConfirmed, setRootReadConfirmed] = useState(true);
+  const [rootReadConfirmed, setRootReadConfirmed] = useState(false);
+  const rootReads = useRef(new LatestRequestGeneration());
   const [busy, setBusy] = useState("");
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string>();
@@ -546,18 +548,20 @@ export function GameFileLibraries({
   const focusAfterReview = useRef(false);
   const focusToSetup = useRef(false);
   useEffect(() => {
-    let active = true;
+    const reads = rootReads.current;
+    const request = reads.begin();
     void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
       .then(([savedRoots, savedSnapshot]) => {
-        if (!active) return;
+        if (!reads.isCurrent(request)) return;
         setRoots(savedRoots);
         setSnapshot(savedSnapshot);
+        setRootReadConfirmed(true);
       })
       .catch((value: unknown) => {
-        if (active) setError(errorText(value));
+        if (reads.isCurrent(request)) setError(errorText(value));
       });
     return () => {
-      active = false;
+      reads.begin();
     };
   }, []);
   useEffect(() => {
@@ -626,14 +630,17 @@ export function GameFileLibraries({
       });
   };
   const refresh = async () => {
+    const request = rootReads.current.begin();
     setRootReadConfirmed(false);
     const [savedRoots, savedSnapshot] = await Promise.all([
       desktopApi.gameFileRoots(),
       desktopApi.gameFileScanSnapshot(),
     ]);
-    setRoots(savedRoots);
-    setSnapshot(savedSnapshot);
-    setRootReadConfirmed(true);
+    if (rootReads.current.isCurrent(request)) {
+      setRoots(savedRoots);
+      setSnapshot(savedSnapshot);
+      setRootReadConfirmed(true);
+    }
     return savedRoots;
   };
   const refreshAfterRootChange = async (message: string) => {
