@@ -335,8 +335,12 @@ external registrations and `reported_ports` counts both.
 
 Backup listings and the backup/restore checklist apply only to managed installs.
 External rows do not establish save locations or Portcove ownership; their
-`user_data_root` and unbound source-profile reference remain unknown. Exact source
-facts, when available, stay in the captured core source responses. Gameplay,
+`user_data_root` remains unknown. For both runtime routes, `source_profile` stays
+unknown because the captured runtime record does not bind a source profile.
+The additive `catalog_source_profile` records the current catalog declaration,
+or null for an absent/unspecified entry; it is not evidence of the source used by
+the retained runtime. Exact source facts, when available, stay in the captured
+core source responses without an inferred runtime association. Gameplay,
 audio, controller and save/load observations start null (unassessed), regardless
 of readiness or historical qualification. Record exact operation, method, scope,
 date and actual result separately. Neither capture nor synthetic CLI responses

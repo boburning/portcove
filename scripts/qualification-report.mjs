@@ -55,7 +55,10 @@ function observation({ status, record, kind }, port) {
     platform: managed ? null : availableText(record.platform),
     runtime_path: availableText(record.path),
     executable: availableText(managed ? record.selected_executable : record.executable),
-    source_profile: managed ? (port?.source_profile ?? null) : null,
+    // Neither runtime record binds an installed source profile. A current
+    // catalog declaration and the source inventory are separate snapshots.
+    source_profile: null,
+    catalog_source_profile: availableText(port?.source_profile),
     user_data_root: managed ? (status.user_data_root ?? null) : null,
     readiness: status.readiness ?? null,
     manual_observations: { gameplay: null, audio: null, controller: null, save_load: null },
