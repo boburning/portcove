@@ -46,6 +46,7 @@ function ActivityDiagnosticSession({
   const [copied, setCopied] = useState(false);
   const request = useRef(0);
   const reading = useRef(false);
+  const readRequested = useRef(false);
   useLayoutEffect(() => {
     return () => {
       request.current += 1;
@@ -54,6 +55,7 @@ function ActivityDiagnosticSession({
   const load = async () => {
     if (reading.current) return;
     reading.current = true;
+    readRequested.current = true;
     const current = ++request.current;
     setPending(true);
     setFailure(undefined);
@@ -76,7 +78,7 @@ function ActivityDiagnosticSession({
       className="activity-diagnostic col-[2/-1] min-w-0 text-xs"
       onToggle={(event) => {
         if (event.target !== event.currentTarget) return;
-        if (event.currentTarget.open && request.current === 0) void load();
+        if (event.currentTarget.open && !readRequested.current) void load();
       }}
     >
       <summary data-focusable className="cursor-pointer">
