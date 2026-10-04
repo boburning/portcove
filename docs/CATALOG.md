@@ -333,6 +333,15 @@ capture before report publication. Existing capture directories are preserved.
 `installed_ports` still counts managed installs; `registered_ports` counts
 external registrations and `reported_ports` counts both.
 
+The capture keeps the selected CLI's original path so sibling tool discovery
+retains its normal behavior. It records the initial SHA-256 and checks that the
+path remains a regular file with those bytes before and after every command,
+including failed commands and managed backup listings. Changed bytes, a missing
+path or a nonregular replacement refuses publication. If a command also
+fails, both errors are retained, with the command failure first. These checks
+detect observed drift; they do not make execution atomic or immutable, or prove
+that an adversarial change and restoration did not occur between observations.
+
 Backup listings and the backup/restore checklist apply only to managed installs.
 External rows do not establish save locations or Portcove ownership; their
 `user_data_root` remains unknown. For both runtime routes, `source_profile` stays
