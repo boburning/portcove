@@ -2181,7 +2181,7 @@ describe("desktop components", () => {
     expect(windows).not.toContain("Steam Deck");
     expect(linux).toContain("<small>Steam Deck</small>Not tested.");
     expect(linux).toContain(
-      "Linux availability does not establish SteamOS or Gaming Mode qualification.",
+      "Linux availability does not show whether this game works on SteamOS or in Gaming Mode.",
     );
     expect(linux).toContain("<small>Recorded automated tests</small>Windows · Linux");
     expect(linux).toContain("<small>Recorded hands-on tests</small>Windows · Linux");
