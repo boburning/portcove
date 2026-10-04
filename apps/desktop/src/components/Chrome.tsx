@@ -1721,7 +1721,8 @@ export function LibrarySelectionCard({
   switchLibrary?: (path: string) => Promise<void>;
   reset?: () => Promise<void>;
 }) {
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<unknown>();
+  const presentation = failurePresentation(error);
   const [review, setReview] = useState<{ kind: "switch" | "reset"; path: string }>();
   const [pending, setPending] = useState(false);
   const switchTrigger = useRef<HTMLButtonElement>(null);
@@ -1737,7 +1738,7 @@ export function LibrarySelectionCard({
         setReview({ kind: "switch", path });
       }
     } catch (value) {
-      setError(errorText(value));
+      setError(value);
     } finally {
       setPending(false);
     }
@@ -1754,7 +1755,7 @@ export function LibrarySelectionCard({
       focusReturn.current = "reset";
       setReview({ kind: "reset", path });
     } catch (value) {
-      setError(errorText(value));
+      setError(value);
     } finally {
       setPending(false);
     }
@@ -1767,7 +1768,7 @@ export function LibrarySelectionCard({
       if (review.kind === "switch") await switchLibrary?.(review.path);
       else await reset?.();
     } catch (value) {
-      setError(errorText(value));
+      setError(value);
     } finally {
       setPending(false);
       setReview(undefined);
@@ -1876,7 +1877,12 @@ export function LibrarySelectionCard({
           </DialogContent>
         </Dialog>
       )}
-      {error && <p role="alert">{error}</p>}
+      {error !== undefined && (
+        <div role="alert">
+          <p>{errorText(error)}</p>
+          {presentation && <FailureDetails presentation={presentation} />}
+        </div>
+      )}
     </article>
   );
 }

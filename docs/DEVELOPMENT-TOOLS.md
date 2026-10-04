@@ -500,6 +500,17 @@ no lock override. A watchdog timeout after acquisition is a separate failed run
 and follows the retained-evidence diagnosis in the desktop-verification skill.
 
 Focused and small-profile runs retain the three-minute whole-harness watchdog.
+The opt-in Windows `native-library-switch-recovery` scenario uses only owned
+libraries and saved preferences. Real folder selection and review first commit a
+recognizable SQLite library with a future schema; refusal retains the Core-owned
+summary and exposes the redacted schema reason/version through user-opened technical
+details. It must retain the active workspace, identity, saved choice and fixture
+database/player-marker bytes, with natural trigger focus before disclosure and an
+accessibility capture. A subsequent healthy selection
+and independent host restart must retain the new saved choice. Both process trees
+use the existing identity-bound, root-inclusive positive-exit checks. The scenario
+does not open the real platform-default library, redirect Windows known folders,
+or establish installed-package, physical-input or platform-default-reset evidence.
 Owned-lifecycle and full sequences use a bounded ten-minute watchdog because they
 compose more than eight independently bounded scenarios; this does not change any
 scenario's operation, UI wait, confirmation or process-shutdown timeout.

@@ -144,6 +144,83 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
   );
 });
 
+test("Project context never joins a foreign same-number issue to a local Port", () => {
+  const baseline = buildSourceProvenanceAudit(fixture());
+  for (const reverse of [false, true]) {
+    const input = fixture();
+    const foreign = input.projectItems.map((item) => ({
+      ...item,
+      content: {
+        ...item.content,
+        url: item.content.url.replace("boburning/portcove", "another/repository"),
+      },
+      status: "Blocked",
+      "port stage": "Supported",
+      priority: "Urgent",
+    }));
+    input.projectItems = reverse
+      ? [...foreign, ...input.projectItems]
+      : [...input.projectItems, ...foreign];
+    const audit = buildSourceProvenanceAudit(input);
+    assert.deepEqual(audit.cataloged, baseline.cataloged);
+    assert.deepEqual(audit.research, baseline.research);
+    assert.deepEqual(audit.observations, baseline.observations);
+    assert.equal(audit.project.itemCount, 4);
+    assert.notEqual(audit.project.fingerprint, baseline.project.fingerprint);
+  }
+});
+
+test("only a matching repository Issue supplies provenance Project context", () => {
+  for (const kind of ["foreign", "wrong-number", "PullRequest", "DraftIssue", "url-only"]) {
+    const input = fixture();
+    const item = input.projectItems[0];
+    input.projectItems = [item];
+    if (kind === "foreign") item.content.url = "https://github.com/another/repo/issues/2";
+    else if (kind === "wrong-number") item.content.url = item.content.url.replace("/2", "/3");
+    else if (kind === "url-only") item.content.number = undefined;
+    else item.content.type = kind;
+    const audit = buildSourceProvenanceAudit(input);
+    assert.equal(audit.research[0].projectContext, "Unavailable", kind);
+    assert.equal(audit.cataloged[0].projectContext, "Unavailable", kind);
+    assert.equal(audit.project.itemCount, 1, kind);
+  }
+});
+
+test("scoped Project joins accept canonical Issue forms without trusting malformed URLs", () => {
+  const baseline = buildSourceProvenanceAudit(fixture()).research[0].projectContext;
+  for (const kind of ["graphql", "flat", "repository-case", "trailing-slash"]) {
+    const input = fixture();
+    const item = input.projectItems[0];
+    if (kind === "graphql") {
+      delete item.content.type;
+      item.content.__typename = "Issue";
+    } else if (kind === "flat") {
+      input.projectItems[0] = { ...item, ...item.content };
+      delete input.projectItems[0].content;
+    } else if (kind === "repository-case") {
+      item.content.url = item.content.url.replace("boburning/portcove", "Boburning/Portcove");
+    } else item.content.url += "/";
+    assert.equal(buildSourceProvenanceAudit(input).research[0].projectContext, baseline, kind);
+  }
+  for (const url of [
+    "not a URL",
+    "http://github.com/boburning/portcove/issues/2",
+    "https://example.test/boburning/portcove/issues/2",
+    "https://github.com/boburning/portcove/pull/2",
+    "https://github.com/boburning/portcove/issues/2?scope=other",
+    "https://github.com/boburning/portcove/issues/2#scope",
+    "https://user@github.com/boburning/portcove/issues/2",
+    "https://github.com:444/boburning/portcove/issues/2",
+  ]) {
+    const input = fixture();
+    input.projectItems[0].content.url = url;
+    assert.equal(buildSourceProvenanceAudit(input).research[0].projectContext, "Unavailable", url);
+  }
+  const contradictory = fixture();
+  contradictory.projectItems[0].content.__typename = "PullRequest";
+  assert.equal(buildSourceProvenanceAudit(contradictory).research[0].projectContext, "Unavailable");
+});
+
 function researchBlockerInput(body) {
   const input = fixture();
   const identity = input.issues[0].body

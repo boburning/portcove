@@ -466,6 +466,86 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(qualification, /package_managed_files_unchanged: true/);
 });
 
+test("repository toolchain reader exports the declared components before installation", async () => {
+  const setup = await readFile(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+    "utf8",
+  );
+  const body = setup.match(
+    /- name: Read repository toolchain[\s\S]*?run: \|\r?\n([\s\S]*?)(?= {4}- uses:)/,
+  )?.[1];
+  assert.ok(body);
+  const script = body.replace(/^ {8}/gm, "");
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-toolchain-reader-"));
+  const output = path.join(directory, "github-output");
+  try {
+    for (const components of [
+      ["clippy", "rustfmt", "rust-analyzer"],
+      ["rust-src", "rust-analyzer", "clippy", "rustfmt"],
+    ]) {
+      await writeFile(
+        path.join(directory, "rust-toolchain.toml"),
+        `[toolchain]\nchannel = "1.98.1"\ncomponents = ${JSON.stringify(components)}\n`,
+      );
+      await writeFile(output, "");
+      const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+        cwd: directory,
+        env: { ...process.env, GITHUB_OUTPUT: output },
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 10_000,
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+      assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/), [
+        "channel=1.98.1",
+        `components=${components.join(",")}`,
+      ]);
+    }
+    for (const declaration of [
+      "",
+      'components = "clippy"',
+      'components = ["clippy", 7]',
+      'components = ["clippy", "rustfmt\\nextra=value"]',
+    ]) {
+      await writeFile(
+        path.join(directory, "rust-toolchain.toml"),
+        `[toolchain]\nchannel = "1.98.1"\n${declaration}\n`,
+      );
+      await writeFile(output, "");
+      const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+        cwd: directory,
+        env: { ...process.env, GITHUB_OUTPUT: output },
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 10_000,
+      });
+      assert.ifError(result.error);
+      assert.notEqual(result.status, 0, declaration);
+      assert.equal(await readFile(output, "utf8"), "");
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("repository Rust setup provisions components before ordinary identity probes", async () => {
+  const setup = await readFile(
+    new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(setup, /components: \$\{\{ steps\.repository-toolchain\.outputs\.components \}\}/);
+  assert.match(
+    setup,
+    /PORTCOVE_COMPONENTS: \$\{\{ steps\.repository-toolchain\.outputs\.components \}\}/,
+  );
+  const installed = setup.indexOf(
+    "& rustup component list --toolchain $env:PORTCOVE_TOOLCHAIN --installed",
+  );
+  assert.ok(installed >= 0 && installed < setup.indexOf("& rustc --version --verbose"));
+  assert.doesNotMatch(setup, /RUSTUP_TOOLCHAIN|& (?:rustc|cargo) \+/);
+});
+
 test("Rust setup installs the repository pin instead of an unrelated stable toolchain", async () => {
   const setup = await readFile(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
@@ -1336,6 +1416,38 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   );
   assert.match(config, /^retries = 0$/m);
   assert.doesNotMatch(config, /on-timeout|default-filter/);
+  const outputOverrides = config
+    .split("[[profile.default.overrides]]")
+    .slice(1)
+    .filter((override) => /success-output/.test(override));
+  assert.equal(outputOverrides.length, 1);
+  assert.deepEqual(outputOverrides[0].trim().split(/\r?\n/).slice(0, 2), [
+    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'",
+    'success-output = "immediate"',
+  ]);
+  assert.doesNotMatch(outputOverrides[0], /slow-timeout|retries|threads-required|priority/);
+  assert.doesNotMatch(config.split("[[profile.default.overrides]]")[0], /success-output/);
+  const repository = await readFile(
+    new URL("../crates/portcove-core/src/definition_repository.rs", import.meta.url),
+    "utf8",
+  );
+  const repositoryTests = await readFile(
+    new URL("../crates/portcove-core/src/definition_repository_tests.rs", import.meta.url),
+    "utf8",
+  );
+  const publisherTests = await readFile(
+    new URL("../crates/portcove-core/src/definition_publisher_policy_tests.rs", import.meta.url),
+    "utf8",
+  );
+  assert.match(repository, /#\[path = "definition_repository_tests\.rs"\]\r?\nmod tests;/);
+  assert.match(
+    repositoryTests,
+    /#\[path = "definition_publisher_policy_tests\.rs"\]\r?\nmod publisher_policy_tests;/,
+  );
+  assert.match(
+    publisherTests,
+    /#\[tokio::test\]\r?\nasync fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract\(\)/,
+  );
   assert.match(
     config,
     /filter = 'package\(portcove-cli\)'\r?\nthreads-required = 2\r?\npriority = -100/,

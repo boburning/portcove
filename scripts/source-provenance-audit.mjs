@@ -35,6 +35,35 @@ function issueNumber(value) {
   return Number.isInteger(number) && number > 0 ? number : null;
 }
 
+function repositoryProjectIssueNumber(item, repository) {
+  const content = item?.content ?? item;
+  if (
+    !content ||
+    [content.type, content.__typename].some((type) => type !== undefined && type !== "Issue")
+  )
+    return null;
+  const number = Number(content.number);
+  if (!Number.isSafeInteger(number) || number <= 0) return null;
+  try {
+    const url = new URL(content.url);
+    const match = url.pathname.match(/^\/([^/]+\/[^/]+)\/issues\/([1-9]\d*)\/?$/u);
+    return url.protocol === "https:" &&
+      url.hostname === "github.com" &&
+      !url.port &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      match &&
+      match[1].toLowerCase() === repository.toLowerCase() &&
+      Number(match[2]) === number
+      ? number
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 function duplicates(values) {
   const counts = new Map();
   for (const value of values.filter(Boolean)) counts.set(value, (counts.get(value) ?? 0) + 1);
@@ -385,11 +414,16 @@ export function buildSourceProvenanceAudit({
   const catalogSha256 = createHash("sha256").update(catalogText).digest("hex");
   const allIssues = Array.isArray(issues) ? issues : (issues?.items ?? []);
   const allProjectItems = Array.isArray(projectItems) ? projectItems : (projectItems?.items ?? []);
+  // Project membership is cross-repository and includes non-Issue content.
+  // Keep the complete inventory for evidence, but join only scoped Issue identities.
+  const repositoryProjectIssues = allProjectItems.filter(
+    (item) => repositoryProjectIssueNumber(item, repository) !== null,
+  );
   const portIssues = sourceProvenancePortIssues(allIssues)
     .map(issueContent)
     .sort((a, b) => (issueNumber(a) ?? 0) - (issueNumber(b) ?? 0));
   const projectByIssue = new Map(
-    allProjectItems.map((item) => [issueNumber(item), item]).filter(([number]) => number),
+    repositoryProjectIssues.map((item) => [repositoryProjectIssueNumber(item, repository), item]),
   );
   const issueByCatalogId = new Map();
   const research = [];
@@ -466,8 +500,8 @@ export function buildSourceProvenanceAudit({
       projectItems,
     ),
     ...catalogDuplicateObservations(catalog),
-    ...validatePortIssueCoverage(catalog, allProjectItems, repository, allIssues),
-    ...validatePortStageSemantics(catalog, allProjectItems).errors,
+    ...validatePortIssueCoverage(catalog, repositoryProjectIssues, repository, allIssues),
+    ...validatePortStageSemantics(catalog, repositoryProjectIssues).errors,
     ...missingEvidence.map((id) => `Missing source evidence reference: ${id}`),
   ];
   if (expectedCatalogSha256 && expectedCatalogSha256 !== catalogSha256) {
