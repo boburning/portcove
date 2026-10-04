@@ -66,6 +66,12 @@ impl<'a> PreparationConfiguration<'a> {
                 .map_err(|error| error.detail("preparation_field", "runtime_source_directory"))?;
             crate::archive::validate_relative_path(&text.replace('\\', "/"), false)
                 .map_err(|error| error.detail("preparation_field", "runtime_source_directory"))?;
+            if !preparation.source.path.is_dir() || preparation.source_paths.len() < 2 {
+                return Err(PortcoveError::source(
+                    "managed PS1 runtime materialization requires a directory with at least two verified discs",
+                )
+                .detail("preparation_field", "runtime_source_directory"));
+            }
         }
         Ok(Self {
             primary_source,
@@ -1252,11 +1258,42 @@ mod tests {
     }
 
     #[test]
+    fn managed_preparation_rejects_single_disc_runtime_mode_before_adapter_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut preparation = preparation_input_fixture(temporary.path(), false);
+        preparation.runtime_source_directory = Some("owned/discs".into());
+        assert_invalid_preparation_input(
+            temporary.path(),
+            &preparation,
+            "runtime_source_directory",
+        );
+
+        let directory = temporary.path().join("owned-one-disc");
+        fs::create_dir(&directory).unwrap();
+        fs::write(directory.join("disc-01.chd"), b"inert owned disc bytes").unwrap();
+        let (sha256, size) = crate::adapter::source_storage_identity(&directory).unwrap();
+        preparation.source.path = directory.clone();
+        preparation.source.sha256 = sha256.clone();
+        preparation.source.size = size;
+        preparation.source.storage_sha256 = sha256;
+        preparation.source.storage_size = size;
+        preparation.source_paths = crate::adapter::psx_source_paths(&directory, 1).unwrap();
+        assert_invalid_preparation_input(
+            temporary.path(),
+            &preparation,
+            "runtime_source_directory",
+        );
+    }
+
+    #[test]
     fn managed_preparation_valid_disc_inputs_reach_existing_package_check() {
         for multi_disc in [false, true] {
             let temporary = tempfile::tempdir().unwrap();
             let mut preparation = preparation_input_fixture(temporary.path(), multi_disc);
             for runtime in [None, Some(PathBuf::from("owned/discs"))] {
+                if !multi_disc && runtime.is_some() {
+                    continue;
+                }
                 preparation.runtime_source_directory = runtime;
                 let (result, quiesced) = prepare_install(
                     temporary.path(),
@@ -1277,6 +1314,9 @@ mod tests {
             let temporary = tempfile::tempdir().unwrap();
             let mut preparation = preparation_input_fixture(temporary.path(), multi_disc);
             for runtime in [None, Some(PathBuf::from("owned/discs"))] {
+                if !multi_disc && runtime.is_some() {
+                    continue;
+                }
                 preparation.runtime_source_directory = runtime;
                 let configuration =
                     PreparationConfiguration::from_preparation(&preparation).unwrap();
