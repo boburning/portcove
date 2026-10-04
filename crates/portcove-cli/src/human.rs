@@ -2,13 +2,13 @@ use std::path::Path;
 
 use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
-    DoctorReport, GameFileRoot, GameFileScanSnapshot, GithubAuthSource, GithubAuthStatus,
-    HostToolProbeResult, HostToolSource, HostToolState, HostToolStatus, InstallPlan,
-    InstallPlanAction, LaunchBlocker, OutputDestinationAvailability, OutputDestinationOwnership,
-    OutputDestinationPreview, OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition,
-    PortOutputLocation, PortPaths, PortStatus, RepairItemKind, SourceClassification,
-    SourceContractResult, SourceInspectionReport, SourceRecord, SourceRequirementRole,
-    StorageSummary, SupportTier,
+    CatalogOrigin, CatalogStatus, DoctorReport, GameFileRoot, GameFileScanSnapshot,
+    GithubAuthSource, GithubAuthStatus, HostToolProbeResult, HostToolSource, HostToolState,
+    HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker, OutputDestinationAvailability,
+    OutputDestinationOwnership, OutputDestinationPreview, OutputLocationSource,
+    OutputRelocationPlan, Platform, PortDefinition, PortOutputLocation, PortPaths, PortStatus,
+    RepairItemKind, SourceClassification, SourceContractResult, SourceInspectionReport,
+    SourceRecord, SourceRequirementRole, StorageSummary, SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -173,6 +173,69 @@ pub(crate) fn catalog_list(ports: &[PortDefinition]) -> String {
         ports.len(),
         table(&["ID", "NAME", "TIER", "CHANNELS"], rows)
     )
+}
+
+pub(crate) fn catalog_status(status: &CatalogStatus) -> String {
+    let origin = match status.provenance.origin {
+        CatalogOrigin::Embedded => "built-in catalog",
+        CatalogOrigin::SignedActive => "active signed catalog",
+        CatalogOrigin::SignedPrevious => "previous signed catalog",
+        CatalogOrigin::DefinitionSelected => "selected definition catalog",
+    };
+    let mut lines = vec![
+        format!("Effective catalog: {origin}"),
+        format!("Catalog SHA-256: {}", status.provenance.catalog_sha256),
+    ];
+    if let Some(key_id) = &status.provenance.key_id {
+        lines.push(format!("Publisher: {}", clean(key_id)));
+    }
+    if let Some(sequence) = status.provenance.sequence {
+        lines.push(format!("Sequence: {sequence}"));
+    }
+    if let Some(expires_at) = status.provenance.expires_at {
+        lines.push(format!("Expires: {}", utc_time(expires_at)));
+    }
+    lines.push(format!(
+        "Highest accepted sequence: {}",
+        status.highest_sequence
+    ));
+    lines.push(format!("Trusted publishers: {}", status.trusted_keys.len()));
+    for key in &status.trusted_keys {
+        lines.push(format!(
+            "  {}: {}",
+            clean(&key.key_id),
+            clean(&key.public_key)
+        ));
+    }
+    lines.push(format!(
+        "Catalog updates: {}",
+        if status.updates_enabled {
+            "enabled"
+        } else {
+            "disabled"
+        }
+    ));
+    lines.push(format!(
+        "Rollback: {}",
+        if status.can_rollback {
+            "available"
+        } else {
+            "unavailable"
+        }
+    ));
+    lines.push(format!(
+        "Cached signed catalog: {}",
+        if status.can_use_cached {
+            "available"
+        } else {
+            "unavailable"
+        }
+    ));
+    for reason in &status.provenance.fallback_reasons {
+        lines.push(format!("Fallback reason: {}", clean(reason)));
+    }
+    lines.push(format!("State SHA-256: {}", status.state_sha256));
+    lines.join("\n")
 }
 
 pub(crate) fn catalog_show(port: &PortDefinition) -> String {
@@ -1895,6 +1958,79 @@ mod tests {
         assert!(external.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
         assert!(external.contains("create an empty portable.txt"));
         assert!(external.contains("Saves and settings: user-owned"));
+    }
+
+    #[test]
+    fn catalog_status_explains_effective_signed_fallback_and_retains_exact_identities() {
+        use portcove_core::{CatalogOrigin, CatalogProvenance, CatalogStatus, CatalogTrustKey};
+
+        let status = CatalogStatus {
+            provenance: CatalogProvenance {
+                origin: CatalogOrigin::SignedPrevious,
+                catalog_sha256: "a".repeat(64),
+                sequence: Some(7),
+                key_id: Some("publisher-id".into()),
+                expires_at: Some(42),
+                fallback_reasons: vec!["active catalog expired\rcheck trust".into()],
+            },
+            trusted_keys: vec![CatalogTrustKey {
+                key_id: "trusted-id".into(),
+                public_key: "b".repeat(64),
+            }],
+            highest_sequence: 8,
+            updates_enabled: true,
+            can_rollback: false,
+            can_use_cached: true,
+            state_sha256: "c".repeat(64),
+        };
+        let output = super::catalog_status(&status);
+        assert!(output.contains("Effective catalog: previous signed catalog"));
+        assert!(output.contains("Catalog SHA-256: "));
+        assert!(output.contains(&"a".repeat(64)));
+        assert!(output.contains("Publisher: publisher-id"));
+        assert!(output.contains("Sequence: 7"));
+        assert!(output.contains("Expires: 1970-01-01T00:00:42Z"));
+        assert!(output.contains("Highest accepted sequence: 8"));
+        assert!(output.contains("Trusted publishers: 1"));
+        assert!(output.contains("trusted-id"));
+        assert!(output.contains(&"b".repeat(64)));
+        assert!(output.contains("Rollback: unavailable"));
+        assert!(output.contains("Cached signed catalog: available"));
+        assert!(output.contains("Fallback reason: active catalog expired check trust"));
+        assert!(output.contains(&format!("State SHA-256: {}", "c".repeat(64))));
+        assert!(!output.contains('\u{1b}'));
+        assert!(!output.contains('\r'));
+    }
+
+    #[test]
+    fn catalog_status_names_built_in_selection_without_claiming_signed_provenance() {
+        use portcove_core::{CatalogOrigin, CatalogProvenance, CatalogStatus};
+
+        let status = CatalogStatus {
+            provenance: CatalogProvenance {
+                origin: CatalogOrigin::Embedded,
+                catalog_sha256: "a".repeat(64),
+                sequence: None,
+                key_id: None,
+                expires_at: None,
+                fallback_reasons: Vec::new(),
+            },
+            trusted_keys: Vec::new(),
+            highest_sequence: 0,
+            updates_enabled: false,
+            can_rollback: false,
+            can_use_cached: false,
+            state_sha256: "b".repeat(64),
+        };
+        let output = super::catalog_status(&status);
+        assert!(output.contains("Effective catalog: built-in catalog"));
+        assert!(output.contains("Trusted publishers: 0"));
+        assert!(output.contains("Catalog updates: disabled"));
+        assert!(output.contains("Rollback: unavailable"));
+        assert!(output.contains("Cached signed catalog: unavailable"));
+        assert!(!output.contains("Publisher:"));
+        assert!(!output.contains("Sequence:"));
+        assert!(!output.contains("Fallback reason:"));
     }
 
     #[test]
