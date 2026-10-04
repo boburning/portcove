@@ -48,6 +48,17 @@ use the [reference below](#automation-and-integration-reference).
    A backup is not a copy of the game files. Review backup and restore
    consequences in `portcove backup --help` before deleting or restoring one.
 
+Human `backup delete` and `backup restore` show the selected archive folder,
+exact content and review hashes, UTC creation time, file count and size before
+confirmation. The review distinguishes current managed saved data from Core's
+safety-backup decision: an existing empty saved-data folder does not imply a
+safety backup will be created. Deletion preserves live saved data and other
+backups; restoration preserves the selected backup and reports whether a safety
+backup is planned before replacement. Declining leaves the reviewed data intact.
+`--yes` supplies confirmation but still shows the human review; `--json` and
+`--jsonl` retain their existing output without that document. Core rechecks the
+reviewed contents when executing the authorized action.
+
 An official port that offers a user-prepared runtime uses a separate route:
 prepare the exact accepted package outside Portcove, run `portcove external
 preview PORT_ID PATH` against its extracted folder, then `portcove external

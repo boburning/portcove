@@ -384,6 +384,51 @@ pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String 
     )
 }
 
+pub(crate) fn backup_action_preview(
+    preview: &portcove_core::BackupActionPreview,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    use portcove_core::BackupAction;
+
+    let port = catalog.port(&preview.backup.port_id).map_or_else(
+        |_| clean(&preview.backup.port_id),
+        |port| format!("{} ({})", clean(&port.name), clean(&port.id)),
+    );
+    let (action, consequences) = match preview.action {
+        BackupAction::Delete => (
+            "Delete backup",
+            "Changes: permanently delete only the selected backup.\nPreserved: live managed saved data and other backups.\nPortcove cannot undo this deletion.".to_owned(),
+        ),
+        BackupAction::Restore => (
+            "Restore backup",
+            format!(
+                "Changes: replace this port's managed saved data with the selected backup.\nPreserved: the selected backup and other backups.\nBefore replacement: {}",
+                if preview.safety_backup_will_be_created {
+                    "create a safety backup of current managed saved data."
+                } else {
+                    "no safety backup is planned."
+                },
+            ),
+        ),
+    };
+    format!(
+        "{action} review\nPort: {port}\nBackup: {}\nArchive folder: {}\nCreated (UTC): {}\nFiles: {}\nSize: {} ({} bytes)\nBackup SHA-256: {}\nCurrent managed saved data exists: {}\n{consequences}\nReview SHA-256: {}\nConsent is bound to the reviewed contents; changed inputs require a new review.",
+        clean(&preview.backup.id),
+        clean(&preview.backup.path.display().to_string()),
+        utc_time(preview.backup.created_at),
+        preview.backup.file_count,
+        format_bytes(preview.backup.size),
+        preview.backup.size,
+        clean(&preview.backup.sha256),
+        if preview.current_user_data_exists {
+            "yes"
+        } else {
+            "no"
+        },
+        clean(&preview.preview_sha256),
+    )
+}
+
 fn backup_problem_kind(kind: BackupProblemKind) -> &'static str {
     match kind {
         BackupProblemKind::MissingManifest => "missing manifest",
@@ -2428,6 +2473,69 @@ mod tests {
                 assert!(!technical.contains('\u{1b}'));
             }
         }
+    }
+
+    fn backup_action_fixture() -> portcove_core::BackupActionPreview {
+        portcove_core::BackupActionPreview {
+            action: portcove_core::BackupAction::Restore,
+            backup: BackupRecord {
+                id: "backup-1".into(),
+                port_id: "zelda64-recomp".into(),
+                path: PathBuf::from("owned/backups/backup-1"),
+                created_at: 42,
+                file_count: 3,
+                size: 2048,
+                sha256: "a".repeat(64),
+            },
+            current_user_data_exists: true,
+            safety_backup_will_be_created: true,
+            preview_sha256: "b".repeat(64),
+        }
+    }
+
+    #[test]
+    fn backup_review_distinguishes_existing_data_from_a_planned_safety_backup() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut preview = backup_action_fixture();
+        for (exists, safety) in [(true, true), (true, false), (false, false)] {
+            preview.current_user_data_exists = exists;
+            preview.safety_backup_will_be_created = safety;
+            let text = super::backup_action_preview(&preview, &catalog);
+            assert!(text.contains(&format!(
+                "Port: {} (zelda64-recomp)",
+                catalog.port("zelda64-recomp").unwrap().name,
+            )));
+            assert!(text.contains("Created (UTC): 1970-01-01T00:00:42Z"));
+            assert!(text.contains("Files: 3\nSize: 2.0 KiB (2048 bytes)"));
+            assert!(text.contains(&format!("Backup SHA-256: {}", "a".repeat(64))));
+            assert!(text.contains(&format!("Review SHA-256: {}", "b".repeat(64))));
+            assert!(text.contains(&format!(
+                "Current managed saved data exists: {}",
+                if exists { "yes" } else { "no" },
+            )));
+            assert_eq!(text.contains("create a safety backup"), safety);
+            assert_eq!(text.contains("no safety backup is planned"), !safety);
+            assert!(text.contains("Preserved: the selected backup and other backups."));
+        }
+    }
+
+    #[test]
+    fn backup_delete_review_cannot_be_spoofed_by_control_characters() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut preview = backup_action_fixture();
+        preview.action = portcove_core::BackupAction::Delete;
+        preview.backup.id = "backup\nforged\u{1b}[31m\u{9b}2J".into();
+        preview.backup.path = PathBuf::from("owned\r\nfolder\u{1b}");
+        let text = super::backup_action_preview(&preview, &catalog);
+        assert!(text.starts_with("Delete backup review\n"));
+        assert!(text.contains("permanently delete only the selected backup"));
+        assert!(text.contains("Preserved: live managed saved data and other backups."));
+        assert!(text.contains("Portcove cannot undo this deletion."));
+        assert!(!text.contains("create a safety backup"));
+        assert!(!text.contains('\u{1b}'));
+        assert!(!text.contains('\u{9b}'));
+        assert!(!text.contains('\r'));
+        assert!(!text.lines().any(|line| line.starts_with("forged")));
     }
 
     #[test]

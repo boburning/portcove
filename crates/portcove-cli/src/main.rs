@@ -1320,6 +1320,13 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         } => {
             let preview =
                 service.preview_backup_action(&port_id, &backup_id, BackupAction::Delete)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    human::backup_action_preview(&preview, service.catalog())
+                );
+                io::stdout().flush()?;
+            }
             if !confirmation(
                 &format!("Permanently delete backup {backup_id} for {port_id}?"),
                 yes,
@@ -1350,9 +1357,16 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         } => {
             let preview =
                 service.preview_backup_action(&port_id, &backup_id, BackupAction::Restore)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    human::backup_action_preview(&preview, service.catalog())
+                );
+                io::stdout().flush()?;
+            }
             if !confirmation(
                 &format!(
-                    "Restore backup {backup_id} for {port_id}? Current persistent data will be backed up first."
+                    "Restore backup {backup_id} for {port_id}? Replace this port's managed saved data."
                 ),
                 yes,
                 cli.non_interactive,
