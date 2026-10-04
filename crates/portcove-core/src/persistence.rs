@@ -110,6 +110,23 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
 mod tests {
     use super::*;
 
+    fn pattern_catalog() -> crate::Catalog {
+        crate::Catalog::embedded().unwrap()
+    }
+
+    #[test]
+    fn filename_pattern_fixture_is_a_small_valid_independent_graph() {
+        let catalog = pattern_catalog();
+        catalog.validate().unwrap();
+        assert_eq!(catalog.ports().len(), 1);
+        assert_eq!(catalog.ports()[0].id, "persistence-fixture");
+        assert!(catalog.document().source_profiles.is_empty());
+        let sources = catalog.source_catalog().unwrap();
+        assert!(sources.identities.is_empty());
+        assert!(sources.contracts.is_empty());
+        assert!(sources.evidence.is_empty());
+    }
+
     #[test]
     fn filename_patterns_are_anchored_bounded_and_refuse_non_files() {
         let mut port = crate::Catalog::embedded()
