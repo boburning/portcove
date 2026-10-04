@@ -220,7 +220,10 @@ async function assertReviewedLinkRefusals({ browser, invoke, library, observatio
     });
     assert.equal(identity.ok, true, "Library identity must remain available");
     assert.ok(typeof identity.value?.id === "string" && identity.value.id.length > 0);
-    assert.equal(path.resolve(identity.value.root), path.resolve(library));
+    assert.equal(
+      path.toNamespacedPath(path.resolve(identity.value.root)),
+      path.toNamespacedPath(path.resolve(library)),
+    );
     return {
       bootstrap: bootstrap.value,
       identity: identity.value,

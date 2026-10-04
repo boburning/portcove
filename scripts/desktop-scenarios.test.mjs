@@ -215,7 +215,13 @@ test("reviewed link refusals require guard errors and preserve the ready native 
     generation: 1,
     selection: { root: library, source: "environment" },
   };
-  async function run({ refusal, contextChange, identityChange, urlChange } = {}) {
+  async function run({
+    refusal,
+    contextChange,
+    identityChange,
+    identityRoot = library,
+    urlChange,
+  } = {}) {
     const output = await mkdtemp(path.join(outputRoot, "case-"));
     const calls = [];
     let refused = false;
@@ -230,7 +236,7 @@ test("reviewed link refusals require guard errors and preserve the ready native 
       if (command === "get_library_identity")
         return {
           ok: true,
-          value: { id: "owned-library", root: library, ...(refused ? identityChange : {}) },
+          value: { id: "owned-library", root: identityRoot, ...(refused ? identityChange : {}) },
         };
       refused = true;
       return (
@@ -303,6 +309,14 @@ test("reviewed link refusals require guard errors and preserve the ready native 
   await assert.rejects(run({ identityChange: { id: "other-library" } }));
   await assert.rejects(run({ identityChange: { root: path.resolve("work", "other-library") } }));
   await assert.rejects(run({ urlChange: "https://unreviewed.portcove.invalid/boundary" }));
+  if (process.platform === "win32") {
+    const namespaced = await run({ identityRoot: path.toNamespacedPath(library) });
+    assert.equal(namespaced.observations.reviewedLinkRefusals.length, 2);
+    assert.ok(namespaced.observations.reviewedLinkRefusals.every((record) => record.after));
+    await assert.rejects(
+      run({ identityRoot: path.toNamespacedPath(path.resolve("work", "other-library")) }),
+    );
+  }
 });
 
 test("ordinary package boundary is isolated and rejects stale or substituted evidence", async (t) => {
