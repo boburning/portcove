@@ -215,10 +215,13 @@ status checklist.
 Alpha 2's onboarding and storage outcomes are released. Subsequent delivery is
 capability-based: small safe previews may ship while cumulative Public beta or
 1.0 commitments remain incomplete. Versions, Stable/Preview channels, workstreams
-and readiness are separate. The complete Windows/ordinary Linux/macOS updater
-is required for initial Public beta, together with independent catalog delivery and the
+and readiness are separate. The shared updater and its Windows/ordinary Linux
+x86-64 qualification are required for initial Public beta, together with independent catalog delivery and the
 finite preparation, artwork and real reference-client outcomes. These remain
 cumulative 1.0 requirements; exact production qualification stays at 1.0.
+macOS and Steam Deck consume that foundation during beta and remain Required
+before 1.0; their platform-specific qualification does not delay the initial
+Windows/Linux updater outcome.
 See [Continuous verified delivery](DELIVERY.md).
 
 General autonomous engineering is separately owned by #284. It is a Post-1.0
@@ -368,14 +371,23 @@ core domain, lifecycle, persistence, and justified host-integration seams; and
 exposure alignment and repository-tooling ownership. The umbrella owns only their
 finite integrated compatibility and migration-cleanup proof.
 
-Execute this work serially for one persistent Codex implementation session:
-measure and remove repeated validation/build work first, preserve the warm workflow
+Within the authorized two-cloud/one-local arrangement, keep one writer per reserved
+scope, disjoint task ownership, machine-specific heavy-work limits, and the existing
+scheduler/integration authority. Measure and remove repeated validation/build work first, preserve the warm workflow
 and concise handoffs, then take cohesive core/contract and frontend-scenario slices,
 the remaining persistence/updater/styling/tooling consolidation, and final integrated
 acceptance. This is priority order, not a blanket dependency chain. It requires no
-frontend/backend worker split, worktree farm, parallel compiler load, new scheduler,
+frontend/backend worker split, worktree farm, overlapping compiler load on one machine, new scheduler,
 paid service, hardware, or assumed host tuning. Existing heavy-Rust and native-session
 guards remain in force.
+
+Final #921 acceptance consumes representative frontend, focused-core,
+lifecycle/recovery and mixed-tooling changes. Each records its owning boundary,
+selected obligations, capable route, executed or legitimately reused evidence,
+observed phase timings and remaining limits. Temporary adapters, duplicate
+authorities and broad interfaces receive finite removal, replacement or justified
+retention decisions. Adequate existing evidence is reused; optional cleanup owners
+and a recurring benchmark campaign are not prerequisites.
 
 #921 reuses #917 for styling and visual architecture, #206 for interaction/focus/
 navigation, #202/#204 for failure/mutation/review/confirmation presentation, and
@@ -501,6 +513,15 @@ Core, Desktop and the public CLI. The minimum retained-build/reference protectio
 is independently deliverable in #1456 under #40; the first profile does not wait for all
 historical browsing or follow-latest controls. Local packages do not need an
 online provider, account, second loader or shared-manifest feature.
+
+The planned setup identity also retains each input's selected source instance,
+contract/variant, representation and observed content/storage identity. Discovery,
+rescans, root and catalog changes must not silently retarget it; relinking requires
+current-byte validation. Missing sources hold only dependent operations, and
+reference removal preserves user-owned originals. #250 owns this optional binding;
+#244's first discovery slice and #1456's retained-build references remain
+independently deliverable. Compatible default-setup migration preserves ordinary
+CLI launch without requiring extra profile UI.
 
 Core remains the profile transaction and mutable-state authority. Provider
 adapters supply candidates and provenance; bounded native-loader adapters supply
