@@ -1504,9 +1504,6 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
 
 #[tokio::test]
 async fn managed_historical_admission_upgrade_preserves_retained_installation_and_player_data() {
-    let phase_started = std::time::Instant::now();
-    let phase =
-        |label: &str| eprintln!("historical upgrade {label}: {:?}", phase_started.elapsed());
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
     let platform = crate::Platform::current().unwrap();
