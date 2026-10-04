@@ -1084,6 +1084,141 @@ mod tests {
 
     const BUILDER_FIXTURE: &str = "psx::tests::managed_builder_fixture_child";
 
+    fn preparation_input_fixture(root: &Path, multi_disc: bool) -> PsxManagedPreparation {
+        let source_path = if multi_disc {
+            let directory = root.join("owned-discs");
+            fs::create_dir(&directory).unwrap();
+            for name in ["disc-01.chd", "disc-02.chd"] {
+                fs::write(directory.join(name), name.as_bytes()).unwrap();
+            }
+            directory
+        } else {
+            let file = root.join("owned-disc.chd");
+            fs::write(&file, b"inert owned disc bytes").unwrap();
+            file
+        };
+        let (storage_sha256, storage_size) =
+            crate::adapter::source_storage_identity(&source_path).unwrap();
+        let source_paths =
+            crate::adapter::psx_source_paths(&source_path, if multi_disc { 2 } else { 1 }).unwrap();
+        PsxManagedPreparation {
+            source: SourceRecord {
+                profile_id: "owned-ps1-disc".into(),
+                path: source_path,
+                sha256: storage_sha256.clone(),
+                size: storage_size,
+                storage_sha256,
+                storage_size,
+                updated_at: Library::now(),
+                observed_identity: None,
+            },
+            bios: None,
+            source_paths,
+            runtime_source_directory: None,
+            toolchain_root: root.join("absent-owned-toolchain"),
+            executable_basename: "owned-game".into(),
+        }
+    }
+
+    fn assert_invalid_preparation_input(
+        root: &Path,
+        preparation: &PsxManagedPreparation,
+        field: &str,
+    ) {
+        let staging = root.join("owned-staging");
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("preserve"), b"preserve private bytes").unwrap();
+        let identity = crate::adapter::source_storage_identity(&preparation.source.path).unwrap();
+        let (result, quiesced) = prepare_install(
+            &staging,
+            preparation,
+            &OperationCoordinator::new("owned-input-validation", None),
+        );
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.details.get("preparation_field").map(String::as_str),
+            Some(field),
+            "unexpected refusal: {error:?}"
+        );
+        assert!(quiesced);
+        assert_eq!(
+            fs::read(staging.join("preserve")).unwrap(),
+            b"preserve private bytes"
+        );
+        assert_eq!(fs::read_dir(&staging).unwrap().count(), 1);
+        assert_eq!(
+            crate::adapter::source_storage_identity(&preparation.source.path).unwrap(),
+            identity
+        );
+    }
+
+    #[test]
+    fn managed_preparation_rejects_unbound_disc_paths_before_adapter_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preparation = preparation_input_fixture(temporary.path(), true);
+        let foreign = temporary.path().join("foreign-disc.chd");
+        fs::write(&foreign, b"foreign inert bytes").unwrap();
+        let mut reversed = preparation.source_paths.clone();
+        reversed.reverse();
+        for paths in [vec![foreign], Vec::new(), reversed] {
+            let mut invalid = preparation.clone();
+            invalid.source_paths = paths;
+            assert_invalid_preparation_input(temporary.path(), &invalid, "source_paths");
+        }
+    }
+
+    #[test]
+    fn managed_preparation_rejects_unsafe_basename_before_adapter_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preparation = preparation_input_fixture(temporary.path(), false);
+        for basename in ["../outside", "nested/game", "nested\\game", "", "C:game"] {
+            let mut invalid = preparation.clone();
+            invalid.executable_basename = basename.into();
+            assert_invalid_preparation_input(temporary.path(), &invalid, "executable_basename");
+        }
+    }
+
+    #[test]
+    fn managed_preparation_rejects_unsafe_runtime_path_before_adapter_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preparation = preparation_input_fixture(temporary.path(), false);
+        for path in [
+            "../outside",
+            "/outside",
+            "C:/outside",
+            "",
+            "disc/../outside",
+        ] {
+            let mut invalid = preparation.clone();
+            invalid.runtime_source_directory = Some(path.into());
+            assert_invalid_preparation_input(
+                temporary.path(),
+                &invalid,
+                "runtime_source_directory",
+            );
+        }
+    }
+
+    #[test]
+    fn managed_preparation_valid_disc_inputs_reach_existing_package_check() {
+        for multi_disc in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let mut preparation = preparation_input_fixture(temporary.path(), multi_disc);
+            for runtime in [None, Some(PathBuf::from("owned/discs"))] {
+                preparation.runtime_source_directory = runtime;
+                let (result, quiesced) = prepare_install(
+                    temporary.path(),
+                    &preparation,
+                    &OperationCoordinator::new("owned-valid-input", None),
+                );
+                let error = result.unwrap_err();
+                assert_eq!(error.code, crate::ErrorCode::Install);
+                assert!(error.message.contains("fixed psxrecomp CLI contract"));
+                assert!(quiesced);
+            }
+        }
+    }
+
     // Execute this repository's native test binary through the production
     // builder boundary. No upstream Python, compiler, game or source is run.
     fn run_builder_fixture(root: &Path, operation: &OperationCoordinator) -> Result<()> {
