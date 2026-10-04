@@ -209,6 +209,30 @@ test("proposal identity report keeps added empty own fields and exact null value
   ]);
 });
 
+test("proposal identity report leaves similarly named unknown presentation fields unclassified", () => {
+  const before = proposalFixture();
+  const after = structuredClone(before);
+  after.ports[0].presentation = {
+    source_requirements: [],
+    saves_and_settings: "external_user_owned",
+    source_requirements_extra: "unclassified source wording",
+    saves_and_settings_extra: "unclassified persistence wording",
+  };
+  const [change] = compareProposal(before, after).proposal_changes.ports;
+  assert.deepEqual(
+    change.changes.source.map((item) => item.path),
+    ["$.presentation.source_requirements"],
+  );
+  assert.deepEqual(
+    change.changes.persistence.map((item) => item.path),
+    ["$.presentation.saves_and_settings"],
+  );
+  assert.deepEqual(
+    change.changes.other.map((item) => item.path),
+    ["$.presentation.saves_and_settings_extra", "$.presentation.source_requirements_extra"],
+  );
+});
+
 test("semantic diff retains own fields colliding with Object.prototype", () => {
   const fixture = isolatedGenerator();
   const currentPath = join(fixture.catalogs, "catalog-current-authoring.json");

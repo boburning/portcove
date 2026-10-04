@@ -144,7 +144,7 @@ function proposalChanges(before, after) {
             "runtime_source_hashes",
             "runtime_source_set",
           ].includes(field) ||
-          change.path.startsWith("$.presentation.source_requirements") ||
+          /^\$\.presentation\.source_requirements(?:$|[.[])/u.test(change.path) ||
           /^\$\.release\.user_prepared\.[^.]+\.source_argument_extension(?:$|[.[])/u.test(
             change.path,
           )
@@ -159,7 +159,7 @@ function proposalChanges(before, after) {
             "user_data_environment",
             "setup_output_paths",
           ].includes(field) ||
-          change.path.startsWith("$.presentation.saves_and_settings") ||
+          /^\$\.presentation\.saves_and_settings(?:$|[.[])/u.test(change.path) ||
           /^\$\.release\.user_prepared\.[^.]+\.mutable_paths(?:$|[.[])/u.test(change.path)
         )
           group = "persistence";
