@@ -6035,6 +6035,84 @@ mod tests {
     }
 
     #[test]
+    fn publication_recovery_retains_conflicting_quarantine_intent() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let installed = register_zelda_install(&library, "v1", true);
+        let install = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        let source = temporary.path().join("original-source");
+        fs::write(&source, b"original source").unwrap();
+        let (sha256, size) = crate::adapter::hash_file(&source).unwrap();
+        library
+            .register_source(&SourceRecord {
+                profile_id: "opengoal-jak1-disc".into(),
+                path: source.clone(),
+                sha256: sha256.clone(),
+                size,
+                storage_sha256: sha256,
+                storage_size: size,
+                updated_at: Library::now(),
+                observed_identity: None,
+            })
+            .unwrap();
+        let saved = library.user_dir("zelda64-recomp").join("general.json");
+        fs::create_dir_all(saved.parent().unwrap()).unwrap();
+        fs::write(&saved, b"original saved settings").unwrap();
+        let mut journal = LifecycleOperation::new(
+            &install.id,
+            LifecycleOperationKind::Install,
+            "zelda64-recomp",
+        );
+        let staging = library.staging_dir().join(&journal.id);
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("sentinel"), b"private publication evidence").unwrap();
+        let quarantine = library.recovery_dir().join(&journal.id);
+        fs::create_dir_all(&quarantine).unwrap();
+        fs::write(quarantine.join("sentinel"), b"other family intent").unwrap();
+        journal.phase = LifecyclePhase::MetadataCommitted;
+        journal.paths.staging = Some(staging.clone());
+        journal.paths.final_path = Some(installed.clone());
+        journal.paths.quarantine = Some(quarantine.clone());
+        journal.install = Some(install);
+        journal.activate = true;
+        let store = OperationStore::new(library.clone());
+        store.put(&mut journal).unwrap();
+        let installs = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
+        let sources = serde_json::to_vec(&library.sources().unwrap()).unwrap();
+
+        PortcoveService::new(library.clone()).unwrap();
+
+        assert!(
+            staging.is_dir(),
+            "conflicting intent must retain private staging"
+        );
+        assert!(store.get(&journal.id).unwrap().is_some());
+        assert_eq!(
+            fs::read(staging.join("sentinel")).unwrap(),
+            b"private publication evidence"
+        );
+        assert_eq!(
+            fs::read(quarantine.join("sentinel")).unwrap(),
+            b"other family intent"
+        );
+        assert_eq!(fs::read(&source).unwrap(), b"original source");
+        assert_eq!(fs::read(&saved).unwrap(), b"original saved settings");
+        assert_eq!(
+            serde_json::to_vec(&library.all_installs().unwrap()).unwrap(),
+            installs
+        );
+        assert_eq!(
+            serde_json::to_vec(&library.sources().unwrap()).unwrap(),
+            sources
+        );
+        assert!(installed.is_dir());
+    }
+
+    #[test]
     fn recovers_adoption_prepared() {
         assert_external_adoption_recovers_after_every_publication_boundary(
             LifecycleFaultPoint::AdoptionPrepared,
