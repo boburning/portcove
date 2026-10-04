@@ -1416,6 +1416,38 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   );
   assert.match(config, /^retries = 0$/m);
   assert.doesNotMatch(config, /on-timeout|default-filter/);
+  const outputOverrides = config
+    .split("[[profile.default.overrides]]")
+    .slice(1)
+    .filter((override) => /success-output/.test(override));
+  assert.equal(outputOverrides.length, 1);
+  assert.deepEqual(outputOverrides[0].trim().split(/\r?\n/).slice(0, 2), [
+    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'",
+    'success-output = "immediate"',
+  ]);
+  assert.doesNotMatch(outputOverrides[0], /slow-timeout|retries|threads-required|priority/);
+  assert.doesNotMatch(config.split("[[profile.default.overrides]]")[0], /success-output/);
+  const repository = await readFile(
+    new URL("../crates/portcove-core/src/definition_repository.rs", import.meta.url),
+    "utf8",
+  );
+  const repositoryTests = await readFile(
+    new URL("../crates/portcove-core/src/definition_repository_tests.rs", import.meta.url),
+    "utf8",
+  );
+  const publisherTests = await readFile(
+    new URL("../crates/portcove-core/src/definition_publisher_policy_tests.rs", import.meta.url),
+    "utf8",
+  );
+  assert.match(repository, /#\[path = "definition_repository_tests\.rs"\]\r?\nmod tests;/);
+  assert.match(
+    repositoryTests,
+    /#\[path = "definition_publisher_policy_tests\.rs"\]\r?\nmod publisher_policy_tests;/,
+  );
+  assert.match(
+    publisherTests,
+    /#\[tokio::test\]\r?\nasync fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract\(\)/,
+  );
   assert.match(
     config,
     /filter = 'package\(portcove-cli\)'\r?\nthreads-required = 2\r?\npriority = -100/,
