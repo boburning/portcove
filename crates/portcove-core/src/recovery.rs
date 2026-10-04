@@ -27,6 +27,15 @@ pub(crate) fn recover_published_install(
             "publication install destination differs from its journal destination",
         ));
     }
+    if matches!(
+        operation.kind,
+        LifecycleOperationKind::Install | LifecycleOperationKind::Adopt
+    ) && operation.preparation.is_some()
+    {
+        return Err(PortcoveError::state(
+            "publication operation kind does not own its preparation payload",
+        ));
+    }
     if operation.phase == LifecyclePhase::CleanupPending && operation.install.is_none() {
         return crate::cancellation::discard_private_install_with_faults(
             &service.library,
