@@ -1981,13 +1981,14 @@ export function HostToolRow({
   const inFlight = useRef(false);
   const [feedback, setFeedback] = useState<{
     identity: string;
-    revision: number;
     outcome?: HostToolProbeResult;
     error?: string;
   }>();
   useLayoutEffect(() => {
-    const revision = current.current.revision + Number(current.current.identity !== identity);
+    const changed = current.current.identity !== identity;
+    const revision = current.current.revision + Number(changed);
     current.current = { identity, tool, revision };
+    if (changed) setFeedback(undefined);
   }, [identity, tool]);
   useLayoutEffect(() => {
     mounted.current = true;
@@ -1995,10 +1996,7 @@ export function HostToolRow({
       mounted.current = false;
     };
   }, []);
-  const visibleFeedback =
-    feedback?.identity === identity && feedback.revision === current.current.revision
-      ? feedback
-      : undefined;
+  const visibleFeedback = feedback?.identity === identity ? feedback : undefined;
   const run = async (
     name: string,
     operation: () => Promise<HostToolProbeResult | void | undefined> | undefined,
@@ -2021,12 +2019,11 @@ export function HostToolRow({
         observed.tool.source === "saved" &&
         observed.tool.state === "available";
       if (mounted.current && result && (observed.revision === started.revision || ownLocatedPath))
-        setFeedback({ identity: observed.identity, revision: observed.revision, outcome: result });
+        setFeedback({ identity: observed.identity, outcome: result });
     } catch (value) {
       if (mounted.current && current.current.revision === started.revision)
         setFeedback({
           identity: started.identity,
-          revision: started.revision,
           error: errorText(value),
         });
     } finally {
