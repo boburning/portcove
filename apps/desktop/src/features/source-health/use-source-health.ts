@@ -118,6 +118,7 @@ export function useSourceHealth(
   const verifyAll = useCallback(async () => {
     if (!mounted.current || inspectionInput.current.baseline !== baseline) return;
     const request = verificationRequests.current.begin();
+    setVerified(undefined);
     const result = await perform("verify sources", desktopApi.verifySources);
     if (
       !mounted.current ||
