@@ -1844,7 +1844,10 @@ the embedded install path before publication, registration, save transfer or
 cleanup; missing final destinations retain the nullable compatibility contract.
 Install and adoption journals must also have no private preparation plan before
 any phase or cleanup handling; that plan belongs to preparation recovery. The
-independent process-quiescence fact remains valid for managed PS1 installation.
+same boundary refuses relocation or source-import payloads, removal original
+paths, and quarantine intent before publication or private cleanup. Contradictory
+intent is retained for review rather than silently discarded by another family.
+The independent process-quiescence fact remains valid for managed PS1 installation.
 An inconsistent record remains diagnostic and retains its phase, published tree
 and private data for review. These checks do not
 change legitimate legacy phases or install-less failed-private-cleanup recovery.

@@ -6034,8 +6034,20 @@ mod tests {
         }
     }
 
-    #[test]
-    fn publication_recovery_retains_conflicting_quarantine_intent() {
+    #[derive(Clone, Copy)]
+    enum ConflictingPublicationIntent {
+        Relocation,
+        SourceImport,
+        OriginalPaths,
+        Quarantine,
+    }
+
+    fn assert_publication_retains_family_intent(
+        kind: LifecycleOperationKind,
+        phase: LifecyclePhase,
+        conflict: ConflictingPublicationIntent,
+        private_cleanup: bool,
+    ) {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let installed = register_zelda_install(&library, "v1", true);
@@ -6062,27 +6074,128 @@ mod tests {
         let saved = library.user_dir("zelda64-recomp").join("general.json");
         fs::create_dir_all(saved.parent().unwrap()).unwrap();
         fs::write(&saved, b"original saved settings").unwrap();
-        let mut journal = LifecycleOperation::new(
-            &install.id,
-            LifecycleOperationKind::Install,
-            "zelda64-recomp",
-        );
+        let store = OperationStore::new(library.clone());
+        let point = match phase {
+            LifecyclePhase::Prepared => LifecycleFaultPoint::AdoptionPrepared,
+            LifecyclePhase::PayloadPublished => LifecycleFaultPoint::AdoptionPublished,
+            LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending => {
+                LifecycleFaultPoint::AdoptionMetadataCommitted
+            }
+            LifecyclePhase::Preparing => unreachable!(),
+        };
+        let service = service_with_fault(library.clone(), point);
+        let adoption_source = temporary.path().join("existing-install");
+        let mut journal = if kind == LifecycleOperationKind::Adopt {
+            fs::create_dir_all(&adoption_source).unwrap();
+            write_host_test_executable(&adoption_source, "zelda64-recomp");
+            fs::write(adoption_source.join("general.json"), b"adopted settings").unwrap();
+            let preview = service
+                .preview_adoption(&adoption_source, Some("zelda64-recomp"))
+                .unwrap();
+            let authorization = service
+                .authorize_adoption(
+                    &adoption_source,
+                    Some("zelda64-recomp"),
+                    &preview.plan_sha256,
+                )
+                .unwrap();
+            assert!(
+                service
+                    .adopt(
+                        &adoption_source,
+                        Some("zelda64-recomp"),
+                        &authorization.token
+                    )
+                    .unwrap_err()
+                    .message
+                    .contains("injected lifecycle failure")
+            );
+            store.all().unwrap().pop().unwrap()
+        } else {
+            let id = if private_cleanup {
+                let activity = library
+                    .begin_activity(
+                        ActivityOperation::Install,
+                        ActivityTargetKind::Port,
+                        Some("zelda64-recomp"),
+                    )
+                    .unwrap();
+                library
+                    .finish_activity(
+                        &activity.id,
+                        ActivityStatus::Failed,
+                        Some("private preparation failed"),
+                    )
+                    .unwrap();
+                activity.id
+            } else {
+                install.id.clone()
+            };
+            let mut journal = LifecycleOperation::new(id, kind, "zelda64-recomp");
+            if !private_cleanup {
+                journal.paths.final_path = Some(installed.clone());
+                journal.install = Some(install);
+                journal.activate = true;
+            } else {
+                journal.preparation_process_quiesced = Some(true);
+            }
+            journal
+        };
         let staging = library.staging_dir().join(&journal.id);
         fs::create_dir_all(&staging).unwrap();
         fs::write(staging.join("sentinel"), b"private publication evidence").unwrap();
         let quarantine = library.recovery_dir().join(&journal.id);
         fs::create_dir_all(&quarantine).unwrap();
         fs::write(quarantine.join("sentinel"), b"other family intent").unwrap();
-        journal.phase = LifecyclePhase::MetadataCommitted;
+        journal.phase = phase;
         journal.paths.staging = Some(staging.clone());
-        journal.paths.final_path = Some(installed.clone());
-        journal.paths.quarantine = Some(quarantine.clone());
-        journal.install = Some(install);
-        journal.activate = true;
-        let store = OperationStore::new(library.clone());
+        match conflict {
+            ConflictingPublicationIntent::Relocation => {
+                journal.relocation = Some(
+                    service
+                        .plan_output_relocation(
+                            "zelda64-recomp",
+                            &temporary.path().join("relocation-target"),
+                        )
+                        .unwrap(),
+                );
+            }
+            ConflictingPublicationIntent::SourceImport => {
+                let source_record = library.source("opengoal-jak1-disc").unwrap().unwrap();
+                // A typed synthetic import payload tests family ownership, not source admission.
+                journal.source_import = Some(crate::SourceImportPlan {
+                    schema_version: 1,
+                    profile_id: source_record.profile_id.clone(),
+                    mode: crate::SourceImportMode::Copy,
+                    admission_mode: crate::SourceAdmissionMode::ExactIdentity,
+                    destination: temporary.path().join("import-target"),
+                    destination_exists: false,
+                    reuse_existing: false,
+                    required_bytes: source_record.storage_size,
+                    existing_registration: Some(source_record.clone()),
+                    source_guard_sha256: source_record.storage_sha256.clone(),
+                    plan_sha256: source_record.storage_sha256.clone(),
+                    source: source_record,
+                });
+            }
+            ConflictingPublicationIntent::OriginalPaths => {
+                journal.original_paths = vec![source.clone()];
+            }
+            ConflictingPublicationIntent::Quarantine => {
+                journal.paths.quarantine = Some(quarantine.clone());
+            }
+        }
         store.put(&mut journal).unwrap();
         let installs = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
         let sources = serde_json::to_vec(&library.sources().unwrap()).unwrap();
+        let private_tree = serde_json::to_vec(&adoption_copy_plan(&staging).unwrap()).unwrap();
+        let tree_snapshot = |path: &Path| {
+            path.exists()
+                .then(|| serde_json::to_vec(&adoption_copy_plan(path).unwrap()).unwrap())
+        };
+        let destination_tree = journal.paths.final_path.as_deref().and_then(tree_snapshot);
+        let original_install_tree = tree_snapshot(&installed);
+        let adoption_source_tree = tree_snapshot(&adoption_source);
 
         PortcoveService::new(library.clone()).unwrap();
 
@@ -6090,7 +6203,30 @@ mod tests {
             staging.is_dir(),
             "conflicting intent must retain private staging"
         );
-        assert!(store.get(&journal.id).unwrap().is_some());
+        let mut retained = store.get(&journal.id).unwrap().unwrap();
+        assert_eq!(retained.kind, kind);
+        assert_eq!(retained.phase, phase);
+        assert_eq!(retained.created_at, journal.created_at);
+        assert!(
+            retained
+                .last_error
+                .as_deref()
+                .unwrap()
+                .contains("family's intent")
+        );
+        let diagnostic = retained.last_error.take();
+        retained.updated_at = journal.updated_at;
+        assert_eq!(
+            format!("{retained:?}"),
+            format!(
+                "{:?}",
+                LifecycleOperation {
+                    last_error: None,
+                    ..journal.clone()
+                }
+            )
+        );
+        retained.last_error = diagnostic;
         assert_eq!(
             fs::read(staging.join("sentinel")).unwrap(),
             b"private publication evidence"
@@ -6110,6 +6246,123 @@ mod tests {
             sources
         );
         assert!(installed.is_dir());
+        assert_eq!(
+            serde_json::to_vec(&adoption_copy_plan(&staging).unwrap()).unwrap(),
+            private_tree
+        );
+        assert_eq!(
+            journal.paths.final_path.as_deref().and_then(tree_snapshot),
+            destination_tree
+        );
+        assert_eq!(tree_snapshot(&installed), original_install_tree);
+        assert_eq!(tree_snapshot(&adoption_source), adoption_source_tree);
+
+        match conflict {
+            ConflictingPublicationIntent::Relocation => retained.relocation = None,
+            ConflictingPublicationIntent::SourceImport => retained.source_import = None,
+            ConflictingPublicationIntent::OriginalPaths => retained.original_paths.clear(),
+            ConflictingPublicationIntent::Quarantine => retained.paths.quarantine = None,
+        }
+        let recovered_install = retained.install.as_ref().map(|record| record.id.clone());
+        store.put(&mut retained).unwrap();
+        PortcoveService::new(library.clone()).unwrap();
+        assert!(store.get(&journal.id).unwrap().is_none());
+        assert!(!staging.exists());
+        assert_eq!(
+            fs::read(quarantine.join("sentinel")).unwrap(),
+            b"other family intent"
+        );
+        assert_eq!(fs::read(&source).unwrap(), b"original source");
+        assert_eq!(
+            serde_json::to_vec(&library.sources().unwrap()).unwrap(),
+            sources
+        );
+        if let Some(id) = recovered_install {
+            assert_eq!(
+                library
+                    .status("zelda64-recomp", ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .unwrap()
+                    .id,
+                id
+            );
+        } else {
+            assert_eq!(
+                serde_json::to_vec(&library.all_installs().unwrap()).unwrap(),
+                installs
+            );
+            assert_eq!(
+                library.activities(1).unwrap()[0].status,
+                ActivityStatus::Failed
+            );
+        }
+        if kind == LifecycleOperationKind::Adopt {
+            assert_eq!(fs::read(&saved).unwrap(), b"adopted settings");
+            assert_eq!(
+                fs::read(adoption_source.join("general.json")).unwrap(),
+                b"adopted settings"
+            );
+        } else {
+            assert_eq!(fs::read(&saved).unwrap(), b"original saved settings");
+        }
+        assert_eq!(tree_snapshot(&installed), original_install_tree);
+        assert_eq!(tree_snapshot(&adoption_source), adoption_source_tree);
+        PortcoveService::new(library).unwrap();
+        assert!(store.get(&journal.id).unwrap().is_none());
+    }
+
+    fn assert_conflicting_publication_phases(conflict: ConflictingPublicationIntent) {
+        for kind in [
+            LifecycleOperationKind::Install,
+            LifecycleOperationKind::Adopt,
+        ] {
+            for phase in [
+                LifecyclePhase::MetadataCommitted,
+                LifecyclePhase::Prepared,
+                LifecyclePhase::PayloadPublished,
+                LifecyclePhase::CleanupPending,
+            ] {
+                assert_publication_retains_family_intent(kind, phase, conflict, false);
+            }
+        }
+    }
+
+    #[test]
+    fn publication_recovery_retains_conflicting_quarantine_intent() {
+        assert_conflicting_publication_phases(ConflictingPublicationIntent::Quarantine);
+    }
+
+    #[test]
+    fn publication_recovery_retains_conflicting_relocation_intent() {
+        assert_conflicting_publication_phases(ConflictingPublicationIntent::Relocation);
+    }
+
+    #[test]
+    fn publication_recovery_retains_conflicting_source_import_intent() {
+        assert_conflicting_publication_phases(ConflictingPublicationIntent::SourceImport);
+    }
+
+    #[test]
+    fn publication_recovery_retains_conflicting_original_paths_intent() {
+        assert_conflicting_publication_phases(ConflictingPublicationIntent::OriginalPaths);
+    }
+
+    #[test]
+    fn unpublished_install_cleanup_retains_conflicting_family_intent() {
+        for conflict in [
+            ConflictingPublicationIntent::Relocation,
+            ConflictingPublicationIntent::SourceImport,
+            ConflictingPublicationIntent::OriginalPaths,
+            ConflictingPublicationIntent::Quarantine,
+        ] {
+            assert_publication_retains_family_intent(
+                LifecycleOperationKind::Install,
+                LifecyclePhase::CleanupPending,
+                conflict,
+                true,
+            );
+        }
     }
 
     #[test]

@@ -36,6 +36,18 @@ pub(crate) fn recover_published_install(
             "publication operation kind does not own its preparation payload",
         ));
     }
+    if matches!(
+        operation.kind,
+        LifecycleOperationKind::Install | LifecycleOperationKind::Adopt
+    ) && (operation.relocation.is_some()
+        || operation.source_import.is_some()
+        || !operation.original_paths.is_empty()
+        || operation.paths.quarantine.is_some())
+    {
+        return Err(PortcoveError::state(
+            "publication journal contains another lifecycle family's intent",
+        ));
+    }
     if operation.phase == LifecyclePhase::CleanupPending && operation.install.is_none() {
         return crate::cancellation::discard_private_install_with_faults(
             &service.library,
