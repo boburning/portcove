@@ -121,7 +121,7 @@ export async function librarySwitchRecoveryScenario({
   await assertPreservation();
   await captureScreenshot("future-library-reviewed-before-consent");
   await futureReview
-    .findElement(By.xpath('.//button[normalize-space(.)="Switch whole library"]'))
+    .findElement(By.xpath('.//button[normalize-space(.)="Switch library"]'))
     .click();
   const alert = By.xpath(
     '//article[.//h2[normalize-space(.)="Library at startup"]]//*[@role="alert"]',
@@ -157,7 +157,7 @@ export async function librarySwitchRecoveryScenario({
   );
   const healthyReview = await selectAndReview(fixture.healthyRoot, "healthy-library-picker");
   await healthyReview
-    .findElement(By.xpath('.//button[normalize-space(.)="Switch whole library"]'))
+    .findElement(By.xpath('.//button[normalize-space(.)="Switch library"]'))
     .click();
   await browser.wait(async () => {
     const status = await read("get_bootstrap_status");
