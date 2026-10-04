@@ -5738,7 +5738,7 @@ mod tests {
             Arc::new(FailAdoptionPrivateWork { cleanup_fails }),
         )
         .unwrap();
-        let sources_before = serde_json::to_vec(&service.sources().unwrap()).unwrap();
+        let sources_before = serde_json::to_vec(&service.library.sources().unwrap()).unwrap();
         let preview = service
             .preview_adoption(&source, Some("zelda64-recomp"))
             .unwrap();
@@ -5794,7 +5794,7 @@ mod tests {
                 private_before
             );
             assert_eq!(
-                serde_json::to_vec(&restarted.sources().unwrap()).unwrap(),
+                serde_json::to_vec(&restarted.library.sources().unwrap()).unwrap(),
                 sources_before
             );
             let retained_activity = library
@@ -5825,7 +5825,7 @@ mod tests {
             installs_before
         );
         assert_eq!(
-            serde_json::to_vec(&service.sources().unwrap()).unwrap(),
+            serde_json::to_vec(&service.library.sources().unwrap()).unwrap(),
             sources_before
         );
     }
