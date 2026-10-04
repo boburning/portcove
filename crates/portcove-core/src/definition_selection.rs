@@ -580,19 +580,25 @@ impl Library {
             && policy
                 .as_ref()
                 .is_some_and(|policy| !policy.matches_identity(identity));
+        let launch_checks =
+            crate::definition_repository::publisher_policy::launch_assessment::checks_passed(
+                &transaction,
+                identity,
+                context,
+            )?;
         let result = evaluate_definition_eligibility(&DefinitionEligibilityFacts {
             operation: context.operation,
             publisher_scoped,
             publisher_revoked,
             capability_supported: true,
-            unknown_safety_field: false,
+            unknown_safety_field: launch_checks.is_none(),
             ownership_preserved: true,
             same_identity_changed,
             expected_integrity: true,
             local_integrity_valid: context.local_integrity_valid,
             required_source_missing: context.required_source_missing,
             source_mismatch: context.source_mismatch,
-            mandatory_checks_passed: true,
+            mandatory_checks_passed: launch_checks != Some(false),
             fresh_metadata: Self::now() < expiration_unix(&identity.provenance)?
                 && crate::definition_repository::publisher_policy::availability_expiration(
                     &transaction,

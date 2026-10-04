@@ -1,0 +1,1280 @@
+//! Controlled independent-policy fixtures, not production publishing or gameplay.
+use super::*;
+use policy::launch_assessment as launch;
+
+struct AdmitLaunchHold {
+    library: Library,
+    accepted: crate::AuthenticatedDefinitionLaunchAssessment,
+}
+
+impl crate::operation::LifecycleFaultInjector for AdmitLaunchHold {
+    fn check(&self, point: crate::operation::LifecycleFaultPoint) -> crate::Result<()> {
+        if point == crate::operation::LifecycleFaultPoint::LaunchReadyToSpawn {
+            self.library
+                .apply_definition_launch_assessment(&self.accepted)?;
+        }
+        Ok(())
+    }
+}
+
+fn assessment_document(policy_sha256: &str, revision: u64, assessments: Vec<Value>) -> Value {
+    serde_json::json!({
+        "assessment_schema":1, "namespace":"official", "stable_id":ID,
+        "policy_sha256":policy_sha256, "revision":revision, "assessments":assessments,
+    })
+}
+
+fn held(record: &crate::InstallRecord, check_id: &str, revision: u64) -> Value {
+    serde_json::json!({
+        "subject": {
+            "version":record.version, "channel":record.channel,
+            "platform":crate::Platform::current().unwrap(),
+            "artifact":record.artifact, "operation":"launch",
+        },
+        "check_id":check_id, "check_input_sha256":"a".repeat(64), "revision":revision,
+        "decision":{"status":"held", "failure_sha256":"b".repeat(64)},
+    })
+}
+
+async fn publish_assessment(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    root: &[u8],
+    catalog: &Catalog,
+    metadata_version: u64,
+    document: &Value,
+) -> crate::Result<crate::AuthenticatedDefinitionLaunchAssessment> {
+    // Reconstruct the exact deterministic initial grant from the same authoring
+    // input; publishing an assessment does not alter that grant's bytes.
+    let mut targets = repository_targets_for(catalog, ID);
+    let policy_bytes = serde_json::to_vec(&managed_policy_for(&targets, true)).unwrap();
+    targets.push((format!("policy/official/{ID}.json"), policy_bytes));
+    publish_assessment_for_targets(fixture, key, root, targets, metadata_version, document).await
+}
+
+async fn publish_assessment_for_targets(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    root: &[u8],
+    mut targets: Vec<(String, Vec<u8>)>,
+    metadata_version: u64,
+    document: &Value,
+) -> crate::Result<crate::AuthenticatedDefinitionLaunchAssessment> {
+    targets.push((
+        format!("policy/official/{ID}.launch.json"),
+        serde_json::to_vec(document).unwrap(),
+    ));
+    let current_root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((key, metadata_version)),
+        )
+        .await;
+    assert_eq!(&current_root, root);
+    launch::acquire_with_transport(
+        root,
+        fixture.metadata_url(),
+        fixture.targets_url(),
+        FilesystemTransport,
+        "official",
+        ID,
+    )
+    .await
+}
+
+#[tokio::test]
+async fn scoped_launch_policy_requires_explicit_supported_format() {
+    let mut document = managed_github(1);
+    document["policy_schema"] = 3.into();
+    assert_signed_managed_policy_refused(document.clone()).await;
+    document["decision"]["scoped_launch_checks"] = 2.into();
+    assert_signed_managed_policy_refused(document.clone()).await;
+    document["decision"]["scoped_launch_checks"] = 1.into();
+    let fixture = RepositoryFixture::new();
+    let key = Key::new(fixture._directory.path());
+    let root = publish(&fixture, &key, 1, &document).await;
+    assert!(acquire_policy(&fixture, &root, ID).await.is_ok());
+    document["policy_schema"] = 2.into();
+    assert_signed_managed_policy_refused(document.clone()).await;
+    document["decision"]["scoped_launch_checks"] = Value::Null;
+    assert_signed_managed_policy_refused(document).await;
+}
+
+// Supplied-subject controls qualify authenticated admission/eligibility. Actual
+// verified installed-manifest/public-supervisor acceptance is a separate test.
+fn record() -> crate::InstallRecord {
+    crate::InstallRecord {
+        id: "controlled-subject".into(),
+        port_id: ID.into(),
+        version: "v1".into(),
+        path: std::path::PathBuf::from("unused-controlled-subject"),
+        channel: ReleaseChannel::Stable,
+        installed_at: Library::now(),
+        verified: true,
+        staged: false,
+        artifact: crate::ArtifactIdentity {
+            asset_name: "ordinary.zip".into(),
+            sha256: "c".repeat(64),
+            size: 42,
+        },
+        runtime: None,
+        manifest_sha256: String::new(),
+        selected_executable: std::path::PathBuf::from("unused"),
+    }
+}
+
+fn launch_context(
+    record: &crate::InstallRecord,
+    platform: crate::Platform,
+) -> DefinitionOperationContext {
+    let mut context = DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true);
+    context.launch_subject = Some(launch::verified_subject_key(record, platform).unwrap());
+    context
+}
+
+#[tokio::test]
+async fn scoped_launch_decisions_require_exact_correction_and_preserve_other_checks() {
+    let authored = metadata_catalog();
+    let (fixture, key, root, _directory, library, catalog, scope) =
+        managed_fixture_for_policy(authored.clone(), true).await;
+    let identity = catalog.definition_selection(ID).unwrap();
+    let record = record();
+    let context = launch_context(&record, crate::Platform::current().unwrap());
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::UnknownSafetySemantics
+    );
+    let baseline = assessment_document(&scope.policy_sha256, 1, vec![]);
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 2, &baseline)
+        .await
+        .unwrap();
+    assert!(
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap()
+    );
+    assert!(
+        !library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap()
+    );
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+    let first = held(&record, "launch-integrity", 2);
+    let second = held(&record, "launch-compatibility", 2);
+    let failure = assessment_document(&scope.policy_sha256, 2, vec![first.clone(), second.clone()]);
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 3, &failure)
+        .await
+        .unwrap();
+    let decisions = accepted.decision_sha256s().unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::MandatoryCheckFailed
+    );
+    let mut unaffected = record.clone();
+    unaffected.version = "v2".into();
+    unaffected.artifact.sha256 = "d".repeat(64);
+    let other_platform = if crate::Platform::current().unwrap() == crate::Platform::WindowsX86_64 {
+        crate::Platform::LinuxX86_64
+    } else {
+        crate::Platform::WindowsX86_64
+    };
+    for unaffected_context in [
+        launch_context(&unaffected, crate::Platform::current().unwrap()),
+        launch_context(&record, other_platform),
+        DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
+    ] {
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, unaffected_context)
+                .unwrap()
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+    }
+    let omission = assessment_document(&scope.policy_sha256, 3, vec![]);
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 4, &omission)
+        .await
+        .unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::MandatoryCheckFailed
+    );
+    for (index, mut corrected) in [first, second].into_iter().enumerate() {
+        corrected["revision"] = (index + 4).into();
+        corrected["decision"] = serde_json::json!({"status":"cleared",
+            "previous_decision_sha256":decisions[index], "correction_sha256":"e".repeat(64)});
+        let document =
+            assessment_document(&scope.policy_sha256, (index + 4) as u64, vec![corrected]);
+        let accepted = publish_assessment(
+            &fixture,
+            &key,
+            &root,
+            &authored,
+            (index + 5) as u64,
+            &document,
+        )
+        .await
+        .unwrap();
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap();
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, context)
+                .unwrap()
+                .outcome,
+            if index == 0 {
+                DefinitionEligibilityOutcome::Hold
+            } else {
+                DefinitionEligibilityOutcome::Eligible
+            }
+        );
+    }
+    // Neither admission nor correction rewrites the exact immutable grant.
+    assert_eq!(
+        policy::acquisition_scope(&library, &catalog, ID)
+            .unwrap()
+            .unwrap()
+            .policy_sha256,
+        scope.policy_sha256
+    );
+}
+
+#[tokio::test]
+async fn scoped_launch_compatible_correction_preserves_holds_and_scope_restore_refuses_old_launch()
+{
+    let authored = metadata_catalog();
+    let (fixture, key, root, _directory, library, catalog, scope) =
+        managed_fixture_for_policy(authored.clone(), true).await;
+    let identity = catalog.definition_selection(ID).unwrap();
+    let record = record();
+    let context = launch_context(&record, crate::Platform::current().unwrap());
+    let first = held(&record, "launch-integrity", 1);
+    let second = held(&record, "launch-compatibility", 1);
+    let failure = assessment_document(&scope.policy_sha256, 1, vec![first.clone(), second.clone()]);
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 2, &failure)
+        .await
+        .unwrap();
+    let decisions = accepted.decision_sha256s().unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    let decision_inventory = || {
+        let connection = library.connection().unwrap();
+        let mut statement = connection
+            .prepare(
+                "SELECT subject_sha256,check_id,anchor_sha256,decision_sha256,decision_json
+             FROM definition_launch_decisions WHERE namespace='official' AND stable_id=?1
+             ORDER BY subject_sha256,check_id",
+            )
+            .unwrap();
+        statement
+            .query_map([ID], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
+            })
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap()
+    };
+    let admission_state = || {
+        library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT retained_launch_revision_floor,launch_assessment_revision
+         FROM definition_publisher_admission WHERE namespace='official' AND stable_id=?1",
+                [ID],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+            )
+            .unwrap()
+    };
+    let before_inventory = decision_inventory();
+    assert_eq!(admission_state(), (1, 1));
+
+    let mut corrected = authored.authoritative_document();
+    corrected
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ID)
+        .unwrap()
+        .summary = "Owned compatible presentation correction".into();
+    let corrected = Catalog::from_json(&serde_json::to_string(&corrected).unwrap()).unwrap();
+    let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(&corrected, ID, 8);
+    let mut definition_targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+    definition_targets.extend(bundle.contents);
+    let mut grant = managed_policy_for(&definition_targets, true);
+    grant["policy_revision"] = 2.into();
+    let grant_bytes = serde_json::to_vec(&grant).unwrap();
+    let policy_sha256 = hex::encode(Sha256::digest(&grant_bytes));
+    let mut targets = definition_targets.clone();
+    targets.push((format!("policy/official/{ID}.json"), grant_bytes));
+    fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 3)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap();
+    assert!(policy::continues_retained_launch(&library.connection().unwrap(), identity).unwrap());
+    assert_eq!(admission_state(), (1, 1));
+    assert_eq!(decision_inventory(), before_inventory);
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::UnknownSafetySemantics
+    );
+
+    let omission = assessment_document(&policy_sha256, 2, vec![]);
+    let accepted =
+        publish_assessment_for_targets(&fixture, &key, &root, targets.clone(), 4, &omission)
+            .await
+            .unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    assert_eq!(decision_inventory(), before_inventory);
+    assert_eq!(admission_state(), (1, 2));
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::MandatoryCheckFailed
+    );
+    let mut unaffected = record.clone();
+    unaffected.version = "unaffected-release".into();
+    unaffected.artifact.sha256 = "d".repeat(64);
+    let unaffected_context = launch_context(&unaffected, crate::Platform::current().unwrap());
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, unaffected_context)
+            .unwrap()
+            .outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+
+    for (index, mut correction) in [first, second].into_iter().enumerate() {
+        let revision = (index + 3) as u64;
+        correction["revision"] = revision.into();
+        correction["decision"] = serde_json::json!({"status":"cleared",
+            "previous_decision_sha256":decisions[index], "correction_sha256":"e".repeat(64)});
+        let document = assessment_document(&policy_sha256, revision, vec![correction]);
+        let accepted = publish_assessment_for_targets(
+            &fixture,
+            &key,
+            &root,
+            targets.clone(),
+            (index + 5) as u64,
+            &document,
+        )
+        .await
+        .unwrap();
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap();
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, context)
+                .unwrap()
+                .outcome,
+            if index == 0 {
+                DefinitionEligibilityOutcome::Hold
+            } else {
+                DefinitionEligibilityOutcome::Eligible
+            }
+        );
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, unaffected_context)
+                .unwrap()
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+        assert_eq!(count(&library, "definition_launch_decisions"), 2);
+    }
+
+    // A changed grant followed by restored parameters cannot revive the old
+    // authorization interval, even after its current companion is accepted.
+    for (revision, redirects) in [(3_u64, 4), (4_u64, 5)] {
+        let mut changed = grant.clone();
+        changed["policy_revision"] = revision.into();
+        changed["decision"]["max_redirects"] = redirects.into();
+        let bytes = serde_json::to_vec(&changed).unwrap();
+        let hash = hex::encode(Sha256::digest(&bytes));
+        let mut changed_targets = definition_targets.clone();
+        changed_targets.push((format!("policy/official/{ID}.json"), bytes));
+        let companion = assessment_document(&hash, revision + 2, vec![]);
+        let accepted = publish_assessment_for_targets(
+            &fixture,
+            &key,
+            &root,
+            changed_targets,
+            revision + 4,
+            &companion,
+        )
+        .await
+        .unwrap();
+        let candidate = acquire(&fixture, &root).await.unwrap();
+        let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap();
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap();
+        assert!(
+            !policy::continues_retained_launch(&library.connection().unwrap(), identity).unwrap()
+        );
+        assert_eq!(
+            launch::checks_passed(&library.connection().unwrap(), identity, context).unwrap(),
+            Some(true)
+        );
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, context)
+                .unwrap()
+                .reason,
+            DefinitionEligibilityReason::RecordedIdentityChanged
+        );
+        let floor: u64 = library.connection().unwrap().query_row(
+            "SELECT retained_launch_revision_floor FROM definition_publisher_admission WHERE stable_id=?1",
+            [ID], |row| row.get(0)).unwrap();
+        assert_eq!(floor, revision);
+        assert_eq!(count(&library, "definition_launch_decisions"), 2);
+    }
+}
+
+#[tokio::test]
+async fn scoped_launch_missing_baseline_cannot_reset_empty_or_populated_floor() {
+    for populated in [false, true] {
+        let authored = metadata_catalog();
+        let (fixture, key, root, directory, library, catalog, scope) =
+            managed_fixture_for_policy(authored.clone(), true).await;
+        let decision = held(&record(), "launch-integrity", 7);
+        let baseline = assessment_document(
+            &scope.policy_sha256,
+            7,
+            if populated { vec![decision] } else { vec![] },
+        );
+        let accepted = publish_assessment(&fixture, &key, &root, &authored, 2, &baseline)
+            .await
+            .unwrap();
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap();
+        library.connection().unwrap().execute_batch(
+            "DELETE FROM definition_launch_assessments; DELETE FROM definition_launch_decisions;").unwrap();
+        let identity = catalog.definition_selection(ID).unwrap().clone();
+        let policy_sha256 = scope.policy_sha256.clone();
+        drop(catalog);
+        drop(scope);
+        drop(library);
+        let reopened = Library::open(directory.path()).unwrap();
+        let baseline = assessment_document(&policy_sha256, 1, vec![]);
+        let replay = publish_assessment(&fixture, &key, &root, &authored, 3, &baseline)
+            .await
+            .unwrap();
+        assert!(
+            reopened
+                .apply_definition_launch_assessment(&replay)
+                .is_err()
+        );
+        assert!(
+            reopened
+                .assess_definition_operation(
+                    &identity,
+                    launch_context(&record(), crate::Platform::current().unwrap())
+                )
+                .is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn scoped_launch_initialized_grant_refuses_downgrade_and_lost_admission_recreation() {
+    for delete_admission in [false, true] {
+        let authored = metadata_catalog();
+        let (fixture, key, root, _directory, library, _catalog, scope) =
+            managed_fixture_for_policy(authored.clone(), true).await;
+        let failure = assessment_document(
+            &scope.policy_sha256,
+            1,
+            vec![held(&record(), "launch-integrity", 1)],
+        );
+        let accepted = publish_assessment(&fixture, &key, &root, &authored, 2, &failure)
+            .await
+            .unwrap();
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap();
+        let mut targets = repository_targets_for(&authored, ID);
+        let mut changed = managed_policy_for(&targets, delete_admission);
+        changed["policy_revision"] = 2.into();
+        targets.push((
+            format!("policy/official/{ID}.json"),
+            serde_json::to_vec(&changed).unwrap(),
+        ));
+        fixture
+            .publish_with_policy(
+                &targets,
+                true,
+                &DEFINITION_ROLE_PATHS,
+                later(),
+                Some((&key, 3)),
+            )
+            .await;
+        let candidate = acquire(&fixture, &root).await.unwrap();
+        let changed = acquire_policy(&fixture, &root, ID).await.unwrap();
+        if delete_admission {
+            library
+                .connection()
+                .unwrap()
+                .execute_batch("DELETE FROM definition_publisher_admission;")
+                .unwrap();
+        }
+        assert!(
+            library
+                .apply_definition_publisher_policy(&changed, Some(&candidate))
+                .is_err()
+        );
+        assert_eq!(count(&library, "definition_launch_decisions"), 1);
+        let retained_revision: i64 = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT policy_revision FROM definition_publisher_policy WHERE stable_id=?1",
+                [ID],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained_revision, 1);
+    }
+}
+
+#[tokio::test]
+async fn scoped_launch_revocation_is_typed_and_regrant_preserves_hold() {
+    let authored = metadata_catalog();
+    let (fixture, key, root, _directory, library, catalog, scope) =
+        managed_fixture_for_policy(authored.clone(), true).await;
+    let document = assessment_document(
+        &scope.policy_sha256,
+        1,
+        vec![held(&record(), "launch-integrity", 1)],
+    );
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 2, &document)
+        .await
+        .unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    let identity = catalog.definition_selection(ID).unwrap();
+    let context = launch_context(&record(), crate::Platform::current().unwrap());
+    let mut targets = repository_targets_for(&authored, ID);
+    let mut revoked = managed_policy_for(&targets, true);
+    revoked["policy_schema"] = 2.into();
+    revoked["policy_revision"] = 2.into();
+    revoked["decision"] = serde_json::json!({"status":"revoked"});
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&revoked).unwrap(),
+    ));
+    fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 3)),
+        )
+        .await;
+    let revoked = acquire_policy(&fixture, &root, ID).await.unwrap();
+    library
+        .apply_definition_publisher_policy(&revoked, None)
+        .unwrap();
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::PublisherRevoked
+    );
+    assert_eq!(count(&library, "definition_launch_decisions"), 1);
+
+    let mut targets = repository_targets_for(&authored, ID);
+    let mut regrant = managed_policy_for(&targets, true);
+    regrant["policy_revision"] = 3.into();
+    let bytes = serde_json::to_vec(&regrant).unwrap();
+    let policy_sha256 = hex::encode(Sha256::digest(&bytes));
+    let baseline = assessment_document(&policy_sha256, 2, vec![]);
+    targets.push((format!("policy/official/{ID}.json"), bytes));
+    targets.push((
+        format!("policy/official/{ID}.launch.json"),
+        serde_json::to_vec(&baseline).unwrap(),
+    ));
+    fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 4)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let regrant = acquire_policy(&fixture, &root, ID).await.unwrap();
+    library
+        .apply_definition_publisher_policy(&regrant, Some(&candidate))
+        .unwrap();
+    let accepted = launch::acquire_with_transport(
+        &root,
+        fixture.metadata_url(),
+        fixture.targets_url(),
+        FilesystemTransport,
+        "official",
+        ID,
+    )
+    .await
+    .unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::RecordedIdentityChanged
+    );
+    assert_eq!(
+        launch::checks_passed(&library.connection().unwrap(), identity, context).unwrap(),
+        Some(false)
+    );
+    assert_eq!(count(&library, "definition_launch_decisions"), 1);
+}
+
+#[tokio::test]
+async fn scoped_launch_verified_ordinary_artifact_hold_correction_and_next_release() {
+    assert_scoped_native_launch(false).await;
+}
+
+#[tokio::test]
+async fn scoped_launch_verified_late_hold_and_expired_discovery() {
+    assert_scoped_native_launch(true).await;
+}
+
+fn scoped_native_service(library: &Library, catalog: &Catalog) -> PortcoveService {
+    let mut service = PortcoveService::new(library.clone()).unwrap();
+    service.replace_catalog_for_test(catalog.clone());
+    service
+}
+
+async fn assert_scoped_native_launch(late_expiry: bool) {
+    let phase_clock = std::time::Instant::now();
+    use crate::ReleaseProvider;
+    use std::io::{Cursor, Write};
+    let platform = crate::Platform::current().unwrap();
+    let executable = if cfg!(windows) {
+        "fixture.exe"
+    } else {
+        "fixture"
+    };
+    // Consumer acceptance needs only this authenticated port. Full embedded
+    // discovery/preservation is qualified by its separate existing fixtures.
+    let mut baseline = metadata_catalog().authoritative_document();
+    let mut port = baseline.ports.remove(0);
+    port.platforms = vec![platform];
+    port.executable_hints = std::collections::BTreeMap::from([(platform, vec![executable.into()])]);
+    baseline.ports.push(port);
+    let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
+    let (fixture, key, root, directory, library, catalog, mut scope) =
+        managed_fixture_for_policy(authored.clone(), true).await;
+    let probe = crate::test_fixture::build_probe(directory.path());
+    let payload = fs::read(probe).unwrap();
+    let server = AcquisitionHttp::new();
+    scope.fixture_origin = Some(server.origin.clone());
+    let installer = crate::Installer::new(library.clone()).unwrap();
+    let mut delivered = Vec::new();
+    for version in ["v1", "v2"] {
+        let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+        let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        archive
+            .start_file(
+                executable,
+                zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+            )
+            .unwrap();
+        archive.write_all(&payload).unwrap();
+        // Ordinary release content differs while retaining the same capable
+        // native executable; artifact storage deliberately keys exact bytes.
+        archive
+            .start_file("release.txt", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        archive.write_all(version.as_bytes()).unwrap();
+        let bytes = archive.finish().unwrap().into_inner();
+        let digest = hex::encode(Sha256::digest(&bytes));
+        server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+        let mut release = server.release(true);
+        release[0]["tag_name"] = version.into();
+        release[0]["assets"][0]["name"] = format!("game-{}.zip", platform.asset_tokens()[0]).into();
+        release[0]["assets"][0]["size"] = bytes.len().into();
+        release[0]["assets"][0]["digest"] = format!("sha256:{digest}").into();
+        server.json(release);
+        let resolution = provider
+            .resolve_scoped(
+                catalog.port(ID).unwrap(),
+                ReleaseChannel::Stable,
+                platform,
+                Some(&scope),
+            )
+            .await
+            .unwrap();
+        server.bytes(&bytes);
+        let request = crate::InstallRequest {
+            port_id: ID.into(),
+            release: resolution.release.clone(),
+            output_root: library.versions_dir().join(ID),
+            activate: true,
+            managed: None,
+            qualification: crate::InstallQualification::from_catalog(&catalog, ID, platform)
+                .unwrap()
+                .with_acquisition_resolution(resolution)
+                .unwrap(),
+        };
+        let operation = crate::operation::OperationCoordinator::new("install", None);
+        let installed = installer
+            .install(request, &operation, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(
+            crate::install::verified_launch_subject(&installed).unwrap(),
+            launch::verified_subject_key(&installed, platform).unwrap()
+        );
+        delivered.push(installed);
+    }
+    println!(
+        "ordinary native fixture ready at {:?}",
+        phase_clock.elapsed()
+    );
+    if late_expiry {
+        let empty = assessment_document(&scope.policy_sha256, 2, vec![]);
+        let baseline = publish_assessment(&fixture, &key, &root, &authored, 3, &empty)
+            .await
+            .unwrap();
+        library
+            .apply_definition_launch_assessment(&baseline)
+            .unwrap();
+        library.register_install(&delivered[0], true).unwrap();
+        let mut started = 0;
+        let late_failure = held(&delivered[0], "launch-integrity", 3);
+        let document = assessment_document(&scope.policy_sha256, 3, vec![late_failure.clone()]);
+        let accepted = publish_assessment(&fixture, &key, &root, &authored, 4, &document)
+            .await
+            .unwrap();
+        let held_sha = accepted.decision_sha256s().unwrap().remove(0);
+        let before_children: i64 = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM launch_sessions WHERE child_pid IS NOT NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let mut late_service = PortcoveService::with_faults(
+            library.clone(),
+            std::sync::Arc::new(AdmitLaunchHold {
+                library: library.clone(),
+                accepted,
+            }),
+        )
+        .unwrap();
+        late_service.replace_catalog_for_test(catalog.clone());
+        assert_eq!(
+            late_service
+                .status(ID)
+                .unwrap()
+                .definition_operations
+                .iter()
+                .find(|a| a.operation == DefinitionOperation::Launch)
+                .unwrap()
+                .eligibility
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+        let refused = late_service
+            .supervise_launch(
+                ID,
+                None,
+                &["--game".into()],
+                crate::LaunchStdio::Null,
+                |_| started += 1,
+            )
+            .unwrap_err();
+        assert_eq!(refused.code, crate::ErrorCode::Conflict);
+        assert_eq!(refused.details["definition_operation"], "launch");
+        assert_eq!(refused.details["definition_eligibility"], "hold");
+        assert_eq!(
+            refused.details["definition_reason"],
+            "mandatory_check_failed"
+        );
+        assert_eq!(started, 0);
+        assert!(library.launch_sessions().unwrap().is_empty());
+        let after_children: i64 = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM launch_sessions WHERE child_pid IS NOT NULL",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(after_children, before_children);
+
+        // Existing expiry simulation changes discovery time, not authenticated
+        // bytes, exact retained subjects or authority replay floors.
+        let connection = library.connection().unwrap();
+        for table in [
+            "definition_publisher_admission",
+            "definition_launch_assessments",
+        ] {
+            let encoded: String = connection
+                .query_row(&format!("SELECT provenance_json FROM {table}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            let mut proof: Value = serde_json::from_str(&encoded).unwrap();
+            proof["expires_at"] = "2000-01-01T00:00:00Z".into();
+            connection
+                .execute(
+                    &format!("UPDATE {table} SET provenance_json=?1"),
+                    [proof.to_string()],
+                )
+                .unwrap();
+        }
+        drop(connection);
+        println!(
+            "late hold accepted and expired at {:?}",
+            phase_clock.elapsed()
+        );
+        let reopened = Library::open(directory.path()).unwrap();
+        let reopened_service = scoped_native_service(&reopened, &catalog);
+        assert_eq!(
+            reopened_service
+                .status(ID)
+                .unwrap()
+                .definition_operations
+                .iter()
+                .find(|a| a.operation == DefinitionOperation::Launch)
+                .unwrap()
+                .eligibility
+                .reason,
+            DefinitionEligibilityReason::MandatoryCheckFailed
+        );
+        assert!(
+            reopened_service
+                .supervise_launch(
+                    ID,
+                    None,
+                    &["--game".into()],
+                    crate::LaunchStdio::Null,
+                    |_| started += 1
+                )
+                .is_err()
+        );
+        assert_eq!(started, 0);
+        let mut stale_correction = late_failure;
+        stale_correction["revision"] = 4.into();
+        stale_correction["decision"] = serde_json::json!({"status":"cleared",
+        "previous_decision_sha256":held_sha, "correction_sha256":"e".repeat(64)});
+        let document = assessment_document(&scope.policy_sha256, 4, vec![stale_correction]);
+        let correction = publish_assessment(&fixture, &key, &root, &authored, 5, &document)
+            .await
+            .unwrap();
+        assert!(
+            reopened
+                .apply_definition_launch_assessment(&correction)
+                .is_err()
+        );
+        assert_eq!(count(&reopened, "definition_launch_decisions"), 1);
+        let retained_sha: String = reopened
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT decision_sha256 FROM definition_launch_decisions",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained_sha, held_sha);
+        assert_eq!(
+            reopened_service
+                .status(ID)
+                .unwrap()
+                .definition_operations
+                .iter()
+                .find(|a| a.operation == DefinitionOperation::Launch)
+                .unwrap()
+                .eligibility
+                .reason,
+            DefinitionEligibilityReason::MandatoryCheckFailed
+        );
+        reopened.register_install(&delivered[1], true).unwrap();
+        assert_eq!(
+            reopened_service
+                .status(ID)
+                .unwrap()
+                .definition_operations
+                .iter()
+                .find(|a| a.operation == DefinitionOperation::Launch)
+                .unwrap()
+                .eligibility
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+        let release = directory.path().join("expired-unaffected-exit");
+        assert!(
+            reopened_service
+                .supervise_launch(
+                    ID,
+                    None,
+                    &[
+                        "--game".into(),
+                        "--owned-wait".into(),
+                        release.to_string_lossy().into_owned()
+                    ],
+                    crate::LaunchStdio::Null,
+                    |_| {
+                        started += 1;
+                        fs::write(&release, b"released").unwrap();
+                    }
+                )
+                .unwrap()
+                .successful
+        );
+        assert_eq!(started, 1);
+        assert_eq!(
+            fs::read(delivered[0].path.join(executable)).unwrap(),
+            payload
+        );
+        assert_eq!(
+            fs::read(delivered[1].path.join(executable)).unwrap(),
+            payload
+        );
+        assert_eq!(server.requests.lock().unwrap().len(), 6);
+        assert!(server.responses.lock().unwrap().is_empty());
+        println!(
+            "late hold/expired discovery completed at {:?}",
+            phase_clock.elapsed()
+        );
+        return;
+    }
+    let failure = held(&delivered[0], "launch-integrity", 1);
+    let document = assessment_document(&scope.policy_sha256, 1, vec![failure.clone()]);
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 2, &document)
+        .await
+        .unwrap();
+    let failure_sha = accepted.decision_sha256s().unwrap().remove(0);
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    let service = scoped_native_service(&library, &catalog);
+    // The ordinary next artifact is unaffected by an exact earlier-release hold.
+    let status = service.status(ID).unwrap();
+    assert_eq!(status.active.as_ref().unwrap().id, delivered[1].id);
+    assert_eq!(
+        status
+            .definition_operations
+            .iter()
+            .find(|a| a.operation == DefinitionOperation::Launch)
+            .unwrap()
+            .eligibility
+            .outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+    let release = directory.path().join("next-release-exit");
+    let outcome = service
+        .supervise_launch(
+            ID,
+            None,
+            &[
+                "--game".into(),
+                "--owned-wait".into(),
+                release.to_string_lossy().into_owned(),
+            ],
+            crate::LaunchStdio::Null,
+            |_| fs::write(&release, b"released").unwrap(),
+        )
+        .unwrap();
+    assert!(outcome.successful);
+    assert_eq!(outcome.exit_code, Some(0));
+    library.register_install(&delivered[0], true).unwrap();
+    let status = service.status(ID).unwrap();
+    assert_eq!(
+        status
+            .definition_operations
+            .iter()
+            .find(|a| a.operation == DefinitionOperation::Launch)
+            .unwrap()
+            .eligibility
+            .reason,
+        DefinitionEligibilityReason::MandatoryCheckFailed
+    );
+    let mut started = 0;
+    assert!(
+        service
+            .supervise_launch(
+                ID,
+                None,
+                &["--game".into()],
+                crate::LaunchStdio::Null,
+                |_| started += 1
+            )
+            .is_err()
+    );
+    assert_eq!(started, 0);
+    let mut correction = failure;
+    correction["revision"] = 2.into();
+    correction["decision"] = serde_json::json!({"status":"cleared",
+        "previous_decision_sha256":failure_sha, "correction_sha256":"e".repeat(64)});
+    let document = assessment_document(&scope.policy_sha256, 2, vec![correction]);
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 3, &document)
+        .await
+        .unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    let release = directory.path().join("corrected-release-exit");
+    let outcome = service
+        .supervise_launch(
+            ID,
+            None,
+            &[
+                "--game".into(),
+                "--owned-wait".into(),
+                release.to_string_lossy().into_owned(),
+            ],
+            crate::LaunchStdio::Null,
+            |_| {
+                started += 1;
+                fs::write(&release, b"released").unwrap();
+            },
+        )
+        .unwrap();
+    assert!(outcome.successful);
+    assert_eq!(started, 1);
+    assert_eq!(
+        fs::read(delivered[0].path.join(executable)).unwrap(),
+        payload
+    );
+    assert_eq!(
+        fs::read(delivered[1].path.join(executable)).unwrap(),
+        payload
+    );
+    assert_eq!(server.requests.lock().unwrap().len(), 6);
+    assert!(server.responses.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn scoped_launch_admission_serializes_competing_hold_and_releases_on_failure() {
+    let authored = metadata_catalog();
+    let (fixture, key, root, _directory, library, catalog, scope) =
+        managed_fixture_for_policy(authored.clone(), true).await;
+    let empty = assessment_document(&scope.policy_sha256, 1, vec![]);
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 2, &empty)
+        .await
+        .unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    let held = assessment_document(
+        &scope.policy_sha256,
+        2,
+        vec![held(&record(), "launch-integrity", 2)],
+    );
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 3, &held)
+        .await
+        .unwrap();
+    let identity = catalog.definition_selection(ID).unwrap();
+    let context = launch_context(&record(), crate::Platform::current().unwrap());
+    let competing_library = library.clone();
+    let (ready_sender, ready_receiver) = std::sync::mpsc::channel();
+    let (done_sender, done_receiver) = std::sync::mpsc::channel();
+    let mut worker = None;
+    launch::with_launch_admission(&library, || {
+        // A separate connection proves exclusion at the actual SQLite boundary,
+        // without treating absence of a scheduled thread result as lock proof.
+        let mut competing = library.connection()?;
+        competing.busy_timeout(std::time::Duration::ZERO)?;
+        let error = competing
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .expect_err("competing admission must not obtain a writer");
+        assert!(matches!(error, rusqlite::Error::SqliteFailure(code, _)
+            if code.code == rusqlite::ErrorCode::DatabaseBusy));
+        worker = Some(std::thread::spawn(move || {
+            ready_sender.send(()).unwrap();
+            done_sender
+                .send(competing_library.apply_definition_launch_assessment(&accepted))
+                .unwrap();
+        }));
+        ready_receiver
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap();
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, context)?
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+        assert!(matches!(
+            done_receiver.try_recv(),
+            Err(std::sync::mpsc::TryRecvError::Empty)
+        ));
+        // Production creates the child in this same protected interval and then
+        // releases it before session writes or waiting on the child.
+        Ok(())
+    })
+    .unwrap();
+    assert!(
+        done_receiver
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap()
+            .unwrap()
+    );
+    worker.take().unwrap().join().unwrap();
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::MandatoryCheckFailed
+    );
+    let refused: crate::Result<()> = launch::with_launch_admission(&library, || {
+        Err(PortcoveError::state("controlled pre-spawn refusal"))
+    });
+    assert!(refused.is_err());
+    let mut connection = library.connection().unwrap();
+    connection.busy_timeout(std::time::Duration::ZERO).unwrap();
+    let guard = connection
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .unwrap();
+    drop(guard);
+}
+
+#[tokio::test]
+async fn scoped_launch_refusals_preserve_prior_hold_and_atomic_state() {
+    let authored = metadata_catalog();
+    let (fixture, key, root, _directory, library, catalog, scope) =
+        managed_fixture_for_policy(authored.clone(), true).await;
+    let failure = held(&record(), "launch-integrity", 4);
+    let document = assessment_document(&scope.policy_sha256, 4, vec![failure.clone()]);
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 2, &document)
+        .await
+        .unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    let identity = catalog.definition_selection(ID).unwrap();
+    let context = launch_context(&record(), crate::Platform::current().unwrap());
+    let mut cases = Vec::new();
+    cases.push(assessment_document(&scope.policy_sha256, 3, vec![]));
+    let mut equivocation = document.clone();
+    equivocation["assessments"] = serde_json::json!([]);
+    cases.push(equivocation);
+    let mut correction = failure.clone();
+    correction["revision"] = 5.into();
+    correction["decision"] = serde_json::json!({"status":"cleared",
+        "previous_decision_sha256":"d".repeat(64), "correction_sha256":"e".repeat(64)});
+    cases.push(assessment_document(
+        &scope.policy_sha256,
+        5,
+        vec![correction],
+    ));
+    cases.push(assessment_document(&"e".repeat(64), 5, vec![]));
+    for (index, bad) in cases.iter().enumerate() {
+        let refused = publish_assessment(&fixture, &key, &root, &authored, (index + 3) as u64, bad)
+            .await
+            .unwrap();
+        assert!(
+            library
+                .apply_definition_launch_assessment(&refused)
+                .is_err()
+        );
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, context)
+                .unwrap()
+                .reason,
+            DefinitionEligibilityReason::MandatoryCheckFailed
+        );
+    }
+    // Deterministic transaction failure after payload writes but before the
+    // independent admission floor update must roll back the entire apply.
+    library
+        .connection()
+        .unwrap()
+        .execute_batch(
+            "CREATE TRIGGER refuse_launch_floor
+        BEFORE UPDATE OF launch_assessment_revision ON definition_publisher_admission
+        BEGIN SELECT RAISE(ABORT,'controlled apply interruption'); END;",
+        )
+        .unwrap();
+    let omission = assessment_document(&scope.policy_sha256, 5, vec![]);
+    let interrupted = publish_assessment(&fixture, &key, &root, &authored, 7, &omission)
+        .await
+        .unwrap();
+    assert!(
+        library
+            .apply_definition_launch_assessment(&interrupted)
+            .is_err()
+    );
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::MandatoryCheckFailed
+    );
+    let revision: i64 = library.connection().unwrap().query_row(
+        "SELECT launch_assessment_revision FROM definition_publisher_admission WHERE stable_id=?1", [ID],
+        |row| row.get(0)).unwrap();
+    assert_eq!(revision, 4);
+}

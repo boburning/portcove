@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 34;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 35;
 
 struct Migration {
     version: i64,
@@ -228,6 +228,12 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_34,
         verify: verify_migration_34,
     },
+    Migration {
+        version: 35,
+        name: "accepted exact managed launch decisions",
+        apply: migration_35,
+        verify: verify_migration_35,
+    },
 ];
 
 fn migration_34(transaction: &Transaction<'_>) -> Result<()> {
@@ -250,6 +256,64 @@ fn verify_migration_34(connection: &Connection) -> Result<()> {
         connection,
         "definition_publisher_admission",
         &["retained_launch_revision_floor"],
+    )
+}
+
+fn migration_35(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE definition_launch_assessments (
+            namespace TEXT NOT NULL,
+            stable_id TEXT NOT NULL,
+            document_json TEXT NOT NULL CHECK(length(document_json)<=65536),
+            provenance_json TEXT NOT NULL CHECK(length(provenance_json)<=16384),
+            inventory_sha256 TEXT NOT NULL CHECK(length(inventory_sha256)=64),
+            PRIMARY KEY(namespace,stable_id)
+         );
+         CREATE TABLE definition_launch_decisions (
+            namespace TEXT NOT NULL,
+            stable_id TEXT NOT NULL,
+            subject_sha256 TEXT NOT NULL CHECK(length(subject_sha256)=64),
+            check_id TEXT NOT NULL,
+            anchor_sha256 TEXT NOT NULL REFERENCES definition_publisher_authority(anchor_sha256),
+            decision_sha256 TEXT NOT NULL CHECK(length(decision_sha256)=64),
+            decision_json TEXT NOT NULL CHECK(length(decision_json)<=4096),
+            PRIMARY KEY(namespace,stable_id,subject_sha256,check_id)
+         );
+         ALTER TABLE definition_publisher_admission ADD COLUMN launch_assessment_revision
+            INTEGER NOT NULL DEFAULT 0 CHECK(launch_assessment_revision>=0);",
+    )?;
+    verify_migration_35(transaction)
+}
+
+fn verify_migration_35(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "definition_publisher_admission",
+        &["launch_assessment_revision"],
+    )?;
+    require_columns(
+        connection,
+        "definition_launch_assessments",
+        &[
+            "namespace",
+            "stable_id",
+            "document_json",
+            "provenance_json",
+            "inventory_sha256",
+        ],
+    )?;
+    require_columns(
+        connection,
+        "definition_launch_decisions",
+        &[
+            "namespace",
+            "stable_id",
+            "subject_sha256",
+            "check_id",
+            "anchor_sha256",
+            "decision_sha256",
+            "decision_json",
+        ],
     )
 }
 
@@ -1669,6 +1733,7 @@ mod tests {
         schema_31: 31,
         schema_32: 32,
         schema_33: 33,
+        schema_34: 34,
     }
 
     #[test]
@@ -1718,6 +1783,62 @@ mod tests {
             )
             .unwrap();
         assert_eq!(bytes, "owned policy bytes");
+    }
+
+    #[test]
+    fn launch_assessment_upgrade_preserves_schema_34_continuity_and_admission_bytes() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 34).unwrap();
+        let connection = connect(root).unwrap();
+        let anchor = "a".repeat(64);
+        connection
+            .execute(
+                "INSERT INTO definition_publisher_authority(anchor_sha256,trusted_root_json)
+                 VALUES(?1,'{}')",
+                [&anchor],
+            )
+            .unwrap();
+        // Opaque owned database bytes exercise migration preservation only;
+        // authenticated policy admission is qualified by the policy fixtures.
+        connection
+            .execute(
+                "INSERT INTO definition_publisher_admission
+                 (namespace,stable_id,anchor_sha256,policy_json,provenance_json,
+                  retained_launch_revision_floor)
+                 VALUES('official','owned-fixture',?1,'owned policy bytes',
+                        'owned provenance bytes',7)",
+                [&anchor],
+            )
+            .unwrap();
+        drop(connection);
+
+        migrate(root).unwrap();
+        let connection = connect(root).unwrap();
+        let preserved: (String, String, i64, i64) = connection
+            .query_row(
+                "SELECT policy_json,provenance_json,retained_launch_revision_floor,
+                        launch_assessment_revision FROM definition_publisher_admission",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            preserved,
+            (
+                "owned policy bytes".into(),
+                "owned provenance bytes".into(),
+                7,
+                0
+            )
+        );
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=35).collect::<Vec<_>>()
+        );
+        verify_migration_34(&connection).unwrap();
+        verify_migration_35(&connection).unwrap();
     }
 
     #[test]

@@ -502,6 +502,110 @@ refused. The independent installed authority, authenticated policy, exact
 candidate and monotonic floors remain mandatory; policy bytes cannot provision
 their own authority.
 
+### Exact managed Launch assessment format
+
+Policy schema 3 keeps schema 2's exact managed acquisition grant and coupled
+operation set and requires `decision.scoped_launch_checks: 1`. Schemas 1 and 2
+refuse that field, including an explicit null. A reader that does not implement
+schema 3 refuses the grant; adapter template version 1 is not evidence that a
+reader supports scoped assessments. Existing schema 1/2 behavior is unchanged.
+
+An independently authenticated companion target is
+`policy/official/<stable-id>.launch.json`, under the existing independent
+`official-policy` delegation and installed authority. Its dot suffix cannot
+alias a valid stable ID's grant target. Acquisition is bounded by the same
+64 KiB target limit, metadata transport and freshness controls. The incoming
+assessment cannot provision a key, authorize its own grant or execute code.
+
+Assessment schema 1 contains only `assessment_schema`, `namespace`, `stable_id`,
+the exact current `policy_sha256`, a positive monotonic `revision`, and at most
+128 `assessments`. An accepted empty collection establishes the initial baseline;
+missing baseline or missing verified subject holds Launch with unknown safety
+semantics, rather than inventing a failed check. Unknown fields, duplicate keys,
+unknown operations or formats, malformed identities and duplicate subject/check
+decisions are refused before admission.
+
+Each assessment binds `subject`, `check_id`, `check_input_sha256`, its positive
+`revision` (at most the collection revision), and `decision`. A subject names the
+exact release `version`, `channel`, `platform`, `artifact` (`asset_name`, nonzero
+`size`, lowercase SHA-256), and `operation: launch`. A `held` decision includes
+`failure_sha256`; a `cleared` decision includes `previous_decision_sha256` and
+`correction_sha256`. Check/failure/correction hashes name exact accepted inputs;
+they are not optional gameplay observations. Canonical typed decision hashes
+are available from the authenticated inspection for an explicit correction.
+Authentication alone does not imply library admission.
+
+Admission requires the exact currently installed schema 3 grant, matching
+independent anchor/root, fresh grant and assessment metadata, and the authority
+chain replay floor. An immediate transaction binds the collection revision,
+individual decisions and complete retained inventory before committing the
+authority floor. Equal-revision replacement and replay refuse without changing
+the previous decision. Omission never removes a previous hold. Correcting one
+check requires its exact currently held decision and leaves other checks active.
+Fresh metadata cannot reset a lost initialized baseline or ledger; corruption
+and missing initialized state refuse rather than becoming first use.
+
+Managed Launch derives its subject from the registered installation and verified
+manifest. Current accepted failures hold that exact subject before child creation
+and in shared status. Unaffected subjects and acquisition operations remain
+separate; manifests, grants, definitions, user pins, saves and source contracts
+are not rewritten by assessment admission. Known holds survive disconnected or
+expired metadata. Only a fresh independently accepted exact correction clears
+them; Unknown, NotRun, a user report or a grant refresh cannot do so. An initialized
+grant cannot downgrade to a managed format that ignores these decisions.
+
+The final managed authority read and child creation share an immediate database
+transaction that excludes concurrent admission. A committed hold therefore
+precedes the final read or follows child creation; the guard releases before
+session writes and child waiting, including on refusal. Explicit publisher
+revocation retains its typed refusal even when expressed by schema 2, without
+resetting the scoped ledger. A later regrant preserves recorded-identity-change
+refusal for the old retained grant and cannot erase its accepted subject holds.
+
+Controlled native fixtures acquire and install two ordinary release archives
+containing the already-built host-tool probe. They check the retained manifest
+subject, shared status, unaffected next-release launch, exact held-release
+refusal and accepted correction followed by successful supervised launch.
+Separate database contention controls prove writer exclusion, delayed actual
+assessment admission and release after a refused guarded closure. These are
+core/native fixture controls, not gameplay, production publication or whole
+#246/#315 acceptance.
+
+Launch-consumer fixtures use one authenticated port and the existing test-only
+catalog injection; full embedded-compatible discovery remains a separate
+qualified control. Late-hold acceptance runs through the public supervisor after
+preparation. Controlled stored-provenance expiry and an in-process library reopen
+preserve the exact hold, refuse correction while its grant is expired and permit
+an unaffected verified subject. This does not establish a physical restart or
+expired signed-TUF acquisition.
+
+Library schema 35 retains assessment decisions, inventory identity and an
+initialization/revision binding alongside publisher admission. Existing lifetime
+leases require exclusive access for migration, preventing upgrade beneath an
+older open client; older clients refuse an upgraded library on reopen. An old
+reader using a separate unupgraded library cannot enforce an unseen companion
+record. Qualification therefore builds the capable reader before publishing its
+fixture failure/correction and keeps that reader unchanged thereafter. This
+component does not claim a new CLI wire capability, automatic refresh, protected
+production signing/publication, or whole #246/#315 acceptance.
+
+Schema 35 builds on schema 34's retained-authorization interval. Signed schema-3
+fixtures verify that a compatible definition correction preserves exact-subject
+holds, requires a current-policy companion, and clears each hold only through its
+explicit correction; narrowing and restoring authorization cannot revive an old
+launch identity. A separate single-port historical-upgrade fixture retains a real
+ordinary installation and player data, preserves signed admission and authority
+bytes, refuses migration with live library users, and conservatively initializes
+the old admission's launch floor to its current policy revision. The full
+embedded-compatible two-artifact and compatible-correction journey remains a
+separate control with ordinary service discovery, retained contracts and player
+data. A small signed stored-admission fixture keeps the original identity and
+acquisition scope through both compatible corrections and verifies rejection,
+replay and idempotence without an installed-payload or embedded-discovery claim.
+The six authorization change-and-restoration pairs likewise retain their complete
+signed transitions. These fixtures do not establish production publication or
+gameplay.
+
 The GitHub resolver observes the numeric repository ID before release cache reuse.
 Release requests still use the repository's textual name; this observation does
 not claim an immutable ID-addressed route or eliminate concurrent rename races.
