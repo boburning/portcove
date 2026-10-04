@@ -20,6 +20,8 @@ import {
   bootstrapRecoveryEnvironment,
   bootstrapRecoverySelection,
   prepareBootstrapRecoveryFixture,
+  preferencesRecoverySelection,
+  preparePreferencesRecoveryFixture,
 } from "../apps/desktop/scripts/desktop-bootstrap-recovery-test.mjs";
 import {
   catalogReport,
@@ -28,6 +30,32 @@ import {
   DESKTOP_SCENARIOS,
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
+
+test("preferences recovery is standalone and preserves a malformed original before repair", async (t) => {
+  const id = "native-startup-preferences-recovery";
+  const selection = resolveDesktopSelection({ scenarios: [id] });
+  assert.equal(preferencesRecoverySelection(selection, "win32"), true);
+  for (const platform of ["linux", "darwin"])
+    assert.throws(() => preferencesRecoverySelection(selection, platform), /requires Windows/);
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id, "empty-library"] }), /standalone/);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-preferences-recovery-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const fixture = await preparePreferencesRecoveryFixture(output);
+  const original = await readFile(fixture.preferencesBefore);
+  assert.throws(() => JSON.parse(original), SyntaxError);
+  assert.deepEqual(await readFile(fixture.preferences), original);
+  assert.deepEqual(await readFile(fixture.marker), await readFile(fixture.markerBefore));
+  const repaired = Buffer.from(
+    JSON.stringify({ format_version: 1, library_root: fixture.selectedRoot }),
+  );
+  await writeFile(fixture.preferences, repaired);
+  await assert.rejects(preparePreferencesRecoveryFixture(output), { code: "EEXIST" });
+  assert.deepEqual(await readFile(fixture.preferencesBefore), original);
+  assert.deepEqual(await readFile(fixture.preferences), repaired);
+});
 
 test("library switch recovery refuses unsupported hosts and mixed setup before launch", () => {
   const selection = resolveDesktopSelection({ scenarios: ["native-library-switch-recovery"] });

@@ -396,6 +396,16 @@ generation-bound IPC and screenshots are retained; host generations are evaluate
 independently after restart. It does not reset the platform default, open a normal
 user library, or establish another platform or physical controller claim.
 
+`just desktop-verify --scenario native-startup-preferences-recovery --require-clean`
+selects one Windows-only saved-preferences failure and recovery journey, outside
+routine profiles. It retains malformed preferences and player-data before copies,
+checks the actual startup diagnostics and absence of the normal workspace, and
+proves owned host-tree exit before externally repairing only the fixture's saved
+choice. Two independent restarts check the usable workspace, saved selection,
+library identity and player data. This is explicit external repair acceptance;
+it does not prove automatic repair or platform-default reset. Existing startup
+picker and library-switch scenarios still prohibit fixture rewrites on restart.
+
 Selected Steam-entry and game-update reviews seed their own installed port through
 the existing owned CLI/core fixture route. Like backup review, they do not first
 run the full preparation-and-Play journey. The `full` profile still includes that

@@ -25,6 +25,9 @@ import {
   bootstrapRecoveryEnvironment,
   bootstrapRecoverySelection,
   bootstrapRecoveryScenario,
+  preferencesRecoverySelection,
+  preparePreferencesRecoveryFixture,
+  preferencesRecoveryScenario,
   prepareBootstrapRecoveryFixture,
 } from "./desktop-bootstrap-recovery-test.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
@@ -111,7 +114,9 @@ const selection = resolveDesktopSelection({
 });
 const bootstrapRecoverySession = bootstrapRecoverySelection(selection, process.platform);
 const librarySwitchRecoverySession = librarySwitchRecoverySelection(selection, process.platform);
-const savedLibraryRecoverySession = bootstrapRecoverySession || librarySwitchRecoverySession;
+const preferencesRecoverySession = preferencesRecoverySelection(selection, process.platform);
+const savedLibraryRecoverySession =
+  bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cli"])
   throw new Error("Selected fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
@@ -120,7 +125,7 @@ const inputs = await Promise.all(
   ["app", "driver", "native-driver"].map((name) => fileIdentity(values[name])),
 );
 inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
-if (bootstrapRecoverySession)
+if (bootstrapRecoverySession || preferencesRecoverySession)
   for (const name of [
     "desktop-bootstrap-recovery-test.mjs",
     "desktop-native-confirmation.mjs",
@@ -282,17 +287,20 @@ const identityBoundSession =
   backupFocusSession ||
   hostInterruptionSession ||
   normalPackageSession ||
+  preferencesRecoverySession ||
   bootstrapRecoverySession ||
   librarySwitchRecoverySession;
-const cleanupName = librarySwitchRecoverySession
-  ? "library-switch-recovery"
-  : bootstrapRecoverySession
-    ? "startup-library-recovery"
-    : normalPackageSession
-      ? "normal-package-boundary"
-      : hostInterruptionSession
-        ? "host-interruption"
-        : "backup-focus";
+const cleanupName = preferencesRecoverySession
+  ? "startup-preferences-recovery"
+  : librarySwitchRecoverySession
+    ? "library-switch-recovery"
+    : bootstrapRecoverySession
+      ? "startup-library-recovery"
+      : normalPackageSession
+        ? "normal-package-boundary"
+        : hostInterruptionSession
+          ? "host-interruption"
+          : "backup-focus";
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -1002,7 +1010,8 @@ async function connectObservedDriver() {
 async function connect() {
   await connectObservedDriver();
   await browser.manage().setTimeouts({ script: 15_000 });
-  const initialRecovery = bootstrapRecoverySession && connectedLaunches === 0;
+  const initialRecovery =
+    (bootstrapRecoverySession || preferencesRecoverySession) && connectedLaunches === 0;
   const readyRoot = initialRecovery
     ? '.bootstrap-error[role="alert"]'
     : selection.prerequisites.includes("design-compatibility-fixture")
@@ -1027,11 +1036,12 @@ async function requestApplicationShutdown(snapshot) {
 
 async function restartApplication(name, prepareWhileStopped, childEnvironment = {}) {
   if (savedLibraryRecoverySession) {
-    assert.equal(
-      prepareWhileStopped,
-      undefined,
-      "Library recovery restart cannot rewrite fixture state",
-    );
+    if (!preferencesRecoverySession)
+      assert.equal(
+        prepareWhileStopped,
+        undefined,
+        "Library recovery restart cannot rewrite fixture state",
+      );
     const inventory = captureBackupFocusCleanup();
     validateBackupFocusInventory(JSON.parse(await readFile(inventory, "utf8")));
     await browser.quit();
@@ -1041,6 +1051,7 @@ async function restartApplication(name, prepareWhileStopped, childEnvironment = 
     const restartEvidence = path.join(output, `${name}-restart.json`);
     await writeFile(restartEvidence, `${JSON.stringify(cleanup, null, 2)}\n`, { flag: "wx" });
     artifacts.push(restartEvidence);
+    if (prepareWhileStopped) await prepareWhileStopped();
     await startDriver(childEnvironment);
     await connect();
     return browser;
@@ -1356,6 +1367,14 @@ async function verifySettingsIndexTheme(theme) {
 }
 
 try {
+  let preferencesRecoveryFixture;
+  if (preferencesRecoverySession) {
+    preferencesRecoveryFixture = await preparePreferencesRecoveryFixture(output);
+    for (const name of ["preferencesBefore", "markerBefore"]) {
+      inputs.push(await fileIdentity(preferencesRecoveryFixture[name]));
+      artifacts.push(preferencesRecoveryFixture[name]);
+    }
+  }
   let librarySwitchRecoveryFixture;
   if (librarySwitchRecoverySession) {
     librarySwitchRecoveryFixture = await prepareLibrarySwitchRecoveryFixture(output);
@@ -1383,6 +1402,20 @@ try {
   await requireUnusedPort(port + 1);
   await startDriver();
   await connect();
+  await scenario("native-startup-preferences-recovery", async () => {
+    await preferencesRecoveryScenario({
+      browser,
+      invoke,
+      By,
+      until,
+      fixture: preferencesRecoveryFixture,
+      captureScreenshot: captureScenarioScreenshot,
+      captureAccessibilityReport,
+      restart: restartApplication,
+      output,
+      artifacts,
+    });
+  });
   await scenario("native-library-switch-recovery", async () => {
     await librarySwitchRecoveryScenario({
       browser,

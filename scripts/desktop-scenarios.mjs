@@ -17,6 +17,15 @@ function scenario(id, description, options = {}) {
 
 export const DESKTOP_SCENARIOS = Object.freeze([
   scenario(
+    "native-startup-preferences-recovery",
+    "Malformed saved preferences remain intact until an owned stopped-host repair, then reopen reliably.",
+    {
+      source: "desktop-bootstrap-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-normal-package-webview-boundary",
     "Ordinary Windows package enforces effective main-window assets, IPC, CSP, permission and navigation boundaries.",
     { source: "desktop-main-webview-boundary.mjs", qualification_only: true },
@@ -441,6 +450,11 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (
+    uniqueRequested.includes("native-startup-preferences-recovery") &&
+    uniqueRequested.length !== 1
+  )
+    throw new Error("native-startup-preferences-recovery requires one exact standalone scenario");
   if (uniqueRequested.includes("native-startup-library-recovery") && uniqueRequested.length !== 1)
     throw new Error("native-startup-library-recovery requires one exact standalone scenario");
   if (uniqueRequested.includes("native-library-switch-recovery") && uniqueRequested.length !== 1)
