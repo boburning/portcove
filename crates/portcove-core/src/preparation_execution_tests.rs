@@ -815,11 +815,59 @@ fn journal_only_preparation_cleanup_removes_only_the_stale_journal() {
 }
 
 fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
+    assert_recovery_with_family(point, publishable, false, false);
+}
+
+fn assert_recovery_with_family(
+    point: LifecycleFaultPoint,
+    publishable: bool,
+    reclassify: bool,
+    reviewed_cleanup: bool,
+) {
     use crate::test_fixture::phase;
     let mut fixture = phase("preparation recovery: native fixture", || {
         Fixture::generic_native("success")
     });
     let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
+    let library = fixture.service.library().clone();
+    let staged = reclassify.then(|| {
+        let mut staged = fixture.install.clone();
+        staged.id = uuid::Uuid::new_v4().to_string();
+        staged.artifact.sha256 = crate::signed_catalog::digest(b"family recovery staged artifact");
+        staged.path = library
+            .versions_dir()
+            .join(PORT)
+            .join(&staged.artifact.sha256);
+        staged.version = "family-staged-fixture".into();
+        staged.staged = true;
+        crate::service::copy_tree(&fixture.install.path, &staged.path).unwrap();
+        let qualification = preparation_qualification(
+            fixture.service.catalog(),
+            fixture.service.catalog().port(PORT).unwrap(),
+            Platform::current().unwrap(),
+        )
+        .unwrap();
+        let (manifest, selected, runtime) = Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(
+                &staged.id,
+                PORT,
+                &staged.version,
+                &staged.artifact,
+                &qualification,
+                &staged.path,
+            )
+            .unwrap();
+        staged.manifest_sha256 = manifest;
+        staged.selected_executable = selected;
+        staged.runtime = runtime;
+        library.register_install(&staged, false).unwrap();
+        staged
+    });
+    let staged_tree = staged
+        .as_ref()
+        .map(|install| crate::library_transfer::reviewed_tree(&install.path).unwrap());
+    let source = reclassify.then(|| fs::read(&fixture.source).unwrap());
     phase("preparation recovery: open fault-injected service", || {
         fixture.set_faults(Arc::new(Fault(point)))
     });
@@ -835,17 +883,135 @@ fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
     let store = OperationStore::new(fixture.service.library().clone());
     let mut journal = store.all().unwrap().remove(0);
     let private = journal.paths.staging.clone().unwrap();
+    if reviewed_cleanup {
+        // Model interruption after recording the reviewed cleanup and isolating
+        // its exact tree, as in reviewed_cleanup_pending_resumes above.
+        let preview = fixture
+            .service
+            .preview_preparation_cleanup(&journal.id)
+            .unwrap();
+        let quarantine = super::super::execution::cleanup_quarantine_path(
+            &private,
+            &journal.id,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+        journal.paths.quarantine = Some(quarantine.clone());
+        journal.phase = LifecyclePhase::CleanupPending;
+        journal.last_error = None;
+        store.put(&mut journal).unwrap();
+        fs::rename(&private, quarantine).unwrap();
+    }
+    if reclassify {
+        let installs = serde_json::to_value(library.all_installs().unwrap()).unwrap();
+        let status = fixture.service.status(PORT).unwrap();
+        let pointers =
+            serde_json::to_value((&status.active, &status.previous, &status.staged)).unwrap();
+        let trees = [
+            Some(private.clone()),
+            journal.paths.final_path.clone(),
+            journal.paths.quarantine.clone(),
+            Some(fixture.install.path.clone()),
+            Some(library.user_dir(PORT)),
+            staged.as_ref().map(|install| install.path.clone()),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|path| {
+            let inventory = path
+                .exists()
+                .then(|| crate::library_transfer::reviewed_tree(&path).unwrap());
+            (path, inventory)
+        })
+        .collect::<Vec<_>>();
+        for kind in [
+            LifecycleOperationKind::Install,
+            LifecycleOperationKind::Adopt,
+        ] {
+            journal.kind = kind;
+            store.put(&mut journal).unwrap();
+            let mut expected = journal.clone();
+            fixture.service.recover_pending_operations().unwrap();
+            journal = store.all().unwrap().remove(0);
+            assert!(
+                journal
+                    .last_error
+                    .as_deref()
+                    .unwrap()
+                    .contains("publication operation kind does not own its preparation payload")
+            );
+            // Recovery may persist its refusal diagnostic and retry timestamp;
+            // every other journal field must retain the attempted envelope.
+            expected.last_error = journal.last_error.clone();
+            expected.updated_at = journal.updated_at;
+            assert_eq!(format!("{journal:?}"), format!("{expected:?}"));
+            {
+                let _guard = library
+                    .try_lock_port(PORT, "family recovery refusal")
+                    .unwrap();
+                let error = crate::recovery::recover_published_install(
+                    &fixture.service,
+                    &store,
+                    &mut journal,
+                )
+                .unwrap_err();
+                assert_eq!(error.code, ErrorCode::State);
+                assert_eq!(
+                    error.message,
+                    "publication operation kind does not own its preparation payload"
+                );
+                assert_eq!(format!("{journal:?}"), format!("{expected:?}"));
+            }
+            assert_eq!(
+                serde_json::to_value(library.all_installs().unwrap()).unwrap(),
+                installs
+            );
+            let status = fixture.service.status(PORT).unwrap();
+            assert_eq!(
+                serde_json::to_value((&status.active, &status.previous, &status.staged)).unwrap(),
+                pointers
+            );
+            for (path, inventory) in &trees {
+                assert_eq!(
+                    path.exists()
+                        .then(|| crate::library_transfer::reviewed_tree(path).unwrap()),
+                    *inventory,
+                    "{kind:?}: {path:?}"
+                );
+            }
+            assert_eq!(
+                fs::read(&fixture.source).unwrap(),
+                *source.as_ref().unwrap()
+            );
+        }
+        journal.kind = LifecycleOperationKind::Prepare;
+        store.put(&mut journal).unwrap();
+        fixture.service.recover_pending_operations().unwrap();
+    }
     let recovered = {
         let _guard = fixture
             .service
             .library()
             .try_lock_port(PORT, "owned recovery fixture")
             .unwrap();
-        phase("preparation recovery: recover journal", || {
-            super::super::recover(&fixture.service, &store, &mut journal)
-        })
+        if reclassify && (reviewed_cleanup || publishable) {
+            assert!(store.all().unwrap().is_empty());
+            Ok(())
+        } else {
+            phase("preparation recovery: recover journal", || {
+                super::super::recover(&fixture.service, &store, &mut journal)
+            })
+        }
     };
-    if publishable {
+    if reviewed_cleanup {
+        recovered.unwrap();
+        assert!(!private.exists());
+        assert!(!journal.paths.quarantine.as_ref().unwrap().exists());
+        assert_eq!(
+            fixture.service.status(PORT).unwrap().active.unwrap().id,
+            fixture.install.id
+        );
+    } else if publishable {
         recovered.unwrap();
         assert_eq!(
             fixture.service.status(PORT).unwrap().active.unwrap().id,
@@ -870,6 +1036,32 @@ fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
         crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap(),
         original
     );
+    if let Some(staged) = staged {
+        assert_eq!(
+            fixture.service.status(PORT).unwrap().staged.unwrap().id,
+            staged.id
+        );
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&staged.path).unwrap(),
+            staged_tree.unwrap()
+        );
+        assert_eq!(fs::read(&fixture.source).unwrap(), source.unwrap());
+    }
+}
+
+macro_rules! preparation_family_cases {
+    ($($name:ident: $point:ident, $publishable:literal, $cleanup:literal),+ $(,)?) => {
+        $(#[test] fn $name() {
+            assert_recovery_with_family(LifecycleFaultPoint::$point, $publishable, true, $cleanup);
+        })+
+    };
+}
+preparation_family_cases! {
+    reclassified_prepared_preparation_refuses_startup_publication: PreparationPrepared, true, false,
+    reclassified_published_preparation_refuses_startup_registration: PreparationPublished, true, false,
+    reclassified_registered_preparation_refuses_startup_cleanup: PreparationRegistered, true, false,
+    reclassified_interrupted_preparation_retains_private_work: PreparationCopied, false, false,
+    reclassified_reviewed_preparation_retains_install_less_cleanup: PreparationCopied, false, true,
 }
 
 macro_rules! recovery_cases {
