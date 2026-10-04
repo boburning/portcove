@@ -1963,7 +1963,10 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 77);
+        assert_eq!(
+            document["ports"],
+            serde_json::to_value(catalog.ports()).unwrap()
+        );
     }
 
     #[test]
