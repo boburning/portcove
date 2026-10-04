@@ -170,6 +170,7 @@ const explicitNodeTests = new Map([
   [
     "package.json",
     [
+      "scripts/ci-workflow.test.mjs",
       "scripts/dependency-automation.test.mjs",
       "scripts/dev-storage.test.mjs",
       "scripts/local-validation.test.mjs",
@@ -179,7 +180,10 @@ const explicitNodeTests = new Map([
   ["pnpm-workspace.yaml", ["scripts/dependency-automation.test.mjs"]],
   ["apps/desktop/pnpm-lock.yaml", ["scripts/dependency-automation.test.mjs"]],
   ["apps/desktop/pnpm-workspace.yaml", ["scripts/dependency-automation.test.mjs"]],
-  ["apps/desktop/package.json", ["scripts/local-validation.test.mjs"]],
+  [
+    "apps/desktop/package.json",
+    ["scripts/ci-workflow.test.mjs", "scripts/local-validation.test.mjs"],
+  ],
   [".github/dependabot.yml", ["scripts/dependency-automation.test.mjs"]],
   [
     ".config/tool-bootstrap.json",
