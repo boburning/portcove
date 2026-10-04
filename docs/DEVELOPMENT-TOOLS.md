@@ -404,6 +404,9 @@ proves owned host-tree exit before externally repairing only the fixture's saved
 choice. Two independent restarts check the usable workspace, saved selection,
 library identity and player data. The failed-startup screen keeps its main landmark and announces the failure in
 the error paragraph, with native accessibility evidence retained.
+Technical labels retain their exact spelling while wrapping within their column;
+the scenario checks actual label/value separation and requires no unresolved
+accessibility items on the observed failure screen.
 This is explicit external repair acceptance; it does not prove automatic repair
 or platform-default reset. Existing startup
 picker and library-switch scenarios still prohibit fixture rewrites on restart.

@@ -61,15 +61,43 @@ export async function preferencesRecoveryScenario({
     await failure.getText(),
     /host preferences are malformed; explicitly reset or repair them/,
   );
+  const technicalRows = await browser.executeScript(
+    (root) =>
+      [...root.querySelectorAll("dl > div")].map((row) => {
+        const label = row.querySelector("dt");
+        const value = row.querySelector("dd");
+        return {
+          label: label.textContent,
+          value: value.textContent,
+          labelWidth: label.clientWidth,
+          labelScrollWidth: label.scrollWidth,
+          labelRight: label.getBoundingClientRect().right,
+          valueLeft: value.getBoundingClientRect().left,
+        };
+      }),
+    failure,
+  );
+  assert.ok(technicalRows.length > 0);
+  for (const row of technicalRows) {
+    assert.ok(row.labelScrollWidth <= row.labelWidth, `Technical label overflows: ${row.label}`);
+    assert.ok(row.labelRight <= row.valueLeft, `Technical label overlaps value: ${row.label}`);
+  }
+  assert.ok(
+    technicalRows.some(
+      (row) => row.label === "invalid_host_preference_document" && row.value === "true",
+    ),
+  );
   const original = await readFile(fixture.preferencesBefore);
   const marker = await readFile(fixture.markerBefore);
   assert.deepEqual(await readFile(fixture.preferences), original);
   assert.deepEqual(await readFile(fixture.marker), marker);
   await captureScreenshot("startup-preferences-refused-preserved");
-  await captureAccessibilityReport(
-    browser,
-    path.join(output, "startup-preferences-accessibility.json"),
-    artifacts,
+  const accessibilityPath = path.join(output, "startup-preferences-accessibility.json");
+  await captureAccessibilityReport(browser, accessibilityPath, artifacts);
+  const accessibility = JSON.parse(await readFile(accessibilityPath, "utf8"));
+  assert.deepEqual(
+    accessibility.incomplete.map((item) => item.id),
+    [],
   );
   const repaired = Buffer.from(
     `${JSON.stringify({ format_version: 1, library_root: fixture.selectedRoot })}\n`,
@@ -117,6 +145,7 @@ export async function preferencesRecoveryScenario({
         identity,
         recoveredHost,
         restartedHost,
+        technicalRows,
         external_owned_repair: true,
         malformed_original_retained: true,
         player_data_preserved: true,
