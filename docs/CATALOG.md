@@ -10,11 +10,27 @@ declarations through `catalog inspect-proposal`, and prepares existing artwork i
 the same output. `proposal-evidence.json` adds exact input-byte/core receipts,
 typed per-port declaration hashes and the complete accepted-to-proposed diff;
 `artwork-evidence.json` retains its distinct cover reasons and provider costs.
+The additive `proposal_changes` report matches ports and named source records by
+stable ID. Each changed port includes its old/new display name and exact source,
+execution, persistence and other changes; source identities/contracts/validators/
+evidence are reported by collection and ID. Record insertion or removal does not
+make unchanged siblings appear modified, including games sharing a repository.
+Ordering changes are explicit. The same report accompanies `--compare-historical`.
+These groups describe declared fields, not acceptance or inferred dependency
+impact. The complete `differences` and Core receipts remain necessary: unkeyed
+qualification facts and other catalog fields are outside this named-record report.
 All files remain unsigned proposals. No publisher grant, artifact authenticity,
 actual source/operation/gameplay qualification or production delivery is inferred.
 An unavailable validator or failed declaration check stops this proposal, retains
 its process receipts and leaves the accepted catalog/libraries unchanged. A new
 output directory is required; an interrupted or prior batch is never overwritten.
+Full proposals capture the selected validator before declaration checks. Their
+image decoder takes its own snapshot from that captured artifact only when fresh
+image bytes need validation, then reuses it for the batch. A reuse-only batch
+therefore retains one executable snapshot and creates no image-validation scratch
+library. Decoder initialization failure is not retried within the batch; existing
+artwork exception/fallback handling remains responsible for the result. Artwork-only
+preparation keeps its eager selected-tool snapshot boundary.
 
 Prepare a cover beside each new port definition. Search its public project name
 and known aliases first; accept an exact port record only after checking the

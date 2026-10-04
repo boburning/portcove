@@ -146,3 +146,48 @@ strings and their SHA-256 changes are test data, not executable game archives.
 Core and compiled-CLI tests prove the shared policy and offline boundary.
 Scheduled live observation, actual artifact lifecycle and gameplay evidence
 must be recorded separately in the owning issue and linked run artifacts.
+
+## Catalog repository reachability
+
+`node scripts/check-catalog-repositories.mjs` is the separate repository-only
+checker used by `upstream-health.yml`. `--json` emits its versioned diagnostic
+report instead of human lines. It requests metadata from each distinct declared
+GitHub or GitLab repository and records affected stable port IDs, observed numeric
+repository ID and archive state. Existing user-prepared entries retain their
+GitHub upstream coverage; their externally prepared files are not inspected.
+GitLab public metadata may omit archive state; a matching reachable repository
+then carries `archived: null` and human output says archive state unknown. An
+explicit malformed archive value is not accepted as a missing observation.
+Direct-manifest ports are listed as excluded from this repository check. Their
+accepted-artifact availability remains unassessed, rather than counted as healthy.
+
+A complete result means all included repository endpoints supplied valid matching
+metadata. It does not authenticate project continuity or detect reuse of the same
+repository name; the observed numeric ID is not compared against a historical
+accepted identity. Release bytes, acquisition locations, preservation, distribution
+permission, operation holds and qualification are explicitly unassessed. Archived
+repositories remain reachable and do not create a hold by themselves. This report
+cannot replace the configured observer's pinned identity, complete release/asset
+collections, checkpoint or Core projection.
+
+Failures retain a nonzero exit and a report with the complete coverage denominator.
+Transport errors, timeouts, malformed/oversized metadata, mismatched locations,
+HTTP access failures and provider failures remain unknown. A 404 is
+inaccessible-or-missing; it cannot establish deletion, retirement or succession.
+GitHub documents that improperly authenticated private resources can return 404:
+[REST troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api?apiVersion=2022-11-28).
+No raw response prose, credentials or transport-error details enter the report.
+The observation interval describes this attempt; reports have no continuing
+freshness or admission authority.
+
+Collection makes no retries and permits at most 128 requests, three minutes total,
+fifteen seconds per request, one MiB per response and sixteen MiB of consumed
+response bytes. The stream is bounded before JSON parsing; the chunk which crosses
+a byte limit is counted but not retained. A detected rate limit stops further
+requests to that provider during the attempt, records its usable retry time when
+available, and leaves deferred identities explicitly unattempted/unknown. Other
+providers can continue within the shared budget. Budget exhaustion likewise
+preserves every unattempted identity. Start a separately attributed attempt after
+the reported resume condition; a partial collection is never a healthy inventory.
+These are read-only diagnostics, with no exception allowlist, incident writer,
+automatic successor choice or change to protected release policy.

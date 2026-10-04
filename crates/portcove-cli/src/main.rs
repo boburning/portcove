@@ -1376,10 +1376,11 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Source {
             command: SourceCommand::Discover(args),
         } => {
-            render_success(
+            render_read_success(
                 mode,
                 "source.discover",
                 service.discover_sources_with_progress(&args.request(), progress_renderer(mode))?,
+                |report| human::source_discovery(report, service.catalog()),
             )?;
         }
         Commands::Source {
@@ -2996,6 +2997,64 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn discovery_human_summary_uses_real_bounded_core_result_without_registering() {
+        let root = tempfile::tempdir().unwrap();
+        let files = root.path().join("sources");
+        std::fs::create_dir(&files).unwrap();
+        std::fs::write(files.join("owned-a.txt"), b"owned-a").unwrap();
+        std::fs::write(files.join("owned-b.txt"), b"owned-b").unwrap();
+        let library = portcove_core::Library::open(root.path().join("library")).unwrap();
+        let service = portcove_core::PortcoveService::new_read_only(library).unwrap();
+        let cli = Cli::try_parse_from([
+            "portcove",
+            "source",
+            "discover",
+            "--root",
+            files.to_str().unwrap(),
+            "--profile",
+            "minish-cap-gba",
+            "--max-entries",
+            "1",
+        ])
+        .unwrap();
+        let Commands::Source {
+            command: SourceCommand::Discover(args),
+        } = cli.command
+        else {
+            panic!("expected source discovery");
+        };
+        let report = service.discover_sources(&args.request()).unwrap();
+        assert_eq!(report.entries_examined, 1);
+        assert_eq!(
+            report.limits_reached,
+            [portcove_core::SourceDiscoveryLimit::Entries]
+        );
+        assert!(report.candidates.is_empty());
+        assert!(service.library().sources().unwrap().is_empty());
+        let before = serde_json::to_value(&report).unwrap();
+        let text = super::human::source_discovery(&report, service.catalog());
+        assert!(text.contains("Search was partial."));
+        assert!(text.contains("No matching candidates were found in the inspected scope."));
+        assert!(text.contains("No sources were registered by this search."));
+        assert_eq!(serde_json::to_value(&report).unwrap(), before);
+        for mode in [super::OutputMode::Json, super::OutputMode::Jsonl] {
+            super::render_read_success(mode, "source.discover", report.clone(), |_| {
+                panic!("machine modes must not invoke human rendering")
+            })
+            .unwrap();
+        }
+        assert!(service.library().sources().unwrap().is_empty());
+        assert_eq!(
+            std::fs::read(files.join("owned-a.txt")).unwrap(),
+            b"owned-a"
+        );
+        assert_eq!(
+            std::fs::read(files.join("owned-b.txt")).unwrap(),
+            b"owned-b"
+        );
+    }
+
     use std::path::PathBuf;
 
     use super::{

@@ -417,6 +417,115 @@ pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
     )
 }
 
+pub(crate) fn source_discovery(
+    report: &portcove_core::SourceDiscoveryReport,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let profile_name = |id: &str| {
+        catalog.source_profile(id).map_or_else(
+            |_| clean(id),
+            |profile| format!("{} ({})", clean(&profile.label), clean(id)),
+        )
+    };
+    let mut lines = vec![
+        "Source discovery".into(),
+        "Only the selected folders, profiles and supported discovery formats were inspected."
+            .into(),
+        format!("Searched folders: {}", report.searched_roots.len()),
+    ];
+    for root in &report.searched_roots {
+        lines.push(format!("- {}", clean(&root.display().to_string())));
+    }
+    lines.push(format!(
+        "Searched profiles: {}",
+        report.searched_profiles.len()
+    ));
+    for profile in &report.searched_profiles {
+        lines.push(format!("- {}", profile_name(profile)));
+    }
+    lines.extend([
+        format!("Entries examined: {}", report.entries_examined),
+        format!("Files hashed: {}", report.files_hashed),
+        format!(
+            "Bytes charged to hash budget: {} ({} bytes)",
+            format_bytes(report.hash_bytes),
+            report.hash_bytes
+        ),
+        format!("Symlinks skipped: {}", report.symlinks_skipped),
+    ]);
+    if report.limits_reached.is_empty() {
+        lines.push("No recorded processing limits reached.".into());
+    } else {
+        lines.push("Search was partial. Reached processing limits:".into());
+        for limit in &report.limits_reached {
+            use portcove_core::SourceDiscoveryLimit;
+            lines.push(
+                match limit {
+                    SourceDiscoveryLimit::Entries => "- Examined entries (--max-entries)",
+                    SourceDiscoveryLimit::Depth => "- Folder depth (--max-depth)",
+                    SourceDiscoveryLimit::FileSize => "- File size (--max-file-bytes)",
+                    SourceDiscoveryLimit::HashBytes => "- Hashing budget (--max-hash-bytes)",
+                    SourceDiscoveryLimit::Candidates => "- Matching candidates (--max-candidates)",
+                }
+                .into(),
+            );
+        }
+        lines.push("A new search starts again; this search cannot be resumed.".into());
+    }
+    if !report.issues.is_empty() || report.issues_omitted > 0 {
+        lines.push(format!(
+            "Scan issues: {} shown, {} omitted. Review these before drawing conclusions about missing files.",
+            report.issues.len(), report.issues_omitted
+        ));
+        for issue in &report.issues {
+            let location = issue.path.as_ref().map_or_else(
+                || "Location not recorded".into(),
+                |path| clean(&path.display().to_string()),
+            );
+            let profile = issue
+                .profile_id
+                .as_deref()
+                .map_or_else(String::new, |id| format!(" [{}]", profile_name(id)));
+            lines.push(format!(
+                "- {location}{profile}: {}",
+                clean(&portcove_core::redact_diagnostic_text(&issue.message))
+            ));
+        }
+    }
+    if report.candidates.is_empty() {
+        lines.push("No matching candidates were found in the inspected scope.".into());
+    } else {
+        lines.push(format!("Matching candidates: {}", report.candidates.len()));
+        for candidate in &report.candidates {
+            lines.extend([
+                format!("Candidate: {}", profile_name(&candidate.profile_id)),
+                format!("Path: {}", clean(&candidate.path.display().to_string())),
+                format!("Content SHA-256: {}", clean(&candidate.sha256)),
+                format!(
+                    "Content size: {} ({} bytes)",
+                    format_bytes(candidate.size),
+                    candidate.size
+                ),
+                format!("Stored file SHA-256: {}", clean(&candidate.storage_sha256)),
+                format!(
+                    "Stored file size: {} ({} bytes)",
+                    format_bytes(candidate.storage_size),
+                    candidate.storage_size
+                ),
+                format!("Observed (UTC): {}", utc_time(candidate.updated_at)),
+            ]);
+        }
+    }
+    lines.push(
+        "No sources were registered by this search. Discovery does not install or launch games."
+            .into(),
+    );
+    if !report.candidates.is_empty() {
+        lines.push("To register a chosen candidate, use source add PROFILE_ID PATH --expected-sha256 SHA256. Registration checks the current bytes again.".into());
+    }
+    lines.join("\n")
+}
+
 pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
     if roots.is_empty() {
         return "No game-file folders are connected.".into();
@@ -1667,6 +1776,126 @@ fn optional_path(path: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
+    fn discovery_report() -> portcove_core::SourceDiscoveryReport {
+        portcove_core::SourceDiscoveryReport {
+            searched_roots: vec!["owned-search-folder".into()],
+            searched_profiles: vec!["minish-cap-gba".into()],
+            candidates: Vec::new(),
+            entries_examined: 3,
+            files_hashed: 2,
+            hash_bytes: 1024,
+            symlinks_skipped: 1,
+            limits_reached: Vec::new(),
+            issues: Vec::new(),
+            issues_omitted: 0,
+        }
+    }
+
+    #[test]
+    fn discovery_empty_result_describes_only_inspected_scope_without_registration() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let report = discovery_report();
+        let before = serde_json::to_value(&report).unwrap();
+        let text = super::source_discovery(&report, &catalog);
+        assert!(text.starts_with("Source discovery\n"));
+        assert!(
+            text.contains("Only the selected folders, profiles and supported discovery formats")
+        );
+        assert!(text.contains("No matching candidates were found in the inspected scope."));
+        assert!(text.contains("No recorded processing limits reached."));
+        assert!(!text.contains("complete search"));
+        assert!(!text.contains("invalid game files"));
+        assert!(text.contains("No sources were registered by this search."));
+        assert!(text.contains("does not install or launch games"));
+        assert!(text.contains("Entries examined: 3\nFiles hashed: 2"));
+        assert!(text.contains("Bytes charged to hash budget: 1.0 KiB (1024 bytes)"));
+        assert!(text.contains("Symlinks skipped: 1"));
+        assert!(text.contains(&format!(
+            "{} (minish-cap-gba)",
+            catalog.source_profile("minish-cap-gba").unwrap().label
+        )));
+        assert_eq!(serde_json::to_value(&report).unwrap(), before);
+    }
+
+    #[test]
+    fn discovery_partial_limits_and_omitted_issues_remain_explicit_and_safe() {
+        use portcove_core::{SourceDiscoveryIssue, SourceDiscoveryLimit};
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut report = discovery_report();
+        report.searched_roots = vec!["owned\nfolder\u{1b}[31m\u{9b}2J".into()];
+        report.searched_profiles = vec!["future\nprofile".into()];
+        report.limits_reached = vec![
+            SourceDiscoveryLimit::Entries,
+            SourceDiscoveryLimit::Depth,
+            SourceDiscoveryLimit::FileSize,
+            SourceDiscoveryLimit::HashBytes,
+            SourceDiscoveryLimit::Candidates,
+        ];
+        report.issues = vec![SourceDiscoveryIssue {
+            path: None,
+            profile_id: Some("future\nprofile".into()),
+            message: "Cannot read\nfile token=owned-secret\u{1b}[31m".into(),
+        }];
+        report.issues_omitted = 7;
+        let before = serde_json::to_value(&report).unwrap();
+        let text = super::source_discovery(&report, &catalog);
+        assert!(text.contains("Search was partial."));
+        for flag in [
+            "max-entries",
+            "max-depth",
+            "max-file-bytes",
+            "max-hash-bytes",
+            "max-candidates",
+        ] {
+            assert!(text.contains(&format!("(--{flag})")));
+        }
+        assert!(text.contains("this search cannot be resumed"));
+        assert!(text.contains("Scan issues: 1 shown, 7 omitted."));
+        assert!(text.contains("Location not recorded [future profile]"));
+        assert!(text.contains("[REDACTED]"));
+        assert!(!text.contains("owned-secret"));
+        assert!(!text.contains('\u{1b}'));
+        assert!(!text.contains('\u{9b}'));
+        assert!(!text.contains("owned\nfolder"));
+        assert_eq!(serde_json::to_value(&report).unwrap(), before);
+
+        report.limits_reached.clear();
+        report.issues.clear();
+        let text = super::source_discovery(&report, &catalog);
+        assert!(text.contains("Scan issues: 0 shown, 7 omitted."));
+        assert!(!text.contains("Search was partial."));
+    }
+
+    #[test]
+    fn discovery_candidates_keep_content_and_storage_identity_separate() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut report = discovery_report();
+        report.candidates = vec![portcove_core::SourceRecord {
+            profile_id: "minish-cap-gba".into(),
+            path: "owned\ncandidate.zip\u{1b}[31m".into(),
+            sha256: "a".repeat(64),
+            size: 1024,
+            storage_sha256: "b".repeat(64),
+            storage_size: 2048,
+            updated_at: 42,
+            observed_identity: None,
+        }];
+        let before = serde_json::to_value(&report).unwrap();
+        let text = super::source_discovery(&report, &catalog);
+        assert!(text.contains("Matching candidates: 1"));
+        assert!(text.contains(&format!("Content SHA-256: {}", "a".repeat(64))));
+        assert!(text.contains(&format!("Stored file SHA-256: {}", "b".repeat(64))));
+        assert!(text.contains("Content size: 1.0 KiB (1024 bytes)"));
+        assert!(text.contains("Stored file size: 2.0 KiB (2048 bytes)"));
+        assert!(text.contains("Observed (UTC): 1970-01-01T00:00:42Z"));
+        assert!(text.contains("source add PROFILE_ID PATH --expected-sha256 SHA256"));
+        assert!(text.contains("Registration checks the current bytes again."));
+        assert!(!text.contains("Saved game-file"));
+        assert!(!text.contains("owned\ncandidate"));
+        assert!(!text.contains('\u{1b}'));
+        assert_eq!(serde_json::to_value(&report).unwrap(), before);
+    }
+
     use std::path::PathBuf;
 
     use portcove_core::{

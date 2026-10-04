@@ -10,11 +10,12 @@ import {
   mkdirSync,
   existsSync,
   copyFileSync,
+  readdirSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
@@ -36,6 +37,7 @@ function isolatedGenerator() {
   for (const name of ["catalog-current-authoring.json", "catalog-schema2-migration-fixture.json"])
     copyFileSync(join(catalogRoot, name), join(catalogs, name));
   return {
+    scratch,
     catalogs,
     run: (...args) =>
       spawnSync(process.execPath, ["scripts/generate-catalog.mjs", ...args], {
@@ -44,6 +46,351 @@ function isolatedGenerator() {
       }),
   };
 }
+
+function proposalDecoderFixture(
+  images = 0,
+  failInitialization = false,
+  mode = "--prepare-proposal",
+) {
+  const fixture = isolatedGenerator();
+  const helper = join(fixture.scratch, "scripts", "inspect-igdb-artwork.mjs");
+  copyFileSync(helper, join(fixture.scratch, "scripts", "real-artwork.mjs"));
+  writeFileSync(
+    helper,
+    `
+    export { readArtworkJson, readArtworkInput } from './real-artwork.mjs';
+    import { createCoreImageValidator as actualValidator } from './real-artwork.mjs';
+    import { appendFileSync, readFileSync } from 'node:fs';
+    import { createHash } from 'node:crypto';
+    export function createCoreImageValidator(cli, root) {
+      appendFileSync(process.env.FIXTURE_FACTORY_LOG, JSON.stringify({cli,
+        sha256:createHash('sha256').update(readFileSync(cli)).digest('hex')})+'\\n');
+      if(process.env.FIXTURE_FAIL_INITIALIZATION==='yes') throw new Error('inert initialization failure');
+      return actualValidator(cli, root);
+    }
+    export function createIgdbInspector(_credentials, validateImage) {
+      return {validateImage,providerMetrics:{authentication_requests:0,game_requests:0,image_requests:0}};
+    }
+    export async function prepareCatalogArtwork(input, {validateImage}) {
+      const records=[];
+      for(let i=0;i<Number(process.env.FIXTURE_IMAGES);i++) {
+        try { records.push(validateImage(Buffer.from('inert image '+i))); }
+        catch { records.push({failure:true}); }
+      }
+      return {catalog:input,records,metrics:{}};
+    }
+  `,
+  );
+  const cli = join(fixture.scratch, "selected-cli");
+  const original = Buffer.from("inert first-party validator fixture");
+  writeFileSync(cli, original);
+  const preload = join(fixture.scratch, "process fixture #% ü.mjs");
+  writeFileSync(
+    preload,
+    `
+    import cp from 'node:child_process';
+    import {syncBuiltinESMExports} from 'node:module';
+    import {readFileSync,writeFileSync,appendFileSync} from 'node:fs';
+    import {createHash} from 'node:crypto';
+    let calls=0;
+    cp.spawnSync=(artifact,args)=>{
+      const bytes=readFileSync(args.at(-1));
+      const sha256=createHash('sha256').update(bytes).digest('hex');
+      const inspection=args.includes('inspect-proposal');
+      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection})+'\\n');
+      if(++calls===1 && inspection)writeFileSync(process.env.FIXTURE_SELECTED_CLI,'selected file changed after capture');
+      const data=inspection?{format_version:1,input_sha256:sha256,input_bytes:bytes.length,ports:[]}
+        :{selection:{sha256,byte_size:bytes.length,width:1,height:1,format:'jpeg'}};
+      return {status:0,signal:null,stdout:JSON.stringify({data}),stderr:''};
+    };
+    syncBuiltinESMExports();
+  `,
+  );
+  const output = join(fixture.scratch, "output");
+  const factoryLog = join(fixture.scratch, "factory.log");
+  const processLog = join(fixture.scratch, "process.log");
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      pathToFileURL(preload).href,
+      "scripts/generate-catalog.mjs",
+      mode,
+      join(fixture.catalogs, "catalog-current-authoring.json"),
+      "--validator-cli",
+      cli,
+      "--output-dir",
+      output,
+    ],
+    {
+      cwd: fixture.scratch,
+      encoding: "utf8",
+      timeout: 10_000,
+      env: {
+        ...process.env,
+        FIXTURE_SELECTED_CLI: cli,
+        FIXTURE_IMAGES: String(images),
+        FIXTURE_FAIL_INITIALIZATION: failInitialization ? "yes" : "no",
+        FIXTURE_FACTORY_LOG: factoryLog,
+        FIXTURE_PROCESS_LOG: processLog,
+      },
+    },
+  );
+  return {
+    result,
+    output,
+    original,
+    cli,
+    factories: existsSync(factoryLog)
+      ? readFileSync(factoryLog, "utf8").trim().split("\n").map(JSON.parse)
+      : [],
+    processes: existsSync(processLog)
+      ? readFileSync(processLog, "utf8").trim().split("\n").map(JSON.parse)
+      : [],
+  };
+}
+
+test("reuse-only full proposal retains declaration checks without initializing an unused decoder", () => {
+  const fixture = proposalDecoderFixture();
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  assert.equal(fixture.factories.length, 0);
+  assert.equal(existsSync(join(fixture.output, "scratch")), false);
+  assert.equal(fixture.processes.length, 3);
+  assert.ok(fixture.processes.every(({ inspection }) => inspection));
+  const evidence = JSON.parse(readFileSync(join(fixture.output, "proposal-evidence.json")));
+  const expected = createHash("sha256").update(fixture.original).digest("hex");
+  for (const receipt of Object.values(evidence.checks))
+    assert.equal(receipt.validator_artifact_sha256, expected);
+});
+
+test("needed decoder snapshots the captured validator once and retains each image receipt", () => {
+  const fixture = proposalDecoderFixture(2);
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  assert.equal(fixture.factories.length, 1);
+  assert.equal(
+    fixture.factories[0].sha256,
+    createHash("sha256").update(fixture.original).digest("hex"),
+  );
+  assert.notEqual(fixture.factories[0].cli, fixture.cli);
+  assert.equal(fixture.processes.filter(({ inspection }) => inspection).length, 3);
+  assert.equal(fixture.processes.filter(({ inspection }) => !inspection).length, 2);
+  const scratch = join(fixture.output, "scratch");
+  const roots = readdirSync(scratch);
+  assert.equal(roots.length, 1);
+  for (const ordinal of ["1", "2"]) {
+    const receipt = JSON.parse(
+      readFileSync(join(scratch, roots[0], ordinal, "validation-process.json")),
+    );
+    assert.equal(receipt.status, 0);
+    assert.equal(receipt.validator_artifact_sha256, fixture.factories[0].sha256);
+  }
+});
+
+test("decoder initialization failure is retained by existing artwork handling without repeated initialization", () => {
+  const fixture = proposalDecoderFixture(2, true);
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  assert.equal(fixture.factories.length, 1);
+  assert.equal(fixture.processes.length, 3);
+  const artwork = JSON.parse(readFileSync(join(fixture.output, "artwork-evidence.json")));
+  assert.deepEqual(artwork.records, [{ failure: true }, { failure: true }]);
+});
+
+test("artwork-only mode retains its eager selected-tool snapshot boundary", () => {
+  const fixture = proposalDecoderFixture(0, false, "--prepare-artwork");
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  assert.equal(fixture.factories.length, 1);
+  assert.equal(fixture.factories[0].cli, fixture.cli);
+  assert.ok(existsSync(join(fixture.output, "scratch")));
+  assert.equal(fixture.processes.length, 0);
+});
+
+function compareProposal(before, after) {
+  const fixture = isolatedGenerator();
+  writeFileSync(
+    join(fixture.catalogs, "catalog-schema2-migration-fixture.json"),
+    JSON.stringify(before),
+  );
+  writeFileSync(join(fixture.catalogs, "catalog-current-authoring.json"), JSON.stringify(after));
+  const result = fixture.run("--compare-historical");
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout);
+}
+
+function proposalFixture() {
+  return {
+    schema_version: 2,
+    ports: ["first", "second"].map((id) => ({
+      id,
+      name: `Port ${id}`,
+      source_profile: "shared-source",
+      release: { repository: "fixture/shared" },
+      executable_hints: { "linux-x86-64": ["game"] },
+      persistent_paths: ["saves"],
+    })),
+    source_catalog: {
+      identities: [{ id: "shared-source", label: "Shared source", variants: [] }],
+      contracts: [],
+      evidence: [],
+      validators: [],
+      qualification: [],
+    },
+  };
+}
+
+test("proposal identity report separates insertion from unchanged shared-repository siblings", () => {
+  const before = proposalFixture();
+  const after = structuredClone(before);
+  after.ports.unshift({ ...after.ports[0], id: "new", name: "New port" });
+  const report = compareProposal(before, after);
+  assert.ok(report.differences.some((change) => change.path === "$.ports[0].id"));
+  assert.deepEqual(
+    report.proposal_changes.ports.map(({ port_id, action, name_after }) => ({
+      port_id,
+      action,
+      name_after,
+    })),
+    [{ port_id: "new", action: "added", name_after: "New port" }],
+  );
+  assert.deepEqual(report.proposal_changes.order_changes, [
+    {
+      collection: "ports",
+      before: ["first", "second"],
+      after: ["new", "first", "second"],
+    },
+  ]);
+  assert.deepEqual(report.proposal_changes.source_records, []);
+  assert.deepEqual(compareProposal(before, after), report);
+});
+
+test("proposal identity report retains exact source execution persistence and unclassified changes", () => {
+  const before = proposalFixture();
+  const after = structuredClone(before);
+  const port = after.ports[1];
+  port.source_profile = "replacement-source";
+  port.executable_hints["linux-x86-64"] = ["replacement"];
+  port.persistent_paths = ["replacement-saves"];
+  port.release.user_prepared = { "linux-x86-64": { mutable_paths: ["player-data"] } };
+  port.summary = "Changed description";
+  after.source_catalog.identities[0].label = "Changed shared source";
+  const report = compareProposal(before, after);
+  const [change] = report.proposal_changes.ports;
+  assert.equal(change.port_id, "second");
+  assert.equal(change.name_before, "Port second");
+  assert.equal(change.name_after, "Port second");
+  assert.deepEqual(change.changes.source, [
+    { path: "$.source_profile", before: "shared-source", after: "replacement-source" },
+  ]);
+  assert.deepEqual(change.changes.execution[0], {
+    path: "$.executable_hints.linux-x86-64[0]",
+    before: "game",
+    after: "replacement",
+  });
+  assert.ok(change.changes.persistence.some((item) => item.path === "$.persistent_paths[0]"));
+  assert.ok(
+    change.changes.persistence.some(
+      (item) => item.path === "$.release.user_prepared.linux-x86-64.mutable_paths",
+    ),
+  );
+  assert.ok(change.changes.other.some((item) => item.path === "$.summary"));
+  assert.deepEqual(report.proposal_changes.source_records, [
+    {
+      collection: "source_catalog.identities",
+      id: "shared-source",
+      action: "modified",
+      label_before: "Shared source",
+      label_after: "Changed shared source",
+      differences: [{ path: "$.label", before: "Shared source", after: "Changed shared source" }],
+    },
+  ]);
+});
+
+test("proposal identity report preserves removals ordering and hostile identities without merging them", () => {
+  const before = proposalFixture();
+  for (const id of ["__proto__", "constructor"])
+    before.ports.push({ ...before.ports[0], id, name: id });
+  const after = structuredClone(before);
+  after.ports.shift();
+  after.ports.reverse();
+  after.ports.find((port) => port.id === "__proto__").launch_arguments = ["--reviewed"];
+  after.source_catalog.identities = [];
+  const report = compareProposal(before, after);
+  assert.deepEqual(
+    report.proposal_changes.ports.map(({ port_id, action }) => ({ port_id, action })),
+    [
+      { port_id: "first", action: "removed" },
+      { port_id: "__proto__", action: "modified" },
+    ],
+  );
+  assert.equal(report.proposal_changes.ports[0].name_after, null);
+  assert.deepEqual(report.proposal_changes.ports[1].changes.execution, [
+    { path: "$.launch_arguments", after: ["--reviewed"] },
+  ]);
+  assert.equal(report.proposal_changes.source_records[0].action, "removed");
+  assert.deepEqual(
+    report.proposal_changes.order_changes.map((item) => item.collection),
+    ["ports", "source_catalog.identities"],
+  );
+  const ordered = structuredClone(before);
+  ordered.ports.reverse();
+  const reorder = compareProposal(before, ordered).proposal_changes;
+  assert.deepEqual(reorder.ports, []);
+  assert.equal(reorder.order_changes.length, 1);
+});
+
+test("proposal identity report refuses duplicate historical identities instead of losing a record", () => {
+  const before = proposalFixture();
+  const after = structuredClone(before);
+  before.source_catalog.validators = [{ id: "validator" }, { id: "validator" }];
+  const fixture = isolatedGenerator();
+  writeFileSync(
+    join(fixture.catalogs, "catalog-schema2-migration-fixture.json"),
+    JSON.stringify(before),
+  );
+  writeFileSync(join(fixture.catalogs, "catalog-current-authoring.json"), JSON.stringify(after));
+  const result = fixture.run("--compare-historical");
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr,
+    /source_catalog.validators has a missing or duplicate record identity/,
+  );
+  assert.equal(result.stdout, "");
+});
+
+test("proposal identity report keeps added empty own fields and exact null values", () => {
+  const before = proposalFixture();
+  const after = structuredClone(before);
+  Object.defineProperty(after.ports[0], "__proto__", { value: {}, enumerable: true });
+  after.ports[0].source_profile = null;
+  const [change] = compareProposal(before, after).proposal_changes.ports;
+  assert.deepEqual(change.changes.other, [{ path: "$.__proto__", after: {} }]);
+  assert.deepEqual(change.changes.source, [
+    { path: "$.source_profile", before: "shared-source", after: null },
+  ]);
+});
+
+test("proposal identity report leaves similarly named unknown presentation fields unclassified", () => {
+  const before = proposalFixture();
+  const after = structuredClone(before);
+  after.ports[0].presentation = {
+    source_requirements: [],
+    saves_and_settings: "external_user_owned",
+    source_requirements_extra: "unclassified source wording",
+    saves_and_settings_extra: "unclassified persistence wording",
+  };
+  const [change] = compareProposal(before, after).proposal_changes.ports;
+  assert.deepEqual(
+    change.changes.source.map((item) => item.path),
+    ["$.presentation.source_requirements"],
+  );
+  assert.deepEqual(
+    change.changes.persistence.map((item) => item.path),
+    ["$.presentation.saves_and_settings"],
+  );
+  assert.deepEqual(
+    change.changes.other.map((item) => item.path),
+    ["$.presentation.saves_and_settings_extra", "$.presentation.source_requirements_extra"],
+  );
+});
 
 test("semantic diff retains own fields colliding with Object.prototype", () => {
   const fixture = isolatedGenerator();
