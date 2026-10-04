@@ -28,6 +28,60 @@ pub struct PsxManagedPreparation {
     pub executable_basename: String,
 }
 
+struct PreparationConfiguration<'a> {
+    primary_source: &'a Path,
+    source_paths: &'a [PathBuf],
+    runtime_source_directory: Option<&'a Path>,
+    executable_basename: &'a str,
+}
+
+impl<'a> PreparationConfiguration<'a> {
+    fn from_preparation(preparation: &'a PsxManagedPreparation) -> Result<Self> {
+        let primary_source = preparation.source_paths.first().ok_or_else(|| {
+            PortcoveError::source("managed PS1 preparation has no verified disc source")
+                .detail("preparation_field", "source_paths")
+        })?;
+        let expected = crate::adapter::psx_source_paths(
+            &preparation.source.path,
+            preparation.source_paths.len(),
+        )
+        .map_err(|error| error.detail("preparation_field", "source_paths"))?;
+        if expected != preparation.source_paths {
+            return Err(PortcoveError::source(
+                "managed PS1 preparation disc paths do not match the verified source record",
+            )
+            .detail("preparation_field", "source_paths"));
+        }
+        crate::archive::validate_relative_path(&preparation.executable_basename, false)
+            .map_err(|error| error.detail("preparation_field", "executable_basename"))?;
+        if preparation.executable_basename.contains('/') {
+            return Err(PortcoveError::verification(
+                "managed PS1 executable basename must be a single path component",
+            )
+            .detail("preparation_field", "executable_basename"));
+        }
+        let runtime_source_directory = preparation.runtime_source_directory.as_deref();
+        if let Some(relative) = runtime_source_directory {
+            let text = crate::path::unicode(relative, "managed PS1 runtime source")
+                .map_err(|error| error.detail("preparation_field", "runtime_source_directory"))?;
+            crate::archive::validate_relative_path(&text.replace('\\', "/"), false)
+                .map_err(|error| error.detail("preparation_field", "runtime_source_directory"))?;
+            if !preparation.source.path.is_dir() || preparation.source_paths.len() < 2 {
+                return Err(PortcoveError::source(
+                    "managed PS1 runtime materialization requires a directory with at least two verified discs",
+                )
+                .detail("preparation_field", "runtime_source_directory"));
+            }
+        }
+        Ok(Self {
+            primary_source,
+            source_paths: &preparation.source_paths,
+            runtime_source_directory,
+            executable_basename: &preparation.executable_basename,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct ToolchainArtifact {
     name: &'static str,
@@ -212,6 +266,7 @@ fn prepare_install_inner(
     if let Some(bios) = &preparation.bios {
         crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
     }
+    let configuration = PreparationConfiguration::from_preparation(preparation)?;
     let cli = root.join("psxrecomp").join("psxrecomp_cli.py");
     let config = root.join("game.toml");
     if !cli.is_file() || !config.is_file() {
@@ -220,15 +275,12 @@ fn prepare_install_inner(
         ));
     }
     let python = toolchain_python(&preparation.toolchain_root)?;
-    let primary_source = preparation.source_paths.first().ok_or_else(|| {
-        PortcoveError::source("managed PS1 preparation has no verified disc source")
-    })?;
     operation.checkpoint()?;
     let temporary = retained_source_workspace(root)?;
     // This existing CHD helper exposes no quiescence observer. A later builder
     // callback cannot erase its uncertainty, even on a contained platform.
     *quiesced = false;
-    let cue = materialize_psx_chd(primary_source, &temporary)?;
+    let cue = materialize_psx_chd(configuration.primary_source, &temporary)?;
     operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     let config_path = crate::path::unicode(&config, "managed build config")?;
@@ -261,7 +313,7 @@ fn prepare_install_inner(
     if let Some(bios) = &preparation.bios {
         crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
     }
-    rewrite_game_discs(&config, &preparation.source_paths)?;
+    rewrite_game_discs(&config, configuration.source_paths)?;
     let build_dir = root.join("build-portcove");
     run_cli(
         &python,
@@ -279,7 +331,7 @@ fn prepare_install_inner(
             "--target".into(),
             "psx-runtime".into(),
             "--exe-basename".into(),
-            preparation.executable_basename.clone(),
+            configuration.executable_basename.into(),
             "--no-pgo".into(),
             "--no-toolchain-download".into(),
             "--prune-after".into(),
@@ -289,19 +341,24 @@ fn prepare_install_inner(
         operation,
         quiesced,
     )?;
-    let executable = platform_executable(&build_dir, &preparation.executable_basename);
+    let executable = platform_executable(&build_dir, configuration.executable_basename);
     if !executable.is_file() {
         return Err(PortcoveError::install(format!(
             "PS1 build completed without {}",
             executable.display()
         )));
     }
-    let runtime_sources = if let Some(relative) = &preparation.runtime_source_directory {
+    let runtime_sources = if let Some(relative) = configuration.runtime_source_directory {
         operation.checkpoint()?;
         *quiesced = false;
-        materialize_runtime_raw_set(&build_dir, relative, preparation)?
+        materialize_runtime_raw_set(
+            &build_dir,
+            relative,
+            &preparation.source,
+            configuration.source_paths,
+        )?
     } else {
-        preparation.source_paths.clone()
+        configuration.source_paths.to_vec()
     };
     let runtime_config = build_dir.join("game.toml");
     prepare_runtime_config(&config, &runtime_config, &runtime_sources)?;
@@ -807,18 +864,19 @@ fn prepare_runtime_config(project: &Path, runtime: &Path, sources: &[PathBuf]) -
 fn materialize_runtime_raw_set(
     build_dir: &Path,
     relative: &Path,
-    preparation: &PsxManagedPreparation,
+    source: &SourceRecord,
+    source_paths: &[PathBuf],
 ) -> Result<Vec<PathBuf>> {
     let relative_text = crate::path::unicode(relative, "managed PS1 runtime source")?;
     let normalized_relative = relative_text.replace('\\', "/");
     crate::archive::validate_relative_path(&normalized_relative, false)?;
     let destination = build_dir.join(relative);
-    crate::adapter::materialize_psx_cue_set(&preparation.source.path, &destination)?;
+    crate::adapter::materialize_psx_cue_set(&source.path, &destination)?;
 
-    let mut runtime_sources = Vec::with_capacity(preparation.source_paths.len());
-    let mut hashes = Vec::with_capacity(preparation.source_paths.len());
+    let mut runtime_sources = Vec::with_capacity(source_paths.len());
+    let mut hashes = Vec::with_capacity(source_paths.len());
     let mut total_size = 0_u64;
-    for index in 0..preparation.source_paths.len() {
+    for index in 0..source_paths.len() {
         let bin_filename = format!("disc-{:02}.bin", index + 1);
         let materialized = destination.join(&bin_filename);
         if !materialized.is_file() {
@@ -840,13 +898,13 @@ fn materialize_runtime_raw_set(
         )));
     }
     let aggregate = crate::adapter::aggregate_sha256(&hashes);
-    if aggregate != preparation.source.sha256 || total_size != preparation.source.size {
+    if aggregate != source.sha256 || total_size != source.size {
         return Err(PortcoveError::verification(
             "managed PS1 runtime source does not match the verified disc set",
         )
-        .detail("expected_sha256", &preparation.source.sha256)
+        .detail("expected_sha256", &source.sha256)
         .detail("actual_sha256", aggregate)
-        .detail("expected_size", preparation.source.size.to_string())
+        .detail("expected_size", source.size.to_string())
         .detail("actual_size", total_size.to_string()));
     }
     Ok(runtime_sources)
@@ -1083,6 +1141,232 @@ mod tests {
     };
 
     const BUILDER_FIXTURE: &str = "psx::tests::managed_builder_fixture_child";
+
+    fn preparation_input_fixture(root: &Path, multi_disc: bool) -> PsxManagedPreparation {
+        let source_path = if multi_disc {
+            let directory = root.join("owned-discs");
+            fs::create_dir(&directory).unwrap();
+            for name in ["disc-01.chd", "disc-02.chd"] {
+                fs::write(directory.join(name), name.as_bytes()).unwrap();
+            }
+            directory
+        } else {
+            let file = root.join("owned-disc.chd");
+            fs::write(&file, b"inert owned disc bytes").unwrap();
+            file
+        };
+        let (storage_sha256, storage_size) =
+            crate::adapter::source_storage_identity(&source_path).unwrap();
+        let source_paths =
+            crate::adapter::psx_source_paths(&source_path, if multi_disc { 2 } else { 1 }).unwrap();
+        PsxManagedPreparation {
+            source: SourceRecord {
+                profile_id: "owned-ps1-disc".into(),
+                path: source_path,
+                sha256: storage_sha256.clone(),
+                size: storage_size,
+                storage_sha256,
+                storage_size,
+                updated_at: Library::now(),
+                observed_identity: None,
+            },
+            bios: None,
+            source_paths,
+            runtime_source_directory: None,
+            toolchain_root: root.join("absent-owned-toolchain"),
+            executable_basename: "owned-game".into(),
+        }
+    }
+
+    fn assert_invalid_preparation_input(
+        root: &Path,
+        preparation: &PsxManagedPreparation,
+        field: &str,
+    ) {
+        let staging = root.join("owned-staging");
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("preserve"), b"preserve private bytes").unwrap();
+        let identity = crate::adapter::source_storage_identity(&preparation.source.path).unwrap();
+        let (result, quiesced) = prepare_install(
+            &staging,
+            preparation,
+            &OperationCoordinator::new("owned-input-validation", None),
+        );
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.details.get("preparation_field").map(String::as_str),
+            Some(field),
+            "unexpected refusal: {error:?}"
+        );
+        assert!(quiesced);
+        assert_eq!(
+            fs::read(staging.join("preserve")).unwrap(),
+            b"preserve private bytes"
+        );
+        assert_eq!(fs::read_dir(&staging).unwrap().count(), 1);
+        assert_eq!(
+            crate::adapter::source_storage_identity(&preparation.source.path).unwrap(),
+            identity
+        );
+    }
+
+    #[test]
+    fn managed_preparation_rejects_unbound_disc_paths_before_adapter_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preparation = preparation_input_fixture(temporary.path(), true);
+        let foreign = temporary.path().join("foreign-disc.chd");
+        fs::write(&foreign, b"foreign inert bytes").unwrap();
+        let mut reversed = preparation.source_paths.clone();
+        reversed.reverse();
+        for paths in [vec![foreign], Vec::new(), reversed] {
+            let mut invalid = preparation.clone();
+            invalid.source_paths = paths;
+            assert_invalid_preparation_input(temporary.path(), &invalid, "source_paths");
+        }
+    }
+
+    #[test]
+    fn managed_preparation_rejects_unsafe_basename_before_adapter_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preparation = preparation_input_fixture(temporary.path(), false);
+        for basename in ["../outside", "nested/game", "nested\\game", "", "C:game"] {
+            let mut invalid = preparation.clone();
+            invalid.executable_basename = basename.into();
+            assert_invalid_preparation_input(temporary.path(), &invalid, "executable_basename");
+        }
+    }
+
+    #[test]
+    fn managed_preparation_rejects_unsafe_runtime_path_before_adapter_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preparation = preparation_input_fixture(temporary.path(), false);
+        for path in [
+            "../outside",
+            "/outside",
+            "C:/outside",
+            "",
+            "disc/../outside",
+        ] {
+            let mut invalid = preparation.clone();
+            invalid.runtime_source_directory = Some(path.into());
+            assert_invalid_preparation_input(
+                temporary.path(),
+                &invalid,
+                "runtime_source_directory",
+            );
+        }
+    }
+
+    #[test]
+    fn managed_preparation_rejects_single_disc_runtime_mode_before_adapter_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut preparation = preparation_input_fixture(temporary.path(), false);
+        preparation.runtime_source_directory = Some("owned/discs".into());
+        assert_invalid_preparation_input(
+            temporary.path(),
+            &preparation,
+            "runtime_source_directory",
+        );
+
+        let directory = temporary.path().join("owned-one-disc");
+        fs::create_dir(&directory).unwrap();
+        fs::write(directory.join("disc-01.chd"), b"inert owned disc bytes").unwrap();
+        let (sha256, size) = crate::adapter::source_storage_identity(&directory).unwrap();
+        preparation.source.path = directory.clone();
+        preparation.source.sha256 = sha256.clone();
+        preparation.source.size = size;
+        preparation.source.storage_sha256 = sha256;
+        preparation.source.storage_size = size;
+        preparation.source_paths = crate::adapter::psx_source_paths(&directory, 1).unwrap();
+        assert_invalid_preparation_input(
+            temporary.path(),
+            &preparation,
+            "runtime_source_directory",
+        );
+    }
+
+    #[test]
+    fn managed_preparation_valid_disc_inputs_reach_existing_package_check() {
+        for multi_disc in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let mut preparation = preparation_input_fixture(temporary.path(), multi_disc);
+            for runtime in [None, Some(PathBuf::from("owned/discs"))] {
+                if !multi_disc && runtime.is_some() {
+                    continue;
+                }
+                preparation.runtime_source_directory = runtime;
+                let (result, quiesced) = prepare_install(
+                    temporary.path(),
+                    &preparation,
+                    &OperationCoordinator::new("owned-valid-input", None),
+                );
+                let error = result.unwrap_err();
+                assert_eq!(error.code, crate::ErrorCode::Install);
+                assert!(error.message.contains("fixed psxrecomp CLI contract"));
+                assert!(quiesced);
+            }
+        }
+    }
+
+    #[test]
+    fn managed_preparation_configuration_preserves_valid_inputs() {
+        for multi_disc in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let mut preparation = preparation_input_fixture(temporary.path(), multi_disc);
+            for runtime in [None, Some(PathBuf::from("owned/discs"))] {
+                if !multi_disc && runtime.is_some() {
+                    continue;
+                }
+                preparation.runtime_source_directory = runtime;
+                let configuration =
+                    PreparationConfiguration::from_preparation(&preparation).unwrap();
+                assert_eq!(configuration.primary_source, preparation.source_paths[0]);
+                assert_eq!(configuration.source_paths, preparation.source_paths);
+                assert_eq!(configuration.executable_basename, "owned-game");
+                assert_eq!(
+                    configuration.runtime_source_directory,
+                    preparation.runtime_source_directory.as_deref()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn managed_preparation_cancellation_precedes_invalid_inputs_and_preserves_quiescence() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut preparation = preparation_input_fixture(temporary.path(), false);
+        preparation.source_paths.clear();
+        let service =
+            crate::PortcoveService::new(Library::open(temporary.path().join("library")).unwrap())
+                .unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("sample"),
+            )
+            .unwrap();
+        service.request_cancellation(&activity.id).unwrap();
+        let staging = temporary.path().join("owned-staging");
+        fs::create_dir(&staging).unwrap();
+        fs::write(staging.join("preserve"), b"preserve private bytes").unwrap();
+        let identity = crate::adapter::source_storage_identity(&preparation.source.path).unwrap();
+        for previous in [true, false] {
+            let mut quiesced = previous;
+            let result = prepare_install_inner(&staging, &preparation, &operation, &mut quiesced);
+            assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
+            assert_eq!(quiesced, previous);
+            assert_eq!(fs::read_dir(&staging).unwrap().count(), 1);
+            assert_eq!(
+                fs::read(staging.join("preserve")).unwrap(),
+                b"preserve private bytes"
+            );
+            assert_eq!(
+                crate::adapter::source_storage_identity(&preparation.source.path).unwrap(),
+                identity
+            );
+        }
+    }
 
     // Execute this repository's native test binary through the production
     // builder boundary. No upstream Python, compiler, game or source is run.
