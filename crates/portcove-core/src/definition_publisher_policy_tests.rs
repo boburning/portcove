@@ -1232,6 +1232,14 @@ async fn managed_installer_requires_resolver_proof_and_refuses_artifact_redirect
 async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract() {
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
+    let phase_clock = std::time::Instant::now();
+    let phase = |label: &str| {
+        println!(
+            "managed ordinary lifecycle {label}: {:?}",
+            phase_clock.elapsed()
+        );
+    };
+    phase("catalog:start");
     let platform = crate::Platform::current().unwrap();
     let executable = if cfg!(windows) {
         "fixture.exe"
@@ -1244,8 +1252,12 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
     port.executable_hints = std::collections::BTreeMap::from([(platform, vec![executable.into()])]);
     baseline.ports.push(port);
     let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
+    phase("catalog:complete");
+    phase("managed-fixture:start");
     let (fixture, key, root, _directory, library, catalog, mut scope) =
         managed_fixture_for(authored).await;
+    phase("managed-fixture:complete");
+    phase("ordinary-load:start");
     assert!(
         library
             .load_catalog()
@@ -1254,6 +1266,7 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
             .definition_selection(ID)
             .is_some()
     );
+    phase("ordinary-load:complete");
     let server = AcquisitionHttp::new();
     scope.fixture_origin = Some(server.origin.clone());
     let installer = crate::Installer::new(library.clone()).unwrap();
@@ -1262,6 +1275,7 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
         // A fresh provider models the next ordinary client session. The earlier
         // cache test separately qualifies reuse within the live session's TTL.
         let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+        phase(&format!("{version}:zip:start"));
         let payload = format!("owned synthetic ordinary artifact {version}");
         let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
         archive
@@ -1273,6 +1287,7 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
         archive.write_all(payload.as_bytes()).unwrap();
         let bytes = archive.finish().unwrap().into_inner();
         let digest = hex::encode(Sha256::digest(&bytes));
+        phase(&format!("{version}:zip:complete"));
         server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
         let mut release = server.release(true);
         release[0]["tag_name"] = version.into();
@@ -1280,6 +1295,7 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
         release[0]["assets"][0]["size"] = bytes.len().into();
         release[0]["assets"][0]["digest"] = format!("sha256:{digest}").into();
         server.json(release);
+        phase(&format!("{version}:resolve:start"));
         let resolution = provider
             .resolve_scoped(
                 catalog.port(ID).unwrap(),
@@ -1289,6 +1305,7 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
             )
             .await
             .unwrap();
+        phase(&format!("{version}:resolve:complete"));
         server.bytes(&bytes);
         let request = crate::InstallRequest {
             port_id: ID.into(),
@@ -1302,10 +1319,13 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
                 .unwrap(),
         };
         let operation = crate::operation::OperationCoordinator::new("install", None);
+        phase(&format!("{version}:install:start"));
         let installed = installer
             .install(request, &operation, |_| {})
             .await
             .unwrap();
+        phase(&format!("{version}:install:complete"));
+        phase(&format!("{version}:retained-readback:start"));
         assert_eq!(installed.version, version);
         assert_eq!(installed.artifact.sha256, digest);
         assert_eq!(
@@ -1322,7 +1342,9 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
             serde_json::to_value(catalog.port(ID).unwrap()).unwrap()
         );
         delivered.push(installed);
+        phase(&format!("{version}:retained-readback:complete"));
     }
+    phase("ordinary-status:start");
     let status = library.status(ID, ReleaseChannel::Stable).unwrap();
     assert_eq!(status.active.unwrap().id, delivered[1].id);
     assert_eq!(status.previous.unwrap().id, delivered[0].id);
@@ -1335,6 +1357,8 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
 
     // The same capable service must consume a signed presentation correction
     // without changing either previously admitted installation contract.
+    phase("ordinary-status:complete");
+    phase("ordinary-service:start");
     let before = PortcoveService::new(library.clone())
         .unwrap()
         .status(ID)
@@ -1349,6 +1373,8 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
         launch.eligibility.outcome,
         DefinitionEligibilityOutcome::Eligible
     );
+    phase("ordinary-service:complete");
+    phase("retained-trees:start");
     let retained_trees: Vec<_> = delivered
         .iter()
         .map(|installed| crate::library_transfer::reviewed_tree(&installed.path).unwrap())
@@ -1360,10 +1386,15 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
     fs::write(user.join("config/settings.json"), b"{\"owned\":true}").unwrap();
     let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
 
+    phase("retained-trees:complete");
+
     for definition_revision in [8, 9] {
+        phase(&format!("revision-{definition_revision}:acquire:start"));
         let (candidate, admission) =
             acquire_compatible_correction(&fixture, &key, &root, &catalog, definition_revision)
                 .await;
+        phase(&format!("revision-{definition_revision}:acquire:complete"));
+        phase(&format!("revision-{definition_revision}:select:start"));
         library
             .apply_definition_publisher_policy(&admission, Some(&candidate))
             .unwrap();
@@ -1374,12 +1405,18 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
             .unwrap();
         library.select_definition_candidate(eligible).unwrap();
 
+        phase(&format!("revision-{definition_revision}:select:complete"));
+        phase(&format!("revision-{definition_revision}:reopen:start"));
         let reopened = PortcoveService::new(library.clone()).unwrap();
         assert_eq!(
             reopened.catalog().port(ID).unwrap().summary,
             "Reviewed presentation correction"
         );
         let after = reopened.status(ID).unwrap();
+        phase(&format!("revision-{definition_revision}:reopen:complete"));
+        phase(&format!(
+            "revision-{definition_revision}:retained-readback:start"
+        ));
         assert_eq!(after.active.as_ref().unwrap().id, delivered[1].id);
         assert_eq!(after.previous.as_ref().unwrap().id, delivered[0].id);
         for (installed, tree) in delivered.iter().zip(&retained_trees) {
@@ -1407,7 +1444,11 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
             launch.eligibility.outcome,
             DefinitionEligibilityOutcome::Eligible
         );
+        phase(&format!(
+            "revision-{definition_revision}:retained-readback:complete"
+        ));
     }
+    phase("complete");
 }
 
 async fn acquire_compatible_correction(
