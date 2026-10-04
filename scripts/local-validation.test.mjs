@@ -1090,6 +1090,49 @@ test("frontend configuration changes use the complete small UI suite", () => {
   assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
 });
 
+for (const manifest of ["package.json", "apps/desktop/package.json"]) {
+  test(`${manifest} selects its direct workflow pin and script contract`, () => {
+    const { selection, plan } = planFor([manifest]);
+    assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mjs"));
+    const node = plan.find((entry) => entry.id === "node-tests");
+    assert.ok(node.args.includes("scripts/ci-workflow.test.mjs"));
+    assert.ok(selection.nodeTests.has("scripts/local-validation.test.mjs"));
+    assert.equal(selection.ui, true);
+    assert.equal(selection.uiFullTests, true);
+    assert.equal(selection.fallow, manifest === "package.json");
+    assert.equal(selection.browser, manifest === "apps/desktop/package.json");
+    assert.ok(ids(plan).includes("ui-tests"));
+    if (manifest === "package.json") {
+      assert.ok(selection.nodeTests.has("scripts/dependency-automation.test.mjs"));
+      assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
+      assert.ok(ids(plan).includes("fallow"));
+    } else {
+      assert.ok(ids(plan).includes("ui-browser-tests"));
+    }
+  });
+}
+
+test("manifest consumers coalesce in mixed plans without widening lock-only contracts", () => {
+  const { selection, plan } = planFor([
+    "package.json",
+    "apps/desktop/package.json",
+    "scripts/quality-tools.mjs",
+  ]);
+  assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mjs"));
+  assert.ok(selection.nodeTests.has("scripts/quality-tools.test.mjs"));
+  assert.ok(selection.nodeTests.has("scripts/local-validation.test.mjs"));
+  const node = plan.find((entry) => entry.id === "node-tests");
+  assert.equal(node.args.filter((arg) => arg === "scripts/ci-workflow.test.mjs").length, 1);
+  assert.ok(ids(plan).includes("ui-tests"));
+  assert.ok(ids(plan).includes("ui-browser-tests"));
+  assert.ok(ids(plan).includes("fallow"));
+  for (const lock of ["pnpm-lock.yaml", "apps/desktop/pnpm-lock.yaml"]) {
+    const selected = planFor([lock]);
+    assert.equal(selected.selection.nodeTests.has("scripts/ci-workflow.test.mjs"), false);
+    assert.ok(selected.selection.nodeTests.has("scripts/dependency-automation.test.mjs"));
+  }
+});
+
 test("localization configuration changes use the complete UI and i18n suite", () => {
   for (const path of ["apps/desktop/i18next.config.ts", "apps/desktop/i18next.invalid.config.ts"]) {
     const { selection, plan } = planFor([path]);
