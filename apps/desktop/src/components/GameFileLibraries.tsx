@@ -490,6 +490,45 @@ function LiveScanResults({
   );
 }
 
+function useSavedFolderView(setError: (error: string) => void) {
+  const [roots, setRoots] = useState<GameFileRoot[]>();
+  const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
+  const [readConfirmed, setReadConfirmed] = useState(false);
+  const requests = useRef(new LatestRequestGeneration());
+  useEffect(() => {
+    const reads = requests.current;
+    const request = reads.begin();
+    void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
+      .then(([savedRoots, savedSnapshot]) => {
+        if (!reads.isCurrent(request)) return;
+        setRoots(savedRoots);
+        setSnapshot(savedSnapshot);
+        setReadConfirmed(true);
+      })
+      .catch((value: unknown) => {
+        if (reads.isCurrent(request)) setError(errorText(value));
+      });
+    return () => {
+      reads.begin();
+    };
+  }, [setError]);
+  const refresh = async () => {
+    const request = requests.current.begin();
+    setReadConfirmed(false);
+    const [savedRoots, savedSnapshot] = await Promise.all([
+      desktopApi.gameFileRoots(),
+      desktopApi.gameFileScanSnapshot(),
+    ]);
+    if (requests.current.isCurrent(request)) {
+      setRoots(savedRoots);
+      setSnapshot(savedSnapshot);
+      setReadConfirmed(true);
+    }
+    return savedRoots;
+  };
+  return { roots, snapshot, setSnapshot, readConfirmed, refresh };
+}
+
 export function GameFileLibraries({
   ports,
   profiles,
@@ -511,13 +550,10 @@ export function GameFileLibraries({
   setupSource?: SourceRecord;
   setSetupSource?: (source?: SourceRecord) => void;
 }) {
-  const [roots, setRoots] = useState<GameFileRoot[]>();
-  const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
-  const [rootReadConfirmed, setRootReadConfirmed] = useState(false);
-  const rootReads = useRef(new LatestRequestGeneration());
   const [busy, setBusy] = useState("");
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string>();
+  const { roots, snapshot, setSnapshot, readConfirmed, refresh } = useSavedFolderView(setError);
   const [notice, setNotice] = useState<string>();
   const [operationId, setOperationId] = useState<string>();
   const [removingId, setRemovingId] = useState<string>();
@@ -547,23 +583,6 @@ export function GameFileLibraries({
   const reviewedCandidate = useRef<{ profile_id: string; path: string } | undefined>(undefined);
   const focusAfterReview = useRef(false);
   const focusToSetup = useRef(false);
-  useEffect(() => {
-    const reads = rootReads.current;
-    const request = reads.begin();
-    void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
-      .then(([savedRoots, savedSnapshot]) => {
-        if (!reads.isCurrent(request)) return;
-        setRoots(savedRoots);
-        setSnapshot(savedSnapshot);
-        setRootReadConfirmed(true);
-      })
-      .catch((value: unknown) => {
-        if (reads.isCurrent(request)) setError(errorText(value));
-      });
-    return () => {
-      reads.begin();
-    };
-  }, []);
   useEffect(() => {
     if (scanning || !focusAfterScan.current) return;
     const candidate = focusAfterScan.current;
@@ -628,20 +647,6 @@ export function GameFileLibraries({
       .finally(() => {
         setBusy("");
       });
-  };
-  const refresh = async () => {
-    const request = rootReads.current.begin();
-    setRootReadConfirmed(false);
-    const [savedRoots, savedSnapshot] = await Promise.all([
-      desktopApi.gameFileRoots(),
-      desktopApi.gameFileScanSnapshot(),
-    ]);
-    if (rootReads.current.isCurrent(request)) {
-      setRoots(savedRoots);
-      setSnapshot(savedSnapshot);
-      setRootReadConfirmed(true);
-    }
-    return savedRoots;
   };
   const refreshAfterRootChange = async (message: string) => {
     setNotice(message);
@@ -906,7 +911,7 @@ export function GameFileLibraries({
       {notice && <p role="status">{notice}</p>}
       <CompletedScan
         snapshot={snapshot}
-        readConfirmed={rootReadConfirmed}
+        readConfirmed={readConfirmed}
         roots={roots}
         ports={ports}
         profiles={profiles}
