@@ -60,7 +60,10 @@ embeds its public trust and local repository URLs in a qualification-only
 predecessor NSIS package, and uses the installed predecessor to select the signed
 candidate and stage fixture-supplied installer bytes through the desktop
 check-and-stage operation. The harness first requires a one-byte truncated
-installer to fail with empty staging. It then injects a malformed staging
+installer to fail with empty staging, then a same-length corrupted copy to fail
+against the authenticated SHA-256. The latter receipt retains expected and
+observed lengths and digests, and proves that staging remains empty and the
+predecessor, library marker and original candidate remain unchanged. It then injects a malformed staging
 journal and stray payload, and requires the installed executable's
 GUI-independent status and targeted staging repair commands to preserve the
 registered predecessor and library marker. The renderer then downloads a fresh

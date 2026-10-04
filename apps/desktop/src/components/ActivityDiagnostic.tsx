@@ -2,7 +2,13 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { ActivityDiagnostic as Diagnostic } from "../types";
-import { errorText, formatBytes } from "../view-model";
+import {
+  failurePresentation,
+  formatBytes,
+  isCancellation,
+  type FailureDisplay,
+} from "../view-model";
+import { FailureDetails } from "./FailureDetails";
 import { Button } from "./ui/button";
 
 const diagnosticTextareaClass =
@@ -33,41 +39,77 @@ function ActivityDiagnosticSession({
 }) {
   const [capture, setCapture] = useState<Diagnostic>();
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string>();
+  const [failure, setFailure] = useState<{
+    presentation?: FailureDisplay;
+    cancelled: boolean;
+  }>();
   const [copied, setCopied] = useState(false);
   const request = useRef(0);
+  const reading = useRef(false);
+  const readRequested = useRef(false);
   useLayoutEffect(() => {
     return () => {
       request.current += 1;
     };
   }, []);
   const load = async () => {
+    if (reading.current) return;
+    reading.current = true;
+    readRequested.current = true;
     const current = ++request.current;
     setPending(true);
-    setError(undefined);
+    setFailure(undefined);
     setCopied(false);
     try {
       const value = await desktopApi.activityDiagnostic(activityId, generation);
       if (request.current === current) setCapture(value);
     } catch (value) {
-      if (request.current === current) setError(errorText(value));
+      if (request.current === current)
+        setFailure({ presentation: failurePresentation(value), cancelled: isCancellation(value) });
     } finally {
-      if (request.current === current) setPending(false);
+      if (request.current === current) {
+        reading.current = false;
+        setPending(false);
+      }
     }
   };
   return (
     <details
       className="activity-diagnostic col-[2/-1] min-w-0 text-xs"
       onToggle={(event) => {
-        if (event.currentTarget.open && capture === undefined && !pending) void load();
+        if (event.target !== event.currentTarget) return;
+        if (event.currentTarget.open && !readRequested.current) void load();
       }}
     >
       <summary data-focusable className="cursor-pointer">
         View preparation log
       </summary>
-      {pending && <p role="status">Reading the retained log…</p>}
-      {error && <p role="alert">{error}</p>}
-      {capture?.length === 0 && (
+      {pending && (
+        <p role="status">
+          Reading the retained log…
+          {capture !== undefined &&
+            " Showing the last loaded capture while the current log is checked."}
+        </p>
+      )}
+      {failure && (
+        <div role={failure.cancelled ? "status" : "alert"}>
+          <strong>
+            {failure.cancelled ? "Log read cancelled" : "Preparation log could not be loaded"}
+          </strong>
+          <p>
+            Current log availability is unknown.
+            {capture !== undefined &&
+              " Showing the last loaded capture; it may have changed since it was read."}
+          </p>
+          {failure.presentation && (
+            <>
+              <p>{failure.presentation.summary}</p>
+              <FailureDetails presentation={failure.presentation} showMutationSummary={false} />
+            </>
+          )}
+        </div>
+      )}
+      {capture?.length === 0 && !pending && !failure && (
         <p>
           No retained diagnostic capture is available. Older activity details may be available in a
           redacted support bundle in Settings.
@@ -139,7 +181,7 @@ function ActivityDiagnosticSession({
             void load();
           }}
         >
-          Refresh captured log
+          {failure ? "Retry log read" : "Refresh captured log"}
         </Button>
       </div>
     </details>
