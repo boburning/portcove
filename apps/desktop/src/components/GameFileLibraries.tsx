@@ -241,6 +241,7 @@ function useContinuationSource(
 
 function CompletedScan({
   snapshot,
+  readConfirmed,
   roots,
   ports,
   profiles,
@@ -253,6 +254,7 @@ function CompletedScan({
   review,
 }: {
   snapshot?: GameFileScanSnapshot | null;
+  readConfirmed: boolean;
   roots?: GameFileRoot[];
   ports: PortDefinition[];
   profiles: SourceProfile[];
@@ -270,9 +272,11 @@ function CompletedScan({
     <section className="source-discovery-results" aria-label="Saved folder scan results">
       <h3>Last completed scan</h3>
       <p>
-        {snapshot.freshness === "inputs_match"
-          ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
-          : "Saved roots, availability, catalog, or search rules changed. Scan again before using these results."}
+        {!readConfirmed
+          ? "This saved-folder view needs a refresh before using scan results. Use Refresh folders to check the current state."
+          : snapshot.freshness === "inputs_match"
+            ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
+            : "Saved roots, availability, catalog, or search rules changed. Scan again before using these results."}
       </p>
       <p>
         Checked {report.entries_examined} entries in {report.searched_roots.length} available
@@ -329,7 +333,7 @@ function CompletedScan({
             ports={ports}
             onOpenPort={onOpenPort}
             busy={busy}
-            stale={snapshot.freshness !== "inputs_match"}
+            stale={!readConfirmed || snapshot.freshness !== "inputs_match"}
             review={() => review(candidate)}
             reviewLabel="Review game files"
           />
@@ -508,6 +512,7 @@ export function GameFileLibraries({
 }) {
   const [roots, setRoots] = useState<GameFileRoot[]>();
   const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
+  const [rootReadConfirmed, setRootReadConfirmed] = useState(true);
   const [busy, setBusy] = useState("");
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string>();
@@ -621,13 +626,25 @@ export function GameFileLibraries({
       });
   };
   const refresh = async () => {
+    setRootReadConfirmed(false);
     const [savedRoots, savedSnapshot] = await Promise.all([
       desktopApi.gameFileRoots(),
       desktopApi.gameFileScanSnapshot(),
     ]);
     setRoots(savedRoots);
     setSnapshot(savedSnapshot);
+    setRootReadConfirmed(true);
     return savedRoots;
+  };
+  const refreshAfterRootChange = async (message: string) => {
+    setNotice(message);
+    try {
+      await refresh();
+    } catch {
+      setNotice(
+        `${message} The saved-folder view couldn't refresh. Use Refresh folders to check the current state.`,
+      );
+    }
   };
   const add = () =>
     run("Choosing folder…", async () => {
@@ -641,7 +658,7 @@ export function GameFileLibraries({
       }
       await desktopApi.addGameFileRoot(path);
       setPlan(undefined);
-      await refresh();
+      await refreshAfterRootChange("Folder saved.");
     });
   const relink = (root: GameFileRoot) =>
     run("Choosing replacement…", async () => {
@@ -649,14 +666,18 @@ export function GameFileLibraries({
       if (!path) return;
       await desktopApi.relinkGameFileRoot(root.id, path);
       setPlan(undefined);
-      await refresh();
+      await refreshAfterRootChange("Saved folder location updated.");
     });
   const remove = (root: GameFileRoot) =>
     run("Removing folder…", async () => {
-      await desktopApi.removeGameFileRoot(root.id);
+      const removed = await desktopApi.removeGameFileRoot(root.id);
       setRemovingId(undefined);
       setPlan(undefined);
-      await refresh();
+      await refreshAfterRootChange(
+        removed
+          ? "Saved folder removed. The game files were kept."
+          : "The folder was already absent from saved folders.",
+      );
     });
   const scan = () =>
     (async () => {
@@ -878,6 +899,7 @@ export function GameFileLibraries({
       {notice && <p role="status">{notice}</p>}
       <CompletedScan
         snapshot={snapshot}
+        readConfirmed={rootReadConfirmed}
         roots={roots}
         ports={ports}
         profiles={profiles}

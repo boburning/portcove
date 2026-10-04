@@ -749,6 +749,118 @@ it("preserves a saved root until removal is confirmed", async () => {
   expect(remove).toHaveBeenCalledWith(saved.id);
 });
 
+it.each([
+  ["add", "roots"],
+  ["add", "snapshot"],
+  ["relink", "roots"],
+  ["relink", "snapshot"],
+  ["remove", "roots"],
+  ["remove", "snapshot"],
+] as const)("keeps a committed %s distinct from a failed %s read", async (action, read) => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+  const onOpenPort = vi.fn();
+  await act(async () =>
+    root.render(
+      <GameFileLibraries
+        key="loaded"
+        ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
+        profiles={[]}
+        registeredSources={[snapshot.report.candidates[0]]}
+        onOpenPort={onOpenPort}
+      />,
+    ),
+  );
+  expect(button("Review game files").disabled).toBe(false);
+  expect(button("View Game A details").disabled).toBe(false);
+  const failRead = () => {
+    if (read === "roots")
+      vi.mocked(desktopApi.gameFileRoots).mockRejectedValue(new Error("folder read unavailable"));
+    else
+      vi.mocked(desktopApi.gameFileScanSnapshot).mockRejectedValue(
+        new Error("scan read unavailable"),
+      );
+  };
+  let mutation;
+  let notice;
+  if (action === "add") {
+    mutation = vi.spyOn(desktopApi, "addGameFileRoot").mockImplementation(async () => {
+      failRead();
+      return { ...saved, id: "root-2", path: "E:/More Games" };
+    });
+    notice = "Folder saved.";
+    await click("Add folder");
+  } else if (action === "relink") {
+    mutation = vi.spyOn(desktopApi, "relinkGameFileRoot").mockImplementation(async () => {
+      failRead();
+      return { ...saved, path: "E:/More Games" };
+    });
+    notice = "Saved folder location updated.";
+    await click("Relink");
+  } else {
+    mutation = vi.spyOn(desktopApi, "removeGameFileRoot").mockImplementation(async () => {
+      failRead();
+      return true;
+    });
+    notice = "Saved folder removed. The game files were kept.";
+    await click("Remove");
+    await click("Remove saved folder");
+  }
+  expect(document.body.textContent).toContain(notice);
+  expect(document.body.textContent).toContain("Use Refresh folders");
+  expect(document.querySelector('[role="alert"]')).toBeNull();
+  expect(document.body.textContent).not.toContain("Saved roots and catalog match this snapshot");
+  expect(document.body.textContent).toContain("D:/Games/game.z64");
+  expect(button("Review game files").disabled).toBe(true);
+  expect(button("View Game A details").disabled).toBe(true);
+  await click("Refresh folders");
+  expect(document.querySelector('[role="alert"]')).not.toBeNull();
+  expect(button("Review game files").disabled).toBe(true);
+  vi.mocked(desktopApi.gameFileRoots).mockResolvedValue([saved]);
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...snapshot,
+    freshness: "inputs_changed",
+  });
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("Scan again before using these results");
+  expect(button("Review game files").disabled).toBe(true);
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+  await click("Refresh folders");
+  expect(document.querySelector('[role="alert"]')).toBeNull();
+  expect(document.body.textContent).toContain("Saved roots and catalog match this snapshot");
+  expect(button("Review game files").disabled).toBe(false);
+  expect(button("View Game A details").disabled).toBe(false);
+  expect(mutation).toHaveBeenCalledOnce();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+  expect(onOpenPort).not.toHaveBeenCalled();
+});
+
+it("does not describe an already absent root as a new removal", async () => {
+  vi.spyOn(desktopApi, "removeGameFileRoot").mockResolvedValue(false);
+  await click("Remove");
+  await click("Remove saved folder");
+  expect(document.body.textContent).toContain("The folder was already absent from saved folders.");
+  expect(document.body.textContent).not.toContain("Saved folder removed.");
+});
+
+it.each(["failure", "cancellation"] as const)(
+  "preserves a confirmed scan on a root mutation %s",
+  async (outcome) => {
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+    await act(async () => root.render(<GameFileLibraries key="loaded" ports={[]} profiles={[]} />));
+    vi.spyOn(desktopApi, "removeGameFileRoot").mockRejectedValue(
+      outcome === "failure" ? new Error("removal refused") : { code: "cancelled" },
+    );
+    await click("Remove");
+    await click("Remove saved folder");
+    expect(document.body.textContent).toContain(
+      outcome === "failure" ? "removal refused" : "Action cancelled.",
+    );
+    expect(document.body.textContent).not.toContain("Saved folder removed.");
+    expect(document.body.textContent).toContain("Saved roots and catalog match this snapshot");
+    expect(button("Review game files").disabled).toBe(false);
+  },
+);
+
 it("uses core root mutations for chosen folders and relinks the same root identity", async () => {
   const add = vi.spyOn(desktopApi, "addGameFileRoot").mockResolvedValue({
     ...saved,
