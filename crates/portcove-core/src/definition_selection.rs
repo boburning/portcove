@@ -770,9 +770,10 @@ pub(crate) fn load_selected_definition_catalog(
         ));
     }
     require_fresh(&selection.provenance, now_unix)?;
+    let projection = selection.snapshot.projection()?;
     if !crate::definition_repository::publisher_policy::allows_projection(
         connection,
-        &selection.snapshot.projection()?,
+        &projection,
         &selection.provenance,
     )? {
         return Err(PortcoveError::conflict(
@@ -794,7 +795,7 @@ pub(crate) fn load_selected_definition_catalog(
         }
         expiration = expiration.min(policy_expiration);
     }
-    let mut catalog = selection.snapshot.catalog()?;
+    let mut catalog = projection.catalog().clone();
     crate::definition_loader::validate_definition_transition(
         baseline,
         &catalog,

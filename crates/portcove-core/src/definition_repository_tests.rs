@@ -1187,6 +1187,13 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
     let library = Library::open(temporary.path()).unwrap();
     select_candidate(&library, &candidate, &port_id);
 
+    let (valid_catalog, valid_provenance) = library.load_catalog().unwrap();
+    assert_eq!(valid_provenance.origin, CatalogOrigin::DefinitionSelected);
+    let valid_identity = valid_catalog
+        .definition_selection(&port_id)
+        .unwrap()
+        .clone();
+
     let active_json: String = library
         .connection()
         .unwrap()
@@ -1231,6 +1238,40 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
     assert!(loaded.port(&port_id).is_err());
     assert!(!provenance.fallback_reasons.is_empty());
     assert!(library.definition_selection_status().is_err());
+
+    // A valid active snapshot must not hide corruption in the previous one.
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state SET active_json=?1,previous_json=?2 WHERE singleton=1",
+            [&active_json, &serde_json::to_string(&corrupt).unwrap()],
+        )
+        .unwrap();
+    let (loaded, provenance) = library.load_catalog().unwrap();
+    assert_eq!(provenance.origin, CatalogOrigin::Embedded);
+    assert!(loaded.port(&port_id).is_err());
+    assert!(!provenance.fallback_reasons.is_empty());
+    assert!(library.definition_selection_status().is_err());
+
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state SET previous_json=NULL WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+    let (restored, provenance) = library.load_catalog().unwrap();
+    assert_eq!(provenance, valid_provenance);
+    assert_eq!(
+        restored.definition_selection(&port_id),
+        Some(&valid_identity)
+    );
+    assert_eq!(
+        serde_json::to_value(restored.authoritative_document()).unwrap(),
+        serde_json::to_value(valid_catalog.authoritative_document()).unwrap()
+    );
 }
 
 #[tokio::test]
