@@ -12,7 +12,7 @@ final-status-level = "slow"
 # Retain this bounded diagnostic's phase timings when the unchanged test passes.
 # Output is displayed at completion; assertions and execution limits still apply.
 [[profile.default.overrides]]
-filter = 'package(portcove-core) & test(/^definition_publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'
 success-output = "immediate"
 
 # These CLI contracts compare free-space snapshots across child processes.
