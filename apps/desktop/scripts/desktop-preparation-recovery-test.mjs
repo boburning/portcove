@@ -807,6 +807,8 @@ export async function minimizedPreparationScenario({
     const { port } = await seed("opengoal-jak3", "wait");
     const executableHint = port.setup_executable_hints["windows-x86-64"][0];
     const originalExecutable = path.join(output, `owned-${port.id}`, executableHint);
+    const gameHint = port.executable_hints["windows-x86-64"][0];
+    const originalGame = path.join(output, `owned-${port.id}`, gameHint);
     const source = path.join(output, `${port.id}.iso`);
     const active = command(["status", port.id]).active;
     const save = path.join(active.path, "OpenGOAL", "jak3", "save.bin");
@@ -821,6 +823,8 @@ export async function minimizedPreparationScenario({
       source_sha256: await digest(source),
       original_executable_sha256: await digest(originalExecutable),
       active_setup_sha256: await digest(path.join(active.path, executableHint)),
+      original_game_sha256: await digest(originalGame),
+      active_game_sha256: await digest(path.join(active.path, gameHint)),
       save_sha256: await digest(save),
     };
     const windowState = async () => {
@@ -840,7 +844,16 @@ export async function minimizedPreparationScenario({
     assert.equal(initialWindow.minimized, false);
     assert.equal(initialWindow.hidden, false);
     const rect = await browser.manage().window().getRect();
-    const beforeGeneration = (await invoke("get_bootstrap_status")).value.generation;
+    const read = async (name, args) => {
+      const result = await invoke(name, args);
+      assert.equal(result.ok, true, JSON.stringify(result));
+      return result.value;
+    };
+    const beforeBootstrap = await read("get_bootstrap_status");
+    assert.equal(beforeBootstrap.ready, true);
+    assert.equal(path.resolve(beforeBootstrap.library_root), path.resolve(library));
+    const beforeGeneration = beforeBootstrap.generation;
+    const beforeIdentity = await read("get_library_identity", { generation: beforeGeneration });
     await browser
       .findElement(By.xpath('//button[normalize-space(.)="Review game preparation"]'))
       .click();
@@ -955,7 +968,28 @@ export async function minimizedPreparationScenario({
     const restoredStatus = await status(port.id);
     assert.deepEqual(restoredStatus.active, prepared.active);
     assert.equal(restoredStatus.readiness.launchable, true);
-    const restoredGeneration = (await invoke("get_bootstrap_status")).value.generation;
+    const restoredBootstrap = await read("get_bootstrap_status");
+    assert.equal(restoredBootstrap.ready, true);
+    assert.equal(path.resolve(restoredBootstrap.library_root), path.resolve(library));
+    assert.equal(restoredBootstrap.generation, beforeGeneration);
+    assert.deepEqual(restoredBootstrap.selection, beforeBootstrap.selection);
+    const restoredGeneration = restoredBootstrap.generation;
+    const restoredIdentity = await read("get_library_identity", { generation: restoredGeneration });
+    assert.deepEqual(restoredIdentity, beforeIdentity);
+    const restoredWorkspace = await read("get_workspace_snapshot", {
+      generation: restoredGeneration,
+    });
+    const workspaceStatus = restoredWorkspace.statuses.find((item) => item.port_id === port.id);
+    assert.ok(workspaceStatus, "Generation-bound current library must contain the prepared port");
+    assert.deepEqual(workspaceStatus.active, prepared.active);
+    assert.equal(workspaceStatus.readiness.launchable, true);
+    const workspaceActivity = restoredWorkspace.activities.records.find(
+      (item) => item.id === activity.id,
+    );
+    assert.ok(workspaceActivity, "Generation-bound current library must retain the same operation");
+    assert.equal(workspaceActivity.operation, "prepare");
+    assert.equal(workspaceActivity.target_id, port.id);
+    assert.equal(workspaceActivity.status, "succeeded");
     const preparations = command(["activity"]).records.filter(
       (item) => item.operation === "prepare" && item.target_id === port.id,
     );
@@ -965,6 +999,12 @@ export async function minimizedPreparationScenario({
     assert.equal(await digest(source), before.source_sha256);
     assert.equal(await digest(originalExecutable), before.original_executable_sha256);
     assert.equal(await digest(path.join(active.path, executableHint)), before.active_setup_sha256);
+    assert.equal(await digest(originalGame), before.original_game_sha256);
+    assert.equal(await digest(path.join(active.path, gameHint)), before.active_game_sha256);
+    assert.equal(
+      await digest(path.join(prepared.active.path, gameHint)),
+      before.original_game_sha256,
+    );
     assert.equal(await digest(save), before.save_sha256);
     assert.equal(
       await digest(path.join(prepared.active.path, "OpenGOAL", "jak3", "save.bin")),
@@ -992,6 +1032,12 @@ export async function minimizedPreparationScenario({
           restored_status: restoredStatus,
           before_generation: beforeGeneration,
           restored_generation: restoredGeneration,
+          before_bootstrap: beforeBootstrap,
+          restored_bootstrap: restoredBootstrap,
+          before_library_identity: beforeIdentity,
+          restored_library_identity: restoredIdentity,
+          restored_workspace_status: workspaceStatus,
+          restored_workspace_activity: workspaceActivity,
           limits:
             "Owned development fixture; minimize/restore only, not suppressed events, OS shutdown, installed package, minimum OS or other platform proof",
         },
