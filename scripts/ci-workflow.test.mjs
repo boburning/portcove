@@ -1350,6 +1350,10 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   );
   assert.match(
     config,
+    /filter = 'package\(portcove-core\) & test\(definition_repository::tests::\)'\r?\nthreads-required = 2/,
+  );
+  assert.match(
+    config,
     /filter = 'package\(portcove-core\) & test\(activity_diagnostics::tests::\)'\r?\nthreads-required = 2\r?\npriority = -50/,
   );
   assert.match(

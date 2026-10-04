@@ -40,6 +40,13 @@ priority = -100
 filter = 'package(portcove-core) & test(catalog_update::tests::)'
 threads-required = 2
 
+# Signed-definition repository cases install ordinary artifacts and repeatedly
+# admit complete authenticated snapshots. Reserve both fixed slots so unrelated
+# lifecycle work cannot overlap them within this invocation; keep the deadline.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(definition_repository::tests::)'
+threads-required = 2
+
 # Diagnostics capture cases repeatedly redact, serialize, publish and retain
 # bounded stream snapshots. Give the cohesive family both slots so those large
 # snapshots do not contend with another filesystem lifecycle case, and defer it
