@@ -228,7 +228,15 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
    required exact-head CI, target interaction checks and guarded merge. The
    helper may inspect retained evidence and run discriminating tests; it must not
    bootstrap a second full environment or duplicate a complete suite without an
-   identified need. Keep one heavyweight workflow active at a time.
+   identified need. Respect each machine's existing heavyweight-work admission
+   and resource window; separate authorized hosts retain their own guards.
+
+The authorized two-cloud/one-local arrangement keeps one writer per reserved
+scope, disjoint task ownership and the existing local scheduler/integration
+authority. Preserve healthy candidates and compact canonical #793 handoffs;
+independent review remains required by the applicable delivery contract. This
+does not introduce a new coordinator, duplicate dispatch or a dependency on
+the general autonomous-engineering workstream.
 
 The reviewer brief supplies **PR when available and owning issue; source head, target tip and
 merge-base; complete changed-file list and relevant surrounding code; acceptance
