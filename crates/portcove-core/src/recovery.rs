@@ -20,6 +20,13 @@ pub(crate) fn recover_published_install(
             "publication install owner differs from its journal owner",
         ));
     }
+    if let (Some(install), Some(destination)) = (&operation.install, &operation.paths.final_path)
+        && destination != &install.path
+    {
+        return Err(PortcoveError::state(
+            "publication install destination differs from its journal destination",
+        ));
+    }
     if operation.phase == LifecyclePhase::CleanupPending && operation.install.is_none() {
         return crate::cancellation::discard_private_install_with_faults(
             &service.library,
