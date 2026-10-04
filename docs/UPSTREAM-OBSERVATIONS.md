@@ -155,6 +155,9 @@ report instead of human lines. It requests metadata from each distinct declared
 GitHub or GitLab repository and records affected stable port IDs, observed numeric
 repository ID and archive state. Existing user-prepared entries retain their
 GitHub upstream coverage; their externally prepared files are not inspected.
+GitLab public metadata may omit archive state; a matching reachable repository
+then carries `archived: null` and human output says archive state unknown. An
+explicit malformed archive value is not accepted as a missing observation.
 Direct-manifest ports are listed as excluded from this repository check. Their
 accepted-artifact availability remains unassessed, rather than counted as healthy.
 

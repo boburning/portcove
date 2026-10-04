@@ -217,7 +217,7 @@ export async function collectRepositoryHealth(
         !facts ||
         !Number.isSafeInteger(facts.id) ||
         facts.id <= 0 ||
-        typeof facts.archived !== "boolean" ||
+        (typeof facts.archived !== "boolean" && (github || Object.hasOwn(facts, "archived"))) ||
         typeof (github ? facts.full_name : facts.path_with_namespace) !== "string"
       ) {
         fail("invalid-metadata");
@@ -229,7 +229,7 @@ export async function collectRepositoryHealth(
         continue;
       }
       result.status = "reachable";
-      result.archived = facts.archived;
+      result.archived = typeof facts.archived === "boolean" ? facts.archived : null;
       result.observed_repository_id = facts.id;
     } catch {
       fail(signal.aborted ? "timeout" : "transport");
@@ -278,7 +278,7 @@ export function renderRepositoryHealth(report) {
   for (const record of report.observations) {
     const status =
       record.status === "reachable"
-        ? `reachable${record.archived ? " (archived)" : ""}`
+        ? `reachable${record.archived === null ? " (archive state unknown)" : record.archived ? " (archived)" : ""}`
         : `unknown (${record.reason}${!record.attempted ? "; not attempted" : record.http_status === null ? "; not established" : `; HTTP ${record.http_status}`})`;
     lines.push(
       `${record.provider}:${record.repository} [${record.port_ids.join(", ")}]: ${status}`,
