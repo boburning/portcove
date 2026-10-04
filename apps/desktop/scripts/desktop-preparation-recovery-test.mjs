@@ -787,6 +787,36 @@ export async function interruptedPreparationScenario({
   return browser;
 }
 
+async function beginLivePreparation({ browser, activities, library, port, message }) {
+  await browser
+    .findElement(By.xpath('//button[normalize-space(.)="Review game preparation"]'))
+    .click();
+  await browser.wait(
+    until.elementLocated(By.xpath('//button[normalize-space(.)="Prepare game data"]')),
+    15_000,
+  );
+  await browser.findElement(By.xpath('//button[normalize-space(.)="Prepare game data"]')).click();
+  let activity;
+  let checkpoint;
+  await browser.wait(
+    async () => {
+      activity = (await activities()).find(
+        (item) =>
+          item.operation === "prepare" && item.target_id === port.id && item.status === "running",
+      );
+      if (!activity) return false;
+      checkpoint = path.join(library, "staging", activity.id, "payload/data/out/setup-ready");
+      return stat(checkpoint).then(
+        (entry) => entry.isFile(),
+        () => false,
+      );
+    },
+    15_000,
+    message,
+  );
+  return { activity, checkpoint };
+}
+
 export async function minimizedPreparationScenario({
   browser,
   invoke,
@@ -854,32 +884,13 @@ export async function minimizedPreparationScenario({
     assert.equal(path.resolve(beforeBootstrap.library_root), path.resolve(library));
     const beforeGeneration = beforeBootstrap.generation;
     const beforeIdentity = await read("get_library_identity", { generation: beforeGeneration });
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Review game preparation"]'))
-      .click();
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Prepare game data"]')),
-      15_000,
-    );
-    await browser.findElement(By.xpath('//button[normalize-space(.)="Prepare game data"]')).click();
-    let activity;
-    let checkpoint;
-    await browser.wait(
-      async () => {
-        activity = (await activities()).find(
-          (item) =>
-            item.operation === "prepare" && item.target_id === port.id && item.status === "running",
-        );
-        if (!activity) return false;
-        checkpoint = path.join(library, "staging", activity.id, "payload/data/out/setup-ready");
-        return stat(checkpoint).then(
-          (entry) => entry.isFile(),
-          () => false,
-        );
-      },
-      15_000,
-      "Owned preparation must be running before minimization",
-    );
+    const { activity, checkpoint } = await beginLivePreparation({
+      browser,
+      activities,
+      library,
+      port,
+      message: "Owned preparation must be running before minimization",
+    });
     const preparationExecutable = path.join(
       library,
       "staging",
@@ -1092,32 +1103,13 @@ export async function liveInterruptedPreparationScenario({
       save_sha256: await digest(save),
     };
     await open(port);
-    await browser
-      .findElement(By.xpath('//button[normalize-space(.)="Review game preparation"]'))
-      .click();
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Prepare game data"]')),
-      15_000,
-    );
-    await browser.findElement(By.xpath('//button[normalize-space(.)="Prepare game data"]')).click();
-    let activity;
-    let checkpoint;
-    await browser.wait(
-      async () => {
-        activity = (await activities()).find(
-          (item) =>
-            item.operation === "prepare" && item.target_id === port.id && item.status === "running",
-        );
-        if (!activity) return false;
-        checkpoint = path.join(library, "staging", activity.id, "payload/data/out/setup-ready");
-        return stat(checkpoint).then(
-          (entry) => entry.isFile(),
-          () => false,
-        );
-      },
-      15_000,
-      "Owned setup child must be live before host interruption",
-    );
+    const { activity, checkpoint } = await beginLivePreparation({
+      browser,
+      activities,
+      library,
+      port,
+      message: "Owned setup child must be live before host interruption",
+    });
     const privatePath = path.join(library, "staging", activity.id);
     const preparationExecutable = path.join(privatePath, "payload", executableHint);
     assert.equal(await digest(preparationExecutable), before.original_executable_sha256);
