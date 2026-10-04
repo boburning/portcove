@@ -1417,6 +1417,105 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn f_zero_snes_recomp_pins_an_unqualified_nonowning_windows_route() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("f-zero-snes-recomp").unwrap();
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert!(port.persistent_paths.is_empty());
+        assert!(port.runtime_source_filename.is_none());
+        assert!(port.setup_executable_hints.is_empty());
+        assert!(port.launch_arguments.is_empty());
+        assert_eq!(port.release.provider, ReleaseSource::UserPrepared);
+        assert!(port.release.direct.is_empty());
+        assert!(port.release.asset_hints.is_empty());
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        assert_eq!(runtime.version, "v1.8.3");
+        assert_eq!(
+            runtime.archive_name,
+            "FZeroSNESRecomp-1.8.3-windows-x64.zip"
+        );
+        assert_eq!(runtime.archive_size, 8_247_843);
+        assert_eq!(
+            runtime.archive_sha256,
+            "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+        );
+        assert_eq!(runtime.executable, "FZeroSNESRecomp.exe");
+        assert_eq!(
+            runtime.immutable_tree_sha256,
+            "41d4aea0b97cfe01dc26cf7e2a7c509f7f0030688ed66760d82a3efb69f69eb6"
+        );
+        assert_eq!(runtime.source_argument_extension.as_deref(), Some("sfc"));
+        assert!(
+            !runtime
+                .mutable_paths
+                .iter()
+                .any(|path| { path == &runtime.executable || path.starts_with("crash_report_") })
+        );
+        let source_catalog = catalog.source_catalog().unwrap();
+        assert!(
+            source_catalog
+                .qualification
+                .iter()
+                .all(|record| { record.scope.port_id != "f-zero-snes-recomp" })
+        );
+        let profile = catalog.source_profile("f-zero-snes-usa").unwrap();
+        assert_eq!(profile.accepted_extensions, ["sfc"]);
+        assert_eq!(
+            profile.accepted_sha1,
+            ["d3efd32b68f1fe37a82db9d9929b7ca7cc1a3af4"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            ["bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2"]
+        );
+    }
+
+    #[test]
+    fn f_zero_snes_recomp_source_binding_admits_only_exact_raw_sfc() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "f-zero-snes-usa")
+            .unwrap();
+        let crate::SourceRepresentationKind::RawFile { identities } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("F-Zero uses an exact original file, not N64 normalization")
+        };
+        // Exercise this binding with redistributable bytes, never a game ROM.
+        let bytes = b"synthetic headerless source fixture";
+        identities[0].sha1 = Some(hex::encode(sha1::Sha1::digest(bytes)));
+        identities[0].sha256 = Some(hex::encode(Sha256::digest(bytes)));
+        let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("owned.sfc");
+        std::fs::write(&source, bytes).unwrap();
+        let admitted = crate::source_inspection::inspect(&catalog, "f-zero-snes-usa", &source)
+            .unwrap()
+            .require_admitted_record()
+            .unwrap();
+        assert_eq!(admitted.size, bytes.len() as u64);
+        for changed in [
+            [vec![0_u8; 512], bytes.to_vec()].concat(),
+            b"synthetic changed source fixture".to_vec(),
+        ] {
+            std::fs::write(&source, changed).unwrap();
+            assert!(
+                crate::source_inspection::inspect(&catalog, "f-zero-snes-usa", &source)
+                    .unwrap()
+                    .require_admitted_record()
+                    .is_err()
+            );
+        }
+    }
+
     #[cfg(feature = "qualification-fixtures")]
     #[test]
     fn qualification_direct_release_is_loopback_only() {
@@ -1501,7 +1600,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 10
+            legacy.document().source_profiles.len() + 11
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1519,6 +1618,7 @@ mod tests {
                     "paperboat-paper-mario-us",
                     "open-nectar-pikmin-disc",
                     "wave-race-64",
+                    "f-zero-snes-usa",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1686,6 +1786,7 @@ mod tests {
                     "paperboat",
                     "open-nectar-pikmin",
                     "wave-race-64-recomp",
+                    "f-zero-snes-recomp",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -2121,6 +2222,7 @@ mod tests {
                     "paperboat-paper-mario-us",
                     "open-nectar-pikmin-disc",
                     "wave-race-64",
+                    "f-zero-snes-usa",
                 ]
                 .contains(&profile.id.as_str())
             })
