@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
@@ -178,7 +178,13 @@ it("opens first-read technical details without implicitly retrying the read", as
   const error = failureReport();
   error.presentation.technical_message = "retained redacted failure reason";
   const read = vi.spyOn(desktopApi, "activityDiagnostic").mockRejectedValue(error);
-  await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={1} />));
+  await act(async () =>
+    root.render(
+      <StrictMode>
+        <ActivityDiagnostic activityId="owned" generation={1} />
+      </StrictMode>,
+    ),
+  );
   await open();
   const details = [...host.querySelectorAll("details")].find(
     (element) => element.querySelector("summary")?.textContent === "View technical details",
