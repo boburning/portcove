@@ -127,8 +127,8 @@ export async function librarySwitchRecoveryScenario({
     '//article[.//h2[normalize-space(.)="Library at startup"]]//*[@role="alert"]',
   );
   const refusal = await browser.wait(until.elementLocated(alert), 15_000);
-  const refusalText = await refusal.getText();
-  assert.match(refusalText, /newer Portcove database schema/);
+  const refusalSummary = await refusal.getText();
+  assert.match(refusalSummary, /The current operation state could not be confirmed/);
   await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
   const rejected = await read("get_bootstrap_status");
   assert.deepEqual(rejected, before);
@@ -149,6 +149,11 @@ export async function librarySwitchRecoveryScenario({
     5_000,
     "Failed library review did not return focus to its trigger",
   );
+  await refusal.findElement(By.css("summary")).click();
+  const refusalText = await refusal.getText();
+  assert.match(refusalText, /newer Portcove database schema/);
+  assert.match(refusalText, /library_schema_version/);
+  assert.match(refusalText, /999/);
   await captureScreenshot("future-library-refused-current-workspace-retained");
   await captureAccessibilityReport(
     browser,
