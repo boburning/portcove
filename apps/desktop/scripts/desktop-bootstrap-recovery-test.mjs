@@ -3,6 +3,160 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const bootstrapRecoveryScenarioId = "native-startup-library-recovery";
+const preferencesRecoveryScenarioId = "native-startup-preferences-recovery";
+
+export function preferencesRecoverySelection(selection, platform) {
+  if (!selection.selected_scenarios.includes(preferencesRecoveryScenarioId)) return false;
+  assert.equal(platform, "win32", "Startup preferences recovery currently requires Windows");
+  assert.deepEqual(selection.selected_scenarios, [preferencesRecoveryScenarioId]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  return true;
+}
+
+export async function preparePreferencesRecoveryFixture(output) {
+  const selectedRoot = path.join(output, "selected-library");
+  const preferences = path.join(output, "preferences.json");
+  const preferencesBefore = path.join(output, "preferences-before.json");
+  const marker = path.join(selectedRoot, "owned-player-marker.bin");
+  const markerBefore = path.join(output, "owned-player-marker-before.bin");
+  const malformed = Buffer.from('{"format_version":1,"library_root":');
+  const playerData = Buffer.from("owned preferences recovery player data\n");
+  await mkdir(selectedRoot);
+  for (const file of [preferences, preferencesBefore])
+    await writeFile(file, malformed, { flag: "wx" });
+  for (const file of [marker, markerBefore]) await writeFile(file, playerData, { flag: "wx" });
+  return { selectedRoot, preferences, preferencesBefore, marker, markerBefore };
+}
+
+export async function preferencesRecoveryScenario({
+  browser,
+  invoke,
+  By,
+  until,
+  fixture,
+  captureScreenshot,
+  captureAccessibilityReport,
+  restart,
+  output,
+  artifacts,
+}) {
+  const read = async (command, args) => {
+    const result = await invoke(command, args);
+    assert.equal(result.ok, true, JSON.stringify(result));
+    return result.value;
+  };
+  const before = await read("get_bootstrap_status");
+  assert.equal(before.ready, false);
+  assert.ok(before.error?.code, "Malformed preferences must expose a typed failure");
+  assert.equal(before.library_root, null);
+  assert.equal(
+    (await browser.findElements(By.css('nav[aria-label="Primary navigation"]'))).length,
+    0,
+  );
+  const failure = await browser.wait(until.elementLocated(By.css("main.bootstrap-error")), 15_000);
+  assert.equal(await failure.getAttribute("role"), null);
+  assert.ok(await failure.findElement(By.css('[role="alert"]')).getText());
+  await failure.findElement(By.css("summary")).click();
+  assert.match(
+    await failure.getText(),
+    /host preferences are malformed; explicitly reset or repair them/,
+  );
+  const technicalRows = await browser.executeScript(
+    (root) =>
+      [...root.querySelectorAll("dl > div")].map((row) => {
+        const label = row.querySelector("dt");
+        const value = row.querySelector("dd");
+        return {
+          label: label.textContent,
+          value: value.textContent,
+          labelWidth: label.clientWidth,
+          labelScrollWidth: label.scrollWidth,
+          labelRight: label.getBoundingClientRect().right,
+          valueLeft: value.getBoundingClientRect().left,
+        };
+      }),
+    failure,
+  );
+  assert.ok(technicalRows.length > 0);
+  for (const row of technicalRows) {
+    assert.ok(row.labelScrollWidth <= row.labelWidth, `Technical label overflows: ${row.label}`);
+    assert.ok(row.labelRight <= row.valueLeft, `Technical label overlaps value: ${row.label}`);
+  }
+  assert.ok(
+    technicalRows.some(
+      (row) => row.label === "invalid_host_preference_document" && row.value === "true",
+    ),
+  );
+  const original = await readFile(fixture.preferencesBefore);
+  const marker = await readFile(fixture.markerBefore);
+  assert.deepEqual(await readFile(fixture.preferences), original);
+  assert.deepEqual(await readFile(fixture.marker), marker);
+  await captureScreenshot("startup-preferences-refused-preserved");
+  const accessibilityPath = path.join(output, "startup-preferences-accessibility.json");
+  await captureAccessibilityReport(browser, accessibilityPath, artifacts);
+  const accessibility = JSON.parse(await readFile(accessibilityPath, "utf8"));
+  assert.deepEqual(
+    accessibility.incomplete.map((item) => item.id),
+    [],
+  );
+  const repaired = Buffer.from(
+    `${JSON.stringify({ format_version: 1, library_root: fixture.selectedRoot })}\n`,
+  );
+  // The harness proves every owned host identity exited before invoking this
+  // explicit external fixture repair. The application never repairs these bytes.
+  browser = await restart("startup-preferences-owned-repair", async () => {
+    assert.deepEqual(await readFile(fixture.preferences), original);
+    assert.deepEqual(await readFile(fixture.marker), marker);
+    await writeFile(fixture.preferences, repaired);
+  });
+  const verifyRecoveredHost = async () => {
+    const status = await read("get_bootstrap_status");
+    assert.equal(status.ready, true);
+    assert.equal(canonicalPath(status.library_root), canonicalPath(fixture.selectedRoot));
+    assert.equal(status.selection.source, "saved");
+    const identity = await read("get_library_identity", { generation: status.generation });
+    const workspace = await read("get_workspace_snapshot", { generation: status.generation });
+    const statuses = await read("get_statuses");
+    assert.ok(Array.isArray(statuses));
+    return { status, identity, workspace, statuses };
+  };
+  const recoveredHost = await verifyRecoveredHost();
+  const recovered = recoveredHost.status;
+  const identity = recoveredHost.identity;
+  assert.deepEqual(await readFile(fixture.preferences), repaired);
+  assert.deepEqual(await readFile(fixture.preferencesBefore), original);
+  assert.deepEqual(await readFile(fixture.marker), marker);
+  await captureScreenshot("startup-preferences-repaired-workspace");
+  browser = await restart("startup-preferences-saved-restart");
+  const restartedHost = await verifyRecoveredHost();
+  const restarted = restartedHost.status;
+  assert.deepEqual(restartedHost.identity, identity);
+  assert.deepEqual(await readFile(fixture.preferences), repaired);
+  assert.deepEqual(await readFile(fixture.marker), marker);
+  await captureScreenshot("startup-preferences-saved-restart");
+  const evidence = path.join(output, "startup-preferences-recovery.json");
+  await writeFile(
+    evidence,
+    `${JSON.stringify(
+      {
+        before,
+        recovered,
+        restarted,
+        identity,
+        recoveredHost,
+        restartedHost,
+        technicalRows,
+        external_owned_repair: true,
+        malformed_original_retained: true,
+        player_data_preserved: true,
+      },
+      null,
+      2,
+    )}\n`,
+    { flag: "wx" },
+  );
+  artifacts.push(evidence);
+}
 
 export function bootstrapRecoverySelection(selection, platform) {
   if (!selection.selected_scenarios.includes(bootstrapRecoveryScenarioId)) return false;

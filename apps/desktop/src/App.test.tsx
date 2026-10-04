@@ -20,6 +20,8 @@ describe("Portcove app shell", () => {
     error.details = { path: "Z:\\Portcove" };
     error.presentation.technical_context = { path: "Z:\\Portcove" };
     const html = renderToStaticMarkup(<BootstrapRecovery error={error} />);
+    expect(html).toContain('<main class="bootstrap-state bootstrap-error">');
+    expect(html).toContain('<p role="alert">The configured library cannot be opened.</p>');
     expect(html).toContain("Portcove couldn’t start");
     expect(html).toContain("The configured library cannot be opened.");
     expect(html).toContain("Z:\\Portcove");

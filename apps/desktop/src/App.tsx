@@ -180,10 +180,10 @@ export function BootstrapRecovery({
   const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
   return (
-    <main className="bootstrap-state bootstrap-error" role="alert">
+    <main className="bootstrap-state bootstrap-error">
       <p className="eyebrow">Portcove could not start</p>
       <h1>Portcove couldn’t start</h1>
-      <p>{errorText(error)}</p>
+      <p role="alert">{errorText(error)}</p>
       {error.presentation ? (
         <FailureDetails
           presentation={error.presentation}
