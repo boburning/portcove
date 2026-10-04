@@ -3244,7 +3244,7 @@ impl PortcoveService {
         let timestamp = Library::now();
         let version = format!("adopted-{timestamp}");
         lifecycle.activate = true;
-        let result = (|| {
+        let mut result = (|| {
             let port = self.catalog.port(&port_id)?;
             let platform = Platform::current()?;
             let qualification =
@@ -3379,15 +3379,46 @@ impl PortcoveService {
             store.remove(&lifecycle.id)?;
             Ok(install)
         })();
-        if let Err(error) = &result {
+        if let Err(error) = &mut result {
             if lifecycle.phase == LifecyclePhase::Preparing {
-                if let Some(operation_root) = &operation_root {
-                    let _ = self
-                        .faults
+                let cleanup = if let Some(operation_root) = &operation_root {
+                    self.faults
                         .check(LifecycleFaultPoint::AdoptionPrivateCleanup)
-                        .and_then(|()| fs::remove_dir_all(operation_root).map_err(Into::into));
+                        .and_then(|()| match fs::remove_dir_all(operation_root) {
+                            Ok(()) => Ok(()),
+                            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                            Err(error) => Err(error.into()),
+                        })
+                } else {
+                    Ok(())
+                };
+                if let Err(cleanup) = cleanup {
+                    lifecycle.last_error = Some(format!(
+                        "{}; private adoption cleanup failed: {}",
+                        error.message, cleanup.message
+                    ));
+                    error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+                    error
+                        .details
+                        .insert("operation_id".into(), lifecycle.id.clone());
+                    error
+                        .details
+                        .insert("cleanup_error".into(), cleanup.message);
+                    if let Err(persist) = store.put(&mut lifecycle) {
+                        error
+                            .details
+                            .insert("persistence_error".into(), persist.message);
+                    }
+                } else if let Err(retire) = store.remove(&lifecycle.id) {
+                    // Do not recreate a journal after an ambiguous retirement error.
+                    error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+                    error
+                        .details
+                        .insert("operation_id".into(), lifecycle.id.clone());
+                    error
+                        .details
+                        .insert("journal_retirement_error".into(), retire.message);
                 }
-                let _ = store.remove(&lifecycle.id);
             } else {
                 lifecycle.last_error = Some(error.message.clone());
                 let _ = store.put(&mut lifecycle);
@@ -5778,6 +5809,10 @@ mod tests {
                 error.presentation().mutation_state,
                 crate::MutationState::RecoveryRequired
             );
+            assert_eq!(
+                serde_json::to_vec(activity.failure.as_ref().unwrap()).unwrap(),
+                serde_json::to_vec(&error.report()).unwrap()
+            );
             let diagnostic = journal.last_error.as_ref().unwrap();
             assert!(diagnostic.contains("injected adoption copy failure"));
             assert!(diagnostic.contains("injected adoption private cleanup failure"));
@@ -5804,6 +5839,10 @@ mod tests {
                 .find(|current| current.id == activity.id)
                 .unwrap();
             assert_eq!(retained_activity.status, ActivityStatus::Failed);
+            assert_eq!(
+                serde_json::to_vec(&retained_activity.failure).unwrap(),
+                serde_json::to_vec(&activity.failure).unwrap()
+            );
         } else {
             assert!(store.all().unwrap().is_empty());
             assert!(!staging.exists());
