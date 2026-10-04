@@ -45,11 +45,36 @@ fn open_service(root: &Path) -> PortcoveService {
     service
 }
 
+fn open_local_artwork_service(root: &Path) -> PortcoveService {
+    open_service(root)
+}
+
+#[test]
+fn local_artwork_fixture_has_no_production_catalog_dependencies() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_local_artwork_service(&temp.path().join("library"));
+    let catalog = service.catalog();
+    assert_eq!(catalog.ports().len(), 1);
+    let port = catalog.port("zelda64-recomp").unwrap();
+    assert!(port.source_profile.is_none());
+    assert!(port.presentation.as_ref().unwrap().artwork.is_none());
+    let source = catalog.source_catalog().unwrap();
+    assert!(source.identities.is_empty());
+    assert!(source.contracts.is_empty());
+    assert!(source.validators.is_empty());
+    assert!(source.evidence.is_empty());
+    assert!(source.qualification.is_empty());
+
+    let mut unknown = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    unknown["source_catalog"]["unexpected_fixture_authority"] = true.into();
+    assert!(crate::Catalog::from_json(&unknown.to_string()).is_err());
+}
+
 #[test]
 fn generated_fallback_is_core_owned_stable_and_independent_per_slot() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
-    let service = open_service(&root);
+    let service = open_local_artwork_service(&root);
     let cover = service
         .artwork("zelda64-recomp", ArtworkSlot::Cover)
         .unwrap();
@@ -73,7 +98,7 @@ fn generated_fallback_is_core_owned_stable_and_independent_per_slot() {
     assert_ne!(cover.generated_fallback, detail.generated_fallback);
     drop(service);
     assert_eq!(
-        open_service(&root)
+        open_local_artwork_service(&root)
             .artwork("zelda64-recomp", ArtworkSlot::Cover)
             .unwrap()
             .generated_fallback,
@@ -180,7 +205,7 @@ fn live_igdb_shipwright_cover_fetches_and_reuses_bounded_thumbnail() {
 #[test]
 fn choices_are_per_slot_and_reset_cache_and_retirement_are_separate() {
     let temp = tempfile::tempdir().unwrap();
-    let service = open_service(&temp.path().join("library"));
+    let service = open_local_artwork_service(&temp.path().join("library"));
     let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
     let jpeg = image_file(temp.path(), "detail.jpg", image::ImageFormat::Jpeg);
     let original = fs::read(&png).unwrap();
@@ -253,7 +278,7 @@ fn choices_are_per_slot_and_reset_cache_and_retirement_are_separate() {
 #[test]
 fn imported_thumbnail_is_reused_without_a_second_decode_and_regenerates_after_clear() {
     let temp = tempfile::tempdir().unwrap();
-    let service = open_service(&temp.path().join("library"));
+    let service = open_local_artwork_service(&temp.path().join("library"));
     let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
     let before = crate::artwork_image::decode_count();
     let selected = service
@@ -278,7 +303,7 @@ fn imported_thumbnail_is_reused_without_a_second_decode_and_regenerates_after_cl
 #[test]
 fn failed_import_thumbnail_publication_preserves_committed_choice_and_regeneration() {
     let temp = tempfile::tempdir().unwrap();
-    let service = open_service(&temp.path().join("library"));
+    let service = open_local_artwork_service(&temp.path().join("library"));
     let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
     let cache_root = service.library().root().join("artwork-cache");
     fs::write(&cache_root, b"cache obstruction").unwrap();
@@ -308,7 +333,7 @@ fn failed_import_thumbnail_publication_preserves_committed_choice_and_regenerati
 #[test]
 fn malformed_oversized_animated_and_stale_replacements_preserve_the_choice() {
     let temp = tempfile::tempdir().unwrap();
-    let service = open_service(&temp.path().join("library"));
+    let service = open_local_artwork_service(&temp.path().join("library"));
     let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
     let original = service
         .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
@@ -377,7 +402,7 @@ fn unavailable_originals_retain_preference_and_do_not_block_other_library_reads(
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
-    let service = open_service(&root);
+    let service = open_local_artwork_service(&root);
     let selected = service
         .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
         .unwrap();
@@ -405,7 +430,7 @@ fn unavailable_originals_retain_preference_and_do_not_block_other_library_reads(
     assert!(!service.statuses().unwrap().is_empty());
     fs::remove_file(&original).unwrap();
     drop(service);
-    let reopened = open_service(&root);
+    let reopened = open_local_artwork_service(&root);
     assert_eq!(
         reopened
             .artwork("zelda64-recomp", ArtworkSlot::Cover)
@@ -428,7 +453,7 @@ fn unavailable_originals_retain_preference_and_do_not_block_other_library_reads(
 #[test]
 fn an_artwork_writer_does_not_take_the_game_operation_lock() {
     let temp = tempfile::tempdir().unwrap();
-    let service = open_service(&temp.path().join("library"));
+    let service = open_local_artwork_service(&temp.path().join("library"));
     let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
     let art = service.library().try_lock_artwork().unwrap();
     let game = service
