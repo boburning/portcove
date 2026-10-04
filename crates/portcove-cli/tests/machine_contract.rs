@@ -1,5 +1,5 @@
 use std::{
-    io::Write,
+    io::{Read, Write},
     process::{Command, Output, Stdio},
 };
 
@@ -956,29 +956,143 @@ fn declining_backup_deletion_is_a_neutral_non_mutating_result() {
         &["--json", "backup", "create", "zelda64-recomp"],
     ));
     let backup_id = created["data"]["id"].as_str().unwrap();
-    let mut child = Command::new(cli_binary())
-        .arg("--library")
-        .arg(&library)
-        .args(["backup", "delete", "zelda64-recomp", backup_id])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child.stdin.as_mut().unwrap().write_all(b"n\n").unwrap();
-    let declined = child.wait_with_output().unwrap();
+    let declined = decline_backup_action(
+        &library,
+        &["backup", "delete", "zelda64-recomp", backup_id],
+        Some("Delete backup review\n"),
+    );
 
     assert!(declined.status.success());
-    assert!(
-        String::from_utf8_lossy(&declined.stdout)
-            .contains("Backup deletion cancelled. No changes were made.")
-    );
+    let text = std::str::from_utf8(&declined.stdout).unwrap();
+    assert!(text.contains("Backup deletion cancelled. No changes were made."));
+    assert!(text.contains("Preserved: live managed saved data and other backups."));
+    assert!(text.contains(&format!("Backup: {backup_id}")));
+    assert!(text.contains(&format!(
+        "Backup SHA-256: {}",
+        created["data"]["sha256"].as_str().unwrap(),
+    )));
+    assert_eq!(std::fs::read(user.join("save.dat")).unwrap(), b"preserve");
     let listed = json_stdout(&portcove(
         &library,
         &["--json", "backup", "list", "zelda64-recomp"],
     ));
     assert_eq!(listed["data"]["state"], "healthy");
     assert_eq!(listed["data"]["backups"][0]["id"], backup_id);
+}
+
+fn decline_backup_action(
+    library: &std::path::Path,
+    args: &[&str],
+    heading: Option<&str>,
+) -> Output {
+    let mut child = Command::new(cli_binary())
+        .arg("--library")
+        .arg(library)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut prefix = heading.map_or_else(Vec::new, |text| vec![0; text.len()]);
+    if let Some(heading) = heading {
+        // The real child must display its review before it receives consent.
+        child
+            .stdout
+            .as_mut()
+            .unwrap()
+            .read_exact(&mut prefix)
+            .unwrap();
+        assert_eq!(prefix, heading.as_bytes());
+    }
+    child.stdin.as_mut().unwrap().write_all(b"n\n").unwrap();
+    let mut output = child.wait_with_output().unwrap();
+    prefix.extend_from_slice(&output.stdout);
+    output.stdout = prefix;
+    output
+}
+
+#[test]
+fn backup_restore_review_and_decline_preserve_current_data_and_the_selected_backup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let user = library.join("user/zelda64-recomp");
+    std::fs::create_dir_all(&user).unwrap();
+    std::fs::write(user.join("save.dat"), b"backup contents").unwrap();
+    let created = json_stdout(&portcove(
+        &library,
+        &["--json", "backup", "create", "zelda64-recomp"],
+    ));
+    let backup_id = created["data"]["id"].as_str().unwrap();
+    std::fs::write(user.join("save.dat"), b"current contents").unwrap();
+    let declined = decline_backup_action(
+        &library,
+        &["backup", "restore", "zelda64-recomp", backup_id],
+        Some("Restore backup review\n"),
+    );
+    assert!(declined.status.success());
+    let text = std::str::from_utf8(&declined.stdout).unwrap();
+    assert!(text.contains("Current managed saved data exists: yes"));
+    assert!(text.contains("create a safety backup of current managed saved data"));
+    assert!(text.contains("Backup restore cancelled. No changes were made."));
+    assert_eq!(
+        std::fs::read(user.join("save.dat")).unwrap(),
+        b"current contents"
+    );
+    let listed = json_stdout(&portcove(
+        &library,
+        &["--json", "backup", "list", "zelda64-recomp"],
+    ));
+    assert_eq!(listed["data"]["backups"].as_array().unwrap().len(), 1);
+    assert_eq!(listed["data"]["backups"][0], created["data"]);
+
+    std::fs::remove_file(user.join("save.dat")).unwrap();
+    let restored = portcove(
+        &library,
+        &["backup", "restore", "zelda64-recomp", backup_id, "--yes"],
+    );
+    assert!(restored.status.success());
+    let text = human_stdout(&restored);
+    assert!(text.contains("Current managed saved data exists: yes"));
+    assert!(text.contains("no safety backup is planned"));
+    assert!(!text.contains("create a safety backup"));
+    assert_eq!(
+        std::fs::read(user.join("save.dat")).unwrap(),
+        b"backup contents"
+    );
+}
+
+#[test]
+fn machine_backup_cancellation_keeps_its_existing_result_without_human_review() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let user = library.join("user/zelda64-recomp");
+    std::fs::create_dir_all(&user).unwrap();
+    std::fs::write(user.join("save.dat"), b"preserve").unwrap();
+    let created = json_stdout(&portcove(
+        &library,
+        &["--json", "backup", "create", "zelda64-recomp"],
+    ));
+    let backup_id = created["data"]["id"].as_str().unwrap();
+    for mode in ["--json", "--jsonl"] {
+        for action in ["delete", "restore"] {
+            let output = decline_backup_action(
+                &library,
+                &[mode, "backup", action, "zelda64-recomp", backup_id],
+                None,
+            );
+            assert!(output.status.success());
+            let result = json_stdout(&output);
+            assert_eq!(result["command"], format!("backup.{action}"));
+            assert_eq!(result["ok"], true);
+            assert_eq!(
+                result["data"],
+                serde_json::json!({"cancelled": true, "changed": false})
+            );
+            assert!(!String::from_utf8_lossy(&output.stdout).contains("backup review"));
+        }
+    }
+    assert_eq!(std::fs::read(user.join("save.dat")).unwrap(), b"preserve");
 }
 
 fn json_stdout(output: &Output) -> Value {
