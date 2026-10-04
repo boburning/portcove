@@ -127,7 +127,9 @@ pub(crate) async fn execute(
             service.catalog().port(&port_id)?.clone(),
             human::catalog_show,
         ),
-        CatalogCommand::Status => render_success(mode, name, library.catalog_status()?),
+        CatalogCommand::Status => {
+            render_read_success(mode, name, library.catalog_status()?, human::catalog_status)
+        }
         CatalogCommand::InspectObservation { .. } => {
             unreachable!("observation inspection executes before opening a library")
         }
