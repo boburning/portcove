@@ -197,6 +197,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-minimized-preparation-continuity",
+    "Live Windows preparation completes while minimized and restores authoritative ready state.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-update-settings-save-without-execution",
     "Saving update settings does not execute an update.",
     {

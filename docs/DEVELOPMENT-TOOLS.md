@@ -488,6 +488,18 @@ remains a separate synthetic durable-state and reviewed-cleanup test. Neither
 scenario proves OS shutdown, another operation family, installed packages or
 another platform.
 
+`--scenario native-minimized-preparation-continuity` separately qualifies one
+owned live Windows preparation completing while the actual native window is
+minimized, then restoring current ready state without duplicate work. It uses
+real WebDriver window commands, the existing permitted native minimized-state
+read and renderer visibility; unsupported commands or contradictory readback
+leave this row unproven. A separate live process snapshot preserves the worker
+identity without replacing the final cleanup inventory. The fixture's natural
+30-second completion and the three-minute harness bound remain unchanged.
+Source, original executable and saves must survive; successful preparation may
+legitimately activate a new installation. This is not suppressed-event, shutdown,
+installed-package, minimum-OS or other-platform qualification.
+
 The runner performs the desktop doctor and storage preflight, verifies that the
 pinned Selenium workspace package resolves, builds or exactly reuses the frontend
 with embedded assets, asks Cargo to validate/reuse the Tauri application, builds the CLI/probe only for owned-fixture

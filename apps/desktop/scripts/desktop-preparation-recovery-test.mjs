@@ -787,6 +787,224 @@ export async function interruptedPreparationScenario({
   return browser;
 }
 
+export async function minimizedPreparationScenario({
+  browser,
+  invoke,
+  scenario,
+  library,
+  output,
+  artifacts,
+  command,
+  activities,
+  seed,
+  open,
+  status,
+  captureLivePreparation,
+}) {
+  await scenario("native-minimized-preparation-continuity", async () => {
+    assert.equal(process.platform, "win32", "This scenario qualifies Windows only");
+    assert.equal(path.resolve(library), path.resolve(output, "library"));
+    const { port } = await seed("opengoal-jak3", "wait");
+    const executableHint = port.setup_executable_hints["windows-x86-64"][0];
+    const originalExecutable = path.join(output, `owned-${port.id}`, executableHint);
+    const source = path.join(output, `${port.id}.iso`);
+    const active = command(["status", port.id]).active;
+    const save = path.join(active.path, "OpenGOAL", "jak3", "save.bin");
+    await mkdir(path.dirname(save), { recursive: true });
+    await writeFile(save, "owned save must survive minimized preparation", { flag: "wx" });
+    const digest = async (file) =>
+      createHash("sha256")
+        .update(await readFile(file))
+        .digest("hex");
+    const before = {
+      active,
+      source_sha256: await digest(source),
+      original_executable_sha256: await digest(originalExecutable),
+      active_setup_sha256: await digest(path.join(active.path, executableHint)),
+      save_sha256: await digest(save),
+    };
+    const windowState = async () => {
+      const native = await invoke("plugin:window|is_minimized", { label: "main" });
+      assert.equal(native.ok, true, "Existing native minimized read permission must work");
+      assert.equal(typeof native.value, "boolean");
+      const renderer = await browser.executeScript(() => ({
+        label: window.__TAURI_INTERNALS__.metadata.currentWindow.label,
+        hidden: document.hidden,
+        visibility: document.visibilityState,
+      }));
+      assert.equal(renderer.label, "main", "Observe the owned main window");
+      return { observed_at: new Date().toISOString(), minimized: native.value, ...renderer };
+    };
+    await open(port);
+    const initialWindow = await windowState();
+    assert.equal(initialWindow.minimized, false);
+    assert.equal(initialWindow.hidden, false);
+    const rect = await browser.manage().window().getRect();
+    const beforeGeneration = (await invoke("get_bootstrap_status")).value.generation;
+    await browser
+      .findElement(By.xpath('//button[normalize-space(.)="Review game preparation"]'))
+      .click();
+    await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Prepare game data"]')),
+      15_000,
+    );
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Prepare game data"]')).click();
+    let activity;
+    let checkpoint;
+    await browser.wait(
+      async () => {
+        activity = (await activities()).find(
+          (item) =>
+            item.operation === "prepare" && item.target_id === port.id && item.status === "running",
+        );
+        if (!activity) return false;
+        checkpoint = path.join(library, "staging", activity.id, "payload/data/out/setup-ready");
+        return stat(checkpoint).then(
+          (entry) => entry.isFile(),
+          () => false,
+        );
+      },
+      15_000,
+      "Owned preparation must be running before minimization",
+    );
+    const preparationExecutable = path.join(
+      library,
+      "staging",
+      activity.id,
+      "payload",
+      executableHint,
+    );
+    assert.equal(await digest(preparationExecutable), before.original_executable_sha256);
+    const liveProcesses = captureLivePreparation(preparationExecutable);
+    const beforeImage = path.join(output, "native-preparation-before-minimize.png");
+    await writeFile(beforeImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(beforeImage);
+    assert.ok(
+      Date.now() - (await stat(checkpoint)).mtimeMs < 25_000,
+      "Minimize within the unchanged 30-second owned fixture window",
+    );
+    await browser.manage().window().minimize();
+    let minimizedWindow;
+    await browser.wait(
+      async () => {
+        minimizedWindow = await windowState();
+        return (
+          minimizedWindow.minimized &&
+          minimizedWindow.hidden &&
+          minimizedWindow.visibility === "hidden"
+        );
+      },
+      5_000,
+      "Actual native minimization and renderer inactivity must agree",
+    );
+    assert.equal(
+      command(["activity"]).records.find((item) => item.id === activity.id)?.status,
+      "running",
+    );
+    assert.deepEqual(command(["status", port.id]).active, before.active);
+    let completed;
+    // Only public durable reads while minimized; no cancellation, restart,
+    // synthetic visibility event or mutation of the journal on the host's behalf.
+    await browser.wait(
+      () => {
+        completed = command(["activity"]).records.find((item) => item.id === activity.id);
+        return Boolean(completed) && completed.status !== "running";
+      },
+      40_000,
+      "The same owned preparation must finish while minimized",
+    );
+    assert.equal(completed?.status, "succeeded");
+    const terminalWindow = await windowState();
+    assert.equal(terminalWindow.minimized, true);
+    assert.equal(terminalWindow.hidden, true);
+    const prepared = command(["status", port.id]);
+    assert.equal(prepared.readiness.launchable, true);
+    assert.notEqual(prepared.active.id, before.active.id);
+    assert.equal(prepared.previous.id, before.active.id);
+    await browser.manage().window().setRect(rect);
+    let restoredWindow;
+    await browser.wait(
+      async () => {
+        restoredWindow = await windowState();
+        return (
+          !restoredWindow.minimized &&
+          !restoredWindow.hidden &&
+          restoredWindow.visibility === "visible"
+        );
+      },
+      5_000,
+      "Restore the actual native window without simulated visibility",
+    );
+    await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Play"]')),
+      15_000,
+    );
+    await browser.wait(
+      until.elementIsEnabled(
+        await browser.findElement(By.xpath('//button[normalize-space(.)="Play"]')),
+      ),
+      15_000,
+    );
+    assert.equal(
+      (await browser.findElements(By.css('[aria-labelledby="preparation-review-title"]'))).length,
+      0,
+    );
+    const restoredStatus = await status(port.id);
+    assert.deepEqual(restoredStatus.active, prepared.active);
+    assert.equal(restoredStatus.readiness.launchable, true);
+    const restoredGeneration = (await invoke("get_bootstrap_status")).value.generation;
+    const preparations = command(["activity"]).records.filter(
+      (item) => item.operation === "prepare" && item.target_id === port.id,
+    );
+    assert.equal(preparations.length, 1, "Restoration must not duplicate privileged preparation");
+    assert.equal(preparations[0].id, activity.id);
+    assert.equal(preparations[0].status, "succeeded");
+    assert.equal(await digest(source), before.source_sha256);
+    assert.equal(await digest(originalExecutable), before.original_executable_sha256);
+    assert.equal(await digest(path.join(active.path, executableHint)), before.active_setup_sha256);
+    assert.equal(await digest(save), before.save_sha256);
+    assert.equal(
+      await digest(path.join(prepared.active.path, "OpenGOAL", "jak3", "save.bin")),
+      before.save_sha256,
+    );
+    const afterImage = path.join(output, "native-preparation-after-restore.png");
+    await writeFile(afterImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(afterImage);
+    const evidence = path.join(output, "minimized-preparation-continuity.json");
+    await writeFile(
+      evidence,
+      JSON.stringify(
+        {
+          method:
+            "actual Windows minimize, natural owned preparation completion and native restore",
+          operation_id: activity.id,
+          before,
+          live_processes: liveProcesses,
+          initial_window: initialWindow,
+          minimized_window: minimizedWindow,
+          terminal_window: terminalWindow,
+          restored_window: restoredWindow,
+          completed_activity: completed,
+          prepared_status: prepared,
+          restored_status: restoredStatus,
+          before_generation: beforeGeneration,
+          restored_generation: restoredGeneration,
+          limits:
+            "Owned development fixture; minimize/restore only, not suppressed events, OS shutdown, installed package, minimum OS or other platform proof",
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(evidence);
+  });
+  return browser;
+}
+
 export async function liveInterruptedPreparationScenario({
   browser,
   invoke,
