@@ -820,18 +820,31 @@ fn live_compound_extension_override_does_not_widen_structural_legacy_admission()
 }
 
 fn raw_gamecube_catalog(bytes: &[u8]) -> Catalog {
-    let mut document: serde_json::Value =
-        serde_json::from_str(include_str!("../catalog/catalog.json")).unwrap();
-    let profile = document["source_catalog"]["identities"]
-        .as_array_mut()
-        .unwrap()
-        .iter_mut()
-        .find(|profile| profile["id"] == "animal-crossing-gamecube")
-        .unwrap();
-    let representation = &mut profile["variants"][0]["representations"][0];
-    assert_eq!(representation["kind"], "gamecube-normalized-iso");
-    representation["identities"][0]["sha1"] = hex::encode(sha1::Sha1::digest(bytes)).into();
-    representation["identities"][0]["sha256"] = hex::encode(Sha256::digest(bytes)).into();
+    // These cases exercise normalized discovery, not a production port contract.
+    // Real N64/STFS and embedded-catalog cases keep their own catalog coverage.
+    let document = serde_json::json!({
+        "schema_version": 2,
+        "source_catalog": {
+            "identities": [{
+                "id": "animal-crossing-gamecube", "label": "Synthetic GameCube source",
+                "kind": "optical-disc", "variants": [{
+                    "id": "fixture", "title": "Synthetic normalized disc",
+                    "representations": [{
+                        "id": "normalized-gamecube-iso",
+                        "extensions": ["iso", "gcm", "rvz", "ciso", "gcz", "wia"],
+                        "kind": "gamecube-normalized-iso",
+                        "identities": [{
+                            "scope": "gamecube-normalized-iso",
+                            "sha1": hex::encode(sha1::Sha1::digest(bytes)),
+                            "sha256": hex::encode(Sha256::digest(bytes)),
+                        }]
+                    }]
+                }]
+            }],
+            "evidence": [], "contracts": [], "validators": []
+        },
+        "ports": []
+    });
     Catalog::from_json(&document.to_string()).unwrap()
 }
 
@@ -875,6 +888,53 @@ fn raw_gamecube_fixture_has_only_its_valid_discovery_graph() {
         identities[0].sha256,
         Some(hex::encode(Sha256::digest(bytes)))
     );
+
+    let mut invalid = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    invalid["source_catalog"]["identities"][0]["variants"][0]["representations"][0]["identities"]
+        [0]["sha256"] = "invalid-digest".into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+    let mut invalid = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    invalid["source_catalog"]["unexpected_authority"] = true.into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+}
+
+#[test]
+fn unrelated_identity_does_not_change_raw_gamecube_discovery() {
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"independent normalized disc";
+    let path = temporary.path().join("game.gcm");
+    fs::write(&path, bytes).unwrap();
+    let catalog = raw_gamecube_catalog(bytes);
+    let mut extended = catalog.authoritative_document();
+    let mut unrelated = raw_gamecube_catalog(b"unrelated bytes")
+        .source_catalog()
+        .unwrap()
+        .identities[0]
+        .clone();
+    unrelated.id = "unrelated-gamecube-source".into();
+    extended
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .push(unrelated);
+    let extended = Catalog::from_json(&serde_json::to_string(&extended).unwrap()).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["animal-crossing-gamecube".into()];
+    let mut before = scan(&catalog, &selected).unwrap();
+    let mut after = scan(&extended, &selected).unwrap();
+    assert_eq!(before.candidates.len(), 1);
+    // Inspection timestamps reflect each scan's clock, not catalog identity.
+    for report in [&mut before, &mut after] {
+        for candidate in &mut report.candidates {
+            candidate.updated_at = 0;
+        }
+    }
+    assert_eq!(
+        serde_json::to_value(&before).unwrap(),
+        serde_json::to_value(&after).unwrap()
+    );
+    assert_eq!(fs::read(path).unwrap(), bytes);
 }
 
 #[test]
@@ -1067,7 +1127,27 @@ fn raw_gamecube_discovery_retains_request_size_and_hash_bounds() {
 fn raw_gamecube_discovery_does_not_claim_compressed_archive_or_psx_contracts() {
     let temporary = tempfile::tempdir().unwrap();
     let bytes = b"exact raw digest under an unsupported representation";
-    let catalog = raw_gamecube_catalog(bytes);
+    let mut document =
+        serde_json::to_value(raw_gamecube_catalog(bytes).authoritative_document()).unwrap();
+    // Only this refusal case needs an optical profile that cannot be scanned.
+    document["source_catalog"]["identities"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::json!({
+            "id": "masters-of-teras-kasi-psx", "label": "Synthetic PSX source",
+            "kind": "optical-disc", "variants": [{
+                "id": "fixture", "title": "Synthetic PSX track set",
+                "representations": [{
+                    "id": "normalized-track-set", "extensions": ["chd"],
+                    "kind": "optical-track-set", "track_counts": [1],
+                    "identities": [{
+                        "scope": "psx-normalized-track-set",
+                        "sha256": hex::encode(Sha256::digest(bytes))
+                    }]
+                }]
+            }]
+        }));
+    let catalog = Catalog::from_json(&document.to_string()).unwrap();
     for extension in ["rvz", "ciso", "gcz", "wia", "chd"] {
         fs::write(temporary.path().join(format!("game.{extension}")), bytes).unwrap();
     }
