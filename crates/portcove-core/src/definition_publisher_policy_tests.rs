@@ -1500,8 +1500,154 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
             serde_json::to_value(selection).unwrap()
         );
     }
+}
+
+#[tokio::test]
+async fn managed_historical_admission_upgrade_preserves_retained_installation_and_player_data() {
+    let phase_started = std::time::Instant::now();
+    let phase =
+        |label: &str| eprintln!("historical upgrade {label}: {:?}", phase_started.elapsed());
+    use crate::ReleaseProvider;
+    use std::io::{Cursor, Write};
+    let platform = crate::Platform::current().unwrap();
+    let executable = if cfg!(windows) {
+        "fixture.exe"
+    } else {
+        "fixture"
+    };
+    let mut baseline = metadata_catalog().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.platforms = vec![platform];
+    port.executable_hints = std::collections::BTreeMap::from([(platform, vec![executable.into()])]);
+    baseline.ports[0] = port;
+    let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
+    let (fixture, key, root, _directory, library, catalog, mut scope) =
+        managed_fixture_for(authored).await;
+    let server = AcquisitionHttp::new();
+    scope.fixture_origin = Some(server.origin.clone());
+    let installer = crate::Installer::new(library.clone()).unwrap();
+    let mut delivered = Vec::new();
+    for version in ["v1"] {
+        // A fresh provider models the next ordinary client session. The earlier
+        // cache test separately qualifies reuse within the live session's TTL.
+        let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+        let payload = format!("owned synthetic ordinary artifact {version}");
+        let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        archive
+            .start_file(
+                executable,
+                zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+            )
+            .unwrap();
+        archive.write_all(payload.as_bytes()).unwrap();
+        let bytes = archive.finish().unwrap().into_inner();
+        let digest = hex::encode(Sha256::digest(&bytes));
+        server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+        let mut release = server.release(true);
+        release[0]["tag_name"] = version.into();
+        release[0]["assets"][0]["name"] = format!("game-{}.zip", platform.asset_tokens()[0]).into();
+        release[0]["assets"][0]["size"] = bytes.len().into();
+        release[0]["assets"][0]["digest"] = format!("sha256:{digest}").into();
+        server.json(release);
+        let resolution = provider
+            .resolve_scoped(
+                catalog.port(ID).unwrap(),
+                ReleaseChannel::Stable,
+                platform,
+                Some(&scope),
+            )
+            .await
+            .unwrap();
+        server.bytes(&bytes);
+        let request = crate::InstallRequest {
+            port_id: ID.into(),
+            release: resolution.release.clone(),
+            output_root: library.versions_dir().join(ID),
+            activate: true,
+            managed: None,
+            qualification: crate::InstallQualification::from_catalog(&catalog, ID, platform)
+                .unwrap()
+                .with_acquisition_resolution(resolution)
+                .unwrap(),
+        };
+        let operation = crate::operation::OperationCoordinator::new("install", None);
+        let installed = installer
+            .install(request, &operation, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(installed.version, version);
+        assert_eq!(installed.artifact.sha256, digest);
+        assert_eq!(
+            fs::read(installed.path.join(executable)).unwrap(),
+            payload.as_bytes()
+        );
+        let retained = installer.retained_catalog(&installed).unwrap().unwrap();
+        assert_eq!(
+            retained.definition_selection(ID),
+            catalog.definition_selection(ID)
+        );
+        assert_eq!(
+            serde_json::to_value(retained.port(ID).unwrap()).unwrap(),
+            serde_json::to_value(catalog.port(ID).unwrap()).unwrap()
+        );
+        delivered.push(installed);
+    }
+    let retained_trees: Vec<_> = delivered
+        .iter()
+        .map(|installed| crate::library_transfer::reviewed_tree(&installed.path).unwrap())
+        .collect();
+    let user = library.user_dir(ID);
+    fs::create_dir_all(user.join("saves")).unwrap();
+    fs::create_dir_all(user.join("config")).unwrap();
+    fs::write(user.join("saves/progress.bin"), b"owned retained progress").unwrap();
+    fs::write(user.join("config/settings.json"), b"{\"owned\":true}").unwrap();
+    let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
+
+    // Admit a genuinely signed newer policy with the same authorization. The
+    // real installed contract remains at revision 1; schema 33 had no evidence
+    // from which to infer continuity across that earlier admission.
+    let mut targets = repository_targets_for(&catalog, ID);
+    let mut document = managed_policy_for(&targets, false);
+    document["policy_revision"] = serde_json::json!(3);
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&document).unwrap(),
+    ));
+    let current_root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 3)),
+        )
+        .await;
+    assert_eq!(current_root, root);
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    assert!(
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap()
+    );
+    assert_eq!(catalog.definition_selection(ID).unwrap().policy_revision, 1);
+    let snapshot = |library: &Library| {
+        let conn = library.connection().unwrap();
+        let admission: (String, String, String) = conn.query_row(
+            "SELECT anchor_sha256,policy_json,provenance_json FROM definition_publisher_admission",
+            [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).unwrap();
+        let authority: (String, String, String) = conn.query_row(
+            "SELECT anchor_sha256,trusted_root_json,replay_floor_json FROM definition_publisher_authority",
+            [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).unwrap();
+        (admission, authority)
+    };
+    let admitted_bytes = snapshot(&library);
     // Recreate the exact historical schema-33 admission, retaining its signed
     // bytes and current policy but removing information that schema never knew.
+    assert_eq!(count(&library, "definition_launch_assessments"), 0);
+    assert_eq!(count(&library, "definition_launch_decisions"), 0);
     library.connection().unwrap().execute_batch(
         "BEGIN IMMEDIATE;
          CREATE TABLE historical_admission (
@@ -1514,7 +1660,9 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
            FROM definition_publisher_admission;
          DROP TABLE definition_publisher_admission;
          ALTER TABLE historical_admission RENAME TO definition_publisher_admission;
-         DELETE FROM schema_migrations WHERE version=34;
+         DROP TABLE definition_launch_assessments;
+         DROP TABLE definition_launch_decisions;
+         DELETE FROM schema_migrations WHERE version>33;
          COMMIT;"
     ).unwrap();
     let historical_root = library.root().to_path_buf();
@@ -1539,6 +1687,19 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
         floor, 3,
         "an upgrade cannot invent prior authorization continuity"
     );
+    assert_eq!(snapshot(&upgraded), admitted_bytes);
+    let marker: u64 = upgraded
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT launch_assessment_revision FROM definition_publisher_admission",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(marker, 0);
+    assert_eq!(count(&upgraded, "definition_launch_assessments"), 0);
+    assert_eq!(count(&upgraded, "definition_launch_decisions"), 0);
     assert_eq!(
         upgraded
             .assess_definition_operation(

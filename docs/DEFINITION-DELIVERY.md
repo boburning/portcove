@@ -589,6 +589,17 @@ fixture failure/correction and keeps that reader unchanged thereafter. This
 component does not claim a new CLI wire capability, automatic refresh, protected
 production signing/publication, or whole #246/#315 acceptance.
 
+Schema 35 builds on schema 34's retained-authorization interval. Signed schema-3
+fixtures verify that a compatible definition correction preserves exact-subject
+holds, requires a current-policy companion, and clears each hold only through its
+explicit correction; narrowing and restoring authorization cannot revive an old
+launch identity. A separate single-port historical-upgrade fixture retains a real
+ordinary installation and player data, preserves signed admission and authority
+bytes, refuses migration with live library users, and conservatively initializes
+the old admission's launch floor to its current policy revision. The full
+embedded-compatible two-artifact and compatible-correction journey remains a
+separate control; neither fixture establishes production publication or gameplay.
+
 The GitHub resolver observes the numeric repository ID before release cache reuse.
 Release requests still use the repository's textual name; this observation does
 not claim an immutable ID-addressed route or eliminate concurrent rename races.

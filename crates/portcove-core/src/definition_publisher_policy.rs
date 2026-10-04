@@ -1153,6 +1153,7 @@ mod continuity_tests {
                     "prepare".into(),
                     "launch".into(),
                 ],
+                launch_checks: None,
             },
         };
         let encoded = serde_json::to_value(&baseline).unwrap();

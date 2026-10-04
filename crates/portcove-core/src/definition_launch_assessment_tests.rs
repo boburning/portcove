@@ -49,6 +49,17 @@ async fn publish_assessment(
     let mut targets = repository_targets_for(catalog, ID);
     let policy_bytes = serde_json::to_vec(&managed_policy_for(&targets, true)).unwrap();
     targets.push((format!("policy/official/{ID}.json"), policy_bytes));
+    publish_assessment_for_targets(fixture, key, root, targets, metadata_version, document).await
+}
+
+async fn publish_assessment_for_targets(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    root: &[u8],
+    mut targets: Vec<(String, Vec<u8>)>,
+    metadata_version: u64,
+    document: &Value,
+) -> crate::Result<crate::AuthenticatedDefinitionLaunchAssessment> {
     targets.push((
         format!("policy/official/{ID}.launch.json"),
         serde_json::to_vec(document).unwrap(),
@@ -251,6 +262,225 @@ async fn scoped_launch_decisions_require_exact_correction_and_preserve_other_che
             .policy_sha256,
         scope.policy_sha256
     );
+}
+
+#[tokio::test]
+async fn scoped_launch_compatible_correction_preserves_holds_and_scope_restore_refuses_old_launch()
+{
+    let authored = metadata_catalog();
+    let (fixture, key, root, _directory, library, catalog, scope) =
+        managed_fixture_for_policy(authored.clone(), true).await;
+    let identity = catalog.definition_selection(ID).unwrap();
+    let record = record();
+    let context = launch_context(&record, crate::Platform::current().unwrap());
+    let first = held(&record, "launch-integrity", 1);
+    let second = held(&record, "launch-compatibility", 1);
+    let failure = assessment_document(&scope.policy_sha256, 1, vec![first.clone(), second.clone()]);
+    let accepted = publish_assessment(&fixture, &key, &root, &authored, 2, &failure)
+        .await
+        .unwrap();
+    let decisions = accepted.decision_sha256s().unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    let decision_inventory = || {
+        let connection = library.connection().unwrap();
+        let mut statement = connection
+            .prepare(
+                "SELECT subject_sha256,check_id,anchor_sha256,decision_sha256,decision_json
+             FROM definition_launch_decisions WHERE namespace='official' AND stable_id=?1
+             ORDER BY subject_sha256,check_id",
+            )
+            .unwrap();
+        statement
+            .query_map([ID], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                ))
+            })
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap()
+    };
+    let admission_state = || {
+        library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT retained_launch_revision_floor,launch_assessment_revision
+         FROM definition_publisher_admission WHERE namespace='official' AND stable_id=?1",
+                [ID],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+            )
+            .unwrap()
+    };
+    let before_inventory = decision_inventory();
+    assert_eq!(admission_state(), (1, 1));
+
+    let mut corrected = authored.authoritative_document();
+    corrected
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ID)
+        .unwrap()
+        .summary = "Owned compatible presentation correction".into();
+    let corrected = Catalog::from_json(&serde_json::to_string(&corrected).unwrap()).unwrap();
+    let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(&corrected, ID, 8);
+    let mut definition_targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+    definition_targets.extend(bundle.contents);
+    let mut grant = managed_policy_for(&definition_targets, true);
+    grant["policy_revision"] = 2.into();
+    let grant_bytes = serde_json::to_vec(&grant).unwrap();
+    let policy_sha256 = hex::encode(Sha256::digest(&grant_bytes));
+    let mut targets = definition_targets.clone();
+    targets.push((format!("policy/official/{ID}.json"), grant_bytes));
+    fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 3)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap();
+    assert!(policy::continues_retained_launch(&library.connection().unwrap(), identity).unwrap());
+    assert_eq!(admission_state(), (1, 1));
+    assert_eq!(decision_inventory(), before_inventory);
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::UnknownSafetySemantics
+    );
+
+    let omission = assessment_document(&policy_sha256, 2, vec![]);
+    let accepted =
+        publish_assessment_for_targets(&fixture, &key, &root, targets.clone(), 4, &omission)
+            .await
+            .unwrap();
+    library
+        .apply_definition_launch_assessment(&accepted)
+        .unwrap();
+    assert_eq!(decision_inventory(), before_inventory);
+    assert_eq!(admission_state(), (1, 2));
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, context)
+            .unwrap()
+            .reason,
+        DefinitionEligibilityReason::MandatoryCheckFailed
+    );
+    let mut unaffected = record.clone();
+    unaffected.version = "unaffected-release".into();
+    unaffected.artifact.sha256 = "d".repeat(64);
+    let unaffected_context = launch_context(&unaffected, crate::Platform::current().unwrap());
+    assert_eq!(
+        library
+            .assess_definition_operation(identity, unaffected_context)
+            .unwrap()
+            .outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+
+    for (index, mut correction) in [first, second].into_iter().enumerate() {
+        let revision = (index + 3) as u64;
+        correction["revision"] = revision.into();
+        correction["decision"] = serde_json::json!({"status":"cleared",
+            "previous_decision_sha256":decisions[index], "correction_sha256":"e".repeat(64)});
+        let document = assessment_document(&policy_sha256, revision, vec![correction]);
+        let accepted = publish_assessment_for_targets(
+            &fixture,
+            &key,
+            &root,
+            targets.clone(),
+            (index + 5) as u64,
+            &document,
+        )
+        .await
+        .unwrap();
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap();
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, context)
+                .unwrap()
+                .outcome,
+            if index == 0 {
+                DefinitionEligibilityOutcome::Hold
+            } else {
+                DefinitionEligibilityOutcome::Eligible
+            }
+        );
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, unaffected_context)
+                .unwrap()
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible
+        );
+        assert_eq!(count(&library, "definition_launch_decisions"), 2);
+    }
+
+    // A changed grant followed by restored parameters cannot revive the old
+    // authorization interval, even after its current companion is accepted.
+    for (revision, redirects) in [(3_u64, 4), (4_u64, 5)] {
+        let mut changed = grant.clone();
+        changed["policy_revision"] = revision.into();
+        changed["decision"]["max_redirects"] = redirects.into();
+        let bytes = serde_json::to_vec(&changed).unwrap();
+        let hash = hex::encode(Sha256::digest(&bytes));
+        let mut changed_targets = definition_targets.clone();
+        changed_targets.push((format!("policy/official/{ID}.json"), bytes));
+        let companion = assessment_document(&hash, revision + 2, vec![]);
+        let accepted = publish_assessment_for_targets(
+            &fixture,
+            &key,
+            &root,
+            changed_targets,
+            revision + 4,
+            &companion,
+        )
+        .await
+        .unwrap();
+        let candidate = acquire(&fixture, &root).await.unwrap();
+        let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap();
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap();
+        assert!(
+            !policy::continues_retained_launch(&library.connection().unwrap(), identity).unwrap()
+        );
+        assert_eq!(
+            launch::checks_passed(&library.connection().unwrap(), identity, context).unwrap(),
+            Some(true)
+        );
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, context)
+                .unwrap()
+                .reason,
+            DefinitionEligibilityReason::RecordedIdentityChanged
+        );
+        let floor: u64 = library.connection().unwrap().query_row(
+            "SELECT retained_launch_revision_floor FROM definition_publisher_admission WHERE stable_id=?1",
+            [ID], |row| row.get(0)).unwrap();
+        assert_eq!(floor, revision);
+        assert_eq!(count(&library, "definition_launch_decisions"), 2);
+    }
 }
 
 #[tokio::test]
