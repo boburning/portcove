@@ -75,6 +75,7 @@ function ActivityDiagnosticSession({
     <details
       className="activity-diagnostic col-[2/-1] min-w-0 text-xs"
       onToggle={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.currentTarget.open && capture === undefined && !pending) void load();
       }}
     >

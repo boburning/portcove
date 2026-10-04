@@ -174,6 +174,26 @@ it("keeps a first cancelled log read neutral without claiming a missing capture"
   expect(host.textContent).not.toContain("No retained diagnostic capture is available");
 });
 
+it("opens first-read technical details without implicitly retrying the read", async () => {
+  const error = failureReport();
+  error.presentation.technical_message = "retained redacted failure reason";
+  const read = vi.spyOn(desktopApi, "activityDiagnostic").mockRejectedValue(error);
+  await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={1} />));
+  await open();
+  const details = [...host.querySelectorAll("details")].find(
+    (element) => element.querySelector("summary")?.textContent === "View technical details",
+  )!;
+  await act(async () => {
+    details.open = true;
+    details.dispatchEvent(new Event("toggle", { bubbles: true }));
+  });
+  expect(details.open).toBe(true);
+  expect(host.contains(details)).toBe(true);
+  expect(details.textContent).toContain(error.presentation.technical_message);
+  expect(read).toHaveBeenCalledTimes(1);
+  expect(host.textContent).toContain("Retry log read");
+});
+
 it("coalesces same-tick reads and labels the prior capture while pending", async () => {
   let resolve!: (value: Diagnostic) => void;
   const pending = new Promise<Diagnostic>((done) => {
