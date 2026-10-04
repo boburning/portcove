@@ -81,6 +81,41 @@ function jobSection(name, nextName) {
   return workflow.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)${end}`, "m"))?.[1] ?? "";
 }
 
+test("Windows updater rehearsal adopts manifest-pinned prebuilt tools before Desktop bootstrap", async () => {
+  const rehearsal = await readFile(
+    new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+    "utf8",
+  );
+  const steps = rehearsal.split(/\r?\n {6}- /).slice(1);
+  const readerIndex = steps.findIndex((step) =>
+    step.startsWith("name: Read pinned Windows quality-tool versions"),
+  );
+  assert.ok(readerIndex >= 0, "Windows bootstrap must receive the existing prebuilt tool pins");
+  const reader = steps[readerIndex];
+  const prebuilt = steps[readerIndex + 1];
+  const bootstrap = steps[readerIndex + 2];
+  for (const step of [reader, prebuilt, bootstrap]) {
+    assert.match(step, /\n {8}if: runner\.os == 'Windows'\r?\n/);
+  }
+  assert.match(reader, /id: windows-quality-pins\r?\n/);
+  assert.match(reader, /shell: pwsh\r?\n/);
+  assert.match(
+    reader,
+    /run: node scripts\/quality-tools\.mjs --github-output >> \$env:GITHUB_OUTPUT/,
+  );
+  assert.match(prebuilt, /uses: taiki-e\/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063/);
+  assert.match(
+    prebuilt,
+    /tool: \$\{\{ steps\.windows-quality-pins\.outputs\.required_prebuilt \}\}/,
+  );
+  assert.doesNotMatch(prebuilt, /checksum:|fallback:|tool: (?:just|cargo-)/);
+  assert.match(
+    bootstrap,
+    /^name: Install pinned Windows native driver for installed NSIS renderer qualification\r?\n/,
+  );
+  assert.match(bootstrap, /run: \.\/scripts\/bootstrap-quality-tools\.ps1 -Desktop/);
+});
+
 test("native scenario consumers keep Node and context contracts in both frontend lanes", () => {
   for (const section of [
     jobSection("fast_frontend", "fast_catalog"),
