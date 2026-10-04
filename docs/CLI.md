@@ -604,6 +604,8 @@ The preview validates the new path against the current catalog profile and the r
 
 ### Opt-in source discovery
 
+Human output describes the searched scope, processing limits, scan issues and omitted issue count. An empty candidate list describes only inspected inputs; it does not prove that a matching file is absent or invalid. Candidates keep their content and stored-file hashes/sizes separate. The summary names the explicit registration command; discovery never registers, installs or launches a game. JSON and JSONL retain the existing exact report fields.
+
 ```powershell
 portcove --json source discover --root D:\Sources --profile minish-cap-gba --profile super-smash-bros-64
 portcove --json source add <profile-id> <candidate-path> --expected-sha256 <candidate-sha256>
