@@ -16,6 +16,7 @@ import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import {
   interruptedPreparationScenario,
   liveInterruptedPreparationScenario,
+  minimizedPreparationScenario,
 } from "./desktop-preparation-recovery-test.mjs";
 import {
   assertCompactReview,
@@ -88,6 +89,7 @@ export async function preparationScenarios({
   confirmNative,
   restartApplication,
   interruptApplication,
+  captureLivePreparation,
 }) {
   const command = (args, selectedLibrary = library) => {
     const result = spawnCommand(
@@ -1026,6 +1028,20 @@ export async function preparationScenarios({
     status,
     interruptApplication,
   });
+  browser = await minimizedPreparationScenario({
+    browser,
+    invoke,
+    scenario,
+    library,
+    output,
+    artifacts,
+    command,
+    activities,
+    seed,
+    open,
+    status,
+    captureLivePreparation,
+  });
   await scenario("native-update-settings-save-without-execution", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
     const cliBefore = command(["status", port.id]);
@@ -1389,6 +1405,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     confirmNative: async () => {},
     restartApplication: async () => {},
     interruptApplication: async () => {},
+    captureLivePreparation: () => {},
   });
   console.log("Native scenario context preflight passed.");
 }

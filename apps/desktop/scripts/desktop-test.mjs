@@ -280,12 +280,16 @@ const backupFocusSession = selection.selected_scenarios.includes("native-backup-
 const hostInterruptionSession = selection.selected_scenarios.includes(
   "native-host-interrupted-preparation",
 );
+const minimizedPreparationSession = selection.selected_scenarios.includes(
+  "native-minimized-preparation-continuity",
+);
 const normalPackageSession = selection.selected_scenarios.includes(
   "native-normal-package-webview-boundary",
 );
 const identityBoundSession =
   backupFocusSession ||
   hostInterruptionSession ||
+  minimizedPreparationSession ||
   normalPackageSession ||
   preferencesRecoverySession ||
   bootstrapRecoverySession ||
@@ -300,7 +304,9 @@ const cleanupName = preferencesRecoverySession
         ? "normal-package-boundary"
         : hostInterruptionSession
           ? "host-interruption"
-          : "backup-focus";
+          : minimizedPreparationSession
+            ? "minimized-preparation"
+            : "backup-focus";
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -321,6 +327,10 @@ if (normalPackageSession) {
 if (hostInterruptionSession) {
   assert.equal(process.platform, "win32");
   assert.deepEqual(selection.selected_scenarios, ["native-host-interrupted-preparation"]);
+}
+if (minimizedPreparationSession) {
+  assert.equal(process.platform, "win32");
+  assert.deepEqual(selection.selected_scenarios, ["native-minimized-preparation-continuity"]);
 }
 if (backupFocusSession) {
   assert.equal(process.platform, "win32", "The exact backup-focus consent route requires Windows");
@@ -378,6 +388,7 @@ function validateBackupFocusInventory(captured) {
         [
           "native-backup-delete-focus",
           "native-host-interrupted-preparation",
+          "native-minimized-preparation-continuity",
           "native-normal-package-webview-boundary",
           "native-startup-library-recovery",
           "native-library-switch-recovery",
@@ -1085,6 +1096,26 @@ async function restartApplication(name, prepareWhileStopped, childEnvironment = 
 
 // Interrupt only this harness's positively identified tree, without first
 // deleting its WebDriver session or requesting graceful application shutdown.
+function captureLivePreparation(preparationExecutable) {
+  assert.ok(minimizedPreparationSession && ownedSession.driver && driver?.pid);
+  const snapshot = path.join(output, "minimized-preparation-live-processes.json");
+  const captured = observeNativeSession("Snapshot", snapshot);
+  assert.deepEqual(captured.driver, ownedSession.driver);
+  for (const expected of [values.app, preparationExecutable]) {
+    assert.equal(
+      captured.processes.filter(
+        (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
+      ).length,
+      1,
+      "Capture one exact live owned executable",
+    );
+  }
+  artifacts.push(snapshot);
+  // Preserve final cleanup's independent current inventory; the worker may
+  // legitimately exit after this immutable live checkpoint.
+  return { snapshot, ...captured };
+}
+
 async function interruptApplication(name, preparationExecutable, assertStillPreparing) {
   assert.equal(process.platform, "win32", "Live host interruption is Windows qualification");
   const inventory = captureBackupFocusCleanup();
@@ -2702,6 +2733,7 @@ try {
       restartApplication,
       cli: values["preparation-cli"],
       interruptApplication,
+      captureLivePreparation,
       tool: values["preparation-tool"],
     });
   }

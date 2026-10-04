@@ -26,6 +26,7 @@ import {
 import {
   catalogReport,
   desktopHarnessDeadlineMs,
+  desktopScenarioById,
   DESKTOP_PROFILES,
   DESKTOP_SCENARIOS,
   resolveDesktopSelection,
@@ -426,6 +427,19 @@ test("live host interruption selects its own fixture without synthetic recovery 
   assert.deepEqual(selection.setup_scenarios, []);
   assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
   assert.ok(selection.host_resources.includes("native-desktop"));
+});
+
+test("minimized live preparation is one opt-in bounded Windows scenario", () => {
+  const id = "native-minimized-preparation-continuity";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id] });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
+  assert.ok(selection.host_resources.includes("native-desktop"));
+  assert.ok(selection.host_resources.includes("keyboard-pointer"));
+  assert.deepEqual(desktopScenarioById.get(id).platforms, ["win32"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
 });
 
 test("replacement identity failure cannot reuse the former host's exit receipt", () => {
