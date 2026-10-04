@@ -950,9 +950,80 @@ fn transient_cover_failure_backs_off_without_erasing_the_choice() {
     );
 }
 
+// Backoff protocol fixtures need a mapped cover, not reviewed real-title data.
+// The default-cover and installed-contract cases above keep the embedded catalog.
+fn backoff_catalog() -> crate::Catalog {
+    crate::Catalog::from_json(
+        &serde_json::json!({
+            "schema_version": 2,
+            "source_catalog": {
+                "identities": [], "contracts": [], "validators": [],
+                "evidence": [], "qualification": []
+            },
+            "ports": [{
+                "id": "artwork-backoff-fixture",
+                "name": "Artwork backoff fixture",
+                "summary": "Synthetic cover request protocol fixture",
+                "project_url": "https://example.invalid/artwork-backoff",
+                "support_tier": "beta",
+                "channels": ["stable"],
+                "platforms": ["linux-x86-64"],
+                "adapter": "libultraship-portable",
+                "release": {"repository": "fixture/artwork-backoff"},
+                "executable_hints": {"linux-x86-64": ["fixture"]},
+                "presentation": {
+                    "installation_method": "portable-package",
+                    "source_requirements": [],
+                    "saves_and_settings": "portcove-managed",
+                    "artwork": {
+                        "game_id": 17, "cover_id": 31,
+                        "image_id": "fixturecover", "image_sha256": "a".repeat(64),
+                        "game_slug": "artwork-backoff-fixture", "match_kind": "port"
+                    }
+                }
+            }]
+        })
+        .to_string(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn backoff_catalog_is_self_contained_and_uses_real_mapping_validation() {
+    let catalog = backoff_catalog();
+    let port = catalog.port("artwork-backoff-fixture").unwrap();
+    assert_eq!(catalog.ports().len(), 1);
+    assert!(port.source_profile.is_none());
+    let source = catalog.source_catalog().unwrap();
+    assert!(source.identities.is_empty());
+    assert!(source.contracts.is_empty());
+    assert!(source.validators.is_empty());
+    assert!(source.evidence.is_empty());
+    assert!(source.qualification.is_empty());
+    let artwork = port
+        .presentation
+        .as_ref()
+        .unwrap()
+        .artwork
+        .as_ref()
+        .unwrap();
+    assert_eq!((artwork.game_id, artwork.cover_id), (17, 31));
+    assert_eq!(artwork.image_id, "fixturecover");
+    let original = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    let mut unknown = original.clone();
+    unknown["ports"][0]["presentation"]["artwork"]["untrusted_provider"] = true.into();
+    assert!(crate::Catalog::from_json(&unknown.to_string()).is_err());
+    let mut invalid = original;
+    invalid["ports"][0]["presentation"]["artwork"]["image_id"] = "../outside".into();
+    assert!(crate::Catalog::from_json(&invalid.to_string()).is_err());
+}
+
 fn backoff_fixture(root: &Path) -> (PortcoveService, crate::IgdbArtwork, Vec<u8>) {
-    let service = open_service(&root.join("library"));
-    let cover = service.artwork("shipwright", ArtworkSlot::Cover).unwrap();
+    let mut service = PortcoveService::new(Library::open(root.join("library")).unwrap()).unwrap();
+    service.replace_catalog_for_test(backoff_catalog());
+    let cover = service
+        .artwork("artwork-backoff-fixture", ArtworkSlot::Cover)
+        .unwrap();
     let ArtworkResolvedSource::IgdbCover { mut artwork, .. } = cover.resolved_source else {
         panic!("mapped cover");
     };
