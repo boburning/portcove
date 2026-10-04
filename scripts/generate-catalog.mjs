@@ -342,11 +342,29 @@ async function prepareArtworkProposal(fullProposal = false) {
       input: inspectProposal.inspect("input", captured.bytes),
     };
   }
-  const validateImage = cli
-    ? createCoreImageValidator(inspectProposal?.artifact ?? cli, join(outputRoot, "scratch"))
-    : () => {
-        throw new Error("Core image validation requires a selected compatible CLI.");
-      };
+  let imageValidator;
+  let imageInitializationError;
+  const validateImage = inspectProposal
+    ? (bytes) => {
+        if (imageInitializationError) throw imageInitializationError;
+        if (!imageValidator) {
+          try {
+            imageValidator = createCoreImageValidator(
+              inspectProposal.artifact,
+              join(outputRoot, "scratch"),
+            );
+          } catch (error) {
+            imageInitializationError = error;
+            throw error;
+          }
+        }
+        return imageValidator(bytes);
+      }
+    : cli
+      ? createCoreImageValidator(cli, join(outputRoot, "scratch"))
+      : () => {
+          throw new Error("Core image validation requires a selected compatible CLI.");
+        };
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
   const result = await prepareCatalogArtwork(input, {
     ...inspector,
