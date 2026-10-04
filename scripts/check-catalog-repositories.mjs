@@ -170,8 +170,9 @@ export async function collectRepositoryHealth(
       result.retry_at = deferred.get(record.provider);
       continue;
     }
+    const remaining = deadline - now();
     if (
-      now() >= deadline ||
+      remaining <= 0 ||
       consumed.requests >= limits.requests ||
       consumed.response_bytes >= limits.total_bytes
     ) {
@@ -188,7 +189,7 @@ export async function collectRepositoryHealth(
       headers["X-GitHub-Api-Version"] = "2022-11-28";
       if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
     } else if (gitlabToken) headers["PRIVATE-TOKEN"] = gitlabToken;
-    const signal = AbortSignal.timeout(Math.min(limits.request_ms, deadline - now()));
+    const signal = AbortSignal.timeout(Math.min(limits.request_ms, remaining));
     consumed.requests++;
     result.attempted = true;
     let response;
@@ -275,8 +276,12 @@ export function renderRepositoryHealth(report) {
     `Observed ${report.started_at} through ${report.completed_at}.`,
   ];
   for (const record of report.observations) {
+    const status =
+      record.status === "reachable"
+        ? `reachable${record.archived ? " (archived)" : ""}`
+        : `unknown (${record.reason}${!record.attempted ? "; not attempted" : record.http_status === null ? "; not established" : `; HTTP ${record.http_status}`})`;
     lines.push(
-      `${record.provider}:${record.repository} [${record.port_ids.join(", ")}]: ${record.status === "reachable" ? `reachable${record.archived ? " (archived)" : ""}` : `unknown (${record.reason}${record.http_status === null ? "; not established" : `; HTTP ${record.http_status}`})`}`,
+      `${record.provider}:${record.repository} [${record.port_ids.join(", ")}]: ${status}`,
     );
     if (record.resume_condition)
       lines.push(

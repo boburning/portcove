@@ -174,6 +174,7 @@ test("rate limit stops subsequent requests to that provider and retains other-pr
       [true, false, true],
     );
     assert.equal(report.observations[1].http_status, null);
+    assert.match(renderRepositoryHealth(report), /unknown \(rate-limit; not attempted\)/u);
     assert.equal(report.observations[1].retry_at, report.observations[0].retry_at);
     assert.equal(
       report.observations[0].retry_at,
@@ -250,6 +251,17 @@ test("fixed request, duration and aggregate byte limits leave unattempted identi
   assert.equal(bytesLimited.consumed.requests, 17);
   assert.equal(bytesLimited.observations[16].reason, "budget");
   assert.equal(bytesLimited.observations[17].attempted, false);
+});
+
+test("crossing the collection deadline during request setup retains the remaining inventory", async () => {
+  let ticks = 0;
+  const report = await collect(catalog(port("first"), port("last")), undefined, {
+    now: () => clock + (ticks++ === 0 ? 0 : ticks === 2 ? 179_999 : 180_001),
+  });
+  assert.equal(report.observations.length, 2);
+  assert.equal(report.observations[0].reason, "budget");
+  assert.equal(report.observations[1].attempted, false);
+  assert.equal(report.observations[1].reason, "budget");
 });
 
 test("malformed inventory refuses before network and direct-manifest-only is explicitly excluded", async () => {
