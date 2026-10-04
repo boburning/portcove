@@ -8,7 +8,7 @@ import { fileIdentity } from "./development-evidence.mjs";
 import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
-  assertReviewedLinkRefusals,
+  normalPackageBoundaryScenario,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
@@ -204,7 +204,9 @@ test("cancelled navigation permits only observed GETs and never popup or executi
     assert.throws(() => assertOwnedBoundaryRequests([invalid]));
 });
 
-test("reviewed link refusals require guard errors and preserve the ready native context", async () => {
+test("reviewed link refusals require guard errors and preserve the ready native context", async (t) => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-link-boundary-"));
+  t.after(() => rm(outputRoot, { recursive: true, force: true }));
   const library = path.resolve("work", "link-boundary-library");
   const status = {
     ready: true,
@@ -214,11 +216,15 @@ test("reviewed link refusals require guard errors and preserve the ready native 
     selection: { root: library, source: "environment" },
   };
   async function run({ refusal, contextChange, identityChange, urlChange } = {}) {
+    const output = await mkdtemp(path.join(outputRoot, "case-"));
     const calls = [];
     let refused = false;
     const observations = {};
     const invoke = async (command, args) => {
       calls.push({ command, args });
+      if (command === "set_locale_preference") return { ok: true, value: null };
+      if (command === "create_boundary_windows")
+        throw new Error("Contract fixture stops after link guards");
       if (command === "get_bootstrap_status")
         return { ok: true, value: { ...status, ...(refused ? contextChange : {}) } };
       if (command === "get_library_identity")
@@ -240,12 +246,25 @@ test("reviewed link refusals require guard errors and preserve the ready native 
         }
       );
     };
-    await assertReviewedLinkRefusals({
-      browser: { getCurrentUrl: async () => (refused && urlChange) || "http://tauri.localhost/" },
+    await normalPackageBoundaryScenario({
+      browser: {
+        getCurrentUrl: async () => (refused && urlChange) || "http://tauri.localhost/",
+        manage: () => ({ setTimeouts: async () => {} }),
+        executeScript: async () => ({}),
+        executeAsyncScript: async () => ({}),
+      },
       invoke,
       library,
-      observations,
+      output,
+      artifacts: [],
+      packageEvidence: { fixture: true },
+    }).catch((error) => {
+      if (error.message !== "Contract fixture stops after link guards") throw error;
     });
+    Object.assign(
+      observations,
+      JSON.parse(await readFile(path.join(output, "normal-package-boundary.json"))),
+    );
     return { calls, observations };
   }
   const { calls, observations } = await run();

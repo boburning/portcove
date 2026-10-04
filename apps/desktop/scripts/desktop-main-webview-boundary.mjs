@@ -205,7 +205,7 @@ export function assertOwnedBoundaryRequests(requests) {
   }
 }
 
-export async function assertReviewedLinkRefusals({ browser, invoke, library, observations }) {
+async function assertReviewedLinkRefusals({ browser, invoke, library, observations }) {
   observations.reviewedLinkRefusals = [];
   const context = async () => {
     const bootstrap = await invoke("get_bootstrap_status");
