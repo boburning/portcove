@@ -1871,6 +1871,57 @@ cleanup fixtures exercise failed deletion, ordinary
 successful cleanup and retained startup state with owned inert files; they do not
 prove native process, gameplay or physical-device behavior.
 
+### Publication family consumers and retained contracts
+
+The current-to-target boundary is family admission before one Core-owned
+publication implementation, not a new universal state machine. Normal Install
+reaches `Installer::install` through the service's release application path; CLI
+`installation.run` also binds the reviewed plan through `apply_game_install`,
+while Desktop `install_port` calls the service's installation facade. Normal
+Prepare uses the CLI preparation commands and Desktop `preparation.rs` to call
+`plan_preparation`, `authorize_preparation` and `prepare`. Normal Adopt uses CLI
+adoption and Desktop `adoption.rs` to preview, authorize and call `adopt`.
+These consumers retain their existing request, confirmation and event contracts;
+none directly interprets a journal or acquires publication authority from UI state.
+
+On open, `PortcoveService::recover_lifecycle_operations` inventories journals,
+locks the recorded port and rereads the same operation identity before dispatch.
+Install/Adopt enter `recover_published_install`; Prepare first enters
+`preparation::recover`. Diagnostic `repair_plan` and `doctor` read the same durable
+intent without authorizing its publication. The following dispositions apply to
+this publication family, rather than every lifecycle or exported API:
+
+| Boundary                                  | Disposition and evidence                                                                                                                                                                                                                                                                                                                                                                                                                                   | Retained owner and replacement condition                                                                                                                                                                                                                                                        |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Publication owner and destination         | Implemented: #1394 and [#1497](https://github.com/boburning/portcove/pull/1497) refuse a foreign install owner or contradictory present destination before mutation. Tests cover both writers across publication phases, retained bytes/pointers and corrected idempotent recovery.                                                                                                                                                                        | Core recovery retains nullable legacy destinations. A replacement must migrate normal writers, startup recovery and repair reporting while preserving omitted-destination reads; absence alone is not new destination authority.                                                                |
+| Family payload and activation             | Implemented: [#1502](https://github.com/boburning/portcove/pull/1502) and [#1510](https://github.com/boburning/portcove/pull/1510) reject foreign preparation/relocation/import/removal intent in Install/Adopt, including install-less cleanup; [#1504](https://github.com/boburning/portcove/pull/1504) rejects nonactivating Prepare publication. Owned startup fixtures preserve state on refusal and recover after correcting only the contradiction. | Family admission stays in Core. The common helper remains after Prepare's reviewed-plan, original-install and destination checks; its Prepare metadata commit uses `register_prepared_install`, not Install's stage/activate choice.                                                            |
+| Private failure and cleanup               | Implemented: [#1512](https://github.com/boburning/portcove/pull/1512) retains failed Adopt cleanup intent and diagnostic activity through restart; successful cleanup retires it. Install cancellation and Prepare reviewed cleanup keep the distinct dispositions above.                                                                                                                                                                                  | Preparing is unvalidated work, not permission to publish. Install-less CleanupPending is a cleanup intent, not an installation. Process-quiescence uncertainty still blocks applicable deletion; terminal activity or held locks alone cannot prove that native children stopped.               |
+| Released representation and public facade | Compatibility retained: journal kind/phase/optional payload fields encode released records; public installation/preparation/adoption inputs and results serve CLI, Tauri and generated transport. Private checks replace demonstrated unsafe interpretations without changing those envelopes.                                                                                                                                                             | #925 owns any justified internal replacement and its normal/recovery migration. A public narrowing additionally needs the actual external-consumer inventory and compatibility decision; lack of direct CLI/Tauri use is insufficient. No serialization or crate split is selected by this map. |
+
+The filesystem publication rename precedes SQLite install-pointer registration;
+the subsequent journal phase and private cleanup do not combine these into a
+single filesystem/database transaction. Recovery verifies retained payloads and
+family authority before publication or registration, and keeps ambiguous state
+for review. Normal admission/publication and startup recovery retain the per-port lock
+and recorded operation identity. Adopt's failed Preparing cleanup runs after
+its admission/publication guard is released and is confined to that operation's
+private tree and journal; this map adds no lock coverage. Prepare reviewed cleanup
+additionally owns its activity lock and accepted quarantine. The cited components retain their original selected/CI and, where
+applicable, native evidence scopes; this map adds no combined-tree execution or
+power-loss guarantee.
+
+The remaining acceptance owners are explicit without making this document a
+planning ledger. #925 owns the rest of the setup-family configuration inventory,
+durable-order/lock/commit-point review for other selected workflows, and the
+public/internal export and host-consumer map. Each needs an actual invalid state,
+ambiguous owner or edit burden before another functional change is selected;
+otherwise its disposition may be evidence-backed retention. Existing observational
+planners and checked managed-PS1 configuration are credited in the Adapter
+boundary below. #1168 owns offered-route UI semantics, #1282 host interruption,
+and #52 application-updater behavior and host authority. Independent packaged CLI
+consumer proof remains with #1499. These are separate acceptance boundaries, not
+reasons to rewrite compatible journals or to close all of #925 from this map.
+
 Adoption uses the same publication state machine and never copies into a final version path directly. Its first step recursively hashes every regular file into a deterministic copy plan, preserves empty directories, and reports symlinks or special entries that will be skipped. The reviewed plan fingerprint is authorized for five minutes and one use; core recomputes it under the port lock and verifies the private copied tree before activation. Persistent data is taken from that verified private copy, never from a source path that can change after copying. Removal runs the publication state machine in reverse: every registered managed version is renamed under `recovery/<operation-id>/` before SQLite metadata is deleted, then quarantine cleanup is retried. Port removal, backup restore, backup deletion, adoption, source-reference removal and retained-preparation cleanup all consume action-, target-, and state-bound core authorizations. Desktop issuance occurs only after a native backend-owned confirmation dialog; renderer state cannot authorize a destructive command. Backup, installed-game removal and retained-preparation cleanup also provide detailed custom reviews before this final confirmation. The Desktop cleanup review distinguishes deletion of unfinished setup's working files from clearing an empty setup record, while showing the recorded path and preserved locations in either case. Core still revalidates the selected action and reviewed state under its operation lock. Startup advances only recorded states whose payload, manifest and path layout are unambiguous. A preparation interrupted before validation remains failed and cannot be resumed. Its exact operation-private tree may be discarded only after an inventory-bound review while the port and original activity are idle. Core records the accepted cleanup before deletion; startup may retry that deletion but cannot reinterpret the original preparation as successful. The action never owns the recorded original installation, source, saved data, backups or logs, and it never deletes an untracked final directory. The read-only doctor repair plan distinguishes retained private preparation from other incomplete journals, cleanup-pending trees, registered paths that are missing and orphaned final directories with proposed review actions.
 
 Staged activation and rollback collect user data from the version being deactivated only when its per-version launch marker proves it has actually run, then change active/previous pointers transactionally. The same guard applies before install, update, removal, and retained-version reuse, so a verified but never-launched release cannot propagate absent files as user-requested deletions. Adoption copies files into a new managed version and leaves the source directory untouched.
