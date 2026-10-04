@@ -1361,50 +1361,9 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
     let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
 
     for definition_revision in [8, 9] {
-        let policy_revision = definition_revision - 6;
-        let mut corrected = catalog.authoritative_document();
-        corrected
-            .ports
-            .iter_mut()
-            .find(|port| port.id == ID)
-            .unwrap()
-            .summary = "Reviewed presentation correction".into();
-        let corrected = Catalog::from_json(&serde_json::to_string(&corrected).unwrap()).unwrap();
-        let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
-            &corrected,
-            ID,
-            definition_revision,
-        );
-        let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
-        targets.extend(bundle.contents);
-        let mut document = availability_for(&targets, ID, policy_revision);
-        document["policy_schema"] = serde_json::json!(2);
-        document["grant_id"] = serde_json::json!("managed-github-v1-fixture");
-        for field in [
-            "status",
-            "repository_id",
-            "artifact_hosts",
-            "max_redirects",
-            "operations",
-        ] {
-            document["decision"][field] = managed_github(2)["decision"][field].clone();
-        }
-        targets.push((
-            format!("policy/official/{ID}.json"),
-            serde_json::to_vec(&document).unwrap(),
-        ));
-        let corrected_root = fixture
-            .publish_with_policy(
-                &targets,
-                true,
-                &DEFINITION_ROLE_PATHS,
-                later(),
-                Some((&key, policy_revision)),
-            )
-            .await;
-        assert_eq!(corrected_root, root);
-        let candidate = acquire(&fixture, &root).await.unwrap();
-        let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+        let (candidate, admission) =
+            acquire_compatible_correction(&fixture, &key, &root, &catalog, definition_revision)
+                .await;
         library
             .apply_definition_publisher_policy(&admission, Some(&candidate))
             .unwrap();
@@ -1448,7 +1407,114 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
             launch.eligibility.outcome,
             DefinitionEligibilityOutcome::Eligible
         );
-        let old_identity = catalog.definition_selection(ID).unwrap();
+    }
+}
+
+async fn acquire_compatible_correction(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    root: &[u8],
+    catalog: &Catalog,
+    definition_revision: u64,
+) -> (
+    crate::AuthenticatedDefinitionCandidate,
+    crate::AuthenticatedDefinitionPublisherPolicy,
+) {
+    let policy_revision = definition_revision - 6;
+    let mut corrected = catalog.authoritative_document();
+    corrected
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ID)
+        .unwrap()
+        .summary = "Reviewed presentation correction".into();
+    let corrected = Catalog::from_json(&serde_json::to_string(&corrected).unwrap()).unwrap();
+    let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
+        &corrected,
+        ID,
+        definition_revision,
+    );
+    let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+    targets.extend(bundle.contents);
+    let mut document = availability_for(&targets, ID, policy_revision);
+    document["policy_schema"] = serde_json::json!(2);
+    document["grant_id"] = serde_json::json!("managed-github-v1-fixture");
+    for field in [
+        "status",
+        "repository_id",
+        "artifact_hosts",
+        "max_redirects",
+        "operations",
+    ] {
+        document["decision"][field] = managed_github(2)["decision"][field].clone();
+    }
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&document).unwrap(),
+    ));
+    let corrected_root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((key, policy_revision)),
+        )
+        .await;
+    assert_eq!(corrected_root.as_slice(), root);
+    let candidate = acquire(fixture, root).await.unwrap();
+    let admission = acquire_policy(fixture, root, ID).await.unwrap();
+    (candidate, admission)
+}
+
+#[tokio::test]
+async fn managed_compatible_corrections_refuse_old_acquisition_and_changed_retained_identity() {
+    // These supplied operation contexts consume stored admission, not installed
+    // payloads. Ordinary embedded discovery and both real artifacts stay above.
+    let (fixture, key, root, _directory, library, catalog, scope) =
+        managed_fixture_for(metadata_catalog()).await;
+    let old_identity = catalog.definition_selection(ID).unwrap();
+    let require_retained_launch = || {
+        assert_eq!(
+            library
+                .assess_definition_operation(
+                    old_identity,
+                    DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
+                )
+                .unwrap()
+                .outcome,
+            DefinitionEligibilityOutcome::Eligible,
+        );
+        assert!(
+            policy::continues_retained_launch(&library.connection().unwrap(), old_identity)
+                .unwrap()
+        );
+        let floor: u64 = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT retained_launch_revision_floor FROM definition_publisher_admission",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(floor, 1);
+    };
+    require_retained_launch();
+    for definition_revision in [8, 9] {
+        let (candidate, admission) =
+            acquire_compatible_correction(&fixture, &key, &root, &catalog, definition_revision)
+                .await;
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap();
+        let eligible = library
+            .assess_definition_candidate(&candidate, "official", ID)
+            .unwrap()
+            .into_eligible()
+            .unwrap();
+        library.select_definition_candidate(eligible).unwrap();
+        require_retained_launch();
         for operation in [
             DefinitionOperation::Install,
             DefinitionOperation::Update,
@@ -1735,7 +1801,8 @@ async fn managed_authorization_changes_and_restoration_cannot_revive_old_launch(
         "revoked",
         "availability",
     ] {
-        let (fixture, key, root, _directory, library, catalog, _scope) = managed_fixture().await;
+        let (fixture, key, root, _directory, library, catalog, _scope) =
+            managed_fixture_for(metadata_catalog()).await;
         let identity = catalog.definition_selection(ID).unwrap();
         for revision in [2, 3] {
             let mut targets = repository_targets_for(&catalog, ID);

@@ -598,7 +598,13 @@ ordinary installation and player data, preserves signed admission and authority
 bytes, refuses migration with live library users, and conservatively initializes
 the old admission's launch floor to its current policy revision. The full
 embedded-compatible two-artifact and compatible-correction journey remains a
-separate control; neither fixture establishes production publication or gameplay.
+separate control with ordinary service discovery, retained contracts and player
+data. A small signed stored-admission fixture keeps the original identity and
+acquisition scope through both compatible corrections and verifies rejection,
+replay and idempotence without an installed-payload or embedded-discovery claim.
+The six authorization change-and-restoration pairs likewise retain their complete
+signed transitions. These fixtures do not establish production publication or
+gameplay.
 
 The GitHub resolver observes the numeric repository ID before release cache reuse.
 Release requests still use the repository's textual name; this observation does
