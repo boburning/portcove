@@ -1,6 +1,13 @@
 import { SourceRemovalControl } from "./SourceRemoval";
 import { desktopApi } from "../api";
-import { useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import {
   AlertTriangle,
   Boxes,
@@ -1968,22 +1975,60 @@ export function HostToolRow({
   showTechnicalId?: boolean;
 }) {
   const [pending, setPending] = useState<string>();
-  const [outcome, setOutcome] = useState<HostToolProbeResult>();
-  const [error, setError] = useState<string>();
+  const identity = JSON.stringify([tool.id, tool.path, tool.source, tool.state]);
+  const current = useRef({ identity, tool, revision: 0 });
+  const mounted = useRef(false);
+  const inFlight = useRef(false);
+  const [feedback, setFeedback] = useState<{
+    identity: string;
+    outcome?: HostToolProbeResult;
+    error?: string;
+  }>();
+  useLayoutEffect(() => {
+    const changed = current.current.identity !== identity;
+    const revision = current.current.revision + Number(changed);
+    current.current = { identity, tool, revision };
+    if (changed) setFeedback(undefined);
+  }, [identity, tool]);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const visibleFeedback = feedback?.identity === identity ? feedback : undefined;
   const run = async (
     name: string,
     operation: () => Promise<HostToolProbeResult | void | undefined> | undefined,
   ) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    const started = current.current;
     setPending(name);
-    setError(undefined);
-    setOutcome(undefined);
+    setFeedback(undefined);
     try {
       const result = await operation();
-      if (result) setOutcome(result);
+      const observed = current.current;
+      const ownLocatedPath =
+        name === "locate" &&
+        result?.state === "success" &&
+        result.persisted &&
+        result.tool_id === started.tool.id &&
+        observed.tool.id === result.tool_id &&
+        observed.tool.path === result.path &&
+        observed.tool.source === "saved" &&
+        observed.tool.state === "available";
+      if (mounted.current && result && (observed.revision === started.revision || ownLocatedPath))
+        setFeedback({ identity: observed.identity, outcome: result });
     } catch (value) {
-      setError(errorText(value));
+      if (mounted.current && current.current.revision === started.revision)
+        setFeedback({
+          identity: started.identity,
+          error: errorText(value),
+        });
     } finally {
-      setPending(undefined);
+      inFlight.current = false;
+      if (mounted.current) setPending(undefined);
     }
   };
   const states = {
@@ -2105,8 +2150,8 @@ export function HostToolRow({
           )}
         </small>
       </details>
-      {outcome && <p role="status">{outcome.message}</p>}
-      {error && <p role="alert">{error}</p>}
+      {visibleFeedback?.outcome && <p role="status">{visibleFeedback.outcome.message}</p>}
+      {visibleFeedback?.error && <p role="alert">{visibleFeedback.error}</p>}
     </div>
   );
 }
