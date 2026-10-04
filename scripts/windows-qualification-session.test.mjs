@@ -293,7 +293,7 @@ describe("qualification report evidence preparation", () => {
         hash: "a".repeat(64),
         version: "v1",
         platform: null,
-        source: "source-a",
+        source: null,
         saves: "/managed/saves",
         path: "/managed/runtime",
         executable: "game.exe",
@@ -370,6 +370,34 @@ describe("qualification report evidence preparation", () => {
       f.checklist(),
       /does not establish their save locations or authorize Portcove backup, restore, replacement or deletion/,
     );
+  });
+
+  test("catalog source corrections are declarations, not retained runtime source evidence", async (t) => {
+    for (const kind of [managed, external]) {
+      const status = kind();
+      for (const source of ["source-before", "source-after", null]) {
+        const catalog = {
+          ports:
+            source == null
+              ? []
+              : [{ id: status.port_id, name: "Current name", source_profile: source }],
+        };
+        const f = fixture(t, [status], { catalog });
+        await f.capture();
+        const report = f.report();
+        const row = report.observations[0];
+        assert.equal(row.source_profile, null);
+        assert.equal(row.catalog_source_profile, source);
+        assert.deepEqual(report.evidence.status.data, [status]);
+        assert.deepEqual(report.evidence.catalog.data, catalog);
+        assert.deepEqual(report.evidence.sources.data, f.data.source);
+        assert.equal(row.version, status.active?.version ?? status.external_runtime.version);
+        assert.equal(
+          row.install_id ?? row.registration_id,
+          status.active?.id ?? status.external_runtime.id,
+        );
+      }
+    }
   });
 
   test("partial optional facts remain unknown and never inherit current catalog or host facts", async (t) => {
