@@ -16,9 +16,9 @@ Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
 
 Run `portcove --help` to see commands and `portcove COMMAND --help` to check
 arguments before a consequential action. The commands below use `PORT_ID` from
-`catalog list`. For a source command, `portcove --json catalog show PORT_ID`
-provides the `source_profile` and `bios_source_profile` IDs; use the applicable
-one as `PROFILE_ID`. Substitute paths on your machine. Use `--library PATH` when working with a library other than
+`catalog list`. For a source command, `portcove catalog show PORT_ID` displays the
+declared `Game-file profile ID` and `BIOS profile ID` when present; use the
+applicable one as `PROFILE_ID`. Substitute paths on your machine. Use `--library PATH` when working with a library other than
 the saved default. These examples are human-output commands; automation should
 use the [reference below](#automation-and-integration-reference).
 

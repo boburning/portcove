@@ -260,6 +260,12 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
         ),
         format!("Upstream state: {}", upstream_status(port.upstream_status)),
     ];
+    if let Some(profile_id) = port.source_profile.as_deref() {
+        lines.push(format!("Game-file profile ID: {}", clean(profile_id)));
+    }
+    if let Some(profile_id) = port.bios_source_profile.as_deref() {
+        lines.push(format!("BIOS profile ID: {}", clean(profile_id)));
+    }
     if let Some(presentation) = &port.presentation {
         lines.push(format!(
             "Installation: {}",
@@ -2831,6 +2837,128 @@ mod catalog_detail_tests {
             .port("wave-race-64-recomp")
             .unwrap()
             .clone()
+    }
+
+    #[test]
+    fn catalog_detail_distinguishes_declared_profile_ids_from_presentation_labels() {
+        use portcove_core::{
+            PortSourceRole, SourceRequirementPresentation, SourceVerificationMethod,
+        };
+
+        let mut port = external_port();
+        port.source_profile = Some("declared-game-profile".into());
+        port.bios_source_profile = Some("declared-bios-profile".into());
+        port.presentation.as_mut().unwrap().source_requirements = vec![
+            SourceRequirementPresentation {
+                role: PortSourceRole::Game,
+                profile_id: "presentation-game-reference".into(),
+                label: "Readable game-file requirement".into(),
+                verification: SourceVerificationMethod::CatalogIdentity,
+            },
+            SourceRequirementPresentation {
+                role: PortSourceRole::Bios,
+                profile_id: "presentation-bios-reference".into(),
+                label: "Readable BIOS requirement".into(),
+                verification: SourceVerificationMethod::CatalogIdentity,
+            },
+        ];
+        let before = serde_json::to_value(&port).unwrap();
+        let output = catalog_show(&port);
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "Game-file profile ID: declared-game-profile")
+        );
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "BIOS profile ID: declared-bios-profile")
+        );
+        assert!(output.contains("Game files: Readable game-file requirement (Check method:"));
+        assert!(output.contains("BIOS: Readable BIOS requirement (Check method:"));
+        assert!(!output.contains("profile ID: Readable"));
+        assert!(!output.contains("presentation-game-reference"));
+        assert!(!output.contains("presentation-bios-reference"));
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_discloses_declared_profile_ids_without_presentation() {
+        let mut port = external_port();
+        port.presentation = None;
+        port.source_profile = Some("declared-game-profile".into());
+        port.bios_source_profile = Some("declared-bios-profile".into());
+        let before = serde_json::to_value(&port).unwrap();
+        let output = catalog_show(&port);
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "Game-file profile ID: declared-game-profile")
+        );
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "BIOS profile ID: declared-bios-profile")
+        );
+        assert!(output.contains("Presentation details: unavailable in this catalog"));
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_omits_each_absent_profile_id_independently() {
+        for (game, bios, expected) in [
+            (
+                Some("declared-game-profile"),
+                None,
+                vec!["Game-file profile ID: declared-game-profile"],
+            ),
+            (
+                None,
+                Some("declared-bios-profile"),
+                vec!["BIOS profile ID: declared-bios-profile"],
+            ),
+            (None, None, Vec::new()),
+        ] {
+            let mut port = external_port();
+            port.source_profile = game.map(str::to_owned);
+            port.bios_source_profile = bios.map(str::to_owned);
+            let before = serde_json::to_value(&port).unwrap();
+            let output = catalog_show(&port);
+            let rows = output
+                .lines()
+                .filter(|line| {
+                    line.starts_with("Game-file profile ID:")
+                        || line.starts_with("BIOS profile ID:")
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(rows, expected);
+            assert_eq!(serde_json::to_value(&port).unwrap(), before);
+        }
+    }
+
+    #[test]
+    fn catalog_detail_sanitizes_profile_ids_without_changing_the_definition() {
+        let mut port = external_port();
+        port.source_profile = Some("game\nprofile\t\u{1b}\u{9b}".into());
+        port.bios_source_profile = Some("bios\rprofile\u{7}".into());
+        let before = serde_json::to_value(&port).unwrap();
+        let output = catalog_show(&port);
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "Game-file profile ID: game profile ")
+        );
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "BIOS profile ID: bios profile")
+        );
+        assert!(
+            output
+                .chars()
+                .all(|character| !character.is_control() || character == '\n')
+        );
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
     }
 
     #[test]
