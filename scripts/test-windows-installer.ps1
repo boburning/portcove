@@ -459,7 +459,7 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
     $outputTask = $null
     $errorTask = $null
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
-    if ($Role -in @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage",
+    if ($Role -in @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage",
             "installed_update_recovery_status", "installed_update_recovery_repair", "installed_update_recovery_verified")) {
         $outputName = if ($Role -eq "installed_update_helper") { "installed-update-helper" }
             elseif ($recoveryCommand) { "$($Role.Replace('_', '-'))-stage" }
@@ -492,7 +492,7 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
         }
         $startInfoPath = $process.StartInfo.FileName
         if ([string]::IsNullOrWhiteSpace($startInfoPath)) {
-            if ($Role -notin @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage")) {
+            if ($Role -notin @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage")) {
                 throw "$Role retained handle omitted the requested launch path"
             }
             $run.start_info_observation = "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required"
@@ -775,6 +775,39 @@ try {
         }
         if ($evidence) { $evidence.installed_truncated_stage = [ordered]@{ exit_code = $truncated.ExitCode; staging_empty = $true; predecessor_preserved = $true; sentinel_preserved = $true } }
         Write-InstallerEvidence "installed_truncated_stage_rejected"
+
+        $candidateHash = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
+        $tamperedCandidate = Join-Path $runRoot "tampered-candidate.exe"
+        Copy-Item -LiteralPath $candidate -Destination $tamperedCandidate
+        $tamperedFile = [IO.File]::Open($tamperedCandidate, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        try {
+            $null = $tamperedFile.Seek(-1, [IO.SeekOrigin]::End)
+            $originalByte = $tamperedFile.ReadByte()
+            $null = $tamperedFile.Seek(-1, [IO.SeekOrigin]::End)
+            $tamperedFile.WriteByte([byte]($originalByte -bxor 1))
+        } finally { $tamperedFile.Dispose() }
+        $tamperedBytes = [UInt64](Get-Item -LiteralPath $tamperedCandidate).Length
+        $tamperedHash = (Get-FileHash -LiteralPath $tamperedCandidate -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($tamperedBytes -ne $candidateBytes -or $tamperedHash -eq $candidateHash) {
+            throw "Same-length tamper fixture did not change only candidate contents"
+        }
+        $tampered = Invoke-JournaledProcess -Role "installed_update_tampered_stage" -Executable $application -Arguments @("--portcove-qualify-update-stage", ('"' + $tamperedCandidate + '"')) -AllowedRelocationRoot $runRoot
+        $tamperedError = [IO.File]::ReadAllText((Join-Path $runRoot "installed-update-tampered-stage.stderr.log"))
+        if ($tampered.ExitCode -eq 0 -or $tamperedError -notmatch "payload SHA-256 does not match authenticated metadata") {
+            throw "Installed predecessor did not reject the same-length tampered candidate: $tamperedError"
+        }
+        $emptyStaging = Get-Content -LiteralPath $stagingPath -Raw | ConvertFrom-Json
+        if ($emptyStaging.phase -ne "empty" -or $emptyStaging.candidate -or $emptyStaging.previous_candidate -or
+            [IO.File]::Exists($stagedPayloadPath) -or
+            [IO.File]::Exists((Join-Path $updateRoot ".candidate.payload.incoming")) -or
+            [IO.File]::Exists((Join-Path $updateRoot "apply.json")) -or
+            (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -ne $previousHash -or
+            (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash -or
+            (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant() -ne $candidateHash) {
+            throw "Same-length tampered stage changed staging, predecessor, library sentinel, or original candidate"
+        }
+        if ($evidence) { $evidence.installed_tampered_stage = [ordered]@{ expected_bytes = $candidateBytes; actual_bytes = $tamperedBytes; expected_sha256 = $candidateHash; actual_sha256 = $tamperedHash; exit_code = $tampered.ExitCode; staging_empty = $true; predecessor_preserved = $true; sentinel_preserved = $true; original_candidate_preserved = $true } }
+        Write-InstallerEvidence "installed_tampered_stage_rejected"
 
         # Exercise recovery through the actual installed executable before the
         # renderer downloads a fresh candidate. The bad journal and stray byte
