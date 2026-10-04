@@ -1050,14 +1050,17 @@ available for diagnosis. CLI free-space
 snapshot contracts share a scheduling group because their existing in-process
 mutex cannot synchronize nextest's separate processes. Output-relocation lifecycle
 tests reserve both slots so their managed-tree copies do not contend with each
-other or an unrelated filesystem lifecycle case. Full signed-catalog
-tests, bounded diagnostics capture, database migrations, cancellation lifecycle
+other or an unrelated filesystem lifecycle case. Full signed-catalog and
+signed-definition repository tests, bounded diagnostics capture, database migrations, cancellation lifecycle
 cases, and CLI process contracts reserve both default CPU slots while verifying complete snapshots. The native
 conversion failure cleanup race does the same while it reaps owned process trees.
 CLI contracts also use nextest's lowest priority so an exhaustive workspace run
 drains default-priority in-process tests before beginning repeated executable
 launches. This ordering introduces no test dependency and changes neither the
 two-thread budget nor the thirty-second hang deadline.
+This slot reservation applies within each nextest invocation; it does not
+exclude other CI partitions or unrelated host work. Signed-definition coverage
+retains full authenticated catalogs, ordinary artifact installs and corrections.
 Intel macOS
 uses two exhaustive hash partitions to keep this work off the critical path.
 This changes scheduling
