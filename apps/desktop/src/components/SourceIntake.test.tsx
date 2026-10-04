@@ -167,29 +167,32 @@ describe("source intake dialog", () => {
     expect(button("Close")!.disabled).toBe(false);
   });
 
-  it.each(["failure", "cancelled"])(
-    "keeps a genuine import %s separate from a refresh failure",
-    async (outcome) => {
-      const imported = prepareImport();
-      if (outcome === "failure") imported.mockRejectedValue(new Error("owned import failure"));
-      else imported.mockResolvedValue(null);
-      const refresh = vi.fn().mockResolvedValue(undefined);
-      await openImportReview(refresh);
-      await act(async () => button("Copy into Portcove")!.click());
+  it("keeps a genuine import failure separate from a refresh failure", async () => {
+    prepareImport().mockRejectedValue(new Error("owned import failure"));
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    await openImportReview(refresh);
+    await act(async () => button("Copy into Portcove")!.click());
 
-      expect(refresh).not.toHaveBeenCalled();
-      expect(document.body.textContent).not.toContain("the files were already added");
-      if (outcome === "failure")
-        expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
-          "owned import failure",
-        );
-      else {
-        expect(document.body.textContent).toContain("Move cancelled");
-        expect(document.body.querySelector('[role="alert"]')).toBeNull();
-      }
-      expect(button("Close")!.disabled).toBe(false);
-    },
-  );
+    expect(refresh).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("the files were already added");
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+      "owned import failure",
+    );
+    expect(button("Close")!.disabled).toBe(false);
+  });
+
+  it("keeps a cancelled import separate from a refresh failure", async () => {
+    prepareImport().mockResolvedValue(null);
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    await openImportReview(refresh);
+    await act(async () => button("Copy into Portcove")!.click());
+
+    expect(refresh).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("the files were already added");
+    expect(document.body.textContent).toContain("Move cancelled");
+    expect(document.body.querySelector('[role="alert"]')).toBeNull();
+    expect(button("Close")!.disabled).toBe(false);
+  });
 
   it("ignores an obsolete post-import refresh rejection after the intake session changes", async () => {
     const imported = prepareImport();
