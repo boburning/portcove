@@ -662,9 +662,7 @@ test("the entire accepted cover inventory survives a routine executable release 
   assert.equal(result.metrics.reused, mapped.length);
   assert.equal(result.metrics.fallback, unmapped.length);
   assert.deepEqual(
-    result.records
-      .filter((record) => record.mapping)
-      .map((record) => record.port_id),
+    result.records.filter((record) => record.mapping).map((record) => record.port_id),
     mapped.map((port) => port.id),
   );
   assert.deepEqual(
