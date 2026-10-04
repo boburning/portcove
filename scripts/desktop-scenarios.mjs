@@ -23,6 +23,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario("empty-library", "Native bootstrap uses the isolated empty library."),
   scenario(
+    "native-library-switch-recovery",
+    "A refused future-library selection preserves the current workspace and permits a healthy saved restart.",
+    {
+      prerequisites: ["desktop", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-library-switch-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-startup-library-recovery",
     "Failed saved-library startup supports native cancellation, selection and a durable healthy restart.",
     {
@@ -432,6 +443,8 @@ export function resolveDesktopSelection({
   const uniqueRequested = ordered(requested);
   if (uniqueRequested.includes("native-startup-library-recovery") && uniqueRequested.length !== 1)
     throw new Error("native-startup-library-recovery requires one exact standalone scenario");
+  if (uniqueRequested.includes("native-library-switch-recovery") && uniqueRequested.length !== 1)
+    throw new Error("native-library-switch-recovery requires one exact standalone scenario");
   const nonRunnable = uniqueRequested.filter((id) => !desktopScenarioById.get(id).runnable);
   if (!selectedProfile && nonRunnable.length)
     throw new Error(`${nonRunnable.join(", ")} is an acceptance gap, not a runnable scenario`);
