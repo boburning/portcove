@@ -5,8 +5,12 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
 import { SettingsView } from "../../components/Chrome";
 import { failureReport, sourceProfile } from "../../test-fixtures";
-import type { SourceInspectionReport, SourceRecord } from "../../types";
+import type { SourceInspectionReport, SourceRecord, SourceVerificationOutcome } from "../../types";
+import { useOperationState } from "../operations/use-operation-state";
 import { useSourceHealth } from "./use-source-health";
+
+vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => undefined }));
+const refresh = async () => undefined;
 
 const source: SourceRecord = {
   profile_id: "sample-rom",
@@ -37,8 +41,9 @@ let container: HTMLDivElement;
 let root: Root;
 let state: ReturnType<typeof useSourceHealth>;
 function Fixture({ sources = [source] }: { sources?: SourceRecord[] }) {
+  const operation = useOperationState({ refresh });
   state = useSourceHealth(
-    async (_name, task) => task(),
+    operation.perform,
     sources,
     sources.map((item) => item.profile_id),
     "same-catalog",
@@ -63,6 +68,57 @@ function Fixture({ sources = [source] }: { sources?: SourceRecord[] }) {
     />
   );
 }
+
+it.each(["failed", "cancelled"])(
+  "removes an old verification error and its technical details during a new %s check",
+  async (kind) => {
+    vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(report);
+    let reject!: (value: unknown) => void;
+    const pending = new Promise<SourceVerificationOutcome[]>((_resolve, no) => {
+      reject = no;
+    });
+    vi.spyOn(desktopApi, "verifySources")
+      .mockResolvedValueOnce([
+        { error: failure, ok: false, profile_id: source.profile_id, result: null },
+      ])
+      .mockReturnValueOnce(pending)
+      .mockResolvedValueOnce([
+        { error: null, ok: true, profile_id: source.profile_id, result: null },
+      ]);
+    await act(async () => root.render(createElement(Fixture)));
+    await act(async () => state.verifyAll());
+    expect(row().textContent).toContain(failure.presentation.summary);
+    expect(row().textContent).toContain(failure.presentation.technical_message);
+    expect(row().textContent).toContain("Exact match");
+
+    let attempt!: Promise<void>;
+    await act(async () => {
+      attempt = state.verifyAll();
+    });
+    expect(row().textContent).not.toContain(failure.presentation.summary);
+    expect(row().textContent).not.toContain(failure.presentation.technical_message);
+    expect(row().textContent).not.toContain("private/source.z64");
+    expect(row().textContent).toContain(report.summary);
+    expect(row().textContent).toContain("Exact match");
+    await act(async () => {
+      reject({
+        code: kind === "cancelled" ? "cancelled" : "state",
+        message: "latest verification",
+      });
+      await attempt;
+    });
+    expect(row().textContent).not.toContain(failure.presentation.summary);
+    expect(row().textContent).not.toContain(failure.presentation.technical_message);
+    expect(row().textContent).toContain(report.summary);
+    const check = [...row().querySelectorAll("button")].find(
+      (button) => button.textContent === "Check file again",
+    );
+    expect(check?.disabled).toBe(false);
+    await act(async () => state.verifyAll());
+    expect(state.outcomes).toMatchObject([{ ok: true }]);
+    expect(row().textContent).toContain("Exact match");
+  },
+);
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
