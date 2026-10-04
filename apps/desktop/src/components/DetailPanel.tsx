@@ -974,6 +974,12 @@ function CompatibilitySummary({ port }: { port: PortDefinition }) {
         <small>Platforms</small>
         {port.platforms.map((value) => platformLabel(value)).join(" · ")}
       </span>
+      {port.platforms.includes("linux-x86-64") && (
+        <span>
+          <small>Steam Deck</small>
+          Not tested. Linux availability does not establish SteamOS or Gaming Mode qualification.
+        </span>
+      )}
       <span>
         <small>Installation method</small>
         {installationMethodLabel(port)}
