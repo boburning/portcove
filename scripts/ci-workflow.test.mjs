@@ -1977,6 +1977,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
   });
 
   test("actual command emits complete JSON and human coverage with a failure exit after an early transport failure", async () => {
+    const { pathToFileURL } = await import("node:url");
     const dir = await mkdtemp(path.join(os.tmpdir(), "portcove-repository-health-"));
     try {
       const preload = path.join(dir, "fetch.mjs");
@@ -1997,7 +1998,12 @@ test("export refuses links and oversized evidence instead of silently dropping r
       const run = (args, failure) =>
         spawnSync(
           process.execPath,
-          ["--import", preload, "scripts/check-catalog-repositories.mjs", ...args],
+          [
+            "--import",
+            pathToFileURL(preload).href,
+            "scripts/check-catalog-repositories.mjs",
+            ...args,
+          ],
           {
             cwd: new URL("..", import.meta.url),
             encoding: "utf8",
