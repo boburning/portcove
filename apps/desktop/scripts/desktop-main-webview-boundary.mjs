@@ -115,6 +115,7 @@ export async function normalPackageBoundaryScenario({
     assert.equal(new URL(initialUrl).origin, "http://tauri.localhost");
     await browser.manage().setTimeouts({ script: 10_000, pageLoad: 10_000 });
     await assertMainWebviewAccess({ browser, invoke, library, observations });
+    await assertReviewedLinkRefusals({ browser, invoke, library, observations });
     observations.qualificationCommands = {};
     for (const command of [
       "create_boundary_windows",
@@ -201,6 +202,59 @@ export function assertOwnedBoundaryRequests(requests) {
       "navigation-http",
       "Fixture requests must belong to attempted HTTP navigation",
     );
+  }
+}
+
+export async function assertReviewedLinkRefusals({ browser, invoke, library, observations }) {
+  observations.reviewedLinkRefusals = [];
+  const context = async () => {
+    const bootstrap = await invoke("get_bootstrap_status");
+    assert.equal(bootstrap.ok, true);
+    assert.equal(bootstrap.value.ready, true, "Link refusal requires a ready library");
+    assert.equal(bootstrap.value.error, null);
+    assert.equal(path.resolve(bootstrap.value.library_root), path.resolve(library));
+    assert.ok(Number.isSafeInteger(bootstrap.value.generation) && bootstrap.value.generation > 0);
+    assert.equal(path.resolve(bootstrap.value.selection.root), path.resolve(library));
+    const identity = await invoke("get_library_identity", {
+      generation: bootstrap.value.generation,
+    });
+    assert.equal(identity.ok, true, "Library identity must remain available");
+    assert.ok(typeof identity.value?.id === "string" && identity.value.id.length > 0);
+    assert.equal(path.resolve(identity.value.root), path.resolve(library));
+    return {
+      bootstrap: bootstrap.value,
+      identity: identity.value,
+      url: await browser.getCurrentUrl(),
+    };
+  };
+  for (const request of [
+    {
+      command: "open_external_url",
+      args: { url: "https://unreviewed.portcove.invalid/boundary" },
+      expected: {
+        code: "usage",
+        message: "only reviewed project, artwork source and GitHub sign-in links may be opened",
+      },
+    },
+    {
+      command: "open_source_evidence",
+      args: { evidenceId: "portcove-boundary-unknown-evidence" },
+      expected: {
+        code: "not_found",
+        message: "unknown source evidence id: portcove-boundary-unknown-evidence",
+      },
+    },
+  ]) {
+    const record = { ...request };
+    observations.reviewedLinkRefusals.push(record);
+    record.before = await context();
+    assert.equal(new URL(record.before.url).origin, "http://tauri.localhost");
+    record.result = await invoke(request.command, request.args);
+    assert.equal(record.result.ok, false, "Unreviewed link must be refused");
+    assert.equal(record.result.error?.code, request.expected.code, "Require the actual link guard");
+    assert.equal(record.result.error?.message, request.expected.message);
+    record.after = await context();
+    assert.deepEqual(record.after, record.before, "Refusal must preserve main and library context");
   }
 }
 

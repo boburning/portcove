@@ -8,6 +8,7 @@ import { fileIdentity } from "./development-evidence.mjs";
 import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
+  assertReviewedLinkRefusals,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
@@ -201,6 +202,88 @@ test("cancelled navigation permits only observed GETs and never popup or executi
     { ...request, phase: "main-controls" },
   ])
     assert.throws(() => assertOwnedBoundaryRequests([invalid]));
+});
+
+test("reviewed link refusals require guard errors and preserve the ready native context", async () => {
+  const library = path.resolve("work", "link-boundary-library");
+  const status = {
+    ready: true,
+    error: null,
+    library_root: library,
+    generation: 1,
+    selection: { root: library, source: "environment" },
+  };
+  async function run({ refusal, contextChange, identityChange, urlChange } = {}) {
+    const calls = [];
+    let refused = false;
+    const observations = {};
+    const invoke = async (command, args) => {
+      calls.push({ command, args });
+      if (command === "get_bootstrap_status")
+        return { ok: true, value: { ...status, ...(refused ? contextChange : {}) } };
+      if (command === "get_library_identity")
+        return {
+          ok: true,
+          value: { id: "owned-library", root: library, ...(refused ? identityChange : {}) },
+        };
+      refused = true;
+      return (
+        refusal ?? {
+          ok: false,
+          error: {
+            code: command === "open_external_url" ? "usage" : "not_found",
+            message:
+              command === "open_external_url"
+                ? "only reviewed project, artwork source and GitHub sign-in links may be opened"
+                : "unknown source evidence id: portcove-boundary-unknown-evidence",
+          },
+        }
+      );
+    };
+    await assertReviewedLinkRefusals({
+      browser: { getCurrentUrl: async () => (refused && urlChange) || "http://tauri.localhost/" },
+      invoke,
+      library,
+      observations,
+    });
+    return { calls, observations };
+  }
+  const { calls, observations } = await run();
+  assert.equal(observations.reviewedLinkRefusals.length, 2);
+  assert.deepEqual(
+    calls.filter(({ command }) => command.startsWith("open_")),
+    [
+      {
+        command: "open_external_url",
+        args: { url: "https://unreviewed.portcove.invalid/boundary" },
+      },
+      {
+        command: "open_source_evidence",
+        args: { evidenceId: "portcove-boundary-unknown-evidence" },
+      },
+    ],
+  );
+  for (const refusal of [
+    { ok: true, value: null },
+    { ok: false, error: "command open_external_url not found" },
+    { ok: false, error: { code: "usage" } },
+    { ok: false, error: { code: "state", message: "library unavailable" } },
+    {
+      ok: false,
+      error: { code: "unsupported", message: "source evidence requires catalog schema 2" },
+    },
+  ])
+    await assert.rejects(run({ refusal }));
+  for (const contextChange of [
+    { ready: false },
+    { generation: 2 },
+    { library_root: path.resolve("work", "other-library") },
+    { selection: { root: library, source: "saved" } },
+  ])
+    await assert.rejects(run({ contextChange }));
+  await assert.rejects(run({ identityChange: { id: "other-library" } }));
+  await assert.rejects(run({ identityChange: { root: path.resolve("work", "other-library") } }));
+  await assert.rejects(run({ urlChange: "https://unreviewed.portcove.invalid/boundary" }));
 });
 
 test("ordinary package boundary is isolated and rejects stale or substituted evidence", async (t) => {
