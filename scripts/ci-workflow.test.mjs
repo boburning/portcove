@@ -501,7 +501,7 @@ test("Rust setup installs the repository pin instead of an unrelated stable tool
   assert.match(recipes, /node scripts\/run-rust-tests\.mjs --locked --workspace/);
 });
 
-test("release and rehearsal Rust callers preserve repository pin, components, targets and caches", async (t) => {
+test("release, rehearsal and deep audit Rust callers preserve repository pin, components, targets and caches", async (t) => {
   const setup = await readFile(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
     "utf8",
@@ -534,7 +534,7 @@ test("release and rehearsal Rust callers preserve repository pin, components, ta
     );
   }
 
-  function assertHostSetup(section, cacheKey) {
+  function assertHostSetup(section, cacheSetting) {
     assert.deepEqual(steps(section, "./.github/actions/setup-rust"), [
       "      - uses: ./.github/actions/setup-rust\n",
     ]);
@@ -546,20 +546,24 @@ test("release and rehearsal Rust callers preserve repository pin, components, ta
       section,
       "Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2",
     );
-    assert.deepEqual(cache, [
-      "      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2\n" +
-        (cacheKey ? `        with:\n          key: ${cacheKey}\n` : ""),
-    ]);
+    assert.deepEqual(
+      cache.map((step) => step.replace(/^ {10}#.*\r?\n/gm, "")),
+      [
+        "      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2\n" +
+          (cacheSetting ? `        with:\n          ${cacheSetting}\n` : ""),
+      ],
+    );
     assert.ok(
       section.indexOf("uses: ./.github/actions/setup-rust") <
         section.indexOf("uses: Swatinem/rust-cache@"),
     );
   }
 
-  for (const [file, name, cacheKey] of [
+  for (const [file, name, cacheSetting] of [
     ["release.yml", "validate", undefined],
-    ["linux-package-ownership-rehearsal.yml", "build", "linux-package-ownership-rehearsal"],
-    ["updater-artifact-rehearsal.yml", "packages", "updater-artifact-rehearsal"],
+    ["linux-package-ownership-rehearsal.yml", "build", "key: linux-package-ownership-rehearsal"],
+    ["updater-artifact-rehearsal.yml", "packages", "key: updater-artifact-rehearsal"],
+    ["deep-quality.yml", "audit", "shared-key: deep-quality"],
   ]) {
     await t.test(`${file} ${name}`, async () => {
       const source = await readFile(
@@ -567,7 +571,7 @@ test("release and rehearsal Rust callers preserve repository pin, components, ta
         "utf8",
       );
       const section = job(source, name);
-      assertHostSetup(section, cacheKey);
+      assertHostSetup(section, cacheSetting);
       for (const replacement of [
         "      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c\n",
         "      - uses: ./.github/actions/setup-rust\n        with:\n          toolchain: stable\n",
@@ -577,7 +581,7 @@ test("release and rehearsal Rust callers preserve repository pin, components, ta
         assert.throws(() =>
           assertHostSetup(
             section.replace("      - uses: ./.github/actions/setup-rust\n", replacement),
-            cacheKey,
+            cacheSetting,
           ),
         );
       }
@@ -587,12 +591,12 @@ test("release and rehearsal Rust callers preserve repository pin, components, ta
             "Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6",
             "Swatinem/rust-cache@floating",
           ),
-          cacheKey,
+          cacheSetting,
         ),
       );
-      if (cacheKey)
+      if (cacheSetting)
         assert.throws(() =>
-          assertHostSetup(section.replace(`key: ${cacheKey}`, "key: changed"), cacheKey),
+          assertHostSetup(section.replace(cacheSetting, "key: changed"), cacheSetting),
         );
       if (file === "release.yml") {
         for (const [crossJob, target, key] of [
