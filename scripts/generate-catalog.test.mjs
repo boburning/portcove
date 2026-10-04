@@ -15,7 +15,7 @@ import {
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
@@ -84,7 +84,7 @@ function proposalDecoderFixture(
   const cli = join(fixture.scratch, "selected-cli");
   const original = Buffer.from("inert first-party validator fixture");
   writeFileSync(cli, original);
-  const preload = join(fixture.scratch, "process-fixture.mjs");
+  const preload = join(fixture.scratch, "process fixture #% ü.mjs");
   writeFileSync(
     preload,
     `
@@ -113,7 +113,7 @@ function proposalDecoderFixture(
     process.execPath,
     [
       "--import",
-      preload,
+      pathToFileURL(preload).href,
       "scripts/generate-catalog.mjs",
       mode,
       join(fixture.catalogs, "catalog-current-authoring.json"),
