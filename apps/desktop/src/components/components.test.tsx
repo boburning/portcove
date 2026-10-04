@@ -2161,6 +2161,36 @@ describe("desktop components", () => {
     expect(eligible).toContain("Windows · Not recorded: Linux · Apple silicon");
   });
 
+  it("does not transfer ordinary Linux testing or availability to Steam Deck", () => {
+    const renderDetails = (definition: PortDefinition) =>
+      renderToStaticMarkup(
+        <DetailPanel port={definition} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
+      );
+    const testedWindowsPort = {
+      ...port,
+      source_profile: null,
+      manually_validated_platforms: ["windows-x86-64"],
+    } satisfies PortDefinition;
+    const windows = renderDetails(testedWindowsPort);
+    const linux = renderDetails({
+      ...testedWindowsPort,
+      platforms: ["windows-x86-64", "linux-x86-64"],
+      automated_tested_platforms: ["windows-x86-64", "linux-x86-64"],
+      manually_validated_platforms: ["windows-x86-64", "linux-x86-64"],
+    });
+    expect(windows).not.toContain("Steam Deck");
+    expect(linux).toContain("<small>Steam Deck</small>Not tested.");
+    expect(linux).toContain(
+      "Linux availability does not show whether this game works on SteamOS or in Gaming Mode.",
+    );
+    expect(linux).toContain("<small>Recorded automated tests</small>Windows · Linux");
+    expect(linux).toContain("<small>Recorded hands-on tests</small>Windows · Linux");
+    const buttons = (html: string) => [...html.matchAll(/<button\b[^>]*>[^]*?<\/button>/gu)];
+    expect(buttons(linux).map(([button]) => button)).toEqual(
+      buttons(windows).map(([button]) => button),
+    );
+  });
+
   it("explains the folder contract for a multi-disc source", () => {
     const html = renderToStaticMarkup(
       <DetailPanel
