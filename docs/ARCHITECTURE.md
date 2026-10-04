@@ -984,7 +984,9 @@ publication and recovery; no second job database or state owner is introduced.
 Publication preserves a separately staged update and retains the original
 installation as the previous version. Interrupted private work is retained for
 inspection; retry creates a new directory. Validated publication can recover only
-while its original inputs and operation identity still match.
+while its original inputs and operation identity still match and its journal
+records activation. A publication journal that contradicts activation retains
+its phase, private and published trees, and installation pointers for review.
 
 Native setup shares process-group handling with fixed host probes. Private
 preparation captures bounded diagnostics and observes cancellation while setup

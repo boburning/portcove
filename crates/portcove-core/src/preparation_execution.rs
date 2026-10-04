@@ -764,6 +764,11 @@ pub(crate) fn recover(
             "prepared destination or plan changed identity",
         ));
     }
+    if !journal.activate {
+        return Err(PortcoveError::state(
+            "prepared publication requires activation",
+        ));
+    }
     if matches!(
         journal.phase,
         LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
