@@ -1239,7 +1239,13 @@ mod tests {
     #[test]
     fn managed_preparation_rejects_unsafe_runtime_path_before_adapter_work() {
         let temporary = tempfile::tempdir().unwrap();
-        let preparation = preparation_input_fixture(temporary.path(), false);
+        let mut preparation = preparation_input_fixture(temporary.path(), true);
+        preparation.runtime_source_directory = Some("owned/discs".into());
+        let configuration = PreparationConfiguration::from_preparation(&preparation).unwrap();
+        assert_eq!(
+            configuration.runtime_source_directory,
+            preparation.runtime_source_directory.as_deref()
+        );
         let unix_rooted = ["", "outside"].join("/");
         let windows_rooted = ["C:", "outside"].join("/");
         for path in [
