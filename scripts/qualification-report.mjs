@@ -72,6 +72,13 @@ function readinessLabel(readiness) {
   return "Unknown";
 }
 
+async function cliDigest(cli) {
+  if (!(await lstat(cli)).isFile()) throw new Error(`Selected CLI is not a regular file: ${cli}`);
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(cli)) hash.update(chunk);
+  return hash.digest("hex");
+}
+
 export async function captureQualificationReport(options, execute = promisify(execFile)) {
   const cli = resolve(options.cli);
   const library = resolve(options.library);
@@ -83,20 +90,47 @@ export async function captureQualificationReport(options, execute = promisify(ex
   ) {
     throw new Error("Use an existing CLI executable and initialized qualification library");
   }
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(cli)) hash.update(chunk);
+  const cliSha256 = await cliDigest(cli);
+  async function requireCliIdentity() {
+    try {
+      if ((await cliDigest(cli)) !== cliSha256) throw new Error("Selected CLI SHA-256 differs");
+    } catch (cause) {
+      throw new Error(`Selected CLI identity changed: ${cli}`, { cause });
+    }
+  }
   async function capture(...args) {
-    const { stdout } = await execute(
-      cli,
-      ["--library", library, "--json", "--non-interactive", ...args],
-      {
-        windowsHide: true,
-        maxBuffer: 8 * 1024 * 1024,
-        timeout: 120_000,
-      },
-    );
-    const envelope = JSON.parse(stdout);
-    if (!envelope.ok) throw new Error(`${args.join(" ")}: ${envelope.error?.message}`);
+    await requireCliIdentity();
+    let envelope;
+    let commandFailed = false;
+    let commandError;
+    try {
+      const { stdout } = await execute(
+        cli,
+        ["--library", library, "--json", "--non-interactive", ...args],
+        {
+          windowsHide: true,
+          maxBuffer: 8 * 1024 * 1024,
+          timeout: 120_000,
+        },
+      );
+      envelope = JSON.parse(stdout);
+      if (!envelope.ok) throw new Error(`${args.join(" ")}: ${envelope.error?.message}`);
+    } catch (error) {
+      commandFailed = true;
+      commandError = error;
+    }
+    try {
+      await requireCliIdentity();
+    } catch (identityError) {
+      if (commandFailed)
+        throw new AggregateError(
+          [commandError, identityError],
+          "CLI capture failed and selected CLI identity changed",
+          { cause: commandError },
+        );
+      throw identityError;
+    }
+    if (commandFailed) throw commandError;
     return envelope;
   }
   const commands = {
@@ -130,7 +164,7 @@ export async function captureQualificationReport(options, execute = promisify(ex
     report_format: 1,
     captured_at: new Date().toISOString(),
     cli,
-    cli_sha256: hash.digest("hex"),
+    cli_sha256: cliSha256,
     library,
     interpretation:
       "Core snapshots only. Null observations are unassessed; null identity facts are unknown. Managed installs and non-owning external registrations remain distinct. A report never grants qualification or edits the catalog.",
