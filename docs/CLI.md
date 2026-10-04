@@ -112,30 +112,33 @@ The public CLI is the supported boundary for external frontends; the desktop is
 not required to run it. [External frontend integration](INTEGRATIONS.md) defines
 the launch-only, library, and lifecycle capability vocabulary, maintenance and
 support-record expectations, author path, and Steam/Steam Deck boundaries. This
-file documents current implemented behavior. Future completeness and
-compatibility gaps remain owned by #30 and are not shipped merely because they
-are described in the roadmap.
+file documents current implemented behavior. Completed
+[#30](https://github.com/boburning/portcove/issues/30) records the bounded public
+surface audit and [#243](https://github.com/boburning/portcove/issues/243) the
+reference-client proof. Their retained checklists do not reopen completed work.
+Later consumer gaps require evidence and a current owner; a roadmap statement
+does not ship a command or extend compatibility.
 
 The Public beta contract keeps launch-only, library, and lifecycle consumers
 independently useful: a basic launcher negotiates only the operations, formats,
 schemas, and consequential semantics it uses rather than implementing every
-management command. #30 audits the implemented surface before adding anything
-and owns only demonstrated shared gaps needed by consumers such as #910 Playnite
-and #292 Steam entry management. Required answers include stable identity,
+management command. The completed audit covered stable identity,
 metadata/artwork references, installation and readiness, requirements, allowed
 next actions, stable blocked reasons, update eligibility, operation results, and
 launcher-ready program, argument-array, working-directory, and explicit-library
-information. This acceptance direction neither invents command names or DTOs nor
-claims a missing answer exists in the current CLI.
+information. Its recorded scope does not qualify the complete Playnite product,
+automatic Steam entry management, or a later agent consumer.
 
-That audit also covers verified runtime/library binding, operation-specific and
+That audit also covered verified runtime/library binding, operation-specific and
 mixed-version compatibility, batch-read reuse, bounded polling/concurrency,
 cancellation, prepared offline behavior, and measured refresh/launch
 responsiveness. Budgets follow representative measurements rather than planning
 claims. Runtime discovery must not blindly execute an untrusted candidate, and
 no gap by itself authorizes a daemon, hidden cache authority, private API, or
 standalone CLI self-updater. The implemented behavior below remains authoritative
-until an exact reviewed change closes a demonstrated gap.
+until an exact reviewed change addresses a demonstrated consumer gap. See the
+[public author path](INTEGRATION-AUTHOR.md) for current invocation and recovery
+semantics; process-local authorization is not a persistent automation grant.
 
 Future eligibility/evidence and independent-definition work must use one core
 assessment across CLI, Tauri and integrations. Operation availability and reasons,

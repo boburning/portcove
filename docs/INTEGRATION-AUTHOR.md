@@ -22,6 +22,26 @@ interpret.
 
 ## Discover and bind
 
+Agents use this same public route, with an identified verified CLI and explicit
+fixture or player-selected library. Inspect capabilities and output/event schemas,
+then requirements/readiness, review the supported plan, execute only within its
+matching consent, and inspect the terminal response and current state. Use the
+management and reconnect examples below; do not invent a command or per-port
+rule when a public answer is missing. Report that gap to its current owner.
+
+After lost output or interruption, inspect retained activity and current state
+before selecting another mutation. `doctor` and `status` reads do not perform
+recovery. Use only the operation-specific recovery actually advertised. There is
+no universal replay, exactly-once, detached-lifetime or resumable-preparation
+contract. Setup, observed launch and gameplay/device qualification are separate
+claims. Preserve unknown outcomes and share only selected redacted diagnostics.
+
+The completed #30/#243 consumer evidence and existing redistributable reference
+fixtures are reusable at their actual inputs and scope. An identified-agent
+exercise is further evidence, not a reason to repeat every unchanged check or
+claim an unattended service. Record artifact, environment, scenario, observations,
+limits and a bounded continuation state through the existing evidence workflow.
+
 Use the runtime's argument-array API with shell execution disabled. These are
 program/argument objects, not shell command strings:
 

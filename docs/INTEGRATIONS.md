@@ -75,6 +75,36 @@ implementation, and explicit maintenance scope.
 
 ## Public interface expectations
 
+### Agents and remembered goals
+
+External agents consume the supported public CLI; Desktop continues to call Core
+through Tauri. Agents may interpret requests, explain evidence and propose
+changes. Core retains admission, integrity, eligibility, plans, authorization,
+policy, locks, cancellation and recovery. Normal use requires no AI account or
+paid inference. Source bytes remain local; sharing selected bounded redacted
+diagnostics remains a separate consent choice.
+
+Remembered setup and maintenance goals are planned work under
+[#965](https://github.com/boburning/portcove/issues/965),
+[#966](https://github.com/boburning/portcove/issues/966) and
+[#40](https://github.com/boburning/portcove/issues/40), distinct from the saved
+roots and scan snapshots already implemented. Durable intent stores choices and
+applicable consent policy, not short-lived process-local authorization tokens.
+Trusted product code must assess a fresh operation plan against valid standing
+scope before obtaining the operation's authorization. Changed scope requires its
+corresponding decision. Initial setup intent does not authorize unrelated repair,
+rollback, source switching, deletion, launcher writes or launch.
+
+A thin optional MCP adapter remains planned, subject to an identified client and
+a useful journey with benefit beyond direct CLI use. It would translate the same
+contract rather than add a lifecycle authority or shell surface. Neither a tool
+annotation nor model-generated approval grants execution authority. Local stdio
+requires an actual compatible host; cloud use requires a selected local execution
+bridge. Existing coordination connectivity does not establish that bridge.
+Direct CLI consumers do not depend on MCP or general engineering automation.
+
+### Runtime and operation binding
+
 External clients use a verified standalone CLI package and discover its
 executable, product/API versions, capabilities, schemas, host prerequisites, and
 effective library explicitly. Identity for libraries, ports, installations, and
@@ -512,8 +542,9 @@ plugin execution, packaging, permission, or bridge design.
 
 ## Evidence and release sequence
 
-The integration workstream closes bounded public-contract and author-usability
-gaps and proves the real Playnite reference under #243. Initial Public beta
+Completed #30 and #243 establish the bounded public contract and developer-loaded
+Playnite reference at their recorded scope. Further consumer and author-usability
+gaps use current owners and exact evidence. Initial Public beta
 requires the plugin-free Desktop Steam baseline (#290), Windows/ordinary Linux
 updater (#52), and unchanged-reference-client compatible catalog delivery (#246).
 The normally installable full Playnite product (#910), automatic Steam entry
