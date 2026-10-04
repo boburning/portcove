@@ -46,7 +46,46 @@ fn open_service(root: &Path) -> PortcoveService {
 }
 
 fn open_local_artwork_service(root: &Path) -> PortcoveService {
-    open_service(root)
+    let library = crate::test_fixture::phase("local artwork fixture: open library", || {
+        Library::open(root).unwrap()
+    });
+    let mut service = crate::test_fixture::phase("local artwork fixture: open service", || {
+        PortcoveService::new(library).unwrap()
+    });
+    // Local image operations need one stable port identity and no default cover.
+    // Keep catalog validation real without reparsing unrelated production data.
+    let catalog = crate::test_fixture::phase("local artwork fixture: validate catalog", || {
+        crate::Catalog::from_json(
+            &serde_json::json!({
+                "schema_version": 2,
+                "source_catalog": {
+                    "identities": [], "contracts": [], "validators": [],
+                    "evidence": [], "qualification": []
+                },
+                "ports": [{
+                    "id": "zelda64-recomp",
+                    "name": "Zelda 64 fixture",
+                    "summary": "Owned local artwork fixture",
+                    "project_url": "https://example.invalid/local-artwork",
+                    "support_tier": "beta",
+                    "channels": ["stable"],
+                    "platforms": ["linux-x86-64"],
+                    "adapter": "libultraship-portable",
+                    "release": {"repository": "fixture/local-artwork"},
+                    "executable_hints": {"linux-x86-64": ["fixture"]},
+                    "presentation": {
+                        "installation_method": "portable-package",
+                        "source_requirements": [],
+                        "saves_and_settings": "portcove-managed"
+                    }
+                }]
+            })
+            .to_string(),
+        )
+        .unwrap()
+    });
+    service.replace_catalog_for_test(catalog);
+    service
 }
 
 #[test]
