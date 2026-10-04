@@ -865,6 +865,13 @@ core; desktop requests also bind the selected library generation. Support bundle
 include the retained redacted captures, with fixed archive entry names. Source
 files and private setup output directories are not copied into the bundle.
 
+Desktop log reads preserve the last loaded capture during a refresh or failed
+read, and label it as prior information while current availability is unknown.
+Failed and cancelled reads offer a read-only retry, coalesce concurrent requests,
+and keep structured technical details folded. A failed read does not assert that
+no capture exists or change the activity outcome. Retrying reads only the selected
+activity and library generation; it does not restart preparation.
+
 SQLite schema 22 keys captures by activity and phase, preserving schema-21 setup
 payloads without changing their bytes. Phase snapshots update only their own row;
 source conversion output survives later setup execution. Retention removes all

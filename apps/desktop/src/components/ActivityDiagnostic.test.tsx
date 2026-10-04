@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { ActivityDiagnostic as Diagnostic } from "../types";
+import { failureReport } from "../test-fixtures";
 import { ActivityDiagnostic } from "./ActivityDiagnostic";
 
 vi.mock("../clipboard", () => ({
@@ -116,10 +117,105 @@ it("explains missing retained logs and allows a new read after a failure", async
   await open();
   expect(host.textContent).toContain("No retained diagnostic capture is available");
   await click("Refresh captured log");
-  expect(host.textContent).toContain("Read failed");
-  await click("Refresh captured log");
+  expect(host.textContent).toContain("Current log availability is unknown.");
+  expect(host.textContent).not.toContain("No retained diagnostic capture is available");
+  expect(host.textContent).not.toContain("Read failed");
+  await click("Retry log read");
   expect(host.textContent).toContain("owned failure details");
   expect(read).toHaveBeenCalledTimes(3);
+});
+
+it("labels a retained capture after failed refresh and recovers without repeating preparation", async () => {
+  const error = failureReport();
+  error.message = "unrequested private path";
+  error.presentation.summary = "The retained log could not be read.";
+  error.presentation.technical_message = "redacted diagnostic reason";
+  error.presentation.mutation_state = "committed";
+  const read = vi
+    .spyOn(desktopApi, "activityDiagnostic")
+    .mockResolvedValueOnce(fixture())
+    .mockRejectedValueOnce(error)
+    .mockResolvedValueOnce([]);
+  await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={7} />));
+  await open();
+  await click("Refresh captured log");
+  expect(host.textContent).toContain("Showing the last loaded capture; it may have changed");
+  expect(host.textContent).toContain(error.presentation.summary);
+  expect(host.textContent).not.toContain(error.message);
+  expect(host.textContent).not.toContain("The change was saved");
+  const details = [...host.querySelectorAll("details")].find(
+    (element) => element.querySelector("summary")?.textContent === "View technical details",
+  );
+  expect(details?.open).toBe(false);
+  expect(details?.textContent).toContain(error.presentation.technical_message);
+  await click("Copy retained log");
+  expect(JSON.parse(vi.mocked(copyText).mock.calls.at(-1)![0])).toEqual(fixture());
+  await click("Retry log read");
+  expect(host.textContent).toContain("No retained diagnostic capture is available");
+  expect(host.textContent).not.toContain("Current log availability is unknown");
+  expect(host.querySelector("textarea")).toBeNull();
+  expect(read.mock.calls).toEqual([
+    ["owned", 7],
+    ["owned", 7],
+    ["owned", 7],
+  ]);
+});
+
+it("keeps a first cancelled log read neutral without claiming a missing capture", async () => {
+  const error = failureReport();
+  error.code = "cancelled";
+  error.presentation.tone = "neutral";
+  vi.spyOn(desktopApi, "activityDiagnostic").mockRejectedValue(error);
+  await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={1} />));
+  await open();
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("Log read cancelled");
+  expect(host.textContent).toContain("Current log availability is unknown");
+  expect(host.textContent).not.toContain("No retained diagnostic capture is available");
+});
+
+it("coalesces same-tick reads and labels the prior capture while pending", async () => {
+  let resolve!: (value: Diagnostic) => void;
+  const pending = new Promise<Diagnostic>((done) => {
+    resolve = done;
+  });
+  const read = vi
+    .spyOn(desktopApi, "activityDiagnostic")
+    .mockResolvedValueOnce(fixture())
+    .mockReturnValueOnce(pending);
+  await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={1} />));
+  await open();
+  await act(async () => {
+    const button = [...host.querySelectorAll("button")].find(
+      (value) => value.textContent === "Refresh captured log",
+    )!;
+    button.click();
+    button.click();
+  });
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(host.textContent).toContain(
+    "Showing the last loaded capture while the current log is checked",
+  );
+  await act(async () => resolve(fixture()));
+  expect(host.textContent).not.toContain("while the current log is checked");
+});
+
+it("rejects a late failed read after the selected activity and library change", async () => {
+  let reject!: (value: Error) => void;
+  const old = new Promise<Diagnostic>((_, fail) => {
+    reject = fail;
+  });
+  vi.spyOn(desktopApi, "activityDiagnostic")
+    .mockReturnValueOnce(old)
+    .mockResolvedValueOnce(fixture());
+  await act(async () => root.render(<ActivityDiagnostic activityId="old" generation={1} />));
+  await open();
+  await act(async () => root.render(<ActivityDiagnostic activityId="new" generation={2} />));
+  await click("Refresh captured log");
+  await act(async () => reject(new Error("old failure")));
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+  expect(host.textContent).not.toContain("Current log availability is unknown");
+  expect(host.querySelector("textarea")?.value).toContain("owned output");
 });
 
 it("keeps an unfamiliar phase neutral and preserves its exact copied log", async () => {
