@@ -4,7 +4,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
 import type { SourceInspectionReport, SourceRecord, SourceVerificationOutcome } from "../../types";
+import { useOperationState } from "../operations/use-operation-state";
 import { useSourceHealth } from "./use-source-health";
+
+vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => undefined }));
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -17,6 +20,13 @@ function deferred<T>() {
 }
 
 const perform: Parameters<typeof useSourceHealth>[0] = async (_name, task) => task();
+const refresh = async () => undefined;
+let operation: ReturnType<typeof useOperationState>;
+function VerificationFixture() {
+  operation = useOperationState({ refresh });
+  state = useSourceHealth(operation.perform, [source("current/game.z64")], ["game"], "catalog");
+  return null;
+}
 const source = (path: string): SourceRecord => ({
   profile_id: "game",
   path,
@@ -330,3 +340,48 @@ it("rejects an old failure even when the same registration is selected again", a
   expect(state.inspectionReads.get("game")?.status).toBe("current");
   expect(state.inspectionReads.get("game")?.code).toBeUndefined();
 });
+
+it.each(["failed", "cancelled"])(
+  "clears prior verification success during a later %s attempt through the real operation handler",
+  async (kind) => {
+    const inspected = report("current/game.z64");
+    vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(inspected);
+    const first: SourceVerificationOutcome[] = [
+      { error: null, ok: true, profile_id: "game", result: null },
+    ];
+    const later = deferred<SourceVerificationOutcome[]>();
+    const recovered: SourceVerificationOutcome[] = [
+      { error: null, ok: false, profile_id: "game", result: null },
+    ];
+    vi.spyOn(desktopApi, "verifySources")
+      .mockResolvedValueOnce(first)
+      .mockReturnValueOnce(later.promise)
+      .mockResolvedValueOnce(recovered);
+    await act(async () => root.render(createElement(VerificationFixture)));
+    await act(async () => state.verifyAll());
+    expect(state.outcomes).toBe(first);
+
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = state.verifyAll();
+    });
+    expect(state.outcomes).toEqual([]);
+    expect(state.inspections.get("game")).toBe(inspected);
+    const failure = {
+      code: kind === "cancelled" ? "cancelled" : "state",
+      message: "current failure",
+    };
+    await act(async () => {
+      later.reject(failure);
+      await pending;
+    });
+    expect(state.outcomes).toEqual([]);
+    expect(operation.error).toBe(kind === "cancelled" ? undefined : failure);
+    expect(state.inspections.get("game")).toBe(inspected);
+    expect(state.inspectionReads.get("game")?.status).toBe("current");
+
+    await act(async () => state.verifyAll());
+    expect(state.outcomes).toBe(recovered);
+    expect(operation.error).toBeUndefined();
+  },
+);

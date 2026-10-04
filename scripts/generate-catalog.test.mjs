@@ -657,8 +657,20 @@ test("the entire accepted cover inventory survives a routine executable release 
     inspectGame: () => assert.fail("unchanged accepted artwork must not search"),
     inspectImage: () => assert.fail("unchanged accepted artwork must not download"),
   });
-  assert.equal(result.metrics.reused, accepted.ports.length);
-  assert.equal(result.metrics.fallback, 0);
+  const mapped = accepted.ports.filter((port) => port.presentation?.artwork);
+  const unmapped = accepted.ports.filter((port) => !port.presentation?.artwork);
+  assert.equal(result.metrics.reused, mapped.length);
+  assert.equal(result.metrics.fallback, unmapped.length);
+  assert.deepEqual(
+    result.records.filter((record) => record.mapping).map((record) => record.port_id),
+    mapped.map((port) => port.id),
+  );
+  assert.deepEqual(
+    result.records
+      .filter((record) => record.reason === "generated-fallback")
+      .map((record) => record.port_id),
+    unmapped.map((port) => port.id),
+  );
   assert.deepEqual(result.catalog, input);
 });
 
@@ -1923,7 +1935,11 @@ test("ordinary generator prepares one complete retained batch and refuses output
   const generated = run(...args);
   assert.equal(generated.status, 0, generated.stderr);
   const evidence = JSON.parse(readFileSync(join(output, "artwork-evidence.json"), "utf8"));
-  assert.equal(evidence.records.length, 77);
+  const accepted = JSON.parse(before);
+  assert.deepEqual(
+    evidence.records.map((record) => record.port_id),
+    accepted.ports.map((port) => port.id),
+  );
   assert.deepEqual(evidence.differences, []);
   assert.equal(evidence.provider_metrics.authentication_requests, 0);
   assert.equal(evidence.provider_metrics.game_requests, 0);

@@ -15,6 +15,7 @@ import {
   SourceImportReview,
   sourceImportModePresentation,
   sourceImportNotice,
+  sourceImportRefreshNotice,
 } from "./SourceDiscovery";
 import { HostToolRow, type HostToolActions } from "./Chrome";
 import { Icon, NavigationHints } from "./ui";
@@ -193,7 +194,11 @@ function SourceIntakeSession({
         setNotice("Move cancelled. The original files and saved location were left unchanged.");
       else {
         setNotice(sourceImportNotice(imported));
-        await onAdded?.();
+        try {
+          await onAdded?.();
+        } catch {
+          if (intent.current === current) setNotice(sourceImportRefreshNotice(imported));
+        }
       }
     } catch (value) {
       if (intent.current === current) setError(errorText(value));

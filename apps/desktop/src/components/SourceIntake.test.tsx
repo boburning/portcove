@@ -7,6 +7,7 @@ import * as picker from "../file-picker";
 import type {
   HostToolStatus,
   SourceImportPlan,
+  SourceImportResult,
   SourceInspectionReport,
   SourceIntakeInspection,
   SourceProfile,
@@ -110,6 +111,106 @@ describe("source intake dialog", () => {
     [...document.body.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
       item.textContent?.includes(label),
     );
+
+  const prepareImport = () => {
+    vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValue(intake("D:/Game.z64"));
+    const plan: SourceImportPlan = {
+      schema_version: 1,
+      profile_id: profile.id,
+      mode: "copy",
+      source: record("D:/Game.z64"),
+      admission_mode: "exact_identity",
+      destination: "D:/Inbox/Game.z64",
+      destination_exists: false,
+      existing_registration: null,
+      reuse_existing: false,
+      required_bytes: 64,
+      source_guard_sha256: "b".repeat(64),
+      plan_sha256: "c".repeat(64),
+    };
+    vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
+    const imported: SourceImportResult = {
+      import_id: "owned-import",
+      profile_id: profile.id,
+      mode: "copy",
+      outcome: "copied",
+      registered: record(plan.destination),
+      copied: true,
+      original_deleted: false,
+      original_retained: true,
+      retained_original_path: plan.source.path,
+      recovered: false,
+    };
+    return vi.spyOn(desktopApi, "importSource").mockResolvedValue(imported);
+  };
+  const openImportReview = async (onAdded: () => Promise<unknown>) => {
+    await act(async () =>
+      root.render(
+        <SourceIntakeDialog request={request(["D:/Game.z64"])} close={vi.fn()} onAdded={onAdded} />,
+      ),
+    );
+    await act(async () => button("Copy into Portcove")!.click());
+  };
+
+  it("preserves a committed import when its workspace refresh fails", async () => {
+    const imported = prepareImport();
+    const refresh = vi.fn().mockRejectedValue(new Error("owned refresh failure"));
+    await openImportReview(refresh);
+    await act(async () => button("Copy into Portcove")!.click());
+
+    expect(imported).toHaveBeenCalledOnce();
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(document.body.textContent).toContain("the files were already added");
+    expect(document.body.textContent).toContain("Use Retry refresh");
+    expect(document.body.querySelector('[role="alert"]')).toBeNull();
+    expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+    expect(button("Close")!.disabled).toBe(false);
+  });
+
+  it("keeps a genuine import failure separate from a refresh failure", async () => {
+    prepareImport().mockRejectedValue(new Error("owned import failure"));
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    await openImportReview(refresh);
+    await act(async () => button("Copy into Portcove")!.click());
+
+    expect(refresh).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("the files were already added");
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+      "owned import failure",
+    );
+    expect(button("Close")!.disabled).toBe(false);
+  });
+
+  it("keeps a cancelled import separate from a refresh failure", async () => {
+    prepareImport().mockResolvedValue(null);
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    await openImportReview(refresh);
+    await act(async () => button("Copy into Portcove")!.click());
+
+    expect(refresh).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("the files were already added");
+    expect(document.body.textContent).toContain("Move cancelled");
+    expect(document.body.querySelector('[role="alert"]')).toBeNull();
+    expect(button("Close")!.disabled).toBe(false);
+  });
+
+  it("ignores an obsolete post-import refresh rejection after the intake session changes", async () => {
+    const imported = prepareImport();
+    let rejectRefresh!: (error: Error) => void;
+    const refresh = vi.fn(() => new Promise((_, reject) => (rejectRefresh = reject)));
+    await openImportReview(refresh);
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(refresh).toHaveBeenCalledOnce();
+    await act(async () =>
+      root.render(<SourceIntakeDialog request={request(["D:/Other.z64"])} close={vi.fn()} />),
+    );
+    await act(async () => rejectRefresh(new Error("obsolete refresh failure")));
+
+    expect(imported).toHaveBeenCalledOnce();
+    expect(document.body.textContent).not.toContain("obsolete refresh failure");
+    expect(document.body.textContent).not.toContain("the files were already added");
+    expect(document.body.querySelector('[role="alert"]')).toBeNull();
+  });
 
   it("keeps a native drop read-only until a separately labeled import review", async () => {
     const inspect = vi
