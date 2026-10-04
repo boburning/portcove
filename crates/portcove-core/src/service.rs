@@ -5697,6 +5697,13 @@ mod tests {
     fn assert_external_adoption_recovers_after_every_publication_boundary(
         point: LifecycleFaultPoint,
     ) {
+        assert_external_adoption_destination_recovery(point, None);
+    }
+
+    fn assert_external_adoption_destination_recovery(
+        point: LifecycleFaultPoint,
+        destination_case: Option<(LifecyclePhase, bool)>,
+    ) {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let source = temporary.path().join("existing-install");
@@ -5720,6 +5727,67 @@ mod tests {
             .unwrap_err();
         assert!(error.message.contains("injected lifecycle failure"));
 
+        if let Some((phase, omitted)) = destination_case {
+            let store = OperationStore::new(library.clone());
+            let mut journal = store.all().unwrap().pop().unwrap();
+            let destination = journal.paths.final_path.clone().unwrap();
+            let staging = journal.paths.staging.clone().unwrap();
+            let private = staging.join("destination-sentinel");
+            fs::write(&private, b"private adoption evidence").unwrap();
+            let unrelated = temporary.path().join("unrelated-destination");
+            fs::create_dir_all(&unrelated).unwrap();
+            fs::write(unrelated.join("sentinel"), b"unrelated original").unwrap();
+            let user = library.user_dir("zelda64-recomp").join("general.json");
+            fs::create_dir_all(user.parent().unwrap()).unwrap();
+            fs::write(&user, b"canonical original settings").unwrap();
+            let payload = fs::read(staging.join("payload/general.json")).ok();
+            let published = fs::read(destination.join("general.json")).ok();
+            let registered = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
+            journal.phase = phase;
+            journal.paths.final_path = (!omitted).then(|| unrelated.clone());
+            store.put(&mut journal).unwrap();
+            if !omitted {
+                PortcoveService::new(library.clone()).unwrap();
+                let retained = store.get(&journal.id).unwrap().unwrap();
+                assert_eq!(retained.phase, phase);
+                assert_eq!(retained.paths.final_path, Some(unrelated.clone()));
+                assert_eq!(
+                    serde_json::to_vec(&retained.install).unwrap(),
+                    serde_json::to_vec(&journal.install).unwrap()
+                );
+                assert!(retained.last_error.unwrap().contains("journal destination"));
+                assert_eq!(fs::read(&private).unwrap(), b"private adoption evidence");
+                assert_eq!(fs::read(staging.join("payload/general.json")).ok(), payload);
+                assert_eq!(fs::read(destination.join("general.json")).ok(), published);
+                assert_eq!(
+                    serde_json::to_vec(&library.all_installs().unwrap()).unwrap(),
+                    registered
+                );
+                assert_eq!(fs::read(&user).unwrap(), b"canonical original settings");
+                assert_eq!(
+                    fs::read(source.join("general.json")).unwrap(),
+                    b"adopted settings"
+                );
+                assert_eq!(
+                    fs::read(staging.join("user/general.json")).unwrap(),
+                    b"adopted settings"
+                );
+                journal = store.get(&journal.id).unwrap().unwrap();
+                journal.paths.final_path = Some(destination);
+                store.put(&mut journal).unwrap();
+            }
+            PortcoveService::new(library.clone()).unwrap();
+            assert!(!staging.exists());
+            assert_eq!(
+                fs::read(unrelated.join("sentinel")).unwrap(),
+                b"unrelated original"
+            );
+            assert_eq!(
+                fs::read(source.join("general.json")).unwrap(),
+                b"adopted settings"
+            );
+        }
+
         let recovered = service_with_release(library.clone(), "v2");
         let status = recovered.status("zelda64-recomp").unwrap();
         assert!(
@@ -5737,6 +5805,46 @@ mod tests {
             b"adopted settings"
         );
         assert!(recovered.repair_plan().unwrap().items.is_empty());
+    }
+
+    #[test]
+    fn external_adoption_recovery_retains_contradictory_destinations() {
+        for (point, phase) in [
+            (
+                LifecycleFaultPoint::AdoptionPrepared,
+                LifecyclePhase::Prepared,
+            ),
+            (
+                LifecycleFaultPoint::AdoptionPublished,
+                LifecyclePhase::PayloadPublished,
+            ),
+            (
+                LifecycleFaultPoint::AdoptionMetadataCommitted,
+                LifecyclePhase::MetadataCommitted,
+            ),
+            (
+                LifecycleFaultPoint::AdoptionMetadataCommitted,
+                LifecyclePhase::CleanupPending,
+            ),
+        ] {
+            assert_external_adoption_destination_recovery(point, Some((phase, false)));
+        }
+    }
+
+    #[test]
+    fn external_adoption_recovery_preserves_omitted_destination_compatibility() {
+        for (point, phase) in [
+            (
+                LifecycleFaultPoint::AdoptionPublished,
+                LifecyclePhase::PayloadPublished,
+            ),
+            (
+                LifecycleFaultPoint::AdoptionMetadataCommitted,
+                LifecyclePhase::CleanupPending,
+            ),
+        ] {
+            assert_external_adoption_destination_recovery(point, Some((phase, true)));
+        }
     }
 
     #[test]

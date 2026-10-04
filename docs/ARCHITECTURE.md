@@ -1837,7 +1837,10 @@ Install and adoption startup recovery acquire the recorded journal owner's port
 lock and reread the journal under that lock. Before interpreting any publication
 phase or cleaning a recorded private tree, a present install record must name that
 same port. A verified manifest cannot authorize another port's metadata mutation
-under the journal owner's lock. An inconsistent record remains diagnostic and
+under the journal owner's lock. A present final destination must also agree with
+the embedded install path before publication, registration, save transfer or
+cleanup; missing final destinations retain the nullable compatibility contract.
+An inconsistent record remains diagnostic and
 retains its phase, published tree and private data for review. This check does not
 change legitimate legacy phases or install-less failed-private-cleanup recovery.
 

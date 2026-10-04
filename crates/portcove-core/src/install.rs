@@ -3810,6 +3810,13 @@ mod tests {
     }
 
     async fn assert_external_install_recovery(point: LifecycleFaultPoint) {
+        assert_external_install_destination_recovery(point, None).await;
+    }
+
+    async fn assert_external_install_destination_recovery(
+        point: LifecycleFaultPoint,
+        destination_case: Option<(LifecyclePhase, bool)>,
+    ) {
         use std::{
             io::{Read, Write},
             net::TcpListener,
@@ -3879,6 +3886,58 @@ mod tests {
         assert!(error.message.contains("injected lifecycle failure"));
         server.join().unwrap();
 
+        if let Some((phase, omitted)) = destination_case {
+            let store = OperationStore::new(library.clone());
+            let mut journal = store.all().unwrap().pop().unwrap();
+            let destination = journal.paths.final_path.clone().unwrap();
+            let staging = journal.paths.staging.clone().unwrap();
+            let private = staging.join("destination-sentinel");
+            fs::write(&private, b"private install evidence").unwrap();
+            let unrelated = temporary.path().join("unrelated-destination");
+            fs::create_dir_all(&unrelated).unwrap();
+            fs::write(unrelated.join("sentinel"), b"unrelated original").unwrap();
+            let payload = fs::read(staging.join("payload/sample-game.exe")).ok();
+            let published = fs::read(destination.join("sample-game.exe")).ok();
+            let registered = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
+            journal.phase = phase;
+            journal.paths.final_path = (!omitted).then(|| unrelated.clone());
+            store.put(&mut journal).unwrap();
+            if !omitted {
+                crate::PortcoveService::new(library.clone()).unwrap();
+                let retained = store.get(&journal.id).unwrap().unwrap();
+                assert_eq!(retained.phase, phase);
+                assert_eq!(retained.paths.final_path, Some(unrelated.clone()));
+                assert_eq!(
+                    serde_json::to_vec(&retained.install).unwrap(),
+                    serde_json::to_vec(&journal.install).unwrap()
+                );
+                assert!(retained.last_error.unwrap().contains("journal destination"));
+                assert_eq!(fs::read(&private).unwrap(), b"private install evidence");
+                assert_eq!(
+                    fs::read(staging.join("payload/sample-game.exe")).ok(),
+                    payload
+                );
+                assert_eq!(
+                    fs::read(destination.join("sample-game.exe")).ok(),
+                    published
+                );
+                assert_eq!(
+                    serde_json::to_vec(&library.all_installs().unwrap()).unwrap(),
+                    registered
+                );
+                assert_eq!(fs::read(&archive_path).unwrap(), archive_bytes);
+                journal = store.get(&journal.id).unwrap().unwrap();
+                journal.paths.final_path = Some(destination);
+                store.put(&mut journal).unwrap();
+            }
+            crate::PortcoveService::new(library.clone()).unwrap();
+            assert!(!staging.exists());
+            assert_eq!(
+                fs::read(unrelated.join("sentinel")).unwrap(),
+                b"unrelated original"
+            );
+        }
+
         crate::PortcoveService::new(library.clone()).unwrap();
         let install = library.install_by_version("sample", "v1").unwrap().unwrap();
         assert_eq!(
@@ -3888,6 +3947,46 @@ mod tests {
         assert!(install.path.join("sample-game.exe").is_file());
         assert!(output_root.join(".portcove-game-output.json").is_file());
         assert!(OperationStore::new(library).all().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn external_install_recovery_retains_contradictory_destinations() {
+        for (point, phase) in [
+            (
+                LifecycleFaultPoint::InstallPrepared,
+                LifecyclePhase::Prepared,
+            ),
+            (
+                LifecycleFaultPoint::InstallPublished,
+                LifecyclePhase::PayloadPublished,
+            ),
+            (
+                LifecycleFaultPoint::InstallMetadataCommitted,
+                LifecyclePhase::MetadataCommitted,
+            ),
+            (
+                LifecycleFaultPoint::InstallMetadataCommitted,
+                LifecyclePhase::CleanupPending,
+            ),
+        ] {
+            assert_external_install_destination_recovery(point, Some((phase, false))).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn external_install_recovery_preserves_omitted_destination_compatibility() {
+        for (point, phase) in [
+            (
+                LifecycleFaultPoint::InstallPublished,
+                LifecyclePhase::PayloadPublished,
+            ),
+            (
+                LifecycleFaultPoint::InstallMetadataCommitted,
+                LifecyclePhase::CleanupPending,
+            ),
+        ] {
+            assert_external_install_destination_recovery(point, Some((phase, true))).await;
+        }
     }
 
     #[tokio::test]
