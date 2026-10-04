@@ -1013,7 +1013,7 @@ async function connect() {
   const initialRecovery =
     (bootstrapRecoverySession || preferencesRecoverySession) && connectedLaunches === 0;
   const readyRoot = initialRecovery
-    ? '.bootstrap-error[role="alert"]'
+    ? ".bootstrap-error"
     : selection.prerequisites.includes("design-compatibility-fixture")
       ? ".design-compatibility-fixture"
       : 'nav[aria-label="Primary navigation"]';

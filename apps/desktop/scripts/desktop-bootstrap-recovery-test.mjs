@@ -53,10 +53,9 @@ export async function preferencesRecoveryScenario({
     (await browser.findElements(By.css('nav[aria-label="Primary navigation"]'))).length,
     0,
   );
-  const failure = await browser.wait(
-    until.elementLocated(By.css('.bootstrap-error[role="alert"]')),
-    15_000,
-  );
+  const failure = await browser.wait(until.elementLocated(By.css("main.bootstrap-error")), 15_000);
+  assert.equal(await failure.getAttribute("role"), null);
+  assert.ok(await failure.findElement(By.css('[role="alert"]')).getText());
   await failure.findElement(By.css("summary")).click();
   assert.match(
     await failure.getText(),
@@ -82,25 +81,28 @@ export async function preferencesRecoveryScenario({
     assert.deepEqual(await readFile(fixture.marker), marker);
     await writeFile(fixture.preferences, repaired);
   });
-  const recovered = await read("get_bootstrap_status");
-  assert.equal(recovered.ready, true);
-  assert.equal(canonicalPath(recovered.library_root), canonicalPath(fixture.selectedRoot));
-  assert.equal(recovered.selection.source, "saved");
-  const identity = await read("get_library_identity", { generation: recovered.generation });
-  await read("get_workspace_snapshot", { generation: recovered.generation });
-  await read("get_statuses", { generation: recovered.generation });
+  const verifyRecoveredHost = async () => {
+    const status = await read("get_bootstrap_status");
+    assert.equal(status.ready, true);
+    assert.equal(canonicalPath(status.library_root), canonicalPath(fixture.selectedRoot));
+    assert.equal(status.selection.source, "saved");
+    const identity = await read("get_library_identity", { generation: status.generation });
+    const workspace = await read("get_workspace_snapshot", { generation: status.generation });
+    const statuses = await read("get_statuses");
+    assert.ok(Array.isArray(statuses));
+    return { status, identity, workspace, statuses };
+  };
+  const recoveredHost = await verifyRecoveredHost();
+  const recovered = recoveredHost.status;
+  const identity = recoveredHost.identity;
   assert.deepEqual(await readFile(fixture.preferences), repaired);
   assert.deepEqual(await readFile(fixture.preferencesBefore), original);
   assert.deepEqual(await readFile(fixture.marker), marker);
   await captureScreenshot("startup-preferences-repaired-workspace");
   browser = await restart("startup-preferences-saved-restart");
-  const restarted = await read("get_bootstrap_status");
-  assert.equal(restarted.ready, true);
-  assert.equal(canonicalPath(restarted.library_root), canonicalPath(fixture.selectedRoot));
-  assert.deepEqual(
-    await read("get_library_identity", { generation: restarted.generation }),
-    identity,
-  );
+  const restartedHost = await verifyRecoveredHost();
+  const restarted = restartedHost.status;
+  assert.deepEqual(restartedHost.identity, identity);
   assert.deepEqual(await readFile(fixture.preferences), repaired);
   assert.deepEqual(await readFile(fixture.marker), marker);
   await captureScreenshot("startup-preferences-saved-restart");
@@ -113,6 +115,8 @@ export async function preferencesRecoveryScenario({
         recovered,
         restarted,
         identity,
+        recoveredHost,
+        restartedHost,
         external_owned_repair: true,
         malformed_original_retained: true,
         player_data_preserved: true,
