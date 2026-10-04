@@ -61,6 +61,16 @@ jobs:
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version"
       - run: pnpm install --frozen-lockfile
+      - name: Read pinned Windows quality-tool versions
+        if: runner.os == 'Windows'
+        id: windows-quality-pins
+        shell: pwsh
+        run: node scripts/quality-tools.mjs --github-output >> $env:GITHUB_OUTPUT
+      - name: Provision existing pinned Windows prebuilt quality tools
+        if: runner.os == 'Windows'
+        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+        with:
+          tool: ${{ steps.windows-quality-pins.outputs.required_prebuilt }}
       - name: Install pinned Windows native driver for installed NSIS renderer qualification
         if: runner.os == 'Windows'
         shell: pwsh
