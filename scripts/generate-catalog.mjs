@@ -60,6 +60,140 @@ function differences(before, after, path = "$") {
   return changes;
 }
 
+// This supplementary report follows named records, not their array positions.
+// The complete positional diff remains the unfiltered catalog comparison.
+function recordDifferences(before, after, path = "$") {
+  const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+  if (
+    (before === undefined && object(after) && Object.keys(after).length === 0) ||
+    (after === undefined && object(before) && Object.keys(before).length === 0)
+  )
+    return differences(before, after, path);
+  if (before === undefined && object(after)) before = {};
+  if (after === undefined && object(before)) after = {};
+  if (!object(before) || !object(after)) return differences(before, after, path);
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  return [...keys]
+    .sort()
+    .flatMap((key) =>
+      recordDifferences(
+        Object.hasOwn(before, key) ? before[key] : undefined,
+        Object.hasOwn(after, key) ? after[key] : undefined,
+        `${path}.${key}`,
+      ),
+    );
+}
+
+function proposalChanges(before, after) {
+  const ports = [];
+  const sourceRecords = [];
+  const orderChanges = [];
+  const collections = [
+    ["ports", before.ports, after.ports],
+    ...["identities", "contracts", "validators", "evidence"].map((name) => [
+      `source_catalog.${name}`,
+      before.source_catalog?.[name] ?? [],
+      after.source_catalog?.[name] ?? [],
+    ]),
+  ];
+  const index = (records, collection) => {
+    if (!Array.isArray(records)) throw new Error(`${collection} must be an array`);
+    const result = new Map();
+    for (const record of records) {
+      if (typeof record?.id !== "string" || !record.id || result.has(record.id))
+        throw new Error(`${collection} has a missing or duplicate record identity`);
+      result.set(record.id, record);
+    }
+    return result;
+  };
+  for (const [collection, oldRecords, newRecords] of collections) {
+    const oldIndex = index(oldRecords, collection);
+    const newIndex = index(newRecords, collection);
+    const oldOrder = [...oldIndex.keys()];
+    const newOrder = [...newIndex.keys()];
+    if (JSON.stringify(oldOrder) !== JSON.stringify(newOrder))
+      orderChanges.push({ collection, before: oldOrder, after: newOrder });
+    for (const id of [...new Set([...oldOrder, ...newOrder])]) {
+      const oldRecord = oldIndex.get(id);
+      const newRecord = newIndex.get(id);
+      const changes = recordDifferences(oldRecord ?? {}, newRecord ?? {});
+      if (!changes.length) continue;
+      const action = !oldRecord ? "added" : !newRecord ? "removed" : "modified";
+      if (collection !== "ports") {
+        sourceRecords.push({
+          collection,
+          id,
+          action,
+          label_before: oldRecord?.label ?? oldRecord?.name ?? null,
+          label_after: newRecord?.label ?? newRecord?.name ?? null,
+          differences: changes,
+        });
+        continue;
+      }
+      const grouped = { source: [], execution: [], persistence: [], other: [] };
+      for (const change of changes) {
+        const field = /^\$\.([^.[]+)/u.exec(change.path)?.[1];
+        let group = "other";
+        if (
+          [
+            "source_profile",
+            "bios_source_profile",
+            "source_environment",
+            "runtime_source_filename",
+            "runtime_source_materialization",
+            "runtime_source_hashes",
+            "runtime_source_set",
+          ].includes(field) ||
+          change.path.startsWith("$.presentation.source_requirements") ||
+          /^\$\.release\.user_prepared\.[^.]+\.source_argument_extension(?:$|[.[])/u.test(
+            change.path,
+          )
+        )
+          group = "source";
+        else if (
+          [
+            "persistent_paths",
+            "persistent_file_patterns",
+            "runtime_mutable_paths",
+            "runtime_mutable_file_patterns",
+            "user_data_environment",
+            "setup_output_paths",
+          ].includes(field) ||
+          change.path.startsWith("$.presentation.saves_and_settings") ||
+          /^\$\.release\.user_prepared\.[^.]+\.mutable_paths(?:$|[.[])/u.test(change.path)
+        )
+          group = "persistence";
+        else if (
+          [
+            "adapter",
+            "release",
+            "bundled_runtime",
+            "executable_hints",
+            "launch_environment",
+            "launch_arguments",
+            "runtime_subdirectory",
+            "launch_from_install_root",
+            "setup_executable_hints",
+            "setup_arguments",
+            "setup_marker",
+            "portable_marker",
+          ].includes(field)
+        )
+          group = "execution";
+        grouped[group].push(change);
+      }
+      ports.push({
+        port_id: id,
+        action,
+        name_before: oldRecord?.name ?? null,
+        name_after: newRecord?.name ?? null,
+        changes: grouped,
+      });
+    }
+  }
+  return { ports, source_records: sourceRecords, order_changes: orderChanges };
+}
+
 function validateCurrentCatalog(catalog) {
   if (catalog.schema_version !== 2) throw new Error("current catalog source is not schema 2");
   if ("source_profiles" in catalog) {
@@ -253,6 +387,7 @@ async function prepareArtworkProposal(fullProposal = false) {
           input_catalog_sha256: digest(input),
           proposed_catalog_sha256: digest(result.catalog),
           differences: differences(current, result.catalog),
+          proposal_changes: proposalChanges(current, result.catalog),
           checks: proposalChecks,
           artwork_evidence: "artwork-evidence.json",
           scope:
@@ -290,6 +425,7 @@ if (preparing) {
         historical_sha256: digest(historical),
         current_sha256: digest(current),
         differences: changes,
+        proposal_changes: proposalChanges(historical, current),
       },
       null,
       2,
