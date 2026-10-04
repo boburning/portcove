@@ -319,6 +319,16 @@
         "claim": "Wave Race 64 Recomp v1.0.2 requires the USA Rev A 8 MiB ROM and documents its exact SHA-1 and direct Windows launch.",
         "immutable_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
         "live_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/README.md"
+      },
+      {
+        "id": "f-zero-snes-recomp-1-8-3-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/FZeroSNESRecomp",
+        "authority_ref": "1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562",
+        "reviewed_at": "2026-10-04",
+        "claim": "v1.8.3 desktop host requires matching F-Zero USA 524288-byte content after optional 512-byte header stripping and accepts an original path as a positional argument without copying or launcher selection. This Portcove route accepts only the exact headerless .sfc original.",
+        "immutable_url": "https://github.com/mstan/FZeroSNESRecomp/blob/1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562/src/sdl_main.c",
+        "live_url": "https://github.com/mstan/FZeroSNESRecomp/blob/main/src/sdl_main.c"
       }
     ],
     "identities": [
@@ -4595,6 +4605,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "f-zero-snes-usa",
+        "label": "F-Zero (USA) headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "F-Zero",
+            "region": "USA",
+            "revision": "Original USA",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "d3efd32b68f1fe37a82db9d9929b7ca7cc1a3af4",
+                    "sha256": "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "f-zero-snes-recomp-1-8-3-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "f-zero-snes-recomp-1-8-3-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6435,6 +6485,33 @@
           {
             "upstream_ref": "v1.0.2",
             "artifact_sha256": "8603e582e7a549f1f3a02c108d1453ad61e7f5df03b2f3232f9939323b044583"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "f-zero-snes-recomp-game-source",
+        "port_id": "f-zero-snes-recomp",
+        "role": "game",
+        "profile_id": "f-zero-snes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "f-zero-snes-recomp-1-8-3-source-contract"
+        ],
+        "authority_ref": "1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562",
+        "reviewed_at": "2026-10-04",
+        "immutable_review_url": "https://github.com/mstan/FZeroSNESRecomp/blob/1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562/src/sdl_main.c",
+        "live_review_url": "https://github.com/mstan/FZeroSNESRecomp/blob/main/src/sdl_main.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.8.3",
+            "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
           }
         ],
         "aliases": [],
@@ -13192,6 +13269,64 @@
           "game_slug": "wave-race-64",
           "match_kind": "underlying-game"
         }
+      }
+    },
+    {
+      "id": "f-zero-snes-recomp",
+      "name": "F-Zero SNES Recomp",
+      "summary": "Play F-Zero using a runtime you prepare from the official Windows package.",
+      "project_url": "https://github.com/mstan/FZeroSNESRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/FZeroSNESRecomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v1.8.3",
+            "archive_name": "FZeroSNESRecomp-1.8.3-windows-x64.zip",
+            "archive_size": 8247843,
+            "archive_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+            "executable": "FZeroSNESRecomp.exe",
+            "immutable_tree_sha256": "41d4aea0b97cfe01dc26cf7e2a7c509f7f0030688ed66760d82a3efb69f69eb6",
+            "source_argument_extension": "sfc",
+            "mutable_paths": [
+              "config.ini",
+              "fzero-video.ini",
+              "keybinds.ini",
+              "saves",
+              "diagnostics",
+              "last_run_report.json"
+            ]
+          }
+        }
+      },
+      "source_profile": "f-zero-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "FZeroSNESRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "f-zero-snes-usa",
+            "label": "F-Zero (USA) headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the official v1.8.3 Windows ZIP outside your Portcove library. Choose its FZeroSNESRecomp-1.8.3-windows-x64 folder for exact-file review and register your original headerless F-Zero (USA) .sfc separately. Windows runtime and gameplay are not tested. Additional files, including crash reports, may prevent later verification; preserve them for troubleshooting. Portcove does not update, back up or delete this folder."
       }
     }
   ]
