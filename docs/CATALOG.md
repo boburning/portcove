@@ -24,6 +24,13 @@ actual source/operation/gameplay qualification or production delivery is inferre
 An unavailable validator or failed declaration check stops this proposal, retains
 its process receipts and leaves the accepted catalog/libraries unchanged. A new
 output directory is required; an interrupted or prior batch is never overwritten.
+Full proposals capture the selected validator before declaration checks. Their
+image decoder takes its own snapshot from that captured artifact only when fresh
+image bytes need validation, then reuses it for the batch. A reuse-only batch
+therefore retains one executable snapshot and creates no image-validation scratch
+library. Decoder initialization failure is not retried within the batch; existing
+artwork exception/fallback handling remains responsible for the result. Artwork-only
+preparation keeps its eager selected-tool snapshot boundary.
 
 Prepare a cover beside each new port definition. Search its public project name
 and known aliases first; accept an exact port record only after checking the

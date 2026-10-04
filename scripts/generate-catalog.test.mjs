@@ -10,6 +10,7 @@ import {
   mkdirSync,
   existsSync,
   copyFileSync,
+  readdirSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -36,6 +37,7 @@ function isolatedGenerator() {
   for (const name of ["catalog-current-authoring.json", "catalog-schema2-migration-fixture.json"])
     copyFileSync(join(catalogRoot, name), join(catalogs, name));
   return {
+    scratch,
     catalogs,
     run: (...args) =>
       spawnSync(process.execPath, ["scripts/generate-catalog.mjs", ...args], {
@@ -44,6 +46,163 @@ function isolatedGenerator() {
       }),
   };
 }
+
+function proposalDecoderFixture(
+  images = 0,
+  failInitialization = false,
+  mode = "--prepare-proposal",
+) {
+  const fixture = isolatedGenerator();
+  const helper = join(fixture.scratch, "scripts", "inspect-igdb-artwork.mjs");
+  copyFileSync(helper, join(fixture.scratch, "scripts", "real-artwork.mjs"));
+  writeFileSync(
+    helper,
+    `
+    export { readArtworkJson, readArtworkInput } from './real-artwork.mjs';
+    import { createCoreImageValidator as actualValidator } from './real-artwork.mjs';
+    import { appendFileSync, readFileSync } from 'node:fs';
+    import { createHash } from 'node:crypto';
+    export function createCoreImageValidator(cli, root) {
+      appendFileSync(process.env.FIXTURE_FACTORY_LOG, JSON.stringify({cli,
+        sha256:createHash('sha256').update(readFileSync(cli)).digest('hex')})+'\\n');
+      if(process.env.FIXTURE_FAIL_INITIALIZATION==='yes') throw new Error('inert initialization failure');
+      return actualValidator(cli, root);
+    }
+    export function createIgdbInspector(_credentials, validateImage) {
+      return {validateImage,providerMetrics:{authentication_requests:0,game_requests:0,image_requests:0}};
+    }
+    export async function prepareCatalogArtwork(input, {validateImage}) {
+      const records=[];
+      for(let i=0;i<Number(process.env.FIXTURE_IMAGES);i++) {
+        try { records.push(validateImage(Buffer.from('inert image '+i))); }
+        catch { records.push({failure:true}); }
+      }
+      return {catalog:input,records,metrics:{}};
+    }
+  `,
+  );
+  const cli = join(fixture.scratch, "selected-cli");
+  const original = Buffer.from("inert first-party validator fixture");
+  writeFileSync(cli, original);
+  const preload = join(fixture.scratch, "process-fixture.mjs");
+  writeFileSync(
+    preload,
+    `
+    import cp from 'node:child_process';
+    import {syncBuiltinESMExports} from 'node:module';
+    import {readFileSync,writeFileSync,appendFileSync} from 'node:fs';
+    import {createHash} from 'node:crypto';
+    let calls=0;
+    cp.spawnSync=(artifact,args)=>{
+      const bytes=readFileSync(args.at(-1));
+      const sha256=createHash('sha256').update(bytes).digest('hex');
+      const inspection=args.includes('inspect-proposal');
+      appendFileSync(process.env.FIXTURE_PROCESS_LOG,JSON.stringify({artifact,inspection})+'\\n');
+      if(++calls===1 && inspection)writeFileSync(process.env.FIXTURE_SELECTED_CLI,'selected file changed after capture');
+      const data=inspection?{format_version:1,input_sha256:sha256,input_bytes:bytes.length,ports:[]}
+        :{selection:{sha256,byte_size:bytes.length,width:1,height:1,format:'jpeg'}};
+      return {status:0,signal:null,stdout:JSON.stringify({data}),stderr:''};
+    };
+    syncBuiltinESMExports();
+  `,
+  );
+  const output = join(fixture.scratch, "output");
+  const factoryLog = join(fixture.scratch, "factory.log");
+  const processLog = join(fixture.scratch, "process.log");
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      preload,
+      "scripts/generate-catalog.mjs",
+      mode,
+      join(fixture.catalogs, "catalog-current-authoring.json"),
+      "--validator-cli",
+      cli,
+      "--output-dir",
+      output,
+    ],
+    {
+      cwd: fixture.scratch,
+      encoding: "utf8",
+      timeout: 10_000,
+      env: {
+        ...process.env,
+        FIXTURE_SELECTED_CLI: cli,
+        FIXTURE_IMAGES: String(images),
+        FIXTURE_FAIL_INITIALIZATION: failInitialization ? "yes" : "no",
+        FIXTURE_FACTORY_LOG: factoryLog,
+        FIXTURE_PROCESS_LOG: processLog,
+      },
+    },
+  );
+  return {
+    result,
+    output,
+    original,
+    cli,
+    factories: existsSync(factoryLog)
+      ? readFileSync(factoryLog, "utf8").trim().split("\n").map(JSON.parse)
+      : [],
+    processes: existsSync(processLog)
+      ? readFileSync(processLog, "utf8").trim().split("\n").map(JSON.parse)
+      : [],
+  };
+}
+
+test("reuse-only full proposal retains declaration checks without initializing an unused decoder", () => {
+  const fixture = proposalDecoderFixture();
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  assert.equal(fixture.factories.length, 0);
+  assert.equal(existsSync(join(fixture.output, "scratch")), false);
+  assert.equal(fixture.processes.length, 3);
+  assert.ok(fixture.processes.every(({ inspection }) => inspection));
+  const evidence = JSON.parse(readFileSync(join(fixture.output, "proposal-evidence.json")));
+  const expected = createHash("sha256").update(fixture.original).digest("hex");
+  for (const receipt of Object.values(evidence.checks))
+    assert.equal(receipt.validator_artifact_sha256, expected);
+});
+
+test("needed decoder snapshots the captured validator once and retains each image receipt", () => {
+  const fixture = proposalDecoderFixture(2);
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  assert.equal(fixture.factories.length, 1);
+  assert.equal(
+    fixture.factories[0].sha256,
+    createHash("sha256").update(fixture.original).digest("hex"),
+  );
+  assert.notEqual(fixture.factories[0].cli, fixture.cli);
+  assert.equal(fixture.processes.filter(({ inspection }) => inspection).length, 3);
+  assert.equal(fixture.processes.filter(({ inspection }) => !inspection).length, 2);
+  const scratch = join(fixture.output, "scratch");
+  const roots = readdirSync(scratch);
+  assert.equal(roots.length, 1);
+  for (const ordinal of ["1", "2"]) {
+    const receipt = JSON.parse(
+      readFileSync(join(scratch, roots[0], ordinal, "validation-process.json")),
+    );
+    assert.equal(receipt.status, 0);
+    assert.equal(receipt.validator_artifact_sha256, fixture.factories[0].sha256);
+  }
+});
+
+test("decoder initialization failure is retained by existing artwork handling without repeated initialization", () => {
+  const fixture = proposalDecoderFixture(2, true);
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  assert.equal(fixture.factories.length, 1);
+  assert.equal(fixture.processes.length, 3);
+  const artwork = JSON.parse(readFileSync(join(fixture.output, "artwork-evidence.json")));
+  assert.deepEqual(artwork.records, [{ failure: true }, { failure: true }]);
+});
+
+test("artwork-only mode retains its eager selected-tool snapshot boundary", () => {
+  const fixture = proposalDecoderFixture(0, false, "--prepare-artwork");
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  assert.equal(fixture.factories.length, 1);
+  assert.equal(fixture.factories[0].cli, fixture.cli);
+  assert.ok(existsSync(join(fixture.output, "scratch")));
+  assert.equal(fixture.processes.length, 0);
+});
 
 function compareProposal(before, after) {
   const fixture = isolatedGenerator();
