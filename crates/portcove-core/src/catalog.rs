@@ -1600,7 +1600,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 11
+            legacy.document().source_profiles.len() + 12
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1619,6 +1619,7 @@ mod tests {
                     "open-nectar-pikmin-disc",
                     "wave-race-64",
                     "f-zero-snes-usa",
+                    "road-rash-64",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1787,6 +1788,7 @@ mod tests {
                     "open-nectar-pikmin",
                     "wave-race-64-recomp",
                     "f-zero-snes-recomp",
+                    "road-rash-64-recompiled",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -2226,6 +2228,7 @@ mod tests {
                     "open-nectar-pikmin-disc",
                     "wave-race-64",
                     "f-zero-snes-usa",
+                    "road-rash-64",
                 ]
                 .contains(&profile.id.as_str())
             })
