@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
+import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type {
   GameFileRoot,
   GameFileScanSnapshot,
@@ -241,6 +242,7 @@ function useContinuationSource(
 
 function CompletedScan({
   snapshot,
+  readConfirmed,
   roots,
   ports,
   profiles,
@@ -253,6 +255,7 @@ function CompletedScan({
   review,
 }: {
   snapshot?: GameFileScanSnapshot | null;
+  readConfirmed: boolean;
   roots?: GameFileRoot[];
   ports: PortDefinition[];
   profiles: SourceProfile[];
@@ -270,9 +273,11 @@ function CompletedScan({
     <section className="source-discovery-results" aria-label="Saved folder scan results">
       <h3>Last completed scan</h3>
       <p>
-        {snapshot.freshness === "inputs_match"
-          ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
-          : "Saved roots, availability, catalog, or search rules changed. Scan again before using these results."}
+        {!readConfirmed
+          ? "This saved-folder view needs a refresh before using scan results. Use Refresh folders to check the current state."
+          : snapshot.freshness === "inputs_match"
+            ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
+            : "Saved roots, availability, catalog, or search rules changed. Scan again before using these results."}
       </p>
       <p>
         Checked {report.entries_examined} entries in {report.searched_roots.length} available
@@ -329,7 +334,7 @@ function CompletedScan({
             ports={ports}
             onOpenPort={onOpenPort}
             busy={busy}
-            stale={snapshot.freshness !== "inputs_match"}
+            stale={!readConfirmed || snapshot.freshness !== "inputs_match"}
             review={() => review(candidate)}
             reviewLabel="Review game files"
           />
@@ -485,6 +490,45 @@ function LiveScanResults({
   );
 }
 
+function useSavedFolderView(setError: (error: string) => void) {
+  const [roots, setRoots] = useState<GameFileRoot[]>();
+  const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
+  const [readConfirmed, setReadConfirmed] = useState(false);
+  const requests = useRef(new LatestRequestGeneration());
+  useEffect(() => {
+    const reads = requests.current;
+    const request = reads.begin();
+    void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
+      .then(([savedRoots, savedSnapshot]) => {
+        if (!reads.isCurrent(request)) return;
+        setRoots(savedRoots);
+        setSnapshot(savedSnapshot);
+        setReadConfirmed(true);
+      })
+      .catch((value: unknown) => {
+        if (reads.isCurrent(request)) setError(errorText(value));
+      });
+    return () => {
+      reads.begin();
+    };
+  }, [setError]);
+  const refresh = async () => {
+    const request = requests.current.begin();
+    setReadConfirmed(false);
+    const [savedRoots, savedSnapshot] = await Promise.all([
+      desktopApi.gameFileRoots(),
+      desktopApi.gameFileScanSnapshot(),
+    ]);
+    if (requests.current.isCurrent(request)) {
+      setRoots(savedRoots);
+      setSnapshot(savedSnapshot);
+      setReadConfirmed(true);
+    }
+    return savedRoots;
+  };
+  return { roots, snapshot, setSnapshot, readConfirmed, refresh };
+}
+
 export function GameFileLibraries({
   ports,
   profiles,
@@ -506,11 +550,10 @@ export function GameFileLibraries({
   setupSource?: SourceRecord;
   setSetupSource?: (source?: SourceRecord) => void;
 }) {
-  const [roots, setRoots] = useState<GameFileRoot[]>();
-  const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
   const [busy, setBusy] = useState("");
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string>();
+  const { roots, snapshot, setSnapshot, readConfirmed, refresh } = useSavedFolderView(setError);
   const [notice, setNotice] = useState<string>();
   const [operationId, setOperationId] = useState<string>();
   const [removingId, setRemovingId] = useState<string>();
@@ -540,21 +583,6 @@ export function GameFileLibraries({
   const reviewedCandidate = useRef<{ profile_id: string; path: string } | undefined>(undefined);
   const focusAfterReview = useRef(false);
   const focusToSetup = useRef(false);
-  useEffect(() => {
-    let active = true;
-    void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
-      .then(([savedRoots, savedSnapshot]) => {
-        if (!active) return;
-        setRoots(savedRoots);
-        setSnapshot(savedSnapshot);
-      })
-      .catch((value: unknown) => {
-        if (active) setError(errorText(value));
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
   useEffect(() => {
     if (scanning || !focusAfterScan.current) return;
     const candidate = focusAfterScan.current;
@@ -620,14 +648,15 @@ export function GameFileLibraries({
         setBusy("");
       });
   };
-  const refresh = async () => {
-    const [savedRoots, savedSnapshot] = await Promise.all([
-      desktopApi.gameFileRoots(),
-      desktopApi.gameFileScanSnapshot(),
-    ]);
-    setRoots(savedRoots);
-    setSnapshot(savedSnapshot);
-    return savedRoots;
+  const refreshAfterRootChange = async (message: string) => {
+    setNotice(message);
+    try {
+      await refresh();
+    } catch {
+      setNotice(
+        `${message} The saved-folder view couldn't refresh. Use Refresh folders to check the current state.`,
+      );
+    }
   };
   const add = () =>
     run("Choosing folder…", async () => {
@@ -641,7 +670,7 @@ export function GameFileLibraries({
       }
       await desktopApi.addGameFileRoot(path);
       setPlan(undefined);
-      await refresh();
+      await refreshAfterRootChange("Folder saved.");
     });
   const relink = (root: GameFileRoot) =>
     run("Choosing replacement…", async () => {
@@ -649,14 +678,18 @@ export function GameFileLibraries({
       if (!path) return;
       await desktopApi.relinkGameFileRoot(root.id, path);
       setPlan(undefined);
-      await refresh();
+      await refreshAfterRootChange("Saved folder location updated.");
     });
   const remove = (root: GameFileRoot) =>
     run("Removing folder…", async () => {
-      await desktopApi.removeGameFileRoot(root.id);
+      const removed = await desktopApi.removeGameFileRoot(root.id);
       setRemovingId(undefined);
       setPlan(undefined);
-      await refresh();
+      await refreshAfterRootChange(
+        removed
+          ? "Saved folder removed. The game files were kept."
+          : "The folder was already absent from saved folders.",
+      );
     });
   const scan = () =>
     (async () => {
@@ -878,6 +911,7 @@ export function GameFileLibraries({
       {notice && <p role="status">{notice}</p>}
       <CompletedScan
         snapshot={snapshot}
+        readConfirmed={readConfirmed}
         roots={roots}
         ports={ports}
         profiles={profiles}
