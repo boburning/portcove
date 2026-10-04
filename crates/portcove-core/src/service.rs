@@ -3244,7 +3244,7 @@ impl PortcoveService {
         let timestamp = Library::now();
         let version = format!("adopted-{timestamp}");
         lifecycle.activate = true;
-        let result = (|| {
+        let mut result = (|| {
             let port = self.catalog.port(&port_id)?;
             let platform = Platform::current()?;
             let qualification =
@@ -3279,6 +3279,7 @@ impl PortcoveService {
             let staged_user = operation_root.join("user");
             fs::create_dir_all(operation_root)?;
             copy_adoption_plan(source, &payload_root, &locked_preview.copy_plan)?;
+            self.faults.check(LifecycleFaultPoint::AdoptionCopied)?;
             let copied_plan = adoption_copy_plan(&payload_root)?;
             if copied_plan.directories != locked_preview.copy_plan.directories
                 || copied_plan.files != locked_preview.copy_plan.files
@@ -3378,12 +3379,46 @@ impl PortcoveService {
             store.remove(&lifecycle.id)?;
             Ok(install)
         })();
-        if let Err(error) = &result {
+        if let Err(error) = &mut result {
             if lifecycle.phase == LifecyclePhase::Preparing {
-                if let Some(operation_root) = &operation_root {
-                    let _ = fs::remove_dir_all(operation_root);
+                let cleanup = if let Some(operation_root) = &operation_root {
+                    self.faults
+                        .check(LifecycleFaultPoint::AdoptionPrivateCleanup)
+                        .and_then(|()| match fs::remove_dir_all(operation_root) {
+                            Ok(()) => Ok(()),
+                            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                            Err(error) => Err(error.into()),
+                        })
+                } else {
+                    Ok(())
+                };
+                if let Err(cleanup) = cleanup {
+                    lifecycle.last_error = Some(format!(
+                        "{}; private adoption cleanup failed: {}",
+                        error.message, cleanup.message
+                    ));
+                    error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+                    error
+                        .details
+                        .insert("operation_id".into(), lifecycle.id.clone());
+                    error
+                        .details
+                        .insert("cleanup_error".into(), cleanup.message);
+                    if let Err(persist) = store.put(&mut lifecycle) {
+                        error
+                            .details
+                            .insert("persistence_error".into(), persist.message);
+                    }
+                } else if let Err(retire) = store.remove(&lifecycle.id) {
+                    // Do not recreate a journal after an ambiguous retirement error.
+                    error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+                    error
+                        .details
+                        .insert("operation_id".into(), lifecycle.id.clone());
+                    error
+                        .details
+                        .insert("journal_retirement_error".into(), retire.message);
                 }
-                let _ = store.remove(&lifecycle.id);
             } else {
                 lifecycle.last_error = Some(error.message.clone());
                 let _ = store.put(&mut lifecycle);
@@ -5692,6 +5727,156 @@ mod tests {
             }
             Ok(())
         }
+    }
+
+    struct FailAdoptionPrivateWork {
+        cleanup_fails: bool,
+    }
+
+    impl LifecycleFaultInjector for FailAdoptionPrivateWork {
+        fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+            match point {
+                LifecycleFaultPoint::AdoptionCopied => {
+                    Err(PortcoveError::state("injected adoption copy failure"))
+                }
+                LifecycleFaultPoint::AdoptionPrivateCleanup if self.cleanup_fails => Err(
+                    PortcoveError::state("injected adoption private cleanup failure"),
+                ),
+                _ => Ok(()),
+            }
+        }
+    }
+
+    fn assert_adoption_private_cleanup_outcome(cleanup_fails: bool) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let installed = register_zelda_install(&library, "v1", true);
+        let source = temporary.path().join("existing-install");
+        fs::create_dir_all(&source).unwrap();
+        write_host_test_executable(&source, "zelda64-recomp");
+        fs::write(source.join("general.json"), b"adopted settings").unwrap();
+        let user = library.user_dir("zelda64-recomp").join("general.json");
+        fs::create_dir_all(user.parent().unwrap()).unwrap();
+        fs::write(&user, b"canonical original settings").unwrap();
+        let source_before = format!("{:?}", adoption_copy_plan(&source).unwrap());
+        let installed_before = format!("{:?}", adoption_copy_plan(&installed).unwrap());
+        let installs_before = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
+        let service = PortcoveService::with_provider_and_faults(
+            library.clone(),
+            Arc::new(StaticReleaseProvider {
+                version: "v2".into(),
+            }),
+            Arc::new(FailAdoptionPrivateWork { cleanup_fails }),
+        )
+        .unwrap();
+        let sources_before = serde_json::to_vec(&service.library.sources().unwrap()).unwrap();
+        let preview = service
+            .preview_adoption(&source, Some("zelda64-recomp"))
+            .unwrap();
+        let authorization = service
+            .authorize_adoption(&source, Some("zelda64-recomp"), &preview.plan_sha256)
+            .unwrap();
+        let error = service
+            .adopt(&source, Some("zelda64-recomp"), &authorization.token)
+            .unwrap_err();
+        assert_eq!(error.message, "injected adoption copy failure");
+        let activity = library
+            .activities(20)
+            .unwrap()
+            .into_iter()
+            .find(|activity| activity.operation == ActivityOperation::Adopt)
+            .unwrap();
+        assert_eq!(activity.status, ActivityStatus::Failed);
+        let staging = library.staging_dir().join(&activity.id);
+        let store = OperationStore::new(library.clone());
+        if cleanup_fails {
+            assert_eq!(
+                store.all().unwrap().len(),
+                1,
+                "failed private adoption cleanup must retain its journal"
+            );
+            let journal = store.get(&activity.id).unwrap().unwrap();
+            assert_eq!(journal.kind, LifecycleOperationKind::Adopt);
+            assert_eq!(journal.phase, LifecyclePhase::Preparing);
+            assert!(journal.install.is_none());
+            assert_eq!(journal.paths.staging.as_ref(), Some(&staging));
+            assert_eq!(error.details.get("operation_id"), Some(&activity.id));
+            assert_eq!(
+                error.details.get("cleanup_error").map(String::as_str),
+                Some("injected adoption private cleanup failure")
+            );
+            assert_eq!(
+                error.presentation().mutation_state,
+                crate::MutationState::RecoveryRequired
+            );
+            assert_eq!(
+                serde_json::to_vec(activity.failure.as_ref().unwrap()).unwrap(),
+                serde_json::to_vec(&error.report()).unwrap()
+            );
+            let diagnostic = journal.last_error.as_ref().unwrap();
+            assert!(diagnostic.contains("injected adoption copy failure"));
+            assert!(diagnostic.contains("injected adoption private cleanup failure"));
+            let private_before = format!("{:?}", adoption_copy_plan(&staging).unwrap());
+            let restarted = PortcoveService::new(library.clone()).unwrap();
+            let retained = store.get(&activity.id).unwrap().unwrap();
+            assert_eq!(retained.kind, journal.kind);
+            assert_eq!(retained.phase, LifecyclePhase::Preparing);
+            assert_eq!(retained.created_at, journal.created_at);
+            assert!(retained.install.is_none());
+            assert_eq!(retained.paths.staging.as_ref(), Some(&staging));
+            assert_eq!(
+                format!("{:?}", adoption_copy_plan(&staging).unwrap()),
+                private_before
+            );
+            assert_eq!(
+                serde_json::to_vec(&restarted.library.sources().unwrap()).unwrap(),
+                sources_before
+            );
+            let retained_activity = library
+                .activities(20)
+                .unwrap()
+                .into_iter()
+                .find(|current| current.id == activity.id)
+                .unwrap();
+            assert_eq!(retained_activity.status, ActivityStatus::Failed);
+            assert_eq!(
+                serde_json::to_vec(&retained_activity.failure).unwrap(),
+                serde_json::to_vec(&activity.failure).unwrap()
+            );
+        } else {
+            assert!(store.all().unwrap().is_empty());
+            assert!(!staging.exists());
+            assert!(!error.details.contains_key("cleanup_error"));
+            PortcoveService::new(library.clone()).unwrap();
+            assert!(store.all().unwrap().is_empty());
+        }
+        assert_eq!(
+            format!("{:?}", adoption_copy_plan(&source).unwrap()),
+            source_before
+        );
+        assert_eq!(
+            format!("{:?}", adoption_copy_plan(&installed).unwrap()),
+            installed_before
+        );
+        assert_eq!(fs::read(&user).unwrap(), b"canonical original settings");
+        assert_eq!(
+            serde_json::to_vec(&library.all_installs().unwrap()).unwrap(),
+            installs_before
+        );
+        assert_eq!(
+            serde_json::to_vec(&service.library.sources().unwrap()).unwrap(),
+            sources_before
+        );
+    }
+
+    #[test]
+    fn adoption_private_cleanup_failure_retains_owned_recovery_intent() {
+        assert_adoption_private_cleanup_outcome(true);
+    }
+
+    #[test]
+    fn adoption_private_cleanup_success_retires_failed_attempt() {
+        assert_adoption_private_cleanup_outcome(false);
     }
 
     fn assert_external_adoption_recovers_after_every_publication_boundary(
