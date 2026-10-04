@@ -1240,10 +1240,12 @@ mod tests {
     fn managed_preparation_rejects_unsafe_runtime_path_before_adapter_work() {
         let temporary = tempfile::tempdir().unwrap();
         let preparation = preparation_input_fixture(temporary.path(), false);
+        let unix_rooted = ["", "outside"].join("/");
+        let windows_rooted = ["C:", "outside"].join("/");
         for path in [
             "../outside",
-            "/outside",
-            "C:/outside",
+            unix_rooted.as_str(),
+            windows_rooted.as_str(),
             "",
             "disc/../outside",
         ] {
