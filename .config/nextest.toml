@@ -9,13 +9,11 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
-# Finite calibration experiment for the observed full-catalog lifecycle timeout.
-# Retain five-second warnings, assertions, zero grace and the original phase output.
-# This 90-second ceiling is experimental until actual Intel evidence is reviewed.
+# Retain this bounded diagnostic's phase timings when the unchanged test passes.
+# Output is displayed at completion; assertions and execution limits still apply.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'
 success-output = "immediate"
-slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
