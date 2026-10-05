@@ -284,6 +284,69 @@ function controlledUpdateFailure(mutation) {
   };
 }
 
+async function reviewedUpdateState(review) {
+  const [text, displayed, versions, actions] = await Promise.all([
+    review.getText(),
+    review.isDisplayed(),
+    review.findElements(By.css(".install-plan > p:first-child strong")),
+    review.findElements(By.xpath('.//button[normalize-space(.)="Keep saved update for later"]')),
+  ]);
+  const version = versions.length === 1 ? versions[0] : null;
+  const action = actions.length === 1 ? actions[0] : null;
+  const [versionText, versionDisplayed, actionDisplayed, actionEnabled] = await Promise.all([
+    version?.getText() ?? null,
+    version?.isDisplayed() ?? false,
+    action?.isDisplayed() ?? false,
+    action?.isEnabled() ?? false,
+  ]);
+  return {
+    action,
+    snapshot: {
+      text,
+      displayed,
+      version_count: versions.length,
+      version: versionText,
+      version_displayed: versionDisplayed,
+      action_count: actions.length,
+      action_displayed: actionDisplayed,
+      action_enabled: actionEnabled,
+    },
+  };
+}
+
+function confirmsReviewedRelease(snapshot, expectedVersion) {
+  return (
+    snapshot.displayed &&
+    snapshot.text.includes("Confirm the release and what happens to your active version") &&
+    snapshot.version_count === 1 &&
+    snapshot.version === expectedVersion &&
+    snapshot.version_displayed
+  );
+}
+
+function hasAvailableReviewedAction(snapshot) {
+  return snapshot.action_count === 1 && snapshot.action_displayed && snapshot.action_enabled;
+}
+
+export async function waitForReviewedUpdateAction(browser, review, expectedVersion, observation) {
+  const state = { expected_version: expectedVersion, polls: 0, first: null, latest: null };
+  observation.review = state;
+  return browser.wait(
+    async () => {
+      const { action, snapshot } = await reviewedUpdateState(review);
+      state.polls++;
+      state.first ??= snapshot;
+      state.latest = snapshot;
+      return confirmsReviewedRelease(snapshot, expectedVersion) &&
+        hasAvailableReviewedAction(snapshot)
+        ? action
+        : false;
+    },
+    5_000,
+    "The controlled review must show its exact release and available action",
+  );
+}
+
 async function assertReviewedUpdateOutcomes({
   browser,
   port,
@@ -316,7 +379,12 @@ async function assertReviewedUpdateOutcomes({
         plan_sha256: "owned-controlled-update-plan",
         plan: { ...candidate.plan, action: "use_staged" },
       };
-      const observation = { mutation, cancelled, restored: false };
+      const observation = {
+        mutation,
+        cancelled,
+        expected_version: candidate.plan.release.version,
+        restored: false,
+      };
       observations.cases.push(observation);
       await browser.executeScript(
         (portId, generation, plan, failure) => {
@@ -399,7 +467,12 @@ async function assertReviewedUpdateOutcomes({
       try {
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
-        assert.ok((await review.getText()).includes(candidate.plan.release.version));
+        const applyAction = await waitForReviewedUpdateAction(
+          browser,
+          review,
+          candidate.plan.release.version,
+          observation,
+        );
         const admitted = await browser.executeScript(() => ({
           plans: window.__portcoveReviewedUpdateProbe.plans,
           mismatches: window.__portcoveReviewedUpdateProbe.mismatches,
@@ -408,10 +481,7 @@ async function assertReviewedUpdateOutcomes({
         assert.deepEqual(admitted.mismatches, []);
         assert.equal(/^[a-f0-9]{64}$/.test(suppliedPlan.plan_sha256), false);
 
-        await clickVisible(
-          browser,
-          await review.findElement(button("Keep saved update for later")),
-        );
+        await clickVisible(browser, applyAction);
         const outcome = await browser.wait(
           until.elementLocated(By.css("[data-game-update-outcome]")),
           5_000,
