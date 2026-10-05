@@ -291,11 +291,23 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
                 if (failSetup) throw new Error("Owned fixture append failed");
                 frame.isConnected = true;
                 for (const event of events)
-                  for (const listener of [...listeners])
+                  for (const listener of [...listeners]) {
+                    const wrongOrigin = new URL(attempted);
+                    wrongOrigin.port = String(
+                      Number(wrongOrigin.port) === 65535 ? 1 : Number(wrongOrigin.port) + 1,
+                    );
                     listener({
                       ...event,
-                      blockedURI: event.blockedURI === "owned-frame" ? attempted : event.blockedURI,
+                      blockedURI:
+                        event.blockedURI === "owned-frame"
+                          ? attempted
+                          : event.blockedURI === "wrong-origin"
+                            ? wrongOrigin.href
+                            : event.blockedURI === "wrong-path"
+                              ? new URL("/other", attempted).href
+                              : event.blockedURI,
                     });
+                  }
                 // Advance the fixture's virtual deadline, without a real wait.
                 for (const timer of [...timers]) timer();
               },
@@ -347,8 +359,8 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
     { ...valid, isTrusted: false },
     { ...valid, disposition: "report" },
     { ...valid, effectiveDirective: "script-src" },
-    { ...valid, blockedURI: "http://127.0.0.1:43211/" },
-    { ...valid, blockedURI: "http://127.0.0.1:43210/other" },
+    { ...valid, blockedURI: "wrong-origin" },
+    { ...valid, blockedURI: "wrong-path" },
     { ...valid, blockedURI: "inline" },
   ];
   const positive = await run([...wrong, valid]);
