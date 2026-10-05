@@ -24,6 +24,10 @@ import {
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import { focusSettingsTarget } from "./features/app-shell/focus-settings-target";
+import {
+  useGameFileScan,
+  type GameFileScan,
+} from "./features/game-file-discovery/use-game-file-scan";
 import { useSetupSource } from "./features/app-shell/use-setup-source";
 import { focusApplicationUpdateRoute } from "./features/application-update/focus-application-update-route";
 import {
@@ -293,6 +297,7 @@ function Workspace({
 }) {
   const data = usePortcoveData(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
+  const gameFileScan = useGameFileScan();
   const operations = useOperationState({
     refresh: data.retryRefresh,
     refreshActivities: data.refreshActivities,
@@ -573,6 +578,7 @@ function Workspace({
               applicationUpdateNotice={applicationUpdate.notice}
               applicationUpdatePreferences={applicationUpdateChoice}
               openPortDetails={openPortDetails}
+              gameFileScan={gameFileScan}
               setupSource={setupSource}
               setSetupSource={setSetupSource}
             />
@@ -714,6 +720,7 @@ function CurrentView({
   openPortDetails,
   setupSource,
   setSetupSource,
+  gameFileScan,
 }: {
   data: DataState;
   ui: UiState;
@@ -731,6 +738,7 @@ function CurrentView({
   applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
   applicationUpdatePreferences: ReturnType<typeof useApplicationUpdateChoice>;
   openPortDetails: (portId: string, originKey?: string) => void;
+  gameFileScan: GameFileScan;
   setupSource?: SourceRecord;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
@@ -782,6 +790,7 @@ function CurrentView({
         sourceProfiles={data.catalog?.source_profiles ?? []}
         onSourceAdded={data.refreshAfterMutation}
         onOpenPort={openPortDetails}
+        gameFileScan={gameFileScan}
         setupSource={setupSource}
         setSetupSource={setSetupSource}
         onCatalogChanged={data.refreshAfterMutation}

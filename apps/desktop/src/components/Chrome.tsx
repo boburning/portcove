@@ -70,6 +70,7 @@ import { ApplicationUpdateSettings } from "../features/application-update/Applic
 import type { ApplicationUpdateRoute } from "../features/application-update/focus-application-update-route";
 import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
+import type { GameFileScan } from "../features/game-file-discovery/use-game-file-scan";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
@@ -1447,6 +1448,7 @@ export function SettingsView({
   onOpenPort,
   setupSource,
   setSetupSource,
+  gameFileScan,
   onCatalogChanged,
   onOpenGameUpdates,
   hostToolActions,
@@ -1487,6 +1489,7 @@ export function SettingsView({
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;
   onOpenPort?: (portId: string, originKey: string) => void;
+  gameFileScan?: GameFileScan;
   setupSource?: SourceRecord;
   setSetupSource?: (source?: SourceRecord) => void;
   onCatalogChanged?: () => Promise<unknown>;
@@ -1581,6 +1584,7 @@ export function SettingsView({
           workspaceRefreshFailed={workspaceRefreshFailed}
           onAdded={onSourceAdded}
           onOpenPort={onOpenPort}
+          gameFileScan={gameFileScan}
           setupSource={setupSource}
           setSetupSource={setSetupSource}
         />
