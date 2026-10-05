@@ -1866,8 +1866,9 @@ retained after each family's admission checks so released journal phase encoding
 manifest verification and filesystem/SQLite commit ordering continue to agree.
 When diagnostic and activity reporting succeed, adoption records the combined
 cleanup failure before restart; startup may replace the journal's current
-diagnostic while retaining the original failed activity report. Adopt failures
-after validation report `RecoveryRequired` and the operation identity to Core,
+diagnostic while retaining the original failed activity report. Once adoption
+enters `Prepared` or a later publication phase, retained failures report
+`RecoveryRequired` and the operation identity to Core,
 CLI and Desktop consumers because publication, metadata registration, saved-data
 transfer or private cleanup still needs recovery. This includes failures after
 install-pointer registration; a failed result does not mean that activation was
