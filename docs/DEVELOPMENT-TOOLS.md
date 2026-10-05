@@ -997,6 +997,15 @@ retains the isolated installation/journal for the existing recovery procedure.
 This supplies only the actual tested unsigned Windows package/current OS row,
 not production authority, minimum Windows, another platform or whole #1280/#993.
 
+The same boundary scenario also submits a fixed unreviewed HTTPS `.invalid`
+URL and an unknown source-evidence ID through actual main-window IPC. Each
+must return its specific structured link-guard code and message; a missing
+command, unavailable library or unsupported catalog cannot count as refusal.
+Ready bootstrap, generation, selection, library identity and main URL must
+remain unchanged across each refusal, with subsequent legitimate IPC working.
+This qualifies negative link controls only. It does not establish delivery of
+an approved link in the external browser or trust for another webview context.
+
 WebView2 documents that cancelled `NavigationStarting` can still issue GET
 requests while the host responds. The boundary case records every owned server
 request and requires the popup destination to receive none; it does not promise
