@@ -21,6 +21,17 @@ impact. The complete `differences` and Core receipts remain necessary: unkeyed
 qualification facts and other catalog fields are outside this named-record report.
 All files remain unsigned proposals. No publisher grant, artifact authenticity,
 actual source/operation/gameplay qualification or production delivery is inferred.
+The `compatibility_fixture_review` report compares proposed source and port IDs
+with the frozen schema-1 identities plus the independently reviewed lists in
+`catalog-legacy-additions-fixture.json`. Missing or unreviewed IDs require a
+manual fixture review; preparation can still describe an unreviewed candidate.
+The generator never updates these expectations. Ordinary generation and `--check`
+refuse an identity mismatch before replacing embedded bytes. This cheap check
+does not establish full source-contract equality: Rust still compares complete
+frozen legacy projections and retains its qualification and negative assertions.
+Add independently reviewed additive IDs to this fixture once instead of updating
+the expected count and three exclusion lists separately. Do not regenerate the
+fixture from the catalog or derive expected identities from a proposal.
 An unavailable validator or failed declaration check stops this proposal, retains
 its process receipts and leaves the accepted catalog/libraries unchanged. A new
 output directory is required; an interrupted or prior batch is never overwritten.
