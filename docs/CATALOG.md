@@ -238,6 +238,40 @@ updates. A deliberate `DirectManifest`, rolling tag, source/runtime identity or
 exact qualification record must not be broadened to manufacture automatic
 updates.
 
+Declare the offered route's maintenance policy on its existing canonical Port
+issue during admission and subsequent disposition work, independently from its
+operations and qualification. [#1422](https://github.com/boburning/portcove/issues/1422)
+owns cohort reconciliation, [#254](https://github.com/boburning/portcove/issues/254)
+owns repeatable proposal and evidence preparation, and
+[#246](https://github.com/boburning/portcove/issues/246) owns protected compatible
+delivery. These declarations are not new catalog schema fields or a second
+planning registry.
+
+Prefer `managed-compatible-release` when upstream releases are safely versioned
+and observable and ordinary compatibility can be validated deterministically.
+Every accepted release still retains immutable version, artifact and accepted
+hash identity. A declaration describes the maintenance target; separately name
+the observation, selection, executable, source, persistence and compatibility
+checks actually implemented and any remaining facts or capability owner. It
+does not prove a future package compatible, inherit gameplay evidence, authorize
+publication, install an update, or override a player's keep-current choice.
+
+Use `pinned-release` for a concrete upstream or safety limitation that prevents
+compatible progression. Record the retained exact pin, the limitation and the
+facts or checks needed to resume. An accepted immutable artifact, unfinished
+research, missing optional gameplay or a gap on another platform alone is not a
+pin justification. A direct manifest is a release representation, not a permanent
+maintenance exception; a bounded observer and reviewed compatible candidates
+may remain required work. Keep unknown facts explicit instead of inventing a
+limitation.
+
+Use `user-managed-update` for an offered non-owning user-prepared runtime route.
+Its exact package and extracted-runtime checks remain required, but Portcove
+does not update or replace that external runtime. Preserve the offered
+registration/launch/removal boundary and all applicable holds; the declaration
+grants no acquisition, backup, rollback or deletion right. Revisit the policy only
+when an independently justified managed route or changed input warrants it.
+
 A standalone Linux AppImage release may use a version-bearing asset filename.
 When its port declares exactly one AppImage basename and no runtime subdirectory,
 the installer gives the verified file that declared name before writing its
