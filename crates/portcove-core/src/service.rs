@@ -3420,6 +3420,11 @@ impl PortcoveService {
                         .insert("journal_retirement_error".into(), retire.message);
                 }
             } else {
+                error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+                error
+                    .details
+                    .entry("operation_id".into())
+                    .or_insert_with(|| lifecycle.id.clone());
                 lifecycle.last_error = Some(error.message.clone());
                 let _ = store.put(&mut lifecycle);
             }
@@ -5896,6 +5901,11 @@ mod tests {
         write_host_test_executable(&source, "zelda64-recomp");
         fs::write(source.join("general.json"), b"adopted settings").unwrap();
 
+        let user = library.user_dir("zelda64-recomp").join("general.json");
+        fs::create_dir_all(user.parent().unwrap()).unwrap();
+        fs::write(&user, b"canonical original settings").unwrap();
+        let original = format!("{:?}", adoption_copy_plan(&source).unwrap());
+        let sources = serde_json::to_vec(&library.sources().unwrap()).unwrap();
         let service = service_with_fault(library.clone(), point);
         let output_root = temporary.path().join("external-output");
         service
@@ -5911,6 +5921,63 @@ mod tests {
             .adopt(&source, Some("zelda64-recomp"), &authorization.token)
             .unwrap_err();
         assert!(error.message.contains("injected lifecycle failure"));
+        assert_eq!(
+            error.presentation().mutation_state,
+            crate::MutationState::RecoveryRequired
+        );
+        let store = OperationStore::new(library.clone());
+        let journal = store.all().unwrap().pop().unwrap();
+        assert_eq!(error.details.get("operation_id"), Some(&journal.id));
+        let expected_phase = match point {
+            LifecycleFaultPoint::AdoptionPrepared => LifecyclePhase::Prepared,
+            LifecycleFaultPoint::AdoptionPublished => LifecyclePhase::PayloadPublished,
+            LifecycleFaultPoint::AdoptionMetadataCommitted => LifecyclePhase::MetadataCommitted,
+            _ => unreachable!("only publication boundaries use this fixture"),
+        };
+        assert_eq!(journal.phase, expected_phase);
+        assert_eq!(journal.last_error.as_deref(), Some(error.message.as_str()));
+        let activity = library
+            .activities(20)
+            .unwrap()
+            .into_iter()
+            .find(|activity| activity.id == journal.id)
+            .unwrap();
+        assert_eq!(activity.status, ActivityStatus::Failed);
+        assert_eq!(
+            serde_json::to_vec(activity.failure.as_ref().unwrap()).unwrap(),
+            serde_json::to_vec(&error.report()).unwrap()
+        );
+        let staging = journal.paths.staging.as_ref().unwrap();
+        let install = journal.install.as_ref().unwrap();
+        assert_eq!(
+            staging.join("payload").exists(),
+            expected_phase == LifecyclePhase::Prepared
+        );
+        assert_eq!(
+            install.path.exists(),
+            expected_phase != LifecyclePhase::Prepared
+        );
+        let registered = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .active;
+        assert_eq!(
+            registered.as_ref().map(|install| &install.id),
+            (expected_phase == LifecyclePhase::MetadataCommitted).then_some(&journal.id)
+        );
+        assert_eq!(
+            fs::read(staging.join("user/general.json")).unwrap(),
+            b"adopted settings"
+        );
+        assert_eq!(fs::read(&user).unwrap(), b"canonical original settings");
+        assert_eq!(
+            format!("{:?}", adoption_copy_plan(&source).unwrap()),
+            original
+        );
+        assert_eq!(
+            serde_json::to_vec(&library.sources().unwrap()).unwrap(),
+            sources
+        );
 
         if let Some((phase, omitted)) = destination_case {
             let store = OperationStore::new(library.clone());
@@ -5990,6 +6057,36 @@ mod tests {
             b"adopted settings"
         );
         assert!(recovered.repair_plan().unwrap().items.is_empty());
+        assert!(store.get(&journal.id).unwrap().is_none());
+        assert!(!staging.exists());
+        let recovered_installs = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
+        let reopened = PortcoveService::new(library.clone()).unwrap();
+        assert_eq!(
+            serde_json::to_vec(&library.all_installs().unwrap()).unwrap(),
+            recovered_installs
+        );
+        assert!(reopened.repair_plan().unwrap().items.is_empty());
+        assert!(store.get(&journal.id).unwrap().is_none());
+        assert_eq!(fs::read(&user).unwrap(), b"adopted settings");
+        assert_eq!(
+            format!("{:?}", adoption_copy_plan(&source).unwrap()),
+            original
+        );
+        assert_eq!(
+            serde_json::to_vec(&library.sources().unwrap()).unwrap(),
+            sources
+        );
+        let retained_activity = library
+            .activities(20)
+            .unwrap()
+            .into_iter()
+            .find(|activity| activity.id == journal.id)
+            .unwrap();
+        assert_eq!(retained_activity.status, ActivityStatus::Failed);
+        assert_eq!(
+            serde_json::to_vec(&retained_activity.failure).unwrap(),
+            serde_json::to_vec(&activity.failure).unwrap()
+        );
     }
 
     #[test]
