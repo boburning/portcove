@@ -498,3 +498,46 @@ it("retains authoritative success through the real wrapper when only display ref
   expect(actualOperation.error).toBe(refreshFailure);
   expect(apply).toHaveBeenCalledTimes(1);
 });
+
+it("ignores retained task events during shared refresh and after terminal failure", async () => {
+  let finishRefresh!: () => void;
+  refreshOperation.mockImplementationOnce(
+    () =>
+      new Promise<undefined>((resolve) => {
+        finishRefresh = () => resolve(undefined);
+      }),
+  );
+  let emit!: Parameters<typeof desktopApi.applyGameUpdate>[4];
+  const failure = updateFailure("unknown");
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
+  vi.spyOn(desktopApi, "applyGameUpdate").mockImplementation(
+    (_port, _activate, _plan, _generation, onEvent) => {
+      emit = onEvent;
+      return Promise.reject(failure);
+    },
+  );
+  await act(async () => root.render(<ActualOperationFixture />));
+  await click("Review game update");
+  await click("Download update for later");
+  const sendLateEvents = () => {
+    const common = {
+      schema_version: 3 as const,
+      operation_id: "settled-update",
+      parent_operation_id: null,
+      target: null,
+      timestamp_ms: 1,
+      operation: "update" as const,
+    };
+    emit({ ...common, sequence: 1, type: "message", level: "info", message: "Late task progress" });
+    emit({ ...common, sequence: 2, type: "started" });
+  };
+  await act(async () => sendLateEvents());
+  expect(dialog()?.textContent).not.toContain("Late task progress");
+  expect(dialog()?.textContent).not.toContain("Cancel game update");
+  expect(actualOperation.error).toBe(failure);
+  await act(async () => finishRefresh());
+  await act(async () => sendLateEvents());
+  expect(container.textContent).toContain(failure.presentation.summary);
+  expect(container.textContent).not.toContain("Late task progress");
+  expect(container.textContent).not.toContain("Cancel game update");
+});

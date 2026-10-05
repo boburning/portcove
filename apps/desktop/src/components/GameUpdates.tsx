@@ -127,6 +127,7 @@ export function GameUpdateControl({
     setError(undefined);
     setFailure(undefined);
     let failed = false;
+    let acceptingEvents = true;
     try {
       const result = await perform("run reviewed game update", async () => {
         try {
@@ -136,7 +137,7 @@ export function GameUpdateControl({
             plan.plan_sha256,
             generation,
             (event) => {
-              if (!requests.current.isCurrent(current)) return;
+              if (!acceptingEvents || !requests.current.isCurrent(current)) return;
               if (event.type === "started") setOperation(event.operation_id);
               if (event.type === "message") setMessage(event.message);
             },
@@ -149,6 +150,9 @@ export function GameUpdateControl({
           }
           // The shared operation owner still handles refresh and the global error.
           throw value;
+        } finally {
+          acceptingEvents = false;
+          if (requests.current.isCurrent(current)) setOperation(undefined);
         }
       });
       if (requests.current.isCurrent(current) && !failed)
