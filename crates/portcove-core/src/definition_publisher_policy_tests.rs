@@ -1498,9 +1498,13 @@ async fn managed_ordinary_lifecycle(mut observer: ManagedStageObserver<'_>) {
                 .find(|assessment| assessment.operation == DefinitionOperation::Launch)
                 .unwrap();
             assert!(launch.retained);
-            assert_ne!(
+            assert_eq!(
                 launch.eligibility.outcome,
-                DefinitionEligibilityOutcome::Eligible
+                DefinitionEligibilityOutcome::Hold
+            );
+            assert_eq!(
+                launch.eligibility.reason,
+                DefinitionEligibilityReason::RecordedIdentityChanged
             );
             for (installed, tree) in delivered.iter().zip(&retained_trees) {
                 assert_eq!(

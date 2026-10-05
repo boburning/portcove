@@ -1,5 +1,8 @@
 use super::*;
-use std::process::Command;
+use std::{
+    process::{Command, Stdio},
+    time::{Duration, Instant},
+};
 
 struct Consumer {
     path: PathBuf,
@@ -19,22 +22,47 @@ impl Consumer {
             hex::encode(Sha256::digest(fs::read(&self.path).unwrap())),
             self.sha256
         );
-        let output = Command::new(&self.path)
+        let output = tempfile::tempdir_in(library.root()).unwrap();
+        let stdout = output.path().join("stdout.json");
+        let stderr = output.path().join("stderr.log");
+        let mut child = Command::new(&self.path)
             .args(args)
             .env_remove("PORTCOVE_QUALIFICATION_CATALOG")
             .env("PORTCOVE_QUALIFICATION_LIBRARY", library.root())
-            .output()
+            .stdin(Stdio::null())
+            .stdout(fs::File::create(&stdout).unwrap())
+            .stderr(fs::File::create(&stderr).unwrap())
+            .spawn()
             .unwrap();
+        let start = Instant::now();
+        let observation = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break Ok(status),
+                Ok(None) => {}
+                Err(error) => break Err(format!("could not observe owned consumer: {error}")),
+            }
+            if start.elapsed() >= Duration::from_secs(15) {
+                break Err("owned compiled consumer exceeded 15 seconds".to_owned());
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        if observation.is_err() {
+            let _ = child.kill();
+        }
+        // Positive reap precedes output/fixture cleanup, including timeout/error.
+        // The containing existing Heavy Rust supervisor owns any failed reap.
+        let status = child.wait().unwrap();
         assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
+            observation.is_ok(),
+            "{observation:?}; {}",
+            fs::read_to_string(&stderr).unwrap()
         );
+        assert!(status.success(), "{}", fs::read_to_string(&stderr).unwrap());
         assert_eq!(
             hex::encode(Sha256::digest(fs::read(&self.path).unwrap())),
             self.sha256
         );
-        serde_json::from_slice(&output.stdout).unwrap()
+        serde_json::from_slice(&fs::read(stdout).unwrap()).unwrap()
     }
 }
 

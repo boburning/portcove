@@ -247,9 +247,14 @@ async function main() {
     assert.equal(revoked.definition.readiness.launchable, false);
 
     const managedReport = path.join(workspace, "managed-consumers.json");
+    const managedEnv = { ...env };
+    delete managedEnv.PORTCOVE_QUALIFICATION_CATALOG;
     runSync(
-      "cargo",
+      process.execPath,
       [
+        "scripts/run-rust-tests.mjs",
+        "--guard-command",
+        "cargo",
         "test",
         "--locked",
         "-p",
@@ -264,7 +269,7 @@ async function main() {
       ],
       {
         env: {
-          ...env,
+          ...managedEnv,
           PORTCOVE_QUALIFICATION_CLI_PATH: cli,
           PORTCOVE_QUALIFICATION_CLI_SHA256: builtConsumers.cli,
           PORTCOVE_QUALIFICATION_DESKTOP_PATH: desktop,
