@@ -7,6 +7,10 @@ const ID: &str = "tuf-metadata-fixture";
 #[path = "definition_launch_assessment_tests.rs"]
 mod launch_assessments;
 
+#[cfg(feature = "qualification-fixtures")]
+#[path = "definition_compiled_client_tests.rs"]
+mod compiled_clients;
+
 fn availability(revision: u64) -> Value {
     let targets = metadata_targets();
     availability_for(&targets, ID, revision)
@@ -1230,6 +1234,18 @@ async fn managed_installer_requires_resolver_proof_and_refuses_artifact_redirect
 
 #[tokio::test]
 async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract() {
+    managed_ordinary_lifecycle(None).await;
+}
+
+type ManagedStageObserver<'a> = Option<&'a mut dyn FnMut(&Library, &str)>;
+
+fn observe_managed_stage(observer: &mut ManagedStageObserver<'_>, library: &Library, stage: &str) {
+    if let Some(observer) = observer.as_mut() {
+        observer(library, stage);
+    }
+}
+
+async fn managed_ordinary_lifecycle(mut observer: ManagedStageObserver<'_>) {
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
     let phase_clock = std::time::Instant::now();
@@ -1267,6 +1283,7 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
             .is_some()
     );
     phase("ordinary-load:complete");
+    observe_managed_stage(&mut observer, &library, "new-definition");
     let server = AcquisitionHttp::new();
     scope.fixture_origin = Some(server.origin.clone());
     let installer = crate::Installer::new(library.clone()).unwrap();
@@ -1343,6 +1360,7 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
         );
         delivered.push(installed);
         phase(&format!("{version}:retained-readback:complete"));
+        observe_managed_stage(&mut observer, &library, version);
     }
     phase("ordinary-status:start");
     let status = library.status(ID, ReleaseChannel::Stable).unwrap();
@@ -1447,6 +1465,71 @@ async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contr
         phase(&format!(
             "revision-{definition_revision}:retained-readback:complete"
         ));
+        observe_managed_stage(
+            &mut observer,
+            &library,
+            &format!("correction-{definition_revision}"),
+        );
+    }
+    if observer.is_some() {
+        // Qualify the unchanged consumers against an authenticated narrowing,
+        // then restoration. Neither may revive the old installed authorization.
+        for (revision, redirects) in [(10, Some(4)), (11, None)] {
+            let (candidate, admission) = acquire_compatible_correction_with_redirects(
+                &fixture, &key, &root, &catalog, revision, redirects,
+            )
+            .await;
+            library
+                .apply_definition_publisher_policy(&admission, Some(&candidate))
+                .unwrap();
+            let eligible = library
+                .assess_definition_candidate(&candidate, "official", ID)
+                .unwrap()
+                .into_eligible()
+                .unwrap();
+            library.select_definition_candidate(eligible).unwrap();
+            let after = PortcoveService::new(library.clone())
+                .unwrap()
+                .status(ID)
+                .unwrap();
+            let launch = after
+                .definition_operations
+                .iter()
+                .find(|assessment| assessment.operation == DefinitionOperation::Launch)
+                .unwrap();
+            assert!(launch.retained);
+            assert_ne!(
+                launch.eligibility.outcome,
+                DefinitionEligibilityOutcome::Eligible
+            );
+            for (installed, tree) in delivered.iter().zip(&retained_trees) {
+                assert_eq!(
+                    crate::library_transfer::reviewed_tree(&installed.path).unwrap(),
+                    *tree
+                );
+                assert_eq!(
+                    installer
+                        .retained_catalog(installed)
+                        .unwrap()
+                        .unwrap()
+                        .definition_selection(ID),
+                    catalog.definition_selection(ID)
+                );
+            }
+            assert_eq!(
+                crate::library_transfer::reviewed_tree(&user).unwrap(),
+                user_tree
+            );
+            observe_managed_stage(
+                &mut observer,
+                &library,
+                if redirects.is_some() {
+                    "authorization-narrowed"
+                } else {
+                    "authorization-restored"
+                },
+            );
+        }
     }
     phase("complete");
 }
@@ -1457,6 +1540,28 @@ async fn acquire_compatible_correction(
     root: &[u8],
     catalog: &Catalog,
     definition_revision: u64,
+) -> (
+    crate::AuthenticatedDefinitionCandidate,
+    crate::AuthenticatedDefinitionPublisherPolicy,
+) {
+    acquire_compatible_correction_with_redirects(
+        fixture,
+        key,
+        root,
+        catalog,
+        definition_revision,
+        None,
+    )
+    .await
+}
+
+async fn acquire_compatible_correction_with_redirects(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    root: &[u8],
+    catalog: &Catalog,
+    definition_revision: u64,
+    max_redirects: Option<u8>,
 ) -> (
     crate::AuthenticatedDefinitionCandidate,
     crate::AuthenticatedDefinitionPublisherPolicy,
@@ -1488,6 +1593,9 @@ async fn acquire_compatible_correction(
         "operations",
     ] {
         document["decision"][field] = managed_github(2)["decision"][field].clone();
+    }
+    if let Some(max_redirects) = max_redirects {
+        document["decision"]["max_redirects"] = max_redirects.into();
     }
     targets.push((
         format!("policy/official/{ID}.json"),
