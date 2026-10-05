@@ -280,6 +280,30 @@ known safety failure in shipped scope. Reorder or edit Project fields instead
 of rewriting repository documentation. New ports do not automatically expand
 global V1 scope.
 
+## Keeping current specifications readable
+
+Prefer an existing canonical owner. Create a task only for independently owned,
+scheduled, implemented or verified work; ordinary observations and evidence stay
+with their owner. Durable Port records remain distinct from finite maintenance.
+Keep near-term work executable and later approved outcomes visible without
+speculatively decomposing every future step.
+
+The issue body is the current specification: finite closure, delivered components
+with scoped links, remaining acceptance and owners, genuine blockers/resume
+conditions, and separately scoped later work. Integrate accepted amendments;
+do not append contradictory overrides or copy entire child checklists into a
+parent. Preserve superseded text and unique evidence in a dated linked issue
+comment. Every applicable requirement must retain a current owner, not only an
+archive. Refresh before writing, guard against concurrent edits and read back.
+
+On completion or material scope change, reconcile the task, finite parent and
+directly affected relationships. Closed can mean canceled, duplicate or superseded;
+a merged component is not automatically an integrated or qualified outcome.
+Credit completed slices and preserve valid historical completion. Aging and
+missing evidence prompt investigation, not automatic closure or invented blockers.
+Use targeted existing checks for ordinary maintenance; complete inventories and
+readiness analysis serve migrations and release declarations, not every PR.
+
 ## Selecting approved work
 
 Required determines release readiness. Planned is approved non-gating work that
@@ -318,21 +342,44 @@ creates no new recurring automation and does not prove instructions were adopted
 
 ## Views and prioritization
 
-Use Priority Stack for ordered Now/Next execution, Now Board for active flow,
-Port Pipeline for the full port inventory, Active Port Work for unfinished
-non-deferred port work, Product Roadmap for non-port work,
-Current Release for the active readiness commitment, Blocked & Deferred for resume
-conditions, Inbox & Triage for intake, Steam Deck for that platform, and V1
-Readiness (retained view identity) for cumulative required gates through 1.0. The checked-in view schema
-records machine-applied layout, filter, and visible fields separately from the
-`manual_group_by` and `manual_sort_by` UI requirements. `bootstrap` cannot claim
-those manual settings or the built-in workflows are configured.
+The saved views are entry points into one Project, not independent authorities:
 
-`.github/roadmap.json` names `active_release`. Advancing Current Release is a
-reviewed repository change: update that value, run `bootstrap`, confirm the view
-filter and all configured manual grouping/sorting rules in the UI, run `doctor`, and
-record the change in the planning pull request. This selects a readiness commitment,
-not the next application version or a publication authorization.
+| View                                     | Question answered                                                                       |
+| ---------------------------------------- | --------------------------------------------------------------------------------------- |
+| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                  |
+| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                  |
+| In Progress                              | Which issues are marked In progress or Validating? Confirm actual reservations in #793. |
+| Next Queue                               | Which unfinished Now/Next work follows, including Required and Planned?                 |
+| Planned Additions                        | Which approved non-gating additions remain, across releases?                            |
+| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?             |
+| Blocked & Deferred / Inbox & Triage      | What has a resume condition, and what still needs triage?                               |
+
+`roadmap-outcome` is a presentation-only label on canonical finite product and
+engineering outcomes, including completed outcomes. It does not classify every
+execution task as a product outcome, change readiness, or select eligible work.
+Keep accepted outcomes discoverable without an arbitrary display quota. Native
+child completion is child progress, not effort percentage or release proof.
+
+The Required views show direct gates, not complete release readiness. Use
+`readiness --release <stage>` for genuine transitive prerequisites, classification
+conflicts and missing coverage. Product Outcomes excludes Port records; the
+complete Port Pipeline retains them. Native children remain expandable; collapsed
+row counts must not count integrated parent/child scope as independent value or
+replace complete readiness. In Progress does not infer assignment from
+Now, and neither a status nor a recommended assignment creates a reservation.
+`next` orders the common queue by Horizon, Priority and Project order; the manual
+Next Queue view preserves Project ordering within those selection rules.
+
+Configuration owns names, layouts, filters and visible fields. Supported API
+readback also verifies grouping and sorting; changing those settings still needs
+an authorized UI route. A successful bootstrap is not proof of built-in workflow
+configuration. Reuse saved view identities when renaming instead of duplicating
+views. Refresh and verify actual saved settings after changes.
+
+`.github/roadmap.json` names `active_release`. Advancing Required for Beta is a
+reviewed repository change: update that value, bootstrap the filter, verify saved
+settings, run doctor, and record the change. This chooses a readiness commitment,
+not an application version or publication authority.
 
 Address immediate security or data-loss hazards and broken required validation
 first. Then prioritize bounded, demonstrated development improvements before
@@ -357,7 +404,7 @@ does not block component development. Use one-way final-integration dependencies
 and fixture-based component proofs; do not make an optional broad parent a
 transitive release gate or mark planned phases complete.
 
-V1 Readiness retains its historical view name and shows work targeted through 1.0 with commitment visible. The
+Required through 1.0 shows direct cumulative Required work. The
 derived `readiness` command and immutable snapshot compute the actual gate from
 Required outcomes and genuine transitive `blocked by` relationships. They report
 unclassified targeted work, dependency classification/target conflicts, safety
@@ -447,8 +494,8 @@ have exactly one Port item. It rejects missing markers, duplicate catalog IDs,
 candidate keys, normalized title identities, same-upstream/same-target
 identities, unsupported stage claims, Blocked entries without usable resume
 conditions, and Rejected entries that still claim catalog support. Distinct
-games or targets may share one upstream. Grouping, sorting, auto-add, and completion workflows remain
-explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
+games or targets may share one upstream. Grouping and sorting are verified by readback; auto-add and completion workflows
+remain explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
 
 Before a tagged release, generate a dated readiness snapshot with

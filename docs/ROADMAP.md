@@ -1,726 +1,136 @@
-# Product roadmap
-
-Public beta and 1.0 are cumulative product-readiness commitments. Public beta
-includes the finite existing-backlog availability rollout authorized on October 2,
-2026, alongside reusable onboarding capabilities. Every feasible candidate in
-that snapshot needs a useful integration; individual genuine exceptions need
-evidence and a reconsideration condition. This is not a catalog-card or gameplay
-quota. Later discoveries enter continuous intake without moving that finish line.
-Each port retains its own channel, platform, operations and qualification state.
-
-Current priority, horizon, target release, blockers, and detailed scope live in
-the [Portcove Roadmap](https://github.com/users/boburning/projects/1).
-
-## Product direction
-
-**North Star:** Portcove is the place players go to discover and play native
-game ports: a broad, continually updated catalog, straightforward setup, and a
-dependable library that preserves their progress, without players or maintainers
-managing every upstream project individually.
-
-Compatible additions and routine updates should flow through without
-proportional maintainer work. Automation handles ordinary work inside
-established authority; the owner handles direction and genuine exceptions.
-The owner should spend time on product direction, useful capabilities and
-genuine exceptions rather than processing releases, repairing the same
-integrations, personally playtesting every port or approving already-validated
-changes. Catalog coverage and freshness should grow faster than the recurring
-maintainer attention needed to sustain them.
-The intended experience is: “I choose a game, understand what files I need, use
-what I already have, get it running, and keep my setup usable when things
-change.”
-
-Discovery can also begin with “I have these files.” The planned file-first
-journey lets a player connect explicitly selected game-file folders once, keeps
-indexing and scanning read-only, and identifies compatible catalog ports through
-the same core inspection and setup contracts. Selected use-current, copy, or
-separately authorized Move remains a deliberate later action. Portcove should
-remember those local folders and the player's choices, reconcile relevant file,
-catalog, and prerequisite changes, and—only with scoped consent—notify or
-complete eligible setup without reorganizing the collection. One-off selection
-and drop remain available. This direction complements game-first onboarding;
-it is planned in
-[#244](https://github.com/boburning/portcove/issues/244). Its useful first experience—selected
-folders, progressive catalog-wide discovery/readiness, and reviewed selected setup—is
-Required Public beta, with source, ownership, consent and recovery safeguards.
-Ongoing reconciliation and standing automatic setup remain independent later
-work under #965/#966; neither becomes part of that beta gate. This is planned
-acceptance, not a claim that the complete journey has shipped. Recognizable reviewed or local artwork, clear
-version and setup choices, visible ongoing work and actionable failures should
-make both journeys easier; broad customization and historical selection remain
-separate.
-
-Portcove makes heterogeneous native ports feel like one coherent platform.
-Portcove Desktop is the flagship experience for discovery, setup, updates,
-everyday play, and controller use. Shared core services own each port's source,
-installation, game-update, persistence, and launch semantics, so another
-frontend can integrate once. Desktop application updating belongs at its host
-boundary. Absorbing ecosystem complexity does not mean translating operating
-system APIs or supplying builds that upstream does not provide.
-
-Portcove is a complete native-port manager with a dependable public CLI. Other
-applications should integrate once with Portcove instead of learning how to
-manage each individual port. CLI-first interoperability does not make Desktop
-secondary or require players to use a terminal. Portcove maintains the core,
-public contract, author documentation, conformance fixtures, and one bounded
-real reference client. Additional applications may integrate independently;
-Portcove does not promise a first-party plugin for every launcher. Community
-participation, partnerships, marketplace approval, integration count, and
-adoption are not release gates. See
-[External frontend integration](INTEGRATIONS.md).
-
-Prefer policy-accepted catalog data and reusable adapters that minimize upstream work.
-Upstream metadata and tooling are optional aids, not blanket admission rules.
-Preserve local-first use, optional accounts, honest qualification, and all
-safety invariants; require no cloud service, silent telemetry, or distributed
-copyrighted game data. Judge progress by successful play, dependable updates,
-useful discovery/customization, low-risk migration, and maintainable coverage.
-
-Portcove is not complete by reaching a fixed port count, covering every
-upstream, requiring personal gameplay of every entry, becoming a universal
-launcher/emulator or compatibility layer, hosting games or ROMs, mandating
-telemetry/cloud/accounts, operating a social network or unrestricted mod
-marketplace, or trusting runtime AI to execute arbitrary upstream instructions.
-
-Portcove maintains reusable capabilities and acceptance policies. Compatible
-new ports and routine upstream releases must eventually complete acceptance
-and delivery without personal playtesting or per-candidate owner approval.
-Operation eligibility, publisher/source trust, artifact integrity, game-file
-compatibility, and scoped evidence/health are independent. An eligible untested
-entry belongs in the normal catalog with Install enabled when prerequisites
-pass. Missing evidence is unknown; a known failure limits the affected operation.
-The current runtime and format-1 delivery remain as documented in
-[Catalog policy](CATALOG.md) and [Signed catalog delivery](SIGNED-CATALOG.md).
-
-Broad, current coverage is central, not a small curated selection.
-Representative ports bound architectural proofs and release qualification, not
-the available catalog. Native source ports, decompilations, recompilations and
-new implementations remain within established scope; this does not silently
-admit every derivative, emulator, wrapper or compatibility layer. Research
-inventory remains distinct from usable coverage and gameplay evidence.
-
-During incremental migration, preserve existing availability, stable identities,
-installations, sources, saves/configuration, retained versions and documented
-external behavior. Existing adapters may remain behind the shared authority;
-unmigrated definitions alone do not justify withdrawing ports. A demonstrated
-safety failure still holds the affected operation/artifact/platform. Compatible
-additions should mainly add definitions and fixtures. Important new ports may
-justify reusable capabilities or a narrowly isolated title-specific exception;
-neither a universal abstraction nor a duplicate lifecycle is the entry price.
-
-Use the existing queue for both application maturity and catalog freshness.
-High-priority active port work can be Planned for a release: absence does
-not block that release, and the common execution queue must schedule it. Record accepted assignments or ordered positions and concrete pass-over reasons
-in existing coordination; prefer older comparable executable work. Bound work in progress
-and give immediate security/data-loss hazards and broken required validation
-precedence. Before independent delivery ships,
-compatible additions may still require application releases; preserve that
-transitional route without claiming format-1 clients can load new definitions.
-
-Within that boundary, prioritize demonstrated improvements that make remaining
-development faster, easier to change, less repetitive or less failure-prone
-before ordinary feature expansion. Bound each improvement by its evidence,
-consumers and a useful completion or no-change decision. Execution priority does
-not promote an optional improvement into a release gate or make every feature
-wait for architecture cleanup.
-
-Component implementation, integration handoff and final release evidence are
-distinct. Develop components against tested narrow interfaces; the downstream
-owner retains the complete integrated commitment. Credit completed scoped proof
-without treating a partial delivery as parent completion or repeatedly testing
-it solely to refresh tracking.
-
-The long-term operating test is an extended absence from routine maintainer
-work: installed libraries remain usable, accepted routine releases keep arriving,
-compatible submitted additions flow through the authorized path, and failures
-become isolated, deduplicated exceptions. This is an unproven operating target,
-not a new month-long 1.0 gate.
-
-## Planned local-first artwork
-
-Artwork should provide useful account-free defaults, explicit local choices and
-cached display that never delays installation or play. Existing owners
-[#208](https://github.com/boburning/portcove/issues/208) and
-[#206](https://github.com/boburning/portcove/issues/206) own the shared foundation
-and presentation within the flagship outcome.
-[#1155](https://github.com/boburning/portcove/issues/1155) owns the Required
-Public beta account-free default-cover experience, measured coverage against a
-recorded catalog snapshot with finite exceptions, ongoing intake and repair, and
-artwork-only correction for capable unchanged clients. Optional wide imagery
-and a complete bundled archive for a first-ever disconnected launch are not
-release gates. Missing artwork never blocks an individual port's availability.
-
-For each slot, prefer an explicit user choice, then a usable catalog default,
-then an automatic provider choice only when enabled, then generated fallback.
-Availability does not erase preference: personal provider references cannot
-bypass provider setup; accepted account-free defaults do not require it.
-Refreshes or rankings cannot replace explicit selections. Shared Rust
-services own selection, sparse exact-port/original-game mappings, provenance,
-safe ingestion and cache policy; hosts own dialogs, secure credentials and display
-bridging. React presents that state. Public machine contracts must evolve
-compatibly without weakening strict catalog readers or depending on the broader
-game-centered discovery model.
-
-Durable choices, mapping corrections and library-owned local imports survive
-cache clearing and provider disconnection. Relocation and relevant backup/export
-contracts must preserve them explicitly, excluding credentials and any remote
-files without redistribution permission. Defaults need actual permission;
-attribution, public availability and local hashes are not rights evidence.
-
-[#527](https://github.com/boburning/portcove/issues/527) owns the bounded
-SteamGridDB capability for Portcove's picker and the pre-1.0 Steam artwork
-handoff, using one user-supplied credential subject to verified application-use,
-same-user Steam installation, cache/retention, withdrawal and attribution
-conditions. Delivering that provider capability is Required before 1.0 during beta; configuring or using
-it remains optional for each user. Provider failure or unresolved access never
-blocks foundational artwork, catalog delivery, game lifecycle, or #292 Add/Repair
-without remote art. #292 alone owns Steam destination writes through #208's shared
-selection/provenance handoff. These are future requirements, not implemented
-provider or Steam-artwork support.
-
-## Finite 1.0 outcome contract
-
-The cumulative 1.0 finish line has seven outcomes. Canonical issues own their
-executable details and evidence; this map is stable direction, not another live
-status checklist.
-
-1. **Unassisted first play:** #15 with #36–#39 and exact packaged qualification
-   in #242 covers discovery, source understanding, explicit local discovery or
-   selection, preparation, storage choice, installation, launch, and actionable
-   refusal within representative scope.
-2. **Safe ongoing management:** the core trust/recovery owners under #13 plus
-   #42 and #48 cover tested install, update, adoption, backup, restore, rollback,
-   removal, interruption, capacity, busy-session, and failed-update semantics.
-3. **A user-controlled library:** #37 and #38 own coherent default/per-game
-   destinations, safe copy versus authorized move, relocation, and currently
-   committed adoption/portability. Broad importer coverage in #249 is Post-1.0.
-4. **A finished flagship experience:** #200 and its active UX owners cover
-   understandable setup, progress, errors, cancellation, interrupted recovery,
-   return from play, accessibility, and declared keyboard/mouse/controller use.
-5. **Production-ready distribution:** #46 and #52 own qualified packages and
-   understandable application upgrade/recovery for every claimed platform,
-   without conflating application updates with game updates.
-6. **Useful independently consumable integrations:** #14, #30, and #243 provide
-   a documented, tested public CLI, bounded real lifecycle reference, and
-   fresh-workspace consumer exercise without private knowledge or copied per-port
-   rules. #910 turns that reference into a normally installable, user-ready
-   Playnite lifecycle integration, while #292 provides selected-game Steam
-   Add/Repair/Update-artwork/Remove over the same public launch authority with
-   #527's bounded provider capability. Provider use remains optional at runtime.
-   Additional frontends, continuous synchronization, organic adoption,
-   marketplace acceptance, and Decky are not gates.
-7. **A proven autonomous catalog path:** #245 and #246 prove one accepted scope
-   delivering a new compatible definition, its next routine artifact, and a safe
-   correction to an unchanged client through protected acceptance and exact
-   publication, with zero per-candidate owner actions after provisioning.
-   The bounded configured-upstream observer in #398 supplies regular exact
-   observations; #246 owns the combined observation-to-client proof. Broad
-   discovery in #177 remains outside this finite outcome.
-
-Alpha 2's onboarding and storage outcomes are released. Subsequent delivery is
-capability-based: small safe previews may ship while cumulative Public beta or
-1.0 commitments remain incomplete. Versions, Stable/Preview channels, workstreams
-and readiness are separate. The shared updater and its Windows/ordinary Linux
-x86-64 qualification are required for initial Public beta, together with independent catalog delivery and the
-finite preparation, artwork and real reference-client outcomes. These remain
-cumulative 1.0 requirements; exact production qualification stays at 1.0.
-macOS and Steam Deck consume that foundation during beta and remain Required
-before 1.0; their platform-specific qualification does not delay the initial
-Windows/Linux updater outcome.
-See [Continuous verified delivery](DELIVERY.md).
-
-General autonomous engineering is separately owned by #284. It is a Post-1.0
-extension, not a 1.0, Alpha 2, #243, or #246 dependency. Repository auto-merge
-capability and zero required approvals do not establish unattended operation;
-the trusted controller, least-privilege trigger, durable resume/evidence model,
-budgeting, separate review gate, and end-to-end refusal/recovery scenarios must
-exist and pass first.
-
-## Alpha 1 — Trustworthy technical alpha
-
-Close the core install, source-identity, launch, backup, provider, executable,
-and permission trust blockers required for controlled technical testing.
-
-## Alpha 2 — Onboarding and storage alpha
-
-Ship structured supported-source inspection, actual-versus-expected hash
-visibility, Source Inbox with safe copy/move import and discovery, persisted
-library selection, per-game destinations and safe relocation, and official
-source-tool links with persisted manual paths.
-
-The central acceptance scenario is unassisted first successful play: choose a
-game, provide or explicitly discover its required files, understand preparation,
-choose storage, install, and play without maintainer coaching or unnecessary
-settings trips. Exercise supported and unsupported variants, missing files or
-tools, supported manual handoffs, actionable recovery, destination choices,
-and copy/move interruption while preserving originals. Lead with understandable
-identity and support results, with full actual/expected hashes accessible beneath
-them. Identified, unchanged, upstream-supported, admitted, and physically
-qualified remain independent; presentation must not tighten source admission.
-
-The source/storage issues shared this scenario through
-[#15](https://github.com/boburning/portcove/issues/15). The released, narrowly
-qualified packaged technical preview exercises it outside a development
-checkout with disposable or fully backed-up libraries. Its reviewed integrated
-implementation, trust checkpoint, and packaged first-play qualification are
-recorded in [#242](https://github.com/boburning/portcove/issues/242), which
-supplied the evidence for the required outcomes and final Alpha 2 closure.
-Alpha 2 did not require universal coverage. The planned #244 successor extends
-explicit one-off selection to persistent, explicitly connected folders and
-catalog-wide compatible-port discovery. Discovery remains opt-in and bounded;
-adding a folder is not installation or notification consent, and source
-compatibility alone does not establish full installation/platform readiness.
-
-With Alpha 2 qualification complete, start #245 design and continue compatible
-catalog work. Independent delivery, freshness and preparation-boundary
-migration add no Alpha 2 prerequisite and do not alter the exact package handoff.
-
-## Integration and scale
-
-#14 retains the former Alpha 3 workstream identity and finite outcomes: scoped
-reads/provider scaling (#24), controller performance/polish (#29/#44), shared
-transport authority (#30), one justified preparation/launch improvement (#31),
-bounded operation-event state (#32), and the real reference-client proof (#243).
-The Project maps their readiness commitments explicitly; no numbered Alpha 3
-release is required. #31 starts with one setup-heavy family and reuses core
-journals, locks, activity, cancellation and recovery without a daemon or second
-job store. Inspect inputs, resolve a plan, prepare, publish readiness and
-supervise launch; necessary upstream interactive setup stays a visible handoff.
-
-#245 design, #397 compatible loading/retained contracts, #398 configured upstream
-observation and #246 protected acceptance/delivery form the independent catalog
-workstream, required for Public beta and cumulative through 1.0. Preserve existing
-adapters, stable identity, local SQLite, available ports and installed/source/save
-state. Typed capabilities need redistributable success/failure/interruption
-fixtures; unknown safety semantics fail closed. One official feed and bounded
-accepted upstream suffice; full adapter migration and broad #177 discovery are
-not prerequisites. #246 must prove a new definition, its next routine artifact
-and safe correction reaching an unchanged compatible client with zero routine
-owner actions after provisioning. Format-1 clients do not already support this.
-
-Observation retains explicit upstream stable/preview/rolling policies where
-supported, full pagination, validated caching, backoff and interrupted recovery.
-Latest observed, eligible per platform/channel/capability and installed are
-distinct; show stale/unmonitored/held reasons. Same-day availability is a measured
-engineering objective within accepted scope, not an existing guarantee. No
-automatic game installation or application-channel coupling follows.
-
-## Public beta
-
-Availability-first onboarding and the full finite existing-backlog rollout are
-Required Public beta outcomes. #254 owns repeatable data-first authoring and
-evidence preparation; #1168 the common assessments and retained ownership needed
-by offered routes; #1169 useful official existing-runtime/user-prepared routes;
-and #315 authorized curated exact-byte acquisition where required. #1167's
-completed policy remains a foundation. The finite rollout owner [#1422](https://github.com/boburning/portcove/issues/1422) uses
-these capabilities across all feasible snapshot candidates. Tooling, placeholders
-or two pilot ports do not complete the rollout. See the
-[dated inventory and limitations](archive/2026-10-02-availability-beta-rollout.md).
-
-Admission and qualification remain separate. Eligible untested integrations are
-discoverable in the normal catalog with truthful per-operation actions and
-limitations. Missing personal playtesting or runner-owned game data is not an
-admission gate; applicable identity, integrity, source, executable, ownership,
-consent and recovery checks still apply. Known mandatory failures hold only their
-affected scope. Unknown save locations cannot authorize destructive management,
-but need not prevent a reviewed non-owning launch. A pinned no-update route does
-not require an update demonstration. #42 retains representative later
-qualification and exact scoped evidence; it is not an all-port beta playtest.
-The owner need not operate macOS hardware.
-
-#246 retains its independent protected unchanged-client delivery minimum. Local
-capability and definition work can proceed before final production provisioning;
-neither its demonstration nor a shared-route pilot substitutes for the cohort.
-General proposal automation, preservation and full lifecycle expansion retain
-their separate later ownership and do not enter beta solely through these links.
-
-Broader testing is appropriate when representative first-play and recovery are
-usable; fundamental safety, honest limitations and the complete baseline
-application updater are proven. #52 includes Windows per-user NSIS, Linux
-AppImage on ordinary Linux x86-64. Installed macOS Intel/Apple Silicon bundles
-are Required before 1.0 under #226 during beta, not part of initial #52 closure. Require real updater-enabled release-to-release and
-skipped-version evidence, safe failure/data preservation, and a provisioned
-bounded release/feed pipeline. Manual reinstall or compiled packages alone do
-not satisfy the gate. Missing platform evidence keeps the milestone open.
-
-Initial beta retains the complete preparation boundary (#31), structured local-
-first/account-free artwork (#1155/#208/#206), public CLI and independent reference
-proof (#30/#243), manual plugin-free Steam launch (#290), and protected unchanged-
-client catalog delivery (#245/#397/#398/#246). The frozen full feasible backlog
-rollout and its shared onboarding capabilities remain Required; pilots prove
-machinery, not the rollout quota. Application updater and catalog delivery are
-independent Required outcomes without reciprocal parent blockers.
-
-Full user-ready Playnite (#910), automatic Steam Add/Repair/Update-artwork/Remove
-(#292), SteamGridDB (#527) and physical Xbox qualification (#44) are high-priority
-work during Public beta, Required before 1.0. Preserve their complete safety,
-ownership and consumer acceptance. They do not gate initial beta. Practical
-cross-platform CI/build health and reusable public/runtime contracts remain;
-ordinary provider use stays optional and account-free defaults stay required.
-This supersedes earlier beta timing for those peripheral outcomes without
-weakening the core product or its architecture.
-
-The finite [#921](https://github.com/boburning/portcove/issues/921) architecture
-and development-agility initiative is also Required for Public beta. It adds five
-independently closable residual owners without reopening completed foundations:
-[#922](https://github.com/boburning/portcove/issues/922) owns the measured
-single-session baseline, equivalent-work validation deduplication, safe compiled
-support-program reuse, and only then measured bottleneck experiments;
-[#923](https://github.com/boburning/portcove/issues/923) owns the warm-checkout
-task, resume, diagnosis, and compact independent-review handoff contract;
-[#924](https://github.com/boburning/portcove/issues/924) owns development-only
-typed frontend scenarios, one backend-state cache authority, and feature-owned UI
-structure; [#925](https://github.com/boburning/portcove/issues/925) owns residual
-core domain, lifecycle, persistence, and justified host-integration seams; and
-[#926](https://github.com/boburning/portcove/issues/926) owns mechanical IPC/Tauri
-exposure alignment and repository-tooling ownership. The umbrella owns only their
-finite integrated compatibility and migration-cleanup proof.
-
-Within the authorized two-cloud/one-local arrangement, keep one writer per reserved
-scope, disjoint task ownership, machine-specific heavy-work limits, and the existing
-scheduler/integration authority. Measure and remove repeated validation/build work first, preserve the warm workflow
-and concise handoffs, then take cohesive core/contract and frontend-scenario slices,
-the remaining persistence/updater/styling/tooling consolidation, and final integrated
-acceptance. This is priority order, not a blanket dependency chain. It requires no
-frontend/backend worker split, worktree farm, overlapping compiler load on one machine, new scheduler,
-paid service, hardware, or assumed host tuning. Existing heavy-Rust and native-session
-guards remain in force.
-
-Final #921 acceptance consumes representative frontend, focused-core,
-lifecycle/recovery and mixed-tooling changes. Each records its owning boundary,
-selected obligations, capable route, executed or legitimately reused evidence,
-observed phase timings and remaining limits. Temporary adapters, duplicate
-authorities and broad interfaces receive finite removal, replacement or justified
-retention decisions. Adequate existing evidence is reused; optional cleanup owners
-and a recurring benchmark campaign are not prerequisites.
-
-#921 reuses #917 for styling and visual architecture, #206 for interaction/focus/
-navigation, #202/#204 for failure/mutation/review/confirmation presentation, and
-#245/#397/#398/#246 for independent definition delivery. #30 retains the public CLI
-contract and #243 the independent-consumer proof; #52 retains application-update and
-platform acceptance. Completed #31/#32/#741/#753/#777/#839/#869/#882 evidence remains
-valid scoped foundation. #284 and optional cache, linker, host/editor, storage, or
-antivirus experiments stay outside the Required outcome unless separate measured work
-and authority make a bounded change necessary. Planning these outcomes implements no
-refactor, speedup, qualification, signing, publication, or release readiness.
-
-The finite [#917](https://github.com/boburning/portcove/issues/917) desktop redesign
-and agent-friendly design-system outcome is also Required for Public beta. It
-adopts official checked-in shadcn/ui controls using Base UI, Tailwind, semantic
-CSS variables, the compact Nova starting style, and a custom Portcove theme;
-establishes a small vocabulary of reusable patterns and product components; and
-closes the cross-surface card/sidebar/header/detail/Settings/activity/overlay and
-visual evidence. This decision supersedes the earlier CSS-Modules-only,
-no-Tailwind, no-shadcn direction. It is an organizational child of #200; the
-parent relationship does not make closure of the broader
-1.0 workstream a beta prerequisite; #917 itself remains Required for Public beta.
-#206 retains information architecture and interaction behavior; #203 retains
-labels, formatting, localization and safe unknowns; #208 retains beta artwork,
-with #527 provider authority before 1.0. #29 retains beta controller/focus and
-accessibility; #44 physical Xbox and #47 distinct packaged product observations follow
-before 1.0. No broad owner closure blocks the finite
-visual outcome.
-
-[#1040](https://github.com/boburning/portcove/issues/1040) is the finite Required
-Public beta foundation-consistency child under #917. It reconciles runtime theme
-activation, semantic/component ownership, checked-in control geometry and focus,
-dialog defaults, Geist typography, direction-ready composition, cascade cleanup,
-and styling-source enforcement before #917's final cutover. That independently
-verifiable foundation blocks completion of #917 but does not interrupt the active
-Library/Catalog migration or make every later polish suggestion a beta gate. #206
-owns browsing continuity, stable command-palette selection and IME safety,
-reference-composition information hierarchy, and the deliberate separation of
-channel, support, readiness, and qualification presentation. Truthful feedback,
-visual stability, recovery, artwork resilience, optical detail, and bounded motion
-are acceptance within their owning journeys, not a perpetual polish program.
-
-Token interchange remains conditional on a demonstrated second consumer. Full
-translation delivery stays with #203 and its localization children; optional
-browser visual expansion stays with the testing-modernization owner. These
-capabilities may reuse the design contract without becoming speculative
-dependencies of the current migration.
-
-[#924](https://github.com/boburning/portcove/issues/924) retains the existing
-development-only scenario renderer, feature/shared boundaries, and read-state
-ownership. Its accepted scenario, reference-stability, workspace-boundary,
-application-update preference, feature-colocation, and selected native-agreement
-evidence is foundation, not work to rebuild. It extends only the missing reference
-composition and render-inspect-review workflow needed by #917; Storybook, a second
-policy backend, a second cache, and another native harness are not required.
-
-#51/#213–#217 retain the package/controller/Gamescope/storage/device baseline,
-#290 retains plugin-free application and individual-game manual Steam launch
-routes, and #292 owns bounded user-initiated Add/Repair/Update-artwork/Remove,
-consuming #527 only through #208's shared artwork authority. The manual route
-remains a supported fallback and useful interim path, but it does not complete
-#292. Continuous synchronization, Decky, root modification and a separate Deck
-binary/channel are not required. Initial Public beta does not claim qualified
-Steam Deck support. The ordinary Linux build may function on SteamOS, with Deck
-status explicitly unqualified; no deliberate execution block or universal
-experimental switch is required. Windows and ordinary Linux x86-64 are the official initial-beta targets once
-qualified. macOS Intel/Apple Silicon qualification (#45/#226) follows during beta,
-Required before 1.0; practical build health and portable code remain.
-
-Steam Deck qualification is a high-priority Public beta follow-up (Beta 2),
-Required before 1.0. The existing active Target release is 1.0 with High/Next
-selection; the historical Beta 2 field is not reused. #213–#217 and #535 require
-actual SteamOS/Gaming Mode, controller/Desktop handoff, Gamescope focus/lifetime,
-normal Exit versus Steam Stop, suspend, storage, updater and representative-device
-evidence before #51 can claim qualified support. Agent-operated remote real-device
-evidence can establish those behaviors; the owner is not a mandatory tester.
-
-Shared rootless Linux installation/updating remains with #225, reusable desktop
-controller behavior with #29/#206/#917, process/interruption continuity with #21/#1282,
-and generic storage safety with #38/#192. #290 retains the independently complete manual Desktop Steam outcome for initial
-beta; #292 automatic mutation follows before 1.0, with #217 consuming applicable
-device proof later. #52 does not wait for #226, #535 or the Deck matrix. No initial-beta
-component waits for physical Deck access, while Deck qualification consumes the
-shared foundations without waiting for the 1.0 release itself. Missing Deck
-observations do not waive any ordinary Linux safety requirement or establish
-Valve Verified, universal port compatibility or a qualified Gaming Mode claim.
-
-Safety-critical UX, clear game-channel controls and existing early safety
-commitments stay visible. Public beta does not freeze every 1.0 capability or
-require paid certificates, every Linux distro/format, every port fully qualified or flawless
-first-download OS trust. Automatic mode uses one-time consent and safe-time
-application with a single restart action when apply-on-exit is not safely
-supported. [Delivery](DELIVERY.md) defines acceptance and platform limits.
-
-## 1.0 and exact production candidates
-
-Complete the finite outcomes above and every Required Project outcome and
-genuine transitive blocker. #46 owns later exact-artifact distribution, upgrade,
-recovery and production rehearsal across declared platforms, preserving earlier
-#52 beta evidence without making #52 depend on a post-beta closure. Broader
-representative usability/platform qualification continues throughout beta;
-fundamental updater safety is already required at beta.
-
-RC is stabilization of a frozen candidate scope/commit. Qualified routine fixes
-may ship while another capability remains unfinished. Bind production evidence
-to exact final packages and catalog inputs; an RC with different embedded
-metadata cannot be renamed into its final artifact. Compatible independent
-catalog updates may continue; unsupported capabilities cannot enter a client
-silently. Production declaration requires cumulative readiness and existing
-authority, not a tag suffix alone.
-
-The public CLI, #243 bounded real reference, #910 user-ready Playnite integration,
-and #292 selected-game Steam entry management remain independently consumable
-without private repository knowledge or per-port rules. Marketplace acceptance,
-community adoption, a universal frontend list, catalog counts, continuous Steam
-synchronization, Decky and standalone CLI self-updating are not gates.
-
-## Optional profiles after initial beta
-
-#250 targets a Planned 1.0 first experience with Ship of Harkinian and
-reviewed local packages: clean/customized profiles, native-loader settings,
-separate save handling, retained exact builds, disable/remove and recovery across
-Core, Desktop and the public CLI. The minimum retained-build/reference protection
-is independently deliverable in #1456 under #40; the first profile does not wait for all
-historical browsing or follow-latest controls. Local packages do not need an
-online provider, account, second loader or shared-manifest feature.
-
-The planned setup identity also retains each input's selected source instance,
-contract/variant, representation and observed content/storage identity. Discovery,
-rescans, root and catalog changes must not silently retarget it; relinking requires
-current-byte validation. Missing sources hold only dependent operations, and
-reference removal preserves user-owned originals. #250 owns this optional binding;
-#244's first discovery slice and #1456's retained-build references remain
-independently deliverable. Compatible default-setup migration preserves ordinary
-CLI launch without requiring extra profile UI.
-
-Core remains the profile transaction and mutable-state authority. Provider
-adapters supply candidates and provenance; bounded native-loader adapters supply
-reviewed deployment/settings behavior before existing supervised launch. Preserve
-working setups and original files, preview ownership transitions, and separate
-configuration recovery from reverting saved progress. Missing bytes and unknown
-compatibility remain explicit; hashes identify bytes, not publisher authenticity
-or proof of safety. Mod capabilities never gate ordinary launch or admission.
-
-#262 retains both GameBanana and Thunderstore in Post-1.0 Planned scope.
-They may ship independently once each has an evidenced supported loader fit or a
-narrowly owned extension; neither waits for the other or #1457's whole second-family
-proof. #1457's bounded different-loader reuse proof
-and #1458's payload-free profile-manifest sharing are separate follow-ons. #249's ordinary
-library adoption stays independent; recognized mod setups may enter the profile
-engine later only through reviewed inventory, ownership and consent.
-
-These are planned capabilities, not delivered runtime or gameplay qualification.
-No mod-profile or provider outcome is an initial Public beta or mandatory 1.0
-release gate. Existing beta foundations and platform qualification deferrals
-remain unchanged.
-
-## Post-1.0 principles
-
-Initial value order is:
-
-1. **Extend coverage beyond the beta snapshot without proportional maintainer
-   work** — #177, #247 and #268, reusing #254's beta authoring foundation and
-   #246's beta delivery path. Later advanced proposal/disappearance collection
-   and local/community origins retain separate scope. Prove each extension with
-   exact identity, repeated completion, rejection, recovery, budgets and explicit
-   trust; stop before arbitrary scripts, false official endorsement or broad feeds.
-2. **Discover what the user can actually play** — #251 with existing
-   identity/source discovery owners. First compare two implementations and
-   connect explicitly selected-file matches to readiness while keeping source
-   match, platform artifact, prerequisites, and observed gameplay distinct.
-3. **Bring existing libraries and preferred frontends along** — first #291's
-   reusable ES-DE export profile, then demand-led Windows/environment profiles;
-   #249 remains the bounded existing-library importer. #292's selected-game Steam
-   entry management is Required before 1.0 during beta, while continuous
-   synchronization remains later scope. #293 is a separate optional/community
-   Decky opportunity.
-   Use inspect/preview, consent, stable ownership, duplicate prevention,
-   preservation, scoped cleanup, and recovery; stop before broad promises,
-   partnerships, a plugin per launcher, or copied lifecycle logic.
-4. **Continue progress between PC and Steam Deck** — #252 before #253. First
-   prove manual export/import for one persistence family and declared
-   version/platform pair with identity-bound snapshots, conflicts, a pre-import
-   safety snapshot, and interrupted recovery; transport remains optional.
-5. **Extend safe, reversible customization** — reuse #250's optional first-family
-   profile boundary; prove one materially different loader and independently
-   deliver GameBanana and Thunderstore under #262. Full historical selectors
-   remain with #40; sharing recipes is a bounded follow-on that excludes game
-   payloads, credentials and private paths. No hosted marketplace, universal
-   loader or arbitrary execution authority is implied.
-6. **Reduce attention required by larger libraries** — #248. First prove that
-   suitable stages resume or safely restart without duplicate destructive work
-   or lost consent, reusing existing activity/cancellation/recovery and honoring
-   locks, sessions, pins, budgets, and recovery assets.
-
-These are ordered themes, not new epics, dated promises, or simultaneous
-commitments. Dependencies override display order. Keep them Planned and
-outside the active Now/Next queue unless a narrow existing 1.0 prerequisite
-actually requires otherwise.
-
-Expand the bounded delivery path through local/community import, conservative
-partial management, scalable publisher onboarding and selective health checks.
-Review genuinely new authorities, capabilities and ownership boundaries; routine
-data changes inside accepted scopes do not require another personal approval.
-Under #254, gather identity/distribution evidence and declare accepted repository,
-artifact-host and operation scopes for repeatable onboarding; no universal
-GitHub/domain trust or per-release review queue. Upstreams need not publish
-Portcove metadata, change packaging or make special releases. Deterministic
-maintenance is the default; agents assist capability work, diagnosis and bounded
-repair without becoming publication authority.
-Retain exact installed definition content and contracts, not only a remote URL
-or digest. A publishing outage alone must not disable a usable library.
-
-Release monitoring preserves neutral intake and keeps automated canaries separate
-from physical qualification. Historical pinning supports scoped mods/profiles;
-captured identities and settings bound reproducibility claims, and executable
-rollback never implies save-format compatibility. Durable jobs build on existing
-activity, cancellation, and recovery; they need one shared authority and
-stage-appropriate resume or restart, not a mandatory daemon.
-
-Game-centered discovery may explain distinct implementations without merging
-their identities, sources, saves, or provenance. Cross-device continuity follows
-data classification and explicit portable save export/import before optional
-user-selected synchronization. Never sync the live library database or blindly
-mirror mutable data; preserve conflicts, active-session safety, compatibility,
-deletion semantics, and recovery. Accounts and transports remain optional.
-
-Maintainer tooling should strengthen existing catalog intake and qualification.
-Demand, installation friction, reusable adapter coverage, maintenance cost, and
-upstream stability inform prioritization; optional upstream examples require no
-universal packaging standard. Actual order and targets remain in the Project.
-
-Competitive catalogs are discovery evidence. Resolve the game, implementation,
-source edition, distribution authority, and native runtime separately before
-intake. Different games may share an upstream; a wrapper, renamed repository,
-framework, or planned game is not an additional implementation. Alternatives
-retain independent sources, installations, saves, and qualification. A working
-alternative does not resolve the original implementation's failure.
-
-The Port Pipeline Project view is the complete port inventory, with one canonical
-issue per independent port across upstream versions, including completed and
-deferred records. Active Port Work filters unfinished, non-deferred work without
-changing that inventory. The former #16 umbrella is superseded by these views
-and finite engineering issues. Parent groups are optional and useful for bounded
-outcomes. Intake preserves existing links and does not require a parent or create
-numbered overflow workstreams. Work completion remains separate from the
-catalog's support and qualification evidence.
-
-Schedule bounded source/setup, process ownership, and package-assembly work
-around demonstrated reusable needs. An investigation may proceed while an
-affected operation remains blocked. Legacy artifact acquisition requires its
-own accepted trust decision; hashing observed bytes does not establish their
-initial authenticity. Optional legacy coverage must not become a prerequisite
-for the minimum autonomous catalog path. Qualification covers shipped claims
-and selected canaries, never every discovery record.
-
-The [2026-09-06 port audit and discovery reconciliation](archive/2026-09-06-ports-roadmap-reconciliation.md)
-preserves the historical findings, owner mapping, source gaps, and observed
-planning changes. It is a dated snapshot; current issue scope and Project
-placement remain authoritative. Comparative claims about effort or reliability
-require measured evidence, even when feature lists overlap.
-
-## Planned local-first Android client
-
-Android remains deferred, Post-1.0 and Planned under
-[#410](https://github.com/boburning/portcove/issues/410); it is not a desktop
-Public beta or 1.0 prerequisite. Preserve the shared architecture, design system
-and development-agility foundations already committed to beta. Rust Core owns
-policy, catalog interpretation, trust, plans and durable recovery; Kotlin
-integrates Android packages, installer sessions, documents/grants, activities
-and OS scheduling; React/Tauri owns adaptive presentation. Android provides
-installed-package truth to the same Core workflow. Package identities, activity
-handoffs and document URIs require explicit capabilities and versioned contracts,
-not desktop executable/path semantics or implicit changes to frozen clients.
-
-Platform qualification follows the behaviors and device claims actually offered,
-with controlled fixture APKs and structurally different real integrations.
-The former six-game/three-engine-family minimum is a nonblocking lineup ambition,
-not an absolute release prerequisite. A compatible accepted definition may be
-available with gameplay Not tested after mandatory admission checks pass.
-Unknown package/signer identity, inaccessible required data and known unsafe
-operations remain scoped holds. No owner personal every-game testing queue is
-created; platform readiness, capabilities, device compatibility and per-port
-evidence stay distinct.
-
-[#411](https://github.com/boburning/portcove/issues/411) owns bounded candidate
-identity research. [#412](https://github.com/boburning/portcove/issues/412) owns
-the installed-shell proof: shared Core and app-private storage, document-picker
-validation, user-confirmed installation, package/version/signer observation,
-setup/launch/return, interrupted-operation reconciliation, and compatible
-definitions and externally installed packages added after the client APK was
-built. [#413](https://github.com/boburning/portcove/issues/413) owns useful adaptive
-journeys and partial management. [#414](https://github.com/boburning/portcove/issues/414)
-owns signed GitHub APKs, manual upgrade preservation, optional Obtainium and
-device/distribution evidence. Existing definition foundations stay completed;
-Android-specific claims remain unproven.
-
-Initial implementation targets standalone APKs and ARM64; the proposed Android
-10 minimum, target-SDK/distribution rules and native page-size behavior must be
-validated separately from each game's requirements. Installation and game-data
-setup are separate operations; activity handoff does not prove gameplay or
-process exit. Saves and mods require supported access/import interfaces, reusing
-existing save/profile/provider owners, including GameBanana and Thunderstore.
-No root/broad-access default, APK re-signing, live-library sync, parallel policy
-stack or preemptive second UI framework is implied. Phone/tablet support does not
-qualify handheld/controller or TV/Shield use. Recheck current platform guidance
-when implementation resumes; this direction ships no Android build.
-
-## Outcome measures
-
-Owners record measurements in existing Completion evidence sections and linked
-CI/qualification artifacts, not a new dashboard or telemetry service. Every
-report declares observation time, method, denominator, exclusions and unknown or
-baseline status. This planning change establishes no measurement baseline.
-
-| Measure and owner                                      | Collection and denominator                                                                                                                                     | Exclusions and limits                                                                                                                                       |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Available coverage: #246; expanded onboarding #254     | Catalog/core assessment counts distinct usable ports per platform/operation against declared catalog scope.                                                    | Separate research inventory, catalog presence and gameplay qualification; report unsupported/unknown operations.                                            |
-| Freshness: #398 observation, #246 acceptance-to-client | Timestamp upstream publication, observation, acceptance, publication and client availability for each release in configured scope.                             | Declare cadence/clocks; list holds, missing timestamps, unmonitored/stale entries and capability/authority exclusions. Same-day is a target until measured. |
-| Compatible addition effort: #246/#254                  | Record human/agent effort and application-code changes per addition expected to use existing capabilities.                                                     | Separate new-capability engineering and one-time onboarding; retain failed attempts.                                                                        |
-| Routine intervention: #246                             | Count owner actions and zero-action completions per eligible definition, artifact update and correction.                                                       | Separate provisioning/authority decisions from recurring actions; report excluded candidates and reasons.                                                   |
-| Exceptions: #246 minimum, #247 expansion               | Existing records report age, recurrence, affected scope, failed rule, evidence, fallback and resume condition per unique exception and attempted change.       | Deduplicate occurrences without hiding recurrence or unresolved holds.                                                                                      |
-| Player outcomes: #15/#242/#255, #46/#52, #22/#48       | Scoped journey records measure active first-play effort, return after app/game updates, recovery and source/save/settings preservation per attempted scenario. | Separate passive waits, automation, physical observation and novice comprehension; synthetic success cannot establish understanding.                        |
-| Operating cost: #398/#246, expanded tooling #254       | Record API calls, download bytes, CI time, retained storage and agent cost per accepted change and per exception.                                              | Declare shared/provisioning costs and unavailable billing data; bound retries, concurrency and retention while protecting active/pinned/recovery assets.    |
-
-Targets remain targets until measured. One accepted upstream does not establish
-ecosystem-wide autonomy; expand declared proven scope over time. Preservation
-failures are failures, not an average to hide, and job count is not success.
-
-Freeze application feature scope when needed, not compatible catalog growth.
-Representative ports prove the engine; use that engine to make the full catalog
-broader, more current and less expensive to maintain.
+# Portcove roadmap
+
+Portcove helps players discover native game ports, understand the files they
+need, prepare and play them, and keep a working setup without losing progress.
+Desktop is the flagship experience; the public CLI is independently usable.
+Rust Core owns game-management policy and recovery. React/Tauri and integrations
+consume that authority rather than implement another installer.
+
+Compatible catalog growth should not require proportional maintainer effort.
+Deterministic tooling handles ordinary accepted additions, releases and
+corrections. Agents investigate changed contracts and genuine exceptions.
+Normal use stays local-first, without paid inference, mandatory accounts,
+telemetry or redistribution of copyrighted game data.
+
+## Start here
+
+| Question                                     | Authoritative starting point                                                                                                                                                                                                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| What comes next, and what has shipped?       | [Product Outcomes](https://github.com/users/boburning/projects/1/views/5), grouped by release and including completed outcomes. Issues contain current acceptance and evidence.                                                                                                |
+| What prevents the next release?              | [Required for Beta](https://github.com/users/boburning/projects/1/views/6), then complete dependency-derived readiness below. [Required through 1.0](https://github.com/users/boburning/projects/1/views/10) shows later obligations.                                          |
+| What are runners doing, and what comes next? | [In Progress](https://github.com/users/boburning/projects/1/views/3), [Next Queue](https://github.com/users/boburning/projects/1/views/2) and accepted reservations in [#793](https://github.com/boburning/portcove/issues/793). Status or Horizon alone is not a reservation. |
+| Where is approved non-gating work?           | [Planned Additions](https://github.com/users/boburning/projects/1/views/9); these participate in the common execution queue.                                                                                                                                                   |
+| What is happening with ports?                | Complete [Port Pipeline](https://github.com/users/boburning/projects/1/views/4) and [Active Port Work](https://github.com/users/boburning/projects/1/views/11). Catalog data establishes support.                                                                              |
+| What requires the owner's decision?          | Concrete questions in the existing nightly report and [#793](https://github.com/boburning/portcove/issues/793), with effect and recommendation. Blocked or Deferred alone does not imply owner action.                                                                         |
+
+Projects owns live planning fields and the port pipeline. Issues own executable
+scope and evidence. Documents own stable contracts and dated history. These
+views are navigation, not complete readiness proofs or another roadmap. Expand
+native children for included components; collapsed row counts are not totals
+of accepted scope or release readiness.
+
+```sh
+node scripts/roadmap.mjs next
+node scripts/roadmap.mjs readiness --release "Public beta"
+node scripts/roadmap.mjs readiness --release "1.0"
+```
+
+**Required** must finish for its target release. **Planned** is approved work
+selected by Priority, Horizon, readiness and queue order; its classification
+alone does not gate release. Genuine prerequisites still count, including
+classification conflicts. Parentage, related links, display labels and queue
+predecessors never manufacture blockers. Closed-child counts are child
+completion, not effort estimates or proof of integrated delivery.
+
+## Initial Public beta
+
+The initial supported-platform promise is **Windows and ordinary Linux x86-64**,
+qualified at the actual claimed scope. Required foundations include:
+
+- [Design system #917](https://github.com/boburning/portcove/issues/917),
+  [complete Desktop journeys #206](https://github.com/boburning/portcove/issues/206),
+  [development agility #921](https://github.com/boburning/portcove/issues/921) and
+  [core consolidation #925](https://github.com/boburning/portcove/issues/925).
+- [Connected-folder discovery and selected setup #244](https://github.com/boburning/portcove/issues/244),
+  [truthful operations #1168](https://github.com/boburning/portcove/issues/1168)
+  and [useful user-prepared integrations #1169](https://github.com/boburning/portcove/issues/1169).
+- [Repeatable onboarding #254](https://github.com/boburning/portcove/issues/254),
+  [curated exact-byte acquisition #315](https://github.com/boburning/portcove/issues/315)
+  where needed, and the **entire feasible frozen cohort** in
+  [rollout #1422](https://github.com/boburning/portcove/issues/1422).
+  Its accepted inventory fixes the boundary; later discoveries enter continuous
+  intake. Pilots prove machinery, not rollout completion.
+- [Account-free artwork #1155](https://github.com/boburning/portcove/issues/1155)
+  and [shared choices/cache/fallback #208](https://github.com/boburning/portcove/issues/208).
+  Missing artwork is a specific nonblocking exception, not a port gate.
+- [Compatible delivery #246](https://github.com/boburning/portcove/issues/246),
+  separately protected [production authority #534](https://github.com/boburning/portcove/issues/534),
+  [Windows/Linux application updates #52](https://github.com/boburning/portcove/issues/52),
+  applicable security, interruption, recovery and data preservation.
+
+Completed source, lifecycle, definition and public-client foundations remain
+credited. Reusable CLI/integration contracts and useful manual/plugin-free
+[Steam launch #290](https://github.com/boburning/portcove/issues/290) remain.
+The N64 red/blue/green/yellow direction stands; UI and artwork do not wait for
+commissioned branding.
+
+Availability and qualification are distinct. Feasible ports need useful routes
+with applicable identity, integrity, source, executable, ownership and operation
+checks. Missing owner game data or personal playtesting is not an admission
+gate. Unknown gameplay is not a known failure; mandatory failures stay held at
+their affected scope. Unknown saves grant no destructive management. Exact
+artifact/platform/source/operation evidence cannot qualify unrelated versions
+or ports.
+
+## During beta, before 1.0
+
+[Steam Deck #51](https://github.com/boburning/portcove/issues/51) and
+[broader platform qualification #45](https://github.com/boburning/portcove/issues/45),
+including macOS Intel/Apple Silicon updater/device evidence, remain Required
+before 1.0. They consume shared Linux, controller, storage, lifecycle and updater
+foundations without delaying initial-beta acceptance. Available builds may work
+on unqualified targets; that does not establish official support, Gaming Mode
+or Valve Verified claims. Capable agent, hosted or remote evidence is usable;
+the owner need not operate a Mac or every qualification device.
+
+[User-ready Playnite #910](https://github.com/boburning/portcove/issues/910),
+[Steam Add/Repair/Remove #292](https://github.com/boburning/portcove/issues/292),
+[physical controller qualification #44](https://github.com/boburning/portcove/issues/44)
+and [optional-at-runtime SteamGridDB #527](https://github.com/boburning/portcove/issues/527)
+retain their before-1.0 obligations, outside the initial-beta gate.
+[Production requalification #46](https://github.com/boburning/portcove/issues/46),
+[lineage #139](https://github.com/boburning/portcove/issues/139) and
+[bounded preservation #1306](https://github.com/boburning/portcove/issues/1306)
+retain their independent commitments.
+
+## Later independent directions
+
+- [Remembered goals #965](https://github.com/boburning/portcove/issues/965) and
+  [standing setup #966](https://github.com/boburning/portcove/issues/966) follow
+  independently closable #244.
+- [First-family profiles #250](https://github.com/boburning/portcove/issues/250)
+  and [retained builds #1456](https://github.com/boburning/portcove/issues/1456)
+  are Planned 1.0 after initial beta. Later loaders/sharing and
+  [GameBanana **and** Thunderstore #262](https://github.com/boburning/portcove/issues/262)
+  do not block that first local-package outcome.
+- [Historical releases #40](https://github.com/boburning/portcove/issues/40),
+  [game-centered discovery #251](https://github.com/boburning/portcove/issues/251),
+  [save transfer #252](https://github.com/boburning/portcove/issues/252), then
+  [optional sync #253](https://github.com/boburning/portcove/issues/253).
+- [Android #410](https://github.com/boburning/portcove/issues/410) remains
+  Post-1.0 Planned and deferred: Rust policy/recovery, Kotlin host facts,
+  adaptive React/Tauri presentation and behavior-based qualification.
+- [Durable jobs #248](https://github.com/boburning/portcove/issues/248),
+  [queue UI #263](https://github.com/boburning/portcove/issues/263), optional
+  [MCP #1500](https://github.com/boburning/portcove/issues/1500) after demonstrated
+  need, and [engineering automation #284](https://github.com/boburning/portcove/issues/284)
+  remain separate from existing recovery, catalog delivery and coordination.
+
+Live fields determine timing and selection. This orientation copies no mutable
+assignments, blockers or progress percentages. See
+[Project governance](PROJECT-GOVERNANCE.md) for maintenance and
+[Delivery](DELIVERY.md) for protected acceptance/publication.
+[The previous orientation](https://github.com/boburning/portcove/blob/03a32e71b2394c7b07d883a8412fab98f4a60503/docs/ROADMAP.md)
+and [the dated usability migration](archive/2026-10-05-roadmap-usability-redesign.md)
+preserve history; current specifications live in
+their canonical issues.
