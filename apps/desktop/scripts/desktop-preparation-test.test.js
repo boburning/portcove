@@ -87,7 +87,12 @@ for (const [name, changes] of [
     const { browser, review, state } = observedReview([{ ...ready, ...changes }]);
     const observation = {};
     await assert.rejects(async () => {
-      const action = await waitForReviewedUpdateAction(browser, review, expectedVersion, observation);
+      const action = await waitForReviewedUpdateAction(
+        browser,
+        review,
+        expectedVersion,
+        observation,
+      );
       await action.click();
     }, /The controlled review must show its exact release and available action/);
     assert.deepEqual(state.bounds, [5_000]);
