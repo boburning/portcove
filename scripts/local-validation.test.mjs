@@ -517,6 +517,19 @@ test("the maintained default-cover harness selects native scenario contracts wit
   assert.ok(ids(mixed.plan).some((id) => id.startsWith("rust-tests")));
 });
 
+test("source-dialog consumer selects scenario contracts without running native or Rust acceptance", () => {
+  const consumer = "apps/desktop/scripts/desktop-source-dialog-test.mjs";
+  for (const status of ["A", "M", "D"]) {
+    const { selection, plan } = planFor([{ status, path: consumer }]);
+    assert.ok(selection.nodeTests.has("scripts/desktop-scenarios.test.mjs"));
+    assert.ok(ids(plan).includes("node-tests"));
+    assert.ok(!ids(plan).some((id) => id.startsWith("rust-tests")));
+    assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
+  }
+  const mixed = planFor([consumer, "crates/portcove-core/src/game_file_roots.rs"]);
+  assert.ok(ids(mixed.plan).some((id) => id.startsWith("rust-tests")));
+});
+
 test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
   assert.equal(storageScopeForPlan([{ id: "diff-check" }, { id: "node-tests" }]), "tooling");
   assert.equal(storageScopeForPlan([{ id: "node-syntax:tool.mjs" }]), "tooling");
