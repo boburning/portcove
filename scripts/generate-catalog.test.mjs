@@ -11,6 +11,7 @@ import {
   existsSync,
   copyFileSync,
   readdirSync,
+  renameSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -34,7 +35,12 @@ function isolatedGenerator() {
     copyFileSync(join(root, "scripts", name), join(scratch, "scripts", name));
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
   mkdirSync(catalogs, { recursive: true });
-  for (const name of ["catalog-current-authoring.json", "catalog-schema2-migration-fixture.json"])
+  for (const name of [
+    "catalog-current-authoring.json",
+    "catalog-schema2-migration-fixture.json",
+    "catalog-schema1-fixture.json",
+    "catalog-legacy-additions-fixture.json",
+  ])
     copyFileSync(join(catalogRoot, name), join(catalogs, name));
   return {
     scratch,
@@ -47,12 +53,33 @@ function isolatedGenerator() {
   };
 }
 
+test("ordinary generation refuses an unreviewed identity before replacing embedded bytes", () => {
+  const fixture = isolatedGenerator();
+  const output = join(fixture.catalogs, "catalog.json");
+  const original = readFileSync(join(catalogRoot, "catalog.json"));
+  writeFileSync(output, original);
+  const input = JSON.parse(readFileSync(join(fixture.catalogs, "catalog-current-authoring.json")));
+  input.ports.push({ ...input.ports[0], id: "unreviewed-fixture-port" });
+  writeFileSync(join(fixture.catalogs, "catalog-current-authoring.json"), JSON.stringify(input));
+  const result = fixture.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /compatibility fixture.*unreviewed-fixture-port/u);
+  assert.deepEqual(readFileSync(output), original);
+});
+
 function proposalDecoderFixture(
   images = 0,
   failInitialization = false,
   mode = "--prepare-proposal",
+  editInput,
 ) {
   const fixture = isolatedGenerator();
+  if (editInput) {
+    const path = join(fixture.catalogs, "catalog-current-authoring.json");
+    const input = JSON.parse(readFileSync(path));
+    editInput(input);
+    writeFileSync(path, JSON.stringify(input));
+  }
   const helper = join(fixture.scratch, "scripts", "inspect-igdb-artwork.mjs");
   copyFileSync(helper, join(fixture.scratch, "scripts", "real-artwork.mjs"));
   writeFileSync(
@@ -139,6 +166,7 @@ function proposalDecoderFixture(
   return {
     result,
     output,
+    catalogs: fixture.catalogs,
     original,
     cli,
     factories: existsSync(factoryLog)
@@ -148,6 +176,131 @@ function proposalDecoderFixture(
       ? readFileSync(processLog, "utf8").trim().split("\n").map(JSON.parse)
       : [],
   };
+}
+
+test("unreviewed proposal identities report required fixture review without editing expectations", () => {
+  const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", (input) => {
+    input.ports.push({ ...input.ports[0], id: "unreviewed-proposal-port" });
+    input.source_catalog.identities = input.source_catalog.identities.filter(
+      ({ id }) => id !== "dkc3-na-en-fr",
+    );
+  });
+  assert.equal(fixture.result.status, 0, fixture.result.stderr);
+  assert.equal(fixture.processes.filter(({ inspection }) => inspection).length, 3);
+  const report = JSON.parse(readFileSync(join(fixture.output, "proposal-evidence.json")));
+  const review = report.compatibility_fixture_review;
+  assert.equal(review.status, "requires-review");
+  assert.deepEqual(review.collections.port_ids.unreviewed_ids, ["unreviewed-proposal-port"]);
+  assert.deepEqual(review.collections.source_profile_ids.missing_expected_ids, ["dkc3-na-en-fr"]);
+  assert.equal(review.collections.port_ids.expected_count, 80);
+  const before = readFileSync(join(catalogRoot, "catalog-legacy-additions-fixture.json"));
+  assert.deepEqual(
+    readFileSync(join(fixture.catalogs, "catalog-legacy-additions-fixture.json")),
+    before,
+  );
+  assert.equal(review.fixture_sha256, createHash("sha256").update(before).digest("hex"));
+});
+
+for (const [name, editInput, editExpected] of [
+  [
+    "missing additive port",
+    (input) => {
+      input.ports = input.ports.filter(({ id }) => id !== "dkc3-recomp");
+    },
+  ],
+  [
+    "missing frozen profile",
+    (input) => {
+      input.source_catalog.identities.shift();
+    },
+  ],
+  [
+    "duplicate actual port",
+    (input) => {
+      input.ports.push(input.ports[0]);
+    },
+  ],
+  [
+    "duplicate actual profile",
+    (input) => {
+      input.source_catalog.identities.push(input.source_catalog.identities[0]);
+    },
+  ],
+  [
+    "duplicate expected",
+    null,
+    (expected) => {
+      expected.port_ids.push(expected.port_ids[0]);
+    },
+  ],
+  [
+    "legacy overlap",
+    null,
+    (expected) => {
+      expected.port_ids.push("shipwright");
+    },
+  ],
+  [
+    "unknown fixture key",
+    null,
+    (expected) => {
+      expected.approve = true;
+    },
+  ],
+  [
+    "empty expected",
+    null,
+    (expected) => {
+      expected.source_profile_ids = [];
+    },
+  ],
+  [
+    "invalid expected ID",
+    null,
+    (expected) => {
+      expected.port_ids[0] = "../escape";
+    },
+  ],
+]) {
+  test(`compatibility bookkeeping refuses ${name} without replacing output`, () => {
+    const fixture = isolatedGenerator();
+    const output = join(fixture.catalogs, "catalog.json");
+    const before = readFileSync(join(catalogRoot, "catalog.json"));
+    writeFileSync(output, before);
+    const inputPath = join(fixture.catalogs, "catalog-current-authoring.json");
+    const expectedPath = join(fixture.catalogs, "catalog-legacy-additions-fixture.json");
+    if (editInput) {
+      const input = JSON.parse(readFileSync(inputPath));
+      editInput(input);
+      writeFileSync(inputPath, JSON.stringify(input));
+    }
+    if (editExpected) {
+      const expected = JSON.parse(readFileSync(expectedPath));
+      editExpected(expected);
+      writeFileSync(expectedPath, JSON.stringify(expected));
+    }
+    for (const args of [[], ["--check"]]) {
+      const result = fixture.run(...args);
+      assert.notEqual(result.status, 0, name);
+      assert.deepEqual(readFileSync(output), before);
+    }
+  });
+}
+
+for (const missing of [true, false]) {
+  test(`compatibility bookkeeping refuses ${missing ? "missing" : "malformed"} expectations`, () => {
+    const fixture = isolatedGenerator();
+    const expected = join(fixture.catalogs, "catalog-legacy-additions-fixture.json");
+    if (missing) renameSync(expected, `${expected}.retained`);
+    else writeFileSync(expected, "{");
+    const output = join(fixture.catalogs, "catalog.json");
+    const before = readFileSync(join(catalogRoot, "catalog.json"));
+    writeFileSync(output, before);
+    for (const args of [[], ["--check"]]) {
+      assert.notEqual(fixture.run(...args).status, 0);
+      assert.deepEqual(readFileSync(output), before);
+    }
+  });
 }
 
 test("reuse-only full proposal retains declaration checks without initializing an unused decoder", () => {

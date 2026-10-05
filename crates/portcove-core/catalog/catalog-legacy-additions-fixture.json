@@ -1,0 +1,32 @@
+{
+  "source_profile_ids": [
+    "pokemon-snap",
+    "castlevania-legacy-of-darkness",
+    "diddy-kong-racing-golden-balloon",
+    "star-fox-enhanced-usa-v1-0",
+    "duke-nukem-zero-hour",
+    "ape-escape-psx",
+    "mega-man-x5-psx",
+    "paperboat-paper-mario-us",
+    "open-nectar-pikmin-disc",
+    "wave-race-64",
+    "f-zero-snes-usa",
+    "dkc3-na-en-fr",
+    "road-rash-64"
+  ],
+  "port_ids": [
+    "snap64-recomp",
+    "cvlod-recomp",
+    "diddy-kong-racing-golden-balloon",
+    "star-fox-enhanced",
+    "duke-nukem-zero-hour-recompiled",
+    "ape-escape-recompiled",
+    "mega-man-x5-recompiled",
+    "paperboat",
+    "open-nectar-pikmin",
+    "wave-race-64-recomp",
+    "f-zero-snes-recomp",
+    "dkc3-recomp",
+    "road-rash-64-recompiled"
+  ]
+}
