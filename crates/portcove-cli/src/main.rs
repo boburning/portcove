@@ -397,7 +397,9 @@ enum LibraryCommand {
     /// Clear the saved library, including recovery from malformed or future preferences.
     Reset,
     /// Review restoring metadata and copied content into --library's new or empty root.
-    #[command(after_help = "Review first: portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder>\nThen repeat the same inputs with --apply --expected-plan <plan-sha256> from that review. Import does not merge libraries or modify the input backup.")]
+    #[command(
+        after_help = "Review first: portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder>\nThen repeat the same inputs with --apply --expected-plan <plan-sha256> from that review. Import does not merge libraries or modify the input backup."
+    )]
     Import {
         /// Metadata JSON written by `library export`; contains no payload bytes.
         metadata: PathBuf,
@@ -421,7 +423,9 @@ enum LibraryCommand {
         output: Option<PathBuf>,
     },
     /// Review a verified copy; applying retains the old directory as a recovery copy.
-    #[command(after_help = "Review first: portcove --library <original> --json library move <new-directory>\nClose other Portcove clients and finish launch/lifecycle recovery before applying. Then repeat with --apply --expected-plan <plan-sha256> from that review. Original game-file references stay at their original paths.")]
+    #[command(
+        after_help = "Review first: portcove --library <original> --json library move <new-directory>\nClose other Portcove clients and finish launch/lifecycle recovery before applying. Then repeat with --apply --expected-plan <plan-sha256> from that review. Original game-file references stay at their original paths."
+    )]
     Move {
         /// New directory beneath an existing parent; must not overlap the original library.
         destination: PathBuf,
