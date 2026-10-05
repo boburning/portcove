@@ -82,13 +82,7 @@ export async function createExternalRuntimeFixture(output) {
   return { directory, port, catalogPath, identities };
 }
 
-export async function externalRuntimePickerObservation({
-  browser,
-  fixture,
-  observePicker,
-  output,
-  artifacts,
-}) {
+export async function externalRuntimePickerObservation({ browser, fixture, observePicker }) {
   await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, fixture.port.name);
