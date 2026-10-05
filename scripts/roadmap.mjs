@@ -445,10 +445,17 @@ export function validateConfig(config, { requireProjectNumber = false } = {}) {
     if (!fieldNames.has(required)) throw new Error(`missing required roadmap field: ${required}`);
   }
   const viewNames = new Set();
+  const viewAliases = new Set();
   for (const view of config.views ?? []) {
     ensureString(view.name, "view name");
     if (viewNames.has(view.name)) throw new Error(`duplicate view: ${view.name}`);
     viewNames.add(view.name);
+    if (view.previous_name !== undefined) {
+      ensureString(view.previous_name, "previous view name");
+      if (viewAliases.has(view.previous_name))
+        throw new Error(`duplicate previous view name: ${view.previous_name}`);
+      viewAliases.add(view.previous_name);
+    }
     if (!layouts.has(view.layout)) throw new Error(`view ${view.name} has invalid layout`);
     if (
       typeof view.filter !== "string" ||
@@ -468,6 +475,9 @@ export function validateConfig(config, { requireProjectNumber = false } = {}) {
     ) {
       throw new Error(`view ${view.name} must define manual grouping and sorting requirements`);
     }
+  }
+  for (const alias of viewAliases) {
+    if (viewNames.has(alias)) throw new Error(`previous view name is still active: ${alias}`);
   }
   const volatile = findVolatileKey(config);
   if (volatile)
@@ -1721,9 +1731,16 @@ export function planFieldReconciliation(
 
 export function planViewReconciliation(desiredViews, actualViews) {
   const byName = new Map(actualViews.map((view) => [view.name, view]));
+  if (byName.size !== actualViews.length) throw new Error("duplicate actual view names");
+  const used = new Set();
   return desiredViews.map((view) => {
-    const actual = byName.get(view.name);
+    const current = byName.get(view.name);
+    const previous = view.previous_name ? byName.get(view.previous_name) : null;
+    if (current && previous) throw new Error(`ambiguous view rename: ${view.name}`);
+    const actual = current ?? previous;
     if (!actual) return { action: "create", desired: view, actual };
+    if (!actual.id || used.has(actual.id)) throw new Error(`duplicate view identity: ${view.name}`);
+    used.add(actual.id);
     const drift = viewMachineDrift(view, actual);
     return {
       action: drift.length ? "update" : "keep",
@@ -1742,6 +1759,7 @@ function visibleFieldNames(view) {
 
 export function viewMachineDrift(desired, actual) {
   const drift = [];
+  if (actual?.name !== desired.name) drift.push(`name ${actual?.name} != ${desired.name}`);
   if (actual?.layout !== desired.layout)
     drift.push(`layout ${actual?.layout ?? "missing"} != ${desired.layout}`);
   if (String(actual?.filter ?? "") !== desired.filter)
@@ -1752,6 +1770,31 @@ export function viewMachineDrift(desired, actual) {
   const actualFields = visibleFieldNames(actual).sort();
   if (JSON.stringify(actualFields) !== JSON.stringify(expectedFields)) {
     drift.push(`visible fields ${actualFields.join(", ")} != ${expectedFields.join(", ")}`);
+  }
+  if (actual?.groupByFields && actual?.verticalGroupByFields && actual?.sortByFields) {
+    const groups = actual[
+      desired.layout === "BOARD_LAYOUT" ? "verticalGroupByFields" : "groupByFields"
+    ].nodes.map((field) => field.name);
+    const expectedGroups = desired.manual_group_by ? [desired.manual_group_by] : [];
+    if (JSON.stringify(groups) !== JSON.stringify(expectedGroups))
+      drift.push(
+        `grouping ${groups.join(", ") || "nothing"} != ${expectedGroups.join(", ") || "nothing"} (UI change required)`,
+      );
+    const otherGroups =
+      actual[desired.layout === "BOARD_LAYOUT" ? "groupByFields" : "verticalGroupByFields"].nodes;
+    if (otherGroups.length)
+      drift.push(
+        `unexpected secondary grouping ${otherGroups.map((field) => field.name).join(", ")} (UI change required)`,
+      );
+    const sorts = actual.sortByFields.nodes.map((sort) => `${sort.field.name}:${sort.direction}`);
+    const expectedSorts = desired.manual_sort_by
+      .split(",")
+      .filter((name) => name !== "manual")
+      .map((name) => `${name}:ASC`);
+    if (JSON.stringify(sorts) !== JSON.stringify(expectedSorts))
+      drift.push(
+        `sorting ${sorts.join(", ") || "manual"} != ${expectedSorts.join(", ") || "manual"} (UI change required)`,
+      );
   }
   return drift;
 }
@@ -2171,14 +2214,37 @@ export class RoadmapClient {
   }
 
   viewList(projectId) {
-    const views = [];
-    let after = null;
-    do {
-      const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { views(first: 100, after: $after) { nodes { id name number layout filter fields(first: 50) { nodes { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } ... on ProjectV2IterationField { id name } ... on ProjectV2MultiSelectField { id name } } } } pageInfo { hasNextPage endCursor } } } } }`;
-      const page = this.graphql(query, { id: projectId, after })?.node?.views;
-      views.push(...(page?.nodes ?? []));
-      after = page?.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null;
-    } while (after);
+    const fields = `totalCount nodes { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } ... on ProjectV2IterationField { id name } ... on ProjectV2MultiSelectField { id name } } pageInfo { hasNextPage endCursor }`;
+    const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { id views(first: 100, after: $after) { totalCount nodes { id name number layout filter fields(first: 100) { ${fields} } groupByFields(first: 100) { ${fields} } verticalGroupByFields(first: 100) { ${fields} } sortByFields(first: 100) { totalCount nodes { direction field { ... on ProjectV2Field { id name } ... on ProjectV2SingleSelectField { id name } ... on ProjectV2IterationField { id name } } } pageInfo { hasNextPage endCursor } } } pageInfo { hasNextPage endCursor } } } } }`;
+    const views = this.readInventory(
+      query,
+      { id: projectId },
+      (data) => {
+        if (data?.node?.id !== projectId)
+          throw new Error("incomplete GitHub inventory: wrong Project view identity");
+        return data.node.views;
+      },
+      (view) => view.id,
+    );
+    for (const view of views) {
+      for (const name of ["fields", "groupByFields", "verticalGroupByFields", "sortByFields"]) {
+        const connection = view[name];
+        if (
+          !Number.isSafeInteger(connection?.totalCount) ||
+          connection.totalCount < 0 ||
+          !Array.isArray(connection.nodes) ||
+          connection.nodes.length !== connection.totalCount ||
+          connection.pageInfo?.hasNextPage !== false
+        ) {
+          throw new Error(`incomplete GitHub inventory: view ${view.name} ${name}`);
+        }
+        const ids = connection.nodes.map((field) =>
+          name === "sortByFields" ? field.field?.id : field.id,
+        );
+        if (ids.some((id) => !id) || new Set(ids).size !== ids.length)
+          throw new Error(`incomplete GitHub inventory: view ${view.name} ${name} identities`);
+      }
+    }
     return views;
   }
 
@@ -2248,6 +2314,16 @@ export class RoadmapClient {
     const fieldIds = new Map(fields.map((field) => [field.name, field.id]));
     const plan = planViewReconciliation(materializeViews(this.config), this.viewList(projectId));
     for (const step of plan) {
+      if (step.drift?.some((value) => value.includes("UI change required")))
+        throw new Error(
+          `view ${step.desired.name} needs a grouping/sorting change through the owner UI`,
+        );
+      for (const name of step.desired.fields) {
+        if (!fieldIds.has(name))
+          throw new Error(`view ${step.desired.name} references missing field ${name}`);
+      }
+    }
+    for (const step of plan) {
       const visibleFieldIds = step.desired.fields.map((name) => {
         const id = fieldIds.get(name);
         if (!id) throw new Error(`view ${step.desired.name} references missing field ${name}`);
@@ -2272,6 +2348,10 @@ export class RoadmapClient {
           input: { viewId: created.id, filter: step.desired.filter },
         });
       } else {
+        if (step.drift.some((value) => value.includes("UI change required")))
+          throw new Error(
+            `view ${step.desired.name} needs a grouping/sorting change through the owner UI`,
+          );
         const query = `mutation($input: UpdateProjectV2ViewInput!) { updateProjectV2View(input: $input) { projectV2View { id name filter } } }`;
         this.graphql(query, {
           input: {
@@ -2283,6 +2363,18 @@ export class RoadmapClient {
           },
         });
       }
+    }
+    const saved = this.viewList(projectId);
+    const remaining = planViewReconciliation(materializeViews(this.config), saved);
+    const failed = remaining.filter((step) => step.action !== "keep");
+    if (failed.length) {
+      throw new Error(
+        `view readback did not match configuration: ${failed.map((step) => `${step.desired.name}: ${step.drift?.join("; ") ?? step.action}`).join(", ")}`,
+      );
+    }
+    for (const step of plan.filter((candidate) => candidate.actual)) {
+      if (saved.find((view) => view.name === step.desired.name)?.id !== step.actual.id)
+        throw new Error(`view readback changed identity: ${step.desired.name}`);
     }
     return plan;
   }
@@ -2895,7 +2987,7 @@ async function runDoctor(config, client, { quiet = false } = {}) {
     `${config.active_release} readiness has ${readiness.unfinishedRequired.length} unfinished required outcomes and ${readiness.planned.length} planned outcomes.`,
   );
   log(
-    `Manual confirmation required because GitHub does not expose a reliable readable configuration API:\n${manualUiChecklist(config).join("\n")}`,
+    `Grouping and sorting were read back; UI changes are required if they drift. Confirm built-in auto-add and completion workflows separately:\n${manualUiChecklist(config).slice(-2).join("\n")}`,
   );
   return { number, details, fields, views, repositoryIssues, items };
 }
