@@ -540,8 +540,8 @@ it("exposes a complete per-game failure separately from navigation and keeps raw
 describe("individual update failure interaction", () => {
   let root: Root;
   let container: HTMLDivElement;
-  let onSelect: ReturnType<typeof vi.fn>;
-  let checkAll: ReturnType<typeof vi.fn>;
+  let onSelect: ReturnType<typeof vi.fn<(portId: string, originKey?: string) => void>>;
+  let checkAll: ReturnType<typeof vi.fn<() => void>>;
 
   function view(error = failureReport()) {
     const healthy = { ...port, id: "healthy", name: "Healthy Port" };
@@ -588,8 +588,8 @@ describe("individual update failure interaction", () => {
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
-    onSelect = vi.fn();
-    checkAll = vi.fn();
+    onSelect = vi.fn<(portId: string, originKey?: string) => void>();
+    checkAll = vi.fn<() => void>();
     vi.spyOn(clipboard, "copyText").mockResolvedValue();
   });
 
