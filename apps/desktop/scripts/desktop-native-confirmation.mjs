@@ -56,13 +56,14 @@ export function nativePickerObservation({ application, getDriverIdentity, output
       ],
       { encoding: "utf8", windowsHide: true, timeout: 15_000 },
     );
-    if (
-      await stat(before).then(
-        () => true,
-        () => false,
+    for (const record of [before, `${before}.window-samples.jsonl`])
+      if (
+        await stat(record).then(
+          () => true,
+          () => false,
+        )
       )
-    )
-      artifacts.push(before);
+        artifacts.push(record);
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const observation = JSON.parse(result.stdout);
     const report = path.join(output, `${name}.json`);

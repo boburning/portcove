@@ -1530,6 +1530,8 @@ try {
     await externalRuntimePickerObservation({
       browser,
       fixture: externalFixture,
+      output,
+      artifacts,
       observePicker: nativePickerObservation({
         application: values.app,
         getDriverIdentity: () => ownedSession.driver,

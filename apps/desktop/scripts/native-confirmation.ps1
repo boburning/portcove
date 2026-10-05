@@ -65,12 +65,36 @@ if ($ObservePicker) {
         [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Folder:')
     ))
     $observedWindow = $null
+    $lastWindowSample = $null
+    $windowSamplesPath = "$ObservationPath.window-samples.jsonl"
+    $windowSamplesStream = [IO.File]::Open($windowSamplesPath, [IO.FileMode]::CreateNew)
+    $windowSamplesStream.Dispose()
     $observationDeadline = [DateTime]::UtcNow.AddSeconds(10)
     while ([DateTime]::UtcNow -lt $observationDeadline) {
         Assert-CapturedPickerDriver
         Assert-LiveApplication
         $windows = @{}
         $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
+        $sampleData = @($roots | ForEach-Object {
+            $items = @($_.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
+                $_.Current.ControlType -in @([System.Windows.Automation.ControlType]::Edit, [System.Windows.Automation.ControlType]::Button, [System.Windows.Automation.ControlType]::Window)
+            })
+            [pscustomobject]@{
+                title = $_.Current.Name; handle = $_.Current.NativeWindowHandle; process = $_.Current.ProcessId; class = $_.Current.ClassName
+                control_count = $items.Count; controls_truncated = $items.Count -gt 100
+                controls = @($items | Select-Object -First 100 | ForEach-Object {
+                    [pscustomobject]@{ name = $_.Current.Name; process = $_.Current.ProcessId; type = $_.Current.ControlType.ProgrammaticName; handle = $_.Current.NativeWindowHandle }
+                })
+            }
+        })
+        $sample = ConvertTo-Json -InputObject $sampleData -Depth 6 -Compress
+        if ($sample -cne $lastWindowSample) {
+            Assert-CapturedPickerDriver
+            Assert-LiveApplication
+            $line = [pscustomobject]@{ at = [DateTime]::UtcNow.ToString('o'); application_pid = $applicationId; owned_window_sample = $sampleData } | ConvertTo-Json -Depth 7 -Compress
+            [IO.File]::AppendAllText($windowSamplesPath, "$line`n")
+            $lastWindowSample = $sample
+        }
         foreach ($root in $roots) {
             foreach ($field in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $fieldCondition)) {
                 $ancestor = $field
