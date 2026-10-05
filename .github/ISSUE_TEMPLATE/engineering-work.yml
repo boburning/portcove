@@ -15,7 +15,7 @@ body:
     id: current
     attributes:
       label: Current behavior and evidence
-      description: Credit delivered components with scoped evidence links. Separate current behavior from plans, failed experiments, and later qualification.
+      description: Credit delivered components with scoped evidence links. Preserve findings with affected scope, fact versus hypothesis, next action and disposition; search existing owners first. Separate behavior from plans, failures and later qualification.
     validations:
       required: true
   - type: textarea
@@ -55,7 +55,7 @@ body:
     id: dependencies
     attributes:
       label: Dependencies and blockers
-      description: Name genuine prerequisites and resume conditions. Native children contribute to this outcome's completion; independent later outcomes are related siblings. Queue order is not a blocker.
+      description: Name genuine prerequisites and resume conditions; distinguish a runner-local route limitation. Native children contribute to completion; independent later outcomes are siblings. Queue order is not a blocker. Preserve resolved evidence while correcting current blockers.
   - type: textarea
     id: completion
     attributes:

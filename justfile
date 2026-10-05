@@ -185,8 +185,15 @@ roadmap-check:
 roadmap-doctor:
     node scripts/roadmap.mjs doctor
 
-roadmap-next:
-    node scripts/roadmap.mjs next
+roadmap-next *args:
+    node scripts/roadmap.mjs next {{args}}
+
+# Derived live task context; consumption writes plan by default.
+roadmap-context *args:
+    node scripts/roadmap.mjs context {{args}}
+
+roadmap-acknowledge *args:
+    node scripts/roadmap.mjs acknowledge {{args}}
 
 roadmap-bootstrap:
     node scripts/roadmap.mjs bootstrap
