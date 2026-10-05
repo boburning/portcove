@@ -329,6 +329,26 @@
         "claim": "v1.8.3 desktop host requires matching F-Zero USA 524288-byte content after optional 512-byte header stripping and accepts an original path as a positional argument without copying or launcher selection. This Portcove route accepts only the exact headerless .sfc original.",
         "immutable_url": "https://github.com/mstan/FZeroSNESRecomp/blob/1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562/src/sdl_main.c",
         "live_url": "https://github.com/mstan/FZeroSNESRecomp/blob/main/src/sdl_main.c"
+      },
+      {
+        "id": "road-rash-64-v1-4-3-source-sha1",
+        "role": "upstream_support",
+        "authority": "linkssy2/RoadRash64Recompiled",
+        "authority_ref": "42bf10065362daf91a77089a9f5c8147dae60de0",
+        "reviewed_at": "2026-10-04",
+        "claim": "Road Rash 64 Recompiled v1.4.3 supports the original USA v1.0 normalized 32 MiB ROM and declares its exact SHA-1.",
+        "immutable_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/README.md",
+        "live_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/README.md"
+      },
+      {
+        "id": "road-rash-64-v1-4-3-source-sha256",
+        "role": "upstream_support",
+        "authority": "linkssy2/RoadRash64Recompiled",
+        "authority_ref": "42bf10065362daf91a77089a9f5c8147dae60de0",
+        "reviewed_at": "2026-10-04",
+        "claim": "The pinned v1.4.3 source hashes the entire canonical 32 MiB Road Rash 64 USA ROM and requires its exact SHA-256.",
+        "immutable_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/native/src/rr64_experimental_course.cpp",
+        "live_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/native/src/rr64_experimental_course.cpp"
       }
     ],
     "identities": [
@@ -4645,6 +4665,48 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "road-rash-64",
+        "label": "Road Rash 64 (USA v1.0, 32 MiB) source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-v1-0",
+            "title": "Road Rash 64",
+            "region": "USA",
+            "revision": "v1.0",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "canonical-rom",
+                "extensions": [
+                  "z64"
+                ],
+                "kind": "canonical-n64",
+                "identities": [
+                  {
+                    "scope": "canonical-n64-big-endian",
+                    "sha1": "87727a298f583ec8325f5655088ff21e37b335b2",
+                    "sha256": "74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "road-rash-64-v1-4-3-source-sha1",
+                  "road-rash-64-v1-4-3-source-sha256"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "road-rash-64-v1-4-3-source-sha1",
+              "road-rash-64-v1-4-3-source-sha256"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6512,6 +6574,34 @@
           {
             "upstream_ref": "v1.8.3",
             "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "road-rash-64-recompiled-game-source",
+        "port_id": "road-rash-64-recompiled",
+        "role": "game",
+        "profile_id": "road-rash-64",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-v1-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "road-rash-64-v1-4-3-source-sha1",
+          "road-rash-64-v1-4-3-source-sha256"
+        ],
+        "authority_ref": "42bf10065362daf91a77089a9f5c8147dae60de0",
+        "reviewed_at": "2026-10-04",
+        "immutable_review_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/README.md",
+        "live_review_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.4.3",
+            "artifact_sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f"
           }
         ],
         "aliases": [],
@@ -13327,6 +13417,105 @@
         ],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Extract the official v1.8.3 Windows ZIP outside your Portcove library. Choose its FZeroSNESRecomp-1.8.3-windows-x64 folder for exact-file review and register your original headerless F-Zero (USA) .sfc separately. Windows runtime and gameplay are not tested. Additional files, including crash reports, may prevent later verification; preserve them for troubleshooting. Portcove does not update, back up or delete this folder."
+      }
+    },
+    {
+      "id": "road-rash-64-recompiled",
+      "name": "Road Rash 64 Recompiled",
+      "summary": "Native Road Rash 64 recompilation.",
+      "project_url": "https://github.com/linkssy2/RoadRash64Recompiled",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "n64-recomp-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v1.4.3",
+            "url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip",
+            "size": 47276827,
+            "sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f",
+            "published_at": "2026-10-02T05:47:21Z"
+          }
+        }
+      },
+      "source_profile": "road-rash-64",
+      "executable_hints": {
+        "windows-x86-64": [
+          "RoadRash64Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "RoadRash64Recompiled-v1.4.3-Win64/general.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/general.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/general.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/graphics.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/controls.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/controls.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/controls.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/sound.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/sound.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/sound.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/mods.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/mods.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/mods.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/cheats.json.temp",
+        "RoadRash64Recompiled-v1.4.3-Win64/mods",
+        "RoadRash64Recompiled-v1.4.3-Win64/mod_config",
+        "RoadRash64Recompiled-v1.4.3-Win64/saves",
+        "RoadRash64Recompiled-v1.4.3-Win64/achievements.txt",
+        "RoadRash64Recompiled-v1.4.3-Win64/local-race-options.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/thrash-race-options.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/mk64-item-options.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/character-preferences.cfg.tmp",
+        "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg",
+        "RoadRash64Recompiled-v1.4.3-Win64/rider-skin-preferences.cfg.tmp",
+        "RoadRash64Recompiled-v1.4.3-Win64/imgui.ini",
+        "RoadRash64Recompiled-v1.4.3-Win64/music",
+        "RoadRash64Recompiled-v1.4.3-Win64/race-packs",
+        "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json",
+        "RoadRash64Recompiled-v1.4.3-Win64/race_packs.json.bak",
+        "RoadRash64Recompiled-v1.4.3-Win64/rr64.n64.us.1.0.z64"
+      ],
+      "runtime_subdirectory": "RoadRash64Recompiled-v1.4.3-Win64",
+      "runtime_source_filename": "rr64.n64.us.1.0.z64",
+      "runtime_source_materialization": "n64-big-endian",
+      "runtime_source_hashes": {
+        "rr64.n64.us.1.0.z64": "74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73"
+      },
+      "launch_arguments": [
+        "--auto-rom",
+        "rr64.n64.us.1.0.z64",
+        "--skip-launcher"
+      ],
+      "runtime_mutable_paths": [
+        "RoadRash64Recompiled-runtime.log",
+        "traffic-events.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "road-rash-64",
+            "label": "Road Rash 64 (USA v1.0, 32 MiB) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own Road Rash 64 USA v1.0 canonical .z64 file (32 MiB). Portcove keeps a staged ROM copy; local save backups include that copy."
       }
     }
   ]

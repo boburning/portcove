@@ -1600,7 +1600,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 11
+            legacy.document().source_profiles.len() + 12
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1619,6 +1619,7 @@ mod tests {
                     "open-nectar-pikmin-disc",
                     "wave-race-64",
                     "f-zero-snes-usa",
+                    "road-rash-64",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -1787,6 +1788,7 @@ mod tests {
                     "open-nectar-pikmin",
                     "wave-race-64-recomp",
                     "f-zero-snes-recomp",
+                    "road-rash-64-recompiled",
                 ]
                 .contains(&port.id.as_str())
             })
@@ -2226,6 +2228,7 @@ mod tests {
                     "open-nectar-pikmin-disc",
                     "wave-race-64",
                     "f-zero-snes-usa",
+                    "road-rash-64",
                 ]
                 .contains(&profile.id.as_str())
             })
@@ -2298,6 +2301,220 @@ mod tests {
         let lighthouse = catalog.port("lighthouse").expect("lighthouse should exist");
         assert_eq!(lighthouse.release.repository, "HarbourMasters/Lighthouse");
         assert_eq!(lighthouse.source_profile.as_deref(), Some("banjo-kazooie"));
+    }
+
+    #[test]
+    fn road_rash_64_pins_its_windows_artifact_and_canonical_source_without_qualification() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("road-rash-64-recompiled").unwrap();
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.channels, [ReleaseChannel::Stable]);
+        assert_eq!(port.release.provider, ReleaseSource::DirectManifest);
+        assert_eq!(port.release.direct.len(), 1);
+        let release = &port.release.direct[&Platform::WindowsX86_64];
+        assert_eq!(release.version, "v1.4.3");
+        assert_eq!(
+            release.url,
+            "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip"
+        );
+        assert_eq!(release.size, 47_276_827);
+        assert_eq!(
+            release.sha256,
+            "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f"
+        );
+        assert!(port.release.rolling_tag.is_none());
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+
+        let profile = catalog.source_profile("road-rash-64").unwrap();
+        assert_eq!(port.source_profile.as_deref(), Some(profile.id.as_str()));
+        assert_eq!(profile.accepted_extensions, ["z64"]);
+        assert_eq!(
+            profile.accepted_sha1,
+            ["87727a298f583ec8325f5655088ff21e37b335b2"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            ["74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73"]
+        );
+        assert_eq!(
+            port.runtime_source_hashes["rr64.n64.us.1.0.z64"],
+            profile.accepted_sha256[0]
+        );
+        let presentation = port.presentation.as_ref().unwrap();
+        assert_eq!(presentation.source_requirements[0].label, profile.label);
+        assert!(
+            presentation
+                .manual_preparation
+                .as_ref()
+                .unwrap()
+                .contains("local save backups include that copy")
+        );
+
+        let sources = catalog.source_catalog().unwrap();
+        let contract = sources
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == port.id)
+            .unwrap();
+        assert_eq!(contract.id, "road-rash-64-recompiled-game-source");
+        assert_eq!(
+            contract.admission_mode,
+            crate::CatalogAdmissionMode::Enforced
+        );
+        assert_eq!(contract.supported_variant_ids, ["usa-v1-0"]);
+        assert_eq!(
+            contract.authority_ref,
+            "42bf10065362daf91a77089a9f5c8147dae60de0"
+        );
+        assert_eq!(contract.applicability.len(), 1);
+        assert_eq!(
+            contract.applicability[0].artifact_sha256.as_deref(),
+            Some(release.sha256.as_str())
+        );
+        assert_eq!(contract.applicability[0].upstream_ref, "v1.4.3");
+        assert!(
+            !sources
+                .qualification
+                .iter()
+                .any(|record| { record.scope.port_id == port.id })
+        );
+    }
+
+    #[test]
+    fn road_rash_64_inert_launch_preparation_resolves_the_wrapper_and_named_rom_argument() {
+        use sha2::{Digest, Sha256};
+
+        let catalog = Catalog::embedded().unwrap();
+        let mut port = catalog.port("road-rash-64-recompiled").unwrap().clone();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        let runtime = install.join("RoadRash64Recompiled-v1.4.3-Win64");
+        std::fs::create_dir_all(&runtime).unwrap();
+        let executable = runtime.join("RoadRash64Recompiled.exe");
+        std::fs::write(&executable, b"inert executable; never run").unwrap();
+        let source = temporary.path().join("synthetic.z64");
+        let bytes = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        std::fs::write(&source, bytes).unwrap();
+        // Only this isolated fixture copy accepts synthetic bytes. It establishes
+        // Core path binding, not source admission or a real runtime observation.
+        port.runtime_source_hashes.insert(
+            "rr64.n64.us.1.0.z64".into(),
+            hex::encode(Sha256::digest(bytes)),
+        );
+        let spec = crate::AdapterRegistry
+            .get(port.adapter)
+            .prepare_launch(
+                &library,
+                &port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+        assert_eq!(spec.executable, executable);
+        assert_eq!(spec.working_directory, runtime);
+        assert_eq!(
+            spec.arguments,
+            ["--auto-rom", "rr64.n64.us.1.0.z64", "--skip-launcher"]
+        );
+        assert!(port.user_data_environment.is_none());
+        assert!(runtime.join("portable.txt").is_file());
+        assert!(!install.join("portable.txt").exists());
+        assert_eq!(
+            std::fs::read(runtime.join("rr64.n64.us.1.0.z64")).unwrap(),
+            bytes
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), bytes);
+    }
+
+    #[test]
+    fn road_rash_64_manifest_projects_persistence_and_keeps_package_helpers_immutable() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("road-rash-64-recompiled").unwrap();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        let wrapper = "RoadRash64Recompiled-v1.4.3-Win64";
+        let runtime = install.join(wrapper);
+        std::fs::create_dir_all(runtime.join("tools/mk64-importer")).unwrap();
+        for relative in [
+            "RoadRash64Recompiled.exe",
+            "tools/mk64-importer/rr64-mk64-importer.exe",
+        ] {
+            std::fs::write(runtime.join(relative), b"inert package fixture; never run").unwrap();
+        }
+        let qualification = crate::install::InstallQualification::from_catalog(
+            &catalog,
+            &port.id,
+            Platform::WindowsX86_64,
+        )
+        .unwrap();
+        assert_eq!(
+            qualification.persistence_root(&install, &runtime.join("RoadRash64Recompiled.exe")),
+            install
+        );
+        let installer = crate::Installer::new(library).unwrap();
+        let artifact = crate::ArtifactIdentity {
+            asset_name: "inert-road-rash-layout.zip".into(),
+            sha256: "a".repeat(64),
+            size: 32,
+        };
+        installer
+            .create_manifest(
+                "fixture",
+                &port.id,
+                "fixture",
+                &artifact,
+                &qualification,
+                &install,
+            )
+            .unwrap();
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(install.join(".portcove-manifest.json")).unwrap(),
+        )
+        .unwrap();
+        let actual: std::collections::BTreeSet<String> = manifest["mutable_paths"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|path| path.as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(port.persistent_paths.len(), 35);
+        assert!(
+            port.persistent_paths
+                .iter()
+                .all(|path| path.starts_with(&format!("{wrapper}/")))
+        );
+        let mut expected: std::collections::BTreeSet<String> =
+            port.persistent_paths.iter().cloned().collect();
+        expected.extend([
+            format!("{wrapper}/RoadRash64Recompiled-runtime.log"),
+            format!("{wrapper}/traffic-events.log"),
+            format!("{wrapper}/portable.txt"),
+            format!("{wrapper}/rr64.n64.us.1.0.z64.portcove-source.json"),
+        ]);
+        assert_eq!(actual, expected);
+        for relative in [
+            "RoadRash64Recompiled.exe",
+            "tools/mk64-importer/rr64-mk64-importer.exe",
+        ] {
+            assert!(manifest["files"].as_array().unwrap().iter().any(|file| {
+                file["path"].as_str() == Some(format!("{wrapper}/{relative}").as_str())
+            }));
+        }
+        let backup_entries = crate::persistence::entries(port, &[&install]).unwrap();
+        assert!(backup_entries.contains(&format!("{wrapper}/rr64.n64.us.1.0.z64")));
+        assert!(!backup_entries.contains(&format!("{wrapper}/portable.txt")));
+        assert!(!backup_entries.contains(&format!(
+            "{wrapper}/rr64.n64.us.1.0.z64.portcove-source.json"
+        )));
+        assert!(
+            !backup_entries
+                .iter()
+                .any(|path| path.contains("tools/") || path.ends_with(".log"))
+        );
     }
 
     #[test]
