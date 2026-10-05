@@ -186,6 +186,20 @@ fn live_catalog(package: &[u8]) -> Catalog {
 }
 
 #[test]
+fn generic_live_fixture_has_only_its_valid_discovery_graph() {
+    let fixture = live_catalog(&live_package());
+    fixture.validate().unwrap();
+    assert_eq!(fixture.authoritative_document().schema_version, 2);
+    assert!(fixture.ports().is_empty());
+    let source = fixture.source_catalog().unwrap();
+    assert_eq!(source.identities.len(), 2);
+    assert!(source.evidence.is_empty());
+    assert!(source.contracts.is_empty());
+    assert!(source.validators.is_empty());
+    assert!(source.qualification.is_empty());
+}
+
+#[test]
 fn live_compound_discovery_matches_manual_without_registration_or_rewriting() {
     let temporary = tempfile::tempdir().unwrap();
     let package = live_package();
