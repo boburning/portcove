@@ -40,8 +40,12 @@ catalog, and prerequisite changes, and—only with scoped consent—notify or
 complete eligible setup without reorganizing the collection. One-off selection
 and drop remain available. This direction complements game-first onboarding;
 it is planned in
-[#244](https://github.com/boburning/portcove/issues/244), not shipped behavior or
-a blanket Public beta or 1.0 gate. Recognizable reviewed or local artwork, clear
+[#244](https://github.com/boburning/portcove/issues/244). Its useful first experience—selected
+folders, progressive catalog-wide discovery/readiness, and reviewed selected setup—is
+Required Public beta, with source, ownership, consent and recovery safeguards.
+Ongoing reconciliation and standing automatic setup remain independent later
+work under #965/#966; neither becomes part of that beta gate. This is planned
+acceptance, not a claim that the complete journey has shipped. Recognizable reviewed or local artwork, clear
 version and setup choices, visible ongoing work and actionable failures should
 make both journeys easier; broad customization and historical selection remain
 separate.
@@ -105,8 +109,9 @@ justify reusable capabilities or a narrowly isolated title-specific exception;
 neither a universal abstraction nor a duplicate lifecycle is the entry price.
 
 Use the existing queue for both application maturity and catalog freshness.
-High-priority active port work can be Opportunistic for a release: absence does
-not block that release, but the work need not always wait. Bound work in progress
+High-priority active port work can be Planned for a release: absence does
+not block that release, and the common execution queue must schedule it. Record accepted assignments or ordered positions and concrete pass-over reasons
+in existing coordination; prefer older comparable executable work. Bound work in progress
 and give immediate security/data-loss hazards and broken required validation
 precedence. Before independent delivery ships,
 compatible additions may still require application releases; preserve that
@@ -506,7 +511,7 @@ synchronization, Decky and standalone CLI self-updating are not gates.
 
 ## Optional profiles after initial beta
 
-#250 targets an Opportunistic 1.0 first experience with Ship of Harkinian and
+#250 targets a Planned 1.0 first experience with Ship of Harkinian and
 reviewed local packages: clean/customized profiles, native-loader settings,
 separate save handling, retained exact builds, disable/remove and recovery across
 Core, Desktop and the public CLI. The minimum retained-build/reference protection
@@ -531,7 +536,7 @@ configuration recovery from reverting saved progress. Missing bytes and unknown
 compatibility remain explicit; hashes identify bytes, not publisher authenticity
 or proof of safety. Mod capabilities never gate ordinary launch or admission.
 
-#262 retains both GameBanana and Thunderstore in Post-1.0 Opportunistic scope.
+#262 retains both GameBanana and Thunderstore in Post-1.0 Planned scope.
 They may ship independently once each has an evidenced supported loader fit or a
 narrowly owned extension; neither waits for the other or #1457's whole second-family
 proof. #1457's bounded different-loader reuse proof
@@ -583,7 +588,7 @@ Initial value order is:
    locks, sessions, pins, budgets, and recovery assets.
 
 These are ordered themes, not new epics, dated promises, or simultaneous
-commitments. Dependencies override display order. Keep them Opportunistic and
+commitments. Dependencies override display order. Keep them Planned and
 outside the active Now/Next queue unless a narrow existing 1.0 prerequisite
 actually requires otherwise.
 
@@ -651,7 +656,7 @@ require measured evidence, even when feature lists overlap.
 
 ## Planned local-first Android client
 
-Android remains deferred, Post-1.0 and Opportunistic under
+Android remains deferred, Post-1.0 and Planned under
 [#410](https://github.com/boburning/portcove/issues/410); it is not a desktop
 Public beta or 1.0 prerequisite. Preserve the shared architecture, design system
 and development-agility foundations already committed to beta. Rust Core owns

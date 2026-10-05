@@ -20,7 +20,7 @@ The Project uses these single-select fields:
 - **Horizon:** Now, Next, Later, Someday.
 - **Target release:** Public beta, 1.0, Post-1.0, Unscheduled for active work.
   Alpha 1, Alpha 2, Alpha 3, Beta 1, Beta 2, RC, V1 and Post-V1 remain historical options.
-- **Release commitment:** Required, Opportunistic. An unset value is explicitly
+- **Release commitment:** Required, Planned. An unset value is explicitly
   unclassified.
 - **Work type:** Workstream, Product feature, Port, Platform, Bug, Security,
   Research, Qualification, Technical debt, Documentation.
@@ -272,13 +272,49 @@ candidate code, artifacts, and text as untrusted and never executes them with
 write or signing credentials.
 
 Priority, horizon, and target release are forecasts. Release commitment records
-whether the outcome is necessary for its applicable committed release. Required
+whether the outcome is necessary for its applicable committed release. Required is a release gate; Planned is approved work expected to execute without making its absence alone a release blocker. Required
 work remains a gate through genuine transitive blocking dependencies even if a
-dependency is misclassified Opportunistic, unclassified, or targeted later;
+dependency is misclassified Planned, unclassified, or targeted later;
 the tooling reports that conflict. Optional classification never excuses a
 known safety failure in shipped scope. Reorder or edit Project fields instead
 of rewriting repository documentation. New ports do not automatically expand
 global V1 scope.
+
+## Selecting approved work
+
+Required determines release readiness. Planned is approved non-gating work that
+runners are expected to execute by Priority, Horizon, readiness and Project order.
+Use `roadmap.mjs next` as the common execution queue; a Required-only readiness
+view is never the universal task selector. Deferred work remains inactive.
+
+At a clean handoff, preserve healthy reservations and select useful disjoint work
+across two cloud implementation lanes and the local runner, with independent
+non-writing review. Rotate coverage of required product/delivery, the full frozen
+ports rollout, and bounded acceleration or other Planned work; these are not
+permanent machine roles, quotas or permission to leave a capable lane idle.
+A concrete acceleration that unblocks several lanes may come first. Do not let
+all lanes indefinitely improve tooling while product delivery stalls.
+
+Every actionable Now/Next item has either an accepted assignment in #793 or an
+ordered queue position from the live Project behind named work. Queue predecessors
+express scheduling, not blocking dependencies. Recommendations are not reservations.
+Before passing over executable work, record the concrete dependency, ownership
+conflict, missing execution capability, urgent regression, or higher-value choice
+in #793, including what it is queued behind and the resume condition. Being Planned
+is never a reason. For comparably valuable executable candidates, prefer older
+waiting work over repeatedly selecting new small tasks; use existing comments
+and queue order to record repeated deferrals, without a new scheduler or ledger.
+
+Preserve actual host/resource guards; do not serialize disjoint cloud work, make
+every delivery wait for local integration, preempt healthy work, switch the
+existing worker/reviewer models, add paid capacity, or require #284. Acceleration
+issues identify a demonstrated delay, bounded repair and completion/no-change
+decision. New tiny improvements cannot keep one outcome open indefinitely.
+
+The existing nightly development report should show material Required and Planned
+delivery, accepted assignments, actual blockers, and Ready Now/Next work repeatedly
+passed over, the reason and named predecessor. This changes report content; it
+creates no new recurring automation and does not prove instructions were adopted.
 
 ## Views and prioritization
 
@@ -309,8 +345,8 @@ issue rather than freezing the queue in docs.
 
 Coordinate application maturity and compatible catalog freshness in these same
 queues and views; no additional workstream is needed. A high-priority active Port
-may be Opportunistic for a release: its absence does not block that release,
-but it need not always wait. Keep work in progress bounded instead of promoting
+may be Planned for a release: its absence does not block that release,
+and it participates in the execution queue. Keep work in progress bounded instead of promoting
 the full pipeline. A feature freeze constrains application scope, not compatible
 catalog growth through an implemented independent path. Until that path ships,
 compatible additions may still use the ordinary application-release route.
@@ -327,7 +363,7 @@ Required outcomes and genuine transitive `blocked by` relationships. They report
 unclassified targeted work, dependency classification/target conflicts, safety
 conflicts, missing Project dependencies, and cycles. Parentage and related-work
 links alone never block a release. Unrelated unscheduled intake is not a gate.
-Keep optional work Opportunistic at the release where it may ship or Post-1.0
+Keep non-gating approved work Planned at the release where it may ship or Post-1.0
 where that is its real target; do not distort forecasts merely to avoid a gate.
 
 Initial Public beta officially targets Windows and ordinary Linux x86-64, with
@@ -390,6 +426,8 @@ included in that candidate; missing/unclassified dependencies fail closed. A
 READY scope result never substitutes for package, CI, review, signature/feed or
 publication-authority checks. Use `readiness --release "Public beta"` or
 `readiness --release "1.0"` additionally for a maturity declaration.
+
+Historical receipts retain Opportunistic. Readiness interprets that historical input as Planned, while active configuration uses only Required / Planned. Use `roadmap.mjs rename-commitment` for a read-only in-place option plan, then `--apply` for an ID-preserving rename with assignment readback. An already-applied rename is a no-op; competing old/new options refuse automatic consolidation.
 
 ## Tools and snapshots
 

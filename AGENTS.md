@@ -55,6 +55,23 @@ authorized work, create one through the Roadmap workflow. Keep a clean candidate
 unchanged while final checks run; PR-body evidence updates do not change its source
 head.
 
+## Selecting work
+
+Use the live Project's common `roadmap.mjs next` queue for Required and Planned
+work. Commitment controls release readiness, never blanket execution eligibility.
+At clean handoffs, preserve accepted reservations and rotate useful coverage of
+required product/delivery, full-backlog port rollout, and bounded acceleration or
+other Planned work across two cloud lanes plus local; no fixed roles or idle quota.
+Each actionable Now/Next item has an accepted assignment or an ordered position
+behind named work. Scheduling predecessors are not blockers; recommendations
+are not reservations. Record concrete pass-over reasons and resume conditions in
+#793, prefer older comparable executable work, and report repeated deferrals in
+the existing nightly report. Being Planned is never a pass-over reason.
+Prioritize concrete development acceleration, bound it to completion/no-change,
+and preserve real resource guards, independent review and current model/cost
+choices. Do not serialize disjoint lanes or preempt healthy work.
+See `docs/PROJECT-GOVERNANCE.md` for the complete selection/reporting rule.
+
 ## Validation and failures
 
 Use focused edit-time tests, the complete diff-selected `just local-check`, and
