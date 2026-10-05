@@ -3420,6 +3420,11 @@ impl PortcoveService {
                         .insert("journal_retirement_error".into(), retire.message);
                 }
             } else {
+                error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+                error
+                    .details
+                    .entry("operation_id".into())
+                    .or_insert_with(|| lifecycle.id.clone());
                 lifecycle.last_error = Some(error.message.clone());
                 let _ = store.put(&mut lifecycle);
             }
