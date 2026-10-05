@@ -28,6 +28,29 @@ For a pinned-release route, prove the exact pin and report updates as not
 offered. When upstream exposes only one or zero releases, label future-layout
 evidence synthetic or unavailable rather than claiming a real naming history.
 
+Record the offered route's maintenance declaration on its canonical Port issue
+as part of existing admission and disposition work; do not add a parallel
+registry or assume it is a catalog schema field. Prefer
+`managed-compatible-release` when upstream versions are safely observable and
+ordinary compatibility can be validated deterministically. Each accepted release
+still needs immutable version, artifact and accepted-hash identity. Separate the
+target policy from implemented observation/selection, source/executable/persistence
+compatibility checks and protected delivery evidence. Unknown future compatibility
+is not a passing result; name the existing owner and missing facts or checks.
+
+For `pinned-release`, document the concrete upstream or safety limitation, retained
+exact pin and resume condition. Exact accepted bytes, unfinished research, missing
+optional gameplay or another platform's gap alone do not justify that exception.
+A direct manifest does not itself forbid a bounded release observer and reviewed
+compatible proposals. For an offered non-owning user-prepared route, declare
+`user-managed-update`; retain exact package checks and offer no managed update,
+replacement, rollback, backup or external deletion without separate evidence.
+Use [#254](https://github.com/boburning/portcove/issues/254) for repeatable proposal
+preparation, [#246](https://github.com/boburning/portcove/issues/246) for its independent
+protected progression proof, and [#1422](https://github.com/boburning/portcove/issues/1422)
+for complete cohort use. A maintenance declaration grants no publisher authority,
+automatic installation, player-choice override or inherited gameplay claim.
+
 Before editing a definition, inventory every upstream-created output and classify it under immutable verification, persistence/backup, or reviewed disposable runtime mutation. Confirm the chosen adapter can express that ownership. Resolve every catalog path through the adapter's actual working-directory coordinate system and inspect generated manifests or equivalent projections; raw string equality and successful launch are insufficient.
 
 When one executable performs both setup or source generation and ordinary play, inspect setup-time writes separately from launch-time writes. Run setup in operation-private storage, expose only required package resources, and publish only explicitly declared generated outputs; retain the private tree on validation failure. Determine direct-versus-synchronized persistence from the exact upstream storage resolver for each declared platform, not from an adapter-family assumption.
