@@ -77,6 +77,22 @@ async function assertActivityLabelSeparation(browser, width) {
   );
 }
 
+const updateReviewWindows = [
+  { width: 960, height: 640 },
+  { width: 1280, height: 800 },
+];
+
+async function openUpdateTheme(browser, theme) {
+  await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+  await browser
+    .findElement(By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`))
+    .click();
+  assert.equal(await browser.executeScript(() => document.documentElement.dataset.theme), theme);
+  await browser
+    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+    .click();
+}
+
 async function assertIndividualUpdateFailure({ browser, port, command, output, artifacts }) {
   const failure = {
     code: "network",
@@ -123,19 +139,7 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
       failure,
     );
     for (const theme of ["dark", "light"]) {
-      await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-      await browser
-        .findElement(
-          By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`),
-        )
-        .click();
-      assert.equal(
-        await browser.executeScript(() => document.documentElement.dataset.theme),
-        theme,
-      );
-      await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
-        .click();
+      await openUpdateTheme(browser, theme);
       const check = await browser.wait(
         until.elementLocated(
           By.xpath('//button[normalize-space(.)="Check installed ports for updates"]'),
@@ -160,10 +164,7 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
         true,
       );
       assert.equal(await region.findElement(By.css("details")).getAttribute("open"), null);
-      for (const { width, height } of [
-        { width: 960, height: 640 },
-        { width: 1280, height: 800 },
-      ]) {
+      for (const { width, height } of updateReviewWindows) {
         await browser.manage().window().setRect({ width, height });
         const actualWindow = await browser.manage().window().getRect();
         assert.equal(actualWindow.width, width);
@@ -914,23 +915,12 @@ export async function preparationScenarios({
     const originalWindow = await browser.manage().window().getRect();
     try {
       for (const theme of ["dark", "light"]) {
-        await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-        await browser.findElement(button(theme === "dark" ? "Dark" : "Light")).click();
-        assert.equal(
-          await browser.executeScript(() => document.documentElement.dataset.theme),
-          theme,
-        );
-        await browser
-          .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
-          .click();
+        await openUpdateTheme(browser, theme);
         const row = await browser.wait(
           until.elementLocated(By.css(`[data-detail-origin="updates:installed:${port.id}"]`)),
           15_000,
         );
-        for (const { width, height } of [
-          { width: 960, height: 640 },
-          { width: 1280, height: 800 },
-        ]) {
+        for (const { width, height } of updateReviewWindows) {
           await browser.manage().window().setRect({ width, height });
           await browser.executeScript((element) => element.scrollIntoView(), row);
           const comparison = await browser.executeScript((element) => {
