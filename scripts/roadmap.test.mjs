@@ -12,6 +12,17 @@ import {
   dependencyCycles,
   executeSetMany,
   executeCommitmentRename,
+  executionSnapshot,
+  validateExecutionSnapshot,
+  normalizeRequirements,
+  compareExecutionSnapshots,
+  deriveExecutionContext,
+  prepareConsumption,
+  parseConsumptionRecord,
+  consumedReference,
+  executeConsumption,
+  executionQueueData,
+  consumptionEnvelope,
   fieldValue,
   featureIntakeFields,
   findPortIssueDuplicates,
@@ -51,6 +62,421 @@ const newPortForm = await readFile(
   new URL("../.github/ISSUE_TEMPLATE/new-port.yml", import.meta.url),
   "utf8",
 );
+
+const pickupIssue = (number = 1104, body = "## Acceptance\n- [ ] Preserve recovery.") => ({
+  id: `item-${number}`,
+  status: "Ready",
+  priority: "High",
+  horizon: "Next",
+  "release commitment": "Planned",
+  "target release": "1.0",
+  content: {
+    id: `issue-${number}`,
+    number,
+    title: `Outcome ${number}`,
+    body,
+    state: "OPEN",
+    url: `https://github.com/${config.repository}/issues/${number}`,
+  },
+});
+const pickupRelations = () => ({ parent: null, subIssues: [], blockedBy: [], blocking: [] });
+const pickupContext = (item = pickupIssue(), relationships = pickupRelations(), options = {}) =>
+  deriveExecutionContext(config, item, relationships, {
+    runner: "Local",
+    comments: [],
+    coverage: { complete: false, count: 50, total: 2200 },
+    ...options,
+  });
+const acknowledgment = (context = pickupContext(), runner = "Local") =>
+  prepareConsumption(
+    context,
+    {
+      runner,
+      action: "Compared acceptance; continue owned task",
+      evidence: "https://github.com/boburning/portcove/pull/1",
+    },
+    [],
+  );
+const acknowledgmentComment = (context = pickupContext(), runner = "Local") => ({
+  id: 1,
+  body: acknowledgment(context, runner).body,
+  url: `https://github.com/${config.repository}/issues/793#issuecomment-1`,
+  author: { login: "recorder" },
+});
+
+test("requirements comparison ignores formatting, check marks and bare delivered links, not safety text", () => {
+  const first = pickupIssue(
+    1104,
+    "## Acceptance\n- [ ] Preserve recovery.\n## Delivered evidence\n- [PR](https://github.com/boburning/portcove/pull/1)",
+  );
+  const second = pickupIssue(
+    1104,
+    "# Acceptance\r\n- [x]  Preserve recovery.\r\n## Delivered evidence\n- [new PR](https://github.com/boburning/portcove/pull/2)",
+  );
+  assert.equal(
+    executionSnapshot(config, first, pickupRelations()).scope_revision,
+    executionSnapshot(config, second, pickupRelations()).scope_revision,
+  );
+  for (const [old, next] of [
+    ["Never delete originals", "Delete originals"],
+    ["```\nnode verify.mjs --safe\n```", "```\nnode verify.mjs --unsafe\n```"],
+    ["Preserve /saves", "Preserve /configuration"],
+    ['```\nnode task.mjs "two  spaces"\n```', '```\nnode task.mjs "two spaces"\n```'],
+    ['Use `"two  spaces"`', 'Use `"two spaces"`'],
+    ['    command "two  spaces"', '    command "two spaces"'],
+  ])
+    assert.notEqual(
+      normalizeRequirements(`## Delivered evidence\n${old}`),
+      normalizeRequirements(`## Delivered evidence\n${next}`),
+    );
+});
+
+test("scope, planning, genuine prerequisites and organization are separate comparison facets", () => {
+  const initial = executionSnapshot(config, pickupIssue(), pickupRelations());
+  assert.equal(compareExecutionSnapshots(initial).state, "unknown");
+  assert.equal(compareExecutionSnapshots(initial, initial).state, "unchanged");
+  const planned = executionSnapshot(
+    config,
+    { ...pickupIssue(), priority: "Medium" },
+    pickupRelations(),
+  );
+  assert.deepEqual(compareExecutionSnapshots(planned, initial).changes, ["planning_changed"]);
+  assert.deepEqual(compareExecutionSnapshots(planned, initial).planning_fields, ["Priority"]);
+  const changed = executionSnapshot(
+    config,
+    pickupIssue(1104, "Do not activate until the current plan passes"),
+    pickupRelations(),
+  );
+  assert.deepEqual(compareExecutionSnapshots(changed, initial).changes, [
+    "scope_comparison_required",
+  ]);
+  const reference = { ...pickupIssue(925).content, projectStatus: "In progress" };
+  const dependency = executionSnapshot(config, pickupIssue(), {
+    ...pickupRelations(),
+    blockedBy: [reference],
+  });
+  assert.deepEqual(compareExecutionSnapshots(dependency, initial).changes, [
+    "prerequisites_changed",
+  ]);
+  const organization = executionSnapshot(config, pickupIssue(), {
+    ...pickupRelations(),
+    parent: reference,
+  });
+  assert.deepEqual(compareExecutionSnapshots(organization, initial).changes, [
+    "organization_changed",
+  ]);
+  const closed = pickupIssue();
+  closed.content.state = "CLOSED";
+  assert.deepEqual(
+    compareExecutionSnapshots(executionSnapshot(config, closed, pickupRelations()), initial)
+      .changes,
+    ["issue_state_changed"],
+  );
+  const closedPrerequisite = executionSnapshot(config, pickupIssue(), {
+    ...pickupRelations(),
+    blockedBy: [{ ...reference, state: "CLOSED" }],
+  });
+  assert.deepEqual(compareExecutionSnapshots(closedPrerequisite, dependency).changes, [
+    "prerequisites_changed",
+  ]);
+  assert.throws(
+    () =>
+      compareExecutionSnapshots(
+        initial,
+        executionSnapshot(config, pickupIssue(209), pickupRelations()),
+      ),
+    /another repository or issue/,
+  );
+});
+
+test("snapshot validation rejects altered hashes, malformed identities and missing facets", () => {
+  const snapshot = pickupContext().snapshot;
+  assert.equal(validateExecutionSnapshot(snapshot), snapshot);
+  assert.throws(
+    () => validateExecutionSnapshot({ ...snapshot, scope_revision: "changed" }),
+    /invalid/,
+  );
+  assert.throws(
+    () => validateExecutionSnapshot({ ...snapshot, issue: { ...snapshot.issue, number: 0 } }),
+    /invalid/,
+  );
+  assert.throws(() => validateExecutionSnapshot({ ...snapshot, planning: {} }), /invalid/);
+  assert.throws(
+    () => parseConsumptionRecord("<!-- portcove-roadmap-consumed:v1 -->\nmissing JSON"),
+    /incomplete/,
+  );
+});
+
+test("context distinguishes bounded absence, actual API recorder, reported consumption and worker activity", () => {
+  const first = pickupContext();
+  assert.equal(first.pickup.current_requirements, "unknown");
+  assert.equal(first.pickup.invoked, "unknown");
+  const comment = acknowledgmentComment(first);
+  const consumed = pickupContext(pickupIssue(), pickupRelations(), { comments: [comment] });
+  assert.equal(consumed.pickup.current_requirements, "recorded consumed");
+  assert.equal(consumed.pickup.last_record.recorder, "recorder");
+  assert.equal(consumed.pickup.assigned, "unknown");
+  assert.equal(consumed.reservation.assessment, "unknown");
+  const changed = pickupContext(pickupIssue(1104, "New acceptance"), pickupRelations(), {
+    comments: [comment],
+  });
+  assert.equal(changed.pickup.current_requirements, "pending comparison");
+  assert.equal(changed.comparison.state, "comparison_required");
+  assert.equal(changed.recommendation.execution_capability.startsWith("not assessed"), true);
+});
+
+test("exact older consumption reference is bound to configured repository, runner and task", () => {
+  const comment = acknowledgmentComment();
+  assert.equal(
+    consumedReference(comment, { repository: config.repository, runner: "Local", issue: 1104 })
+      .issue.number,
+    1104,
+  );
+  for (const override of [{ repository: "other/repo" }, { runner: "Cloud A" }, { issue: 209 }])
+    assert.throws(
+      () =>
+        consumedReference(comment, {
+          repository: config.repository,
+          runner: "Local",
+          issue: 1104,
+          ...override,
+        }),
+      /does not match/,
+    );
+  assert.throws(
+    () =>
+      new RoadmapClient(config).coordinationComment(
+        "https://github.com/other/repo/issues/793#issuecomment-1",
+      ),
+    /this repository/,
+  );
+});
+
+test("repeated recorded consumption is quiet, but returning to an earlier revision is a new comparison", () => {
+  const context = pickupContext();
+  const options = { runner: "Local", action: "Continue", evidence: "actual inspected task" };
+  const first = acknowledgmentComment(context);
+  assert.equal(prepareConsumption(context, options, [first]).needed, false);
+  assert.equal(
+    prepareConsumption(context, { ...options, runner: "Cloud A" }, [first]).needed,
+    true,
+  );
+  const changed = acknowledgmentComment(pickupContext(pickupIssue(1104, "Changed acceptance")));
+  assert.equal(prepareConsumption(context, options, [first, changed]).needed, true);
+});
+
+test("acknowledgment payload roundtrips action and evidence code fences without poisoning later reads", () => {
+  const context = pickupContext();
+  const action = 'Compared example: ```json\n{}\n```; preserve "two  spaces"';
+  const evidence = 'Actual recipe:\n```json\n{"observed":true}\n```';
+  const prepared = prepareConsumption(context, { runner: "Local", action, evidence }, []);
+  const record = parseConsumptionRecord(prepared.body);
+  assert.equal(record.action, action);
+  assert.equal(record.evidence, evidence);
+  assert.equal(
+    prepareConsumption(context, { runner: "Local", action, evidence }, [
+      { body: prepared.body, url: "existing" },
+    ]).needed,
+    false,
+  );
+});
+
+function consumptionClient({
+  changed = false,
+  transport = false,
+  readback = true,
+  prior = [],
+} = {}) {
+  const writes = [];
+  const context = pickupContext();
+  const saved = acknowledgment(context);
+  return {
+    writes,
+    context,
+    client: {
+      coordinationRecords: () => ({
+        nodes: writes.length
+          ? [...prior, { ...acknowledgmentComment(context), body: writes[0].body }]
+          : prior,
+      }),
+      executionIssue: () => ({
+        item: changed ? pickupIssue(1104, "Concurrent requirements") : pickupIssue(),
+        relationships: pickupRelations(),
+      }),
+      api: {
+        request(method, endpoint, payload) {
+          assert.equal(method, "POST");
+          assert.equal(endpoint, `repos/${config.repository}/issues/793/comments`);
+          writes.push(payload);
+          if (transport) throw new Error("lost POST response");
+          return { body: { id: 1 } };
+        },
+      },
+      coordinationComment: () => {
+        if (!readback) throw new Error("unavailable readback");
+        return { ...acknowledgmentComment(context), body: writes[0]?.body ?? saved.body };
+      },
+    },
+  };
+}
+
+test("acknowledgment plans by default and stale requirements cause zero writes", () => {
+  const options = {
+    config,
+    runner: "Local",
+    action: "Compared live scope",
+    evidence: "actual task read",
+  };
+  const fresh = consumptionClient();
+  assert.equal(executeConsumption({ ...options, ...fresh }).status, "planned");
+  assert.equal(fresh.writes.length, 0);
+  const stale = consumptionClient({ changed: true });
+  assert.throws(
+    () => executeConsumption({ ...options, ...stale, apply: true }),
+    /snapshot is stale/,
+  );
+  assert.equal(stale.writes.length, 0);
+  const repeated = consumptionClient({ prior: [acknowledgmentComment()] });
+  assert.equal(executeConsumption({ ...options, ...repeated, apply: true }).needed, false);
+  assert.equal(repeated.writes.length, 0);
+});
+
+test("literal blank lines and boundary spaces invalidate stale consumption with zero writes", () => {
+  for (const [before, after] of [
+    ["```sh\ncat <<'EOF'\na\n\nb\nEOF\n```", "```sh\ncat <<'EOF'\na\nb\nEOF\n```"],
+    ["    a\n\n    b", "    a\n    b"],
+    ["    printf 'trailing spaces'  ", "    printf 'trailing spaces' "],
+    [
+      "## Delivered evidence\n```sh\ncat <<'EOF'\n```json\n[target](https://example.com/first)\nEOF\n```",
+      "## Delivered evidence\n```sh\ncat <<'EOF'\n```json\n[target](https://example.com/second)\nEOF\n```",
+    ],
+    ["Use `a\n\nb`", "Use `a\nb`"],
+  ]) {
+    const scenario = consumptionClient();
+    scenario.context = pickupContext(pickupIssue(1104, before));
+    scenario.client.executionIssue = () => ({
+      item: pickupIssue(1104, after),
+      relationships: pickupRelations(),
+    });
+    assert.throws(
+      () =>
+        executeConsumption({
+          ...scenario,
+          config,
+          runner: "Local",
+          action: "Compared",
+          evidence: "actual source",
+          apply: true,
+        }),
+      /snapshot is stale/,
+    );
+    assert.equal(scenario.writes.length, 0);
+  }
+});
+
+test("ambiguous acknowledgment POST is read back without retry; unavailable result retains exact pending body", () => {
+  const options = {
+    config,
+    runner: "Local",
+    action: "Compared live scope",
+    evidence: "actual task read",
+    apply: true,
+  };
+  const ambiguous = consumptionClient({ transport: true });
+  assert.equal(executeConsumption({ ...options, ...ambiguous }).readback, "exact");
+  assert.equal(ambiguous.writes.length, 1);
+  const unavailable = consumptionClient({ readback: false });
+  assert.throws(
+    () => executeConsumption({ ...options, ...unavailable }),
+    (error) => {
+      assert.equal(error.operationStatus, "unknown");
+      assert.equal(error.operationEvidence.pending_body, unavailable.writes[0].body);
+      return true;
+    },
+  );
+  assert.equal(unavailable.writes.length, 1);
+});
+
+test("structured queue preserves Planned recommendations without inferring a grant or execution route", () => {
+  const planned = pickupIssue();
+  const required = { ...pickupIssue(925), "release commitment": "Required" };
+  const output = executionQueueData([planned, required]);
+  assert.equal(output.candidates.length, 2);
+  assert.equal(output.candidates[1].after, output.candidates[0].url);
+  assert.equal(output.candidates[0].reservation, "unknown");
+  assert.equal(output.candidates[0].execution_capability, "not assessed");
+});
+
+test("consumption JSON preserves the planned body and quiet success in the existing operation envelope", () => {
+  const planned = consumptionEnvelope({ status: "planned", ...acknowledgment() });
+  assert.equal(planned.operation, "roadmap.acknowledge");
+  assert.equal(planned.status, "planned");
+  assert.equal(parseConsumptionRecord(planned.evidence.body).snapshot.issue.number, 1104);
+  const quiet = consumptionEnvelope({
+    status: "succeeded",
+    needed: false,
+    reason: "Already consumed",
+    url: "retained reference",
+  });
+  assert.equal(quiet.summary, "Already consumed");
+  assert.equal(quiet.evidence.needed, false);
+});
+
+test("selected context collects typed relationships completely and matches opaque Project identity", () => {
+  const connection = (nodes, totalCount = nodes.length, hasNextPage = false) => ({
+    nodes,
+    totalCount,
+    pageInfo: { hasNextPage, endCursor: hasNextPage ? "cursor" : null },
+  });
+  const projectItem = (id, project = "PVT-selected") => ({
+    id,
+    project: { id: project },
+    fieldValues: connection([{ name: "Ready", field: { name: "Status" } }]),
+  });
+  const reference = pickupIssue(925).content;
+  const issue = {
+    ...pickupIssue().content,
+    parent: null,
+    projectItems: connection([projectItem("selected"), projectItem("other", "PVT-other")]),
+    blockedBy: connection([], 1, true),
+    blocking: connection([reference]),
+    subIssues: connection([]),
+  };
+  const client = new RoadmapClient(config);
+  client.projectDetails = () => ({ id: "PVT-selected" });
+  client.graphql = (query) => {
+    if (query.includes("repository(owner")) return { repository: { issue } };
+    return {
+      node: {
+        blockedBy: connection([
+          { ...reference, projectItems: connection([projectItem("dependency")]) },
+        ]),
+      },
+    };
+  };
+  const result = client.executionIssue(1104);
+  assert.equal(result.item.id, "selected");
+  assert.equal(result.relationships.blockedBy.length, 1);
+  assert.equal(result.relationships.blockedBy[0].projectStatus, "Ready");
+  assert.equal(result.relationships.blocking[0].number, 925);
+  issue.blockedBy = connection([]);
+  issue.subIssues = connection([reference, reference]);
+  client.graphql = () => ({ repository: { issue }, node: { subIssues: issue.subIssues } });
+  assert.throws(() => client.executionIssue(1104), /duplicate/);
+});
+
+test("acknowledgment history fails closed on count changes and recent-window truncation", () => {
+  const client = new RoadmapClient(config);
+  client.repositoryIssue = () => ({ comments: 1 });
+  client.api.paginateRest = () => [];
+  assert.throws(() => client.coordinationRecords({ complete: true }), /incomplete/);
+  client.graphql = () => ({
+    repository: {
+      issue: { comments: { nodes: [], totalCount: 100, pageInfo: { hasPreviousPage: true } } },
+    },
+  });
+  assert.throws(() => client.coordinationRecords(), /incomplete/);
+});
 
 test("capability milestones preserve history and fail closed during partial migration", () => {
   const item = (

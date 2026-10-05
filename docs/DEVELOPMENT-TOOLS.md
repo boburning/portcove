@@ -215,6 +215,11 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
    boundaries/non-goals; narrow edit-test command; coherent pre-push plan;
    resources; completed/failed evidence; exact next action**. Link existing
    evidence instead of copying the initiative or creating a local status ledger.
+   Include the consumed requirements revision, actual delta disposition, capable
+   execution/validation route and discovery/update handoff. Use the derived
+   `roadmap-context` and material `roadmap-acknowledge` path described in
+   [Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
+   It supplements the accepted reservation; it does not grant or dispatch work.
 4. Run the smallest relevant `just test-rust`, `just test-ui-related` or
    `just test-node` loop, then `just local-check` before the coherent push and
    after substantive repair. Integrity-matched deterministic stages may be reused;

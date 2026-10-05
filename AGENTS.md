@@ -85,6 +85,17 @@ and directly affected relationships on completion or material scope change.
 Prefer existing owners and targeted checks; a complete roadmap inventory is
 needed for migrations and release claims, not every ordinary change.
 
+At invocation/resume, selection, clean handoff, review and final acceptance, consume
+the relevant live requirements and accepted reservation. Use `roadmap-context`
+and the pickup/upkeep contract in `docs/PROJECT-GOVERNANCE.md`; compare actual
+deltas before repeating affected work. Queue recommendations, sent steers and
+consumption records do not prove assignment or worker activity. Use existing
+accepted grants; a checkout lock is not cross-machine exclusivity. Capture
+discoveries and narrow blockers with their canonical owner before ending or
+switching. After verified delivery reconcile the task, finite parent and affected
+prerequisites and blocking consumers, then release/hand off and select eligible
+Required or Planned work.
+
 ## Validation and failures
 
 Use focused edit-time tests, the complete diff-selected `just local-check`, and
