@@ -397,17 +397,22 @@ enum LibraryCommand {
     /// Clear the saved library, including recovery from malformed or future preferences.
     Reset,
     /// Review restoring metadata and copied content into --library's new or empty root.
+    #[command(after_help = "Review first: portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder>\nThen repeat the same inputs with --apply --expected-plan <plan-sha256> from that review. Import does not merge libraries or modify the input backup.")]
     Import {
+        /// Metadata JSON written by `library export`; contains no payload bytes.
         metadata: PathBuf,
+        /// Copied library folder containing the exported content roots; never modified by import.
         content_root: PathBuf,
+        /// Apply the reviewed import into --library's new or empty root; requires --expected-plan.
         #[arg(long, requires = "expected_plan")]
         apply: bool,
+        /// Plan SHA-256 from this import review; changed metadata or payloads refuse the import.
         #[arg(long, requires = "apply")]
         expected_plan: Option<String>,
     },
-    /// Resume an interrupted import at --library without modifying its input backup.
+    /// Resume an interrupted import using --library <destination>; the input backup remains unchanged.
     ResumeImport,
-    /// Retain and gate an incomplete import; no original or copied files are deleted.
+    /// Retain an incomplete import using --library <destination>; the incomplete destination stays closed and no copied files are deleted.
     AbortImport,
     /// Export metadata without application files, saves, or original sources.
     Export {
@@ -416,16 +421,20 @@ enum LibraryCommand {
         output: Option<PathBuf>,
     },
     /// Review a verified copy; applying retains the old directory as a recovery copy.
+    #[command(after_help = "Review first: portcove --library <original> --json library move <new-directory>\nClose other Portcove clients and finish launch/lifecycle recovery before applying. Then repeat with --apply --expected-plan <plan-sha256> from that review. Original game-file references stay at their original paths.")]
     Move {
+        /// New directory beneath an existing parent; must not overlap the original library.
         destination: PathBuf,
+        /// Apply the reviewed copy; retain the original as a recovery copy.
         #[arg(long, requires = "expected_plan")]
         apply: bool,
+        /// Plan SHA-256 from this move review; changed inputs refuse the move.
         #[arg(long, requires = "apply")]
         expected_plan: Option<String>,
     },
-    /// Resume an interrupted move using --library's retained original directory.
+    /// Resume an interrupted move using --library <original>, the retained original directory.
     ResumeMove,
-    /// Reactivate an unpublished original while retaining all copied data.
+    /// Reactivate an unpublished original using --library <original>; refuses after authority publication and copied files remain.
     AbortMove,
 }
 
