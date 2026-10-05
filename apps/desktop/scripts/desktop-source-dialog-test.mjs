@@ -11,6 +11,222 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mjs";
 
+async function progressiveScanNavigation({
+  browser,
+  output,
+  artifacts,
+  command,
+  port,
+  searchRoot,
+}) {
+  const { button, click } = reviewControls(browser);
+  const sourcesBefore = command(["source", "list"]);
+  const statusBefore = command(["status", port.id]);
+  const rootsBefore = command(["source", "roots", "list"]);
+  const source = sourcesBefore.find((item) => item.profile_id === port.source_profile);
+  assert.ok(source, "The ordinary preparation dependency must supply a registered source");
+  assert.ok(Array.isArray(rootsBefore));
+  assert.ok(!rootsBefore.some((item) => item.path === searchRoot));
+  const root = command(["source", "roots", "add", searchRoot]);
+  const observations = {
+    evidence:
+      "controlled pending scan and provisional registered-source event in normal Tauri; not an actual discovery or backend cancellation",
+    port_id: port.id,
+    source_profile: source.profile_id,
+    injected: 0,
+    restored: false,
+  };
+  try {
+    try {
+      await click(button("Refresh folders"));
+      await browser.wait(async () => {
+        const scan = await browser.findElements(button("Scan saved folders"));
+        return scan.length === 1 && (await scan[0].isEnabled());
+      }, 5_000);
+      await browser.executeScript((source) => {
+        const native = window.__TAURI_INTERNALS__;
+        const original = window.fetch;
+        const target = native.convertFileSrc("scan_game_file_roots", "ipc");
+        const probe = { original, injected: 0, release: null, channel: null };
+        window.__portcoveProgressiveScanProbe = probe;
+        window.fetch = function (input, ...args) {
+          const url = typeof input === "string" ? input : input.url;
+          if (url !== target) return original.call(window, input, ...args);
+          probe.injected++;
+          const body = args[0].body;
+          const payload = JSON.parse(
+            typeof body === "string" ? body : new TextDecoder().decode(body),
+          );
+          if (!/^__CHANNEL__:\d+$/.test(payload.onEvent))
+            throw new Error("Unexpected pinned Channel payload");
+          probe.channel = Number(payload.onEvent.slice("__CHANNEL__:".length));
+          const event = {
+            schema_version: 3,
+            operation_id: "owned-progressive-navigation-probe",
+            parent_operation_id: null,
+            target: null,
+            operation: "discover_sources",
+            timestamp_ms: Date.now(),
+          };
+          native.runCallback(probe.channel, {
+            index: 0,
+            message: { ...event, type: "started", sequence: 1 },
+          });
+          native.runCallback(probe.channel, {
+            index: 1,
+            message: {
+              ...event,
+              type: "source_candidate",
+              sequence: 2,
+              profile_id: source.profile_id,
+              path: source.path,
+              sha256: source.sha256,
+              size: source.size,
+            },
+          });
+          return new Promise((resolve) => {
+            probe.release = resolve;
+          });
+        };
+      }, source);
+      await click(button("Scan saved folders"));
+      await browser.wait(until.elementLocated(button(`View ${port.name} details`)), 5_000);
+      assert.equal(await browser.findElement(button("Scan saved folders")).isEnabled(), false);
+      assert.equal(await browser.findElement(button("Cancel scan")).isEnabled(), true);
+      await click(button(`View ${port.name} details`));
+      await browser.wait(
+        until.elementLocated(By.css('[aria-label="Back to previous workspace"]')),
+        5_000,
+      );
+      assert.equal((await browser.findElements(By.id("game-file-libraries-heading"))).length, 0);
+      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await browser.wait(until.elementLocated(button(`View ${port.name} details`)), 5_000);
+      assert.equal(await browser.findElement(button("Scan saved folders")).isEnabled(), false);
+      assert.equal(await browser.findElement(button("Cancel scan")).isEnabled(), true);
+      const ownedRelink = await browser.wait(
+        () =>
+          browser.executeScript((rootPath) => {
+            const row = [...document.querySelectorAll(".source-health-row")].find(
+              (item) => item.querySelector("code")?.textContent === rootPath,
+            );
+            return (
+              [...(row?.querySelectorAll("button") ?? [])].find(
+                (item) => item.textContent.trim() === "Relink",
+              ) ?? null
+            );
+          }, root.path),
+        5_000,
+        "The remounted saved-folder read must expose the owned root's Relink control",
+      );
+      assert.equal(await ownedRelink.isEnabled(), false);
+      assert.equal(
+        await browser.executeScript(() => window.__portcoveProgressiveScanProbe.injected),
+        1,
+      );
+      await browser.wait(
+        () =>
+          browser.executeScript(
+            () =>
+              document.activeElement?.closest(
+                '[data-detail-origin="game-file-libraries-setup"]',
+              ) !== null,
+          ),
+        5_000,
+        "Returning from details must restore the saved-folder origin focus",
+      );
+      observations.detail_return_focus = true;
+      observations.pending_scan_survived_detail_return = true;
+      const screenshot = path.join(output, "native-progressive-scan-return.png");
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(screenshot);
+      await captureAccessibilityReport(
+        browser,
+        path.join(output, "progressive-scan-return-accessibility.json"),
+        artifacts,
+      );
+    } catch (error) {
+      try {
+        const dom = path.join(output, "progressive-scan-failure-before-cleanup.html");
+        await writeFile(
+          dom,
+          await browser.executeScript(() => document.documentElement.outerHTML),
+          {
+            flag: "wx",
+          },
+        );
+        artifacts.push(dom);
+        const screenshot = path.join(output, "progressive-scan-failure-before-cleanup.png");
+        await writeFile(screenshot, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(screenshot);
+      } catch (captureError) {
+        observations.failure_capture_error = String(captureError);
+      }
+      throw error;
+    } finally {
+      Object.assign(
+        observations,
+        await browser.executeScript(() => {
+          const probe = window.__portcoveProgressiveScanProbe;
+          if (!probe) return { injected: 0, restored: true, channel_closed: false };
+          window.fetch = probe.original;
+          if (probe.channel !== null)
+            window.__TAURI_INTERNALS__.runCallback(probe.channel, { index: 2, end: true });
+          probe.release?.(
+            new Response(
+              JSON.stringify("Controlled scan observation ended; refresh or scan again."),
+              {
+                headers: { "Content-Type": "application/json", "Tauri-Response": "error" },
+              },
+            ),
+          );
+          return {
+            injected: probe.injected,
+            restored: window.fetch === probe.original,
+            channel_closed: probe.channel !== null,
+          };
+        }),
+      );
+    }
+    assert.equal(observations.injected, 1);
+    assert.equal(observations.restored, true);
+    await browser.wait(
+      async () => {
+        const scan = await browser.findElements(button("Scan saved folders"));
+        return scan.length === 1 && (await scan[0].isEnabled());
+      },
+      5_000,
+      "The released controlled scan must no longer block a new request",
+    );
+    assert.equal((await browser.findElements(button("Cancel scan"))).length, 0);
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//p[@role="alert" and contains(., "Controlled scan observation ended")]'),
+      ),
+      5_000,
+    );
+    await click(button("Refresh folders"));
+    await browser.wait(
+      async () => (await browser.findElements(By.css('[role="alert"]'))).length === 0,
+      5_000,
+    );
+  } finally {
+    const removed = command(["source", "roots", "remove", root.id]);
+    assert.equal(removed.removed, true);
+    assert.deepEqual(command(["source", "roots", "list"]), rootsBefore);
+    assert.deepEqual(command(["source", "list"]), sourcesBefore);
+    assert.deepEqual(command(["status", port.id]), statusBefore);
+    const report = path.join(output, "progressive-scan-navigation.json");
+    await writeFile(report, `${JSON.stringify(observations, null, 2)}\n`, { flag: "wx" });
+    artifacts.push(report);
+  }
+}
+
 export async function sourceDialogScenario({ browser, scenario, output, artifacts, command }) {
   await scenario("native-source-intake-and-discovery-dialogs", async () => {
     const port = command(["catalog", "show", "opengoal-jak1"]);
@@ -247,6 +463,8 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
       flag: "wx",
     });
     artifacts.push(discoverySettingsScreenshot);
+
+    await progressiveScanNavigation({ browser, output, artifacts, command, port, searchRoot });
 
     const report = path.join(output, "source-dialog-result.json");
     await writeFile(
