@@ -130,7 +130,7 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
           return Promise.resolve(
             new Response(JSON.stringify([{ port_id: portId, ok: false, result: null, error }]), {
               status: 200,
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", "Tauri-Response": "ok" },
             }),
           );
         };
