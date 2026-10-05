@@ -263,6 +263,246 @@ async function assertIndividualUpdateFailure({ browser, port, command, output, a
   }
 }
 
+function controlledUpdateFailure(mutation) {
+  const cancelled = mutation === "no_changes";
+  return {
+    code: cancelled ? "cancelled" : "state",
+    message: "Owned controlled update outcome.",
+    details: {},
+    presentation: {
+      presentation_key: "owned_update_outcome",
+      summary: cancelled
+        ? "The controlled update was cancelled."
+        : "Review the supplied update outcome.",
+      tone: cancelled ? "neutral" : "error",
+      mutation_state: mutation,
+      phase: "update",
+      recovery_actions: ["review_current_state", "view_technical_details"],
+      technical_message: "Owned presentation fixture; token=[REDACTED].",
+      technical_context: { fixture: "controlled reviewed update" },
+    },
+  };
+}
+
+async function assertReviewedUpdateOutcomes({
+  browser,
+  port,
+  candidate,
+  generation,
+  command,
+  invoke,
+  output,
+  artifacts,
+}) {
+  const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const dialog = By.css('[aria-labelledby="game-update-review-title"]');
+  const observations = {
+    synthetic: true,
+    scope: "Supplied structured outcomes in the normal app; no Core failure or mutation claim.",
+    before: command(["status", port.id]),
+    sources_before: command(["source", "list"]),
+    activities_before: (await invoke("get_activities")).value,
+    cases: [],
+  };
+  try {
+    for (const mutation of ["committed", "unknown", "no_changes"]) {
+      const cancelled = mutation === "no_changes";
+      const failure = controlledUpdateFailure(mutation);
+      const suppliedPlan = {
+        ...candidate,
+        activate: false,
+        plan_sha256: "c".repeat(64),
+        plan: { ...candidate.plan, action: "use_staged" },
+      };
+      const observation = { mutation, cancelled, restored: false };
+      observations.cases.push(observation);
+      await browser.executeScript(
+        (portId, generation, plan, failure) => {
+          const native = window.__TAURI_INTERNALS__;
+          const probe = {
+            original: window.fetch,
+            plans: 0,
+            applies: 0,
+            mismatches: [],
+            channels: 0,
+          };
+          window.__portcoveReviewedUpdateProbe = probe;
+          const planTarget = native.convertFileSrc("plan_game_update", "ipc");
+          const applyTarget = native.convertFileSrc("apply_game_update", "ipc");
+          function readPayload(options) {
+            try {
+              const body = options.body;
+              return JSON.parse(typeof body === "string" ? body : new TextDecoder().decode(body));
+            } catch {
+              probe.mismatches.push("Unreadable controlled IPC payload");
+              return null;
+            }
+          }
+          function closeChannel(payload) {
+            try {
+              if (!/^__CHANNEL__:\d+$/.test(payload.onEvent)) throw new Error("Channel mismatch");
+              native.runCallback(Number(payload.onEvent.slice("__CHANNEL__:".length)), {
+                index: 0,
+                end: true,
+              });
+              probe.channels++;
+            } catch {
+              probe.mismatches.push("Controlled Channel did not close");
+            }
+          }
+          function matchesTarget(payload) {
+            return (
+              payload &&
+              typeof payload === "object" &&
+              payload.portId === portId &&
+              payload.activate === false &&
+              payload.generation === generation
+            );
+          }
+          window.fetch = function (input, ...args) {
+            const url = typeof input === "string" ? input : input.url;
+            if (url !== planTarget && url !== applyTarget)
+              return probe.original.call(window, input, ...args);
+            const reply = (value, outcome) =>
+              Promise.resolve(
+                new Response(JSON.stringify(value), {
+                  headers: { "Content-Type": "application/json", "Tauri-Response": outcome },
+                }),
+              );
+            // Never forward an application, even for malformed or unexpected tuples.
+            // Throwing from fetch could activate Tauri's real-IPC fallback.
+            const payload = readPayload(args[0]);
+            if (url === applyTarget) {
+              probe.applies++;
+              closeChannel(payload);
+            }
+            if (!matchesTarget(payload)) {
+              probe.mismatches.push("Controlled port, activation, or generation mismatch");
+              return reply(failure, "error");
+            }
+            if (url === planTarget) {
+              probe.plans++;
+              return reply(plan, "ok");
+            }
+            if (payload.expectedPlan !== plan.plan_sha256)
+              probe.mismatches.push("Controlled review identity mismatch");
+            return reply(failure, "error");
+          };
+        },
+        port.id,
+        generation,
+        suppliedPlan,
+        failure,
+      );
+      try {
+        await clickVisible(browser, await browser.findElement(button("Review game update")));
+        const review = await browser.wait(until.elementLocated(dialog), 15_000);
+        assert.ok((await review.getText()).includes(candidate.plan.release.version));
+        await clickVisible(
+          browser,
+          await review.findElement(button("Keep saved update for later")),
+        );
+        const outcome = await browser.wait(
+          until.elementLocated(By.css("[data-game-update-outcome]")),
+          5_000,
+        );
+        await browser.wait(
+          async () => (await outcome.getText()).includes(failure.presentation.summary),
+          5_000,
+        );
+        assert.equal(await outcome.getAttribute("role"), cancelled ? "status" : "alert");
+        const consequence =
+          mutation === "committed"
+            ? "The change was saved"
+            : mutation === "unknown"
+              ? "couldn't confirm whether anything changed"
+              : "No files were changed";
+        assert.ok((await outcome.getText()).includes(consequence));
+        assert.equal((await browser.findElements(dialog)).length, 0);
+        assert.ok(
+          !(
+            await browser.findElement(By.css('section[aria-label="Review game update"]')).getText()
+          ).includes("Update did not complete"),
+        );
+        const details = await outcome.findElement(By.css("details"));
+        assert.equal(await details.getAttribute("open"), null);
+        await clickVisible(browser, await details.findElement(By.css("summary")));
+        const diagnostic = JSON.parse(await details.findElement(By.css("pre")).getText());
+        assert.equal(diagnostic.mutation_state, mutation);
+        assert.equal(diagnostic.message, failure.presentation.technical_message);
+        await browser.executeScript(
+          (element) => element.scrollIntoView({ block: "center" }),
+          outcome,
+        );
+        const image = path.join(output, `native-reviewed-update-outcome-${mutation}.png`);
+        await writeFile(image, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+        artifacts.push(image);
+        await captureAccessibilityReport(
+          browser,
+          path.join(output, `reviewed-update-outcome-${mutation}-accessibility.json`),
+          artifacts,
+        );
+        await clickVisible(browser, await browser.findElement(button("Review game update")));
+        await browser.wait(until.elementLocated(dialog), 5_000);
+        await clickVisible(browser, await browser.findElement(button("Cancel review")));
+        await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
+        observation.review_cancelled_without_reapply = true;
+      } catch (error) {
+        observation.failure = error.message;
+        try {
+          const image = path.join(
+            output,
+            `reviewed-update-outcome-${mutation}-failure-before-restoration.png`,
+          );
+          await writeFile(image, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(image);
+        } catch (captureError) {
+          observation.failure_capture_error = String(captureError);
+        }
+        throw error;
+      } finally {
+        Object.assign(
+          observation,
+          await browser.executeScript(() => {
+            const probe = window.__portcoveReviewedUpdateProbe;
+            window.fetch = probe.original;
+            return {
+              plans: probe.plans,
+              applies: probe.applies,
+              mismatches: probe.mismatches,
+              channels: probe.channels,
+              restored: window.fetch === probe.original,
+            };
+          }),
+        );
+      }
+      assert.deepEqual(observation.mismatches, []);
+      assert.equal(observation.plans, 2);
+      assert.equal(observation.applies, 1);
+      assert.equal(observation.channels, 1);
+      assert.equal(observation.restored, true);
+    }
+    await clickVisible(browser, await browser.findElement(button("Review game update")));
+    await browser.wait(until.elementLocated(dialog), 5_000);
+    await clickVisible(browser, await browser.findElement(button("Cancel review")));
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
+    observations.ordinary_review_restored = true;
+    observations.after = command(["status", port.id]);
+    observations.sources_after = command(["source", "list"]);
+    observations.activities_after = (await invoke("get_activities")).value;
+    assert.deepEqual(observations.after, observations.before);
+    assert.deepEqual(observations.sources_after, observations.sources_before);
+    assert.deepEqual(observations.activities_after, observations.activities_before);
+  } finally {
+    const report = path.join(output, "reviewed-update-outcome-observations.json");
+    await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
+    artifacts.push(report);
+  }
+}
+
 export async function preparationScenarios({
   browser,
   invoke,
@@ -918,6 +1158,16 @@ export async function preparationScenarios({
       5_000,
       "Game update review trigger did not regain focus after Escape",
     );
+    await assertReviewedUpdateOutcomes({
+      browser,
+      port,
+      candidate: candidate.value,
+      generation: bootstrap.value.generation,
+      command,
+      invoke,
+      output,
+      artifacts,
+    });
     const originalWindow = await browser.manage().window().getRect();
     try {
       for (const theme of ["dark", "light"]) {

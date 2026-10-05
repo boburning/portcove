@@ -4,8 +4,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
 import { portStatus } from "../../test-fixtures";
-import type { GameUpdatePlan, InstallRecord } from "../../types";
-import type { Perform } from "../operations/use-operation-state";
+import type { DesktopError, GameUpdatePlan, InstallRecord } from "../../types";
+import { useOperationState, type Perform } from "../operations/use-operation-state";
+
+vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => undefined }));
 import { GameUpdateControl, UpdatePolicyControl } from "../../components/GameUpdates";
 
 const plan: GameUpdatePlan = {
@@ -395,3 +397,104 @@ it.each(["use_staged", "reuse_retained"] as const)(
     expect(container.textContent).not.toContain("Update downloaded for later");
   },
 );
+
+const refreshOperation = vi.fn(async () => undefined);
+let actualOperation: ReturnType<typeof useOperationState>;
+function ActualOperationFixture({ generation = 9 }: { generation?: number }) {
+  actualOperation = useOperationState({ refresh: refreshOperation });
+  return (
+    <GameUpdateControl
+      key={generation}
+      portId="sample"
+      generation={generation}
+      policy="notify"
+      busy={Boolean(actualOperation.busy)}
+      perform={actualOperation.perform}
+    />
+  );
+}
+function updateFailure(
+  mutation: DesktopError["presentation"]["mutation_state"],
+  cancelled = false,
+): DesktopError {
+  return {
+    code: cancelled ? "cancelled" : "state",
+    message: "Private adapter detail should stay folded.",
+    details: {},
+    presentation: {
+      presentation_key: "owned.update.fixture",
+      summary: cancelled ? "The update was cancelled." : "Review the supplied update outcome.",
+      tone: cancelled ? "neutral" : "error",
+      mutation_state: mutation,
+      phase: "update",
+      recovery_actions: ["review_current_state", "view_technical_details"],
+      technical_message: "Owned fixture diagnostic; token=[REDACTED].",
+      technical_context: { fixture: "controlled update presentation" },
+    },
+  };
+}
+it.each([
+  ["committed", false, "The change was saved. Check the result before trying again."],
+  ["unknown", false, "Portcove couldn't confirm whether anything changed."],
+  ["no_changes", false, "No files were changed by this operation."],
+  ["no_changes", true, "No files were changed by this operation."],
+] as const)(
+  "preserves supplied %s outcome through the real operation wrapper (cancelled=%s)",
+  async (mutation, cancelled, consequence) => {
+    const failure = updateFailure(mutation, cancelled);
+    vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockRejectedValue(failure);
+    await act(async () => root.render(<ActualOperationFixture />));
+    await click("Review game update");
+    await click("Download update for later");
+    expect(container.textContent).toContain(failure.presentation.summary);
+    const outcome = container.querySelector("[data-game-update-outcome]");
+    expect(outcome?.textContent).toContain(failure.presentation.summary);
+    expect(outcome?.textContent).toContain(consequence);
+    expect(outcome?.getAttribute("role")).toBe(cancelled ? "status" : "alert");
+    expect(container.textContent).not.toContain("Update did not complete");
+    expect(actualOperation.error).toBe(cancelled ? undefined : failure);
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(dialog()).toBeNull();
+    expect(outcome?.querySelector("details")?.open).toBe(false);
+    expect(outcome?.querySelector("pre")?.textContent).toContain("[REDACTED]");
+    await click("Review game update");
+    expect(container.querySelector("[data-game-update-outcome]")).toBeNull();
+    expect(apply).toHaveBeenCalledTimes(1);
+    await pressEscape();
+    expect(apply).toHaveBeenCalledTimes(1);
+  },
+);
+it("does not attach an old supplied failure to the newly selected library's update", async () => {
+  let reject!: (value: unknown) => void;
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
+  vi.spyOn(desktopApi, "applyGameUpdate").mockImplementation(
+    () =>
+      new Promise((_resolve, no) => {
+        reject = no;
+      }),
+  );
+  await act(async () => root.render(<ActualOperationFixture />));
+  await click("Review game update");
+  await click("Download update for later");
+  await act(async () => root.render(<ActualOperationFixture generation={10} />));
+  await act(async () => reject(updateFailure("committed")));
+  expect(container.querySelector("[data-game-update-outcome]")).toBeNull();
+  expect(container.textContent).not.toContain("Review the supplied update outcome");
+});
+
+it("retains authoritative success through the real wrapper when only display refresh fails", async () => {
+  const refreshFailure = { code: "state", message: "Current view read failed" };
+  refreshOperation.mockRejectedValueOnce(refreshFailure);
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(plan);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockResolvedValue(stagedUpdate);
+  await act(async () => root.render(<ActualOperationFixture />));
+  await click("Review game update");
+  await click("Download update for later");
+  expect(container.textContent).toContain(
+    "Update saved for later. Your current version is unchanged.",
+  );
+  expect(container.querySelector("[data-game-update-outcome]")).toBeNull();
+  expect(actualOperation.error).toBe(refreshFailure);
+  expect(apply).toHaveBeenCalledTimes(1);
+});
