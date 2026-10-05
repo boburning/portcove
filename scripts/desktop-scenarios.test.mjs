@@ -4,11 +4,13 @@ import test from "node:test";
 import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { runInNewContext } from "node:vm";
 import { fileIdentity } from "./development-evidence.mjs";
 import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
+  assertRemoteFrameCsp,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
@@ -199,9 +201,138 @@ test("cancelled navigation permits only observed GETs and never popup or executi
     { ...request, method: "POST" },
     { ...request, path: "/untrusted/popup" },
     { ...request, path: "/untrusted/executed-marker" },
+    { ...request, path: "/", phase: "frame-csp" },
     { ...request, phase: "main-controls" },
   ])
     assert.throws(() => assertOwnedBoundaryRequests([invalid]));
+});
+
+test("owned frame CSP requires a trusted enforced event and removes its frame/listener/timer", async () => {
+  const library = path.resolve("work", "frame-boundary-library");
+  const url = "http://tauri.localhost/";
+  const fixtureUrl = "http://127.0.0.1:43210/untrusted";
+  const expected = "http://127.0.0.1:43210/";
+  const valid = {
+    isTrusted: true,
+    effectiveDirective: "frame-src",
+    disposition: "enforce",
+    blockedURI: expected,
+    documentURI: url,
+    originalPolicy: "default-src 'self'",
+  };
+  async function run(events, { changedContext = false, failSetup = false } = {}) {
+    const listeners = new Set();
+    const timers = new Set();
+    const frames = [];
+    const observations = {};
+    let attempts = 0;
+    let appended = false;
+    const invoke = async (command) =>
+      command === "get_bootstrap_status"
+        ? {
+            ok: true,
+            value: {
+              ready: true,
+              error: null,
+              library_root: library,
+              generation: appended && changedContext ? 2 : 1,
+              selection: { root: library, source: "environment" },
+            },
+          }
+        : { ok: true, value: { id: "owned-library", root: library } };
+    const browser = {
+      getCurrentUrl: async () => url,
+      executeAsyncScript: (callback, attempted) =>
+        new Promise((resolve) => {
+          const document = {
+            createElement: (tag) => {
+              assert.equal(tag, "iframe");
+              const frame = {
+                isConnected: false,
+                remove() {
+                  this.isConnected = false;
+                },
+              };
+              frames.push(frame);
+              return frame;
+            },
+            addEventListener: (type, handler) => {
+              assert.equal(type, "securitypolicyviolation");
+              listeners.add(handler);
+            },
+            removeEventListener: (type, handler) => {
+              assert.equal(type, "securitypolicyviolation");
+              listeners.delete(handler);
+            },
+            body: {
+              append(frame) {
+                appended = true;
+                attempts++;
+                assert.equal(frame.src, expected);
+                if (failSetup) throw new Error("Owned fixture append failed");
+                frame.isConnected = true;
+                for (const event of events) for (const listener of [...listeners]) listener(event);
+                // Advance the fixture's virtual deadline, without a real wait.
+                for (const timer of [...timers]) timer();
+              },
+            },
+          };
+          runInNewContext(
+            `(${callback.toString()})(attempted, done)`,
+            {
+              URL,
+              document,
+              attempted,
+              done: resolve,
+              setTimeout: (handler, milliseconds) => {
+                assert.equal(milliseconds, 9000);
+                timers.add(handler);
+                return handler;
+              },
+              clearTimeout: (handler) => timers.delete(handler),
+            },
+            { timeout: 1000 },
+          );
+        }),
+    };
+    let error;
+    try {
+      await assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations });
+    } catch (caught) {
+      error = caught;
+    }
+    assert.equal(attempts, 1);
+    assert.equal(frames.length, 1);
+    assert.equal(frames[0].isConnected, false);
+    assert.equal(listeners.size, 0);
+    assert.equal(timers.size, 0);
+    return { observations, error };
+  }
+  const wrong = [
+    { ...valid, isTrusted: false },
+    { ...valid, disposition: "report" },
+    { ...valid, effectiveDirective: "script-src" },
+    { ...valid, blockedURI: "http://127.0.0.1:43211/" },
+    { ...valid, blockedURI: "http://127.0.0.1:43210/other" },
+    { ...valid, blockedURI: "inline" },
+  ];
+  const positive = await run([...wrong, valid]);
+  assert.equal(positive.error, undefined);
+  assert.equal(positive.observations.cspFrame.attempted, expected);
+  assert.deepEqual(positive.observations.cspFrame.after, positive.observations.cspFrame.before);
+  for (const events of [[], ...wrong.map((event) => [event])]) {
+    const rejected = await run(events);
+    assert.match(rejected.error.message, /enforced owned-frame CSP refusal/);
+    assert.equal(rejected.observations.cspFrame.refusal.observed, false);
+    assert.equal(rejected.observations.cspFrame.refusal.frameRemoved, true);
+  }
+  assert.match(
+    (await run([valid], { changedContext: true })).error.message,
+    /preserve main and library context/,
+  );
+  const setupFailure = await run([], { failSetup: true });
+  assert.match(setupFailure.error.message, /enforced owned-frame CSP refusal/);
+  assert.equal(setupFailure.observations.cspFrame.refusal.reason, "frame-setup-failed");
 });
 
 test("reviewed link refusals require guard errors and preserve the ready native context", async (t) => {
