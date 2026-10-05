@@ -77,6 +77,190 @@ async function assertActivityLabelSeparation(browser, width) {
   );
 }
 
+async function assertIndividualUpdateFailure({ browser, port, command, output, artifacts }) {
+  const failure = {
+    code: "network",
+    message: "owned-raw-private-diagnostic",
+    details: { token: "owned-raw-private-token" },
+    presentation: {
+      presentation_key: "synthetic_update_check",
+      summary:
+        "Synthetic update check could not reach the owned release endpoint. Check the connection before checking again. The installed game remains available for review in its details.",
+      tone: "error",
+      mutation_state: "unknown",
+      phase: "release.check",
+      recovery_actions: ["review_current_state", "view_technical_details"],
+      technical_message: "Owned synthetic endpoint unavailable; token=[REDACTED].",
+      technical_context: { fixture: "owned synthetic diagnostics", token: "[REDACTED]" },
+    },
+  };
+  const observations = {
+    synthetic: true,
+    scope: "Normal-app presentation of supplied diagnostics; no provider or Core failure claim.",
+    before: command(["status", port.id]),
+    sources_before: command(["source", "list"]),
+    layouts: [],
+  };
+  try {
+    await browser.executeScript(
+      (portId, error) => {
+        const original = window.fetch;
+        const target = window.__TAURI_INTERNALS__.convertFileSrc("check_installed", "ipc");
+        window.__portcoveUpdateFailureProbe = { original, intercepted: 0 };
+        window.fetch = function (input, ...args) {
+          const url = typeof input === "string" ? input : (input.url ?? String(input));
+          if (url !== target) return original.call(window, input, ...args);
+          window.__portcoveUpdateFailureProbe.intercepted++;
+          return Promise.resolve(
+            new Response(JSON.stringify([{ port_id: portId, ok: false, result: null, error }]), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        };
+      },
+      port.id,
+      failure,
+    );
+    for (const theme of ["dark", "light"]) {
+      await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+      await browser
+        .findElement(
+          By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`),
+        )
+        .click();
+      assert.equal(
+        await browser.executeScript(() => document.documentElement.dataset.theme),
+        theme,
+      );
+      await browser
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .click();
+      const check = await browser.wait(
+        until.elementLocated(
+          By.xpath('//button[normalize-space(.)="Check installed ports for updates"]'),
+        ),
+        15_000,
+      );
+      await browser.wait(until.elementIsEnabled(check), 5_000);
+      await clickVisible(browser, check);
+      const region = await browser.wait(
+        until.elementLocated(By.css(`[data-update-check-failure="${port.id}"]`)),
+        15_000,
+      );
+      assert.equal(
+        await region.getAttribute("aria-label"),
+        `Update check failure for ${port.name}`,
+      );
+      assert.ok((await region.getText()).includes(failure.presentation.summary));
+      assert.doesNotMatch(await region.getText(), /owned-raw-private/);
+      const summary = await region.findElement(By.css("summary"));
+      assert.equal(
+        await browser.executeScript((element) => element.closest("button") === null, summary),
+        true,
+      );
+      assert.equal(await region.findElement(By.css("details")).getAttribute("open"), null);
+      for (const { width, height } of [
+        { width: 960, height: 640 },
+        { width: 1280, height: 800 },
+      ]) {
+        await browser.manage().window().setRect({ width, height });
+        const actualWindow = await browser.manage().window().getRect();
+        assert.equal(actualWindow.width, width);
+        assert.equal(actualWindow.height, height);
+        await browser.executeScript(
+          (element) => element.scrollIntoView({ block: "center" }),
+          region,
+        );
+        await clickVisible(browser, summary);
+        assert.equal(await region.findElement(By.css("details")).getAttribute("open"), "true");
+        const technical = JSON.parse(await region.findElement(By.css("pre")).getText());
+        assert.deepEqual(technical, {
+          code: failure.code,
+          mutation_state: failure.presentation.mutation_state,
+          phase: failure.presentation.phase,
+          message: failure.presentation.technical_message,
+          context: failure.presentation.technical_context,
+        });
+        const layout = await browser.executeScript((element) => {
+          const paragraph = element.querySelector("p");
+          return {
+            viewport: { width: window.innerWidth, height: window.innerHeight },
+            overflow: element.scrollWidth > element.clientWidth + 1,
+            documentOverflow:
+              document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+            summaryWhiteSpace: getComputedStyle(paragraph).whiteSpace,
+            summaryOverflow: paragraph.scrollWidth > paragraph.clientWidth + 1,
+            detailNavigationNested: element.closest("button") !== null,
+          };
+        }, region);
+        assert.equal(layout.overflow, false);
+        assert.equal(layout.documentOverflow, false);
+        assert.equal(layout.summaryOverflow, false);
+        assert.notEqual(layout.summaryWhiteSpace, "nowrap");
+        assert.equal(layout.detailNavigationNested, false);
+        observations.layouts.push({ theme, window: actualWindow, ...layout });
+        const report = path.join(output, `update-failure-${theme}-${width}-accessibility.json`);
+        await captureAccessibilityReport(browser, report, artifacts);
+        const screenshot = path.join(
+          output,
+          `native-update-failure-${theme}-${width}x${height}.png`,
+        );
+        await writeFile(screenshot, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(screenshot);
+        await clickVisible(browser, summary);
+        assert.equal(await region.findElement(By.css("details")).getAttribute("open"), null);
+      }
+    }
+    const region = await browser.findElement(By.css(`[data-update-check-failure="${port.id}"]`));
+    await clickVisible(browser, await region.findElement(By.css("summary")));
+    await clickVisible(browser, await region.findElement(By.css("button")));
+    await browser.wait(
+      async () => (await region.findElement(By.css("button")).getText()) === "Copied",
+      5_000,
+    );
+    observations.copy_acknowledged = true;
+    assert.equal((await browser.findElements(By.css("[data-detail-workspace]"))).length, 0);
+    await clickVisible(
+      browser,
+      await browser.findElement(By.css(`[data-detail-origin="updates:installed:${port.id}"]`)),
+    );
+    await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
+    assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
+    observations.navigation_verified = true;
+    observations.after = command(["status", port.id]);
+    observations.sources_after = command(["source", "list"]);
+    assert.deepEqual(observations.after, observations.before);
+    assert.deepEqual(observations.sources_after, observations.sources_before);
+  } catch (error) {
+    observations.failure = error.message;
+    throw error;
+  } finally {
+    observations.probe = await browser.executeScript(() => {
+      const probe = window.__portcoveUpdateFailureProbe;
+      if (!probe) return { installed: false, restored: false };
+      window.fetch = probe.original;
+      delete window.__portcoveUpdateFailureProbe;
+      return {
+        installed: true,
+        intercepted: probe.intercepted,
+        restored: window.fetch === probe.original,
+      };
+    });
+    const report = path.join(output, "update-check-failure-observations.json");
+    await writeFile(report, JSON.stringify(observations, null, 2), {
+      encoding: "utf8",
+      flag: "wx",
+    });
+    artifacts.push(report);
+    assert.equal(observations.probe.restored, true);
+    assert.equal(observations.probe.intercepted, 2);
+  }
+}
+
 export async function preparationScenarios({
   browser,
   invoke,
@@ -792,6 +976,7 @@ export async function preparationScenarios({
           artifacts.push(comparisonScreenshot);
         }
       }
+      await assertIndividualUpdateFailure({ browser, port, command, output, artifacts });
     } finally {
       await browser.manage().window().setRect(originalWindow);
     }
