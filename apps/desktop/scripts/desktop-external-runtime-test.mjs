@@ -82,48 +82,6 @@ export async function createExternalRuntimeFixture(output) {
   return { directory, port, catalogPath, identities };
 }
 
-async function tracePickerInvocation({ browser, action, output, artifacts }) {
-  await browser.executeScript(() => {
-    const original = window.__TAURI_INTERNALS__.invoke;
-    const trace = { original, calls: [] };
-    trace.wrapper = async (...args) => {
-      if (args[0] !== "plugin:dialog|open") return original(...args);
-      const call = {
-        directory: args[1]?.options?.directory === true,
-        title_supplied: typeof args[1]?.options?.title === "string",
-        status: "pending",
-      };
-      trace.calls.push(call);
-      try {
-        const result = await original(...args);
-        call.status = result === null ? "cancelled" : "returned";
-        return result;
-      } catch (error) {
-        call.status = "rejected";
-        call.error = String(error);
-        throw error;
-      }
-    };
-    window.__portcoveExternalPickerTrace = trace;
-    window.__TAURI_INTERNALS__.invoke = trace.wrapper;
-  });
-  try {
-    return await action();
-  } finally {
-    const observation = await browser.executeScript(() => {
-      const trace = window.__portcoveExternalPickerTrace;
-      const unchanged = window.__TAURI_INTERNALS__.invoke === trace.wrapper;
-      if (unchanged) window.__TAURI_INTERNALS__.invoke = trace.original;
-      delete window.__portcoveExternalPickerTrace;
-      return { calls: trace.calls, restored: unchanged };
-    });
-    const report = path.join(output, "external-runtime-picker-invocation.json");
-    await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
-    artifacts.push(report);
-    assert.equal(observation.restored, true);
-  }
-}
-
 export async function externalRuntimePickerObservation({
   browser,
   fixture,
@@ -141,15 +99,8 @@ export async function externalRuntimePickerObservation({
   await browser.findElement(card).click();
   const choose = By.xpath('//button[normalize-space(.)="Choose game folder"]');
   await browser.wait(until.elementLocated(choose), 15_000);
-  const observation = await tracePickerInvocation({
-    browser,
-    output,
-    artifacts,
-    action: async () => {
-      await browser.findElement(choose).click();
-      return observePicker("external-runtime-picker-observation");
-    },
-  });
+  await browser.findElement(choose).click();
+  const observation = await observePicker("external-runtime-picker-observation");
   assert.equal(observation.cancelled, true);
   for (const before of fixture.identities) {
     const after = await fileIdentity(before.path);

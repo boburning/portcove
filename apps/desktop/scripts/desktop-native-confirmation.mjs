@@ -64,6 +64,23 @@ export function nativePickerObservation({ application, getDriverIdentity, output
         )
       )
         artifacts.push(record);
+    const execution = path.join(output, `${name}-helper-result.json`);
+    await writeFile(
+      execution,
+      JSON.stringify(
+        {
+          status: result.status,
+          signal: result.signal,
+          error: result.error?.message,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(execution);
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const observation = JSON.parse(result.stdout);
     const report = path.join(output, `${name}.json`);

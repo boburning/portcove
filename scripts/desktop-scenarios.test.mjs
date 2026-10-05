@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { runInNewContext } from "node:vm";
 import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -101,71 +100,42 @@ test("external tree hash is ordered, byte-sensitive and refuses unsafe path decl
   assert.throws(() => externalFixtureTreeDigest(new Map([["../outside", Buffer.from("x")]])));
 });
 
-test("picker diagnostics forward the original IPC and restore it after success or failure", async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-trace-"));
+test("external picker observation leaves immutable Tauri internals untouched and preserves failures", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-unmodified-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const refused of [false, true]) {
     const output = path.join(root, refused ? "refused" : "cancelled");
     await mkdir(output);
     const fixture = await createExternalRuntimeFixture(output);
-    const forwarded = [];
-    const ordinaryResult = { untouched: true };
-    const backendFailure = new Error("actual backend refusal");
-    const original = async (...args) => {
-      forwarded.push(args);
-      if (args[0] !== "plugin:dialog|open") return ordinaryResult;
-      if (refused) throw backendFailure;
-      return null;
-    };
-    const window = { __TAURI_INTERNALS__: { invoke: original } };
-    const args = [
-      "plugin:dialog|open",
-      { options: { directory: true, multiple: false } },
-      { custom: "unchanged" },
-    ];
+    const original = () => {};
+    const internals = Object.freeze({ invoke: original });
+    const failure = new Error("original owned helper failure");
+    let chosen = 0;
     const browser = {
-      executeScript: async (fn) => runInNewContext(`(${fn.toString()})()`, { window }),
+      executeScript: () => {
+        throw new Error("Unexpected internal instrumentation");
+      },
       wait: async () => {},
       findElement: (locator) => ({
+        click: async () => {
+          if (locator.value.includes("Choose game folder")) chosen++;
+        },
         sendKeys: async () => {},
         isEnabled: async () => true,
-        click: async () => {
-          if (locator.value.includes("Choose game folder")) {
-            try {
-              assert.equal(await window.__TAURI_INTERNALS__.invoke(...args), null);
-            } catch (error) {
-              assert.equal(error, backendFailure);
-            }
-          }
-        },
       }),
     };
-    const artifacts = [];
     const action = externalRuntimePickerObservation({
       browser,
       fixture,
-      output,
-      artifacts,
       observePicker: async () => {
-        assert.equal(
-          await window.__TAURI_INTERNALS__.invoke("ordinary-command", { unchanged: true }),
-          ordinaryResult,
-        );
-        if (refused) throw new Error("native observation failed");
+        assert.equal(chosen, 1);
+        if (refused) throw failure;
         return { cancelled: true };
       },
     });
-    if (refused) await assert.rejects(action, /native observation failed/);
+    if (refused) await assert.rejects(action, (error) => error === failure);
     else assert.equal((await action).cancelled, true);
-    assert.deepEqual(forwarded, [args, ["ordinary-command", { unchanged: true }]]);
-    assert.equal(window.__TAURI_INTERNALS__.invoke, original);
-    assert.equal(window.__portcoveExternalPickerTrace, undefined);
-    const report = JSON.parse(await readFile(artifacts[0], "utf8"));
-    assert.equal(report.restored, true);
-    assert.equal(report.calls.length, 1);
-    assert.equal(report.calls[0].status, refused ? "rejected" : "cancelled");
-    assert.equal(report.calls[0].directory, true);
-    assert.equal(report.calls[0].title_supplied, false);
+    assert.equal(internals.invoke, original);
   }
 });
 
