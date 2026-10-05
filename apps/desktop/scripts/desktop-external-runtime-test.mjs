@@ -252,6 +252,7 @@ export async function externalRuntimeReviewScenario(context) {
     assert.equal(record.port_id, fixture.port.id);
     assert.equal(sameDirectory(record.path), true);
     assert.equal(path.basename(record.executable), "game.exe");
+    assert.equal(sameDirectory(path.dirname(record.executable)), true);
     assert.equal(
       record.immutable_tree_sha256,
       fixture.port.release.user_prepared["windows-x86-64"].immutable_tree_sha256,
