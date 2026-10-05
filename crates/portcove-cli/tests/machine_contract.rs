@@ -125,6 +125,69 @@ fn installation_and_external_help_explain_review_binding_and_file_ownership() {
 }
 
 #[test]
+fn library_transfer_help_explains_inputs_review_binding_and_recovery_paths() {
+    for (args, phrases) in [
+        (
+            &["library", "import", "--help"][..],
+            &[
+                "Metadata JSON written by `library export`; contains no payload bytes",
+                "Copied library folder containing the exported content roots",
+                "never modified by import",
+                "new or empty root",
+                "Plan SHA-256 from this import review",
+                "changed metadata or payloads refuse the import",
+                "--library <new-or-empty-root> --json library import",
+            ][..],
+        ),
+        (
+            &["library", "move", "--help"][..],
+            &[
+                "New directory beneath an existing parent",
+                "must not overlap the original library",
+                "retain the original as a recovery copy",
+                "Plan SHA-256 from this move review",
+                "changed inputs refuse the move",
+                "--library <original> --json library move",
+            ][..],
+        ),
+        (
+            &["library", "resume-import", "--help"][..],
+            &["--library <destination>", "input backup remains unchanged"][..],
+        ),
+        (
+            &["library", "abort-import", "--help"][..],
+            &[
+                "--library <destination>",
+                "incomplete destination stays closed",
+                "no copied files are deleted",
+            ][..],
+        ),
+        (
+            &["library", "resume-move", "--help"][..],
+            &["--library <original>", "retained original directory"][..],
+        ),
+        (
+            &["library", "abort-move", "--help"][..],
+            &[
+                "--library <original>",
+                "refuses after authority publication",
+                "copied files remain",
+            ][..],
+        ),
+    ] {
+        let output = Command::new(cli_binary()).args(args).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        let help = std::str::from_utf8(&output.stdout).unwrap();
+        for phrase in phrases {
+            assert!(
+                help.contains(phrase),
+                "{args:?}: missing {phrase:?} in {help}"
+            );
+        }
+    }
+}
+
+#[test]
 fn first_use_help_identifies_player_and_external_client_routes() {
     let root = Command::new(cli_binary()).arg("--help").output().unwrap();
     assert!(root.status.success());

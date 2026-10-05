@@ -753,6 +753,13 @@ Without `--output`, the document appears in the normal CLI response. With `--out
 
 ### Library imports and recovery
 
+`library import --help` identifies the metadata file separately from the payload
+folder, explains the new-or-empty `--library` destination and shows the read-only
+review route. `--expected-plan` is the exact plan SHA-256 from that review;
+changed metadata or payloads require a new review. Recovery help explicitly uses
+`--library <destination>`: resume preserves the input backup, while abort retains
+the copied files and leaves the incomplete destination closed.
+
 Import a trusted metadata export together with a separate backup folder containing its `versions`, `user`, `source-inbox`, `backups`, and `toolchains` trees:
 
 ```text
@@ -767,6 +774,13 @@ Review reads only the explicitly selected metadata and content, checks capacity 
 An interrupted import reports `details.import_destination` and `recovery_action: resume_library_import`. Unpublished copies remain closed until recovery succeeds. Resume after publication preserves new destination saves and works with the old backup offline. Abort retains every copied file and keeps the incomplete destination closed; choose a different empty destination for another import. Settings → Library → Import library exposes review, native confirmation, and recovery for the currently configured empty library. This is a trusted local-backup restore, not a merge operation or proof of third-party backup authenticity.
 
 ### Library moves and recovery
+
+`library move --help` explains the new destination beneath an existing parent,
+the read-only review route and its plan SHA-256 binding. Apply retains the
+original as a recovery copy. Recovery help uses `--library <original>` rather
+than the destination; abort refuses after authority publication and retains
+copied files. Help describes these existing Core semantics without granting an
+unreviewed move or changing the machine contract.
 
 ```text
 portcove --library <original> --json library move <new-directory>
