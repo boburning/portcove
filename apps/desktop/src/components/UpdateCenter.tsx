@@ -6,6 +6,7 @@ import {
   activityPresentationState,
   currentUpdateSnapshot,
   errorText,
+  failurePresentation,
   releaseChannelPresentation,
 } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
@@ -247,52 +248,65 @@ export function UpdateCenter({
             const outcome = byPort.get(port.id);
             const savedCheck = savedByPort.get(port.id)?.check;
             const state = updateState(status, outcome, savedCheck, earlierBatch);
+            const failure = failurePresentation(outcome?.error);
             return (
-              <button
-                data-focusable
-                data-detail-origin={`updates:installed:${port.id}`}
-                className={updateRowClass}
-                key={port.id}
-                title={outcome?.error ? errorText(outcome.error) : undefined}
-                onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
-              >
-                <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
-                  {port.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="update-title min-w-0">
-                  <strong className="block text-sm">{port.name}</strong>
-                  <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
-                    {releaseChannelPresentation(status.channel).label} ·{" "}
-                    {policyLabel(status.update_policy)}
-                  </small>
-                </div>
-                <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
-                  <div className="update-version min-w-0">
-                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                      Installed
-                    </small>
-                    <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
-                      {status.active?.version}
-                    </span>
+              <div key={port.id} className="grid min-w-0 gap-2">
+                <button
+                  data-focusable
+                  data-detail-origin={`updates:installed:${port.id}`}
+                  className={updateRowClass}
+                  onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
+                >
+                  <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
+                    {port.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <div className="update-version min-w-0">
-                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                      {earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
+                  <div className="update-title min-w-0">
+                    <strong className="block text-sm">{port.name}</strong>
+                    <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+                      {releaseChannelPresentation(status.channel).label} ·{" "}
+                      {policyLabel(status.update_policy)}
                     </small>
-                    <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
-                      {releaseLabel(effectiveCheck(port.id), outcome)}
-                    </span>
                   </div>
-                </div>
-                <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
-                  {state.label}
-                </span>
+                  <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
+                    <div className="update-version min-w-0">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                        Installed
+                      </small>
+                      <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                        {status.active?.version}
+                      </span>
+                    </div>
+                    <div className="update-version min-w-0">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                        {earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
+                      </small>
+                      <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                        {releaseLabel(effectiveCheck(port.id), outcome)}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
+                    {state.label}
+                  </span>
+                </button>
                 {outcome?.error && (
-                  <small className="update-error col-[2/-1] overflow-hidden text-ellipsis whitespace-nowrap text-pc-danger-foreground">
-                    {errorText(outcome.error)}
-                  </small>
+                  <section
+                    aria-label={`Update check failure for ${port.name}`}
+                    data-update-check-failure={port.id}
+                    className="min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
+                  >
+                    <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
+                    {failure && (
+                      <FailureDetails
+                        key={JSON.stringify({ code: outcome.error.code, presentation: failure })}
+                        presentation={failure}
+                        code={outcome.error.code}
+                        showMutationSummary={false}
+                      />
+                    )}
+                  </section>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>

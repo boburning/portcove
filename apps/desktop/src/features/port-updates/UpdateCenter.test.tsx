@@ -1,5 +1,9 @@
+// @vitest-environment jsdom
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as clipboard from "../../clipboard";
 import type { UpdateBatchRead } from "./use-update-center";
 import { UpdateCenter } from "../../components/UpdateCenter";
 import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
@@ -508,4 +512,149 @@ it("keeps batch technical diagnostics private and does not infer a mutation resu
   expect(primary).not.toContain("The change was saved");
   expect(html).toContain("View technical details");
   expect(html).toContain("private/batch/read/path");
+});
+
+it("exposes a complete per-game failure separately from navigation and keeps raw fields private", () => {
+  const error = failureReport();
+  error.message = "raw-provider-secret";
+  error.details = { token: "raw-field-secret" };
+  error.presentation.summary = "The release check failed. " + "Review the connection. ".repeat(8);
+  error.presentation.phase = "release.check";
+  error.presentation.technical_message = "The owned endpoint was unavailable.";
+  error.presentation.technical_context = { endpoint: "[REDACTED]" };
+  const original = JSON.stringify(error);
+  const html = batchHtml({ status: "current", hasResults: true }, [
+    { port_id: port.id, ok: false, result: null, error },
+  ]);
+  expect(html).toContain('aria-label="Update check failure for Sample Port"');
+  expect(html).toContain(error.presentation.summary);
+  expect(html).toContain("View technical details");
+  expect(html).toContain("release.check");
+  expect(html).not.toContain("raw-provider-secret");
+  expect(html).not.toContain("raw-field-secret");
+  expect(html).not.toContain("No files were changed");
+  expect(html).not.toContain("whether anything changed");
+  expect(JSON.stringify(error)).toBe(original);
+});
+
+describe("individual update failure interaction", () => {
+  let root: Root;
+  let container: HTMLDivElement;
+  let onSelect: ReturnType<typeof vi.fn<(portId: string, originKey?: string) => void>>;
+  let checkAll: ReturnType<typeof vi.fn<() => void>>;
+
+  function view(error = failureReport()) {
+    const healthy = { ...port, id: "healthy", name: "Healthy Port" };
+    return (
+      <UpdateCenter
+        generation={1}
+        ports={[port, healthy]}
+        statuses={
+          new Map([
+            [port.id, { ...portStatus(), active: installRecord() }],
+            [
+              healthy.id,
+              {
+                ...portStatus(),
+                port_id: healthy.id,
+                active: installRecord({ port_id: healthy.id }),
+              },
+            ],
+          ])
+        }
+        activities={[]}
+        outcomes={[
+          { port_id: port.id, ok: false, result: null, error },
+          {
+            port_id: healthy.id,
+            ok: true,
+            error: null,
+            result: { ...priorResult, port_id: healthy.id, update_available: false },
+          },
+        ]}
+        batchRead={{ status: "current", hasResults: true }}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        checkAll={checkAll}
+        onSelect={onSelect}
+        onOpenSettings={vi.fn()}
+      />
+    );
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    onSelect = vi.fn<(portId: string, originKey?: string) => void>();
+    checkAll = vi.fn<() => void>();
+    vi.spyOn(clipboard, "copyText").mockResolvedValue();
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("opens and copies only the failed game's supplied diagnostics without navigating or running a check", async () => {
+    const error = failureReport();
+    error.message = "raw-secret";
+    error.details = { token: "raw-secret" };
+    await act(async () => root.render(view(error)));
+    const region = container.querySelector<HTMLElement>(
+      '[aria-label="Update check failure for Sample Port"]',
+    );
+    expect(region).not.toBeNull();
+    expect(
+      container.querySelector('[aria-label="Update check failure for Healthy Port"]'),
+    ).toBeNull();
+    expect(region!.closest("button")).toBeNull();
+    const details = region!.querySelector("details")!;
+    expect(details.open).toBe(false);
+    await act(async () => details.querySelector("summary")!.click());
+    expect(details.open).toBe(true);
+    await act(async () => region!.querySelector<HTMLButtonElement>("button")!.click());
+    expect(JSON.parse(vi.mocked(clipboard.copyText).mock.calls[0][0])).toEqual({
+      code: error.code,
+      mutation_state: error.presentation.mutation_state,
+      phase: error.presentation.phase,
+      message: error.presentation.technical_message,
+      context: error.presentation.technical_context,
+    });
+    expect(vi.mocked(clipboard.copyText).mock.calls[0][0]).not.toContain("raw-secret");
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(checkAll).not.toHaveBeenCalled();
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(`[data-detail-origin="updates:installed:${port.id}"]`)!
+        .click(),
+    );
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(port.id, `updates:installed:${port.id}`);
+  });
+
+  it("does not attach an old copy acknowledgement to a replacement failure report", async () => {
+    let finish!: () => void;
+    vi.mocked(clipboard.copyText).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    await act(async () => root.render(view()));
+    const selector = '[aria-label="Update check failure for Sample Port"] button';
+    const old = container.querySelector<HTMLButtonElement>(selector);
+    expect(old).not.toBeNull();
+    await act(async () => old!.click());
+    const replacement = failureReport();
+    replacement.presentation.summary = "A different check failed.";
+    replacement.presentation.technical_context = { request: "replacement" };
+    await act(async () => root.render(view(replacement)));
+    await act(async () => finish());
+    expect(container.querySelector(selector)?.textContent).toBe("Copy technical details");
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(checkAll).not.toHaveBeenCalled();
+  });
 });
