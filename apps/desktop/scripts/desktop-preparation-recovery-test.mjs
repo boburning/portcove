@@ -1062,6 +1062,115 @@ export async function minimizedPreparationScenario({
   return browser;
 }
 
+async function observeRecoveredPreparation({
+  command,
+  activities,
+  status,
+  invoke,
+  port,
+  activity,
+  ordinaryClose,
+  before,
+  library,
+  privatePath,
+  digest,
+}) {
+  const recovered = command(["activity"]).records.find((item) => item.id === activity.id);
+  assert.ok(recovered, "Fresh startup must retain the exact operation identity");
+  if (ordinaryClose) {
+    assert.ok(["failed", "cancelled", "succeeded"].includes(recovered.status));
+    assert.deepEqual(
+      (await activities()).find((item) => item.id === activity.id),
+      recovered,
+      "Native activity must resynchronize to the authoritative retained operation",
+    );
+  } else {
+    assert.equal(recovered.status, "failed");
+  }
+  if (recovered.status === "failed") {
+    assert.equal(recovered.failure.presentation.presentation_key, "preparation_interrupted");
+    assert.equal(recovered.failure.presentation.mutation_state, "recovery_required");
+  }
+  const repair = command(["doctor"]).repair.items.find((item) => item.operation_id === activity.id);
+  const recoveredStatus = command(["status", port.id]);
+  if (recovered.status !== "succeeded") {
+    assert.equal(repair.kind, "retained_preparation");
+    assert.equal(path.resolve(repair.path), path.resolve(privatePath));
+    assert.deepEqual(recoveredStatus.active, before.active);
+  } else {
+    assert.equal(repair, undefined);
+    assert.equal(recoveredStatus.active.id, activity.id);
+    assert.equal(recoveredStatus.active.port_id, port.id);
+    assert.equal(recoveredStatus.readiness.launchable, true);
+    assert.equal(
+      await digest(
+        path.join(recoveredStatus.active.path, port.executable_hints["windows-x86-64"][0]),
+      ),
+      before.original_game_sha256,
+    );
+    assert.equal(
+      await digest(path.join(recoveredStatus.active.path, "OpenGOAL", "jak3", "save.bin")),
+      before.save_sha256,
+    );
+  }
+  let recoveredWorkspace;
+  if (ordinaryClose) {
+    const nativeStatus = await status(port.id);
+    assert.deepEqual(nativeStatus.active, recoveredStatus.active);
+    assert.deepEqual(nativeStatus.readiness, recoveredStatus.readiness);
+    const bootstrap = await invoke("get_bootstrap_status");
+    assert.equal(bootstrap.ok, true);
+    assert.equal(bootstrap.value.ready, true);
+    assert.equal(path.resolve(bootstrap.value.library_root), path.resolve(library));
+    const workspace = await invoke("get_workspace_snapshot", {
+      generation: bootstrap.value.generation,
+    });
+    assert.equal(workspace.ok, true);
+    recoveredWorkspace = workspace.value;
+    const workspaceStatus = recoveredWorkspace.statuses.find((item) => item.port_id === port.id);
+    assert.ok(workspaceStatus);
+    assert.deepEqual(workspaceStatus.active, recoveredStatus.active);
+    assert.deepEqual(workspaceStatus.readiness, recoveredStatus.readiness);
+    assert.deepEqual(
+      recoveredWorkspace.activities.records.find((item) => item.id === activity.id),
+      recovered,
+    );
+  }
+  return { recovered, repair, recoveredStatus, recoveredWorkspace };
+}
+
+async function previewRecoveredPreparationCleanup({
+  invoke,
+  library,
+  activity,
+  repair,
+  ordinaryClose,
+}) {
+  const generation = (await invoke("get_bootstrap_status")).value.generation;
+  const cleanup = await invoke("preview_preparation_cleanup", {
+    operationId: activity.id,
+    generation,
+  });
+  const database = new DatabaseSync(path.join(library, "portcove.sqlite3"), { readOnly: true });
+  let operation;
+  try {
+    operation = database
+      .prepare("SELECT phase,preparation_process_quiesced FROM lifecycle_operations WHERE id=?")
+      .get(activity.id);
+  } finally {
+    database.close();
+  }
+  if (!ordinaryClose || (repair && operation?.preparation_process_quiesced !== 1)) {
+    assert.equal(cleanup.ok, false);
+    assert.equal(cleanup.error.code, "conflict");
+    assert.equal(cleanup.error.details.recovery_action, "manual_review");
+    assert.match(cleanup.error.message, /process quiescence is not proven/);
+  } else if (repair) {
+    assert.equal(cleanup.ok, true, "Proven quiescence permits review without accepting cleanup");
+  }
+  return { cleanup, operation };
+}
+
 export async function liveInterruptedPreparationScenario(context) {
   return livePreparationRecoveryScenario(context);
 }
@@ -1156,69 +1265,20 @@ async function livePreparationRecoveryScenario({
     );
     // Actual host startup owns recovery. These public CLI observations do not
     // repair SQLite or attest process quiescence on the product's behalf.
-    const recovered = command(["activity"]).records.find((item) => item.id === activity.id);
-    assert.ok(recovered, "Fresh startup must retain the exact operation identity");
-    if (ordinaryClose) {
-      assert.ok(["failed", "cancelled", "succeeded"].includes(recovered.status));
-      assert.deepEqual(
-        (await activities()).find((item) => item.id === activity.id),
-        recovered,
-        "Native activity must resynchronize to the authoritative retained operation",
-      );
-    } else {
-      assert.equal(recovered.status, "failed");
-    }
-    if (recovered.status === "failed") {
-      assert.equal(recovered.failure.presentation.presentation_key, "preparation_interrupted");
-      assert.equal(recovered.failure.presentation.mutation_state, "recovery_required");
-    }
-    const repair = command(["doctor"]).repair.items.find(
-      (item) => item.operation_id === activity.id,
-    );
-    const recoveredStatus = command(["status", port.id]);
-    if (recovered.status !== "succeeded") {
-      assert.equal(repair.kind, "retained_preparation");
-      assert.equal(path.resolve(repair.path), path.resolve(privatePath));
-      assert.deepEqual(recoveredStatus.active, before.active);
-    } else {
-      assert.equal(repair, undefined);
-      assert.equal(recoveredStatus.active.id, activity.id);
-      assert.equal(recoveredStatus.active.port_id, port.id);
-      assert.equal(recoveredStatus.readiness.launchable, true);
-      assert.equal(
-        await digest(
-          path.join(recoveredStatus.active.path, port.executable_hints["windows-x86-64"][0]),
-        ),
-        before.original_game_sha256,
-      );
-      assert.equal(
-        await digest(path.join(recoveredStatus.active.path, "OpenGOAL", "jak3", "save.bin")),
-        before.save_sha256,
-      );
-    }
-    let recoveredWorkspace;
-    if (ordinaryClose) {
-      const nativeStatus = await status(port.id);
-      assert.deepEqual(nativeStatus.active, recoveredStatus.active);
-      assert.deepEqual(nativeStatus.readiness, recoveredStatus.readiness);
-      const bootstrap = await invoke("get_bootstrap_status");
-      assert.equal(bootstrap.ok, true);
-      assert.equal(bootstrap.value.ready, true);
-      assert.equal(path.resolve(bootstrap.value.library_root), path.resolve(library));
-      const workspace = await invoke("get_workspace_snapshot", {
-        generation: bootstrap.value.generation,
+    const { recovered, repair, recoveredStatus, recoveredWorkspace } =
+      await observeRecoveredPreparation({
+        command,
+        activities,
+        status,
+        invoke,
+        port,
+        activity,
+        ordinaryClose,
+        before,
+        library,
+        privatePath,
+        digest,
       });
-      assert.equal(workspace.ok, true);
-      recoveredWorkspace = workspace.value;
-      const workspaceStatus = recoveredWorkspace.statuses.find((item) => item.port_id === port.id);
-      assert.ok(workspaceStatus);
-      assert.deepEqual(workspaceStatus.active, recoveredStatus.active);
-      assert.deepEqual(workspaceStatus.readiness, recoveredStatus.readiness);
-      assert.deepEqual(
-        recoveredWorkspace.activities.records.find((item) => item.id === activity.id),
-        recovered,
-      );
-    }
     assert.equal(await digest(source), before.source_sha256);
     assert.equal(await digest(originalExecutable), before.original_executable_sha256);
     assert.equal(await digest(path.join(active.path, executableHint)), before.active_setup_sha256);
@@ -1228,28 +1288,13 @@ async function livePreparationRecoveryScenario({
     );
     assert.equal(await digest(save), before.save_sha256);
     if (recovered.status !== "succeeded") await access(checkpoint);
-    const generation = (await invoke("get_bootstrap_status")).value.generation;
-    const cleanup = await invoke("preview_preparation_cleanup", {
-      operationId: activity.id,
-      generation,
+    const { cleanup, operation } = await previewRecoveredPreparationCleanup({
+      invoke,
+      library,
+      activity,
+      repair,
+      ordinaryClose,
     });
-    const database = new DatabaseSync(path.join(library, "portcove.sqlite3"), { readOnly: true });
-    let operation;
-    try {
-      operation = database
-        .prepare("SELECT phase,preparation_process_quiesced FROM lifecycle_operations WHERE id=?")
-        .get(activity.id);
-    } finally {
-      database.close();
-    }
-    if (!ordinaryClose || (repair && operation?.preparation_process_quiesced !== 1)) {
-      assert.equal(cleanup.ok, false);
-      assert.equal(cleanup.error.code, "conflict");
-      assert.equal(cleanup.error.details.recovery_action, "manual_review");
-      assert.match(cleanup.error.message, /process quiescence is not proven/);
-    } else if (repair) {
-      assert.equal(cleanup.ok, true, "Proven quiescence permits review without accepting cleanup");
-    }
     await browser.findElement(By.xpath('//nav//button[contains(., "Game updates")]')).click();
     const row = await browser.wait(
       async () => {
