@@ -32,6 +32,13 @@ pub struct DefinitionSelectionIdentity {
 
 impl DefinitionSelectionIdentity {
     pub(crate) fn validate_snapshot(&self, snapshot: &DefinitionSnapshot) -> Result<()> {
+        self.validated_snapshot_projection(snapshot).map(|_| ())
+    }
+
+    fn validated_snapshot_projection(
+        &self,
+        snapshot: &DefinitionSnapshot,
+    ) -> Result<crate::DefinitionCatalogProjection> {
         if self.namespace != snapshot.namespace()
             || self.stable_id != snapshot.port_id()
             || self.repository_root_sha256 != self.provenance.root_sha256
@@ -47,12 +54,13 @@ impl DefinitionSelectionIdentity {
         validate_sha256(&self.repository_root_sha256)?;
         DefinitionReplayFloor::from(&self.provenance).validate()?;
         expiration_unix(&self.provenance)?;
-        if self.definition_revision != snapshot.projection()?.entry().revision() {
+        let projection = snapshot.projection()?;
+        if self.definition_revision != projection.entry().revision() {
             return Err(PortcoveError::verification(
                 "definition admission revision differs from its exact entry",
             ));
         }
-        Ok(())
+        Ok(projection)
     }
 }
 
@@ -102,15 +110,15 @@ impl StoredDefinitionSelection {
     }
 
     fn validate(&self) -> Result<()> {
-        self.identity()
-            .validate_snapshot(&self.snapshot)
+        let projection = self
+            .identity()
+            .validated_snapshot_projection(&self.snapshot)
             .map_err(|error| {
                 PortcoveError::state(
                     "stored definition selection has inconsistent identity or policy",
                 )
                 .detail("cause", error.message)
             })?;
-        let projection = self.snapshot.projection()?;
         projection.catalog().port(&self.stable_id)?;
         Ok(())
     }
