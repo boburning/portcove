@@ -6,6 +6,13 @@ import os from "node:os";
 import path from "node:path";
 import { fileIdentity } from "./development-evidence.mjs";
 import {
+  createExternalRuntimeFixture,
+  externalFixtureTreeDigest,
+  externalRuntimePickerObservation,
+  externalRuntimeReviewScenario,
+} from "../apps/desktop/scripts/desktop-external-runtime-test.mjs";
+import { nativePreparedRuntimePicker } from "../apps/desktop/scripts/desktop-native-confirmation.mjs";
+import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
@@ -32,6 +39,203 @@ import {
   DESKTOP_SCENARIOS,
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
+
+test("external runtime qualification is standalone and keeps a source-free inert tree", async (t) => {
+  const id = "native-external-runtime-review";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, [
+    "desktop",
+    "native-dialog",
+    "external-runtime-fixture",
+  ]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.deepEqual(desktopScenarioById.get(id).platforms, ["win32"]);
+  assert.equal(desktopScenarioById.get(id).qualification_only, true);
+  for (const platform of ["linux", "darwin"])
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /requires Windows/);
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id, "empty-library"] }), /standalone/);
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-external-runtime-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const fixture = await createExternalRuntimeFixture(output);
+  const document = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+  assert.equal(document.ports.length, 1);
+  assert.deepEqual(document.source_catalog, {
+    evidence: [],
+    identities: [],
+    contracts: [],
+    validators: [],
+  });
+  assert.equal(document.ports[0].source_profile, undefined);
+  const spec = document.ports[0].release.user_prepared["windows-x86-64"];
+  const files = new Map(
+    await Promise.all(
+      ["game.exe", "unknown-save.bin"].map(async (name) => [
+        name,
+        await readFile(path.join(fixture.directory, name)),
+      ]),
+    ),
+  );
+  assert.equal(spec.immutable_tree_sha256, externalFixtureTreeDigest(files));
+  files.set("unknown-save.bin", Buffer.from("different unknown save"));
+  assert.notEqual(spec.immutable_tree_sha256, externalFixtureTreeDigest(files));
+  assert.equal(fixture.identities.length, 3);
+  for (const identity of fixture.identities)
+    assert.equal((await fileIdentity(identity.path)).sha256, identity.sha256);
+  await assert.rejects(createExternalRuntimeFixture(output), /EEXIST/);
+  await assert.rejects(createExternalRuntimeFixture("relative"), /absolute/);
+});
+
+test("external tree hash is ordered, byte-sensitive and refuses unsafe path declarations", () => {
+  const first = new Map([
+    ["z.bin", Buffer.from("z")],
+    ["a.bin", Buffer.from("a")],
+  ]);
+  assert.equal(
+    externalFixtureTreeDigest(first),
+    externalFixtureTreeDigest(new Map([...first].reverse())),
+  );
+  const changed = new Map(first);
+  changed.set("a.bin", Buffer.from("aa"));
+  assert.notEqual(externalFixtureTreeDigest(first), externalFixtureTreeDigest(changed));
+  assert.throws(() => externalFixtureTreeDigest(new Map([["../outside", Buffer.from("x")]])));
+});
+
+test("external picker observation leaves immutable Tauri internals untouched and preserves failures", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-unmodified-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const refused of [false, true]) {
+    const output = path.join(root, refused ? "refused" : "cancelled");
+    await mkdir(output);
+    const fixture = await createExternalRuntimeFixture(output);
+    const original = () => {};
+    const internals = Object.freeze({ invoke: original });
+    const failure = new Error("original owned helper failure");
+    let chosen = 0;
+    const browser = {
+      executeScript: () => {
+        throw new Error("Unexpected internal instrumentation");
+      },
+      wait: async () => {},
+      findElement: (locator) => ({
+        click: async () => {
+          if (locator.value.includes("Choose game folder")) chosen++;
+        },
+        sendKeys: async () => {},
+        isEnabled: async () => true,
+      }),
+    };
+    const action = externalRuntimePickerObservation({
+      browser,
+      fixture,
+      observePicker: async () => {
+        assert.equal(chosen, 1);
+        if (refused) throw failure;
+        return { cancelled: true };
+      },
+    });
+    if (refused) await assert.rejects(action, (error) => error === failure);
+    else assert.equal((await action).cancelled, true);
+    assert.equal(internals.invoke, original);
+  }
+});
+
+test("external runtime journey retains a failed dispatcher picker phase before later actions", async (t) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-phase-failure-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const failure = new Error("Original owned picker phase failed");
+  const artifacts = [];
+  await assert.rejects(
+    externalRuntimeReviewScenario({
+      output,
+      artifacts,
+      fixture: await createExternalRuntimeFixture(output),
+      pickerObservation: Promise.reject(failure),
+      invoke: () => {
+        throw new Error("Later native actions must not run after failed picker cancellation");
+      },
+    }),
+    (error) => error === failure,
+  );
+  const reportPath = path.join(output, "external-runtime-review.json");
+  assert.deepEqual(artifacts, [reportPath]);
+  const report = JSON.parse(await readFile(reportPath, "utf8"));
+  assert.equal(report.error, String(failure));
+  assert.deepEqual(report.steps, []);
+});
+
+test(
+  "picker observation refuses stale launch identities and directory input before UI enumeration",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const output = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-identity-"));
+    t.after(() => rm(output, { recursive: true, force: true }));
+    const script = path
+      .resolve("apps/desktop/scripts/native-confirmation.ps1")
+      .replaceAll("'", "''");
+    for (const kind of ["stale-time", "wrong-image", "directory-input", "outside-prepared"]) {
+      const helper = path.join(output, `${kind}.ps1`);
+      const extra =
+        kind === "directory-input"
+          ? "-DirectoryPath $PSScriptRoot"
+          : kind === "outside-prepared"
+            ? "-PreparedRuntimeDirectory $PSScriptRoot"
+            : "";
+      await writeFile(
+        helper,
+        `
+$ErrorActionPreference = 'Stop'
+$owned = [Diagnostics.Process]::GetCurrentProcess()
+$image = $owned.MainModule.FileName
+$expectedImage = ${kind === "wrong-image" ? "'C:\\not-the-owned-driver.exe'" : "$image"}
+$filetime = ${kind === "stale-time" ? "'1'" : "$owned.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()"}
+try {
+    & '${script}' -DriverProcessId $PID -ApplicationPath $image -ObservePicker -ExpectedDriverPath $expectedImage -ExpectedDriverStartedFiletime $filetime -ObservationPath (Join-Path $PSScriptRoot '${kind}.json') ${extra}
+    exit 0
+} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
+`,
+        { flag: "wx" },
+      );
+      const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", helper], {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 15_000,
+      });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(
+        result.stderr,
+        kind === "directory-input"
+          ? /Parameter set cannot be resolved/
+          : kind === "outside-prepared"
+            ? /exact regular owned fixture directory/
+            : /Captured picker driver identity changed/,
+      );
+      await assert.rejects(stat(path.join(output, `${kind}.json`)), /ENOENT/);
+    }
+  },
+);
+
+test(
+  "prepared runtime picker refuses a different directory before obtaining a driver",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const output = await mkdtemp(path.join(os.tmpdir(), "portcove-prepared-input-"));
+    t.after(() => rm(output, { recursive: true, force: true }));
+    const input = nativePreparedRuntimePicker({
+      output,
+      getDriverIdentity: () => {
+        throw new Error("Driver must not be observed for rejected input");
+      },
+      artifacts: [],
+    });
+    await assert.rejects(
+      input("refused-selection", output),
+      /Expected values to be strictly equal/,
+    );
+  },
+);
 
 test("preferences recovery is standalone and preserves a malformed original before repair", async (t) => {
   const id = "native-startup-preferences-recovery";

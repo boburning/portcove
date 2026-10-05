@@ -38,6 +38,16 @@ import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
 import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
+import {
+  createExternalRuntimeFixture,
+  externalFixtureTreeDigest,
+  externalRuntimePickerObservation,
+  externalRuntimeReviewScenario,
+} from "./desktop-external-runtime-test.mjs";
+import {
+  nativePickerObservation,
+  nativePreparedRuntimePicker,
+} from "./desktop-native-confirmation.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mjs";
@@ -264,6 +274,7 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
 const output = path.resolve(values.output);
 await mkdir(output); // Existing output is never reused, including after failed runs.
 let installFixture;
+let externalFixture;
 let bootstrapRecoveryFixture;
 let connectedLaunches = 0;
 const library = path.join(output, "library");
@@ -290,6 +301,7 @@ const normalPackageSession = selection.selected_scenarios.includes(
   "native-normal-package-webview-boundary",
 );
 const identityBoundSession =
+  selection.selected_scenarios.includes("native-external-runtime-review") ||
   backupFocusSession ||
   hostInterruptionSession ||
   ordinaryCloseSession ||
@@ -298,21 +310,23 @@ const identityBoundSession =
   preferencesRecoverySession ||
   bootstrapRecoverySession ||
   librarySwitchRecoverySession;
-const cleanupName = preferencesRecoverySession
-  ? "startup-preferences-recovery"
-  : librarySwitchRecoverySession
-    ? "library-switch-recovery"
-    : bootstrapRecoverySession
-      ? "startup-library-recovery"
-      : normalPackageSession
-        ? "normal-package-boundary"
-        : ordinaryCloseSession
-          ? "ordinary-close-preparation"
-          : hostInterruptionSession
-            ? "host-interruption"
-            : minimizedPreparationSession
-              ? "minimized-preparation"
-              : "backup-focus";
+const cleanupName = selection.selected_scenarios.includes("native-external-runtime-review")
+  ? "external-runtime-review"
+  : preferencesRecoverySession
+    ? "startup-preferences-recovery"
+    : librarySwitchRecoverySession
+      ? "library-switch-recovery"
+      : bootstrapRecoverySession
+        ? "startup-library-recovery"
+        : normalPackageSession
+          ? "normal-package-boundary"
+          : ordinaryCloseSession
+            ? "ordinary-close-preparation"
+            : hostInterruptionSession
+              ? "host-interruption"
+              : minimizedPreparationSession
+                ? "minimized-preparation"
+                : "backup-focus";
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -1274,6 +1288,25 @@ async function driverReady() {
   }
 }
 
+function driverEnvironment(childEnvironment) {
+  const environment = {
+    ...process.env,
+    ...childEnvironment,
+    ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
+    ...(externalFixture ? { PORTCOVE_QUALIFICATION_CATALOG: externalFixture.catalogPath } : {}),
+    ...(selection.prerequisites.includes("steam-fixture")
+      ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
+      : {}),
+    PORTCOVE_LIBRARY: library,
+    PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
+    PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
+    PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
+    PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
+    WEBVIEW2_USER_DATA_FOLDER: profile,
+  };
+  return savedLibraryRecoverySession ? bootstrapRecoveryEnvironment(environment) : environment;
+}
+
 async function startDriver(childEnvironment = {}) {
   ownedSession.beginLaunch();
   const launchStarted = Date.now();
@@ -1291,22 +1324,7 @@ async function startDriver(childEnvironment = {}) {
       windowsHide: true,
       detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
-      env: (savedLibraryRecoverySession
-        ? bootstrapRecoveryEnvironment
-        : (environment) => environment)({
-        ...process.env,
-        ...childEnvironment,
-        ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
-        ...(selection.prerequisites.includes("steam-fixture")
-          ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
-          : {}),
-        PORTCOVE_LIBRARY: library,
-        PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
-        PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
-        PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
-        PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
-        WEBVIEW2_USER_DATA_FOLDER: profile,
-      }),
+      env: driverEnvironment(childEnvironment),
     },
   );
   let spawnError;
@@ -1502,10 +1520,62 @@ try {
     inputs.push(await fileIdentity(installFixture.artifactPath));
     inputs.push(await fileIdentity(installFixture.catalogPath));
   }
+  if (selection.prerequisites.includes("external-runtime-fixture")) {
+    externalFixture = await createExternalRuntimeFixture(output);
+    const declared = JSON.parse(await readFile(externalFixture.catalogPath, "utf8")).ports[0];
+    assert.equal(declared.id, externalFixture.port.id);
+    const prepared = declared.release.user_prepared["windows-x86-64"];
+    const immutableFiles = new Map(
+      await Promise.all(
+        externalFixture.identities
+          .filter((identity) => !prepared.mutable_paths.includes(path.basename(identity.path)))
+          .map(async (identity) => [path.basename(identity.path), await readFile(identity.path)]),
+      ),
+    );
+    assert.equal(
+      externalFixtureTreeDigest(immutableFiles),
+      prepared.immutable_tree_sha256,
+      "Actual prepared fixture bytes must match the declared immutable tree before launch",
+    );
+    for (const name of [
+      "desktop-external-runtime-test.mjs",
+      "desktop-native-confirmation.mjs",
+      "native-confirmation.ps1",
+    ])
+      inputs.push(await fileIdentity(fileURLToPath(new URL(`./${name}`, import.meta.url))));
+    inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
+  }
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
   await startDriver();
   await connect();
+  await scenario("native-external-runtime-review", async () => {
+    const pickerContext = {
+      application: values.app,
+      getDriverIdentity: () => ownedSession.driver,
+      output,
+      artifacts,
+    };
+    await externalRuntimeReviewScenario({
+      browser,
+      fixture: externalFixture,
+      output,
+      artifacts,
+      invoke,
+      confirmNative: nativeConfirmation({
+        application: values.app,
+        getDriverPid: () => driver.pid,
+        output,
+        artifacts,
+      }),
+      pickerObservation: externalRuntimePickerObservation({
+        browser,
+        fixture: externalFixture,
+        observePicker: nativePickerObservation(pickerContext),
+      }),
+      selectPicker: nativePreparedRuntimePicker(pickerContext),
+    });
+  });
   await scenario("native-startup-preferences-recovery", async () => {
     await preferencesRecoveryScenario({
       browser,

@@ -82,6 +82,19 @@ test("focused plans omit owned binaries while lifecycle plans include them", () 
   assert.equal(install.paths.cli, null);
   assert.deepEqual(install.qualification_features, ["qualification-fixtures"]);
 
+  const external = buildDesktopVerifyPlan({
+    ...common,
+    selection: resolveDesktopSelection({
+      scenarios: ["native-external-runtime-review"],
+      platform: "win32",
+    }),
+  });
+  assert.deepEqual(external.qualification_features, ["qualification-fixtures"]);
+  assert.equal(external.paths.cli, null);
+  assert.ok(!external.phases.includes("owned-probe-build"));
+  assert.ok(!external.phases.includes("scenario-context-preflight"));
+  assert.equal(external.harness_deadline_ms, 180_000);
+
   const installRefresh = buildDesktopVerifyPlan({
     ...common,
     selection: resolveDesktopSelection({ scenarios: ["install-commit-refresh-recovery"] }),
