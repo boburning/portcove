@@ -1418,6 +1418,66 @@ mod tests {
     }
 
     #[test]
+    fn dkc3_recomp_pins_only_the_nonowning_windows_prepared_route() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("dkc3-recomp").unwrap();
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.release.provider, ReleaseSource::UserPrepared);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert!(port.persistent_paths.is_empty());
+        assert!(port.runtime_source_filename.is_none());
+        assert!(port.setup_executable_hints.is_empty());
+        assert!(port.launch_arguments.is_empty());
+        assert!(port.release.direct.is_empty());
+        assert!(port.release.asset_hints.is_empty());
+        assert_eq!(port.launch_environment.len(), 1);
+        assert_eq!(port.launch_environment["SNESRECOMP_NO_LAUNCHER"], "1");
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        assert_eq!(runtime.version, "v0.0.6");
+        assert_eq!(runtime.archive_name, "DKC3Recomp-v0.0.6-windows-x64.zip");
+        assert_eq!(runtime.archive_size, 6_009_000);
+        assert_eq!(
+            runtime.archive_sha256,
+            "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11"
+        );
+        assert_eq!(runtime.executable, "DKC3Recomp.exe");
+        assert_eq!(
+            runtime.immutable_tree_sha256,
+            "3b8e1a483ada9a544a084717eba4eeb5c8f4b7168cda85b3697776f1a0dacdee"
+        );
+        assert_eq!(runtime.source_argument_extension.as_deref(), Some("sfc"));
+        assert_eq!(
+            runtime.mutable_paths,
+            [
+                "saves",
+                "launcher.cfg",
+                "rom.cfg",
+                "performance.log",
+                "diagnostics",
+                "keybinds.ini",
+                ".snesrecomp_write_probe"
+            ]
+        );
+        assert!(
+            catalog
+                .source_catalog()
+                .unwrap()
+                .qualification
+                .iter()
+                .all(|record| record.scope.port_id != port.id)
+        );
+        let profile = catalog.source_profile("dkc3-na-en-fr").unwrap();
+        assert_eq!(port.source_profile.as_deref(), Some(profile.id.as_str()));
+        assert_eq!(profile.accepted_extensions, ["sfc"]);
+        assert!(profile.accepted_sha1.is_empty());
+        assert_eq!(
+            profile.accepted_sha256,
+            ["2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b"]
+        );
+    }
+
+    #[test]
     fn f_zero_snes_recomp_pins_an_unqualified_nonowning_windows_route() {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("f-zero-snes-recomp").unwrap();
@@ -1600,7 +1660,7 @@ mod tests {
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 12
+            legacy.document().source_profiles.len() + 13
         );
         let projected_legacy_profiles = migrated
             .document()
@@ -1619,6 +1679,7 @@ mod tests {
                     "open-nectar-pikmin-disc",
                     "wave-race-64",
                     "f-zero-snes-usa",
+                    "dkc3-na-en-fr",
                     "road-rash-64",
                 ]
                 .contains(&profile.id.as_str())
@@ -1788,6 +1849,7 @@ mod tests {
                     "open-nectar-pikmin",
                     "wave-race-64-recomp",
                     "f-zero-snes-recomp",
+                    "dkc3-recomp",
                     "road-rash-64-recompiled",
                 ]
                 .contains(&port.id.as_str())
@@ -2228,6 +2290,7 @@ mod tests {
                     "open-nectar-pikmin-disc",
                     "wave-race-64",
                     "f-zero-snes-usa",
+                    "dkc3-na-en-fr",
                     "road-rash-64",
                 ]
                 .contains(&profile.id.as_str())

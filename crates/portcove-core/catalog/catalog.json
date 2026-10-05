@@ -349,6 +349,16 @@
         "claim": "The pinned v1.4.3 source hashes the entire canonical 32 MiB Road Rash 64 USA ROM and requires its exact SHA-256.",
         "immutable_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/native/src/rr64_experimental_course.cpp",
         "live_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/native/src/rr64_experimental_course.cpp"
+      },
+      {
+        "id": "dkc3-recomp-0-0-6-source-contract",
+        "role": "upstream_support",
+        "authority": "elliotttate/DKC3Recomp",
+        "authority_ref": "3a033f19801a2bd3abf784d4b29c4462495d19de",
+        "reviewed_at": "2026-10-05",
+        "claim": "v0.0.6 requires the North American En/Fr 4194304-byte DKC3 payload with exact SHA-256 after optional upstream 512-byte header stripping. The Win32 host accepts an original path positionally and preserves it externally; this Portcove route admits only an exact headerless .sfc original and suppresses upstream launcher source selection.",
+        "immutable_url": "https://github.com/elliotttate/DKC3Recomp/blob/3a033f19801a2bd3abf784d4b29c4462495d19de/runner/verified_rom.c",
+        "live_url": "https://github.com/elliotttate/DKC3Recomp/blob/main/runner/verified_rom.c"
       }
     ],
     "identities": [
@@ -4707,6 +4717,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "dkc3-na-en-fr",
+        "label": "Donkey Kong Country 3 (North America, En/Fr) headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "north-america-en-fr",
+            "title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
+            "region": "North America (En,Fr)",
+            "revision": "Original North American",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "dkc3-recomp-0-0-6-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "dkc3-recomp-0-0-6-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6602,6 +6652,33 @@
           {
             "upstream_ref": "v1.4.3",
             "artifact_sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "dkc3-recomp-game-source",
+        "port_id": "dkc3-recomp",
+        "role": "game",
+        "profile_id": "dkc3-na-en-fr",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "north-america-en-fr"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "dkc3-recomp-0-0-6-source-contract"
+        ],
+        "authority_ref": "3a033f19801a2bd3abf784d4b29c4462495d19de",
+        "reviewed_at": "2026-10-05",
+        "immutable_review_url": "https://github.com/elliotttate/DKC3Recomp/blob/3a033f19801a2bd3abf784d4b29c4462495d19de/runner/verified_rom.c",
+        "live_review_url": "https://github.com/elliotttate/DKC3Recomp/blob/main/runner/verified_rom.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.0.6",
+            "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11"
           }
         ],
         "aliases": [],
@@ -13516,6 +13593,68 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own Road Rash 64 USA v1.0 canonical .z64 file (32 MiB). Portcove keeps a staged ROM copy; local save backups include that copy."
+      }
+    },
+    {
+      "id": "dkc3-recomp",
+      "name": "DKC3Recomp",
+      "summary": "Play Donkey Kong Country 3 using a runtime you prepare from the official Windows package.",
+      "project_url": "https://github.com/elliotttate/DKC3Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "elliotttate/DKC3Recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v0.0.6",
+            "archive_name": "DKC3Recomp-v0.0.6-windows-x64.zip",
+            "archive_size": 6009000,
+            "archive_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+            "executable": "DKC3Recomp.exe",
+            "immutable_tree_sha256": "3b8e1a483ada9a544a084717eba4eeb5c8f4b7168cda85b3697776f1a0dacdee",
+            "source_argument_extension": "sfc",
+            "mutable_paths": [
+              "saves",
+              "launcher.cfg",
+              "rom.cfg",
+              "performance.log",
+              "diagnostics",
+              "keybinds.ini",
+              ".snesrecomp_write_probe"
+            ]
+          }
+        }
+      },
+      "source_profile": "dkc3-na-en-fr",
+      "executable_hints": {
+        "windows-x86-64": [
+          "DKC3Recomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "dkc3-na-en-fr",
+            "label": "Donkey Kong Country 3 (North America, En/Fr) headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Extract the official v0.0.6 Windows ZIP outside your Portcove library. Choose its DKC3Recomp-v0.0.6-windows-x64 folder for exact-file review and register your original headerless North American En/Fr DKC3 .sfc separately. Portcove passes that verified source directly and skips the upstream launcher; in-game settings remain available. Keep package and ROM paths short and representable in the Windows system code page. Windows runtime and gameplay are not tested. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not update, back up or delete this folder or its saves."
+      },
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1"
       }
     }
   ]
