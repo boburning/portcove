@@ -857,10 +857,10 @@ export async function preparationScenarios({
     await clickVisible(
       browser,
       await browser.findElement(
-        By.xpath('//*[@role="option" and normalize-space(.)="Stage for later"]'),
+        By.xpath('//*[@role="option" and normalize-space(.)="Keep update for later"]'),
       ),
     );
-    assert.ok((await updateControl.getText()).includes("Stage for later"));
+    assert.ok((await updateControl.getText()).includes("Keep update for later"));
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
     const trigger = await browser.findElement(button("Review game update"));
@@ -884,7 +884,11 @@ export async function preparationScenarios({
     assert.ok(reviewText.includes("Confirm the release"));
     assert.ok(reviewText.includes(candidate.value.plan.release.version));
     if (["download", "use_staged", "reuse_retained"].includes(candidate.value.plan.action))
-      assert.ok(reviewText.includes("This will stage the verified update for later"));
+      assert.ok(
+        reviewText.includes(
+          "This keeps the verified update for later. Your current version stays unchanged.",
+        ),
+      );
     assert.ok(
       reviewText.includes("Saved update settings are unchanged") ||
         reviewText.includes("already active") ||
