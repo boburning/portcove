@@ -1303,7 +1303,9 @@ export function normalizeRequirements(body) {
     .flatMap((line) => {
       const marker = /^ {0,3}(`{3,}|~{3,})/.exec(line);
       if (fence) {
-        if (marker && marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = null;
+        const closing = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line);
+        if (closing && closing[1][0] === fence[0] && closing[1].length >= fence.length)
+          fence = null;
         return [line];
       }
       if (marker) {
@@ -1495,6 +1497,7 @@ export function parseConsumptionRecord(body) {
   if (
     record.schema_version !== 1 ||
     record.kind !== "consumed-requirements" ||
+    !/^[a-f0-9]{64}$/.test(record.observation_revision ?? "") ||
     [record.runner, record.action, record.evidence].some(
       (value) => typeof value !== "string" || !value.trim(),
     )
@@ -1508,6 +1511,8 @@ export function prepareConsumption(context, { runner, action, evidence }, commen
   if (!runner?.trim() || !action?.trim() || !evidence?.trim())
     throw new Error("acknowledgment requires actual runner, action and evidence");
   validateExecutionSnapshot(context.snapshot);
+  if (!/^[a-f0-9]{64}$/.test(context.observation_revision ?? ""))
+    throw new Error("context requires the full raw observation identity");
   const prior = comments
     .map((comment) => ({ comment, record: parseConsumptionRecord(comment.body) }))
     .filter(
@@ -1517,7 +1522,10 @@ export function prepareConsumption(context, { runner, action, evidence }, commen
         record.snapshot.issue.id === context.snapshot.issue.id,
     )
     .at(-1);
-  if (prior?.record.snapshot.revision === context.snapshot.revision)
+  if (
+    prior?.record.snapshot.revision === context.snapshot.revision &&
+    prior.record.observation_revision === context.observation_revision
+  )
     return {
       needed: false,
       url: prior.comment.url,
@@ -1528,6 +1536,7 @@ export function prepareConsumption(context, { runner, action, evidence }, commen
     kind: "consumed-requirements",
     runner,
     snapshot: context.snapshot,
+    observation_revision: context.observation_revision,
     action,
     evidence,
   };
@@ -1542,6 +1551,7 @@ export function deriveExecutionContext(
   { runner, comments, coverage, consumed = null, reservation = null },
 ) {
   const snapshot = executionSnapshot(config, item, relationships);
+  const observation_revision = executionObservation(item, relationships);
   const latest = comments
     .map((comment) => ({ comment, record: parseConsumptionRecord(comment.body) }))
     .filter(
@@ -1569,6 +1579,7 @@ export function deriveExecutionContext(
     schema_version: 1,
     observed_at: new Date().toISOString(),
     snapshot,
+    observation_revision,
     canonical_issue: {
       number: item.content.number,
       url: item.content.url,
@@ -1613,7 +1624,9 @@ export function deriveExecutionContext(
       reported_runner: runner,
       current_requirements: latest
         ? latest.record.snapshot.revision === snapshot.revision
-          ? "recorded consumed"
+          ? latest.record.observation_revision === observation_revision
+            ? "recorded consumed"
+            : "raw observation changed; may be editorial, compare before claiming current consumption"
           : "pending comparison"
         : "unknown",
       last_record: latest
@@ -1632,6 +1645,15 @@ export function deriveExecutionContext(
         "Reported consumption is separate from verified worker activity, invocation and accepted reservation. An absent recent record does not prove no pickup.",
     },
   };
+}
+
+function executionObservation(item, relationships) {
+  return digest({
+    scope: [item.content.title, item.content.body],
+    prerequisites: relationships.blockedBy
+      .map((node) => ({ id: node.id, title: node.title, body: node.body }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+  });
 }
 
 export function consumedReference(comment, { repository, runner, issue }) {
@@ -1668,6 +1690,8 @@ export function executeConsumption({
   apply = false,
 }) {
   validateExecutionSnapshot(context?.snapshot);
+  if (!/^[a-f0-9]{64}$/.test(context.observation_revision ?? ""))
+    throw new Error("context requires the full raw observation identity");
   if (context.snapshot.repository !== config.repository)
     throw new Error("context belongs to another repository");
   if (context.pickup?.reported_runner !== runner)
@@ -1679,7 +1703,10 @@ export function executeConsumption({
   const comments = client.coordinationRecords({ complete: true });
   const live = client.executionIssue(context.snapshot.issue.number);
   const current = executionSnapshot(config, live.item, live.relationships);
-  if (current.revision !== context.snapshot.revision)
+  if (
+    current.revision !== context.snapshot.revision ||
+    executionObservation(live.item, live.relationships) !== context.observation_revision
+  )
     throw new Error(
       "Consumed snapshot is stale. Read context, compare the actual delta and record current consumption; this is not a rejection of the source candidate.",
     );

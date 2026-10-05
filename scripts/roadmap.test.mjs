@@ -346,6 +346,11 @@ test("literal blank lines and boundary spaces invalidate stale consumption with 
     ["```sh\ncat <<'EOF'\na\n\nb\nEOF\n```", "```sh\ncat <<'EOF'\na\nb\nEOF\n```"],
     ["    a\n\n    b", "    a\n    b"],
     ["    printf 'trailing spaces'  ", "    printf 'trailing spaces' "],
+    [
+      "## Delivered evidence\n```sh\ncat <<'EOF'\n```json\n[target](https://example.com/first)\nEOF\n```",
+      "## Delivered evidence\n```sh\ncat <<'EOF'\n```json\n[target](https://example.com/second)\nEOF\n```",
+    ],
+    ["Use `a\n\nb`", "Use `a\nb`"],
   ]) {
     const scenario = consumptionClient();
     scenario.context = pickupContext(pickupIssue(1104, before));

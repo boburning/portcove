@@ -376,7 +376,12 @@ A trusted withdrawal or applicable safety stop prevents further unauthorized
 execution/acceptance at the safest boundary while preserving work and evidence.
 Editorial changes and ordinary progress do not restart an attempt. The hash
 normalizes formatting/check marks and bare links in named evidence sections;
-other prose may still flag comparison. It is not a semantic diff. Read the full
+other prose may still flag comparison. It is not a semantic diff. A separate raw
+observation hash guards receipt freshness, including literal content the comparison
+hint may normalize. A raw-only difference does not establish a substantive change;
+compare it, refresh the disposable context, and skip acknowledgment for routine
+evidence/editorial changes. Neither hash causes dispatch, invalidation or a comment.
+Read the full
 current specification even when hashes match, including applicable owner direction
 outside the issue. Reconcile the actual source head and relevant target drift
 through the existing delivery guards; no new acceptance exemption is created.
@@ -387,7 +392,9 @@ and plan `just roadmap-acknowledge --context-file <path> --runner <identity>
 --json`; add `--apply` only for authorized recording. It refreshes the selected
 requirements, searches count-checked coordination history before creating a new
 record, writes only #793 and verifies the exact readback. The same runner/revision
-is a no-op. A stale checkpoint requires a fresh comparison, not rejection of sound
+and raw observation is a no-op. Record only actual material consumption; do not
+call the write path for routine progress or editorial changes. A stale checkpoint
+requires a fresh comparison, not rejection of sound
 work. Ambiguous writes are read back without an automatic repeat; preserve an
 unconfirmed pending body in the handoff. Example acknowledgment:
 **Observed #N revision R; compared the changed acceptance; continuing/repairing/
