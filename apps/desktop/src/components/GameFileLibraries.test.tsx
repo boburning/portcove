@@ -3,7 +3,11 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
-import { useGameFileScan } from "../features/game-file-discovery/use-game-file-scan";
+import {
+  GameFileScanProvider,
+  useGameFileScan,
+  useGameFileScanObserver,
+} from "../features/game-file-discovery/use-game-file-scan";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
 import * as picker from "../file-picker";
 import { portDefinition, portStatus } from "../test-fixtures";
@@ -592,7 +596,6 @@ it("retains a progressive scan across selected game details without starting ano
     });
   });
   function WorkspaceJourney() {
-    const gameFileScan = useGameFileScan();
     const [details, setDetails] = useState(false);
     return details ? (
       <button onClick={() => setDetails(false)}>Back to settings</button>
@@ -601,12 +604,17 @@ it("retains a progressive scan across selected game details without starting ano
         ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
         profiles={[]}
         registeredSources={[source]}
-        gameFileScan={gameFileScan}
         onOpenPort={() => setDetails(true)}
       />
     );
   }
-  await act(async () => root.render(<WorkspaceJourney />));
+  await act(async () =>
+    root.render(
+      <GameFileScanProvider>
+        <WorkspaceJourney />
+      </GameFileScanProvider>,
+    ),
+  );
   await click("Scan saved folders");
   await act(async () => {
     emit?.({
@@ -776,14 +784,26 @@ it("disposes scan observation with its workspace and ignores old events and comp
     return new Promise((resolve) => finishes.push(resolve));
   });
   function Owner() {
-    scan = useGameFileScan();
+    scan = useGameFileScanObserver();
     return null;
   }
-  await act(async () => root.render(<Owner key="old-library" />));
+  await act(async () =>
+    root.render(
+      <GameFileScanProvider key="old-library">
+        <Owner />
+      </GameFileScanProvider>,
+    ),
+  );
   await act(async () => {
     void scan?.start();
   });
-  await act(async () => root.render(<Owner key="new-library" />));
+  await act(async () =>
+    root.render(
+      <GameFileScanProvider key="new-library">
+        <Owner />
+      </GameFileScanProvider>,
+    ),
+  );
   await act(async () => {
     void scan?.start();
   });
@@ -834,13 +854,11 @@ it("retains a scan failure that arrives while selected game details are open", a
     });
   });
   function Journey() {
-    const scan = useGameFileScan();
     const [details, setDetails] = useState(false);
     return details ? (
       <button onClick={() => setDetails(false)}>Back to settings</button>
     ) : (
       <GameFileLibraries
-        gameFileScan={scan}
         profiles={[]}
         registeredSources={[source]}
         ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
@@ -848,7 +866,13 @@ it("retains a scan failure that arrives while selected game details are open", a
       />
     );
   }
-  await act(async () => root.render(<Journey />));
+  await act(async () =>
+    root.render(
+      <GameFileScanProvider>
+        <Journey />
+      </GameFileScanProvider>,
+    ),
+  );
   await click("Scan saved folders");
   await act(async () =>
     emit?.({

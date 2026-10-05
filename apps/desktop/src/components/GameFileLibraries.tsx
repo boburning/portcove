@@ -3,7 +3,7 @@ import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
 import {
-  useGameFileScan,
+  useGameFileScanObserver,
   gameFileScanLimits as scanLimits,
   maxAvailableRootsPerScan,
   availableRootCount,
@@ -524,6 +524,30 @@ function useSavedFolderView(setError: (error: string) => void) {
   return { roots, snapshot, setSnapshot, readConfirmed, refresh };
 }
 
+function useCompletedScanView(
+  scanState: GameFileScan,
+  { refresh, setSnapshot }: ReturnType<typeof useSavedFolderView>,
+  setError: (error: string) => void,
+) {
+  const [viewCompletion, setViewCompletion] = useState(0);
+  useEffect(() => {
+    if (!scanState.completion || scanState.scanning) return;
+    let observing = true;
+    if (scanState.result) setSnapshot(scanState.result);
+    void refresh()
+      .catch((value: unknown) => {
+        if (observing) setError(errorText(value));
+      })
+      .finally(() => {
+        if (observing) setViewCompletion(scanState.completion);
+      });
+    return () => {
+      observing = false;
+    };
+  }, [scanState.completion, scanState.result, scanState.scanning, refresh, setSnapshot, setError]);
+  return viewCompletion;
+}
+
 export function GameFileLibraries({
   ports,
   profiles,
@@ -534,11 +558,9 @@ export function GameFileLibraries({
   onOpenPort,
   setupSource,
   setSetupSource,
-  gameFileScan,
 }: {
   ports: PortDefinition[];
   profiles: SourceProfile[];
-  gameFileScan?: GameFileScan;
   registeredSources?: SourceRecord[];
   statuses?: ReadonlyMap<string, PortStatus>;
   workspaceRefreshFailed?: boolean;
@@ -548,12 +570,12 @@ export function GameFileLibraries({
   setSetupSource?: (source?: SourceRecord) => void;
 }) {
   const [busy, setBusy] = useState("");
-  const localScan = useGameFileScan();
-  const scanState = gameFileScan ?? localScan;
+  const scanState = useGameFileScanObserver();
   const { scanning, operationId, candidates: liveCandidates } = scanState;
-  const [viewCompletion, setViewCompletion] = useState(0);
   const [error, setError] = useState<string>();
-  const { roots, snapshot, setSnapshot, readConfirmed, refresh } = useSavedFolderView(setError);
+  const view = useSavedFolderView(setError);
+  const { roots, snapshot, readConfirmed, refresh } = view;
+  const viewCompletion = useCompletedScanView(scanState, view, setError);
   const [notice, setNotice] = useState<string>();
   const [removingId, setRemovingId] = useState<string>();
   const [plan, setPlan] = useState<SourceImportPlan>();
@@ -693,21 +715,6 @@ export function GameFileLibraries({
     setNotice(undefined);
     return scanState.start(refresh);
   };
-  useEffect(() => {
-    if (!scanState.completion || scanning) return;
-    let observing = true;
-    if (scanState.result) setSnapshot(scanState.result);
-    void refresh()
-      .catch((value: unknown) => {
-        if (observing) setError(errorText(value));
-      })
-      .finally(() => {
-        if (observing) setViewCompletion(scanState.completion);
-      });
-    return () => {
-      observing = false;
-    };
-  }, [scanState.completion, scanState.result, scanning, refresh, setSnapshot]);
   const review = (candidate: Pick<SourceRecord, "profile_id" | "path">) =>
     run(
       "Checking game files…",

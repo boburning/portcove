@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { desktopApi } from "../../api";
 import type { GameFileRoot, GameFileScanSnapshot, SourceRecord } from "../../types";
 import { errorText, isCancellation } from "../../view-model";
@@ -111,3 +119,16 @@ export function useGameFileScan() {
 }
 
 export type GameFileScan = ReturnType<typeof useGameFileScan>;
+
+const GameFileScanContext = createContext<GameFileScan | undefined>(undefined);
+
+export function GameFileScanProvider({ children }: { children: ReactNode }) {
+  const scan = useGameFileScan();
+  return createElement(GameFileScanContext.Provider, { value: scan }, children);
+}
+
+export function useGameFileScanObserver() {
+  const workspace = useContext(GameFileScanContext);
+  const standalone = useGameFileScan();
+  return workspace ?? standalone;
+}
