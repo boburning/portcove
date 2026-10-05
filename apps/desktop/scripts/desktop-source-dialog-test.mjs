@@ -103,7 +103,22 @@ async function progressiveScanNavigation({
       await browser.wait(until.elementLocated(button(`View ${port.name} details`)), 5_000);
       assert.equal(await browser.findElement(button("Scan saved folders")).isEnabled(), false);
       assert.equal(await browser.findElement(button("Cancel scan")).isEnabled(), true);
-      assert.equal(await browser.findElement(button("Relink")).isEnabled(), false);
+      const ownedRelink = await browser.wait(
+        () =>
+          browser.executeScript((rootPath) => {
+            const row = [...document.querySelectorAll(".source-health-row")].find(
+              (item) => item.querySelector("code")?.textContent === rootPath,
+            );
+            return (
+              [...(row?.querySelectorAll("button") ?? [])].find(
+                (item) => item.textContent.trim() === "Relink",
+              ) ?? null
+            );
+          }, root.path),
+        5_000,
+        "The remounted saved-folder read must expose the owned root's Relink control",
+      );
+      assert.equal(await ownedRelink.isEnabled(), false);
       assert.equal(
         await browser.executeScript(() => window.__portcoveProgressiveScanProbe.injected),
         1,
@@ -132,6 +147,27 @@ async function progressiveScanNavigation({
         path.join(output, "progressive-scan-return-accessibility.json"),
         artifacts,
       );
+    } catch (error) {
+      try {
+        const dom = path.join(output, "progressive-scan-failure-before-cleanup.html");
+        await writeFile(
+          dom,
+          await browser.executeScript(() => document.documentElement.outerHTML),
+          {
+            flag: "wx",
+          },
+        );
+        artifacts.push(dom);
+        const screenshot = path.join(output, "progressive-scan-failure-before-cleanup.png");
+        await writeFile(screenshot, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(screenshot);
+      } catch (captureError) {
+        observations.failure_capture_error = String(captureError);
+      }
+      throw error;
     } finally {
       Object.assign(
         observations,
