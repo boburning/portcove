@@ -197,6 +197,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-closed-preparation-recovery",
+    "Ordinary Windows host close during live preparation preserves originals and exposes uncertain recovery safely.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-minimized-preparation-continuity",
     "Live Windows preparation completes while minimized and restores authoritative ready state.",
     {
@@ -469,6 +479,11 @@ export function resolveDesktopSelection({
     throw new Error("native-startup-library-recovery requires one exact standalone scenario");
   if (uniqueRequested.includes("native-library-switch-recovery") && uniqueRequested.length !== 1)
     throw new Error("native-library-switch-recovery requires one exact standalone scenario");
+  if (
+    uniqueRequested.includes("native-closed-preparation-recovery") &&
+    uniqueRequested.length !== 1
+  )
+    throw new Error("native-closed-preparation-recovery requires one exact standalone scenario");
   const nonRunnable = uniqueRequested.filter((id) => !desktopScenarioById.get(id).runnable);
   if (!selectedProfile && nonRunnable.length)
     throw new Error(`${nonRunnable.join(", ")} is an acceptance gap, not a runnable scenario`);

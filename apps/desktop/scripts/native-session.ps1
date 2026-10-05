@@ -1,5 +1,5 @@
 param(
-    [Parameter(Mandatory)][ValidateSet('Snapshot', 'SnapshotDriver', 'SnapshotDriverTree', 'SnapshotApplication', 'ApplicationListener', 'StopApplication', 'StopDriver', 'Wait')][string]$Mode,
+    [Parameter(Mandatory)][ValidateSet('Snapshot', 'SnapshotDriver', 'SnapshotDriverTree', 'SnapshotApplication', 'ApplicationListener', 'RequestClose', 'Observe', 'StopApplication', 'StopDriver', 'Wait')][string]$Mode,
     [int]$DriverProcessId,
     [string]$ApplicationPath,
     [int]$ExpectedParentProcessId,
@@ -74,6 +74,52 @@ if ($Mode -eq 'Snapshot' -or $Mode -eq 'SnapshotDriver' -or $Mode -eq 'SnapshotD
     exit
 }
 $snapshot = Get-Content -LiteralPath $SnapshotPath -Raw | ConvertFrom-Json
+if ($Mode -eq 'Observe') {
+    $observed = foreach ($record in $snapshot.processes) {
+        $process = try { [Diagnostics.Process]::GetProcessById([int]$record.pid) } catch [ArgumentException] { $null }
+        $state = 'exited'
+        if ($process) {
+            try {
+                if ($process.StartTime.ToFileTimeUtc() -eq $record.started_filetime) {
+                    if (-not [string]::Equals($process.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured process path changed during observation.' }
+                    $state = 'running'
+                }
+            } catch [InvalidOperationException] {
+                if (-not $process.HasExited) { throw }
+            } finally { $process.Dispose() }
+        }
+        [pscustomobject]@{ pid = $record.pid; started_filetime = $record.started_filetime; path = $record.path; state = $state }
+    }
+    [pscustomobject]@{ observed_at = [DateTime]::UtcNow.ToString('o'); processes = @($observed) } | ConvertTo-Json -Depth 4 -Compress
+    exit
+}
+if ($Mode -eq 'RequestClose') {
+    $records = @($snapshot.processes | Where-Object pid -eq $snapshot.application_pid)
+    if ($records.Count -ne 1 -or $snapshot.application_pid -eq $snapshot.driver.pid -or
+        -not [string]::Equals($records[0].path, (Resolve-Path -LiteralPath $ApplicationPath).Path, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Exactly one captured owned application is required for ordinary close.'
+    }
+    $driver = try { [Diagnostics.Process]::GetProcessById([int]$snapshot.driver.pid) } catch [ArgumentException] { $null }
+    if (-not $driver) { throw 'Captured driver exited before ordinary close.' }
+    try {
+        if ($driver.StartTime.ToFileTimeUtc() -ne $snapshot.driver.started_filetime -or
+            -not [string]::Equals($driver.MainModule.FileName, $snapshot.driver.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured driver identity changed before ordinary close.' }
+    } finally { $driver.Dispose() }
+    $record = $records[0]
+    $process = try { [Diagnostics.Process]::GetProcessById([int]$record.pid) } catch [ArgumentException] { $null }
+    if (-not $process) { throw 'Captured application exited before ordinary close.' }
+    try {
+        if ($process.StartTime.ToFileTimeUtc() -ne $record.started_filetime -or
+            -not [string]::Equals($process.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Captured application identity changed before ordinary close.'
+        }
+        if (-not $process.CloseMainWindow()) { throw 'The ordinary close message was not sent; no enabled main window was found.' }
+        # A sent native close request is not evidence that the application exited.
+        # The caller retains a distinct identity-bound Wait observation.
+        [pscustomobject]@{ requested_at = [DateTime]::UtcNow.ToString('o'); application_pid = $process.Id; started_filetime = $record.started_filetime; method = 'identity-bound-native-main-window-close-request'; message_sent = $true } | ConvertTo-Json -Compress
+    } finally { $process.Dispose() }
+    exit
+}
 if ($Mode -eq 'ApplicationListener') {
     if ($snapshot.root_kind -ne 'direct-application' -or $Port -lt 1 -or $Port -gt 65535) { throw 'Invalid embedded listener identity request.' }
     $entry = Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$snapshot.driver.pid)"
