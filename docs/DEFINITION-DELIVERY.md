@@ -720,3 +720,21 @@ These tests establish client loading and retained lifecycle behavior without
 production credentials. Automatic unchanged-client publication, signed readback
 and production refusal/recovery remain #246 acceptance and do not belong to the
 client implementation boundary.
+
+The existing compiled adapter-conformance route also consumes the signed managed
+ordinary-release fixture. It builds and hashes CLI and Desktop once before any
+fixture publication, then starts those same binaries in fresh sessions after the
+new definition, both owned artifact installations and both compatible corrections.
+Complete status documents must equal Core and each other; CLI `catalog show` must
+return the corrected content. Desktop evidence remains its actual status projection.
+Authenticated authorization narrowing and restoration cannot revive the retained
+Launch permission. The fixture checks exact installation contracts and player bytes;
+consumer digests must stay unchanged. Existing revoke and invalid-manifest cases
+remain in the route. The opt-in test seam installs only disposable fixture authority
+and uses canonical policy admission and selection. It adds no public trust setter.
+
+This establishes fixture-produced state consumption by unchanged compiled clients,
+not acquisition by those binaries through a production provider, installed GUI
+behavior, automatic protected publication or a real production feed. The owned
+provider override stays test-only. #246/#534 retain production authority, publication
+readback and operation-delivery acceptance.

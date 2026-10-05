@@ -1,6 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { compareStatusSnapshots, parseCliStatuses } from "./adapter-conformance.mjs";
+import {
+  compareConsumerIdentities,
+  compareStatusSnapshots,
+  parseCliStatuses,
+} from "./adapter-conformance.mjs";
+
+test("each compiled consumer keeps its pre-publication identity", () => {
+  const before = { cli: "a".repeat(64), desktop: "b".repeat(64) };
+  assert.doesNotThrow(() => compareConsumerIdentities(before, structuredClone(before)));
+  for (const consumer of ["cli", "desktop"]) {
+    assert.throws(
+      () => compareConsumerIdentities(before, { ...before, [consumer]: "c".repeat(64) }),
+      /compiled consumers changed/,
+    );
+  }
+});
 
 const status = {
   port_id: "fixture",
