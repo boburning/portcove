@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
+import { copyFile, mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileIdentity } from "./development-evidence.mjs";
@@ -39,6 +39,52 @@ import {
   DESKTOP_SCENARIOS,
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
+
+test("external fixture contracts execute without installed native-driver dependencies", async (t) => {
+  // Storage guards can put os.tmpdir() inside an installed workspace. Keep this
+  // small module fixture outside its dependency ancestry and prove resolution fails.
+  const isolation = path.join(os.homedir(), ".cache", "portcove", "node-contracts");
+  await mkdir(isolation, { recursive: true });
+  const root = await mkdtemp(path.join(isolation, "native-contract-import-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const modules = path.join(root, "apps", "desktop", "scripts");
+  const output = path.join(root, "output");
+  await mkdir(modules, { recursive: true });
+  await mkdir(path.join(root, "scripts"));
+  await mkdir(output);
+  for (const file of [
+    "apps/desktop/scripts/desktop-external-runtime-test.mjs",
+    "scripts/development-evidence.mjs",
+  ])
+    await copyFile(file, path.join(root, file));
+  const consumer = path.join(modules, "consumer.mjs");
+  await writeFile(
+    consumer,
+    `
+    import assert from "node:assert/strict";
+    import { readFile } from "node:fs/promises";
+    import path from "node:path";
+    assert.throws(() => import.meta.resolve("selenium-webdriver"), { code: "ERR_MODULE_NOT_FOUND" });
+    const { createExternalRuntimeFixture, externalFixtureTreeDigest } =
+      await import("./desktop-external-runtime-test.mjs");
+    const fixture = await createExternalRuntimeFixture(process.argv[2]);
+    const files = new Map(await Promise.all(["game.exe", "unknown-save.bin"].map(async name =>
+      [name, await readFile(path.join(fixture.directory, name))])));
+    assert.equal(fixture.port.release.user_prepared["windows-x86-64"].immutable_tree_sha256,
+      externalFixtureTreeDigest(files));
+    assert.equal(fixture.identities.length, 3);
+    console.log("dependency-free fixture contracts passed");
+  `,
+  );
+  const result = spawnSync(process.execPath, [consumer, output], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 30_000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /dependency-free fixture contracts passed/);
+});
 
 test("external runtime qualification is standalone and keeps a source-free inert tree", async (t) => {
   const id = "native-external-runtime-review";
@@ -128,6 +174,9 @@ test("external picker observation leaves immutable Tauri internals untouched and
     };
     const action = externalRuntimePickerObservation({
       browser,
+      By: { xpath: (value) => ({ value }), id: (value) => ({ value }) },
+      Key: { chord: (...keys) => keys.join(""), CONTROL: "control", BACK_SPACE: "backspace" },
+      until: { elementLocated: (locator) => locator },
       fixture,
       observePicker: async () => {
         assert.equal(chosen, 1);
@@ -149,6 +198,7 @@ test("external runtime journey retains a failed dispatcher picker phase before l
   await assert.rejects(
     externalRuntimeReviewScenario({
       output,
+      By: { xpath: (value) => ({ value }) },
       artifacts,
       fixture: await createExternalRuntimeFixture(output),
       pickerObservation: Promise.reject(failure),
