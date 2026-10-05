@@ -582,7 +582,7 @@ include completed Alpha 1/2 history and Public beta; 1.0 includes all historical
 stages and both current milestones. Active legacy targets are migration conflicts.
 These cumulative declarations are separate from routine candidate safety checks. `Target release`
 is a forecast; `Release commitment` controls the gate. The generator follows
-genuine transitive blocking relationships and reports later, Opportunistic,
+genuine transitive blocking relationships and reports later, Planned,
 unclassified, or Project-missing dependencies as conflicts. Parentage and
 related-work links do not block a release. Relevant unclassified work and known
 shipped-scope safety conflicts prevent a falsely green result, while unrelated
