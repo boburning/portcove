@@ -9371,6 +9371,7 @@ fn main() {
         let library = Library::open(&library_root).unwrap();
         let external = temporary.path().join("player owned runtime");
         fs::create_dir(&external).unwrap();
+        let expected_external = fs::canonicalize(&external).unwrap();
         fs::write(external.join("DKC3Recomp.exe"), b"inert executable fixture").unwrap();
         fs::write(external.join("SDL2.dll"), b"inert immutable dependency").unwrap();
         fs::create_dir(external.join("saves")).unwrap();
@@ -9464,8 +9465,8 @@ fn main() {
         };
         let launch = prepare(None).unwrap();
         assert_eq!(launch.arguments, [source.to_str().unwrap()]);
-        assert_eq!(launch.executable, external.join("DKC3Recomp.exe"));
-        assert_eq!(launch.working_directory, external);
+        assert_eq!(launch.executable, expected_external.join("DKC3Recomp.exe"));
+        assert_eq!(launch.working_directory, expected_external);
         assert_eq!(
             launch.environment,
             [("SNESRECOMP_NO_LAUNCHER".into(), "1".into())].into()
