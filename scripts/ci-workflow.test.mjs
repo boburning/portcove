@@ -1460,7 +1460,11 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'",
     'success-output = "immediate"',
   ]);
-  assert.doesNotMatch(outputOverrides[0], /slow-timeout|retries|threads-required|priority/);
+  assert.match(
+    outputOverrides[0],
+    /^slow-timeout = \{ period = "5s", terminate-after = 18, grace-period = "0s" \}$/m,
+  );
+  assert.doesNotMatch(outputOverrides[0], /retries|threads-required|priority/);
   assert.doesNotMatch(config.split("[[profile.default.overrides]]")[0], /success-output/);
   const repository = await readFile(
     new URL("../crates/portcove-core/src/definition_repository.rs", import.meta.url),
@@ -1511,8 +1515,15 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     config,
     /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
   );
+  const budgetOverrides = config
+    .split("[[profile.default.overrides]]")
+    .slice(1)
+    .filter((override) => /slow-timeout/.test(override));
+  assert.equal(budgetOverrides.length, 1);
+  assert.equal(budgetOverrides[0], outputOverrides[0]);
   for (const override of config.split("[[profile.default.overrides]]").slice(1)) {
-    assert.doesNotMatch(override, /slow-timeout|retries/);
+    assert.doesNotMatch(override, /retries/);
+    if (override !== budgetOverrides[0]) assert.doesNotMatch(override, /slow-timeout/);
   }
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
