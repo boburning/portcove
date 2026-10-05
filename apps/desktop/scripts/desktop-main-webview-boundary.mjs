@@ -266,7 +266,7 @@ async function readyMainContext({ browser, invoke, library }) {
   };
 }
 
-export async function assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations }) {
+async function assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations }) {
   // An origin-root URL keeps the expected resource unambiguous even when an
   // engine strips cross-origin report paths. This server is owned by this run.
   const attempted = new URL("/", fixtureUrl).href;

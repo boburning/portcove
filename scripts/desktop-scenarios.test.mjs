@@ -10,7 +10,6 @@ import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
   normalPackageBoundaryScenario,
-  assertRemoteFrameCsp,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
@@ -207,28 +206,43 @@ test("cancelled navigation permits only observed GETs and never popup or executi
     assert.throws(() => assertOwnedBoundaryRequests([invalid]));
 });
 
-test("owned frame CSP requires a trusted enforced event and removes its frame/listener/timer", async () => {
+test("owned frame CSP requires a trusted enforced event and removes its frame/listener/timer", async (t) => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-frame-boundary-"));
+  t.after(() => rm(outputRoot, { recursive: true, force: true }));
   const library = path.resolve("work", "frame-boundary-library");
   const url = "http://tauri.localhost/";
-  const fixtureUrl = "http://127.0.0.1:43210/untrusted";
-  const expected = "http://127.0.0.1:43210/";
   const valid = {
     isTrusted: true,
     effectiveDirective: "frame-src",
     disposition: "enforce",
-    blockedURI: expected,
+    blockedURI: "owned-frame",
     documentURI: url,
     originalPolicy: "default-src 'self'",
   };
   async function run(events, { changedContext = false, failSetup = false } = {}) {
+    const output = await mkdtemp(path.join(outputRoot, "case-"));
     const listeners = new Set();
     const timers = new Set();
     const frames = [];
-    const observations = {};
     let attempts = 0;
     let appended = false;
-    const invoke = async (command) =>
-      command === "get_bootstrap_status"
+    const invoke = async (command) => {
+      if (command === "get_locale_preference")
+        throw new Error("Contract fixture stops after frame guard");
+      if (command === "set_locale_preference") return { ok: true, value: null };
+      if (command.startsWith("open_"))
+        return {
+          ok: false,
+          error: {
+            code: command === "open_external_url" ? "usage" : "not_found",
+            message:
+              command === "open_external_url"
+                ? "only reviewed project, artwork source and GitHub sign-in links may be opened"
+                : "unknown source evidence id: portcove-boundary-unknown-evidence",
+          },
+        };
+      if (command.includes("boundary")) return { ok: false, error: `command ${command} not found` };
+      return command === "get_bootstrap_status"
         ? {
             ok: true,
             value: {
@@ -240,10 +254,15 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
             },
           }
         : { ok: true, value: { id: "owned-library", root: library } };
+    };
+    let scriptCalls = 0;
     const browser = {
       getCurrentUrl: async () => url,
-      executeAsyncScript: (callback, attempted) =>
-        new Promise((resolve) => {
+      manage: () => ({ setTimeouts: async () => {} }),
+      executeScript: async () => (++scriptCalls === 1 ? {} : [url]),
+      executeAsyncScript: (callback, attempted) => {
+        if (attempted === undefined) return {};
+        return new Promise((resolve) => {
           const document = {
             createElement: (tag) => {
               assert.equal(tag, "iframe");
@@ -268,10 +287,15 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
               append(frame) {
                 appended = true;
                 attempts++;
-                assert.equal(frame.src, expected);
+                assert.equal(frame.src, attempted);
                 if (failSetup) throw new Error("Owned fixture append failed");
                 frame.isConnected = true;
-                for (const event of events) for (const listener of [...listeners]) listener(event);
+                for (const event of events)
+                  for (const listener of [...listeners])
+                    listener({
+                      ...event,
+                      blockedURI: event.blockedURI === "owned-frame" ? attempted : event.blockedURI,
+                    });
                 // Advance the fixture's virtual deadline, without a real wait.
                 for (const timer of [...timers]) timer();
               },
@@ -293,14 +317,25 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
             },
             { timeout: 1000 },
           );
-        }),
+        });
+      },
     };
     let error;
     try {
-      await assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations });
+      await normalPackageBoundaryScenario({
+        browser,
+        invoke,
+        library,
+        output,
+        artifacts: [],
+        packageEvidence: { fixture: true },
+      });
     } catch (caught) {
-      error = caught;
+      if (caught.message !== "Contract fixture stops after frame guard") error = caught;
     }
+    const observations = JSON.parse(
+      await readFile(path.join(output, "normal-package-boundary.json")),
+    );
     assert.equal(attempts, 1);
     assert.equal(frames.length, 1);
     assert.equal(frames[0].isConnected, false);
@@ -318,7 +353,8 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
   ];
   const positive = await run([...wrong, valid]);
   assert.equal(positive.error, undefined);
-  assert.equal(positive.observations.cspFrame.attempted, expected);
+  assert.equal(new URL(positive.observations.cspFrame.attempted).hostname, "127.0.0.1");
+  assert.equal(new URL(positive.observations.cspFrame.attempted).pathname, "/");
   assert.deepEqual(positive.observations.cspFrame.after, positive.observations.cspFrame.before);
   for (const events of [[], ...wrong.map((event) => [event])]) {
     const rejected = await run(events);
