@@ -313,11 +313,32 @@ view is never the universal task selector. Deferred work remains inactive.
 
 At a clean handoff, preserve healthy reservations and select useful disjoint work
 across two cloud implementation lanes and the local runner, with independent
-non-writing review. Rotate coverage of required product/delivery, the full frozen
-ports rollout, and bounded acceleration or other Planned work; these are not
-permanent machine roles, quotas or permission to leave a capable lane idle.
-A concrete acceleration that unblocks several lanes may come first. Do not let
-all lanes indefinitely improve tooling while product delivery stalls.
+non-writing review. The objective is finishing the agreed beta: favor an accepted
+beta outcome's exact remaining acceptance, a demonstrated prerequisite for several
+beta outcomes or fitting frozen-cohort routes, or an actual implementation, review,
+validation, integration or release bottleneck. Immediate safety/data-loss problems
+and broken required validation retain precedence. This replaces rotation or
+acceleration-first interpretations that indefinitely favor unrelated useful work.
+
+Required alone is not a scheduling algorithm. A Planned task may be the best beta
+accelerator; compare relevance, real dependencies, capable routes, accepted
+ownership and expected benefit. Use existing Priority, Horizon and Project order,
+not a new score or queue. Productive unrelated work remains eligible when no
+available higher-value beta work can use that capacity. No fixed machine roles,
+quotas, universal local-integration bottleneck or permission to leave a capable
+lane idle is introduced. Apply reordered work only at safe boundaries.
+
+For each selected outcome credit delivered acceptance, name the exact remaining
+gap and select one bounded implementation or proof advancing closure. Identify
+the applicable validation route and missing native/package scenario before
+implementation where practical; arrange proof alongside the implementation.
+Reuse adequate evidence at its actual inputs and scope across consuming owners,
+without copying receipts or repeating qualification solely for multiple parents.
+Small coherent PRs may advance an outcome in parallel through disjoint ownership.
+Architecture inventory rows end in implemented, replaced/removed, or an
+evidence-backed satisfactory/compatibility-retained disposition; file size alone
+does not justify another required refactor. Design-system closure uses accepted
+surfaces/states/references, not reopened stack selection or new aesthetic goals.
 
 Every actionable Now/Next item has either an accepted assignment in #793 or an
 ordered queue position from the live Project behind named work. Queue predecessors
@@ -335,10 +356,14 @@ existing worker/reviewer models, add paid capacity, or require #284. Acceleratio
 issues identify a demonstrated delay, bounded repair and completion/no-change
 decision. New tiny improvements cannot keep one outcome open indefinitely.
 
-The existing nightly development report should show material Required and Planned
-delivery, accepted assignments, actual blockers, and Ready Now/Next work repeatedly
-passed over, the reason and named predecessor. This changes report content; it
-creates no new recurring automation and does not prove instructions were adopted.
+The existing nightly development report leads with accepted beta outcomes advanced,
+frozen-cohort useful-route/final-disposition progress, and actual blockers or
+acceptance queues. Show material Required and Planned delivery, accepted
+assignments and repeatedly passed-over Ready Now/Next work with reasons and named
+predecessors. Separate scope additions and bookkeeping corrections from delivered
+acceptance; PR totals are supporting activity, not a release forecast. Reuse the
+existing cadence and receipts, with no mandatory daily census, new reporting
+service or recurring automation. Instructions alone do not prove adoption.
 
 ## Pickup, consumption and execution upkeep
 
@@ -424,8 +449,15 @@ Use existing fields, not another status system. Create a separate issue through
 supported intake only for independent ownership/scheduling/acceptance. Optional
 discoveries do not become blocking children or release gates. A small repair may
 join an owned branch only within its approved scope and proportionate review.
-Prioritize finite evidenced acceleration that removes recurring friction or
-unblocks several approved outcomes; do not turn it into an environment program.
+Execute an improvement before beta when it is a necessary repair, a safe bounded
+part of current approved work, or a demonstrated recurring bottleneck likely to
+repay implementation and qualification cost during remaining beta work. Favor
+repairs unlocking several tasks or batches and record a brief qualitative reason;
+do not invent savings or require formal estimates for small fixes. Capture does
+not approve execution or expanded scope. Schedule speculative optimization, broad
+fixture campaigns and optional refactoring later unless this test justifies them,
+preserving approved status and discoverability. Keep acceleration finite rather
+than turning a product repair into an environment program.
 
 Distinguish product prerequisites from a runner's missing route, permission or
 resource. Record the exact affected obligation, attempted remedies or why none

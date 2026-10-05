@@ -59,17 +59,25 @@ head.
 
 Use the live Project's common `roadmap.mjs next` queue for Required and Planned
 work. Commitment controls release readiness, never blanket execution eligibility.
-At clean handoffs, preserve accepted reservations and rotate useful coverage of
-required product/delivery, full-backlog port rollout, and bounded acceleration or
-other Planned work across two cloud lanes plus local; no fixed roles or idle quota.
+At clean handoffs, preserve healthy accepted reservations and favor completion of
+accepted beta outcomes, exact remaining acceptance, demonstrated prerequisites
+for several beta outcomes or fitting frozen-cohort routes, and actual delivery
+bottlenecks. Immediate safety/data-loss problems and broken required validation
+come first. A Planned task can be the best beta accelerator; commitment alone is
+not a scheduling algorithm. Use relevance, dependencies, capability and ownership
+across two cloud lanes plus local; no fixed roles or idle quota. Unrelated approved
+work remains eligible when no higher-value available beta work can use that lane.
 Each actionable Now/Next item has an accepted assignment or an ordered position
 behind named work. Scheduling predecessors are not blockers; recommendations
 are not reservations. Record concrete pass-over reasons and resume conditions in
 #793, prefer older comparable executable work, and report repeated deferrals in
 the existing nightly report. Being Planned is never a pass-over reason.
-Prioritize concrete development acceleration, bound it to completion/no-change,
-and preserve real resource guards, independent review and current model/cost
-choices. Do not serialize disjoint lanes or preempt healthy work.
+Execute acceleration before beta when it is a necessary repair, a safe bounded
+part of approved work, or an evidenced recurring bottleneck likely to repay its
+implementation and qualification cost during remaining beta delivery. Capture
+speculative improvements with their canonical owner and later disposition.
+Preserve real resource guards, independent review and current model/cost choices.
+Do not serialize disjoint lanes or preempt healthy work.
 See `docs/PROJECT-GOVERNANCE.md` for the complete selection/reporting rule.
 
 ## Maintaining the roadmap
