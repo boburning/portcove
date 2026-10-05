@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { lstat, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
 const EXTERNAL_FIXTURE_ID = "portcove-external-runtime-fixture";
@@ -82,7 +81,14 @@ export async function createExternalRuntimeFixture(output) {
   return { directory, port, catalogPath, identities };
 }
 
-export async function externalRuntimePickerObservation({ browser, fixture, observePicker }) {
+export async function externalRuntimePickerObservation({
+  browser,
+  fixture,
+  observePicker,
+  By,
+  Key,
+  until,
+}) {
   await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, fixture.port.name);
@@ -115,6 +121,8 @@ export async function externalRuntimeReviewScenario(context) {
     invoke,
     output,
     artifacts,
+    By,
+    until,
   } = context;
   const report = {
     scope: "Private inert external runtime; no executable launch or production artifact",

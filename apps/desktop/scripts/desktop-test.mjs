@@ -1558,6 +1558,8 @@ try {
     };
     await externalRuntimeReviewScenario({
       browser,
+      By,
+      until,
       fixture: externalFixture,
       output,
       artifacts,
@@ -1570,6 +1572,9 @@ try {
       }),
       pickerObservation: externalRuntimePickerObservation({
         browser,
+        By,
+        Key,
+        until,
         fixture: externalFixture,
         observePicker: nativePickerObservation(pickerContext),
       }),
