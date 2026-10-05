@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -8,6 +9,7 @@ import { fileIdentity } from "./development-evidence.mjs";
 import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,
+  externalRuntimePickerObservation,
 } from "../apps/desktop/scripts/desktop-external-runtime-test.mjs";
 import {
   verifyNormalPackageEvidence,
@@ -97,6 +99,74 @@ test("external tree hash is ordered, byte-sensitive and refuses unsafe path decl
   changed.set("a.bin", Buffer.from("aa"));
   assert.notEqual(externalFixtureTreeDigest(first), externalFixtureTreeDigest(changed));
   assert.throws(() => externalFixtureTreeDigest(new Map([["../outside", Buffer.from("x")]])));
+});
+
+test("picker diagnostics forward the original IPC and restore it after success or failure", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-trace-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const refused of [false, true]) {
+    const output = path.join(root, refused ? "refused" : "cancelled");
+    await mkdir(output);
+    const fixture = await createExternalRuntimeFixture(output);
+    const forwarded = [];
+    const ordinaryResult = { untouched: true };
+    const backendFailure = new Error("actual backend refusal");
+    const original = async (...args) => {
+      forwarded.push(args);
+      if (args[0] !== "plugin:dialog|open") return ordinaryResult;
+      if (refused) throw backendFailure;
+      return null;
+    };
+    const window = { __TAURI_INTERNALS__: { invoke: original } };
+    const args = [
+      "plugin:dialog|open",
+      { options: { directory: true, multiple: false } },
+      { custom: "unchanged" },
+    ];
+    const browser = {
+      executeScript: async (fn) => runInNewContext(`(${fn.toString()})()`, { window }),
+      wait: async () => {},
+      findElement: (locator) => ({
+        sendKeys: async () => {},
+        isEnabled: async () => true,
+        click: async () => {
+          if (locator.value.includes("Choose game folder")) {
+            try {
+              assert.equal(await window.__TAURI_INTERNALS__.invoke(...args), null);
+            } catch (error) {
+              assert.equal(error, backendFailure);
+            }
+          }
+        },
+      }),
+    };
+    const artifacts = [];
+    const action = externalRuntimePickerObservation({
+      browser,
+      fixture,
+      output,
+      artifacts,
+      observePicker: async () => {
+        assert.equal(
+          await window.__TAURI_INTERNALS__.invoke("ordinary-command", { unchanged: true }),
+          ordinaryResult,
+        );
+        if (refused) throw new Error("native observation failed");
+        return { cancelled: true };
+      },
+    });
+    if (refused) await assert.rejects(action, /native observation failed/);
+    else assert.equal((await action).cancelled, true);
+    assert.deepEqual(forwarded, [args, ["ordinary-command", { unchanged: true }]]);
+    assert.equal(window.__TAURI_INTERNALS__.invoke, original);
+    assert.equal(window.__portcoveExternalPickerTrace, undefined);
+    const report = JSON.parse(await readFile(artifacts[0], "utf8"));
+    assert.equal(report.restored, true);
+    assert.equal(report.calls.length, 1);
+    assert.equal(report.calls[0].status, refused ? "rejected" : "cancelled");
+    assert.equal(report.calls[0].directory, true);
+    assert.equal(report.calls[0].title_supplied, false);
+  }
 });
 
 test(

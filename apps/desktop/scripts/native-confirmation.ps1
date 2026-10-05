@@ -77,7 +77,7 @@ if ($ObservePicker) {
         $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
         $sampleData = @($roots | ForEach-Object {
             $items = @($_.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
-                $_.Current.ControlType -in @([System.Windows.Automation.ControlType]::Edit, [System.Windows.Automation.ControlType]::Button, [System.Windows.Automation.ControlType]::Window)
+                $_.Current.ProcessId -eq $applicationId -and $_.Current.ControlType -in @([System.Windows.Automation.ControlType]::Edit, [System.Windows.Automation.ControlType]::Button, [System.Windows.Automation.ControlType]::Window)
             })
             [pscustomobject]@{
                 title = $_.Current.Name; handle = $_.Current.NativeWindowHandle; process = $_.Current.ProcessId; class = $_.Current.ClassName
