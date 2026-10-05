@@ -40,6 +40,8 @@ import { assertCompactReview, captureAccessibilityReport } from "./desktop-revie
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
 import {
   createExternalRuntimeFixture,
+  externalFixtureTreeDigest,
+  externalRuntimePickerObservation,
   externalRuntimeReviewScenario,
 } from "./desktop-external-runtime-test.mjs";
 import {
@@ -1286,6 +1288,25 @@ async function driverReady() {
   }
 }
 
+function driverEnvironment(childEnvironment) {
+  const environment = {
+    ...process.env,
+    ...childEnvironment,
+    ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
+    ...(externalFixture ? { PORTCOVE_QUALIFICATION_CATALOG: externalFixture.catalogPath } : {}),
+    ...(selection.prerequisites.includes("steam-fixture")
+      ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
+      : {}),
+    PORTCOVE_LIBRARY: library,
+    PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
+    PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
+    PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
+    PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
+    WEBVIEW2_USER_DATA_FOLDER: profile,
+  };
+  return savedLibraryRecoverySession ? bootstrapRecoveryEnvironment(environment) : environment;
+}
+
 async function startDriver(childEnvironment = {}) {
   ownedSession.beginLaunch();
   const launchStarted = Date.now();
@@ -1303,23 +1324,7 @@ async function startDriver(childEnvironment = {}) {
       windowsHide: true,
       detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
-      env: (savedLibraryRecoverySession
-        ? bootstrapRecoveryEnvironment
-        : (environment) => environment)({
-        ...process.env,
-        ...childEnvironment,
-        ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
-        ...(externalFixture ? { PORTCOVE_QUALIFICATION_CATALOG: externalFixture.catalogPath } : {}),
-        ...(selection.prerequisites.includes("steam-fixture")
-          ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
-          : {}),
-        PORTCOVE_LIBRARY: library,
-        PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
-        PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
-        PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
-        PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
-        WEBVIEW2_USER_DATA_FOLDER: profile,
-      }),
+      env: driverEnvironment(childEnvironment),
     },
   );
   let spawnError;
@@ -1517,6 +1522,21 @@ try {
   }
   if (selection.prerequisites.includes("external-runtime-fixture")) {
     externalFixture = await createExternalRuntimeFixture(output);
+    const declared = JSON.parse(await readFile(externalFixture.catalogPath, "utf8")).ports[0];
+    assert.equal(declared.id, externalFixture.port.id);
+    const prepared = declared.release.user_prepared["windows-x86-64"];
+    const immutableFiles = new Map(
+      await Promise.all(
+        externalFixture.identities
+          .filter((identity) => !prepared.mutable_paths.includes(path.basename(identity.path)))
+          .map(async (identity) => [path.basename(identity.path), await readFile(identity.path)]),
+      ),
+    );
+    assert.equal(
+      externalFixtureTreeDigest(immutableFiles),
+      prepared.immutable_tree_sha256,
+      "Actual prepared fixture bytes must match the declared immutable tree before launch",
+    );
     for (const name of [
       "desktop-external-runtime-test.mjs",
       "desktop-native-confirmation.mjs",
@@ -1548,7 +1568,11 @@ try {
         output,
         artifacts,
       }),
-      observePicker: nativePickerObservation(pickerContext),
+      pickerObservation: externalRuntimePickerObservation({
+        browser,
+        fixture: externalFixture,
+        observePicker: nativePickerObservation(pickerContext),
+      }),
       selectPicker: nativePreparedRuntimePicker(pickerContext),
     });
   });

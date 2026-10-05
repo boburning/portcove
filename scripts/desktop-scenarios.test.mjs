@@ -9,6 +9,7 @@ import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,
   externalRuntimePickerObservation,
+  externalRuntimeReviewScenario,
 } from "../apps/desktop/scripts/desktop-external-runtime-test.mjs";
 import { nativePreparedRuntimePicker } from "../apps/desktop/scripts/desktop-native-confirmation.mjs";
 import {
@@ -138,6 +139,30 @@ test("external picker observation leaves immutable Tauri internals untouched and
     else assert.equal((await action).cancelled, true);
     assert.equal(internals.invoke, original);
   }
+});
+
+test("external runtime journey retains a failed dispatcher picker phase before later actions", async (t) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-phase-failure-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const failure = new Error("Original owned picker phase failed");
+  const artifacts = [];
+  await assert.rejects(
+    externalRuntimeReviewScenario({
+      output,
+      artifacts,
+      fixture: await createExternalRuntimeFixture(output),
+      pickerObservation: Promise.reject(failure),
+      invoke: () => {
+        throw new Error("Later native actions must not run after failed picker cancellation");
+      },
+    }),
+    (error) => error === failure,
+  );
+  const reportPath = path.join(output, "external-runtime-review.json");
+  assert.deepEqual(artifacts, [reportPath]);
+  const report = JSON.parse(await readFile(reportPath, "utf8"));
+  assert.equal(report.error, String(failure));
+  assert.deepEqual(report.steps, []);
 });
 
 test(

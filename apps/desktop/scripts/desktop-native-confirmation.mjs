@@ -25,6 +25,40 @@ async function validatePickerInput({ output, title, button, filePath, directoryP
   }
 }
 
+async function retainPickerResult({ output, artifacts }, name, before, result) {
+  for (const record of [before, `${before}.window-samples.jsonl`, `${before}.close-samples.json`])
+    if (
+      await stat(record).then(
+        () => true,
+        () => false,
+      )
+    )
+      artifacts.push(record);
+  const execution = path.join(output, `${name}-helper-result.json`);
+  await writeFile(
+    execution,
+    JSON.stringify(
+      {
+        status: result.status,
+        signal: result.signal,
+        error: result.error?.message,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      },
+      null,
+      2,
+    ),
+    { flag: "wx" },
+  );
+  artifacts.push(execution);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const observation = JSON.parse(result.stdout);
+  const report = path.join(output, `${name}.json`);
+  await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
+  artifacts.push(report);
+  return observation;
+}
+
 function ownedRuntimePicker({ application, getDriverIdentity, output, artifacts }, select) {
   return async (name, directoryPath) => {
     assert.equal(process.platform, "win32");
@@ -62,37 +96,7 @@ function ownedRuntimePicker({ application, getDriverIdentity, output, artifacts 
       ],
       { encoding: "utf8", windowsHide: true, timeout: 15_000 },
     );
-    for (const record of [before, `${before}.window-samples.jsonl`, `${before}.close-samples.json`])
-      if (
-        await stat(record).then(
-          () => true,
-          () => false,
-        )
-      )
-        artifacts.push(record);
-    const execution = path.join(output, `${name}-helper-result.json`);
-    await writeFile(
-      execution,
-      JSON.stringify(
-        {
-          status: result.status,
-          signal: result.signal,
-          error: result.error?.message,
-          stdout: result.stdout,
-          stderr: result.stderr,
-        },
-        null,
-        2,
-      ),
-      { flag: "wx" },
-    );
-    artifacts.push(execution);
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-    const observation = JSON.parse(result.stdout);
-    const report = path.join(output, `${name}.json`);
-    await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
-    artifacts.push(report);
-    return observation;
+    return retainPickerResult({ output, artifacts }, name, before, result);
   };
 }
 

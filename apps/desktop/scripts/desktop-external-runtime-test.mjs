@@ -5,7 +5,7 @@ import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
-export const EXTERNAL_FIXTURE_ID = "portcove-external-runtime-fixture";
+const EXTERNAL_FIXTURE_ID = "portcove-external-runtime-fixture";
 
 export function externalFixtureTreeDigest(files) {
   const digest = createHash("sha256").update("portcove-external-tree-v1\n");
@@ -109,7 +109,7 @@ export async function externalRuntimeReviewScenario(context) {
   const {
     browser,
     fixture,
-    observePicker,
+    pickerObservation,
     selectPicker,
     confirmNative,
     invoke,
@@ -183,13 +183,8 @@ export async function externalRuntimeReviewScenario(context) {
     path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase() ===
     path.resolve(fixture.directory).toLowerCase();
   try {
-    report.picker_cancel = await externalRuntimePickerObservation({
-      browser,
-      fixture,
-      observePicker,
-      output,
-      artifacts,
-    });
+    report.picker_cancel = await pickerObservation;
+    assert.equal(report.picker_cancel?.cancelled, true);
     report.before = await status();
     assert.ok(!report.before.external_runtime);
     const bootstrap = await invoke("get_bootstrap_status");
