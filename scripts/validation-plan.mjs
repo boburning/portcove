@@ -88,6 +88,7 @@ const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/desktop-default-cover-test.mjs",
   "apps/desktop/scripts/desktop-install-fixture.test.mjs",
   "apps/desktop/scripts/desktop-preparation-test.mjs",
+  "apps/desktop/scripts/desktop-source-dialog-test.mjs",
   "apps/desktop/scripts/desktop-test.mjs",
   "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",
   "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",

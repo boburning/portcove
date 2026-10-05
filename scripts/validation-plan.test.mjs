@@ -85,6 +85,7 @@ test("maintained native scenario consumers retain contracts without unrelated Ru
     "apps/desktop/scripts/desktop-default-cover-test.mjs",
     "apps/desktop/scripts/desktop-install-fixture.test.mjs",
     "apps/desktop/scripts/desktop-preparation-test.mjs",
+    "apps/desktop/scripts/desktop-source-dialog-test.mjs",
     "apps/desktop/scripts/desktop-test.mjs",
     "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",
     "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",
@@ -147,6 +148,29 @@ test("default-cover harness ownership preserves unknown, renamed, product and po
   for (const protectedFile of ["apps/desktop/src-tauri/src/lib.rs", "scripts/validation-plan.mjs"])
     assert.equal(plan([change(cover), change(protectedFile)]).mode, "qualification");
   assert.equal(plan([change(cover, { newMode: "120000" })]).mode, "qualification");
+});
+
+test("source-dialog consumer ownership preserves unknown and mixed authority boundaries", () => {
+  const consumer = "apps/desktop/scripts/desktop-source-dialog-test.mjs";
+  const unknown = "apps/desktop/scripts/future-source-dialog-test.mjs";
+  for (const changes of [
+    [change(consumer), change(unknown)],
+    [change(consumer, { status: "R", newPath: unknown })],
+    [change(unknown, { status: "R", newPath: consumer })],
+  ]) {
+    const selected = plan(changes);
+    assert.deepEqual(selected.groups, fastGroups);
+    assert.ok(selected.fallback.paths.includes(unknown));
+  }
+  const core = plan([change(consumer), change("crates/portcove-core/src/game_file_roots.rs")]);
+  assert.ok(core.groups.includes("rust"));
+  for (const protectedFile of [
+    "apps/desktop/src-tauri/src/lib.rs",
+    "scripts/sign-catalog.mjs",
+    "scripts/validation-plan.mjs",
+  ])
+    assert.equal(plan([change(consumer), change(protectedFile)]).mode, "qualification");
+  assert.equal(plan([change(consumer, { newMode: "120000" })]).mode, "qualification");
 });
 
 test("install fixture test ownership does not narrow its executable consumers", () => {

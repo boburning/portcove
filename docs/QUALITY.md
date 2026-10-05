@@ -473,6 +473,14 @@ authority. The exact inventory lives in the protected hosted selector. New or
 renamed unknown harness paths retain all-fast fallback; mixed product, native,
 signing, and policy changes retain their additional owners and qualification.
 
+The maintained `apps/desktop/scripts/desktop-source-dialog-test.mjs` consumer
+also has explicit frontend ownership and selects its Node scenario contracts
+locally. It observes source intake, discovery and scan presentation through the
+existing application and CLI; it does not implement durable scanning or source
+authority. Its changed native interactions still require the ordinary isolated
+native scenario. This exact entry grants no ownership to another harness, its
+Core/Tauri implementation, or a renamed or mixed authority input.
+
 The reviewed `apps/desktop/scripts/desktop-install-fixture.test.mjs` assertion
 file also belongs to frontend validation: both frontend lanes discover its
 Vitest cases. Its Windows-only process-tree case still requires actual Windows
