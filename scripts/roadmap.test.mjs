@@ -341,6 +341,34 @@ test("acknowledgment plans by default and stale requirements cause zero writes",
   assert.equal(repeated.writes.length, 0);
 });
 
+test("literal blank lines and boundary spaces invalidate stale consumption with zero writes", () => {
+  for (const [before, after] of [
+    ["```sh\ncat <<'EOF'\na\n\nb\nEOF\n```", "```sh\ncat <<'EOF'\na\nb\nEOF\n```"],
+    ["    a\n\n    b", "    a\n    b"],
+    ["    printf 'trailing spaces'  ", "    printf 'trailing spaces' "],
+  ]) {
+    const scenario = consumptionClient();
+    scenario.context = pickupContext(pickupIssue(1104, before));
+    scenario.client.executionIssue = () => ({
+      item: pickupIssue(1104, after),
+      relationships: pickupRelations(),
+    });
+    assert.throws(
+      () =>
+        executeConsumption({
+          ...scenario,
+          config,
+          runner: "Local",
+          action: "Compared",
+          evidence: "actual source",
+          apply: true,
+        }),
+      /snapshot is stale/,
+    );
+    assert.equal(scenario.writes.length, 0);
+  }
+});
+
 test("ambiguous acknowledgment POST is read back without retry; unavailable result retains exact pending body", () => {
   const options = {
     config,

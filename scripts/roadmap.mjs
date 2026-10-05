@@ -1296,6 +1296,7 @@ export function normalizeRequirements(body) {
   ]);
   let excludedLevel = null;
   let fence = null;
+  let indented = false;
   return String(body ?? "")
     .replace(/\r\n?/g, "\n")
     .split("\n")
@@ -1309,7 +1310,12 @@ export function normalizeRequirements(body) {
         fence = marker[1];
         return [line];
       }
-      if (/^(?: {4}|\t)/.test(line)) return [line];
+      if (/^(?: {4}|\t)/.test(line)) {
+        indented = true;
+        return [line];
+      }
+      if (!line.trim()) return indented ? [line] : [];
+      indented = false;
       const heading = /^(#{1,6})\s+(.+?)\s*#*$/.exec(line.trim());
       if (heading) {
         if (excludedLevel !== null && heading[1].length <= excludedLevel) excludedLevel = null;
@@ -1331,9 +1337,7 @@ export function normalizeRequirements(body) {
           .trim(),
       ];
     })
-    .filter((line) => line.length > 0)
-    .join("\n")
-    .trim();
+    .join("\n");
 }
 
 export function executionSnapshot(config, item, relationships) {
