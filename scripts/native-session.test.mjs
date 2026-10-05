@@ -437,6 +437,73 @@ test("isolated driver stop refuses stale identity without acting", windows, asyn
   }
 });
 
+test(
+  "ordinary close refuses changed identity or a windowless owned application",
+  windows,
+  async () => {
+    const root = await temporaryRoot();
+    const child = await ownedChild();
+    try {
+      const snapshot = path.join(root, "close-processes.json");
+      const captured = run("Snapshot", snapshot);
+      assert.equal(captured.status, 0, captured.stderr);
+      const recorded = JSON.parse(await readFile(snapshot, "utf8"));
+      const application = recorded.processes.find((entry) => entry.pid === child.pid);
+      assert.ok(application);
+      const observed = run("Observe", snapshot);
+      assert.equal(observed.status, 0, observed.stderr);
+      assert.equal(
+        JSON.parse(observed.stdout).processes.find((entry) => entry.pid === child.pid).state,
+        "running",
+      );
+      application.started_filetime = (BigInt(application.started_filetime) - 10_000n).toString();
+      await writeFile(snapshot, JSON.stringify(recorded));
+      const reused = run("Observe", snapshot);
+      assert.equal(reused.status, 0, reused.stderr);
+      assert.equal(
+        JSON.parse(reused.stdout).processes.find((entry) => entry.pid === child.pid).state,
+        "exited",
+      );
+      const stale = run("RequestClose", snapshot);
+      assert.notEqual(stale.status, 0);
+      assert.match(stale.stderr, /application identity changed before ordinary close/);
+      process.kill(child.pid, 0);
+      application.started_filetime = JSON.parse(captured.stdout).processes.find(
+        (entry) => entry.pid === child.pid,
+      ).started_filetime;
+      await writeFile(snapshot, JSON.stringify(recorded));
+      const windowless = run("RequestClose", snapshot);
+      assert.notEqual(windowless.status, 0);
+      assert.match(windowless.stderr, /ordinary close message was not sent/);
+      process.kill(child.pid, 0);
+      const driverTime = recorded.driver.started_filetime;
+      recorded.driver.started_filetime = (BigInt(driverTime) - 10_000n).toString();
+      await writeFile(snapshot, JSON.stringify(recorded));
+      const staleDriver = run("RequestClose", snapshot);
+      assert.notEqual(staleDriver.status, 0);
+      assert.match(staleDriver.stderr, /driver identity changed before ordinary close/);
+      process.kill(child.pid, 0);
+      recorded.driver.started_filetime = driverTime;
+      recorded.processes.push({ ...application });
+      await writeFile(snapshot, JSON.stringify(recorded));
+      const ambiguous = run("RequestClose", snapshot);
+      assert.notEqual(ambiguous.status, 0);
+      assert.match(ambiguous.stderr, /one captured owned application is required/);
+      process.kill(child.pid, 0);
+      recorded.processes.pop();
+      recorded.application_pid = process.pid;
+      await writeFile(snapshot, JSON.stringify(recorded));
+      const missing = run("RequestClose", snapshot);
+      assert.notEqual(missing.status, 0);
+      assert.match(missing.stderr, /one captured owned application is required/);
+      process.kill(child.pid, 0);
+    } finally {
+      await stop(child);
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
 test("native process discovery refuses ambiguous application descendants", windows, async () => {
   const root = await temporaryRoot();
   const children = [await ownedChild(), await ownedChild()];

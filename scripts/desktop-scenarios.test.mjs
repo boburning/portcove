@@ -558,6 +558,22 @@ test("minimized live preparation is one opt-in bounded Windows scenario", () => 
   assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
 });
 
+test("ordinary preparation close stays isolated from forced and minimized cases", () => {
+  const id = "native-closed-preparation-recovery";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id] });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
+  assert.deepEqual(desktopScenarioById.get(id).platforms, ["win32"]);
+  assert.equal(desktopScenarioById.get(id).qualification_only, true);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "native-host-interrupted-preparation"] }),
+    /one exact standalone scenario/,
+  );
+});
+
 test("replacement identity failure cannot reuse the former host's exit receipt", () => {
   const session = new OwnedNativeSession();
   session.driver = { pid: 1 };

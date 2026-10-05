@@ -16,6 +16,7 @@ import { sourceRemovalScenario } from "./desktop-source-removal-test.mjs";
 import {
   interruptedPreparationScenario,
   liveInterruptedPreparationScenario,
+  closedPreparationScenario,
   minimizedPreparationScenario,
 } from "./desktop-preparation-recovery-test.mjs";
 import {
@@ -274,6 +275,7 @@ export async function preparationScenarios({
   confirmNative,
   restartApplication,
   interruptApplication,
+  closeApplication,
   captureLivePreparation,
 }) {
   const command = (args, selectedLibrary = library) => {
@@ -1206,6 +1208,20 @@ export async function preparationScenarios({
     open,
     status,
     interruptApplication,
+  });
+  browser = await closedPreparationScenario({
+    browser,
+    invoke,
+    scenario,
+    library,
+    output,
+    artifacts,
+    command,
+    activities,
+    seed,
+    open,
+    status,
+    closeApplication,
   });
   browser = await minimizedPreparationScenario({
     browser,

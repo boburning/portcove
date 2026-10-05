@@ -280,6 +280,9 @@ const backupFocusSession = selection.selected_scenarios.includes("native-backup-
 const hostInterruptionSession = selection.selected_scenarios.includes(
   "native-host-interrupted-preparation",
 );
+const ordinaryCloseSession = selection.selected_scenarios.includes(
+  "native-closed-preparation-recovery",
+);
 const minimizedPreparationSession = selection.selected_scenarios.includes(
   "native-minimized-preparation-continuity",
 );
@@ -289,6 +292,7 @@ const normalPackageSession = selection.selected_scenarios.includes(
 const identityBoundSession =
   backupFocusSession ||
   hostInterruptionSession ||
+  ordinaryCloseSession ||
   minimizedPreparationSession ||
   normalPackageSession ||
   preferencesRecoverySession ||
@@ -302,11 +306,13 @@ const cleanupName = preferencesRecoverySession
       ? "startup-library-recovery"
       : normalPackageSession
         ? "normal-package-boundary"
-        : hostInterruptionSession
-          ? "host-interruption"
-          : minimizedPreparationSession
-            ? "minimized-preparation"
-            : "backup-focus";
+        : ordinaryCloseSession
+          ? "ordinary-close-preparation"
+          : hostInterruptionSession
+            ? "host-interruption"
+            : minimizedPreparationSession
+              ? "minimized-preparation"
+              : "backup-focus";
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -327,6 +333,10 @@ if (normalPackageSession) {
 if (hostInterruptionSession) {
   assert.equal(process.platform, "win32");
   assert.deepEqual(selection.selected_scenarios, ["native-host-interrupted-preparation"]);
+}
+if (ordinaryCloseSession) {
+  assert.equal(process.platform, "win32");
+  assert.deepEqual(selection.selected_scenarios, ["native-closed-preparation-recovery"]);
 }
 if (minimizedPreparationSession) {
   assert.equal(process.platform, "win32");
@@ -388,6 +398,7 @@ function validateBackupFocusInventory(captured) {
         [
           "native-backup-delete-focus",
           "native-host-interrupted-preparation",
+          "native-closed-preparation-recovery",
           "native-minimized-preparation-continuity",
           "native-normal-package-webview-boundary",
           "native-startup-library-recovery",
@@ -427,7 +438,10 @@ function captureBackupFocusCleanup() {
     ownedSession.driver && driver?.pid,
     "Missing initial owned driver identity; refuse unchecked cleanup",
   );
-  const suffix = hostInterruptionSession || savedLibraryRecoverySession ? `-${driver.pid}` : "";
+  const suffix =
+    hostInterruptionSession || ordinaryCloseSession || savedLibraryRecoverySession
+      ? `-${driver.pid}`
+      : "";
   const original = path.join(output, `${cleanupName}-final-processes${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriverTree", original);
   artifacts.push(original);
@@ -1148,6 +1162,59 @@ async function interruptApplication(name, preparationExecutable, assertStillPrep
   return browser;
 }
 
+async function closeApplication(name, preparationExecutable, assertStillPreparing) {
+  assert.ok(ordinaryCloseSession && process.platform === "win32");
+  const inventory = captureBackupFocusCleanup();
+  const captured = JSON.parse(await readFile(inventory, "utf8"));
+  const matches = (expected) =>
+    captured.processes.filter(
+      (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
+    );
+  assert.equal(matches(values.app).length, 1);
+  assert.equal(matches(preparationExecutable).length, 1);
+  const application = matches(values.app)[0];
+  assert.equal(application.pid, captured.application_pid);
+  await assertStillPreparing();
+  const appInventory = path.join(output, `${name}-application-exit-inventory.json`);
+  await writeFile(
+    appInventory,
+    JSON.stringify(
+      {
+        ...captured,
+        source_snapshot: path.basename(inventory),
+        derivation: "captured-application-only-natural-exit-observation",
+        processes: [application],
+      },
+      null,
+      2,
+    ),
+    { flag: "wx" },
+  );
+  artifacts.push(appInventory);
+  const observation = { started_at: new Date().toISOString() };
+  const evidence = path.join(output, `${name}-ordinary-close.json`);
+  try {
+    observation.close_request = observeNativeSession("RequestClose", inventory);
+    observation.natural_application_exit = observeNativeSession("Wait", appInventory);
+    observation.before_cleanup = observeNativeSession("Observe", inventory);
+  } finally {
+    await writeFile(evidence, JSON.stringify(observation, null, 2), { flag: "wx" });
+    artifacts.push(evidence);
+  }
+  // Only the app's natural exit qualifies ordinary close. Preserve any live
+  // preparation child before this separate, identity-bound fixture cleanup.
+  browser = undefined;
+  stopBackupFocusDriver();
+  const cleanup = path.join(output, `${name}-fixture-cleanup.json`);
+  await writeFile(cleanup, JSON.stringify(ownedSession.requireQuiescence(), null, 2), {
+    flag: "wx",
+  });
+  artifacts.push(cleanup);
+  await startDriver();
+  await connect();
+  return browser;
+}
+
 function observeNativeSession(mode, snapshot) {
   const driverProcessId = mode === "Wait" ? 0 : driver.pid;
   const result = spawnCommand(
@@ -1172,7 +1239,10 @@ function observeNativeSession(mode, snapshot) {
 }
 
 function captureBackupFocusDriverLaunch(launchStarted) {
-  const suffix = hostInterruptionSession || savedLibraryRecoverySession ? `-${driver.pid}` : "";
+  const suffix =
+    hostInterruptionSession || ordinaryCloseSession || savedLibraryRecoverySession
+      ? `-${driver.pid}`
+      : "";
   const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriver", snapshot);
   artifacts.push(snapshot);
@@ -2733,6 +2803,7 @@ try {
       restartApplication,
       cli: values["preparation-cli"],
       interruptApplication,
+      closeApplication,
       captureLivePreparation,
       tool: values["preparation-tool"],
     });
