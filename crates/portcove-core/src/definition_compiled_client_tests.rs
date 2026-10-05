@@ -1,6 +1,6 @@
 use super::*;
 use std::{
-    process::{Command, Stdio},
+    process::Stdio,
     time::{Duration, Instant},
 };
 
@@ -25,15 +25,19 @@ impl Consumer {
         let output = tempfile::tempdir_in(library.root()).unwrap();
         let stdout = output.path().join("stdout.json");
         let stderr = output.path().join("stderr.log");
-        let mut child = Command::new(&self.path)
-            .args(args)
-            .env_remove("PORTCOVE_QUALIFICATION_CATALOG")
-            .env("PORTCOVE_QUALIFICATION_LIBRARY", library.root())
-            .stdin(Stdio::null())
-            .stdout(fs::File::create(&stdout).unwrap())
-            .stderr(fs::File::create(&stderr).unwrap())
-            .spawn()
-            .unwrap();
+        let mut child = crate::ChildProcessPolicy::native_command(
+            crate::ChildProcessClass::HostTool,
+            &self.path,
+        )
+        .unwrap()
+        .args(args)
+        .env_remove("PORTCOVE_QUALIFICATION_CATALOG")
+        .env("PORTCOVE_QUALIFICATION_LIBRARY", library.root())
+        .stdin(Stdio::null())
+        .stdout(fs::File::create(&stdout).unwrap())
+        .stderr(fs::File::create(&stderr).unwrap())
+        .spawn()
+        .unwrap();
         let start = Instant::now();
         let observation = loop {
             match child.try_wait() {
