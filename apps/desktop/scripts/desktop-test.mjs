@@ -40,9 +40,12 @@ import { assertCompactReview, captureAccessibilityReport } from "./desktop-revie
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
 import {
   createExternalRuntimeFixture,
-  externalRuntimePickerObservation,
+  externalRuntimeReviewScenario,
 } from "./desktop-external-runtime-test.mjs";
-import { nativePickerObservation } from "./desktop-native-confirmation.mjs";
+import {
+  nativePickerObservation,
+  nativePreparedRuntimePicker,
+} from "./desktop-native-confirmation.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mjs";
@@ -1527,21 +1530,27 @@ try {
   await startDriver();
   await connect();
   await scenario("native-external-runtime-review", async () => {
-    await externalRuntimePickerObservation({
+    const pickerContext = {
+      application: values.app,
+      getDriverIdentity: () => ownedSession.driver,
+      output,
+      artifacts,
+    };
+    await externalRuntimeReviewScenario({
       browser,
       fixture: externalFixture,
       output,
       artifacts,
-      observePicker: nativePickerObservation({
+      invoke,
+      confirmNative: nativeConfirmation({
         application: values.app,
-        getDriverIdentity: () => ownedSession.driver,
+        getDriverPid: () => driver.pid,
         output,
         artifacts,
       }),
+      observePicker: nativePickerObservation(pickerContext),
+      selectPicker: nativePreparedRuntimePicker(pickerContext),
     });
-    throw new Error(
-      "Picker observation only: reviewed registration/removal qualification is still pending",
-    );
   });
   await scenario("native-startup-preferences-recovery", async () => {
     await preferencesRecoveryScenario({

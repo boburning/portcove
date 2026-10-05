@@ -10,6 +10,7 @@ import {
   externalFixtureTreeDigest,
   externalRuntimePickerObservation,
 } from "../apps/desktop/scripts/desktop-external-runtime-test.mjs";
+import { nativePreparedRuntimePicker } from "../apps/desktop/scripts/desktop-native-confirmation.mjs";
 import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
@@ -148,9 +149,14 @@ test(
     const script = path
       .resolve("apps/desktop/scripts/native-confirmation.ps1")
       .replaceAll("'", "''");
-    for (const kind of ["stale-time", "wrong-image", "directory-input"]) {
+    for (const kind of ["stale-time", "wrong-image", "directory-input", "outside-prepared"]) {
       const helper = path.join(output, `${kind}.ps1`);
-      const extra = kind === "directory-input" ? "-DirectoryPath $PSScriptRoot" : "";
+      const extra =
+        kind === "directory-input"
+          ? "-DirectoryPath $PSScriptRoot"
+          : kind === "outside-prepared"
+            ? "-PreparedRuntimeDirectory $PSScriptRoot"
+            : "";
       await writeFile(
         helper,
         `
@@ -177,10 +183,32 @@ try {
         result.stderr,
         kind === "directory-input"
           ? /Parameter set cannot be resolved/
-          : /Captured picker driver identity changed/,
+          : kind === "outside-prepared"
+            ? /exact regular owned fixture directory/
+            : /Captured picker driver identity changed/,
       );
       await assert.rejects(stat(path.join(output, `${kind}.json`)), /ENOENT/);
     }
+  },
+);
+
+test(
+  "prepared runtime picker refuses a different directory before obtaining a driver",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const output = await mkdtemp(path.join(os.tmpdir(), "portcove-prepared-input-"));
+    t.after(() => rm(output, { recursive: true, force: true }));
+    const input = nativePreparedRuntimePicker({
+      output,
+      getDriverIdentity: () => {
+        throw new Error("Driver must not be observed for rejected input");
+      },
+      artifacts: [],
+    });
+    await assert.rejects(
+      input("refused-selection", output),
+      /Expected values to be strictly equal/,
+    );
   },
 );
 

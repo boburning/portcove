@@ -1,7 +1,7 @@
 // UI automation is limited to one exact executable descended from this harness's driver.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { stat, writeFile } from "node:fs/promises";
+import { lstat, stat, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 
@@ -25,10 +25,15 @@ async function validatePickerInput({ output, title, button, filePath, directoryP
   }
 }
 
-export function nativePickerObservation({ application, getDriverIdentity, output, artifacts }) {
-  return async (name) => {
+function ownedRuntimePicker({ application, getDriverIdentity, output, artifacts }, select) {
+  return async (name, directoryPath) => {
     assert.equal(process.platform, "win32");
     assert.match(name, /^[a-z0-9-]+$/u);
+    if (select) {
+      assert.equal(directoryPath, path.join(output, "player-owned-runtime"));
+      const directory = await lstat(directoryPath);
+      assert.ok(directory.isDirectory() && !directory.isSymbolicLink());
+    } else assert.equal(directoryPath, undefined, "Observation cannot supply directory input");
     const driver = getDriverIdentity();
     assert.ok(
       driver?.pid > 0 && path.isAbsolute(driver.path),
@@ -53,6 +58,7 @@ export function nativePickerObservation({ application, getDriverIdentity, output
         "-ApplicationPath",
         application,
         "-ObservePicker",
+        ...(select ? ["-PreparedRuntimeDirectory", directoryPath] : []),
       ],
       { encoding: "utf8", windowsHide: true, timeout: 15_000 },
     );
@@ -88,6 +94,14 @@ export function nativePickerObservation({ application, getDriverIdentity, output
     artifacts.push(report);
     return observation;
   };
+}
+
+export function nativePickerObservation(options) {
+  return ownedRuntimePicker(options, false);
+}
+
+export function nativePreparedRuntimePicker(options) {
+  return ownedRuntimePicker(options, true);
 }
 
 export function nativeConfirmation({ application, getDriverPid, output, artifacts }) {
