@@ -1145,6 +1145,7 @@ usage:
   node scripts/roadmap.mjs set-many --spec-file <path> [--apply] [--json]
   node scripts/roadmap.mjs move <item> --before <item>
   node scripts/roadmap.mjs next
+  node scripts/roadmap.mjs rename-commitment [--apply]
   node scripts/roadmap.mjs readiness --release <release>
   node scripts/roadmap.mjs candidate-scope --issues <issue,issue,...>
   node scripts/roadmap.mjs snapshot --release <release> --output <docs/releases/path>
@@ -1204,6 +1205,8 @@ export function selectNextItems(items) {
     .filter(
       ({ item }) =>
         !itemDone(item) &&
+        fieldValue(item, "Status") !== "Deferred" &&
+        !["closed", "merged"].includes(repositoryState(item)) &&
         horizon.has(fieldValue(item, "Horizon")) &&
         fieldValue(item, "Work type") !== "Workstream",
     )
@@ -1223,6 +1226,110 @@ export function selectNextItems(items) {
 function blockingNodes(item) {
   const value = item?.content?.blockedBy ?? item?.blockedBy;
   return Array.isArray(value) ? value : (value?.nodes ?? []);
+}
+
+export function renderExecutionQueue(items) {
+  const queue = selectNextItems(items);
+  if (!queue.length) return "No unfinished non-deferred non-workstream items are in Now or Next.";
+  return (
+    queue
+      .map((item, index) => {
+        const commitment = fieldValue(item, "Release commitment");
+        const predecessor = index
+          ? (itemUrl(queue[index - 1]) ?? itemTitle(queue[index - 1]))
+          : "queue head";
+        const dependencyRecord = item?.content?.blockedBy ?? item?.blockedBy;
+        const incomplete = Number(dependencyRecord?.totalCount ?? 0) > blockingNodes(item).length;
+        const blockers = blockingNodes(item)
+          .filter((node) => {
+            const owner = items.find((candidate) => issueNumber(candidate) === issueNumber(node));
+            return !owner || !itemDone(owner);
+          })
+          .map((node) => `#${issueNumber(node)}`)
+          .join(", ");
+        return `${index + 1}. ${itemTitle(item)} | ${fieldValue(item, "Priority") ?? "None"} | ${fieldValue(item, "Horizon")} | ${fieldValue(item, "Status") ?? "Unassigned"} | ${commitment === "Opportunistic" ? "Planned" : (commitment ?? "Unclassified")} | after: ${predecessor}${blockers ? ` | prerequisites: ${blockers}` : ""}${incomplete ? " | prerequisite coverage incomplete; collect remaining relationships before selection" : ""}${itemUrl(item) ? ` | ${itemUrl(item)}` : ""}`;
+      })
+      .join("\n") +
+    "\nQueue position is scheduling, not a blocking edge or accepted reservation. Select either Required or Planned; record concrete pass-over reasons in coordination."
+  );
+}
+
+export function executeCommitmentRename({ client, config, apply = false }) {
+  const number = config.project.number;
+  const desired = config.fields.find((field) => field.name === "Release commitment");
+  if (!desired?.options.includes("Planned") || desired.options.includes("Opportunistic"))
+    throw new Error("active configuration must use Required / Planned");
+  const fields = unwrapCollection(client.fieldList(number), "fields");
+  const step = planFieldReconciliation([desired], fields)[0];
+  if (step.action === "error") throw new Error(step.reason);
+  if (!["keep", "update"].includes(step.action))
+    throw new Error("existing commitment field is required");
+  if (!apply)
+    return {
+      status: "planned",
+      field: step.actual.id,
+      action: step.action,
+      options: step.options ?? step.actual.options,
+    };
+  const before = client.itemList(number);
+  const assignment = (item) =>
+    item.fieldValues?.find((value) => value.field?.name === desired.name);
+  const historical = step.actual.options.find((option) => option.name === "Opportunistic");
+  const rate = client.sampleGraphqlRate();
+  if (rate.remaining < 500)
+    throw new Error(`commitment rename requires recovery reserve; reset ${rate.resetAt}`);
+  const fresh = unwrapCollection(client.fieldList(number), "fields").find(
+    (field) => field.id === step.actual.id,
+  );
+  if (JSON.stringify(fresh) !== JSON.stringify(step.actual))
+    throw new Error("commitment field changed before rename");
+  let mutationError;
+  if (step.action === "update") {
+    try {
+      client.updateField(step.actual.id, step.options);
+    } catch (error) {
+      mutationError = error;
+    }
+  }
+  const afterFields = unwrapCollection(client.fieldList(number), "fields");
+  const afterField = afterFields.find((field) => field.id === step.actual.id);
+  if (
+    !afterField ||
+    planFieldReconciliation([desired], afterFields)[0].action !== "keep" ||
+    step.actual.options.some(
+      (option) =>
+        !afterField.options.some(
+          (candidate) =>
+            candidate.id === option.id &&
+            candidate.name === (option.name === "Opportunistic" ? "Planned" : option.name),
+        ),
+    )
+  )
+    throw new Error(
+      `commitment rename readback failed${mutationError ? `: ${mutationError.message}` : ""}`,
+    );
+  const after = client.itemList(number);
+  if (before.length !== after.length)
+    throw new Error(
+      "Project membership changed during rename; reconcile before reporting completion",
+    );
+  for (const item of before) {
+    const observed = after.find((candidate) => candidate.id === item.id);
+    const original = assignment(item)?.name;
+    if (
+      !observed ||
+      assignment(observed)?.name !== (original === "Opportunistic" ? "Planned" : original)
+    )
+      throw new Error(`commitment assignment changed during rename: ${item.id}`);
+  }
+  return {
+    status: "succeeded",
+    field: afterField.id,
+    option: historical?.id ?? afterField.options.find((option) => option.name === "Planned")?.id,
+    assignmentsVerified: after.length,
+    alreadyApplied: step.action === "keep",
+    reconciledAfterError: Boolean(mutationError),
+  };
 }
 
 function uniqueItems(items) {
@@ -1301,8 +1408,8 @@ export function analyzeReleaseReadiness(items, release, { candidateIssues = null
       fieldValue(item, "Work type") === "Security" &&
       fieldValue(item, "Release commitment") !== "Required",
   );
-  const opportunistic = targeted.filter(
-    (item) => fieldValue(item, "Release commitment") === "Opportunistic",
+  const planned = targeted.filter((item) =>
+    ["Planned", "Opportunistic"].includes(fieldValue(item, "Release commitment")),
   );
   const byNumber = new Map(
     items.map((item) => [issueNumber(item), item]).filter(([number]) => Number.isInteger(number)),
@@ -1373,7 +1480,8 @@ export function analyzeReleaseReadiness(items, release, { candidateIssues = null
     effectiveRequired,
     unfinishedRequired,
     relevantUnclassified,
-    opportunistic,
+    planned,
+    opportunistic: planned, // Historical consumer compatibility; active reports use Planned.
     safetyConflicts,
     dependencyConflicts,
     missingProjectDependencies,
@@ -1423,7 +1531,7 @@ export function renderReadinessSummary(analysis) {
       (item) => `- Repository/Project status mismatch: ${itemLine(item)}`,
     ),
   );
-  return `# ${analysis.release} readiness\n\n- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Opportunistic work through this release\n\n${section(analysis.opportunistic)}\n`;
+  return `# ${analysis.release} readiness\n\n- Result: ${analysis.ready ? "READY" : "NOT READY"}\n- Required outcomes including blocking dependencies: ${analysis.effectiveRequired.length}\n- Unfinished required outcomes: ${analysis.unfinishedRequired.length}\n\n## Unfinished required outcomes\n\n${section(analysis.unfinishedRequired)}\n\n## Relevant unclassified work\n\n${section(analysis.relevantUnclassified)}\n\n## Safety commitment conflicts\n\n${section(analysis.safetyConflicts)}\n\n## Dependency classification conflicts\n\n${[...dependencyConflicts, ...missing, ...truncated].join("\n") || "- None recorded."}\n\n## Dependency cycles\n\n${cycles.join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(analysis.planned)}\n`;
 }
 
 export function catalogQualificationSummary(catalog) {
@@ -1554,7 +1662,7 @@ export function renderSnapshot({ release, generatedAt, commit, projectUrl, items
       (cycle) => `- Dependency cycle: ${cycle.map((number) => `#${number}`).join(" -> ")}`,
     ),
   );
-  return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. Project fields and genuine blocking dependencies define readiness after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n- Cumulative required stages: ${includedReleases.join(", ")}\n- Derived readiness: ${readiness.ready ? "READY" : "NOT READY"}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Relevant unclassified work\n\n${section(readiness.relevantUnclassified)}\n\n## Commitment and dependency conflicts\n\n${[...readiness.safetyConflicts.map(itemLine), ...conflictLines].join("\n") || "- None recorded."}\n\n## Opportunistic work through this release\n\n${section(readiness.opportunistic)}\n\n## Repository closure and Project Status inconsistencies\n\n${section(inconsistencies)}\n\nA closed or not-planned repository issue is not complete unless Project Status is Done. Resolve every inconsistency before release.\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Completion evidence links\n\n${links.length ? links.map((url) => `- ${url}`).join("\n") : "- No explicit completion evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished, unclassified, conflicting, and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
+  return `# ${release} release readiness\n\n> Immutable snapshot generated from the live Portcove Roadmap and catalog. Project fields and genuine blocking dependencies define readiness after ${generatedAt}.\n\n- Generated: ${generatedAt}\n- Commit: \`${commit}\`\n- Project: ${projectUrl}\n- Target release: ${release}\n- Cumulative required stages: ${includedReleases.join(", ")}\n- Derived readiness: ${readiness.ready ? "READY" : "NOT READY"}\n\n## Open blockers\n\n${section(blockers)}\n\n## Completed required items\n\n${section(complete)}\n\n## Unfinished required items\n\n${section(unfinished)}\n\n## Relevant unclassified work\n\n${section(readiness.relevantUnclassified)}\n\n## Commitment and dependency conflicts\n\n${[...readiness.safetyConflicts.map(itemLine), ...conflictLines].join("\n") || "- None recorded."}\n\n## Planned work through this release\n\n${section(readiness.planned)}\n\n## Repository closure and Project Status inconsistencies\n\n${section(inconsistencies)}\n\nA closed or not-planned repository issue is not complete unless Project Status is Done. Resolve every inconsistency before release.\n\n## Consciously deferred or postponed\n\n${section(deferred)}\n\n## Catalog qualification summary\n\n- Catalog entries: ${summary.ports}\n- Declared port/platform pairs: ${summary.declaredPlatformPairs}\n- Automated port/platform pairs: ${summary.automatedPlatformPairs}\n- Manually validated port/platform pairs: ${summary.manuallyValidatedPlatformPairs}\n- Support tiers:\n${tiers}\n\n## Completion evidence links\n\n${links.length ? links.map((url) => `- ${url}`).join("\n") : "- No explicit completion evidence links were recorded on matching Project items."}\n\n## Test, CI, rehearsal, signing, and human validation\n\n- Record reviewed test commands and results here.\n- Record required CI runs here.\n- Record release rehearsal evidence here.\n- Record signing/notarization evidence or the explicit unsigned limitation here.\n- Record required human and physical-platform evidence here.\n\n## Explicit limitations\n\n- Review every unfinished, unclassified, conflicting, and deferred item above before publication.\n- This snapshot does not grant qualification or replace catalog evidence.\n- Project fields may change after generation; regenerate rather than editing this snapshot in place.\n`;
 }
 
 function unwrapCollection(value, key) {
@@ -1582,11 +1690,27 @@ export function planFieldReconciliation(
         reason: `${desired.name} is not a single-select field`,
       };
     }
-    const actualOptions = actual.options ?? [];
+    let actualOptions = actual.options ?? [];
+    const rename = desired.name === "Release commitment" && desired.options.includes("Planned");
+    const historical = actualOptions.find((option) => option.name === "Opportunistic");
+    if (rename && historical && actualOptions.some((option) => option.name === "Planned")) {
+      return {
+        action: "error",
+        desired,
+        actual,
+        reason:
+          "Release commitment has both historical and active options; reconcile assignments explicitly",
+      };
+    }
+    if (rename && historical) {
+      actualOptions = actualOptions.map((option) =>
+        option === historical ? { ...option, name: "Planned" } : option,
+      );
+    }
     const byName = new Map(actualOptions.map((option) => [option.name, option]));
     const missing = desired.options.filter((option) => !byName.has(option));
     const extra = actualOptions.filter((option) => !desired.options.includes(option.name));
-    if (!missing.length && (!freshProject || !extra.length))
+    if (!(rename && historical) && !missing.length && (!freshProject || !extra.length))
       return { action: "keep", desired, actual };
     const ordered = freshProject
       ? desired.options.map((name) => byName.get(name) ?? { name, color: "GRAY", description: "" })
@@ -2768,7 +2892,7 @@ async function runDoctor(config, client, { quiet = false } = {}) {
       `Conservative Port-stage warnings:\n${stage.warnings.map((value) => `- ${value}`).join("\n")}`,
     );
   log(
-    `${config.active_release} readiness has ${readiness.unfinishedRequired.length} unfinished required outcomes and ${readiness.opportunistic.length} opportunistic outcomes.`,
+    `${config.active_release} readiness has ${readiness.unfinishedRequired.length} unfinished required outcomes and ${readiness.planned.length} planned outcomes.`,
   );
   log(
     `Manual confirmation required because GitHub does not expose a reliable readable configuration API:\n${manualUiChecklist(config).join("\n")}`,
@@ -2796,6 +2920,20 @@ async function main(argv) {
     { label: "Portcove Roadmap operation" },
   );
   try {
+    if (parsed.command === "rename-commitment") {
+      if (
+        parsed.positionals.length ||
+        Object.keys(parsed.options).some((key) => key !== "--apply") ||
+        ("--apply" in parsed.options && parsed.options["--apply"] !== true)
+      )
+        throw new Error("usage: roadmap.mjs rename-commitment [--apply]");
+      console.log(
+        JSON.stringify(
+          executeCommitmentRename({ client, config, apply: parsed.options["--apply"] === true }),
+        ),
+      );
+      return;
+    }
     if (parsed.command === "doctor") {
       await runDoctor(config, client);
       return;
@@ -2928,18 +3066,8 @@ async function main(argv) {
       return;
     }
     if (parsed.command === "next") {
-      const items = selectNextItems(client.itemList(config.project.number));
-      if (!items.length) {
-        console.log("No unfinished non-workstream items are in Now or Next.");
-        return;
-      }
       console.log(
-        items
-          .map(
-            (item, index) =>
-              `${index + 1}. ${itemTitle(item)} | ${fieldValue(item, "Priority") ?? "None"} | ${fieldValue(item, "Horizon")} | ${fieldValue(item, "Status") ?? "Unassigned"}${itemUrl(item) ? ` | ${itemUrl(item)}` : ""}`,
-          )
-          .join("\n"),
+        renderExecutionQueue(client.itemList(config.project.number, { includeDependencies: true })),
       );
       return;
     }

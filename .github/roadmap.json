@@ -46,7 +46,7 @@
         "Post-1.0"
       ]
     },
-    { "name": "Release commitment", "options": ["Required", "Opportunistic"] },
+    { "name": "Release commitment", "options": ["Required", "Planned"] },
     {
       "name": "Work type",
       "options": [

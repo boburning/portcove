@@ -11,6 +11,7 @@ import {
   completionEvidenceLinks,
   dependencyCycles,
   executeSetMany,
+  executeCommitmentRename,
   fieldValue,
   featureIntakeFields,
   findPortIssueDuplicates,
@@ -29,6 +30,7 @@ import {
   reconcilePortIssueMarkers,
   renderPortIssueBody,
   renderSnapshot,
+  renderExecutionQueue,
   resolveSnapshotOutput,
   selectNextItems,
   setManyRequiredReserve,
@@ -689,8 +691,8 @@ test("feature intake accepts neutral and explicit planning fields", () => {
     "Desktop UX",
   );
   assert.equal(
-    featureIntakeFields(config, { "--commitment": "Opportunistic" })["Release commitment"],
-    "Opportunistic",
+    featureIntakeFields(config, { "--commitment": "Planned" })["Release commitment"],
+    "Planned",
   );
   assert.throws(
     () => featureIntakeFields(config, { "--platform": "Everywhere" }),
@@ -2590,3 +2592,159 @@ for (const kind of ["items"]) {
     });
   }
 }
+
+test("Planned and historical non-gating work share execution without changing Required readiness", () => {
+  const make = (n, commitment, status = "Ready", deps = []) => ({
+    id: `i${n}`,
+    title: `Work ${n}`,
+    status,
+    priority: "High",
+    horizon: "Next",
+    "work type": "Product feature",
+    "target release": "Public beta",
+    "release commitment": commitment,
+    content: {
+      number: n,
+      state: status === "Done" ? "CLOSED" : "OPEN",
+      url: `https://example.test/${n}`,
+      blockedBy: { totalCount: deps.length, nodes: deps.map((number) => ({ number })) },
+    },
+  });
+  const items = [
+    make(1, "Required", "Done"),
+    make(2, "Planned"),
+    make(3, "Opportunistic"),
+    make(4, "Planned", "Deferred"),
+  ];
+  assert.equal(analyzeReleaseReadiness(items, "Public beta").ready, true);
+  assert.deepEqual(
+    analyzeReleaseReadiness(items, "Public beta").planned.map((i) => i.content.number),
+    [2, 3, 4],
+  );
+  assert.deepEqual(
+    selectNextItems(items).map((i) => i.content.number),
+    [2, 3],
+  );
+  const text = renderExecutionQueue(items);
+  assert.match(text, /Planned/);
+  assert.match(text, /after: https:\/\/example.test\/2/);
+  assert.equal(analyzeReleaseReadiness(items, "Public beta").effectiveRequired.length, 1);
+  items[0].content.blockedBy = { totalCount: 1, nodes: [{ number: 2 }] };
+  const gates = analyzeReleaseReadiness(items, "Public beta");
+  assert.equal(gates.ready, false);
+  assert.equal(gates.dependencyConflicts.length, 1);
+  assert.equal(gates.effectiveRequired.length, 2);
+  items[0].content.blockedBy = { totalCount: 0, nodes: [] };
+  items[0].content.parent = { number: 2 };
+  assert.equal(analyzeReleaseReadiness(items, "Public beta").ready, true);
+});
+
+test("commitment rename preserves IDs, assignments and metadata and resumes without mutation", () => {
+  const desired = { ...config, project: { ...config.project, number: 1 } };
+  let fields = [
+    {
+      id: "field",
+      name: "Release commitment",
+      type: "SINGLE_SELECT",
+      options: [
+        { id: "required", name: "Required", color: "RED", description: "Gate" },
+        { id: "planned", name: "Opportunistic", color: "BLUE", description: "Approved" },
+      ],
+    },
+  ];
+  let writes = 0;
+  const client = {
+    fieldList: () => structuredClone(fields),
+    sampleGraphqlRate: () => ({ remaining: 2000 }),
+    itemList: () => [
+      {
+        id: "a",
+        fieldValues: [{ field: { name: "Release commitment" }, name: fields[0].options[1].name }],
+      },
+      { id: "b", fieldValues: [] },
+    ],
+    updateField: (id, options) => {
+      assert.equal(id, "field");
+      writes++;
+      fields[0].options = options;
+    },
+  };
+  assert.equal(executeCommitmentRename({ client, config: desired }).status, "planned");
+  assert.equal(writes, 0);
+  const result = executeCommitmentRename({ client, config: desired, apply: true });
+  assert.equal(result.assignmentsVerified, 2);
+  assert.equal(result.option, "planned");
+  assert.equal(writes, 1);
+  assert.equal(fields[0].options[1].color, "BLUE");
+  assert.equal(fields[0].options[1].description, "Approved");
+  assert.equal(
+    executeCommitmentRename({ client, config: desired, apply: true }).alreadyApplied,
+    true,
+  );
+  assert.equal(writes, 1);
+  fields[0].options.push({ id: "duplicate", name: "Opportunistic" });
+  assert.throws(
+    () => executeCommitmentRename({ client, config: desired, apply: true }),
+    /both historical and active/,
+  );
+  assert.equal(writes, 1);
+});
+
+test("commitment rename refuses divergent assignment readback and reconciles ambiguous transport", () => {
+  const fields = [
+    {
+      id: "f",
+      name: "Release commitment",
+      type: "SINGLE_SELECT",
+      options: [
+        { id: "r", name: "Required" },
+        { id: "p", name: "Opportunistic" },
+      ],
+    },
+  ];
+  let reads = 0;
+  const client = {
+    fieldList: () => structuredClone(fields),
+    sampleGraphqlRate: () => ({ remaining: 1000 }),
+    itemList: () => [
+      {
+        id: "a",
+        fieldValues: [
+          { field: { name: "Release commitment" }, name: reads++ ? "Required" : "Opportunistic" },
+        ],
+      },
+    ],
+    updateField: (_id, opts) => {
+      fields[0].options = opts;
+    },
+  };
+  assert.throws(
+    () => executeCommitmentRename({ client, config, apply: true }),
+    /assignment changed/,
+  );
+  fields[0].options[1].name = "Opportunistic";
+  client.itemList = () => [
+    {
+      id: "a",
+      fieldValues: [{ field: { name: "Release commitment" }, name: fields[0].options[1].name }],
+    },
+  ];
+  client.updateField = (_id, opts) => {
+    fields[0].options = opts;
+    throw Error("lost response");
+  };
+  assert.equal(executeCommitmentRename({ client, config, apply: true }).reconciledAfterError, true);
+});
+
+test("queue displays incomplete dependency coverage instead of an empty prerequisite claim", () => {
+  const record = {
+    title: "Partial",
+    status: "Ready",
+    priority: "High",
+    horizon: "Next",
+    "work type": "Bug",
+    "release commitment": "Planned",
+    content: { number: 1, state: "OPEN", blockedBy: { totalCount: 11, nodes: [] } },
+  };
+  assert.match(renderExecutionQueue([record]), /prerequisite coverage incomplete/);
+});
