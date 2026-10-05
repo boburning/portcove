@@ -38,6 +38,11 @@ import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
 import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
+import {
+  createExternalRuntimeFixture,
+  externalRuntimePickerObservation,
+} from "./desktop-external-runtime-test.mjs";
+import { nativePickerObservation } from "./desktop-native-confirmation.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mjs";
@@ -264,6 +269,7 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
 const output = path.resolve(values.output);
 await mkdir(output); // Existing output is never reused, including after failed runs.
 let installFixture;
+let externalFixture;
 let bootstrapRecoveryFixture;
 let connectedLaunches = 0;
 const library = path.join(output, "library");
@@ -290,6 +296,7 @@ const normalPackageSession = selection.selected_scenarios.includes(
   "native-normal-package-webview-boundary",
 );
 const identityBoundSession =
+  selection.selected_scenarios.includes("native-external-runtime-review") ||
   backupFocusSession ||
   hostInterruptionSession ||
   ordinaryCloseSession ||
@@ -298,21 +305,23 @@ const identityBoundSession =
   preferencesRecoverySession ||
   bootstrapRecoverySession ||
   librarySwitchRecoverySession;
-const cleanupName = preferencesRecoverySession
-  ? "startup-preferences-recovery"
-  : librarySwitchRecoverySession
-    ? "library-switch-recovery"
-    : bootstrapRecoverySession
-      ? "startup-library-recovery"
-      : normalPackageSession
-        ? "normal-package-boundary"
-        : ordinaryCloseSession
-          ? "ordinary-close-preparation"
-          : hostInterruptionSession
-            ? "host-interruption"
-            : minimizedPreparationSession
-              ? "minimized-preparation"
-              : "backup-focus";
+const cleanupName = selection.selected_scenarios.includes("native-external-runtime-review")
+  ? "external-runtime-review"
+  : preferencesRecoverySession
+    ? "startup-preferences-recovery"
+    : librarySwitchRecoverySession
+      ? "library-switch-recovery"
+      : bootstrapRecoverySession
+        ? "startup-library-recovery"
+        : normalPackageSession
+          ? "normal-package-boundary"
+          : ordinaryCloseSession
+            ? "ordinary-close-preparation"
+            : hostInterruptionSession
+              ? "host-interruption"
+              : minimizedPreparationSession
+                ? "minimized-preparation"
+                : "backup-focus";
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -1297,6 +1306,7 @@ async function startDriver(childEnvironment = {}) {
         ...process.env,
         ...childEnvironment,
         ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
+        ...(externalFixture ? { PORTCOVE_QUALIFICATION_CATALOG: externalFixture.catalogPath } : {}),
         ...(selection.prerequisites.includes("steam-fixture")
           ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
           : {}),
@@ -1502,10 +1512,35 @@ try {
     inputs.push(await fileIdentity(installFixture.artifactPath));
     inputs.push(await fileIdentity(installFixture.catalogPath));
   }
+  if (selection.prerequisites.includes("external-runtime-fixture")) {
+    externalFixture = await createExternalRuntimeFixture(output);
+    for (const name of [
+      "desktop-external-runtime-test.mjs",
+      "desktop-native-confirmation.mjs",
+      "native-confirmation.ps1",
+    ])
+      inputs.push(await fileIdentity(fileURLToPath(new URL(`./${name}`, import.meta.url))));
+    inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
+  }
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
   await startDriver();
   await connect();
+  await scenario("native-external-runtime-review", async () => {
+    await externalRuntimePickerObservation({
+      browser,
+      fixture: externalFixture,
+      observePicker: nativePickerObservation({
+        application: values.app,
+        getDriverIdentity: () => ownedSession.driver,
+        output,
+        artifacts,
+      }),
+    });
+    throw new Error(
+      "Picker observation only: reviewed registration/removal qualification is still pending",
+    );
+  });
   await scenario("native-startup-preferences-recovery", async () => {
     await preferencesRecoveryScenario({
       browser,

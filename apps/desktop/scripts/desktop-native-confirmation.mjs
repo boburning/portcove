@@ -25,6 +25,53 @@ async function validatePickerInput({ output, title, button, filePath, directoryP
   }
 }
 
+export function nativePickerObservation({ application, getDriverIdentity, output, artifacts }) {
+  return async (name) => {
+    assert.equal(process.platform, "win32");
+    assert.match(name, /^[a-z0-9-]+$/u);
+    const driver = getDriverIdentity();
+    assert.ok(
+      driver?.pid > 0 && path.isAbsolute(driver.path),
+      "Captured launch driver is required",
+    );
+    assert.match(driver.started_filetime, /^[0-9]+$/u);
+    const before = path.join(output, `${name}-before-cancel.json`);
+    const result = spawnCommand(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-File",
+        fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url)),
+        "-DriverProcessId",
+        String(driver.pid),
+        "-ExpectedDriverPath",
+        driver.path,
+        "-ExpectedDriverStartedFiletime",
+        driver.started_filetime,
+        "-ObservationPath",
+        before,
+        "-ApplicationPath",
+        application,
+        "-ObservePicker",
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+    );
+    if (
+      await stat(before).then(
+        () => true,
+        () => false,
+      )
+    )
+      artifacts.push(before);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const observation = JSON.parse(result.stdout);
+    const report = path.join(output, `${name}.json`);
+    await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
+    artifacts.push(report);
+    return observation;
+  };
+}
+
 export function nativeConfirmation({ application, getDriverPid, output, artifacts }) {
   return async (
     title,
