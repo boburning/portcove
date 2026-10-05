@@ -1,8 +1,9 @@
 import { FolderOpen } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { definitionHoldReason } from "../features/port-actions/port-action-presentation";
 import { pickInstallFolder } from "../file-picker";
+import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type { PortDefinition, PortStatus } from "../types";
 import { useActionReview } from "../use-action-review";
 import { Icon } from "./ui";
@@ -26,20 +27,38 @@ function externalSetupReason(availability?: string, reason?: string, definitionR
   return "This installation route is unavailable. Check the port details for current requirements.";
 }
 
-export function ExternalRuntimeControl({
-  port,
-  status,
-  generation,
-  busy,
-  onChanged,
-}: {
+type ExternalRuntimeControlProps = {
   port: PortDefinition;
   status?: PortStatus;
   generation: number;
   busy: boolean;
   onChanged?: () => void;
-}) {
+};
+
+export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
+  return (
+    <ExternalRuntimeContext
+      key={JSON.stringify([props.port.id, props.generation, props.status?.external_runtime?.id])}
+      {...props}
+    />
+  );
+}
+
+function ExternalRuntimeContext({
+  port,
+  status,
+  generation,
+  busy,
+  onChanged,
+}: ExternalRuntimeControlProps) {
   const [review, setReview] = useState<{ kind: "register"; path: string } | { kind: "remove" }>();
+  const pickerRequests = useRef(new LatestRequestGeneration());
+  useLayoutEffect(() => {
+    const requests = pickerRequests.current;
+    return () => {
+      requests.begin();
+    };
+  }, []);
   if (port.release.provider !== "user-prepared" && !status?.external_runtime) return null;
   const registered = status?.external_runtime;
   const registration = status?.port_actions?.find(
@@ -49,8 +68,10 @@ export function ExternalRuntimeControl({
     !registration ||
     (registration.availability === "waiting" && registration.reason === "review_required");
   const select = async () => {
+    const request = pickerRequests.current.begin();
     const path = await pickInstallFolder("");
-    if (typeof path === "string") setReview({ kind: "register", path });
+    if (pickerRequests.current.isCurrent(request) && typeof path === "string")
+      setReview({ kind: "register", path });
   };
   return (
     <>
