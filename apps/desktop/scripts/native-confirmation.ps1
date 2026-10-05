@@ -133,13 +133,36 @@ if ($ObservePicker) {
     Assert-LiveApplication
     $cancel[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
     $cancelDeadline = [DateTime]::UtcNow.AddSeconds(2)
+    $closeSamples = @()
+    $closeCondition = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@(
+        $ownedCondition,
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NativeWindowHandleProperty, [int]$observation.handle),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
+    ))
     do {
+        Assert-CapturedPickerDriver
         Assert-LiveApplication
-        try { $present = $observedWindow.Current.NativeWindowHandle -eq $observation.handle }
-        catch [System.Windows.Automation.ElementNotAvailableException] { $present = $false }
+        # A saved UIA element may continue to expose its old handle after Cancel.
+        # Re-enumerate the exact application's live windows instead of treating
+        # that retained value as evidence the dialog is still present.
+        $liveRoots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
+        $liveHandles = [Collections.Generic.HashSet[int]]::new()
+        foreach ($root in $liveRoots) {
+            if ($root.Current.NativeWindowHandle -eq $observation.handle) { [void]$liveHandles.Add([int]$root.Current.NativeWindowHandle) }
+            foreach ($nested in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $closeCondition)) {
+                [void]$liveHandles.Add([int]$nested.Current.NativeWindowHandle)
+            }
+        }
+        $present = $liveHandles.Contains([int]$observation.handle)
+        try { $retainedHandle = $observedWindow.Current.NativeWindowHandle }
+        catch [System.Windows.Automation.ElementNotAvailableException] { $retainedHandle = $null }
+        $closeSamples += [pscustomobject]@{ at = [DateTime]::UtcNow.ToString('o'); retained_uia_handle = $retainedHandle; fresh_owned_window_present = $present }
         if (-not $present) { break }
         Start-Sleep -Milliseconds 100
     } while ([DateTime]::UtcNow -lt $cancelDeadline)
+    $closeBytes = [Text.Encoding]::UTF8.GetBytes(($closeSamples | ConvertTo-Json -Depth 4))
+    $closeStream = [IO.File]::Open("$ObservationPath.close-samples.json", [IO.FileMode]::CreateNew)
+    try { $closeStream.Write($closeBytes, 0, $closeBytes.Length) } finally { $closeStream.Dispose() }
     if ($present) { throw 'Observed owned picker did not close after cancellation.' }
     $observation.cancelled = $true
     $observation | ConvertTo-Json -Depth 5 -Compress
