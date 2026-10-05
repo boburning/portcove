@@ -1164,8 +1164,11 @@ async function interruptApplication(name, preparationExecutable, assertStillPrep
 
 async function closeApplication(name, preparationExecutable, assertStillPreparing) {
   assert.ok(ordinaryCloseSession && process.platform === "win32");
-  const inventory = captureBackupFocusCleanup();
-  const captured = JSON.parse(await readFile(inventory, "utf8"));
+  captureBackupFocusCleanup();
+  const inventory = path.join(output, `${name}-live-processes.json`);
+  const captured = observeNativeSession("Snapshot", inventory);
+  artifacts.push(inventory);
+  assert.deepEqual(captured.driver, ownedSession.driver);
   const matches = (expected) =>
     captured.processes.filter(
       (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),

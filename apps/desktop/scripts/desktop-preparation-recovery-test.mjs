@@ -1111,6 +1111,9 @@ async function livePreparationRecoveryScenario({
       active,
       source_sha256: await digest(source),
       original_executable_sha256: await digest(originalExecutable),
+      original_game_sha256: await digest(
+        path.join(original, port.executable_hints["windows-x86-64"][0]),
+      ),
       active_setup_sha256: await digest(path.join(active.path, executableHint)),
       active_game_sha256: await digest(
         path.join(active.path, port.executable_hints["windows-x86-64"][0]),
@@ -1172,13 +1175,49 @@ async function livePreparationRecoveryScenario({
     const repair = command(["doctor"]).repair.items.find(
       (item) => item.operation_id === activity.id,
     );
+    const recoveredStatus = command(["status", port.id]);
     if (recovered.status !== "succeeded") {
       assert.equal(repair.kind, "retained_preparation");
       assert.equal(path.resolve(repair.path), path.resolve(privatePath));
-      assert.deepEqual(command(["status", port.id]).active, before.active);
+      assert.deepEqual(recoveredStatus.active, before.active);
     } else {
       assert.equal(repair, undefined);
-      assert.equal(command(["status", port.id]).readiness.launchable, true);
+      assert.equal(recoveredStatus.active.id, activity.id);
+      assert.equal(recoveredStatus.active.port_id, port.id);
+      assert.equal(recoveredStatus.readiness.launchable, true);
+      assert.equal(
+        await digest(
+          path.join(recoveredStatus.active.path, port.executable_hints["windows-x86-64"][0]),
+        ),
+        before.original_game_sha256,
+      );
+      assert.equal(
+        await digest(path.join(recoveredStatus.active.path, "OpenGOAL", "jak3", "save.bin")),
+        before.save_sha256,
+      );
+    }
+    let recoveredWorkspace;
+    if (ordinaryClose) {
+      const nativeStatus = await status(port.id);
+      assert.deepEqual(nativeStatus.active, recoveredStatus.active);
+      assert.deepEqual(nativeStatus.readiness, recoveredStatus.readiness);
+      const bootstrap = await invoke("get_bootstrap_status");
+      assert.equal(bootstrap.ok, true);
+      assert.equal(bootstrap.value.ready, true);
+      assert.equal(path.resolve(bootstrap.value.library_root), path.resolve(library));
+      const workspace = await invoke("get_workspace_snapshot", {
+        generation: bootstrap.value.generation,
+      });
+      assert.equal(workspace.ok, true);
+      recoveredWorkspace = workspace.value;
+      const workspaceStatus = recoveredWorkspace.statuses.find((item) => item.port_id === port.id);
+      assert.ok(workspaceStatus);
+      assert.deepEqual(workspaceStatus.active, recoveredStatus.active);
+      assert.deepEqual(workspaceStatus.readiness, recoveredStatus.readiness);
+      assert.deepEqual(
+        recoveredWorkspace.activities.records.find((item) => item.id === activity.id),
+        recovered,
+      );
     }
     assert.equal(await digest(source), before.source_sha256);
     assert.equal(await digest(originalExecutable), before.original_executable_sha256);
@@ -1247,6 +1286,8 @@ async function livePreparationRecoveryScenario({
           operation_id: activity.id,
           before,
           recovered_activity: recovered,
+          recovered_status: recoveredStatus,
+          recovered_workspace: recoveredWorkspace,
           retained_private_path: privatePath,
           observed_operation: operation,
           cleanup_preview: cleanup,
