@@ -501,7 +501,7 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(qualification, /package_managed_files_unchanged: true/);
 });
 
-test("repository toolchain reader exports the declared components before installation", async () => {
+test("repository toolchain reader exports the declared components before installation", async (context) => {
   const setup = await readFile(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
     "utf8",
@@ -511,25 +511,76 @@ test("repository toolchain reader exports the declared components before install
   )?.[1];
   assert.ok(body);
   const script = body.replace(/^ {8}/gm, "");
+  let tracedScript = script;
+  for (const [line, phase] of [
+    ["$config = Get-Content rust-toolchain.toml -Raw", "read-config"],
+    ["$channel = $Matches[1]", "channel-parsed"],
+    ["$components = ConvertFrom-Json $Matches[1] -NoEnumerate", "parse-components"],
+    ['"channel=$channel" >> $env:GITHUB_OUTPUT', "write-output"],
+  ]) {
+    assert.equal(
+      script.split(line).length,
+      2,
+      `Reader phase must have one source anchor: ${phase}`,
+    );
+    tracedScript = tracedScript.replace(
+      line,
+      `[Console]::Error.WriteLine("portcove-reader-phase:${phase}")\n${line}`,
+    );
+  }
+  tracedScript =
+    '[Console]::Error.WriteLine("portcove-reader-phase:started;pwsh=$($PSVersionTable.PSVersion)")\n' +
+    tracedScript +
+    '\n[Console]::Error.WriteLine("portcove-reader-phase:completed")\n';
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-toolchain-reader-"));
   const output = path.join(directory, "github-output");
+  function runReader(fixture) {
+    const started = performance.now();
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", tracedScript], {
+      cwd: directory,
+      env: { ...process.env, GITHUB_OUTPUT: output },
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 10_000,
+    });
+    const stream = (value) => ({
+      text: (value ?? "").slice(0, 8_192),
+      bytes: Buffer.byteLength(value ?? "", "utf8"),
+      truncated: (value ?? "").length > 8_192,
+    });
+    context.diagnostic(
+      JSON.stringify({
+        reader_fixture: fixture,
+        node: process.version,
+        platform: process.platform,
+        architecture: process.arch,
+        os_release: os.release(),
+        runner_image: process.env.ImageOS ?? null,
+        runner_image_version: process.env.ImageVersion ?? null,
+        elapsed_ms: performance.now() - started,
+        timeout_ms: 10_000,
+        status: result.status,
+        signal: result.signal,
+        error: result.error
+          ? { code: result.error.code, errno: result.error.errno, message: result.error.message }
+          : null,
+        stdout: stream(result.stdout),
+        stderr: stream(result.stderr),
+      }),
+    );
+    return result;
+  }
   try {
-    for (const components of [
+    for (const [index, components] of [
       ["clippy", "rustfmt", "rust-analyzer"],
       ["rust-src", "rust-analyzer", "clippy", "rustfmt"],
-    ]) {
+    ].entries()) {
       await writeFile(
         path.join(directory, "rust-toolchain.toml"),
         `[toolchain]\nchannel = "1.98.1"\ncomponents = ${JSON.stringify(components)}\n`,
       );
       await writeFile(output, "");
-      const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
-        cwd: directory,
-        env: { ...process.env, GITHUB_OUTPUT: output },
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 10_000,
-      });
+      const result = runReader(`valid-${index + 1}`);
       assert.ifError(result.error);
       assert.equal(result.status, 0, result.stdout + result.stderr);
       assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/), [
@@ -537,24 +588,18 @@ test("repository toolchain reader exports the declared components before install
         `components=${components.join(",")}`,
       ]);
     }
-    for (const declaration of [
+    for (const [index, declaration] of [
       "",
       'components = "clippy"',
       'components = ["clippy", 7]',
       'components = ["clippy", "rustfmt\\nextra=value"]',
-    ]) {
+    ].entries()) {
       await writeFile(
         path.join(directory, "rust-toolchain.toml"),
         `[toolchain]\nchannel = "1.98.1"\n${declaration}\n`,
       );
       await writeFile(output, "");
-      const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
-        cwd: directory,
-        env: { ...process.env, GITHUB_OUTPUT: output },
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 10_000,
-      });
+      const result = runReader(`invalid-${index + 1}`);
       assert.ifError(result.error);
       assert.notEqual(result.status, 0, declaration);
       assert.equal(await readFile(output, "utf8"), "");
