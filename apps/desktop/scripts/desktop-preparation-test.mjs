@@ -311,7 +311,9 @@ async function assertReviewedUpdateOutcomes({
       const suppliedPlan = {
         ...candidate,
         activate: false,
-        plan_sha256: "c".repeat(64),
+        // A real Core authorization compares a canonical SHA-256 plan digest.
+        // Even a later transport fallback cannot authorize this supplied plan.
+        plan_sha256: "owned-controlled-update-plan",
         plan: { ...candidate.plan, action: "use_staged" },
       };
       const observation = { mutation, cancelled, restored: false };
@@ -398,6 +400,14 @@ async function assertReviewedUpdateOutcomes({
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         assert.ok((await review.getText()).includes(candidate.plan.release.version));
+        const admitted = await browser.executeScript(() => ({
+          plans: window.__portcoveReviewedUpdateProbe.plans,
+          mismatches: window.__portcoveReviewedUpdateProbe.mismatches,
+        }));
+        assert.equal(admitted.plans, 1, "The supplied review must be intercepted before Apply");
+        assert.deepEqual(admitted.mismatches, []);
+        assert.equal(/^[a-f0-9]{64}$/.test(suppliedPlan.plan_sha256), false);
+
         await clickVisible(
           browser,
           await review.findElement(button("Keep saved update for later")),
