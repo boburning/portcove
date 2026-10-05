@@ -44,6 +44,30 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
   );
 }
 
+function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
+  return (
+    <>
+      <p>
+        Prepare the required version, then choose the folder containing the game. Portcove checks
+        the required files before using the folder and at every launch. It does not copy, update,
+        back up, or delete these files.
+      </p>
+      {port.presentation?.manual_preparation && <p>{port.presentation.manual_preparation}</p>}
+      <ul>
+        {Object.entries(port.release.user_prepared).map(([platform, required]) => (
+          <li key={platform}>
+            {platform}: Prepare {required.archive_name} version {required.version}, then choose the
+            folder containing <code>{required.executable}</code>.{" "}
+            <details>
+              <summary>File details</summary>Archive SHA-256: <code>{required.archive_sha256}</code>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 function ExternalRuntimeContext({
   port,
   status,
@@ -92,24 +116,7 @@ function ExternalRuntimeContext({
         </div>
       ) : (
         <div>
-          <p>
-            Prepare the required version, then choose the folder containing the game. Portcove
-            checks the required files before using the folder and at every launch. It does not copy,
-            update, back up, or delete these files.
-          </p>
-          {port.presentation?.manual_preparation && <p>{port.presentation.manual_preparation}</p>}
-          <ul>
-            {Object.entries(port.release.user_prepared).map(([platform, required]) => (
-              <li key={platform}>
-                {platform}: Prepare {required.archive_name} version {required.version}, then choose
-                the folder containing <code>{required.executable}</code>.{" "}
-                <details>
-                  <summary>File details</summary>Archive SHA-256:{" "}
-                  <code>{required.archive_sha256}</code>
-                </details>
-              </li>
-            ))}
-          </ul>
+          <ExternalPreparationRequirements port={port} />
           {!canRegister && registration?.reason && (
             <p role="status">
               {externalSetupReason(
