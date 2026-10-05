@@ -185,9 +185,50 @@ fn live_catalog(package: &[u8]) -> Catalog {
     Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
+// Generic STFS protocol cases need no production ports or qualification graph.
+// The manual/import parity cases below deliberately keep live_catalog.
+fn generic_live_catalog(package: &[u8]) -> Catalog {
+    let document = serde_json::json!({
+        "schema_version": 2,
+        "source_catalog": {
+            "identities": [{
+                "id": "sotn-xbla", "label": "Synthetic STFS LIVE source",
+                "kind": "compound", "variants": [{
+                    "id": "fixture", "title": "Synthetic LIVE package",
+                    "representations": [{
+                        "id": "stfs-live-package", "extensions": [],
+                        "kind": "compound", "format": "stfs-live",
+                        "identities": [{
+                            "scope": "normalized-content",
+                            "sha256": hex::encode(Sha256::digest(package)),
+                        }]
+                    }]
+                }]
+            }, {
+                "id": "psx-scph-1001-bios", "label": "Synthetic independent raw source",
+                "kind": "file", "variants": [{
+                    "id": "fixture", "title": "Synthetic raw file",
+                    "representations": [{
+                        "id": "raw-file", "extensions": ["bin", "rom"],
+                        "kind": "raw-file", "identities": [{
+                            "scope": "normalized-content",
+                            "sha1": "10155d8d6e6e832d6ea66db9bc098321fb5e8ebf",
+                            "sha256": "71af94d1e47a68c11e8fdb9f8368040601514a42a5a399cda48c7d3bff1e99d3",
+                        }]
+                    }]
+                }]
+            }],
+            "evidence": [], "contracts": [], "validators": []
+        },
+        "ports": []
+    });
+    Catalog::from_json(&document.to_string()).unwrap()
+}
+
 #[test]
 fn generic_live_fixture_has_only_its_valid_discovery_graph() {
-    let fixture = live_catalog(&live_package());
+    let package = live_package();
+    let fixture = generic_live_catalog(&package);
     fixture.validate().unwrap();
     assert_eq!(fixture.authoritative_document().schema_version, 2);
     assert!(fixture.ports().is_empty());
@@ -197,6 +238,69 @@ fn generic_live_fixture_has_only_its_valid_discovery_graph() {
     assert!(source.contracts.is_empty());
     assert!(source.validators.is_empty());
     assert!(source.qualification.is_empty());
+    assert_eq!(fixture.document().source_profiles.len(), 2);
+    assert_eq!(source.identities[0].id, "sotn-xbla");
+    assert_eq!(source.identities[1].id, "psx-scph-1001-bios");
+    for profile in &source.identities {
+        assert_eq!(profile.variants.len(), 1);
+        assert_eq!(profile.variants[0].representations.len(), 1);
+    }
+    let representation = &source.identities[0].variants[0].representations[0];
+    assert!(representation.extensions.is_empty());
+    let crate::SourceRepresentationKind::Compound { format, identities } = &representation.kind
+    else {
+        panic!("the fixture must retain STFS structural admission")
+    };
+    assert_eq!(*format, crate::CompoundSourceFormat::StfsLive);
+    assert_eq!(identities.len(), 1);
+    assert_eq!(identities[0].scope, crate::DigestScope::NormalizedContent);
+    assert_eq!(
+        identities[0].sha256,
+        Some(hex::encode(Sha256::digest(&package)))
+    );
+
+    let mut invalid = serde_json::to_value(fixture.authoritative_document()).unwrap();
+    invalid["source_catalog"]["identities"][0]["variants"][0]["representations"][0]["extensions"] =
+        serde_json::json!(["../live"]);
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+    let mut invalid = serde_json::to_value(fixture.authoritative_document()).unwrap();
+    invalid["source_catalog"]["unexpected_authority"] = true.into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+}
+
+#[test]
+fn unrelated_identity_does_not_change_generic_live_discovery() {
+    let temporary = tempfile::tempdir().unwrap();
+    let package = live_package();
+    let path = temporary.path().join("package");
+    fs::write(&path, &package).unwrap();
+    let fixture = generic_live_catalog(&package);
+    let mut extended = fixture.authoritative_document();
+    let mut unrelated = fixture.source_catalog().unwrap().identities[1].clone();
+    unrelated.id = "unrelated-raw-source".into();
+    extended
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .push(unrelated);
+    let extended = Catalog::from_json(&serde_json::to_string(&extended).unwrap()).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["sotn-xbla".into()];
+    let mut before = scan(&fixture, &selected).unwrap();
+    let mut after = scan(&extended, &selected).unwrap();
+    assert_eq!(before.candidates.len(), 1);
+    // Inspection timestamps reflect each scan's clock, not catalog identity.
+    for report in [&mut before, &mut after] {
+        for candidate in &mut report.candidates {
+            candidate.updated_at = 0;
+        }
+    }
+    assert_eq!(
+        serde_json::to_value(&before).unwrap(),
+        serde_json::to_value(&after).unwrap()
+    );
+    assert_eq!(fs::read(path).unwrap(), package);
 }
 
 #[test]
@@ -279,7 +383,7 @@ fn live_compound_profiles_share_one_hash_without_sharing_admission() {
     let package = live_package();
     let path = temporary.path().join("package.bin");
     fs::write(&path, &package).unwrap();
-    let mut document = live_catalog(&package).authoritative_document();
+    let mut document = generic_live_catalog(&package).authoritative_document();
     let profiles = &mut document.source_catalog.as_mut().unwrap().identities;
     let original = profiles
         .iter()
@@ -371,7 +475,7 @@ fn live_compound_profiles_share_one_hash_without_sharing_admission() {
 fn live_compound_detection_does_not_hash_unrelated_or_archive_inputs() {
     let temporary = tempfile::tempdir().unwrap();
     let package = live_package();
-    let catalog = live_catalog(&package);
+    let catalog = generic_live_catalog(&package);
     for name in ["unrelated", "unrelated.bin", "tiny", "empty"] {
         fs::write(
             temporary.path().join(name),
@@ -431,7 +535,7 @@ fn live_compound_exact_digests_cannot_admit_malformed_or_truncated_structure() {
     let mut malformed = live_package();
     malformed[0xc028] = 41;
     for package in [malformed, live_package()[..0xd000].to_vec()] {
-        let catalog = live_catalog(&package);
+        let catalog = generic_live_catalog(&package);
         fs::write(&path, &package).unwrap();
         let mut selected = request(temporary.path());
         selected.profile_ids = vec!["sotn-xbla".into()];
@@ -448,7 +552,7 @@ fn live_compound_exact_digests_cannot_admit_malformed_or_truncated_structure() {
 fn live_compound_discovery_retains_file_hash_and_entry_limits() {
     let temporary = tempfile::tempdir().unwrap();
     let package = live_package();
-    let catalog = live_catalog(&package);
+    let catalog = generic_live_catalog(&package);
     fs::write(temporary.path().join("package"), &package).unwrap();
     let mut selected = request(temporary.path());
     selected.profile_ids = vec!["sotn-xbla".into()];
@@ -494,7 +598,7 @@ fn live_compound_cancellation_preserves_previous_scan_registry_and_originals() {
     let package = live_package();
     let path = root.join("package");
     fs::write(&path, &package).unwrap();
-    let catalog = live_catalog(&package);
+    let catalog = generic_live_catalog(&package);
     let library = crate::Library::open(temporary.path().join("library")).unwrap();
     library.add_game_file_root(&root).unwrap();
     let mut prior = build_game_file_scan(
@@ -546,7 +650,7 @@ fn live_compound_cancellation_preserves_previous_scan_registry_and_originals() {
 fn live_compound_discovery_skips_symlinks_and_library_owned_paths() {
     let temporary = tempfile::tempdir().unwrap();
     let package = live_package();
-    let catalog = live_catalog(&package);
+    let catalog = generic_live_catalog(&package);
     let outside = temporary.path().join("outside");
     fs::write(&outside, &package).unwrap();
     let root = temporary.path().join("selected");
@@ -640,7 +744,7 @@ fn live_compound_owned_reader_keeps_existing_hash_bounds_and_cancellation() {
     service.request_cancellation(&activity.id).unwrap();
     budget.operation = Some(operation);
     budget.hashed = 0;
-    let catalog = live_catalog(&package);
+    let catalog = generic_live_catalog(&package);
     let profile = catalog.source_profile("sotn-xbla").unwrap();
     let error = crate::source_inspection::observe_compound_file(
         &catalog,
@@ -714,7 +818,7 @@ fn live_compound_failure_rejects_its_profile_but_preserves_independent_raw_admis
         let temporary = tempfile::tempdir().unwrap();
         let path = temporary.path().join("package.bin");
         fs::write(&path, &package).unwrap();
-        let mut document = live_catalog(&package).authoritative_document();
+        let mut document = generic_live_catalog(&package).authoritative_document();
         let profiles = &mut document.source_catalog.as_mut().unwrap().identities;
         let profile = profiles.iter_mut().find(|p| p.id == "sotn-xbla").unwrap();
         let mut raw = profile.variants[0].representations[0].clone();
@@ -776,7 +880,7 @@ fn live_compound_failure_rejects_its_profile_but_preserves_independent_raw_admis
 fn live_compound_extension_override_does_not_widen_structural_legacy_admission() {
     let temporary = tempfile::tempdir().unwrap();
     let package = live_package();
-    let mut document = live_catalog(&package).authoritative_document();
+    let mut document = generic_live_catalog(&package).authoritative_document();
     let profiles = &mut document.source_catalog.as_mut().unwrap().identities;
     let mut profile = profiles
         .iter()
