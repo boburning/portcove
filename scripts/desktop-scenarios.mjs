@@ -17,6 +17,16 @@ function scenario(id, description, options = {}) {
 
 export const DESKTOP_SCENARIOS = Object.freeze([
   scenario(
+    "native-saved-folder-selected-setup",
+    "Real saved-folder discovery, guarded registration and selected-port requirements preserve owned inputs.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-source-dialog-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-external-runtime-review",
     "Private prepared runtime picker, review, registration and non-owning removal preserve player files.",
     {
@@ -73,6 +83,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario("native-error-recovery", "A rejected native operation leaves the application usable."),
+  scenario(
+    "native-startup-network-diagnostic",
+    "Observe one current auth-status response without repeating installation or claiming startup causality.",
+    {
+      source: "desktop-startup-network-diagnostic.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
   scenario(
     "native-library-selection-review",
     "Whole-library selection review stays non-mutating and restores its trigger.",
@@ -482,6 +501,16 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (uniqueRequested.includes("native-startup-network-diagnostic") && uniqueRequested.length !== 1)
+    throw new Error("native-startup-network-diagnostic requires one exact standalone scenario");
+  if (uniqueRequested.includes("native-startup-network-diagnostic") && platform !== "win32")
+    throw new Error("native-startup-network-diagnostic requires Windows");
+  if (uniqueRequested.includes("native-saved-folder-selected-setup")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-saved-folder-selected-setup requires one exact standalone scenario");
+    if (platform !== "win32")
+      throw new Error("native-saved-folder-selected-setup requires Windows");
+  }
   if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
     throw new Error("native-external-runtime-review requires one exact standalone scenario");
   if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")

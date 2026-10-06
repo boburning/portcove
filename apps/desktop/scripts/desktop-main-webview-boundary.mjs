@@ -135,6 +135,9 @@ export async function normalPackageBoundaryScenario({
       observations.assets.every((source) => new URL(source).origin === new URL(initialUrl).origin),
     );
     const fixtureUrl = `http://127.0.0.1:${server.address().port}/untrusted`;
+    phase = "frame-csp";
+    await assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations });
+    phase = "main-containment";
     await assertMainWebviewContainment({
       browser,
       invoke,
@@ -207,29 +210,7 @@ export function assertOwnedBoundaryRequests(requests) {
 
 async function assertReviewedLinkRefusals({ browser, invoke, library, observations }) {
   observations.reviewedLinkRefusals = [];
-  const context = async () => {
-    const bootstrap = await invoke("get_bootstrap_status");
-    assert.equal(bootstrap.ok, true);
-    assert.equal(bootstrap.value.ready, true, "Link refusal requires a ready library");
-    assert.equal(bootstrap.value.error, null);
-    assert.equal(path.resolve(bootstrap.value.library_root), path.resolve(library));
-    assert.ok(Number.isSafeInteger(bootstrap.value.generation) && bootstrap.value.generation > 0);
-    assert.equal(path.resolve(bootstrap.value.selection.root), path.resolve(library));
-    const identity = await invoke("get_library_identity", {
-      generation: bootstrap.value.generation,
-    });
-    assert.equal(identity.ok, true, "Library identity must remain available");
-    assert.ok(typeof identity.value?.id === "string" && identity.value.id.length > 0);
-    assert.equal(
-      path.toNamespacedPath(path.resolve(identity.value.root)),
-      path.toNamespacedPath(path.resolve(library)),
-    );
-    return {
-      bootstrap: bootstrap.value,
-      identity: identity.value,
-      url: await browser.getCurrentUrl(),
-    };
-  };
+  const context = () => readyMainContext({ browser, invoke, library });
   for (const request of [
     {
       command: "open_external_url",
@@ -259,6 +240,104 @@ async function assertReviewedLinkRefusals({ browser, invoke, library, observatio
     record.after = await context();
     assert.deepEqual(record.after, record.before, "Refusal must preserve main and library context");
   }
+}
+
+async function readyMainContext({ browser, invoke, library }) {
+  const bootstrap = await invoke("get_bootstrap_status");
+  assert.equal(bootstrap.ok, true);
+  assert.equal(bootstrap.value.ready, true, "Boundary refusal requires a ready library");
+  assert.equal(bootstrap.value.error, null);
+  assert.equal(path.resolve(bootstrap.value.library_root), path.resolve(library));
+  assert.ok(Number.isSafeInteger(bootstrap.value.generation) && bootstrap.value.generation > 0);
+  assert.equal(path.resolve(bootstrap.value.selection.root), path.resolve(library));
+  const identity = await invoke("get_library_identity", {
+    generation: bootstrap.value.generation,
+  });
+  assert.equal(identity.ok, true, "Library identity must remain available");
+  assert.ok(typeof identity.value?.id === "string" && identity.value.id.length > 0);
+  assert.equal(
+    path.toNamespacedPath(path.resolve(identity.value.root)),
+    path.toNamespacedPath(path.resolve(library)),
+  );
+  return {
+    bootstrap: bootstrap.value,
+    identity: identity.value,
+    url: await browser.getCurrentUrl(),
+  };
+}
+
+async function assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations }) {
+  // An origin-root URL keeps the expected resource unambiguous even when an
+  // engine strips cross-origin report paths. This server is owned by this run.
+  const attempted = new URL("/", fixtureUrl).href;
+  const record = { attempted };
+  observations.cspFrame = record;
+  record.before = await readyMainContext({ browser, invoke, library });
+  record.refusal = await browser.executeAsyncScript((url, done) => {
+    const frame = document.createElement("iframe");
+    frame.hidden = true;
+    frame.title = "Owned untrusted frame boundary fixture";
+    let completed = false;
+    const finish = (result) => {
+      if (completed) return;
+      completed = true;
+      clearTimeout(timer);
+      document.removeEventListener("securitypolicyviolation", onViolation);
+      frame.remove();
+      done({ ...result, frameRemoved: !frame.isConnected });
+    };
+    const onViolation = (event) => {
+      if (
+        !event.isTrusted ||
+        event.effectiveDirective !== "frame-src" ||
+        event.disposition !== "enforce"
+      )
+        return;
+      let blocked;
+      try {
+        blocked = new URL(event.blockedURI).href;
+      } catch {
+        return;
+      }
+      if (blocked !== url) return;
+      finish({
+        observed: true,
+        trusted: event.isTrusted,
+        directive: event.effectiveDirective,
+        disposition: event.disposition,
+        blockedUri: event.blockedURI,
+        documentUri: event.documentURI,
+        originalPolicy: event.originalPolicy,
+        frameConnected: frame.isConnected,
+      });
+    };
+    // Cleanup precedes the existing ten-second WebDriver script deadline.
+    const timer = setTimeout(
+      () => finish({ observed: false, reason: "no-enforced-frame-refusal" }),
+      9000,
+    );
+    document.addEventListener("securitypolicyviolation", onViolation);
+    try {
+      frame.src = url;
+      document.body.append(frame);
+    } catch {
+      finish({ observed: false, reason: "frame-setup-failed" });
+    }
+  }, attempted);
+  assert.equal(record.refusal.observed, true, "An enforced owned-frame CSP refusal is required");
+  assert.equal(record.refusal.trusted, true);
+  assert.equal(record.refusal.directive, "frame-src");
+  assert.equal(record.refusal.disposition, "enforce");
+  assert.equal(new URL(record.refusal.blockedUri).href, attempted);
+  assert.equal(record.refusal.documentUri, record.before.url);
+  assert.equal(record.refusal.frameConnected, true);
+  assert.equal(record.refusal.frameRemoved, true);
+  record.after = await readyMainContext({ browser, invoke, library });
+  assert.deepEqual(
+    record.after,
+    record.before,
+    "Frame refusal must preserve main and library context",
+  );
 }
 
 export async function assertMainWebviewAccess({ browser, invoke, library, observations }) {

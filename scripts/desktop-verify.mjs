@@ -142,6 +142,9 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
     harness_deadline_ms: desktopHarnessDeadlineMs(selection),
     prerequisites: selection.prerequisites,
     host_resources: selection.host_resources,
+    cli_features: selection.selected_scenarios.includes("native-saved-folder-selected-setup")
+      ? ["portcove-core/qualification-fixtures"]
+      : [],
     qualification_features:
       installFixture || steamFixture || externalFixture ? ["qualification-fixtures"] : [],
     source,
@@ -416,7 +419,12 @@ async function runVerification(options, selection) {
     ]);
     let probe;
     if (selection.prerequisites.includes("owned-fixture")) {
-      await phase("cli-build", "cargo", ["build", "-p", "portcove-cli"]);
+      await phase("cli-build", "cargo", [
+        "build",
+        "-p",
+        "portcove-cli",
+        ...(plan.cli_features.length ? ["--features", plan.cli_features.join(",")] : []),
+      ]);
       probe = path.join(runDirectory, `portcove-host-tool-fixture${executableSuffix()}`);
       await phase("owned-probe-build", "rustc", [
         "--crate-name",
