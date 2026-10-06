@@ -641,7 +641,7 @@ test("repository toolchain reader exports the declared components before install
       runReader(
         "startup-after-reader-diagnostic-only",
         '[Console]::Error.WriteLine("portcove-startup-discriminator:entered"); ' +
-          '[PSCustomObject]@{version=$PSVersionTable.PSVersion.ToString();executable=[Environment]::ProcessPath} | ConvertTo-Json -Compress',
+          "[PSCustomObject]@{version=$PSVersionTable.PSVersion.ToString();executable=[Environment]::ProcessPath} | ConvertTo-Json -Compress",
       );
     } catch {
       // Best-effort diagnostics must preserve the original reader failure.
