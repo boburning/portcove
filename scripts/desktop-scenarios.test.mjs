@@ -4,6 +4,7 @@ import test from "node:test";
 import { copyFile, mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createInstallFixture } from "../apps/desktop/scripts/desktop-install-fixture.mjs";
 import { fileIdentity } from "./development-evidence.mjs";
 import {
   createExternalRuntimeFixture,
@@ -968,4 +969,84 @@ test("backup success-focus acceptance is isolated and exact-selection-only", () 
     "native-dialog",
   ]);
   assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+});
+
+test("saved-folder selected setup stays standalone and opt-in", () => {
+  const id = "native-saved-folder-selected-setup";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "install-fixture", "owned-fixture"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  for (const profile of ["smoke", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "keyboard-layout"], platform: "win32" }),
+    /standalone/,
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
+});
+
+test("selected setup identities admit both replacements only in the opt-in catalog", async (t) => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-selected-setup-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const fixture = await createInstallFixture({
+    root,
+    output,
+    sourceJourney: true,
+    revision: "a".repeat(40),
+  });
+  t.after(() => fixture.close());
+  const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+  const owned = fixture.sourceJourney;
+  assert.equal(owned.game.length, owned.replacement.length);
+  assert.notDeepEqual(owned.game, owned.replacement);
+  for (const [name, original] of [
+    ["gamePath", "gameBefore"],
+    ["biosPath", "biosBefore"],
+  ])
+    assert.deepEqual(await readFile(owned[name]), await readFile(owned[original]));
+  const identities = catalog.source_catalog.identities.filter((item) =>
+    owned.profiles.includes(item.id),
+  );
+  assert.deepEqual(
+    identities.map((item) => item.variants.length),
+    [2, 1],
+  );
+  const expectedHashes = await Promise.all(
+    [owned.gameBefore, owned.gameReplacement].map(
+      async (file) => (await fileIdentity(file)).sha256,
+    ),
+  );
+  assert.deepEqual(
+    identities[0].variants.map((item) => item.representations[0].identities[0].sha256),
+    expectedHashes,
+  );
+  for (const port of [fixture.port, fixture.refreshPort]) {
+    const contract = catalog.source_catalog.contracts.find(
+      (item) => item.port_id === port.id && item.role === "game",
+    );
+    assert.deepEqual(contract.supported_variant_ids, ["inert-0", "inert-1"]);
+    assert.equal(contract.admission_mode, "enforced");
+    assert.ok(contract.immutable_review_url.includes("a".repeat(40)));
+  }
+  assert.equal(fixture.port.adapter, "libultraship-portable");
+  assert.equal(fixture.refreshPort.adapter, "psx-recomp-managed");
+  assert.equal(fixture.refreshPort.bios_source_profile, owned.profiles[1]);
+  assert.equal(fixture.requests.length, 0);
+  const ordinaryOutput = await mkdtemp(path.join(os.tmpdir(), "portcove-ordinary-install-"));
+  t.after(() => rm(ordinaryOutput, { recursive: true, force: true }));
+  const ordinary = await createInstallFixture({ root, output: ordinaryOutput });
+  t.after(() => ordinary.close());
+  assert.equal(ordinary.sourceJourney, null);
+  assert.equal(ordinary.port.source_profile, undefined);
+  assert.equal(ordinary.refreshPort.bios_source_profile, undefined);
+  const original = JSON.parse(
+    await readFile(path.join(root, "crates/portcove-core/catalog/catalog.json"), "utf8"),
+  );
+  const ordinaryCatalog = JSON.parse(await readFile(ordinary.catalogPath, "utf8"));
+  assert.deepEqual(ordinaryCatalog.source_catalog, original.source_catalog);
 });

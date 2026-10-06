@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
@@ -112,7 +112,13 @@ async function listen(server) {
   return server.address().port;
 }
 
-export async function createInstallFixture({ root, output, holdFirstDownload = false }) {
+export async function createInstallFixture({
+  root,
+  output,
+  holdFirstDownload = false,
+  sourceJourney = false,
+  revision,
+}) {
   let artifact = createInstallArtifact();
   const artifacts = new Map([[`/${artifactName}`, artifact]]);
   const requests = [];
@@ -214,6 +220,117 @@ export async function createInstallFixture({ root, output, holdFirstDownload = f
       if (baseCatalog.ports.some((item) => item.id === definition.id))
         throw new Error(`${definition.id} unexpectedly exists in the maintained catalog`);
     }
+    if (sourceJourney) {
+      if (!/^[a-f0-9]{40}$/.test(revision ?? ""))
+        throw new Error("Selected setup requires the actual frozen source revision");
+      const directory = path.join(output, "selected-setup-inputs");
+      await mkdir(directory);
+      const game = Buffer.from("Portcove inert selected game variant A\n");
+      const replacement = Buffer.from("Portcove inert selected game variant B\n");
+      const bios = Buffer.from("Portcove inert selected BIOS fixture\n");
+      const gamePath = path.join(directory, "game.pcgame");
+      const biosPath = path.join(directory, "bios.pcbios");
+      const gameBefore = path.join(output, "selected-game-before.pcgame");
+      const gameReplacement = path.join(output, "selected-game-replacement.pcgame");
+      const biosBefore = path.join(output, "selected-bios-before.pcbios");
+      await Promise.all([
+        writeFile(gamePath, game, { flag: "wx" }),
+        writeFile(biosPath, bios, { flag: "wx" }),
+        writeFile(gameBefore, game, { flag: "wx" }),
+        writeFile(gameReplacement, replacement, { flag: "wx" }),
+        writeFile(biosBefore, bios, { flag: "wx" }),
+      ]);
+      const evidenceGap =
+        "Owned inert qualification bytes only; no upstream identity, rights, preparation or runtime qualification.";
+      const immutableUrl = `https://github.com/boburning/portcove/blob/${revision}/apps/desktop/scripts/desktop-install-fixture.mjs`;
+      const profiles = [
+        {
+          id: "selected-setup-game",
+          label: "Selected setup inert game",
+          extension: "pcgame",
+          payloads: [game, replacement],
+        },
+        {
+          id: "selected-setup-bios",
+          label: "Selected setup inert BIOS",
+          extension: "pcbios",
+          payloads: [bios],
+        },
+      ];
+      for (const profile of profiles) {
+        baseCatalog.source_catalog.identities.push({
+          id: profile.id,
+          label: profile.label,
+          kind: "file",
+          evidence_gap: evidenceGap,
+          variants: profile.payloads.map((payload, index) => ({
+            id: `inert-${index}`,
+            title: `Owned inert variant ${index}`,
+            region: null,
+            revision: null,
+            representations: [
+              {
+                id: "original",
+                extensions: [profile.extension],
+                kind: "raw-file",
+                identities: [
+                  {
+                    scope: "original-file",
+                    sha1: null,
+                    sha256: createHash("sha256").update(payload).digest("hex"),
+                    crc32: null,
+                  },
+                ],
+              },
+            ],
+          })),
+        });
+      }
+      portDefinition.adapter = "libultraship-portable";
+      refreshPortDefinition.adapter = "psx-recomp-managed";
+      for (const definition of portDefinitions) {
+        definition.source_profile = profiles[0].id;
+        if (definition === refreshPortDefinition) definition.bios_source_profile = profiles[1].id;
+        definition.presentation.source_requirements = profiles
+          .filter((profile, index) => index === 0 || definition === refreshPortDefinition)
+          .map((profile, index) => ({
+            role: index === 0 ? "game" : "bios",
+            profile_id: profile.id,
+            label: profile.label,
+            verification: "catalog-rules",
+          }));
+        for (const requirement of definition.presentation.source_requirements) {
+          const profile = profiles.find((item) => item.id === requirement.profile_id);
+          baseCatalog.source_catalog.contracts.push({
+            id: `${definition.id}-${requirement.role}`,
+            port_id: definition.id,
+            role: requirement.role,
+            profile_id: profile.id,
+            admission_mode: "enforced",
+            supported_variant_ids: profile.payloads.map((_, index) => `inert-${index}`),
+            validator_contract_id: null,
+            evidence_ids: [],
+            authority_ref: revision,
+            reviewed_at: "2026-10-06",
+            immutable_review_url: immutableUrl,
+            live_review_url: null,
+            evidence_gap: evidenceGap,
+          });
+        }
+      }
+      sourceJourney = {
+        directory,
+        gamePath,
+        biosPath,
+        gameBefore,
+        gameReplacement,
+        biosBefore,
+        game,
+        replacement,
+        bios,
+        profiles: profiles.map(({ id }) => id),
+      };
+    }
     baseCatalog.ports.push(...portDefinitions);
     artifactPath = path.join(output, artifactName);
     catalogPath = path.join(output, "qualification-catalog.json");
@@ -235,6 +352,7 @@ export async function createInstallFixture({ root, output, holdFirstDownload = f
     port: portDefinition,
     refreshPort: refreshPortDefinition,
     requests,
+    sourceJourney: sourceJourney || null,
     url,
     async publishRelease(portId, { version, publishedAt, seed }) {
       if (![INSTALL_FIXTURE_PORT_ID, INSTALL_REFRESH_FIXTURE_PORT_ID].includes(portId))

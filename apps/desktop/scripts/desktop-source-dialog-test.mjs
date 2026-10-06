@@ -1,12 +1,14 @@
 // Actual-Tauri proof for the paired one-off intake and explicit-folder source journeys.
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
+import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import {
   assertCompactReview,
   assertPrimaryReviewAction,
   captureAccessibilityReport,
+  clickVisible,
   openCatalogPortAfterRefresh,
   reviewControls,
 } from "./desktop-review-controls.mjs";
@@ -626,5 +628,309 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
       { flag: "wx" },
     );
     artifacts.push(report);
+  });
+}
+
+function selectedSetupCommand({ cli, library, output, fixture }) {
+  return (args) => {
+    const result = spawnCommand(
+      cli,
+      ["--library", library, "--json", "--non-interactive", ...args],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 15_000,
+        env: {
+          ...process.env,
+          PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
+          PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const response = JSON.parse(result.stdout);
+    assert.equal(response.ok, true);
+    return response.data;
+  };
+}
+
+// Fixture pre-state only: no native-picker or source-registration claim.
+export function seedSelectedSetup(context) {
+  const command = selectedSetupCommand(context);
+  assert.deepEqual(command(["source", "list"]), []);
+  assert.deepEqual(command(["source", "roots", "list"]), []);
+  command(["source", "roots", "add", context.fixture.sourceJourney.directory]);
+  assert.deepEqual(command(["source", "list"]), []);
+}
+
+export async function selectedSetupScenario({
+  browser,
+  invoke,
+  scenario,
+  library,
+  output,
+  artifacts,
+  cli,
+  fixture,
+}) {
+  await scenario("native-saved-folder-selected-setup", async () => {
+    assert.ok(fixture?.sourceJourney, "Only the exact opt-in selection supplies these identities");
+    const owned = fixture.sourceJourney;
+    const command = selectedSetupCommand({ cli, library, output, fixture });
+    const { button, click } = reviewControls(browser);
+    const report = {
+      scope: "real saved-root scan and UI guarded registration; uninstalled requirements only",
+      limitations: [
+        "Saved root seeded by first-party CLI; native picker not exercised",
+        "No installation, preparation, launch or runtime qualification",
+        "Uninstalled status is NotChecked; missing path inspected separately",
+      ],
+      port_ids: [fixture.port.id, fixture.refreshPort.id],
+      observations: {},
+    };
+    const review = By.css('[aria-label="Source import review"]');
+    const row = (profile) => By.css(`[data-completed-candidate][data-profile-id="${profile}"]`);
+    const reviewCandidate = async (profile) => {
+      const candidate = await browser.wait(until.elementLocated(row(profile)), 15_000);
+      await clickVisible(browser, await candidate.findElement(By.css("[data-candidate-review]")));
+      await browser.wait(until.elementLocated(review), 15_000);
+    };
+    const plan = (profileId, sourcePath) =>
+      invoke("plan_source_import", { profileId, path: sourcePath, mode: "use_current_location" });
+    const scan = async () => {
+      const completedBefore = new Set(
+        command(["activity"])
+          .records.filter(
+            (item) => item.operation === "discover_sources" && item.status === "succeeded",
+          )
+          .map((item) => item.id),
+      );
+      await click(button("Scan saved folders"));
+      await browser.wait(
+        async () =>
+          (await browser.findElement(button("Scan saved folders"))).isEnabled() &&
+          command(["activity"]).records.some(
+            (item) =>
+              item.operation === "discover_sources" &&
+              item.status === "succeeded" &&
+              !completedBefore.has(item.id),
+          ),
+        15_000,
+        "The UI scan must produce a new completed Core activity, not reuse a prior snapshot",
+      );
+      const snapshot = await invoke("get_game_file_scan_snapshot");
+      assert.equal(snapshot.freshness, "inputs_match");
+      assert.deepEqual(
+        snapshot.report.candidates.map((item) => item.profile_id).sort(),
+        [...owned.profiles].sort(),
+      );
+      return snapshot;
+    };
+    let rootMoved = false;
+    const missingRoot = `${owned.directory}-unavailable`;
+    try {
+      assert.deepEqual(command(["source", "list"]), []);
+      await click(
+        By.xpath(
+          '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
+        ),
+      );
+      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await click(button("Refresh folders"));
+      report.observations.initial_scan = await scan();
+      assert.deepEqual(command(["source", "list"]), [], "Discovery must never register sources");
+      await reviewCandidate(owned.profiles[0]);
+      assert.ok((await browser.findElement(review).getText()).includes(owned.gamePath));
+      const reviewedA = await plan(owned.profiles[0], owned.gamePath);
+      assert.match(reviewedA.plan_sha256, /^[a-f0-9]{64}$/);
+      assert.deepEqual(command(["source", "list"]), [], "Review must remain non-mutating");
+      await writeFile(owned.gamePath, owned.replacement);
+      const freshB = await plan(owned.profiles[0], owned.gamePath);
+      assert.notEqual(freshB.plan_sha256, reviewedA.plan_sha256);
+      assert.notEqual(freshB.source.sha256, reviewedA.source.sha256);
+      await click(button("Use current location"));
+      const refusal = By.xpath('//p[@role="alert" and contains(., "changed after review")]');
+      await browser.wait(until.elementLocated(refusal), 15_000);
+      report.observations.changed_input = {
+        reviewed_a: reviewedA,
+        admitted_b: freshB,
+        refusal: await browser.findElement(refusal).getText(),
+        activities: command(["activity"]).records,
+      };
+      assert.deepEqual(
+        command(["source", "list"]),
+        [],
+        "Stale consent must not publish a registration",
+      );
+      await click(button("Cancel review"));
+      await writeFile(owned.gamePath, owned.game);
+      report.observations.rescan = await scan();
+      await reviewCandidate(owned.profiles[0]);
+      report.observations.new_a_review = await plan(owned.profiles[0], owned.gamePath);
+      await click(button("Use current location"));
+      const continuation = By.css('[aria-label="Continue to a game"]');
+      await browser.wait(until.elementLocated(continuation), 15_000);
+      const registeredGame = command(["source", "list"]);
+      assert.equal(registeredGame.length, 1);
+      assert.equal(registeredGame[0].profile_id, owned.profiles[0]);
+      assert.equal(registeredGame[0].path, owned.gamePath);
+      assert.equal(registeredGame[0].sha256, reviewedA.source.sha256);
+      const expectedButtons = [fixture.port, fixture.refreshPort]
+        .map((port) => `Open ${port.name} details`)
+        .sort();
+      const actualButtons = await Promise.all(
+        (await browser.findElement(continuation).findElements(By.css("button"))).map((element) =>
+          element.getText(),
+        ),
+      );
+      assert.deepEqual(
+        actualButtons.sort(),
+        expectedButtons,
+        "Shared game identity must preserve both distinct port choices",
+      );
+      report.observations.game_registered = registeredGame;
+      await browser.executeScript(
+        'arguments[0].scrollIntoView({ block: "center" });',
+        await browser.findElement(continuation),
+      );
+      report.observations.continuation_geometry = await browser.executeScript(() => {
+        const section = document.querySelector('[aria-label="Continue to a game"]');
+        const bounds = section.getBoundingClientRect();
+        return {
+          text: section.textContent.trim(),
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+          viewport: { width: innerWidth, height: innerHeight },
+        };
+      });
+      const committedScreenshot = path.join(output, "selected-setup-game-registered.png");
+      await writeFile(committedScreenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(committedScreenshot);
+      report.observations.missing_bios_status = command(["status", fixture.refreshPort.id]);
+      assert.ok(
+        report.observations.missing_bios_status.readiness.blockers.includes("missing_bios"),
+      );
+      report.observations.missing_bios_plan = command(["plan", fixture.refreshPort.id]);
+      assert.equal(
+        report.observations.missing_bios_plan.source_requirements.find(
+          (item) => item.role === "bios",
+        ).registered,
+        false,
+      );
+      for (const port of [fixture.port, fixture.refreshPort]) {
+        await click(button(`Open ${port.name} details`));
+        await browser.wait(
+          until.elementLocated(By.css('[aria-label="Back to previous workspace"]')),
+          5_000,
+        );
+        assert.ok((await browser.findElement(By.css("main")).getText()).includes(port.name));
+        await click(By.css('[aria-label="Back to previous workspace"]'));
+        await browser.wait(until.elementLocated(continuation), 5_000);
+      }
+      await reviewCandidate(owned.profiles[1]);
+      assert.ok((await browser.findElement(review).getText()).includes(owned.biosPath));
+      assert.equal(command(["source", "list"]).length, 1, "BIOS review must not commit it");
+      await click(button("Use current location"));
+      await browser.wait(async () => command(["source", "list"]).length === 2, 15_000);
+      const registered = command(["source", "list"]);
+      report.observations.committed_registrations = registered;
+      const statuses = await invoke("get_statuses");
+      report.observations.authoritative_ports = [fixture.port, fixture.refreshPort].map((port) => {
+        const status = command(["status", port.id]);
+        assert.deepEqual(
+          status,
+          statuses.find((item) => item.port_id === port.id),
+        );
+        assert.equal(status.active, null);
+        assert.equal(status.readiness.launchable, false);
+        assert.equal(status.readiness.source, "not_checked");
+        assert.ok(!status.readiness.blockers.includes("missing_source"));
+        if (port === fixture.refreshPort) {
+          assert.equal(status.readiness.bios, "not_checked");
+          assert.ok(!status.readiness.blockers.includes("missing_bios"));
+        }
+        const installPlan = command(["plan", port.id]);
+        assert.ok(installPlan.source_requirements.every((item) => item.registered));
+        assert.deepEqual(
+          installPlan.source_requirements.map((item) => item.profile_id).sort(),
+          (port === fixture.refreshPort ? owned.profiles : [owned.profiles[0]]).slice().sort(),
+        );
+        return { status, install_plan: installPlan };
+      });
+      await rename(owned.directory, missingRoot);
+      rootMoved = true;
+      await click(button("Refresh folders"));
+      await browser.wait(
+        async () =>
+          !(
+            await browser
+              .findElement(row(owned.profiles[0]))
+              .findElement(By.css("[data-candidate-review]"))
+          ).isEnabled(),
+        5_000,
+      );
+      const snapshot = await invoke("get_game_file_scan_snapshot");
+      assert.equal(snapshot.freshness, "inputs_changed");
+      const roots = command(["source", "roots", "list"]);
+      assert.equal(roots.find((item) => item.path === owned.directory).availability, "unavailable");
+      assert.deepEqual(command(["source", "list"]), registered);
+      const inspection = command(["source", "inspect", owned.profiles[0]]);
+      assert.equal(inspection.health, "missing");
+      for (const profile of owned.profiles)
+        assert.equal(
+          await browser
+            .findElement(row(profile))
+            .findElement(By.css("[data-candidate-review]"))
+            .isEnabled(),
+          false,
+        );
+      report.observations.unavailable = {
+        roots,
+        snapshot,
+        inspection,
+        registrations: command(["source", "list"]),
+        controls: await browser.executeScript(() =>
+          [...document.querySelectorAll("[data-completed-candidate] button")].map((button) => ({
+            text: button.textContent.trim(),
+            disabled: button.disabled,
+          })),
+        ),
+      };
+      assert.ok(report.observations.unavailable.controls.every((item) => item.disabled));
+      assert.equal(await browser.findElement(button("Scan saved folders")).isEnabled(), false);
+      assert.equal(await browser.findElement(button("Refresh folders")).isEnabled(), true);
+      const screenshot = path.join(output, "selected-setup-unavailable.png");
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(screenshot);
+      report.observations.viewport = await browser.executeScript(() => ({
+        width: innerWidth,
+        height: innerHeight,
+      }));
+      report.observations.window = await browser.manage().window().getRect();
+      assert.equal(
+        fixture.requests.length,
+        0,
+        "Read-only plans must not acquire or install the inert package",
+      );
+    } catch (error) {
+      report.failure = String(error);
+      throw error;
+    } finally {
+      if (rootMoved) await rename(missingRoot, owned.directory);
+      await writeFile(owned.gamePath, owned.game);
+      assert.deepEqual(await readFile(owned.gamePath), await readFile(owned.gameBefore));
+      assert.deepEqual(await readFile(owned.biosPath), await readFile(owned.biosBefore));
+      const artifact = path.join(output, "selected-setup-journey.json");
+      await writeFile(artifact, `${JSON.stringify(report, null, 2)}\n`, { flag: "wx" });
+      artifacts.push(artifact);
+    }
   });
 }
