@@ -358,6 +358,99 @@ it("recognizes a registered source in streamed results but still reviews a diffe
   expect(button("Review game files now")).toBeDefined();
 });
 
+it("keeps live catalog associations distinct through completion and stale readback", async () => {
+  const ports = [
+    { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" },
+    { ...portDefinition(), id: "game-b", name: "Game B", source_profile: "game" },
+    {
+      ...portDefinition(),
+      id: "firmware-consumer",
+      name: "Firmware consumer",
+      source_profile: "other",
+      bios_source_profile: "game",
+    },
+    { ...portDefinition(), id: "unrelated", name: "Unrelated", source_profile: "other" },
+  ];
+  const orphan = {
+    ...snapshot.report.candidates[0],
+    profile_id: "orphan",
+    path: "D:/Games/orphan.bin",
+  };
+  const completed = {
+    ...snapshot,
+    report: { ...snapshot.report, candidates: [...snapshot.report.candidates, orphan] },
+  };
+  let onEvent: ((event: OperationEvent) => void) | undefined;
+  let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    onEvent = callback;
+    return new Promise<GameFileScanSnapshot>((resolve) => {
+      finish = resolve;
+    });
+  });
+  await act(async () => root.render(<GameFileLibraries ports={ports} profiles={[]} />));
+  await click("Scan saved folders");
+  for (const [index, candidate] of completed.report.candidates.entries()) {
+    await act(async () =>
+      onEvent?.({
+        schema_version: 3,
+        operation_id: "scan-1",
+        parent_operation_id: null,
+        target: null,
+        sequence: index,
+        timestamp_ms: 1,
+        operation: "discover_sources",
+        type: "source_candidate",
+        profile_id: candidate.profile_id,
+        path: candidate.path,
+        sha256: candidate.sha256,
+        size: candidate.size,
+      }),
+    );
+  }
+  const row = (kind: "live" | "completed", profile: string) => {
+    const element = document.querySelector(
+      `[data-${kind}-candidate][data-profile-id="${profile}"]`,
+    );
+    expect(element).not.toBeNull();
+    return element!;
+  };
+  expect(row("live", "game").textContent).toContain(
+    "Catalog ports using this profile: Game A, Game B, Firmware consumer",
+  );
+  expect(row("live", "game").textContent).not.toContain("Unrelated");
+  expect(row("live", "orphan").textContent).toContain(
+    "No catalog port currently uses this profile",
+  );
+  expect(document.body.textContent).not.toContain("Ready for setup review");
+  expect(document.body.textContent).not.toContain("Already added");
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+
+  const currentPorts = ports.filter((port) => port.id !== "game-a");
+  await act(async () => root.render(<GameFileLibraries ports={currentPorts} profiles={[]} />));
+  expect(row("live", "game").textContent).toContain(
+    "Catalog ports using this profile: Game B, Firmware consumer",
+  );
+  expect(row("live", "game").textContent).not.toContain("Game A");
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(completed);
+  await act(async () => finish?.(completed));
+  expect(document.querySelector("[data-live-candidate]")).toBeNull();
+  expect(row("completed", "game").textContent).toContain(
+    "Catalog ports using this profile: Game B, Firmware consumer",
+  );
+  expect(row("completed", "orphan").textContent).toContain(
+    "No catalog port currently uses this profile",
+  );
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...completed,
+    freshness: "inputs_changed",
+  });
+  await click("Refresh folders");
+  expect(row("completed", "game").querySelector("button")?.disabled).toBe(true);
+  expect(row("completed", "orphan").querySelector("button")?.disabled).toBe(true);
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
 it("reviews a streamed match through a fresh core plan before the scan completes", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot)
     .mockResolvedValueOnce(null)

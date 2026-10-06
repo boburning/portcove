@@ -76,6 +76,26 @@ function CandidateIdentity({
   );
 }
 
+function CatalogPortAssociations({
+  profileId,
+  ports,
+}: {
+  profileId: string;
+  ports: PortDefinition[];
+}) {
+  return (
+    <span>
+      Catalog ports using this profile:{" "}
+      {ports
+        .filter(
+          (port) => port.source_profile === profileId || port.bios_source_profile === profileId,
+        )
+        .map((port) => port.name)
+        .join(", ") || "No catalog port currently uses this profile"}
+    </span>
+  );
+}
+
 function CandidateAction({
   candidate,
   registeredSources,
@@ -308,17 +328,7 @@ function CompletedScan({
         >
           <div className="min-w-0">
             <CandidateIdentity candidate={candidate} profiles={profiles} />
-            <span>
-              Catalog ports using this profile:{" "}
-              {ports
-                .filter(
-                  (port) =>
-                    port.source_profile === candidate.profile_id ||
-                    port.bios_source_profile === candidate.profile_id,
-                )
-                .map((port) => port.name)
-                .join(", ") || "No catalog port currently uses this profile"}
-            </span>
+            <CatalogPortAssociations profileId={candidate.profile_id} ports={ports} />
           </div>
           <CandidateAction
             candidate={candidate}
@@ -466,6 +476,7 @@ function LiveScanResults({
         >
           <div className="min-w-0">
             <CandidateIdentity candidate={candidate} profiles={profiles} />
+            <CatalogPortAssociations profileId={candidate.profile_id} ports={ports} />
           </div>
           <CandidateAction
             candidate={candidate}
