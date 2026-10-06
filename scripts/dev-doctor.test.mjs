@@ -279,6 +279,104 @@ test("stale npm fixture tools cannot approve their own installed version", (t) =
   );
   assert.equal(existingNpmDefinition("npm-oxfmt", directory, "oxfmt", "oxfmt"), null);
 });
+test("tsgolint observes installed metadata only after successful help startup", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-tsgolint-prerequisite-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(
+    path.join(directory, "package.json"),
+    JSON.stringify({ devDependencies: { "oxlint-tsgolint": "7.0.2003" } }),
+  );
+  const packageRoot = path.join(directory, "node_modules/oxlint-tsgolint");
+  mkdirSync(packageRoot, { recursive: true });
+  const executable = path.join(packageRoot, "cli.cjs");
+  writeFileSync(executable, "throw new Error('fixture must not execute');");
+  const marker = path.join(packageRoot, "package.json");
+  const metadata = { name: "oxlint-tsgolint", version: "7.0.2003", bin: { tsgolint: "cli.cjs" } };
+  const writeMetadata = (value) => writeFileSync(marker, JSON.stringify(value));
+  const readDefinition = () =>
+    existingNpmDefinition("npm-oxlint-tsgolint", directory, "oxlint-tsgolint", "tsgolint");
+  writeMetadata(metadata);
+  const definition = readDefinition();
+  assert.deepEqual(definition.command, [process.execPath, executable, "--help"]);
+  const calls = [];
+  const result = probeTool(definition, (command, args) => {
+    calls.push([command, args]);
+    return { status: 0, stderr: "Usage: tsgolint; incidental 1.2.3 SECRET" };
+  });
+  assert.deepEqual(calls, [[process.execPath, [executable, "--help"]]]);
+  assert.equal(result.status, "ok");
+  assert.equal(result.observed, "7.0.2003");
+  assert.equal(result.expected, "7.0.2003");
+  assert.equal(result.version_source, "installed-package");
+  assert.ok(!JSON.stringify(result).includes("SECRET"));
+
+  writeMetadata({ ...metadata, version: "7.0.2002" });
+  const stale = probeTool(readDefinition(), () => ({ status: 0, stdout: "7.0.2003" }));
+  assert.equal(stale.status, "mismatch");
+  assert.equal(stale.observed, "7.0.2002");
+  for (const failure of [
+    { status: 2, stderr: "SECRET startup failure" },
+    { status: null, error: { code: "ENOENT" } },
+    { status: null, error: { code: "ETIMEDOUT" } },
+  ]) {
+    const failed = probeTool(definition, () => failure);
+    assert.equal(failed.status, failure.error?.code === "ETIMEDOUT" ? "timeout" : "unavailable");
+    assert.ok(!JSON.stringify(failed).includes("SECRET"));
+  }
+  for (const code of ["ENOENT", "ETIMEDOUT"]) {
+    const failed = probeTool(definition, () => {
+      throw Object.assign(new Error("SECRET"), { code });
+    });
+    assert.equal(failed.status, code === "ETIMEDOUT" ? "timeout" : "unavailable");
+    assert.equal(failed.observed, null);
+    assert.ok(!JSON.stringify(failed).includes("SECRET"));
+  }
+  for (const invalid of [
+    { ...metadata, name: "wrong-package" },
+    { ...metadata, version: undefined },
+    { ...metadata, version: "invalid" },
+    { ...metadata, bin: { tsgolint: "missing.cjs" } },
+    { ...metadata, bin: { tsgolint: "." } },
+    { ...metadata, bin: { tsgolint: "../../outside.cjs" } },
+  ]) {
+    writeMetadata(invalid);
+    assert.equal(readDefinition(), null);
+  }
+  writeFileSync(marker, "malformed json");
+  assert.equal(readDefinition(), null);
+  rmSync(marker);
+  assert.equal(readDefinition(), null);
+  writeMetadata(metadata);
+  writeFileSync(
+    path.join(directory, "package.json"),
+    JSON.stringify({ devDependencies: { "oxlint-tsgolint": "^7.0.2003" } }),
+  );
+  assert.equal(readDefinition(), null);
+});
+
+test("tsgolint refuses a launcher symlink outside its installed package", (t) => {
+  if (process.platform === "win32") return t.skip("file symlinks require Windows privilege");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-tsgolint-linked-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const packageRoot = path.join(directory, "node_modules/oxlint-tsgolint");
+  mkdirSync(packageRoot, { recursive: true });
+  writeFileSync(
+    path.join(directory, "package.json"),
+    JSON.stringify({ devDependencies: { "oxlint-tsgolint": "7.0.2003" } }),
+  );
+  writeFileSync(
+    path.join(packageRoot, "package.json"),
+    JSON.stringify({ name: "oxlint-tsgolint", version: "7.0.2003", bin: "cli.cjs" }),
+  );
+  const outside = path.join(directory, "outside.cjs");
+  writeFileSync(outside, "");
+  symlinkSync(outside, path.join(packageRoot, "cli.cjs"));
+  assert.equal(
+    existingNpmDefinition("npm-oxlint-tsgolint", directory, "oxlint-tsgolint", "tsgolint"),
+    null,
+  );
+});
+
 test("doctor distinguishes exact, mismatched, failed and absent tools without raw output", () => {
   const run = (stdout) => () => ({ status: 0, stdout });
   assert.equal(probeTool(definition, run("example 1.2.3")).status, "ok");

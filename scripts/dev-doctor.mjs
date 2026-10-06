@@ -83,6 +83,10 @@ function powershellAnalyzerDefinition() {
 
 export function probeTool(definition, run = spawnCommand, options = {}) {
   const { id, command, version = null, required = true } = definition;
+  const versionEvidence =
+    definition.version_source === "installed-package"
+      ? { version_source: definition.version_source }
+      : {};
   let result;
   try {
     result = run(command[0], command.slice(1), {
@@ -101,10 +105,14 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
       status: error.code === "ETIMEDOUT" ? "timeout" : "unavailable",
       observed: null,
       remediation: definition.remediation,
+      ...versionEvidence,
     };
   }
   const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  const observed = output.match(/(?<![0-9])\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][\w.-]+)?/u)?.[0] ?? null;
+  const observed =
+    definition.version_source === "installed-package"
+      ? definition.installed_version
+      : (output.match(/(?<![0-9])\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][\w.-]+)?/u)?.[0] ?? null);
   const status =
     result.error?.code === "ETIMEDOUT"
       ? "timeout"
@@ -114,7 +122,15 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
           ? "mismatch"
           : "ok";
   // Never include raw tool output: unexpected output can contain credentials.
-  return { id, required, expected: version, observed, status, remediation: definition.remediation };
+  return {
+    id,
+    required,
+    expected: version,
+    observed,
+    status,
+    remediation: definition.remediation,
+    ...versionEvidence,
+  };
 }
 
 // These are prerequisite observations, never successful execution receipts.
@@ -287,11 +303,16 @@ export function existingNpmDefinition(id, base, name, bin) {
       !lstatSync(executable).isFile()
     )
       return null;
+    // tsgolint has no version flag. Its help command checks launcher/native
+    // startup; the installed package metadata supplies distinct version evidence.
+    const packageVersion = name === "oxlint-tsgolint" && bin === "tsgolint";
+    if (packageVersion && !/^\d+\.\d+\.\d+$/u.test(installed.version ?? "")) return null;
     return {
       id,
-      command: [process.execPath, executable, "--version"],
+      command: [process.execPath, executable, packageVersion ? "--help" : "--version"],
       version: desired,
       installed_version: installed.version,
+      ...(packageVersion ? { version_source: "installed-package" } : {}),
     };
   } catch {
     return null;
