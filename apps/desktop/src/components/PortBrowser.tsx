@@ -435,18 +435,19 @@ function hasAvailableUpdate(status: PortStatus | undefined): boolean {
   const staged = status?.staged;
   if (!staged?.verified || !staged.staged) return true;
   const { release } = check;
-  const sameDownloadedTarget =
-    check.port_id === status?.port_id &&
-    staged.port_id === check.port_id &&
-    staged.channel === check.channel &&
-    release.channel === check.channel &&
-    release.version.length > 0 &&
-    staged.version === release.version &&
-    /^[a-f0-9]{64}$/u.test(release.asset.sha256) &&
-    staged.artifact.sha256 === release.asset.sha256 &&
-    staged.artifact.asset_name === release.asset.name &&
-    staged.artifact.size === release.asset.size &&
-    JSON.stringify(staged.runtime ?? null) === JSON.stringify(check.required_runtime ?? null);
+  const sameDownloadedTarget = [
+    check.port_id === status?.port_id,
+    staged.port_id === check.port_id,
+    staged.channel === check.channel,
+    release.channel === check.channel,
+    release.version.length > 0,
+    staged.version === release.version,
+    /^[a-f0-9]{64}$/u.test(release.asset.sha256),
+    staged.artifact.sha256 === release.asset.sha256,
+    staged.artifact.asset_name === release.asset.name,
+    staged.artifact.size === release.asset.size,
+    JSON.stringify(staged.runtime ?? null) === JSON.stringify(check.required_runtime ?? null),
+  ].every(Boolean);
   return !sameDownloadedTarget;
 }
 
