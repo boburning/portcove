@@ -11,6 +11,32 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mjs";
 
+export async function retainCompletionReport({
+  file,
+  report,
+  artifacts,
+  failure,
+  write = writeFile,
+  log = console.error,
+}) {
+  let artifactFailure;
+  try {
+    await write(file, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
+    artifacts.push(file);
+  } catch (error) {
+    artifactFailure = error;
+    report.artifact_write_failure = String(error);
+    try {
+      log(JSON.stringify({ report, artifact_write_failure: String(error) }));
+    } catch (logError) {
+      report.fallback_log_failure = String(logError);
+    }
+  }
+  // Artifact or fallback failures never replace the original journey error.
+  if (failure) throw failure;
+  if (artifactFailure) throw artifactFailure;
+}
+
 export async function selectedSetupCompletionScenario({
   browser,
   invoke,
@@ -63,6 +89,14 @@ export async function selectedSetupCompletionScenario({
       const file = path.join(output, `${name}.png`);
       await writeFile(file, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
       artifacts.push(file);
+      const window = await browser.manage().window().getRect();
+      const viewport = await browser.executeScript(() => ({
+        width: innerWidth,
+        height: innerHeight,
+        devicePixelRatio,
+      }));
+      assert.ok(window.width > 0 && window.height > 0 && viewport.width > 0 && viewport.height > 0);
+      (report.observations.geometry ??= {})[name] = { window, viewport };
     };
     const report = {
       scope:
@@ -105,15 +139,11 @@ export async function selectedSetupCompletionScenario({
         [...owned.profiles].sort(),
       );
       assert.deepEqual(await read("get_sources"), [], "Discovery must not register inputs");
-      const candidate = await browser.wait(
-        until.elementLocated(
-          By.css(
-            `[data-completed-candidate][data-profile-id="${owned.profiles[0]}"] [data-candidate-review]`,
-          ),
+      await click(
+        By.css(
+          `[data-completed-candidate][data-profile-id="${owned.profiles[0]}"] [data-candidate-review]`,
         ),
-        15_000,
       );
-      await candidate.click();
       const sourceReview = By.css('[aria-label="Source import review"]');
       await browser.wait(until.elementLocated(sourceReview), 15_000);
       assert.deepEqual(await read("get_sources"), [], "Review must not register inputs");
@@ -233,14 +263,33 @@ export async function selectedSetupCompletionScenario({
         installed.active.id,
         "Preparation review must not mutate",
       );
+      const priorPreparationIds = new Set(
+        (await read("get_activities")).records
+          .filter((item) => item.operation === "prepare" && item.target_id === port.id)
+          .map((item) => item.id),
+      );
       await click(button("Prepare game data"));
-      const prepared = await browser.wait(
+      const { status: prepared, activity: completedPreparation } = await browser.wait(
         async () => {
           const value = await status();
-          return value.readiness.launchable && value;
+          const records = (await read("get_activities")).records.filter(
+            (item) =>
+              item.operation === "prepare" &&
+              item.target_id === port.id &&
+              !priorPreparationIds.has(item.id),
+          );
+          const terminal = records.find((item) => item.status === "succeeded");
+          const closed = (await browser.findElements(preparationDialog)).length === 0;
+          if (!value.readiness.launchable || !terminal || !closed) return false;
+          assert.equal(
+            records.length,
+            1,
+            "One deliberate preparation must produce exactly one new operation",
+          );
+          return { status: value, activity: terminal };
         },
         15_000,
-        "The capable owned probe must complete the isolated Core preparation",
+        "The new Core preparation must reach terminal success, readiness and a closed review",
       );
       assert.notEqual(prepared.active.id, installed.active.id);
       assert.equal(prepared.previous.id, installed.active.id);
@@ -249,7 +298,7 @@ export async function selectedSetupCompletionScenario({
         "owned validated output",
       );
       report.observations.prepared = {
-        activity: await activity("prepare", "succeeded"),
+        activity: completedPreparation,
         status: prepared,
       };
       assert.ok(report.observations.prepared.activity);
@@ -257,10 +306,33 @@ export async function selectedSetupCompletionScenario({
       assert.deepEqual(core(["source", "list"]), report.observations.sources);
       await browser.wait(until.elementLocated(button("Play")), 15_000);
       await browser.wait(until.elementIsEnabled(await browser.findElement(button("Play"))), 15_000);
-      report.observations.result_focus = await browser.executeScript(() => ({
-        tag: document.activeElement?.tagName,
-        text: document.activeElement?.textContent?.trim(),
-      }));
+      report.observations.result_focus = await browser.wait(
+        () =>
+          browser.executeScript((name) => {
+            const detail = document.querySelector("[data-detail-workspace]");
+            const control = document.activeElement;
+            if (
+              document.querySelector('[aria-labelledby="preparation-review-title"]') ||
+              document.querySelector("#port-detail-title")?.textContent?.trim() !== name ||
+              !control?.isConnected ||
+              !detail?.contains(control) ||
+              !control.matches("button, a[href], input, select, textarea, summary, [tabindex]") ||
+              control.matches(":disabled, [aria-disabled=true]") ||
+              control.closest("[hidden], [inert], [aria-hidden=true]") ||
+              !control.getClientRects().length ||
+              getComputedStyle(control).visibility === "hidden"
+            )
+              return false;
+            return {
+              tag: control.tagName,
+              id: control.id,
+              text: control.textContent?.trim(),
+              ariaLabel: control.getAttribute("aria-label"),
+            };
+          }, port.name),
+        5_000,
+        "Preparation must restore natural focus to a visible enabled control in the selected detail workspace",
+      );
       await screenshot("selected-setup-prepared");
       await click(By.css('[aria-label="Back to previous workspace"]'));
       await browser.wait(until.elementLocated(continuation), 5_000);
@@ -287,6 +359,7 @@ export async function selectedSetupCompletionScenario({
       failure = error;
       report.failure = { message: error.message, stack: error.stack };
     }
+    let preservationFailure;
     try {
       for (const [actual, original] of [
         ["gamePath", "gameBefore"],
@@ -299,14 +372,15 @@ export async function selectedSetupCompletionScenario({
         );
       report.original_inputs_preserved = true;
     } catch (error) {
-      failure = failure
-        ? new AggregateError([failure, error], "Journey and preservation failed")
-        : error;
+      preservationFailure = error;
       report.preservation_failure = error.message;
     }
     const file = path.join(output, "selected-setup-completion.json");
-    await writeFile(file, `${JSON.stringify(report, null, 2)}\n`, { flag: "wx" });
-    artifacts.push(file);
-    if (failure) throw failure;
+    await retainCompletionReport({
+      file,
+      report,
+      artifacts,
+      failure: failure ?? preservationFailure,
+    });
   });
 }
