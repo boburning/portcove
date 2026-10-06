@@ -1,7 +1,7 @@
 import type { PortDefinition, PortStatus } from "../../types";
 
 // These identifiers describe declared port facts, not installation eligibility.
-export const catalogQueryOptions = {
+const catalogQueryOptions = {
   platforms: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64", "this-device"],
   channels: ["stable", "beta", "rolling"],
   installationMethods: [
