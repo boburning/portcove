@@ -1426,10 +1426,16 @@ async fn managed_ordinary_lifecycle(mut observer: ManagedStageObserver<'_>) {
         phase(&format!("revision-{definition_revision}:select:complete"));
         phase(&format!("revision-{definition_revision}:reopen:start"));
         let reopened = PortcoveService::new(library.clone()).unwrap();
+        phase(&format!(
+            "revision-{definition_revision}:reopen:constructed"
+        ));
         assert_eq!(
             reopened.catalog().port(ID).unwrap().summary,
             "Reviewed presentation correction"
         );
+        phase(&format!(
+            "revision-{definition_revision}:reopen:catalog-checked"
+        ));
         let after = reopened.status(ID).unwrap();
         phase(&format!("revision-{definition_revision}:reopen:complete"));
         phase(&format!(
