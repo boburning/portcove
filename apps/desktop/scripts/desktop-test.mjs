@@ -136,6 +136,10 @@ const inputs = await Promise.all(
   ["app", "driver", "native-driver"].map((name) => fileIdentity(values[name])),
 );
 inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
+if (selection.selected_scenarios.includes("native-saved-folder-selected-setup"))
+  inputs.push(
+    await fileIdentity(fileURLToPath(new URL("./desktop-source-dialog-test.mjs", import.meta.url))),
+  );
 if (bootstrapRecoverySession || preferencesRecoverySession)
   for (const name of [
     "desktop-bootstrap-recovery-test.mjs",

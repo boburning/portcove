@@ -1,5 +1,6 @@
 // Actual-Tauri proof for the paired one-off intake and explicit-folder source journeys.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
@@ -663,6 +664,70 @@ export function seedSelectedSetup(context) {
   assert.deepEqual(command(["source", "list"]), []);
 }
 
+async function waitSelectedSetupCommit(browser, labels) {
+  await browser.wait(
+    async () => {
+      const settled = await browser.executeScript((labels) => {
+        const section = document.querySelector('[aria-label="Continue to a game"]');
+        const buttons = [...(section?.querySelectorAll("button") ?? [])];
+        return (
+          !document.querySelector('[aria-label="Source import review"]') &&
+          buttons.length === labels.length &&
+          buttons.every(
+            (button) => !button.disabled && labels.includes(button.textContent.trim()),
+          ) &&
+          section.contains(document.activeElement)
+        );
+      }, labels);
+      return (
+        settled &&
+        (
+          await browser.findElement(By.xpath('//button[normalize-space(.)="Refresh folders"]'))
+        ).isEnabled()
+      );
+    },
+    15_000,
+    "Committed sources must finish workspace refresh and focus an enabled authoritative continuation",
+  );
+}
+
+async function selectedSetupDetail(browser, port, biosRegistered) {
+  await browser.wait(until.elementLocated(By.id("port-detail-title")), 5_000);
+  assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
+  const state = await browser.findElement(By.css(".hero-state")).getText();
+  const reason = await browser.findElement(By.css(".hero-reason")).getText();
+  if (!biosRegistered) {
+    assert.equal(state, "Required BIOS file");
+    assert.ok(
+      (await browser.findElement(By.css(".hero-requirement")).getText()).includes(
+        "Selected setup inert BIOS",
+      ),
+    );
+    assert.equal(
+      await browser
+        .findElement(By.xpath('//button[normalize-space(.)="Choose BIOS file"]'))
+        .isEnabled(),
+      true,
+    );
+    assert.equal(
+      (await browser.findElements(By.xpath('//button[normalize-space(.)="Review installation"]')))
+        .length,
+      0,
+    );
+  } else {
+    assert.equal(state, "Available to install");
+    assert.ok(reason.includes("have not been checked"));
+    assert.equal((await browser.findElements(By.css(".hero-requirement"))).length, 0);
+    assert.equal(
+      await browser
+        .findElement(By.xpath('//button[normalize-space(.)="Review installation"]'))
+        .isEnabled(),
+      true,
+    );
+  }
+  return { state, reason, bios_registered: biosRegistered };
+}
+
 export async function selectedSetupScenario({
   browser,
   invoke,
@@ -677,6 +742,15 @@ export async function selectedSetupScenario({
     assert.ok(fixture?.sourceJourney, "Only the exact opt-in selection supplies these identities");
     const owned = fixture.sourceJourney;
     const command = selectedSetupCommand({ cli, library, output, fixture });
+    const expectedGameSha256 = createHash("sha256")
+      .update(await readFile(owned.gameBefore))
+      .digest("hex");
+    const expectedReplacementSha256 = createHash("sha256")
+      .update(await readFile(owned.gameReplacement))
+      .digest("hex");
+    const expectedBiosSha256 = createHash("sha256")
+      .update(await readFile(owned.biosBefore))
+      .digest("hex");
     const { button, click } = reviewControls(browser);
     const report = {
       scope: "real saved-root scan and UI guarded registration; uninstalled requirements only",
@@ -743,13 +817,25 @@ export async function selectedSetupScenario({
       assert.ok((await browser.findElement(review).getText()).includes(owned.gamePath));
       const reviewedA = await plan(owned.profiles[0], owned.gamePath);
       assert.match(reviewedA.plan_sha256, /^[a-f0-9]{64}$/);
+      assert.equal(reviewedA.source.sha256, expectedGameSha256);
       assert.deepEqual(command(["source", "list"]), [], "Review must remain non-mutating");
       await writeFile(owned.gamePath, owned.replacement);
       const freshB = await plan(owned.profiles[0], owned.gamePath);
       assert.notEqual(freshB.plan_sha256, reviewedA.plan_sha256);
       assert.notEqual(freshB.source.sha256, reviewedA.source.sha256);
+      assert.equal(freshB.source.sha256, expectedReplacementSha256);
+      report.observations.changed_input = { reviewed_a: reviewedA, admitted_b: freshB };
+      const reviewedInputs = path.join(output, "selected-setup-reviewed-inputs.json");
+      await writeFile(
+        reviewedInputs,
+        `${JSON.stringify(report.observations.changed_input, null, 2)}\n`,
+        { flag: "wx" },
+      );
+      artifacts.push(reviewedInputs);
       await click(button("Use current location"));
-      const refusal = By.xpath('//p[@role="alert" and contains(., "changed after review")]');
+      const refusal = By.xpath(
+        '//p[@role="alert" and normalize-space(.)="The selection changed or another operation is using it. Review its current state."]',
+      );
       await browser.wait(until.elementLocated(refusal), 15_000);
       report.observations.changed_input = {
         reviewed_a: reviewedA,
@@ -757,6 +843,15 @@ export async function selectedSetupScenario({
         refusal: await browser.findElement(refusal).getText(),
         activities: command(["activity"]).records,
       };
+      const failedImport = report.observations.changed_input.activities.find(
+        (item) =>
+          item.operation === "import_source" &&
+          item.target_id === owned.profiles[0] &&
+          item.status === "failed",
+      );
+      assert.equal(failedImport?.failure?.code, "conflict");
+      assert.ok(failedImport.failure.message.includes("changed after review"));
+      report.observations.changed_input.failed_import = failedImport;
       assert.deepEqual(
         command(["source", "list"]),
         [],
@@ -769,7 +864,10 @@ export async function selectedSetupScenario({
       report.observations.new_a_review = await plan(owned.profiles[0], owned.gamePath);
       await click(button("Use current location"));
       const continuation = By.css('[aria-label="Continue to a game"]');
-      await browser.wait(until.elementLocated(continuation), 15_000);
+      await waitSelectedSetupCommit(
+        browser,
+        [fixture.port, fixture.refreshPort].map((port) => `Open ${port.name} details`),
+      );
       const registeredGame = command(["source", "list"]);
       assert.equal(registeredGame.length, 1);
       assert.equal(registeredGame[0].profile_id, owned.profiles[0]);
@@ -828,7 +926,9 @@ export async function selectedSetupScenario({
           until.elementLocated(By.css('[aria-label="Back to previous workspace"]')),
           5_000,
         );
-        assert.ok((await browser.findElement(By.css("main")).getText()).includes(port.name));
+        assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
+        if (port === fixture.refreshPort)
+          report.observations.missing_bios_detail = await selectedSetupDetail(browser, port, false);
         await click(By.css('[aria-label="Back to previous workspace"]'));
         await browser.wait(until.elementLocated(continuation), 5_000);
       }
@@ -836,8 +936,17 @@ export async function selectedSetupScenario({
       assert.ok((await browser.findElement(review).getText()).includes(owned.biosPath));
       assert.equal(command(["source", "list"]).length, 1, "BIOS review must not commit it");
       await click(button("Use current location"));
-      await browser.wait(async () => command(["source", "list"]).length === 2, 15_000);
+      await waitSelectedSetupCommit(browser, [`Open ${fixture.refreshPort.name} details`]);
+      assert.equal(command(["source", "list"]).length, 2);
       const registered = command(["source", "list"]);
+      for (const [profile, sourcePath, expectedHash] of [
+        [owned.profiles[0], owned.gamePath, expectedGameSha256],
+        [owned.profiles[1], owned.biosPath, expectedBiosSha256],
+      ]) {
+        const source = registered.find((item) => item.profile_id === profile);
+        assert.equal(source?.path, sourcePath);
+        assert.equal(source.sha256, expectedHash);
+      }
       report.observations.committed_registrations = registered;
       const statuses = await invoke("get_statuses");
       report.observations.authoritative_ports = [fixture.port, fixture.refreshPort].map((port) => {
@@ -862,6 +971,14 @@ export async function selectedSetupScenario({
         );
         return { status, install_plan: installPlan };
       });
+      await click(button(`Open ${fixture.refreshPort.name} details`));
+      report.observations.registered_bios_detail = await selectedSetupDetail(
+        browser,
+        fixture.refreshPort,
+        true,
+      );
+      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await browser.wait(until.elementLocated(continuation), 5_000);
       await rename(owned.directory, missingRoot);
       rootMoved = true;
       await click(button("Refresh folders"));
@@ -902,7 +1019,9 @@ export async function selectedSetupScenario({
         ),
       };
       assert.ok(report.observations.unavailable.controls.every((item) => item.disabled));
-      assert.equal(await browser.findElement(button("Scan saved folders")).isEnabled(), false);
+      report.observations.unavailable.scan_enabled = await browser
+        .findElement(button("Scan saved folders"))
+        .isEnabled();
       assert.equal(await browser.findElement(button("Refresh folders")).isEnabled(), true);
       const screenshot = path.join(output, "selected-setup-unavailable.png");
       await writeFile(screenshot, await browser.takeScreenshot(), {
@@ -924,13 +1043,28 @@ export async function selectedSetupScenario({
       report.failure = String(error);
       throw error;
     } finally {
-      if (rootMoved) await rename(missingRoot, owned.directory);
-      await writeFile(owned.gamePath, owned.game);
-      assert.deepEqual(await readFile(owned.gamePath), await readFile(owned.gameBefore));
-      assert.deepEqual(await readFile(owned.biosPath), await readFile(owned.biosBefore));
+      let cleanupFailure;
+      try {
+        if (rootMoved) await rename(missingRoot, owned.directory);
+        await writeFile(owned.gamePath, owned.game);
+        assert.deepEqual(await readFile(owned.gamePath), await readFile(owned.gameBefore));
+        assert.deepEqual(await readFile(owned.biosPath), await readFile(owned.biosBefore));
+        report.original_inputs_restored = true;
+      } catch (error) {
+        cleanupFailure = error;
+        report.cleanup_failure = String(error);
+      }
       const artifact = path.join(output, "selected-setup-journey.json");
-      await writeFile(artifact, `${JSON.stringify(report, null, 2)}\n`, { flag: "wx" });
-      artifacts.push(artifact);
+      try {
+        await writeFile(artifact, `${JSON.stringify(report, null, 2)}\n`, { flag: "wx" });
+        artifacts.push(artifact);
+      } catch (error) {
+        // Retain both observations in the harness log if its artifact cannot be written.
+        console.error(JSON.stringify({ report, artifact_write_failure: String(error) }));
+        if (!report.failure && !cleanupFailure) throw error;
+      }
+      // Cleanup/report failures must not replace the original journey error.
+      if (cleanupFailure && !report.failure) throw cleanupFailure;
     }
   });
 }
