@@ -1525,6 +1525,367 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
       assert.match(invalid.stderr, /missing RetComM title mapping/);
       assert.doesNotMatch(invalid.stderr, /NETWORK_FORBIDDEN/);
     }
+
+    const actualCatalog = JSON.parse(
+      await readFile(
+        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const independent = actualCatalog.ports.filter((entry) =>
+      ["alexbeav-ape-escape-recomp", "alexbeav-alundra-recomp"].includes(entry.id),
+    );
+    assert.equal(independent.length, 2);
+    await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
+    await writeFile(catalogFile, JSON.stringify({ ports: [port, ...independent] }));
+    const coexist = run("--offline");
+    assert.equal(coexist.status, 0, coexist.stderr);
+    assert.match(coexist.stdout, /Verified 1 local PS1 mappings/);
+    assert.equal(coexist.stdout.match(/RetComM audit NOT_APPLICABLE:/gu).length, 2);
+    assert.equal(coexist.stdout.match(/upstream health NOT_CHECKED/gu).length, 2);
+    for (const entry of independent) {
+      assert.match(coexist.stdout, new RegExp(entry.id));
+      assert.ok(coexist.stdout.includes(entry.release.direct["windows-x86-64"].sha256));
+    }
+    const direct = structuredClone(independent[0]);
+    direct.id = "independent-fixture"; // Identity semantics, never a title allowlist.
+    const invalidCases = [
+      {
+        name: "mapped direct",
+        ports: [direct],
+        mappings: { [direct.id]: "fixture-title" },
+        error: /must resolve directly through GitHub/,
+      },
+      {
+        name: "missing mapping",
+        ports: [port],
+        mappings: {},
+        error: /missing RetComM title mapping/,
+      },
+      {
+        name: "stale mapping",
+        ports: [direct],
+        mappings: { stale: "fixture-title" },
+        error: /stale mapping/,
+      },
+      {
+        name: "invalid mapped provider",
+        ports: [{ ...port, release: { provider: "gitlab", repository: "owner/game" } }],
+        error: /must resolve directly through GitHub/,
+      },
+      {
+        name: "missing mapped repository",
+        ports: [{ ...port, release: {} }],
+        error: /missing GitHub game repository identity/,
+      },
+      {
+        name: "launcher substitution",
+        ports: [{ ...port, release: { repository: "TechnicallyComputers/RetComM-Launcher" } }],
+        error: /instead of the game upstream/,
+      },
+    ];
+    const ambiguous = (name, mutate) => {
+      const entry = structuredClone(direct);
+      mutate(entry);
+      invalidCases.push({
+        name,
+        ports: [port, entry],
+        error: /ambiguous independent direct-manifest identity/,
+      });
+    };
+    ambiguous("mapped project disguised", (entry) => {
+      entry.project_url = "https://github.com/OWNER/GAME";
+    });
+    ambiguous("mapped artifact disguised", (entry) => {
+      entry.release.direct["windows-x86-64"].url =
+        "https://github.com/OWNER/GAME/releases/download/v1/game.zip";
+    });
+    ambiguous("launcher project", (entry) => {
+      entry.project_url = "https://github.com/TechnicallyComputers/RetComM-Launcher";
+    });
+    ambiguous("RetComM artifact", (entry) => {
+      entry.release.direct["windows-x86-64"].url =
+        "https://github.com/TechnicallyComputers/retcomm-catalog/releases/download/v1/game.zip";
+    });
+    ambiguous("fake repository", (entry) => {
+      entry.release.repository = "owner/game";
+    });
+    ambiguous("missing project", (entry) => {
+      delete entry.project_url;
+    });
+    ambiguous("aliased project", (entry) => {
+      entry.project_url += "?alias=owner/game";
+    });
+    ambiguous("git project alias", (entry) => {
+      entry.project_url = "https://github.com/owner/game.git";
+    });
+    ambiguous("empty artifact path component", (entry) => {
+      entry.release.direct["windows-x86-64"].url =
+        "https://github.com/owner/game/releases/download//game.zip";
+    });
+    ambiguous("invalid digest", (entry) => {
+      entry.release.direct["windows-x86-64"].sha256 = "bad";
+    });
+    ambiguous("missing platform", (entry) => {
+      entry.platforms.push("linux-x86-64");
+    });
+    ambiguous("invalid size", (entry) => {
+      entry.release.direct["windows-x86-64"].size = 0;
+    });
+    ambiguous("missing version", (entry) => {
+      delete entry.release.direct["windows-x86-64"].version;
+    });
+    for (const fixture of invalidCases) {
+      await writeFile(catalogFile, JSON.stringify({ ports: fixture.ports }));
+      await writeFile(
+        mappingFile,
+        JSON.stringify(fixture.mappings ?? { fixture: "fixture-title" }),
+      );
+      const rejected = run("--offline");
+      assert.equal(rejected.status, 1, fixture.name);
+      assert.match(rejected.stderr, fixture.error, fixture.name);
+      assert.doesNotMatch(rejected.stderr, /TypeError|NETWORK_FORBIDDEN/, fixture.name);
+      assert.doesNotMatch(rejected.stdout, /Verified/, fixture.name);
+    }
+    await writeFile(catalogFile, JSON.stringify({ ports: [port, direct] }));
+    await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
+    const renamed = run("--offline");
+    assert.equal(renamed.status, 0, renamed.stderr);
+    assert.match(renamed.stdout, /independent-fixture/);
+    assert.match(renamed.stdout, /Verified 1 local PS1 mappings/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("RetComM remote manifests fall back only after 404 and retain access failures", async () => {
+  const { copyFile } = await import("node:fs/promises");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-remote-"));
+  try {
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+    const checker = path.join(root, "scripts/check-retcomm-upstreams.mjs");
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    const independent = JSON.parse(
+      await readFile(
+        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+        "utf8",
+      ),
+    ).ports.filter((entry) =>
+      ["alexbeav-ape-escape-recomp", "alexbeav-alundra-recomp"].includes(entry.id),
+    );
+    assert.equal(independent.length, 2);
+    await writeFile(
+      path.join(root, "crates/portcove-core/catalog/catalog.json"),
+      JSON.stringify({
+        ports: [
+          { id: "fixture", adapter: "psx-recomp-managed", release: { repository: "owner/game" } },
+          ...independent,
+        ],
+      }),
+    );
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify({ fixture: "fixture-title" }),
+    );
+    const preload = path.join(root, "fixture-fetch.mjs");
+    const requestsFile = path.join(root, "requests.json");
+    await writeFile(
+      preload,
+      `import { writeFileSync } from "node:fs";
+const replies = JSON.parse(process.env.RETCOMM_FIXTURE_REPLIES);
+const requests = [];
+globalThis.fetch = async (url, options) => {
+  requests.push({ url, headers: options.headers });
+  writeFileSync(process.env.RETCOMM_FIXTURE_REQUESTS, JSON.stringify(requests));
+  const reply = replies[requests.length - 1];
+  if (!reply) throw new Error("UNEXPECTED_NETWORK_REQUEST");
+  if (reply.error) throw new Error(reply.error);
+  return new Response(reply.body, { status: reply.status });
+};`,
+    );
+    const valid = { status: 200, body: JSON.stringify({ release: { github: "owner/game" } }) };
+    const missing = { status: 404, body: "missing" };
+    const cases = [
+      { name: "platform precedence", replies: [valid], status: 0, requests: 1 },
+      { name: "legacy fallback", replies: [missing, valid], status: 0, requests: 2 },
+      {
+        name: "both missing",
+        replies: [missing, missing],
+        status: 1,
+        requests: 2,
+        error: /returned 404/,
+      },
+      {
+        name: "forbidden",
+        replies: [{ status: 403, body: "private" }, valid],
+        status: 1,
+        requests: 1,
+        error: /returned 403/,
+      },
+      {
+        name: "server failure",
+        replies: [{ status: 503, body: "unavailable" }, valid],
+        status: 1,
+        requests: 1,
+        error: /returned 503/,
+      },
+      {
+        name: "transport failure",
+        replies: [{ error: "FIXTURE_ACCESS_FAILURE" }, valid],
+        status: 1,
+        requests: 1,
+        error: /FIXTURE_ACCESS_FAILURE/,
+      },
+      {
+        name: "invalid platform JSON",
+        replies: [{ status: 200, body: "{" }, valid],
+        status: 1,
+        requests: 1,
+        error: /fixture:/,
+      },
+      {
+        name: "invalid legacy JSON",
+        replies: [missing, { status: 200, body: "{" }],
+        status: 1,
+        requests: 2,
+        error: /fixture:/,
+      },
+      {
+        name: "missing repository",
+        replies: [{ status: 200, body: "{}" }, valid],
+        status: 1,
+        requests: 1,
+        error: /no GitHub game release repository/,
+      },
+      {
+        name: "conflicting source",
+        replies: [
+          {
+            status: 200,
+            body: JSON.stringify({
+              release: { github: "owner/game" },
+              build: { source: { github: "other/game" } },
+            }),
+          },
+        ],
+        status: 1,
+        requests: 1,
+        error: /repositories differ/,
+      },
+    ];
+    const urls = [
+      "https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/fixture%2Fref/titles/psx/fixture-title.json",
+      "https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/fixture%2Fref/titles/fixture-title.json",
+    ];
+    for (const fixture of cases) {
+      await writeFile(requestsFile, "[]");
+      const result = spawnSync(
+        process.execPath,
+        ["--import", pathToFileURL(preload).href, checker],
+        {
+          encoding: "utf8",
+          timeout: 10000,
+          env: {
+            ...process.env,
+            RETCOMM_CATALOG_DIR: "",
+            RETCOMM_CATALOG_REF: "fixture/ref",
+            RETCOMM_FIXTURE_REPLIES: JSON.stringify(fixture.replies),
+            RETCOMM_FIXTURE_REQUESTS: requestsFile,
+          },
+        },
+      );
+      assert.equal(result.status, fixture.status, `${fixture.name}: ${result.stderr}`);
+      const requests = JSON.parse(await readFile(requestsFile, "utf8"));
+      assert.deepEqual(
+        requests.map((request) => request.url),
+        urls.slice(0, fixture.requests),
+        fixture.name,
+      );
+      for (const request of requests) {
+        assert.deepEqual(request.headers, { "User-Agent": "Portcove-RetComM-upstream-audit" });
+      }
+      if (fixture.error) {
+        assert.match(result.stderr, fixture.error, fixture.name);
+        assert.doesNotMatch(result.stdout, /Verified/);
+      } else {
+        assert.match(result.stdout, /Verified 1 direct PS1 game upstreams/);
+        assert.equal(result.stdout.match(/RetComM audit NOT_APPLICABLE:/gu).length, 2);
+        assert.equal(result.stdout.match(/upstream health NOT_CHECKED/gu).length, 2);
+      }
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("RetComM local manifests preserve platform precedence and refuse malformed paths", async () => {
+  const { copyFile } = await import("node:fs/promises");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-local-"));
+  try {
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+    const checker = path.join(root, "scripts/check-retcomm-upstreams.mjs");
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    await writeFile(
+      path.join(root, "crates/portcove-core/catalog/catalog.json"),
+      JSON.stringify({
+        ports: [
+          { id: "fixture", adapter: "psx-recomp-managed", release: { repository: "owner/game" } },
+        ],
+      }),
+    );
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify({ fixture: "fixture-title" }),
+    );
+    const preload = path.join(root, "deny-network.mjs");
+    await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
+    const upstream = path.join(root, "upstream");
+    await mkdir(path.join(upstream, "titles/psx"), { recursive: true });
+    const platform = path.join(upstream, "titles/psx/fixture-title.json");
+    const legacy = path.join(upstream, "titles/fixture-title.json");
+    const run = () =>
+      spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, checker], {
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, RETCOMM_CATALOG_DIR: upstream },
+      });
+    const valid = JSON.stringify({ release: { github: "owner/game" } });
+    await writeFile(platform, valid);
+    await writeFile(legacy, "{");
+    assert.equal(
+      run().status,
+      0,
+      "valid platform manifest must take precedence over malformed legacy",
+    );
+    await rm(platform);
+    await writeFile(legacy, valid);
+    assert.equal(run().status, 0, "missing platform manifest must use the legacy path");
+    await writeFile(platform, "{");
+    const malformed = run();
+    assert.equal(malformed.status, 1);
+    assert.doesNotMatch(malformed.stdout, /Verified/);
+    assert.doesNotMatch(malformed.stderr, /NETWORK_FORBIDDEN/);
+    await rm(platform);
+    await mkdir(platform);
+    const inaccessible = run();
+    assert.equal(
+      inaccessible.status,
+      1,
+      "non-ENOENT read errors must not fall back to valid legacy",
+    );
+    assert.doesNotMatch(inaccessible.stdout, /Verified/);
+    assert.doesNotMatch(inaccessible.stderr, /NETWORK_FORBIDDEN/);
+    await rm(platform, { recursive: true });
+    await rm(legacy);
+    const missing = run();
+    assert.equal(missing.status, 1);
+    assert.match(missing.stderr, /no PSX title manifest for fixture-title/);
+    assert.doesNotMatch(missing.stdout, /Verified/);
+    assert.doesNotMatch(missing.stderr, /NETWORK_FORBIDDEN/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

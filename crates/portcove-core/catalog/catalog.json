@@ -359,6 +359,26 @@
         "claim": "v0.0.6 requires the North American En/Fr 4194304-byte DKC3 payload with exact SHA-256 after optional upstream 512-byte header stripping. The Win32 host accepts an original path positionally and preserves it externally; this Portcove route admits only an exact headerless .sfc original and suppresses upstream launcher source selection.",
         "immutable_url": "https://github.com/elliotttate/DKC3Recomp/blob/3a033f19801a2bd3abf784d4b29c4462495d19de/runner/verified_rom.c",
         "live_url": "https://github.com/elliotttate/DKC3Recomp/blob/main/runner/verified_rom.c"
+      },
+      {
+        "id": "alexbeav-ape-escape-recomp-v0-3-6-source-contract",
+        "role": "upstream_support",
+        "authority": "Alexbeav/ape-escape-recomp",
+        "authority_ref": "53687196c5d93f3a77f89893e0a3f56b9d726a0e",
+        "reviewed_at": "2026-10-06",
+        "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Ape Escape (USA) disc; retained Windows package and fixed CLI fit the existing managed route with bundled OpenBIOS. Static source/package evidence only; generation, native operation, lifecycle and gameplay not run. Title GPL-3.0-only, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS MIT notices retain their own scope; retail/generated-retail content is not licensed by those notices.",
+        "immutable_url": "https://github.com/Alexbeav/ape-escape-recomp/blob/53687196c5d93f3a77f89893e0a3f56b9d726a0e/game.toml",
+        "live_url": "https://github.com/Alexbeav/ape-escape-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-alundra-recomp-v0-3-6-source-contract",
+        "role": "upstream_support",
+        "authority": "Alexbeav/alundra-recomp",
+        "authority_ref": "afb9151fd48ae90ca5979dcd4ad53ee1c0f16329",
+        "reviewed_at": "2026-10-06",
+        "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Alundra (Europe PAL) disc; retained Windows package and fixed CLI fit the existing managed route with bundled OpenBIOS. Static source/package evidence only; generation, native operation, lifecycle and gameplay not run. Title GPL-3.0-only, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS MIT notices retain their own scope; retail/generated-retail content is not licensed by those notices.",
+        "immutable_url": "https://github.com/Alexbeav/alundra-recomp/blob/afb9151fd48ae90ca5979dcd4ad53ee1c0f16329/game.toml",
+        "live_url": "https://github.com/Alexbeav/alundra-recomp/blob/main/game.toml"
       }
     ],
     "identities": [
@@ -4757,6 +4777,51 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "alundra-psx",
+        "label": "Alundra (Europe PAL) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe-pal",
+            "title": "Alundra",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-01135"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "de2bbc3185fa4ce01ad50bcda94899ccec7b7451",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-alundra-recomp-v0-3-6-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-alundra-recomp-v0-3-6-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6679,6 +6744,60 @@
           {
             "upstream_ref": "v0.0.6",
             "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-ape-escape-recomp-game-source",
+        "port_id": "alexbeav-ape-escape-recomp",
+        "role": "game",
+        "profile_id": "ape-escape-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-rev0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-ape-escape-recomp-v0-3-6-source-contract"
+        ],
+        "authority_ref": "53687196c5d93f3a77f89893e0a3f56b9d726a0e",
+        "reviewed_at": "2026-10-06",
+        "immutable_review_url": "https://github.com/Alexbeav/ape-escape-recomp/blob/53687196c5d93f3a77f89893e0a3f56b9d726a0e/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-alundra-recomp-game-source",
+        "port_id": "alexbeav-alundra-recomp",
+        "role": "game",
+        "profile_id": "alundra-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-pal"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-alundra-recomp-v0-3-6-source-contract"
+        ],
+        "authority_ref": "afb9151fd48ae90ca5979dcd4ad53ee1c0f16329",
+        "reviewed_at": "2026-10-06",
+        "immutable_review_url": "https://github.com/Alexbeav/alundra-recomp/blob/afb9151fd48ae90ca5979dcd4ad53ee1c0f16329/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f"
           }
         ],
         "aliases": [],
@@ -13655,6 +13774,176 @@
       },
       "launch_environment": {
         "SNESRECOMP_NO_LAUNCHER": "1"
+      }
+    },
+    {
+      "id": "alexbeav-ape-escape-recomp",
+      "name": "Ape Escape / Alexbeav PSXRecomp",
+      "summary": "Native Ape Escape recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/Alexbeav/ape-escape-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.6",
+            "url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+            "size": 30155637,
+            "sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
+            "published_at": "2026-09-04T14:48:29Z"
+          }
+        }
+      },
+      "source_profile": "ape-escape-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Ape_Escape_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "ape-escape-psx",
+            "label": "Ape Escape (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
+        "artwork": {
+          "game_id": 3762,
+          "cover_id": 115320,
+          "image_id": "co2gzc",
+          "image_sha256": "b689ac550b7807203e88a928ff42c5906ccdce2c4f2a38229f2a3204c878f906",
+          "game_slug": "ape-escape",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "alexbeav-alundra-recomp",
+      "name": "Alundra / Alexbeav PSXRecomp",
+      "summary": "Native Alundra recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/Alexbeav/alundra-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.6",
+            "url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152761,
+            "sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
+            "published_at": "2026-09-04T14:48:29Z"
+          }
+        }
+      },
+      "source_profile": "alundra-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Alundra_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "alundra-psx",
+            "label": "Alundra (Europe PAL) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content."
       }
     }
   ]
