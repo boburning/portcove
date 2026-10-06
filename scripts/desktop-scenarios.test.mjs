@@ -1192,13 +1192,13 @@ test("unavailable-root wait observes enabled state and preserves read rejection"
           return {
             findElement(selector) {
               assert.equal(selector, "[data-candidate-review]");
-              return Promise.resolve({
+              return {
                 async isEnabled() {
                   reads++;
                   if (enabled === rejection) throw rejection;
                   return enabled;
                 },
-              });
+              };
             },
           };
         },
