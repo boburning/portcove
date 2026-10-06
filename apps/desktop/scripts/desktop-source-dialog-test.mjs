@@ -25,6 +25,20 @@ async function progressiveScanNavigation({
   const rootsBefore = command(["source", "roots", "list"]);
   const source = sourcesBefore.find((item) => item.profile_id === port.source_profile);
   assert.ok(source, "The ordinary preparation dependency must supply a registered source");
+  const catalog = command(["catalog", "list"]);
+  assert.ok(Array.isArray(catalog), "The compiled CLI must return the effective catalog ports");
+  const associatedPorts = catalog
+    .filter(
+      (item) =>
+        item.source_profile === source.profile_id || item.bios_source_profile === source.profile_id,
+    )
+    .map(({ id, name }) => {
+      assert.equal(typeof id, "string");
+      assert.equal(typeof name, "string");
+      return { id, name };
+    });
+  assert.ok(associatedPorts.some((item) => item.id === port.id));
+  const associationText = `Catalog ports using this profile: ${associatedPorts.map((item) => item.name).join(", ")}`;
   assert.ok(Array.isArray(rootsBefore));
   assert.ok(!rootsBefore.some((item) => item.path === searchRoot));
   const root = command(["source", "roots", "add", searchRoot]);
@@ -33,6 +47,8 @@ async function progressiveScanNavigation({
       "controlled pending scan and provisional registered-source event in normal Tauri; not an actual discovery or backend cancellation",
     port_id: port.id,
     source_profile: source.profile_id,
+    expected_associated_ports: associatedPorts,
+    expected_association_text: associationText,
     injected: 0,
     restored: false,
   };
@@ -136,6 +152,118 @@ async function progressiveScanNavigation({
       );
       observations.detail_return_focus = true;
       observations.pending_scan_survived_detail_return = true;
+      const association = await browser.wait(
+        () =>
+          browser.executeScript(
+            (profile, sourcePath, expected) => {
+              const row = [...document.querySelectorAll("[data-live-candidate]")].find(
+                (item) => item.dataset.profileId === profile && item.dataset.path === sourcePath,
+              );
+              const spans = [...(row?.querySelectorAll("span") ?? [])].filter((item) =>
+                item.textContent.trim().startsWith("Catalog ports using this profile:"),
+              );
+              return spans.length === 1 && spans[0].textContent.trim() === expected
+                ? spans[0]
+                : null;
+            },
+            source.profile_id,
+            source.path,
+            associationText,
+          ),
+        5_000,
+        "The live source row must show the exact effective catalog associations",
+      );
+      await browser.executeScript(
+        (element) =>
+          element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
+        association,
+      );
+      const presentation = await browser.wait(
+        () =>
+          browser.executeScript(
+            (element, expected) => {
+              const viewport = {
+                width: innerWidth,
+                height: innerHeight,
+                client_width: document.documentElement.clientWidth,
+                client_height: document.documentElement.clientHeight,
+                device_scale: devicePixelRatio,
+              };
+              const clipping = {
+                left: 0,
+                top: 0,
+                right: Math.min(viewport.width, viewport.client_width),
+                bottom: Math.min(viewport.height, viewport.client_height),
+              };
+              const ancestors = [];
+              for (let current = element; current; current = current.parentElement) {
+                const style = getComputedStyle(current);
+                if (
+                  style.display === "none" ||
+                  style.visibility !== "visible" ||
+                  Number(style.opacity) === 0 ||
+                  current
+                    .getAnimations()
+                    .some(
+                      (animation) =>
+                        animation.playState === "running" &&
+                        Number.isFinite(animation.effect?.getComputedTiming().endTime),
+                    )
+                )
+                  return null;
+                if (current === element) continue;
+                const rect = current.getBoundingClientRect();
+                const clipsX = /^(auto|scroll|hidden|clip)$/.test(style.overflowX);
+                const clipsY = /^(auto|scroll|hidden|clip)$/.test(style.overflowY);
+                if (!clipsX && !clipsY) continue;
+                const bounds = {
+                  left: rect.left + current.clientLeft,
+                  top: rect.top + current.clientTop,
+                  right: rect.left + current.clientLeft + current.clientWidth,
+                  bottom: rect.top + current.clientTop + current.clientHeight,
+                };
+                ancestors.push({ tag: current.tagName, id: current.id, clipsX, clipsY, bounds });
+                if (clipsX) {
+                  clipping.left = Math.max(clipping.left, bounds.left);
+                  clipping.right = Math.min(clipping.right, bounds.right);
+                }
+                if (clipsY) {
+                  clipping.top = Math.max(clipping.top, bounds.top);
+                  clipping.bottom = Math.min(clipping.bottom, bounds.bottom);
+                }
+              }
+              const text = element.textContent.trim();
+              const bounds = element.getBoundingClientRect().toJSON();
+              const fragments = [...element.getClientRects()].map((rect) => rect.toJSON());
+              const framed = (rect) =>
+                rect.width > 0 &&
+                rect.height > 0 &&
+                rect.left >= clipping.left &&
+                rect.top >= clipping.top &&
+                rect.right <= clipping.right &&
+                rect.bottom <= clipping.bottom;
+              if (
+                !element.isConnected ||
+                text !== expected ||
+                !Number.isFinite(viewport.device_scale) ||
+                viewport.device_scale <= 0 ||
+                !framed(bounds) ||
+                !fragments.length ||
+                !fragments.every(framed)
+              )
+                return null;
+              return { text, viewport, bounds, fragments, clipping, clipping_ancestors: ancestors };
+            },
+            association,
+            associationText,
+          ),
+        5_000,
+        "The settled association span must be fully framed within the viewport and clipping ancestors",
+      );
+      const windowRect = await browser.manage().window().getRect();
+      assert.ok(Number.isFinite(windowRect.width) && windowRect.width > 0);
+      assert.ok(Number.isFinite(windowRect.height) && windowRect.height > 0);
+      observations.association_presentation = { window: windowRect, ...presentation };
       const screenshot = path.join(output, "native-progressive-scan-return.png");
       await writeFile(screenshot, await browser.takeScreenshot(), {
         encoding: "base64",
