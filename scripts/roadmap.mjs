@@ -1359,31 +1359,42 @@ export function parseOperationalBoard(body, config) {
     throw new Error("operational board identity or assignment structure is malformed");
   const identifiers = new Set();
   const active = new Set();
+  const completed = new Set();
   const instances = new Map();
   for (const assignment of board.assignments) {
     if (!assignment || typeof assignment !== "object" || Array.isArray(assignment))
       throw new Error("operational assignment is malformed");
     operationalKeys(assignment,["lane","runner_instance_id","assignment_id","generation","accepted_ack",
-      "owning_issue","pr_and_source","reserved_scope","intentional_pause","execution_slot"],"assignment");
+      "owning_issue","pr_and_source","reserved_scope","intentional_pause","execution_slot","released_reference"],"assignment");
     if (!runnerLanes.includes(assignment.lane) || !publicIdentity(assignment.runner_instance_id) ||
       !publicIdentity(assignment.assignment_id) || !Number.isSafeInteger(assignment.generation) ||
-      assignment.generation < 1 || !["active", "reviewed_waiting"].includes(assignment.execution_slot) ||
+      assignment.generation < 1 || !["active", "reviewed_waiting", "completed"].includes(assignment.execution_slot) ||
       !assignment.accepted_ack || !publicIdentity(assignment.accepted_ack.request_id) ||
       typeof assignment.accepted_ack.observed_ack_reference !== "string" ||
       !operationalReference(assignment.accepted_ack.observed_ack_reference,config.repository) ||
       !Number.isSafeInteger(assignment.owning_issue) || assignment.owning_issue < 1 ||
       typeof assignment.pr_and_source !== "string" || !assignment.pr_and_source.trim() ||
-      typeof assignment.reserved_scope !== "string" || !assignment.reserved_scope.trim() ||
+      (assignment.execution_slot === "completed"
+        ? assignment.reserved_scope !== null || assignment.intentional_pause !== false ||
+          ![ `issue${assignment.owning_issue}#issuecomment-`,
+            `https://github.com/${config.repository}/issues/${assignment.owning_issue}#issuecomment-`]
+            .some(prefix=>typeof assignment.released_reference === "string" &&
+              assignment.released_reference.startsWith(prefix) &&
+              /^[1-9][0-9]*$/.test(assignment.released_reference.slice(prefix.length)))
+        : typeof assignment.reserved_scope !== "string" || !assignment.reserved_scope.trim() ||
+          assignment.released_reference != null) ||
       !(typeof assignment.intentional_pause === "boolean" ||
         typeof assignment.intentional_pause === "string" && assignment.intentional_pause.trim()) ||
       (instances.has(assignment.lane) && instances.get(assignment.lane) !== assignment.runner_instance_id) ||
       identifiers.has(assignment.assignment_id) ||
-      (assignment.execution_slot === "active" && active.has(assignment.lane)))
+      (assignment.execution_slot === "active" && (active.has(assignment.lane) || completed.has(assignment.lane))) ||
+      (assignment.execution_slot === "completed" && (active.has(assignment.lane) || completed.has(assignment.lane))))
       throw new Error("operational assignment is unavailable or conflicting; preserve existing grants");
     identifiers.add(assignment.assignment_id);
     operationalKeys(assignment.accepted_ack,["request_id","observed_ack_reference"],"accepted ACK");
     instances.set(assignment.lane,assignment.runner_instance_id);
     if (assignment.execution_slot === "active") active.add(assignment.lane);
+    if (assignment.execution_slot === "completed") completed.add(assignment.lane);
   }
   const transferIds=new Set();
   for (const transfer of board.pending_transfers) {
@@ -1399,7 +1410,8 @@ export function parseRunnerCheckpoint(body, lane, board) {
   operationalKeys(checkpoint,["lane","runner_instance_id","assignment_id","assignment_generation","owning_task",
     "pr_and_source","execution_phase","last_meaningful_progress","next_action","outstanding_requests",
     "necessary_evidence_pointers"],"checkpoint");
-  const assignment = board.assignments.find((entry) => entry.lane === lane && entry.execution_slot === "active");
+  const assignment = board.assignments.find((entry) => entry.lane === lane && entry.execution_slot === "active") ??
+    board.assignments.find((entry) => entry.lane === lane && entry.execution_slot === "completed");
   if (!assignment || checkpoint.lane !== lane ||
     checkpoint.runner_instance_id !== assignment.runner_instance_id ||
     checkpoint.assignment_id !== assignment.assignment_id ||
@@ -1412,6 +1424,14 @@ export function parseRunnerCheckpoint(body, lane, board) {
     !Array.isArray(checkpoint.outstanding_requests) ||
     !Array.isArray(checkpoint.necessary_evidence_pointers))
     throw new Error(`checkpoint ${lane} is missing, stale or conflicts with its accepted assignment`);
+  if (assignment.execution_slot === "completed") {
+    const fullReference=reference=>reference.startsWith("issue")
+      ? `https://github.com/${board.repository}/issues/${reference.slice(5)}` : reference;
+    if (!["completed","delivered"].includes(checkpoint.execution_phase) ||
+      !checkpoint.necessary_evidence_pointers.some(reference=>typeof reference === "string" &&
+        fullReference(reference)===fullReference(assignment.released_reference)))
+      throw new Error(`checkpoint ${lane} must retain its delivered phase and verified release evidence`);
+  }
   const requestIds = new Set();
   for (const request of checkpoint.outstanding_requests) {
     if (!operationalRequest(request,board.repository) ||
@@ -1507,8 +1527,8 @@ export function operationalBaseline(current) {
     repository:current.board.repository,
     coordinator_instance_id:current.board.coordinator_instance_id,
     assignment_generation:current.board.assignment_generation,
-    assignment_binding_revision:digest(current.board.assignments.map(({lane,runner_instance_id,assignment_id,generation,execution_slot})=>
-      ({lane,runner_instance_id,assignment_id,generation,execution_slot}))),
+    assignment_binding_revision:digest(current.board.assignments.map(({lane,runner_instance_id,assignment_id,generation,execution_slot,released_reference})=>
+      ({lane,runner_instance_id,assignment_id,generation,execution_slot,released_reference}))),
     observations:current.observations};
 }
 
@@ -1556,7 +1576,7 @@ function renderOperationalState(delta) {
     lines.push(`${board.repository}; protocol${board.protocol_revision}; ${board.cutover_state}; coordinator ${board.coordinator_instance_id}; assignment generation${board.assignment_generation}.`);
     lines.push(`Fixed checkpoint IDs: ${runnerLanes.map(lane=>`${lane}=${board.checkpoint_pointers[lane]}`).join(", ")}.`);
     for(const assignment of board.assignments) {
-      lines.push(`${assignment.lane}: ${assignment.runner_instance_id}; ${assignment.assignment_id} generation${assignment.generation}; ${assignment.execution_slot}; owning issue#${assignment.owning_issue}; ${assignment.pr_and_source}. Scope: ${assignment.reserved_scope}. Pause: ${JSON.stringify(assignment.intentional_pause)}. Accepted ACK: ${assignment.accepted_ack.request_id} at ${assignment.accepted_ack.observed_ack_reference}.`);
+      lines.push(`${assignment.lane}: ${assignment.runner_instance_id}; ${assignment.assignment_id} generation${assignment.generation}; ${assignment.execution_slot}; owning issue#${assignment.owning_issue}; ${assignment.pr_and_source}. Scope: ${assignment.execution_slot==="completed"?"none; assignment released":assignment.reserved_scope}. Pause: ${JSON.stringify(assignment.intentional_pause)}. Accepted ACK: ${assignment.accepted_ack.request_id} at ${assignment.accepted_ack.observed_ack_reference}.${assignment.execution_slot==="completed"?` Release: ${assignment.released_reference}.`:""}`);
     }
     lines.push(`Pending transfers: ${board.pending_transfers.length?JSON.stringify(board.pending_transfers):"none declared"}.`);
   }
@@ -1579,6 +1599,8 @@ export function operationalEnvelope(current, baseline = null, binding = null) {
   if(binding) envelope.operational_binding=Object.fromEntries(
     ["lane","runner_instance_id","assignment_id","generation","owning_issue","execution_slot"]
       .map(key=>[key,binding[key]]));
+  if(binding?.execution_slot==="completed")
+    envelope.operational_binding.released_reference=binding.released_reference;
   // Include measurement metadata itself in the measured emitted envelope.
   const measure=()=>({...coordinationSnapshotMetrics(envelope),
     // Numeric 0/1 keeps the metadata width fixed across the design threshold.
@@ -1608,6 +1630,7 @@ export function bindOperationalAssignment(snapshot, runner, issue) {
   return {lane:assignment.lane,runner_instance_id:runner,assignment_id:assignment.assignment_id,
     generation:assignment.generation,owning_issue:assignment.owning_issue,execution_slot:assignment.execution_slot,
     reserved_scope:assignment.reserved_scope,intentional_pause:assignment.intentional_pause,
+    ...(assignment.execution_slot==="completed"?{released_reference:assignment.released_reference}:{}),
     accepted_ack:assignment.accepted_ack,
     authority_limit:"Matches the declared accepted assignment; caller identity is reported, not verified native invocation or current activity."};
 }
@@ -1663,6 +1686,8 @@ export function prepareOperationalConsumption({client,config,context,runner,acti
     throw new Error("material consumption requires an actual action and repository-bound evidence reference");
   const snapshot=client.operationalSnapshot();
   const binding=bindOperationalAssignment(snapshot,runner,consumed.issue.number);
+  if(binding.execution_slot==="completed")
+    throw new Error("completed assignment has no active reservation; it cannot authorize a new consumption or implementation request");
   if(context.pickup?.reported_runner!==runner ||
     ["lane","runner_instance_id","assignment_id","generation","owning_issue","execution_slot"].some(key=>
       context.operational_binding?.[key]!==binding[key]))

@@ -282,6 +282,62 @@ test("conflicting assignments and malformed outstanding requests refuse interpre
   assert.throws(()=>parseRunnerCheckpoint(fixture.format("runner-checkpoint",checkpoint),"cloud-a",fixture.board),/ambiguous/);
 });
 
+test("completed assignments retain their accepted checkpoint and release evidence without an active scope",()=>{
+  const fixture=operationalFixture();const assignment=fixture.board.assignments[1];
+  const accepted=structuredClone(assignment.accepted_ack);
+  assignment.execution_slot="completed";assignment.reserved_scope=null;
+  assignment.released_reference=`https://github.com/${config.repository}/issues/1104#issuecomment-6021341506`;
+  const checkpoint=fixture.checkpoints["cloud-b"];
+  checkpoint.execution_phase="completed";
+  checkpoint.necessary_evidence_pointers=["issue1104#issuecomment-6021341506"];
+  fixture.records[`repos/${config.repository}/issues/1800`].body=fixture.format("runner-board",fixture.board);
+  fixture.records[`repos/${config.repository}/issues/comments/102`].body=fixture.format("runner-checkpoint",checkpoint);
+  const snapshot=readOperationalBoard(fixture.configured,fixture.api);
+  assert.equal(snapshot.status,"staged");
+  assert.deepEqual(snapshot.board.assignments[1].accepted_ack,accepted);
+  assert.equal(snapshot.checkpoints["cloud-b"].assignment_id,assignment.assignment_id);
+  const binding=bindOperationalAssignment(snapshot,"fixture-cloud-b",1104);
+  assert.equal(binding.execution_slot,"completed");assert.equal(binding.reserved_scope,null);
+  assert.equal(binding.released_reference,assignment.released_reference);
+  const output=operationalEnvelope(snapshot,null,binding);
+  assert.match(output.operational_snapshot.details,/Scope: none; assignment released/);
+  assert.match(output.operational_snapshot.details,/Release: https:\/\/github.com/);
+  assert.equal(output.operational_binding.released_reference,assignment.released_reference);
+  const retainedWaiting={...assignment,assignment_id:"retained-frozen-assignment",owning_issue:1550,
+    execution_slot:"reviewed_waiting",reserved_scope:"four frozen query paths",released_reference:undefined};
+  const withWaiting={...fixture.board,assignments:[...fixture.board.assignments,retainedWaiting]};
+  const preserved=parseOperationalBoard(fixture.format("runner-board",withWaiting),fixture.configured);
+  assert.equal(preserved.assignments.at(-1).reserved_scope,"four frozen query paths");
+  assert.equal(parseRunnerCheckpoint(fixture.format("runner-checkpoint",checkpoint),"cloud-b",preserved).assignment_id,
+    assignment.assignment_id);
+  const revisedRelease=structuredClone(snapshot);
+  revisedRelease.board.assignments[1].released_reference="issue1104#issuecomment-6021341507";
+  assert.equal(operationalChanges(revisedRelease,operationalBaseline(snapshot)).state,"baseline_unavailable");
+  const context=pickupContext(pickupIssue(),pickupRelations(),{runner:"fixture-cloud-b"});
+  context.operational_baseline=operationalBaseline(snapshot);context.operational_binding=binding;
+  assert.throws(()=>prepareOperationalConsumption({client:{operationalSnapshot:()=>snapshot},config:fixture.configured,
+    context,runner:"fixture-cloud-b",action:"Start another task",evidence:assignment.released_reference}),/no active reservation/);
+  for(const patch of [{reserved_scope:"old active scope"},{reserved_scope:""},{released_reference:null},
+    {released_reference:"issue314#issuecomment-6021341506"},{intentional_pause:true}]) {
+    const board=structuredClone(fixture.board);Object.assign(board.assignments[1],patch);
+    assert.throws(()=>parseOperationalBoard(fixture.format("runner-board",board),fixture.configured),/conflicting/);
+  }
+  for(const patch of [{assignment_generation:2},{assignment_id:"previous-assignment"},
+    {runner_instance_id:"previous-instance"},{execution_phase:"active"},{necessary_evidence_pointers:[]}]) {
+    assert.throws(()=>parseRunnerCheckpoint(fixture.format("runner-checkpoint",{...checkpoint,...patch}),
+      "cloud-b",fixture.board),/stale|conflicts|delivered phase/);
+  }
+  const active={...assignment,assignment_id:"successor-not-yet-accepted",execution_slot:"active",
+    reserved_scope:"new scope",released_reference:undefined};
+  for(const records of [[assignment,active],[active,assignment],[assignment,{...assignment,assignment_id:"duplicate-completed"}]]) {
+    const board={...fixture.board,assignments:[fixture.board.assignments[0],...records,fixture.board.assignments[2]]};
+    assert.throws(()=>parseOperationalBoard(fixture.format("runner-board",board),fixture.configured),/conflicting/);
+  }
+  const missingRelease=structuredClone(fixture.board);delete missingRelease.assignments[1].released_reference;
+  fixture.records[`repos/${config.repository}/issues/1800`].body=fixture.format("runner-board",missingRelease);
+  assert.equal(readOperationalBoard(fixture.configured,fixture.api).status,"unknown");
+});
+
 test("task instance binding and fixed checkpoint planning preserve unresolved requests and preimages",()=>{
   const fixture=operationalFixture();const snapshot=readOperationalBoard(fixture.configured,fixture.api);
   const binding=bindOperationalAssignment(snapshot,"fixture-cloud-a",1104);

@@ -404,6 +404,20 @@ Exactly one primary coordinator serializes grants; GitHub edits, timestamps and
 local locks are not cross-machine exclusivity. Preserve unresolved requests and
 pauses. Staged state does not establish active cutover or adoption.
 
+After an accepted assignment is delivered and its scope explicitly released, use
+`execution_slot: "completed"`, `reserved_scope: null`, `intentional_pause: false`
+and `released_reference` pointing to that owning issue's exact verified release
+comment. Dot verifies the actual release response against the accepted instance,
+assignment and generation before editing. Retain the last accepted identity and
+ACK; the fixed checkpoint binds that same tuple, uses phase `completed` or
+`delivered`, and retains the release reference in its necessary evidence pointers.
+This completes the assignment, not necessarily its broader owning issue. It grants
+no active scope or new execution. Do not combine a completed and active assignment
+for the same lane, drop unresolved requests, or infer a successor grant from age,
+release, recommendation or an unacknowledged offer. Retain separately accepted
+reviewed-waiting scope. Replace the completed current assignment only after an
+explicit successor grant and actual ACK; its owning evidence preserves history.
+
 Collection is bounded to four calls, at most15 seconds per request clipped to the
 remaining monotonic60-second total,64KiB per response,8KiB board and4KiB per
 checkpoint. The final coordination envelope, including carried baseline and
