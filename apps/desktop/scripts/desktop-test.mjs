@@ -16,6 +16,7 @@ import {
   verifyNormalPackageEvidence,
 } from "./desktop-main-webview-boundary.mjs";
 import { OwnedNativeSession } from "./desktop-owned-native-session.mjs";
+import { observeStartupNetwork } from "./desktop-startup-network-diagnostic.mjs";
 import {
   librarySwitchRecoverySelection,
   prepareLibrarySwitchRecoveryFixture,
@@ -306,6 +307,7 @@ const normalPackageSession = selection.selected_scenarios.includes(
   "native-normal-package-webview-boundary",
 );
 const identityBoundSession =
+  selection.selected_scenarios.includes("native-startup-network-diagnostic") ||
   selection.selected_scenarios.includes("native-external-runtime-review") ||
   backupFocusSession ||
   hostInterruptionSession ||
@@ -317,21 +319,23 @@ const identityBoundSession =
   librarySwitchRecoverySession;
 const cleanupName = selection.selected_scenarios.includes("native-external-runtime-review")
   ? "external-runtime-review"
-  : preferencesRecoverySession
-    ? "startup-preferences-recovery"
-    : librarySwitchRecoverySession
-      ? "library-switch-recovery"
-      : bootstrapRecoverySession
-        ? "startup-library-recovery"
-        : normalPackageSession
-          ? "normal-package-boundary"
-          : ordinaryCloseSession
-            ? "ordinary-close-preparation"
-            : hostInterruptionSession
-              ? "host-interruption"
-              : minimizedPreparationSession
-                ? "minimized-preparation"
-                : "backup-focus";
+  : selection.selected_scenarios.includes("native-startup-network-diagnostic")
+    ? "startup-network-diagnostic"
+    : preferencesRecoverySession
+      ? "startup-preferences-recovery"
+      : librarySwitchRecoverySession
+        ? "library-switch-recovery"
+        : bootstrapRecoverySession
+          ? "startup-library-recovery"
+          : normalPackageSession
+            ? "normal-package-boundary"
+            : ordinaryCloseSession
+              ? "ordinary-close-preparation"
+              : hostInterruptionSession
+                ? "host-interruption"
+                : minimizedPreparationSession
+                  ? "minimized-preparation"
+                  : "backup-focus";
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -1756,6 +1760,26 @@ try {
     assert.equal(failed.ok, false);
     assert.ok(failed.error.code);
     assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
+  });
+  await scenario("native-startup-network-diagnostic", async () => {
+    inputs.push(
+      await fileIdentity(
+        fileURLToPath(new URL("./desktop-startup-network-diagnostic.mjs", import.meta.url)),
+      ),
+    );
+    const observation = await observeStartupNetwork({
+      invoke,
+      readAlerts: () =>
+        browser.executeScript(() => document.querySelectorAll(".error-banner").length),
+    });
+    const report = path.join(output, "startup-network-diagnostic.json");
+    await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
+    artifacts.push(report);
+    assert.equal(
+      observation.completed,
+      true,
+      "Current diagnostic coverage is incomplete; inspect its phase",
+    );
   });
   await scenario("native-library-selection-review", async () => {
     const before = await invoke("get_bootstrap_status");

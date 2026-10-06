@@ -409,6 +409,18 @@ generation-bound IPC and screenshots are retained; host generations are evaluate
 independently after restart. It does not reset the platform default, open a normal
 user library, or establish another platform or physical controller claim.
 
+`just desktop-verify --scenario native-startup-network-diagnostic --require-clean`
+is a standalone Windows diagnostic outside ordinary profiles. It makes one
+explicit read-only native auth-status call, retains only success or an allowlisted
+error code, counts existing error banners, and verifies unchanged ready library
+identity, root and generation. It uses the ordinary isolated scope, three-minute
+watchdog and identity-bound owned-process cleanup; it starts no install fixture
+or game and changes no credentials. Normal application startup/background calls
+remain unchanged. Completion means diagnostic coverage, even when the observed
+network call fails. It proves neither historical banner attribution nor a causal
+repair, healthy network, or a product acceptance pass. Transport/identity failures
+retain the incomplete coverage phase without raw errors or automatic retries.
+
 `just desktop-verify --scenario native-startup-preferences-recovery --require-clean`
 selects one Windows-only saved-preferences failure and recovery journey, outside
 routine profiles. It retains malformed preferences and player-data before copies,
