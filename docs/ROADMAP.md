@@ -96,6 +96,16 @@ Unknown facts remain visible in unfiltered browsing; operational filters reuse
 Core snapshots and do not authorize work or establish qualification. See the
 [dated reconciliation](archive/2026-10-05-browsing-reconciliation.md).
 
+Chips, detail rows and filters reuse truthful scoped facts rather than quality
+ratings. [#206](https://github.com/boburning/portcove/issues/206) owns bounded
+state/copy corrections; [#917](https://github.com/boburning/portcove/issues/917)
+owns passive/interactive semantics and accessible emphasis. Planned
+[#1553](https://github.com/boburning/portcove/issues/1553) adds a small attributable
+capability contract and its first consumers before broader comparison under
+[#251](https://github.com/boburning/portcove/issues/251). Unknown testing does not
+block admission, a source match is not playability, and an update does not erase
+readiness. See the [dated chip reconciliation](archive/2026-10-05-chip-roadmap-reconciliation.md).
+
 ## During beta, before 1.0
 
 [Steam Deck #51](https://github.com/boburning/portcove/issues/51) and
