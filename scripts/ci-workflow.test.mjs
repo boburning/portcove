@@ -1525,6 +1525,134 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
       assert.match(invalid.stderr, /missing RetComM title mapping/);
       assert.doesNotMatch(invalid.stderr, /NETWORK_FORBIDDEN/);
     }
+
+    const actualCatalog = JSON.parse(
+      await readFile(
+        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const independent = actualCatalog.ports.filter((entry) =>
+      ["alexbeav-ape-escape-recomp", "alexbeav-alundra-recomp"].includes(entry.id),
+    );
+    assert.equal(independent.length, 2);
+    await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
+    await writeFile(catalogFile, JSON.stringify({ ports: [port, ...independent] }));
+    const coexist = run("--offline");
+    assert.equal(coexist.status, 0, coexist.stderr);
+    assert.match(coexist.stdout, /Verified 1 local PS1 mappings/);
+    assert.equal(coexist.stdout.match(/RetComM audit NOT_APPLICABLE:/gu).length, 2);
+    assert.equal(coexist.stdout.match(/upstream health NOT_CHECKED/gu).length, 2);
+    for (const entry of independent) {
+      assert.match(coexist.stdout, new RegExp(entry.id));
+      assert.ok(coexist.stdout.includes(entry.release.direct["windows-x86-64"].sha256));
+    }
+    const direct = structuredClone(independent[0]);
+    direct.id = "independent-fixture"; // Identity semantics, never a title allowlist.
+    const invalidCases = [
+      {
+        name: "mapped direct",
+        ports: [direct],
+        mappings: { [direct.id]: "fixture-title" },
+        error: /must resolve directly through GitHub/,
+      },
+      {
+        name: "missing mapping",
+        ports: [port],
+        mappings: {},
+        error: /missing RetComM title mapping/,
+      },
+      {
+        name: "stale mapping",
+        ports: [direct],
+        mappings: { stale: "fixture-title" },
+        error: /stale mapping/,
+      },
+      {
+        name: "invalid mapped provider",
+        ports: [{ ...port, release: { provider: "gitlab", repository: "owner/game" } }],
+        error: /must resolve directly through GitHub/,
+      },
+      {
+        name: "missing mapped repository",
+        ports: [{ ...port, release: {} }],
+        error: /missing GitHub game repository identity/,
+      },
+      {
+        name: "launcher substitution",
+        ports: [{ ...port, release: { repository: "TechnicallyComputers/RetComM-Launcher" } }],
+        error: /instead of the game upstream/,
+      },
+    ];
+    const ambiguous = (name, mutate) => {
+      const entry = structuredClone(direct);
+      mutate(entry);
+      invalidCases.push({
+        name,
+        ports: [port, entry],
+        error: /ambiguous independent direct-manifest identity/,
+      });
+    };
+    ambiguous("mapped project disguised", (entry) => {
+      entry.project_url = "https://github.com/OWNER/GAME";
+    });
+    ambiguous("mapped artifact disguised", (entry) => {
+      entry.release.direct["windows-x86-64"].url =
+        "https://github.com/OWNER/GAME/releases/download/v1/game.zip";
+    });
+    ambiguous("launcher project", (entry) => {
+      entry.project_url = "https://github.com/TechnicallyComputers/RetComM-Launcher";
+    });
+    ambiguous("RetComM artifact", (entry) => {
+      entry.release.direct["windows-x86-64"].url =
+        "https://github.com/TechnicallyComputers/retcomm-catalog/releases/download/v1/game.zip";
+    });
+    ambiguous("fake repository", (entry) => {
+      entry.release.repository = "owner/game";
+    });
+    ambiguous("missing project", (entry) => {
+      delete entry.project_url;
+    });
+    ambiguous("aliased project", (entry) => {
+      entry.project_url += "?alias=owner/game";
+    });
+    ambiguous("git project alias", (entry) => {
+      entry.project_url = "https://github.com/owner/game.git";
+    });
+    ambiguous("empty artifact path component", (entry) => {
+      entry.release.direct["windows-x86-64"].url =
+        "https://github.com/owner/game/releases/download//v1/game.zip";
+    });
+    ambiguous("invalid digest", (entry) => {
+      entry.release.direct["windows-x86-64"].sha256 = "bad";
+    });
+    ambiguous("missing platform", (entry) => {
+      entry.platforms.push("linux-x86-64");
+    });
+    ambiguous("invalid size", (entry) => {
+      entry.release.direct["windows-x86-64"].size = 0;
+    });
+    ambiguous("missing version", (entry) => {
+      delete entry.release.direct["windows-x86-64"].version;
+    });
+    for (const fixture of invalidCases) {
+      await writeFile(catalogFile, JSON.stringify({ ports: fixture.ports }));
+      await writeFile(
+        mappingFile,
+        JSON.stringify(fixture.mappings ?? { fixture: "fixture-title" }),
+      );
+      const rejected = run("--offline");
+      assert.equal(rejected.status, 1, fixture.name);
+      assert.match(rejected.stderr, fixture.error, fixture.name);
+      assert.doesNotMatch(rejected.stderr, /TypeError|NETWORK_FORBIDDEN/, fixture.name);
+      assert.doesNotMatch(rejected.stdout, /Verified/, fixture.name);
+    }
+    await writeFile(catalogFile, JSON.stringify({ ports: [port, direct] }));
+    await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
+    const renamed = run("--offline");
+    assert.equal(renamed.status, 0, renamed.stderr);
+    assert.match(renamed.stdout, /independent-fixture/);
+    assert.match(renamed.stdout, /Verified 1 local PS1 mappings/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
