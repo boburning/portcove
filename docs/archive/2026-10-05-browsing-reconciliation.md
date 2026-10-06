@@ -119,8 +119,10 @@ local saved-query start. Both were repaired; DELTA_CLEAR covers all six complete
 specifications and exact nine-field plans. It validated 618 opaque baseline IDs,
 coverage, coherent splits and preserved Required owners; no product test claimed.
 
-Remote verification and the final doctor passed. Selected documentation checks,
-final exact-source review and guarded delivery are recorded in the linked
-documentation PR and #793 handoff. Readiness remains distinct from planning completion. This
+Remote verification and the final doctor passed. At receipt preparation, selected
+documentation checks passed; final exact-source review, hosted CI and guarded
+delivery remained separate pending obligations. Their subsequent results belong
+in [documentation PR #1556](https://github.com/boburning/portcove/pull/1556) and
+the existing #793 handoff. Readiness remains distinct from planning completion. This
 receipt intentionally creates no continuous inventory, metrics platform or queue.
 No new Required beta gate or indirect beta dependency is introduced.
