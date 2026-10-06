@@ -31,6 +31,21 @@ import { steamEntryScenario } from "./desktop-steam-entry-test.mjs";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mjs";
 import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mjs";
 
+// Qualification witness guard only; Core retains filesystem ownership and symlink authority.
+export function rollbackWitnessWithinLibrary(library, owned) {
+  if (!path.isAbsolute(library) || !path.isAbsolute(owned)) return false;
+  const relative = path.relative(
+    path.toNamespacedPath(path.resolve(library)),
+    path.toNamespacedPath(path.resolve(owned)),
+  );
+  return (
+    relative !== "" &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+}
+
 function rgbLuminance(color) {
   const channels = color
     .match(/[\d.]+/g)
@@ -1387,7 +1402,7 @@ export async function preparationScenarios({
     );
     for (const owned of [save, activeSave, previousManifest])
       assert.ok(
-        path.resolve(owned).startsWith(path.resolve(library) + path.sep),
+        rollbackWitnessWithinLibrary(library, owned),
         "Rollback witnesses stay in the isolated library",
       );
     await mkdir(path.dirname(save), { recursive: true });
