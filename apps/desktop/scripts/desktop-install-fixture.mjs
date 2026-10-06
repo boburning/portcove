@@ -196,7 +196,7 @@ async function addSelectedSetupSources({
         role: index === 0 ? "game" : "bios",
         profile_id: profile.id,
         label: profile.label,
-        verification: "catalog-rules",
+        verification: "catalog-identity",
       }));
     for (const requirement of definition.presentation.source_requirements) {
       const profile = profiles.find((item) => item.id === requirement.profile_id);

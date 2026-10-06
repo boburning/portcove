@@ -1032,6 +1032,14 @@ test("selected setup identities admit both replacements only in the opt-in catal
     assert.deepEqual(contract.supported_variant_ids, ["inert-0", "inert-1"]);
     assert.equal(contract.admission_mode, "enforced");
     assert.ok(contract.immutable_review_url.includes("a".repeat(40)));
+    for (const requirement of port.presentation.source_requirements) {
+      const sourceContract = catalog.source_catalog.contracts.find(
+        (item) => item.port_id === port.id && item.role === requirement.role,
+      );
+      assert.equal(sourceContract.admission_mode, "enforced");
+      assert.equal(sourceContract.validator_contract_id, null);
+      assert.equal(requirement.verification, "catalog-identity");
+    }
   }
   assert.equal(fixture.port.adapter, "libultraship-portable");
   assert.equal(fixture.refreshPort.adapter, "psx-recomp-managed");
