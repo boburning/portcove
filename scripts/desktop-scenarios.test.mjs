@@ -22,10 +22,7 @@ import {
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
-import {
-  observeStartupNetwork,
-  startupNetworkReply,
-} from "../apps/desktop/scripts/desktop-startup-network-diagnostic.mjs";
+import { observeStartupNetwork } from "../apps/desktop/scripts/desktop-startup-network-diagnostic.mjs";
 import { DatabaseSync } from "node:sqlite";
 import {
   librarySwitchRecoverySelection,
@@ -1092,27 +1089,58 @@ test("startup network diagnostics are standalone and never enter ordinary accept
   );
 });
 
-test("diagnostic reply drops credential-shaped data even in summary and success payload", () => {
+test("diagnostic reply drops credential-shaped data even in summary and success payload", async () => {
   const secret = "Bearer private-token";
-  assert.deepEqual(startupNetworkReply({ ok: true, value: { token: secret } }), { ok: true });
-  assert.deepEqual(
-    startupNetworkReply({
-      ok: false,
-      error: {
-        code: "network",
-        message: secret,
-        details: { token: secret },
-        presentation: { summary: secret },
-        context: secret,
+  const replies = [
+    [{ ok: true, value: { token: secret } }, { ok: true }],
+    [
+      {
+        ok: false,
+        error: {
+          code: "network",
+          message: secret,
+          details: { token: secret },
+          presentation: { summary: secret },
+          context: secret,
+        },
       },
-    }),
-    { ok: false, code: "network" },
-  );
-  assert.deepEqual(startupNetworkReply({ ok: false, error: { code: secret } }), {
-    ok: false,
-    code: "unknown",
-  });
-  assert.throws(() => startupNetworkReply({}), /coverage/);
+      { ok: false, code: "network" },
+    ],
+    [
+      { ok: false, error: { code: secret } },
+      { ok: false, code: "unknown" },
+    ],
+    [{}, undefined],
+  ];
+  for (const [reply, expected] of replies) {
+    const commands = [];
+    const report = await observeStartupNetwork({
+      invoke: async (command) => {
+        commands.push(command);
+        if (command === "get_bootstrap_status")
+          return {
+            ok: true,
+            value: { ready: true, error: null, generation: 1, library_root: "owned-library" },
+          };
+        if (command === "get_library_identity")
+          return { ok: true, value: { id: "owned-id", root: "owned-library" } };
+        assert.equal(command, "get_github_auth_status");
+        return reply;
+      },
+      readAlerts: async () => 1,
+    });
+    assert.deepEqual(report.auth_status, expected);
+    assert.equal(report.completed, expected !== undefined);
+    assert.equal(report.explicit_auth_calls, 1);
+    assert.equal(commands.filter((command) => command === "get_github_auth_status").length, 1);
+    if (expected === undefined) assert.equal(report.coverage_failure, "explicit-auth-status");
+    else {
+      assert.equal(report.before_alert_count, 1);
+      assert.equal(report.after_alert_count, 1);
+      assert.equal(report.library.identity.id, "owned-id");
+    }
+    assert.doesNotMatch(JSON.stringify(report), /Bearer|private-token/);
+  }
 });
 
 test("current failed network observation is complete without retry or library change", async () => {

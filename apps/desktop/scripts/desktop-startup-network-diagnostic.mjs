@@ -16,7 +16,7 @@ const codes = new Set([
 ]);
 
 // Never retain success payloads, credentials, raw errors or extensible context.
-export function startupNetworkReply(reply) {
+function startupNetworkReply(reply) {
   assert.equal(typeof reply?.ok, "boolean", "Native response coverage is missing");
   if (reply.ok) return { ok: true };
   return { ok: false, code: codes.has(reply.error?.code) ? reply.error.code : "unknown" };
