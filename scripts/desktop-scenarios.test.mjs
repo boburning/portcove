@@ -1302,6 +1302,29 @@ test("saved-folder selected setup stays standalone and opt-in", () => {
   assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
 });
 
+test("selected setup completion remains a separate Windows opt-in with ordinary install prerequisites", () => {
+  const id = "native-selected-setup-completion";
+  const selected = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selected.selected_scenarios, [id]);
+  assert.deepEqual(selected.setup_scenarios, []);
+  assert.deepEqual(selected.prerequisites, ["desktop", "install-fixture", "owned-fixture"]);
+  assert.deepEqual(selected.host_resources, ["native-desktop", "keyboard-pointer"]);
+  assert.equal(desktopScenarioById.get(id).qualification_only, true);
+  assert.equal(desktopScenarioById.get(id).source, "desktop-selected-setup-completion-test.mjs");
+  assert.equal(desktopHarnessDeadlineMs(selected), 180_000);
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: [id, "native-saved-folder-selected-setup"],
+        platform: "win32",
+      }),
+    /standalone/,
+  );
+  for (const platform of ["linux", "darwin"])
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+});
+
 test("unavailable-root wait observes enabled state and preserves read rejection", async () => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-source-dialog-test.mjs", import.meta.url),

@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as scheduleRealTime } from "node:timers";
 import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { gunzipSync } from "node:zlib";
 import { test, vi } from "vitest";
 import {
   createInstallFixture,
@@ -13,9 +14,157 @@ import {
   INSTALL_REFRESH_FIXTURE_PORT_ID,
 } from "./desktop-install-fixture.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
+import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mjs";
+import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { run as runLifecycleCommand } from "../../../integrations/playnite/lifecycle-check.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
+
+test("completion fixture pins the owned executable, valid synthetic source and isolated setup contract", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-completion-contract-"));
+  const tool = path.join(output, "probe.bin");
+  const executable = Buffer.from("owned fixture contract bytes; not executed");
+  await writeFile(tool, executable);
+  const fixture = await createInstallFixture({
+    root,
+    output,
+    completionJourney: true,
+    preparationTool: tool,
+    revision: "a".repeat(40),
+    holdFirstDownload: true,
+  });
+  try {
+    const archive = gunzipSync(fixture.artifact);
+    const size = Number.parseInt(
+      archive.subarray(124, 136).toString().replace(/\0.*$/s, "").trim(),
+      8,
+    );
+    assert.deepEqual(archive.subarray(512, 512 + size), executable);
+    assert.ok(fixture.artifact.length > 1024 * 1024);
+    assert.deepEqual(fixture.port.setup_arguments, [
+      "--owned-preparation",
+      "--owned-fixture-mode",
+      "success",
+    ]);
+    assert.equal(fixture.port.runtime_source_materialization, "n64-big-endian");
+    assert.equal(fixture.port.runtime_source_filename, "source.z64");
+    assert.ok(
+      fixture.port.setup_output_paths.some((prefix) =>
+        fixture.port.setup_marker.startsWith(`${prefix}/`),
+      ),
+    );
+    assert.deepEqual(
+      fixture.sourceJourney.game.subarray(0, 4),
+      Buffer.from([0x80, 0x37, 0x12, 0x40]),
+    );
+    assert.equal(fixture.sourceJourney.game.length % 4, 0);
+    assert.notDeepEqual(fixture.sourceJourney.game, fixture.sourceJourney.replacement);
+    assert.deepEqual(
+      await readFile(fixture.sourceJourney.gameBefore),
+      await readFile(fixture.sourceJourney.gamePath),
+    );
+    const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+    const identity = catalog.source_catalog.identities.find(
+      (item) => item.id === fixture.port.source_profile,
+    );
+    assert.deepEqual(identity.variants[0].representations[0].extensions, ["z64"]);
+    assert.equal(
+      identity.variants[0].representations[0].identities[0].sha256,
+      createHash("sha256").update(fixture.sourceJourney.game).digest("hex"),
+    );
+    assert.match(identity.evidence_gap, /No upstream|no upstream/i);
+    await assert.rejects(
+      fixture.publishRelease(fixture.port.id, {}),
+      /cannot publish inert upgrades/,
+    );
+  } finally {
+    await fixture.close();
+    await rm(output, { recursive: true, force: true });
+  }
+});
+
+test("completion fixture refuses missing tool inputs and mixed discovery selection before serving", async () => {
+  await assert.rejects(
+    createInstallFixture({ root, output: root, completionJourney: true }),
+    /absolute owned preparation tool/,
+  );
+  await assert.rejects(
+    createInstallFixture({
+      root,
+      output: root,
+      completionJourney: true,
+      preparationTool: "relative",
+    }),
+    /absolute owned preparation tool/,
+  );
+  await assert.rejects(
+    createInstallFixture({ root, output: root, sourceJourney: true, completionJourney: true }),
+    /separate isolated selections/,
+  );
+  const registered = [];
+  await selectedSetupCompletionScenario({ scenario: async (id) => registered.push(id) });
+  assert.deepEqual(registered, ["native-selected-setup-completion"]);
+});
+
+test("owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-probe-mode-"));
+  try {
+    const tool = path.join(output, process.platform === "win32" ? "probe.exe" : "probe");
+    const compiled = spawnCommand(
+      "rustc",
+      [
+        "--crate-name",
+        "portcove_probe_mode_contract",
+        path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
+        "-o",
+        tool,
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 30_000 },
+    );
+    assert.equal(compiled.error, undefined);
+    assert.equal(compiled.status, 0, compiled.stderr);
+    for (const [name, args, legacy, succeeds, marker] of [
+      ["explicit", ["--owned-fixture-mode", "success"], null, true, true],
+      ["default", [], null, true, false],
+      ["legacy", [], "success", true, true],
+      ["missing-marker", ["--owned-fixture-mode", "missing-marker"], null, true, false],
+      ["failure", ["--owned-fixture-mode", "failure"], null, false, true],
+      ["missing-mode", ["--owned-fixture-mode"], null, false, false],
+      ["unsupported", ["--owned-fixture-mode", "invented"], null, false, false],
+      [
+        "duplicate",
+        ["--owned-fixture-mode", "success", "--owned-fixture-mode", "success"],
+        null,
+        false,
+        false,
+      ],
+    ]) {
+      const cwd = path.join(output, name);
+      await mkdir(cwd);
+      if (legacy) await writeFile(path.join(cwd, "owned-setup-mode"), legacy);
+      const result = spawnCommand(tool, ["--owned-preparation", ...args], {
+        cwd,
+        env: { ...process.env, SHIP_HOME: cwd },
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 5_000,
+      });
+      assert.equal(result.error, undefined, name);
+      assert.equal(result.status === 0, succeeds, `${name}: ${result.stderr}`);
+      if (marker)
+        assert.equal(
+          await readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT"), "utf8"),
+          "owned validated output",
+        );
+      else
+        await assert.rejects(readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT")), {
+          code: "ENOENT",
+        });
+    }
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
+});
 
 async function waitFor(predicate, message) {
   const deadline = Date.now() + 5_000;

@@ -92,8 +92,17 @@ fn main() {
 fn owned_preparation(args: &[String]) {
     let game = args.windows(2).find(|pair| pair[0] == "--game").map(|pair| pair[1].as_str()).unwrap_or("jak1");
     assert!(["jak1", "jak2", "jak3"].contains(&game));
-    let Ok(mode) = fs::read_to_string("owned-setup-mode") else {
-        return;
+    let mode = if args.iter().any(|arg| arg == "--owned-fixture-mode") {
+        let positions = args.iter().enumerate().filter(|(_, arg)| *arg == "--owned-fixture-mode").map(|(index, _)| index).collect::<Vec<_>>();
+        assert_eq!(positions.len(), 1, "duplicate owned fixture mode");
+        let mode = args.get(positions[0] + 1).expect("missing owned fixture mode");
+        assert!(["success", "missing-marker", "unowned-output", "save-change", "executable-change", "failure", "wait"].contains(&mode.as_str()), "unknown owned fixture mode");
+        mode.clone()
+    } else {
+        let Ok(mode) = fs::read_to_string("owned-setup-mode") else {
+            return;
+        };
+        mode
     };
     println!("owned setup began token=owned-fixture-private-value");
     eprintln!("owned setup diagnostic on stderr");
