@@ -567,6 +567,11 @@ export async function installScenarios({
       `${port.name}. Ready to play. Update downloaded. View details.`,
     );
     assert.ok(libraryCard.attention.includes("Update downloaded"));
+    assert.equal(
+      libraryCard.attention.includes("Update available"),
+      false,
+      "the available target already matches the verified downloaded update",
+    );
     const layouts = await captureStagedLayouts(port, nextVersion);
     const finalResult = await invoke("get_statuses");
     assert.equal(finalResult.ok, true);

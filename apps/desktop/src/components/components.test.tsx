@@ -635,6 +635,99 @@ describe("desktop components", () => {
     );
   });
 
+  it.each(
+    (["library", "catalog"] as const).flatMap((view) =>
+      [
+        "same target",
+        "newer release",
+        "different artifact",
+        "different asset name",
+        "different asset size",
+        "different channel",
+        "different required runtime",
+        "different downloaded runtime",
+        "different port",
+        "unverified download",
+        "unknown artifact",
+        "stale installed version",
+        "stale installed artifact",
+        "stale installed runtime",
+        "stale selected channel",
+      ].map((difference) => ({ view, difference })),
+    ),
+  )("matches downloaded attention in $view: $difference", ({ view, difference }) => {
+    const install = installRecord();
+    const downloaded = installRecord({ id: "2", version: "2.0", staged: true });
+    const status: PortStatus = {
+      ...portStatus(),
+      port_id: port.id,
+      channel: "stable",
+      active: install,
+      staged: downloaded,
+      readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" },
+      last_update_check: {
+        checked_at: 2,
+        check: {
+          port_id: port.id,
+          channel: "stable",
+          installed_version: install.version,
+          installed_artifact: install.artifact,
+          installed_runtime: install.runtime,
+          required_runtime: downloaded.runtime,
+          update_available: true,
+          release: {
+            version: downloaded.version,
+            channel: downloaded.channel,
+            published_at: null,
+            asset: {
+              name: downloaded.artifact.asset_name,
+              sha256: downloaded.artifact.sha256,
+              size: downloaded.artifact.size,
+              url: "https://example.com/sample.zip",
+            },
+          },
+        },
+      },
+    };
+    const check = status.last_update_check?.check;
+    if (!check) throw new Error("Current update fixture is required");
+    if (difference === "newer release") check.release.version = "3.0";
+    if (difference === "different artifact") check.release.asset.sha256 = "e".repeat(64);
+    if (difference === "different asset name") check.release.asset.name = "other.zip";
+    if (difference === "different asset size") check.release.asset.size = 2;
+    if (difference === "different channel") downloaded.channel = "beta";
+    if (difference === "different required runtime") check.required_runtime = runtimeIdentity;
+    if (difference === "different downloaded runtime") downloaded.runtime = runtimeIdentity;
+    if (difference === "different port") downloaded.port_id = "other-port";
+    if (difference === "unverified download") downloaded.verified = false;
+    if (difference === "unknown artifact") {
+      downloaded.artifact = { ...downloaded.artifact, sha256: "" };
+      check.release.asset.sha256 = "";
+    }
+    if (difference === "stale installed version") check.installed_version = "0.9";
+    if (difference === "stale installed artifact")
+      check.installed_artifact = { ...install.artifact, sha256: "e".repeat(64) };
+    if (difference === "stale installed runtime") check.installed_runtime = runtimeIdentity;
+    if (difference === "stale selected channel") status.channel = "beta";
+    const html = renderToStaticMarkup(
+      <PortBrowser
+        view={view}
+        ports={[port]}
+        statuses={new Map([[port.id, status]])}
+        overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 1 }}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+      />,
+    );
+    expect(html).toContain("Ready to play");
+    expect(html).toContain("Update downloaded</span>");
+    if (difference === "same target" || difference.startsWith("stale "))
+      expect(html).not.toContain("Update available</span>");
+    else expect(html).toContain("Update available</span>");
+  });
+
   it.each([
     ["current", "Files are unchanged since they were added"],
     ["not_checked", "Files added · current contents not checked"],
