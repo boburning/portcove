@@ -338,11 +338,33 @@ describe("source identity presentation", () => {
 
   it.each([
     ["recognized_not_listed", "Recognized · not listed"],
-    ["release_inapplicable", "Not applicable to this release"],
+    ["release_inapplicable", "Not reviewed for this release"],
   ])("keeps %s as an application result without claiming a global match", (state, expected) => {
     const html = renderToStaticMarkup(<SourceIdentityPanel report={report(state)} />);
     expect(html).toContain(expected);
     expect(html).toContain("Game-file check result: Result unavailable");
+    expect(html).not.toContain("Not applicable to this release");
+  });
+
+  it.each([
+    ["supported", "Matches evaluated source requirements"],
+    ["unreviewed_for_release", "Not reviewed for this release"],
+    ["not_evaluated", "Not evaluated"],
+    ["recognized_not_listed", "Recognized · not listed"],
+    ["known_incompatible", "Known mismatch · refused"],
+  ] as const)("scopes the %s application result to source requirements", (state, expected) => {
+    const value = report(state === "known_incompatible" ? "known_mismatch" : "recognized_exact");
+    value.applications[0].contract_result =
+      state === "unreviewed_for_release" || state === "not_evaluated"
+        ? { state }
+        : { state, contract_id: "game-port" };
+    const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
+    expect(html).toContain(`>${expected}</span>`);
+    expect(html).not.toContain(">Supported</span>");
+    expect(html).not.toContain("Not applicable to this release");
+    if (state === "known_incompatible") {
+      expect(html).toContain("File not accepted · file does not match the required edition");
+    }
   });
 
   it("distinguishes structural checks from consent when an edition is unknown", () => {
