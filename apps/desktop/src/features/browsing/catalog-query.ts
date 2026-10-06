@@ -110,7 +110,7 @@ export function evaluateCatalogQuery(
     return true;
   });
   const groupMatches = (port: PortDefinition, group: Group) =>
-    !query[group]?.length || query[group]!.some((value) => matches(port, group, value, context));
+    !query[group]?.length || query[group].some((value) => matches(port, group, value, context));
   for (const group of groups) {
     const otherMatches = unique.filter((port) =>
       groups.every((other) => other === group || groupMatches(port, other)),
