@@ -472,6 +472,32 @@ test("release handbook edits invalidate their consumers without expiring unchang
   );
 });
 
+for (const pathname of ["scripts/desktop-scenarios.mjs", "scripts/desktop-scenarios.test.mjs"]) {
+  test(`desktop scenario consumer ${pathname} invalidates only consumed receipts`, (t) => {
+    const stages = AUDIT_STAGES.filter((stage) => stage.reusable);
+    const receiptRoot = temporaryDirectory(t);
+    const before = inventory("before", [file(pathname, "original scenario contract")]);
+    const after = inventory("after", [file(pathname, "changed scenario contract")]);
+    const initial = planAudit({ stages, inventory: before, runtime, receiptRoot, fresh: true });
+    assert.equal(executeAudit(initial, { execute: () => ({ status: 0 }) }).success, true);
+    const unchanged = planAudit({ stages, inventory: before, runtime, receiptRoot });
+    assert.ok(
+      unchanged.stages.every((stage) => stage.action === "reuse"),
+      pathname,
+    );
+    const changed = planAudit({ stages, inventory: after, runtime, receiptRoot });
+    for (const stage of changed.stages) {
+      const consumes = ["format", "development-tools"].includes(stage.id);
+      assert.equal(stage.action, consumes ? "run" : "reuse", `${pathname}: ${stage.id}`);
+      assert.equal(
+        stage.fingerprint !== initial.stages.find((entry) => entry.id === stage.id).fingerprint,
+        consumes,
+        `${pathname}: ${stage.id} fingerprint`,
+      );
+    }
+  });
+}
+
 test("formatting and transport inputs invalidate every stage that actually reads them", () => {
   const documentation = file("docs/README.md", "docs");
   assert.ok(documentation.domains.includes("format"));
