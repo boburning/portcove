@@ -755,6 +755,11 @@ export async function selectedSetupScenario({
       .update(await readFile(owned.biosBefore))
       .digest("hex");
     const { button, click } = reviewControls(browser);
+    const nativeRead = async (name, args) => {
+      const response = await invoke(name, args);
+      assert.equal(response.ok, true, JSON.stringify(response.error));
+      return response.value;
+    };
     const report = {
       scope: "real saved-root scan and UI guarded registration; uninstalled requirements only",
       limitations: [
@@ -773,7 +778,11 @@ export async function selectedSetupScenario({
       await browser.wait(until.elementLocated(review), 15_000);
     };
     const plan = (profileId, sourcePath) =>
-      invoke("plan_source_import", { profileId, path: sourcePath, mode: "use_current_location" });
+      nativeRead("plan_source_import", {
+        profileId,
+        path: sourcePath,
+        mode: "use_current_location",
+      });
     const scan = async () => {
       const completedBefore = new Set(
         command(["activity"])
@@ -795,7 +804,7 @@ export async function selectedSetupScenario({
         15_000,
         "The UI scan must produce a new completed Core activity, not reuse a prior snapshot",
       );
-      const snapshot = await invoke("get_game_file_scan_snapshot");
+      const snapshot = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(snapshot.freshness, "inputs_match");
       assert.deepEqual(
         snapshot.report.candidates.map((item) => item.profile_id).sort(),
@@ -954,7 +963,7 @@ export async function selectedSetupScenario({
         assert.equal(source.sha256, expectedHash);
       }
       report.observations.committed_registrations = registered;
-      const statuses = await invoke("get_statuses");
+      const statuses = await nativeRead("get_statuses");
       report.observations.authoritative_ports = [fixture.port, fixture.refreshPort].map((port) => {
         const status = command(["status", port.id]);
         assert.deepEqual(
@@ -997,7 +1006,7 @@ export async function selectedSetupScenario({
           ).isEnabled(),
         5_000,
       );
-      const snapshot = await invoke("get_game_file_scan_snapshot");
+      const snapshot = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(snapshot.freshness, "inputs_changed");
       const roots = command(["source", "roots", "list"]);
       assert.equal(roots.find((item) => item.path === owned.directory).availability, "unavailable");
