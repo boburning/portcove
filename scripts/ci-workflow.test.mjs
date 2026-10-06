@@ -1530,6 +1530,227 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
   }
 });
 
+test("RetComM remote manifests fall back only after 404 and retain access failures", async () => {
+  const { copyFile } = await import("node:fs/promises");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-remote-"));
+  try {
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+    const checker = path.join(root, "scripts/check-retcomm-upstreams.mjs");
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    await writeFile(
+      path.join(root, "crates/portcove-core/catalog/catalog.json"),
+      JSON.stringify({
+        ports: [
+          { id: "fixture", adapter: "psx-recomp-managed", release: { repository: "owner/game" } },
+        ],
+      }),
+    );
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify({ fixture: "fixture-title" }),
+    );
+    const preload = path.join(root, "fixture-fetch.mjs");
+    const requestsFile = path.join(root, "requests.json");
+    await writeFile(
+      preload,
+      `import { writeFileSync } from "node:fs";
+const replies = JSON.parse(process.env.RETCOMM_FIXTURE_REPLIES);
+const requests = [];
+globalThis.fetch = async (url, options) => {
+  requests.push({ url, headers: options.headers });
+  writeFileSync(process.env.RETCOMM_FIXTURE_REQUESTS, JSON.stringify(requests));
+  const reply = replies[requests.length - 1];
+  if (!reply) throw new Error("UNEXPECTED_NETWORK_REQUEST");
+  if (reply.error) throw new Error(reply.error);
+  return new Response(reply.body, { status: reply.status });
+};`,
+    );
+    const valid = { status: 200, body: JSON.stringify({ release: { github: "owner/game" } }) };
+    const missing = { status: 404, body: "missing" };
+    const cases = [
+      { name: "platform precedence", replies: [valid], status: 0, requests: 1 },
+      { name: "legacy fallback", replies: [missing, valid], status: 0, requests: 2 },
+      {
+        name: "both missing",
+        replies: [missing, missing],
+        status: 1,
+        requests: 2,
+        error: /returned 404/,
+      },
+      {
+        name: "forbidden",
+        replies: [{ status: 403, body: "private" }, valid],
+        status: 1,
+        requests: 1,
+        error: /returned 403/,
+      },
+      {
+        name: "server failure",
+        replies: [{ status: 503, body: "unavailable" }, valid],
+        status: 1,
+        requests: 1,
+        error: /returned 503/,
+      },
+      {
+        name: "transport failure",
+        replies: [{ error: "FIXTURE_ACCESS_FAILURE" }, valid],
+        status: 1,
+        requests: 1,
+        error: /FIXTURE_ACCESS_FAILURE/,
+      },
+      {
+        name: "invalid platform JSON",
+        replies: [{ status: 200, body: "{" }, valid],
+        status: 1,
+        requests: 1,
+        error: /fixture:/,
+      },
+      {
+        name: "invalid legacy JSON",
+        replies: [missing, { status: 200, body: "{" }],
+        status: 1,
+        requests: 2,
+        error: /fixture:/,
+      },
+      {
+        name: "missing repository",
+        replies: [{ status: 200, body: "{}" }, valid],
+        status: 1,
+        requests: 1,
+        error: /no GitHub game release repository/,
+      },
+      {
+        name: "conflicting source",
+        replies: [
+          {
+            status: 200,
+            body: JSON.stringify({
+              release: { github: "owner/game" },
+              build: { source: { github: "other/game" } },
+            }),
+          },
+        ],
+        status: 1,
+        requests: 1,
+        error: /repositories differ/,
+      },
+    ];
+    const urls = [
+      "https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/fixture%2Fref/titles/psx/fixture-title.json",
+      "https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/fixture%2Fref/titles/fixture-title.json",
+    ];
+    for (const fixture of cases) {
+      await writeFile(requestsFile, "[]");
+      const result = spawnSync(
+        process.execPath,
+        ["--import", pathToFileURL(preload).href, checker],
+        {
+          encoding: "utf8",
+          timeout: 10000,
+          env: {
+            ...process.env,
+            RETCOMM_CATALOG_DIR: "",
+            RETCOMM_CATALOG_REF: "fixture/ref",
+            RETCOMM_FIXTURE_REPLIES: JSON.stringify(fixture.replies),
+            RETCOMM_FIXTURE_REQUESTS: requestsFile,
+          },
+        },
+      );
+      assert.equal(result.status, fixture.status, `${fixture.name}: ${result.stderr}`);
+      const requests = JSON.parse(await readFile(requestsFile, "utf8"));
+      assert.deepEqual(
+        requests.map((request) => request.url),
+        urls.slice(0, fixture.requests),
+        fixture.name,
+      );
+      for (const request of requests) {
+        assert.deepEqual(request.headers, { "User-Agent": "Portcove-RetComM-upstream-audit" });
+      }
+      if (fixture.error) {
+        assert.match(result.stderr, fixture.error, fixture.name);
+        assert.doesNotMatch(result.stdout, /Verified/);
+      } else {
+        assert.match(result.stdout, /Verified 1 direct PS1 game upstreams/);
+      }
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("RetComM local manifests preserve platform precedence and refuse malformed paths", async () => {
+  const { copyFile } = await import("node:fs/promises");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-local-"));
+  try {
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+    const checker = path.join(root, "scripts/check-retcomm-upstreams.mjs");
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    await writeFile(
+      path.join(root, "crates/portcove-core/catalog/catalog.json"),
+      JSON.stringify({
+        ports: [
+          { id: "fixture", adapter: "psx-recomp-managed", release: { repository: "owner/game" } },
+        ],
+      }),
+    );
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify({ fixture: "fixture-title" }),
+    );
+    const preload = path.join(root, "deny-network.mjs");
+    await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
+    const upstream = path.join(root, "upstream");
+    await mkdir(path.join(upstream, "titles/psx"), { recursive: true });
+    const platform = path.join(upstream, "titles/psx/fixture-title.json");
+    const legacy = path.join(upstream, "titles/fixture-title.json");
+    const run = () =>
+      spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, checker], {
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, RETCOMM_CATALOG_DIR: upstream },
+      });
+    const valid = JSON.stringify({ release: { github: "owner/game" } });
+    await writeFile(platform, valid);
+    await writeFile(legacy, "{");
+    assert.equal(
+      run().status,
+      0,
+      "valid platform manifest must take precedence over malformed legacy",
+    );
+    await rm(platform);
+    await writeFile(legacy, valid);
+    assert.equal(run().status, 0, "missing platform manifest must use the legacy path");
+    await writeFile(platform, "{");
+    const malformed = run();
+    assert.equal(malformed.status, 1);
+    assert.doesNotMatch(malformed.stdout, /Verified/);
+    assert.doesNotMatch(malformed.stderr, /NETWORK_FORBIDDEN/);
+    await rm(platform);
+    await mkdir(platform);
+    const inaccessible = run();
+    assert.equal(
+      inaccessible.status,
+      1,
+      "non-ENOENT read errors must not fall back to valid legacy",
+    );
+    assert.doesNotMatch(inaccessible.stdout, /Verified/);
+    assert.doesNotMatch(inaccessible.stderr, /NETWORK_FORBIDDEN/);
+    await rm(platform, { recursive: true });
+    await rm(legacy);
+    const missing = run();
+    assert.equal(missing.status, 1);
+    assert.match(missing.stderr, /no PSX title manifest for fixture-title/);
+    assert.doesNotMatch(missing.stdout, /Verified/);
+    assert.doesNotMatch(missing.stderr, /NETWORK_FORBIDDEN/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("Rust reports slow tests, terminates hangs and retains documentation coverage", async () => {
   const config = await readFile(new URL("../.config/nextest.toml", import.meta.url), "utf8");
   assert.match(
