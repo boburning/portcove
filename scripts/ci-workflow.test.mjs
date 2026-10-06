@@ -511,6 +511,9 @@ test("repository toolchain reader exports the declared components before install
   )?.[1];
   assert.ok(body);
   const script = body.replace(/^ {8}/gm, "");
+  assert.doesNotMatch(script, /\$portcoveReaderClock\b/);
+  const phaseDiagnostic = (phase) =>
+    `[Console]::Error.WriteLine("portcove-reader-phase:${phase};elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds)")`;
   let tracedScript = script;
   for (const [line, phase] of [
     ["$config = Get-Content rust-toolchain.toml -Raw", "read-config"],
@@ -525,16 +528,18 @@ test("repository toolchain reader exports the declared components before install
     );
     tracedScript = tracedScript.replace(
       line,
-      `[Console]::Error.WriteLine("portcove-reader-phase:${phase}")\n${line}`,
+      `${phaseDiagnostic(phase)}\n${line}${phase === "read-config" ? `\n${phaseDiagnostic("config-read")}` : ""}`,
     );
   }
   tracedScript =
-    '[Console]::Error.WriteLine("portcove-reader-phase:started;pwsh=$($PSVersionTable.PSVersion)")\n' +
+    "$portcoveReaderClock = [System.Diagnostics.Stopwatch]::StartNew()\n" +
+    `[Console]::Error.WriteLine("portcove-reader-phase:started;pwsh=$($PSVersionTable.PSVersion);elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds);utc=$([DateTime]::UtcNow.ToString('o'))")\n` +
     tracedScript +
-    '\n[Console]::Error.WriteLine("portcove-reader-phase:completed")\n';
+    `\n${phaseDiagnostic("completed")}\n`;
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-toolchain-reader-"));
   const output = path.join(directory, "github-output");
   function runReader(fixture) {
+    const startedAt = new Date().toISOString();
     const started = performance.now();
     const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", tracedScript], {
       cwd: directory,
@@ -557,6 +562,7 @@ test("repository toolchain reader exports the declared components before install
         os_release: os.release(),
         runner_image: process.env.ImageOS ?? null,
         runner_image_version: process.env.ImageVersion ?? null,
+        started_at: startedAt,
         elapsed_ms: performance.now() - started,
         timeout_ms: 10_000,
         status: result.status,
@@ -583,6 +589,29 @@ test("repository toolchain reader exports the declared components before install
       const result = runReader(`valid-${index + 1}`);
       assert.ifError(result.error);
       assert.equal(result.status, 0, result.stdout + result.stderr);
+      const phases = [
+        ...result.stderr.matchAll(
+          /portcove-reader-phase:([a-z-]+);(?:pwsh=[^;\r\n]+;)?elapsed_ms=(\d+)/g,
+        ),
+      ];
+      assert.deepEqual(
+        phases.map((phase) => phase[1]),
+        [
+          "started",
+          "read-config",
+          "config-read",
+          "channel-parsed",
+          "parse-components",
+          "write-output",
+          "completed",
+        ],
+      );
+      assert.ok(
+        phases.every(
+          (phase, index) => index === 0 || Number(phase[2]) >= Number(phases[index - 1][2]),
+        ),
+      );
+      assert.match(result.stderr, /;utc=\d{4}-\d{2}-\d{2}T[^\r\n]+Z/);
       assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/), [
         "channel=1.98.1",
         `components=${components.join(",")}`,
