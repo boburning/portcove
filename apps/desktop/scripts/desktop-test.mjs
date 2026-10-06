@@ -31,6 +31,7 @@ import {
   prepareBootstrapRecoveryFixture,
 } from "./desktop-bootstrap-recovery-test.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
+import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
@@ -135,6 +136,10 @@ const inputs = await Promise.all(
   ["app", "driver", "native-driver"].map((name) => fileIdentity(values[name])),
 );
 inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
+if (selection.selected_scenarios.includes("native-saved-folder-selected-setup"))
+  inputs.push(
+    await fileIdentity(fileURLToPath(new URL("./desktop-source-dialog-test.mjs", import.meta.url))),
+  );
 if (bootstrapRecoverySession || preferencesRecoverySession)
   for (const name of [
     "desktop-bootstrap-recovery-test.mjs",
@@ -1516,7 +1521,22 @@ try {
     );
   }
   if (selection.prerequisites.includes("install-fixture")) {
-    installFixture = await createInstallFixture({ root, output });
+    installFixture = await createInstallFixture({
+      root,
+      output,
+      revision,
+      sourceJourney: selection.selected_scenarios.includes("native-saved-folder-selected-setup"),
+    });
+    if (installFixture.sourceJourney) {
+      for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
+        inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
+      installFixture.sourceJourney.root = seedSelectedSetup({
+        cli: values["preparation-cli"],
+        library,
+        output,
+        fixture: installFixture,
+      });
+    }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     inputs.push(await fileIdentity(installFixture.catalogPath));
   }
@@ -2861,6 +2881,16 @@ try {
     inputs,
     fixture: installFixture,
     restartApplication,
+  });
+  await selectedSetupScenario({
+    browser,
+    invoke,
+    scenario,
+    library,
+    output,
+    artifacts,
+    cli: values["preparation-cli"],
+    fixture: installFixture,
   });
   for (const gap of selection.known_gaps)
     checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason });
