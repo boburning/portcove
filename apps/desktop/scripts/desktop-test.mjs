@@ -1530,7 +1530,7 @@ try {
     if (installFixture.sourceJourney) {
       for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
         inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
-      seedSelectedSetup({
+      installFixture.sourceJourney.root = seedSelectedSetup({
         cli: values["preparation-cli"],
         library,
         output,

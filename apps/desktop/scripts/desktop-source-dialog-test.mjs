@@ -660,8 +660,16 @@ export function seedSelectedSetup(context) {
   const command = selectedSetupCommand(context);
   assert.deepEqual(command(["source", "list"]), []);
   assert.deepEqual(command(["source", "roots", "list"]), []);
-  command(["source", "roots", "add", context.fixture.sourceJourney.directory]);
+  const root = command(["source", "roots", "add", context.fixture.sourceJourney.directory]);
   assert.deepEqual(command(["source", "list"]), []);
+  return root;
+}
+
+// Same bounded Windows spelling equivalence used by the existing native fixtures.
+function assertOwnedSelectedSetupPath(actual, expected) {
+  const normalize = (value) =>
+    path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase();
+  assert.equal(normalize(actual), normalize(expected));
 }
 
 async function waitSelectedSetupCommit(browser, labels) {
@@ -768,6 +776,7 @@ export async function selectedSetupScenario({
         "Uninstalled status is NotChecked; missing path inspected separately",
       ],
       port_ids: [fixture.port.id, fixture.refreshPort.id],
+      seeded_saved_root: owned.root,
       observations: {},
     };
     const review = By.css('[aria-label="Source import review"]');
@@ -829,16 +838,21 @@ export async function selectedSetupScenario({
       report.observations.initial_scan = await scan();
       assert.deepEqual(command(["source", "list"]), [], "Discovery must never register sources");
       await reviewCandidate(owned.profiles[0]);
-      assert.ok((await browser.findElement(review).getText()).includes(owned.gamePath));
+      assertOwnedSelectedSetupPath(
+        await browser.findElement(review).findElement(By.css("code")).getText(),
+        owned.gamePath,
+      );
       const reviewedA = await plan(owned.profiles[0], owned.gamePath);
       assert.match(reviewedA.plan_sha256, /^[a-f0-9]{64}$/);
       assert.equal(reviewedA.source.sha256, expectedGameSha256);
+      assertOwnedSelectedSetupPath(reviewedA.source.path, owned.gamePath);
       assert.deepEqual(command(["source", "list"]), [], "Review must remain non-mutating");
       await writeFile(owned.gamePath, owned.replacement);
       const freshB = await plan(owned.profiles[0], owned.gamePath);
       assert.notEqual(freshB.plan_sha256, reviewedA.plan_sha256);
       assert.notEqual(freshB.source.sha256, reviewedA.source.sha256);
       assert.equal(freshB.source.sha256, expectedReplacementSha256);
+      assert.equal(freshB.source.path, reviewedA.source.path);
       report.observations.changed_input = { reviewed_a: reviewedA, admitted_b: freshB };
       const reviewedInputs = path.join(output, "selected-setup-reviewed-inputs.json");
       await writeFile(
@@ -886,7 +900,7 @@ export async function selectedSetupScenario({
       const registeredGame = command(["source", "list"]);
       assert.equal(registeredGame.length, 1);
       assert.equal(registeredGame[0].profile_id, owned.profiles[0]);
-      assert.equal(registeredGame[0].path, owned.gamePath);
+      assert.equal(registeredGame[0].path, reviewedA.source.path);
       assert.equal(registeredGame[0].sha256, reviewedA.source.sha256);
       const expectedButtons = [fixture.port, fixture.refreshPort]
         .map((port) => `Open ${port.name} details`)
@@ -948,15 +962,22 @@ export async function selectedSetupScenario({
         await browser.wait(until.elementLocated(continuation), 5_000);
       }
       await reviewCandidate(owned.profiles[1]);
-      assert.ok((await browser.findElement(review).getText()).includes(owned.biosPath));
+      assertOwnedSelectedSetupPath(
+        await browser.findElement(review).findElement(By.css("code")).getText(),
+        owned.biosPath,
+      );
+      const reviewedBios = await plan(owned.profiles[1], owned.biosPath);
+      assertOwnedSelectedSetupPath(reviewedBios.source.path, owned.biosPath);
+      assert.equal(reviewedBios.source.sha256, expectedBiosSha256);
+      report.observations.bios_review = reviewedBios;
       assert.equal(command(["source", "list"]).length, 1, "BIOS review must not commit it");
       await click(button("Use current location"));
       await waitSelectedSetupCommit(browser, [`Open ${fixture.refreshPort.name} details`]);
       assert.equal(command(["source", "list"]).length, 2);
       const registered = command(["source", "list"]);
       for (const [profile, sourcePath, expectedHash] of [
-        [owned.profiles[0], owned.gamePath, expectedGameSha256],
-        [owned.profiles[1], owned.biosPath, expectedBiosSha256],
+        [owned.profiles[0], reviewedA.source.path, expectedGameSha256],
+        [owned.profiles[1], reviewedBios.source.path, expectedBiosSha256],
       ]) {
         const source = registered.find((item) => item.profile_id === profile);
         assert.equal(source?.path, sourcePath);
