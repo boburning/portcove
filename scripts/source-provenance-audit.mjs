@@ -614,6 +614,7 @@ export function readLiveSourceProvenance({
   projectNumber,
   run = runReadOnlyGitHubCommand,
 }) {
+  let phase = "initializing GitHub collection";
   try {
     const client = new RoadmapClient(
       { repository, owner, project: { number: projectNumber } },
@@ -622,8 +623,11 @@ export function readLiveSourceProvenance({
         return typeof result === "string" ? result : JSON.stringify(result);
       },
     );
+    phase = "reading the issue inventory";
     const issues = client.repositoryIssues();
+    phase = "reading the Project inventory";
     const projectItems = client.itemList(projectNumber);
+    phase = "discovering active PR references";
     const references = [
       ...new Set(
         sourceProvenancePortIssues(issues)
@@ -636,6 +640,7 @@ export function readLiveSourceProvenance({
     // before the first PR request; an incomplete read never writes a snapshot.
     if (references.length > 100) throw new Error("active PR reference bound exceeded");
     const [repositoryOwner, name] = repository.split("/");
+    phase = "resolving referenced PRs";
     const pullRequests = references
       .map((number) => {
         const data = client.graphql(
@@ -662,7 +667,7 @@ export function readLiveSourceProvenance({
       .filter(Boolean);
     return { issues, projectItems, pullRequests, projectState: "available" };
   } catch {
-    throw new Error("read-only GitHub enrichment failed; no snapshot was written");
+    throw new Error(`read-only GitHub enrichment failed while ${phase}; no snapshot was written`);
   }
 }
 
