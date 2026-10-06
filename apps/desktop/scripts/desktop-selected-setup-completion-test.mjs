@@ -52,31 +52,30 @@ export async function selectedSetupCompletionScenario({
     const owned = fixture.sourceJourney;
     const port = fixture.port;
     const { button, click } = reviewControls(browser);
+    const coreEnvironment = {
+      ...process.env,
+      PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
+      PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
+    };
+    const coreArguments = ["--library", library, "--json", "--non-interactive"];
+    const requireSuccess = (envelope, payload, details) => {
+      assert.equal(envelope.ok, true, details);
+      return envelope[payload];
+    };
     const core = (args) => {
-      const result = spawnCommand(
-        cli,
-        ["--library", library, "--json", "--non-interactive", ...args],
-        {
-          encoding: "utf8",
-          windowsHide: true,
-          timeout: 15_000,
-          env: {
-            ...process.env,
-            PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
-            PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
-          },
-        },
-      );
-      assert.equal(result.error, undefined);
-      assert.equal(result.status, 0, result.stderr || result.stdout);
-      const response = JSON.parse(result.stdout);
-      assert.equal(response.ok, true);
-      return response.data;
+      const execution = spawnCommand(cli, coreArguments.concat(args), {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 15_000,
+        env: coreEnvironment,
+      });
+      assert.equal(execution.error, undefined);
+      assert.equal(execution.status, 0, execution.stderr || execution.stdout);
+      return requireSuccess(JSON.parse(execution.stdout), "data", execution.stderr);
     };
     const read = async (name, args) => {
-      const response = await invoke(name, args);
-      assert.equal(response.ok, true, JSON.stringify(response.error));
-      return response.value;
+      const envelope = await invoke(name, args);
+      return requireSuccess(envelope, "value", JSON.stringify(envelope.error));
     };
     const status = async () =>
       (await read("get_statuses")).find((item) => item.port_id === port.id);
@@ -311,18 +310,22 @@ export async function selectedSetupCompletionScenario({
           browser.executeScript((name) => {
             const detail = document.querySelector("[data-detail-workspace]");
             const control = document.activeElement;
-            if (
-              document.querySelector('[aria-labelledby="preparation-review-title"]') ||
-              document.querySelector("#port-detail-title")?.textContent?.trim() !== name ||
-              !control?.isConnected ||
-              !detail?.contains(control) ||
-              !control.matches("button, a[href], input, select, textarea, summary, [tabindex]") ||
-              control.matches(":disabled, [aria-disabled=true]") ||
-              control.closest("[hidden], [inert], [aria-hidden=true]") ||
-              !control.getClientRects().length ||
-              getComputedStyle(control).visibility === "hidden"
-            )
-              return false;
+            const selectedDetail =
+              document.querySelector("#port-detail-title")?.textContent?.trim() === name;
+            const settled =
+              document.querySelector('[aria-labelledby="preparation-review-title"]') === null;
+            const belongs = [control?.isConnected, detail?.contains(control)].every(Boolean);
+            if (![selectedDetail, settled, belongs].every(Boolean)) return false;
+            const actionable = control.matches(
+              "button, a[href], input, select, textarea, summary, [tabindex]",
+            );
+            const blocked = [
+              control.matches(":disabled, [aria-disabled=true]"),
+              Boolean(control.closest("[hidden], [inert], [aria-hidden=true]")),
+              control.getClientRects().length === 0,
+              getComputedStyle(control).visibility === "hidden",
+            ].some(Boolean);
+            if (!actionable || blocked) return false;
             return {
               tag: control.tagName,
               id: control.id,

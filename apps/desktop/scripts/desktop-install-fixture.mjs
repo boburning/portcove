@@ -128,6 +128,79 @@ async function listen(server) {
   return server.address().port;
 }
 
+function addSourceIdentityProfiles(baseCatalog, profiles, evidenceGap) {
+  for (const profile of profiles) {
+    baseCatalog.source_catalog.identities.push({
+      id: profile.id,
+      label: profile.label,
+      kind: "file",
+      evidence_gap: evidenceGap,
+      variants: profile.payloads.map((payload, index) => ({
+        id: `inert-${index}`,
+        title: `Owned inert variant ${index}`,
+        region: null,
+        revision: null,
+        representations: [
+          {
+            id: "original",
+            extensions: [profile.extension],
+            kind: "raw-file",
+            identities: [
+              {
+                scope: "original-file",
+                sha1: null,
+                sha256: createHash("sha256").update(payload).digest("hex"),
+                crc32: null,
+              },
+            ],
+          },
+        ],
+      })),
+    });
+  }
+}
+
+function addSourceContracts({
+  baseCatalog,
+  portDefinitions,
+  refreshPortDefinition,
+  profiles,
+  revision,
+  immutableUrl,
+  evidenceGap,
+}) {
+  for (const definition of portDefinitions) {
+    definition.source_profile = profiles[0].id;
+    if (definition === refreshPortDefinition) definition.bios_source_profile = profiles[1].id;
+    definition.presentation.source_requirements = profiles
+      .filter((profile, index) => index === 0 || definition === refreshPortDefinition)
+      .map((profile, index) => ({
+        role: index === 0 ? "game" : "bios",
+        profile_id: profile.id,
+        label: profile.label,
+        verification: "catalog-identity",
+      }));
+    for (const requirement of definition.presentation.source_requirements) {
+      const profile = profiles.find((item) => item.id === requirement.profile_id);
+      baseCatalog.source_catalog.contracts.push({
+        id: `${definition.id}-${requirement.role}`,
+        port_id: definition.id,
+        role: requirement.role,
+        profile_id: profile.id,
+        admission_mode: "enforced",
+        supported_variant_ids: profile.payloads.map((_, index) => `inert-${index}`),
+        validator_contract_id: null,
+        evidence_ids: [],
+        authority_ref: revision,
+        reviewed_at: "2026-10-06",
+        immutable_review_url: immutableUrl,
+        live_review_url: null,
+        evidence_gap: evidenceGap,
+      });
+    }
+  }
+}
+
 async function addSelectedSetupSources({
   baseCatalog,
   portDefinitions,
@@ -185,35 +258,7 @@ async function addSelectedSetupSources({
       payloads: [bios],
     },
   ];
-  for (const profile of profiles) {
-    baseCatalog.source_catalog.identities.push({
-      id: profile.id,
-      label: profile.label,
-      kind: "file",
-      evidence_gap: evidenceGap,
-      variants: profile.payloads.map((payload, index) => ({
-        id: `inert-${index}`,
-        title: `Owned inert variant ${index}`,
-        region: null,
-        revision: null,
-        representations: [
-          {
-            id: "original",
-            extensions: [profile.extension],
-            kind: "raw-file",
-            identities: [
-              {
-                scope: "original-file",
-                sha1: null,
-                sha256: createHash("sha256").update(payload).digest("hex"),
-                crc32: null,
-              },
-            ],
-          },
-        ],
-      })),
-    });
-  }
+  addSourceIdentityProfiles(baseCatalog, profiles, evidenceGap);
   portDefinition.adapter = "libultraship-portable";
   if (completionJourney) {
     const { platform, executable } = platformContract();
@@ -227,36 +272,15 @@ async function addSelectedSetupSources({
     });
   }
   refreshPortDefinition.adapter = "psx-recomp-managed";
-  for (const definition of portDefinitions) {
-    definition.source_profile = profiles[0].id;
-    if (definition === refreshPortDefinition) definition.bios_source_profile = profiles[1].id;
-    definition.presentation.source_requirements = profiles
-      .filter((profile, index) => index === 0 || definition === refreshPortDefinition)
-      .map((profile, index) => ({
-        role: index === 0 ? "game" : "bios",
-        profile_id: profile.id,
-        label: profile.label,
-        verification: "catalog-identity",
-      }));
-    for (const requirement of definition.presentation.source_requirements) {
-      const profile = profiles.find((item) => item.id === requirement.profile_id);
-      baseCatalog.source_catalog.contracts.push({
-        id: `${definition.id}-${requirement.role}`,
-        port_id: definition.id,
-        role: requirement.role,
-        profile_id: profile.id,
-        admission_mode: "enforced",
-        supported_variant_ids: profile.payloads.map((_, index) => `inert-${index}`),
-        validator_contract_id: null,
-        evidence_ids: [],
-        authority_ref: revision,
-        reviewed_at: "2026-10-06",
-        immutable_review_url: immutableUrl,
-        live_review_url: null,
-        evidence_gap: evidenceGap,
-      });
-    }
-  }
+  addSourceContracts({
+    baseCatalog,
+    portDefinitions,
+    refreshPortDefinition,
+    profiles,
+    revision,
+    immutableUrl,
+    evidenceGap,
+  });
   return {
     directory,
     gamePath,
@@ -271,23 +295,7 @@ async function addSelectedSetupSources({
   };
 }
 
-export async function createInstallFixture({
-  root,
-  output,
-  holdFirstDownload = false,
-  sourceJourney = false,
-  completionJourney = false,
-  preparationTool,
-  revision,
-}) {
-  if (sourceJourney && completionJourney)
-    throw new Error("Discovery and completion fixtures require separate isolated selections");
-  let artifact = completionJourney
-    ? await createCompletionArtifact(preparationTool)
-    : createInstallArtifact();
-  const artifacts = new Map([[`/${artifactName}`, artifact]]);
-  const requests = [];
-  const sockets = new Set();
+function createArtifactServer({ artifacts, requests, sockets, holdFirstDownload }) {
   const server = createServer((request, response) => {
     const servedArtifact = request.method === "GET" ? artifacts.get(request.url) : null;
     if (!servedArtifact) {
@@ -350,6 +358,85 @@ export async function createInstallFixture({
     sockets.add(socket);
     socket.on("close", () => sockets.delete(socket));
   });
+  return server;
+}
+
+async function writeFixtureCatalog({
+  root,
+  output,
+  port,
+  artifact,
+  sourceJourney,
+  completionJourney,
+  revision,
+}) {
+  let url, portDefinition, refreshPortDefinition, artifactPath, catalogPath;
+  url = `http://127.0.0.1:${port}/${artifactName}`;
+  const contract = platformContract();
+  portDefinition = fixturePort({
+    id: INSTALL_FIXTURE_PORT_ID,
+    name: INSTALL_FIXTURE_NAME,
+    summary: "Isolated checksum-pinned native install and cancellation fixture.",
+    ...contract,
+    url,
+    artifact,
+    adapter: "n64-recomp-portable",
+  });
+  refreshPortDefinition = fixturePort({
+    id: INSTALL_REFRESH_FIXTURE_PORT_ID,
+    name: INSTALL_REFRESH_FIXTURE_NAME,
+    summary: "Isolated committed install and workspace refresh recovery fixture.",
+    ...contract,
+    url,
+    artifact,
+    adapter: "libultraship-portable",
+  });
+  const portDefinitions = [portDefinition, refreshPortDefinition];
+  const baseCatalog = JSON.parse(
+    await readFile(path.join(root, "crates", "portcove-core", "catalog", "catalog.json"), "utf8"),
+  );
+  for (const definition of portDefinitions) {
+    if (baseCatalog.ports.some((item) => item.id === definition.id))
+      throw new Error(`${definition.id} unexpectedly exists in the maintained catalog`);
+  }
+  if (sourceJourney || completionJourney)
+    sourceJourney = await addSelectedSetupSources({
+      baseCatalog,
+      portDefinitions,
+      portDefinition,
+      refreshPortDefinition,
+      output,
+      revision,
+      completionJourney,
+    });
+  baseCatalog.ports.push(...portDefinitions);
+  artifactPath = path.join(output, artifactName);
+  catalogPath = path.join(output, "qualification-catalog.json");
+  await Promise.all([
+    writeFile(artifactPath, artifact, { flag: "wx" }),
+    writeFile(catalogPath, `${JSON.stringify(baseCatalog, null, 2)}\n`, { flag: "wx" }),
+  ]);
+  return { url, portDefinition, refreshPortDefinition, artifactPath, catalogPath, sourceJourney };
+}
+
+export async function createInstallFixture({
+  root,
+  output,
+  holdFirstDownload = false,
+  sourceJourney = false,
+  completionJourney = false,
+  preparationTool,
+  revision,
+}) {
+  if (sourceJourney && completionJourney)
+    throw new Error("Discovery and completion fixtures require separate isolated selections");
+  let artifact = completionJourney
+    ? await createCompletionArtifact(preparationTool)
+    : createInstallArtifact();
+  const artifacts = new Map([[`/${artifactName}`, artifact]]);
+  const requests = [];
+  const sockets = new Set();
+  const server = createArtifactServer({ artifacts, requests, sockets, holdFirstDownload });
   const port = await listen(server);
   let url;
   let portDefinition;
@@ -357,51 +444,16 @@ export async function createInstallFixture({
   let artifactPath;
   let catalogPath;
   try {
-    url = `http://127.0.0.1:${port}/${artifactName}`;
-    const contract = platformContract();
-    portDefinition = fixturePort({
-      id: INSTALL_FIXTURE_PORT_ID,
-      name: INSTALL_FIXTURE_NAME,
-      summary: "Isolated checksum-pinned native install and cancellation fixture.",
-      ...contract,
-      url,
-      artifact,
-      adapter: "n64-recomp-portable",
-    });
-    refreshPortDefinition = fixturePort({
-      id: INSTALL_REFRESH_FIXTURE_PORT_ID,
-      name: INSTALL_REFRESH_FIXTURE_NAME,
-      summary: "Isolated committed install and workspace refresh recovery fixture.",
-      ...contract,
-      url,
-      artifact,
-      adapter: "libultraship-portable",
-    });
-    const portDefinitions = [portDefinition, refreshPortDefinition];
-    const baseCatalog = JSON.parse(
-      await readFile(path.join(root, "crates", "portcove-core", "catalog", "catalog.json"), "utf8"),
-    );
-    for (const definition of portDefinitions) {
-      if (baseCatalog.ports.some((item) => item.id === definition.id))
-        throw new Error(`${definition.id} unexpectedly exists in the maintained catalog`);
-    }
-    if (sourceJourney || completionJourney)
-      sourceJourney = await addSelectedSetupSources({
-        baseCatalog,
-        portDefinitions,
-        portDefinition,
-        refreshPortDefinition,
+    ({ url, portDefinition, refreshPortDefinition, artifactPath, catalogPath, sourceJourney } =
+      await writeFixtureCatalog({
+        root,
         output,
-        revision,
+        port,
+        artifact,
+        sourceJourney,
         completionJourney,
-      });
-    baseCatalog.ports.push(...portDefinitions);
-    artifactPath = path.join(output, artifactName);
-    catalogPath = path.join(output, "qualification-catalog.json");
-    await Promise.all([
-      writeFile(artifactPath, artifact, { flag: "wx" }),
-      writeFile(catalogPath, `${JSON.stringify(baseCatalog, null, 2)}\n`, { flag: "wx" }),
-    ]);
+        revision,
+      }));
   } catch (error) {
     for (const socket of sockets) socket.destroy();
     await new Promise((resolve) => server.close(resolve));
