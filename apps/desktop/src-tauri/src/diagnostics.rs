@@ -345,7 +345,7 @@ mod tests {
             .map(|line| serde_json::from_str(line).unwrap())
             .collect();
         assert_eq!(events.len(), 4);
-        for (pair_index, pair) in events.chunks_exact(2).enumerate() {
+        for (pair_index, pair) in events.as_chunks::<2>().0.iter().enumerate() {
             let start = pair[0]["fields"].as_object().unwrap();
             let complete = pair[1]["fields"].as_object().unwrap();
             assert_eq!(start["command"], "get_github_auth_status");
