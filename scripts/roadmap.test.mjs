@@ -21,7 +21,6 @@ import {
   readOperationalBoard,
   parseOperationalBoard,
   parseRunnerCheckpoint,
-  coordinationSnapshotMetrics,
   operationalChanges,
   operationalBaseline,
   operationalEnvelope,
