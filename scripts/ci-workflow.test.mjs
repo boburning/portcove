@@ -1621,7 +1621,7 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
     });
     ambiguous("empty artifact path component", (entry) => {
       entry.release.direct["windows-x86-64"].url =
-        "https://github.com/owner/game/releases/download//v1/game.zip";
+        "https://github.com/owner/game/releases/download//game.zip";
     });
     ambiguous("invalid digest", (entry) => {
       entry.release.direct["windows-x86-64"].sha256 = "bad";
@@ -1667,11 +1667,21 @@ test("RetComM remote manifests fall back only after 404 and retain access failur
     await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
     const checker = path.join(root, "scripts/check-retcomm-upstreams.mjs");
     await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    const independent = JSON.parse(
+      await readFile(
+        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+        "utf8",
+      ),
+    ).ports.filter((entry) =>
+      ["alexbeav-ape-escape-recomp", "alexbeav-alundra-recomp"].includes(entry.id),
+    );
+    assert.equal(independent.length, 2);
     await writeFile(
       path.join(root, "crates/portcove-core/catalog/catalog.json"),
       JSON.stringify({
         ports: [
           { id: "fixture", adapter: "psx-recomp-managed", release: { repository: "owner/game" } },
+          ...independent,
         ],
       }),
     );
@@ -1801,6 +1811,8 @@ globalThis.fetch = async (url, options) => {
         assert.doesNotMatch(result.stdout, /Verified/);
       } else {
         assert.match(result.stdout, /Verified 1 direct PS1 game upstreams/);
+        assert.equal(result.stdout.match(/RetComM audit NOT_APPLICABLE:/gu).length, 2);
+        assert.equal(result.stdout.match(/upstream health NOT_CHECKED/gu).length, 2);
       }
     }
   } finally {

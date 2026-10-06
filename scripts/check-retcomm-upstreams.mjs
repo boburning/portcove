@@ -38,7 +38,11 @@ function githubIdentity(value, asset = false) {
       parts.length < 2 ||
       parts.slice(0, 2).some((part) => part === "." || part === ".." || /\.git$/iu.test(part)) ||
       (asset
-        ? parts.length !== 6 || parts[2] !== "releases" || parts[3] !== "download"
+        ? parts.length !== 6 ||
+          parts[2] !== "releases" ||
+          parts[3] !== "download" ||
+          !parts[4] ||
+          !parts[5]
         : parts.length !== 2)
     )
       return null;
