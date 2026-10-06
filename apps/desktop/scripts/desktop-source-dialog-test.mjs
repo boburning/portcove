@@ -740,7 +740,7 @@ async function selectedSetupDetail(browser, port, biosRegistered) {
 }
 
 // Preserve the original journey error even if read-only failure capture also fails.
-export async function recordSelectedSetupFailure(browser, report, error) {
+async function recordSelectedSetupFailure(browser, report, error) {
   report.failure = String(error);
   report.failure_details = {
     checkpoint: report.checkpoint ?? "not recorded",
