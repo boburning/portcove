@@ -53,26 +53,31 @@ function unavailable(action: PresentedAction): ActionPresentation {
   };
 }
 
-function presentAssessment(assessment: Assessment, action: PresentedAction): ActionPresentation {
+function presentRollbackAssessment(assessment: Assessment): ActionPresentation {
   const { availability, reason, definition } = assessment;
-  if (action === "rollback") {
-    if (definition != null) return unavailable(action);
-    if (availability === "allowed" && reason === "available") return { blocked: false };
-    if (availability === "not_offered" && reason === "not_installed")
-      return { blocked: true, reason: "No previous managed version is retained for rollback." };
-    if (availability === "held" && reason === "missing_runtime")
-      return {
-        blocked: true,
-        reason: "The previous version needs its verified runtime before it can be restored.",
-      };
-    if (availability === "held" && reason === "invalid_installation")
-      return {
-        blocked: true,
-        reason:
-          "Portcove could not verify the previous version. Restore previous version is on hold.",
-      };
-    return unavailable(action);
-  }
+  if (definition != null) return unavailable("rollback");
+  if (availability === "allowed" && reason === "available") return { blocked: false };
+  if (availability === "not_offered" && reason === "not_installed")
+    return { blocked: true, reason: "No previous managed version is retained for rollback." };
+  if (availability === "held" && reason === "missing_runtime")
+    return {
+      blocked: true,
+      reason: "The previous version needs its verified runtime before it can be restored.",
+    };
+  if (availability === "held" && reason === "invalid_installation")
+    return {
+      blocked: true,
+      reason:
+        "Portcove could not verify the previous version. Restore previous version is on hold.",
+    };
+  return unavailable("rollback");
+}
+
+function presentAssessment(
+  assessment: Assessment,
+  action: Exclude<PresentedAction, "rollback">,
+): ActionPresentation {
+  const { availability, reason, definition } = assessment;
   if (
     availability === "allowed" &&
     reason === "available" &&
@@ -110,5 +115,7 @@ export function portActionPresentation(
   if (!Array.isArray(assessments)) return unavailable(action);
   const matching = assessments.filter((assessment) => assessment?.action === action);
   if (matching.length !== 1) return unavailable(action);
-  return presentAssessment(matching[0], action);
+  return action === "rollback"
+    ? presentRollbackAssessment(matching[0])
+    : presentAssessment(matching[0], action);
 }
