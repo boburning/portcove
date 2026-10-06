@@ -406,6 +406,8 @@ export function filterPorts(
   catalogSort: CatalogSort = "catalog",
   context: CatalogQueryContext = {},
 ) {
+  const selectedStatuses =
+    typeof filter !== "string" && context.library ? context.library.statuses : statuses;
   const normalizedQuery = query.trim().toLowerCase();
   const legacyFilter = typeof filter === "string" ? filter : "all";
   const structuredQuery =
@@ -417,8 +419,8 @@ export function filterPorts(
         };
   const candidates = ports.filter(
     (port) =>
-      visibleInView(port, statuses, view) &&
-      matchesFilter(statuses.get(port.id), legacyFilter) &&
+      visibleInView(port, selectedStatuses, view) &&
+      matchesFilter(selectedStatuses.get(port.id), legacyFilter) &&
       searchableText(port).includes(normalizedQuery),
   );
   const visible = evaluateCatalogQuery(candidates, structuredQuery, context).ports;
@@ -431,13 +433,14 @@ export function filterPorts(
           ? left.port.name.localeCompare(right.port.name, "en", { sensitivity: "base" })
           : Number(
               Boolean(
-                statuses.get(right.port.id)?.active ||
-                statuses.get(right.port.id)?.external_runtime,
+                selectedStatuses.get(right.port.id)?.active ||
+                selectedStatuses.get(right.port.id)?.external_runtime,
               ),
             ) -
             Number(
               Boolean(
-                statuses.get(left.port.id)?.active || statuses.get(left.port.id)?.external_runtime,
+                selectedStatuses.get(left.port.id)?.active ||
+                selectedStatuses.get(left.port.id)?.external_runtime,
               ),
             );
       return comparison || left.index - right.index;
@@ -445,7 +448,11 @@ export function filterPorts(
     .map(({ port }) => port);
 }
 
-function visibleInView(port: PortDefinition, statuses: Map<string, PortStatus>, view: View) {
+function visibleInView(
+  port: PortDefinition,
+  statuses: ReadonlyMap<string, PortStatus>,
+  view: View,
+) {
   const status = statuses.get(port.id);
   return view !== "library" || Boolean(status?.active || status?.external_runtime);
 }

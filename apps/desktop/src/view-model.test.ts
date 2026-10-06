@@ -147,6 +147,36 @@ describe("catalog view model", () => {
     expect(filterPorts(ports, new Map(), "catalog", { version: 2 }, "")).toEqual([]);
   });
 
+  it("uses one selected library snapshot for membership, visibility and sorting", () => {
+    const libraryA = indexStatuses([status]);
+    const libraryB = indexStatuses([
+      { ...status, port_id: "beta", active: installRecord({ port_id: "beta" }) },
+    ]);
+    const context = { library: { id: "library-b", statuses: libraryB } };
+    expect(
+      filterPorts(
+        ports,
+        libraryA,
+        "library",
+        {
+          version: 1,
+          membership: ["in-library"],
+        },
+        "",
+        "catalog",
+        context,
+      ).map(({ id }) => id),
+    ).toEqual(["beta"]);
+    expect(
+      filterPorts(ports, libraryA, "catalog", { version: 1 }, "", "installed-first", context).map(
+        ({ id }) => id,
+      ),
+    ).toEqual(["beta", "alpha"]);
+    expect(filterPorts(ports, libraryA, "library", "all", "").map(({ id }) => id)).toEqual([
+      "alpha",
+    ]);
+  });
+
   it("combines channel and text filters", () => {
     expect(
       filterPorts(ports, new Map(), "catalog", "rolling", "BETA").map((value) => value.id),
