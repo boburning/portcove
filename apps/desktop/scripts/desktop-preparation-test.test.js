@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import process from "node:process";
 import { test } from "vitest";
 import {
   rollbackWitnessWithinLibrary,
