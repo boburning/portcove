@@ -752,6 +752,7 @@ export async function selectedSetupScenario({
   await scenario("native-saved-folder-selected-setup", async () => {
     assert.ok(fixture?.sourceJourney, "Only the exact opt-in selection supplies these identities");
     const owned = fixture.sourceJourney;
+    assertOwnedSelectedSetupPath(owned.root.path, owned.directory);
     const command = selectedSetupCommand({ cli, library, output, fixture });
     const expectedGameSha256 = createHash("sha256")
       .update(await readFile(owned.gameBefore))
@@ -1030,7 +1031,9 @@ export async function selectedSetupScenario({
       const snapshot = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(snapshot.freshness, "inputs_changed");
       const roots = command(["source", "roots", "list"]);
-      assert.equal(roots.find((item) => item.path === owned.directory).availability, "unavailable");
+      const savedRoot = roots.find((item) => item.id === owned.root.id);
+      assertOwnedSelectedSetupPath(savedRoot.path, owned.directory);
+      assert.equal(savedRoot.availability, "unavailable");
       assert.deepEqual(command(["source", "list"]), registered);
       const inspection = command(["source", "inspect", owned.profiles[0]]);
       assert.equal(inspection.health, "missing");
