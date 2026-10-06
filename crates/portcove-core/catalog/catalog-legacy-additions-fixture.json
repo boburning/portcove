@@ -12,7 +12,8 @@
     "wave-race-64",
     "f-zero-snes-usa",
     "dkc3-na-en-fr",
-    "road-rash-64"
+    "road-rash-64",
+    "alundra-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -27,6 +28,8 @@
     "wave-race-64-recomp",
     "f-zero-snes-recomp",
     "dkc3-recomp",
-    "road-rash-64-recompiled"
+    "road-rash-64-recompiled",
+    "alexbeav-ape-escape-recomp",
+    "alexbeav-alundra-recomp"
   ]
 }
