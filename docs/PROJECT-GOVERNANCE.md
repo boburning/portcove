@@ -536,15 +536,15 @@ existing reporting flow, not another automation or ledger.
 
 The saved views are entry points into one Project, not independent authorities:
 
-| View                                     | Question answered                                                                       |
-| ---------------------------------------- | --------------------------------------------------------------------------------------- |
-| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                  |
-| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                  |
+| View                                     | Question answered                                                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                                                                     |
+| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                                                                     |
 | In Progress                              | Which issues are marked In progress or Validating? Confirm accepted reservations and observed runner acknowledgments on owning issues/PRs. |
-| Next Queue                               | Which unfinished Now/Next work follows, including Required and Planned?                 |
-| Planned Additions                        | Which approved non-gating additions remain, across releases?                            |
-| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?             |
-| Blocked & Deferred / Inbox & Triage      | What has a resume condition, and what still needs triage?                               |
+| Next Queue                               | Which unfinished Now/Next work follows, including Required and Planned?                                                                    |
+| Planned Additions                        | Which approved non-gating additions remain, across releases?                                                                               |
+| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?                                                                |
+| Blocked & Deferred / Inbox & Triage      | What has a resume condition, and what still needs triage?                                                                                  |
 
 `roadmap-outcome` is a presentation-only label on canonical finite product and
 engineering outcomes, including completed outcomes. It does not classify every
