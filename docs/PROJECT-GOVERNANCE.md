@@ -384,13 +384,44 @@ planning, genuine prerequisites and completion organization are separate facets.
 An optional `--consumed-file <path>` compares a disposable checkpoint; an exact
 `--consumed-comment <exact-comment-url>` can recover an older consumption record.
 `--reservation-comment <exact-comment-url>` supplies a raw reference, never a grant.
-Context and acknowledgments use the selected work issue by default. An explicit
-`--coordination-pr <number>` binds a PR in this repository that references that
-work issue; this routing binding does not establish authority. The latest 50
-comments are observed with count, identity and raw-body checks. Exact legacy
-#793 links remain readable; no new comments or history scans use that archive.
-The recent window cannot prove an older acknowledgment absent. Neither context
-nor queue output proves capability, approval, assignment or current execution.
+The stable `runner_coordination` object in `.github/roadmap.json` points to
+[the operational issue](https://github.com/boburning/portcove/issues/1583) and
+exactly three fixed lane comments. Dot alone edits these records until actual
+lane edit permission and write identity are proven. Read the issue body and those
+three stored IDs directly; never enumerate comments or use task history as an
+ordinary context fallback. `--runner` names the actual visible instance bound to
+the owning task's accepted assignment. GitHub actor identity, a declared snapshot
+and a caller-reported identity do not prove native invocation, ACK or activity.
+An explicit `--coordination-pr <number>` binds an owning evidence PR, not authority.
+
+The body records accepted assignment IDs/generations, actual instances, reserved
+scopes, pauses, pending transfers and fixed checkpoint pointers. Each checkpoint
+keeps current task/source, phase, meaningful progress, next action, outstanding
+request IDs/recipients/ACK states and necessary evidence only. Use direct connected
+runner messages for attention; bind actual responses to the request ID, board and
+checkpoint pointers, instance and assignment generation. Sent messages are not ACKs.
+Exactly one primary coordinator serializes grants; GitHub edits, timestamps and
+local locks are not cross-machine exclusivity. Preserve unresolved requests and
+pauses. Staged state does not establish active cutover or adoption.
+
+Collection is bounded to four calls, at most15 seconds per request clipped to the
+remaining monotonic60-second total,64KiB per response,8KiB board and4KiB per
+checkpoint. The final coordination envelope, including carried baseline and
+measurement metadata, has a12KiB ceiling and a6KiB design target. Report actual
+UTF-8 bytes and bytes/4 token estimates, never billed tokens or claimed savings.
+These limits do not truncate the complete relevant task specification or required
+evidence. Missing, stale, malformed, oversized or unavailable state is UNKNOWN;
+preserve existing grants and stop conflicting new grants rather than falling back.
+Retain collected originals and hashes outside model context before interpretation.
+
+Fresh pickup reads the complete current task acceptance and typed relationships.
+Continuation validates the versioned baseline, exact four scopes, raw hashes,
+edited timestamps and coordinator/assignment binding before suppressing unchanged
+operational state. Timestamp-only edits are changes. Invalid baselines return the
+full current state. Explicit `node scripts/roadmap.mjs history --issue <number>
+[--coordination-pr <number>] --json` reads only that task's bounded recent50-record
+window; uncovered absence/latest remains unknown. Exact legacy #793 links are
+read-only evidence; no archive scans, writes or duplicate coordination issue.
 
 Prepare a bounded task using approved acceptance: credit delivered components,
 name the missing outcome, actual prerequisites, smallest implementation, capable
@@ -411,41 +442,34 @@ observation hash guards receipt freshness, including literal content the compari
 hint may normalize. A raw-only difference does not establish a substantive change;
 compare it, refresh the disposable context, and skip acknowledgment for routine
 evidence/editorial changes. Neither hash causes dispatch, invalidation or a comment.
-Read the full
-current specification even when hashes match, including applicable owner direction
-outside the issue. Reconcile the actual source head and relevant target drift
-through the existing delivery guards; no new acceptance exemption is created.
+Read the complete relevant specification on fresh pickup; a validated continuation
+may suppress unchanged text before output while retaining its raw observation
+binding. Applicable owner direction and actual source/target drift still require
+comparison through the existing delivery guards; no acceptance exemption is created.
 
-After actually consuming a material revision, retain the context JSON temporarily
-and plan `just roadmap-acknowledge --context-file <path> --runner <identity>
---action <actual-action-or-wait-reason> --evidence <task-or-attempt-reference>
---json`; add `--apply` only for authorized recording. It refreshes the selected
-requirements and the bound issue/PR's count-checked recent window before creating
-a new record, writes only that owning issue/PR and verifies the exact readback. An
-absent record in incomplete history remains unknown and cannot authorize a new
-acknowledgment. An older exact reference is comparison evidence, not proof of
-the latest record across an uncovered interval. Raw window identities and bodies
-are rechecked before writing, including same-count edits. The same runner/revision
-and raw observation is a no-op. Record only actual material consumption; do not
-call the write path for routine progress or editorial changes. A stale checkpoint
-requires a fresh comparison, not rejection of sound
-work. Ambiguous writes are read back without an automatic repeat; preserve an
-unconfirmed pending body in the handoff. Example acknowledgment:
-**Observed #N revision R; compared the changed acceptance; continuing/repairing/
-waiting because X; evidence Y.** The API author is the recorder; `--runner` is
-reported identity, not proof that a connected worker consumed it. Obtain that
-worker's actual acknowledgment. Last recorded consumption, accepted assignment
-and observed activity remain separate; missing data stays unknown. On the next
-report/read, compare current context with the consumed record; a changed revision
-is pending comparison until an actual worker response resolves it.
+After actual material consumption, retain the disposable context and plan
+`just roadmap-acknowledge --context-file <path> --runner <actual-instance>
+--action <actual-action-or-wait-reason> --evidence <exact-owning-evidence-reference>
+--json`. This refreshes the four fixed records and task requirements, binds the
+instance/task/generation and preserves existing request IDs/recipients and progress.
+Send the planned response through the connected native route. Dot verifies the
+actual response and alone edits the assigned fixed checkpoint in place after fresh
+preimage/generation checks and unresolved-request preservation. Runner `--apply`
+refuses under this coordinator-only contract; there is no issue-comment fallback.
+Duplicate current consumption requests are quiet. Routine reads never advance
+meaningful progress. A stale baseline requires a fresh comparison. A changed
+revision remains pending comparison until the actual worker response resolves it.
+Keep attempted writes, transport response and exact readback distinct; after an
+ambiguous write retain the intent and read back without automatic retry.
 
 Exactly one implementation owner may hold conflicting scope. Preserve accepted
 reservations and use direct existing runner messages for steers, grants and
-observed acknowledgments, with compact durable checkpoints on the owning issue
-or explicitly bound PR. Retain exact comment links for later reads. Neither a
+observed acknowledgments, with compact durable state in the three fixed lane
+checkpoints; owning issues/PRs retain only necessary task evidence. Retain exact comment links for later reads. Neither a
 sent message nor a checkpoint establishes a grant, consumption or worker activity
 without the corresponding actual response. Legacy #793 links remain read-only;
-do not create another global tracker or scan its archive. Verify that this
+use only the configured operational issue; do not create another tracker or scan
+that archive. Verify that this
 common coordinator actually serializes grants across machines before claiming
 cross-runner exclusivity. If that support is unverified, preserve reservations
 and use only explicitly accepted assignments for conflicting work; report the

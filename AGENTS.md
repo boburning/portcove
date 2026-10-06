@@ -97,8 +97,11 @@ At invocation/resume, selection, clean handoff, review and final acceptance, con
 the relevant live requirements and accepted reservation. Use `roadmap-context`
 and the pickup/upkeep contract in `docs/PROJECT-GOVERNANCE.md`; compare actual
 deltas before repeating affected work. Queue recommendations, sent steers and
-consumption records do not prove assignment or worker activity. Use existing
-accepted grants; a checkout lock is not cross-machine exclusivity. Capture
+consumption records do not prove assignment or worker activity. Use the operational issue and three fixed checkpoint IDs in
+`.github/roadmap.json:runner_coordination`, direct connected runner messages and
+actual pointer/instance/assignment-generation ACKs. Dot alone edits durable state
+and serializes grants; missing or invalid state is UNKNOWN, never unowned.
+Use existing accepted grants; a checkout lock is not cross-machine exclusivity. Capture
 discoveries and narrow blockers with their canonical owner before ending or
 switching. After verified delivery reconcile the task, finite parent and affected
 prerequisites and blocking consumers, then release/hand off and select eligible

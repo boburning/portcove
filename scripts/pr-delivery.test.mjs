@@ -144,7 +144,7 @@ test("queue recommends only an actionable exact-head candidate and never supplie
   assert.match(queue.candidates[0].next_action, /renovate-check --pr 7 --head/);
   assert.equal(queue.candidates[0].runs[0].id, 42);
   assert.equal(queue.candidates[0].runs[0].attempt, 1);
-  assert.match(queue.selection_boundary, /#793 reservations/);
+  assert.match(queue.selection_boundary, /Accepted coordinator assignments and reserved scopes/);
   assert.throws(
     () =>
       inspectRenovateQueue(

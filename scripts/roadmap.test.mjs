@@ -18,6 +18,16 @@ import {
   compareExecutionSnapshots,
   deriveExecutionContext,
   coordinationTarget,
+  readOperationalBoard,
+  parseOperationalBoard,
+  parseRunnerCheckpoint,
+  coordinationSnapshotMetrics,
+  operationalChanges,
+  operationalBaseline,
+  operationalEnvelope,
+  bindOperationalAssignment,
+  prepareOperationalCheckpoint,
+  prepareOperationalConsumption,
   prepareConsumption,
   parseConsumptionRecord,
   consumedReference,
@@ -103,6 +113,270 @@ const acknowledgmentComment = (context = pickupContext(), runner = "Local") => (
   body: acknowledgment(context, runner).body,
   url: `${context.coordination_target.url}#issuecomment-1`,
   author: { login: "recorder" },
+});
+
+function operationalFixture() {
+  const lanes=["cloud-a","cloud-b","local"];
+  const configured={...config,runner_coordination:{schema_version:1,board_issue:1800,
+    coordinator_github_login:"boburning",coordinator_github_id:43177418,
+    coordinator_instance_id:"dot-fixture-1",durable_writer_mode:"coordinator-only",
+    checkpoint_comment_ids:{"cloud-a":101,"cloud-b":102,local:103}}};
+  const board={repository:config.repository,protocol_revision:1,cutover_state:"staged",
+    coordinator_instance_id:"dot-fixture-1",assignment_generation:1,
+    checkpoint_pointers:configured.runner_coordination.checkpoint_comment_ids,
+    pending_transfers:[],assignments:lanes.map((lane,index)=>({lane,
+      runner_instance_id:`fixture-${lane}`,assignment_id:`fixture-task-${index+1}`,generation:1,
+      owning_issue:1104,pr_and_source:"PR1543 private fixture source",
+      reserved_scope:"fixture only",intentional_pause:false,
+      execution_slot:"active",accepted_ack:{request_id:`fixture-request-${index+1}`,
+        observed_ack_reference:`https://github.com/${config.repository}/issues/1104#issuecomment-${index+1}`}}))};
+  const format=(kind,value)=>`<!-- portcove-${kind}:v1 -->\n\`\`\`json\n${JSON.stringify(value,null,2)}\n\`\`\``;
+  const issueUrl=`https://github.com/${config.repository}/issues/1800`;
+  const records={};
+  records[`repos/${config.repository}/issues/1800`]={number:1800,html_url:issueUrl,comments:3,
+    user:{login:"boburning",id:43177418},updated_at:"2026-10-06T16:00:00Z",body:format("runner-board",board)};
+  const checkpoints={};
+  for(const [index,lane] of lanes.entries()) {
+    const assignment=board.assignments[index];
+    const checkpoint={lane,runner_instance_id:assignment.runner_instance_id,
+      assignment_id:assignment.assignment_id,assignment_generation:1,owning_task:1104,pr_and_source:"PR1543 fixture source",
+      execution_phase:"fixture development",last_meaningful_progress:{at:"2026-10-06T15:00:00Z",summary:"Fixture only"},
+      next_action:"Fixture check",outstanding_requests:[{request_id:`fixture-handoff-${index+1}`,
+        recipient_instance_or_coordinator:"dot-fixture-1",acknowledgment_state:"pending",disposition_reference:null}],
+      necessary_evidence_pointers:[]};
+    checkpoints[lane]=checkpoint;
+    const id=configured.runner_coordination.checkpoint_comment_ids[lane];
+    records[`repos/${config.repository}/issues/comments/${id}`]={id,html_url:`${issueUrl}#issuecomment-${id}`,
+      issue_url:`https://api.github.com/repos/${config.repository}/issues/1800`,user:{login:"boburning",id:43177418},
+      updated_at:"2026-10-06T16:00:00Z",body:format("runner-checkpoint",checkpoint)};
+  }
+  const calls=[];
+  const api={request(method,endpoint,body,options){calls.push({method,endpoint,options});assert.equal(method,"GET");
+    assert.ok(records[endpoint],"only fixed endpoints allowed");return {body:records[endpoint]};}};
+  return {configured,board,checkpoints,records,format,api,calls};
+}
+
+test("ordinary operational snapshot reads exactly four fixed records and measures final model envelope",()=>{
+  const fixture=operationalFixture();
+  const snapshot=readOperationalBoard(fixture.configured,fixture.api);
+  assert.equal(snapshot.status,"staged");
+  assert.equal(fixture.calls.length,4);
+  assert.ok(fixture.calls.every(({endpoint})=>!endpoint.includes("793")&&!endpoint.includes("?")));
+  assert.equal(snapshot.checkpoints["cloud-a"].outstanding_requests[0].acknowledgment_state,"pending");
+  const envelope=operationalEnvelope(snapshot);
+  assert.equal(envelope.operational_metrics.model_facing_bytes,
+    Buffer.byteLength(JSON.stringify(envelope),"utf8"));
+  assert.match(envelope.operational_metrics.estimate_method,/not billed/);
+});
+
+test("edited fixed checkpoints change raw identity while quiet reads never mutate progress",()=>{
+  const fixture=operationalFixture();
+  const first=readOperationalBoard(fixture.configured,fixture.api);
+  const endpoint=`repos/${config.repository}/issues/comments/101`;
+  const original=fixture.records[endpoint].body;
+  fixture.records[endpoint].body=fixture.format("runner-checkpoint",{
+    ...fixture.checkpoints["cloud-a"],next_action:"A changed action"});
+  const changed=readOperationalBoard(fixture.configured,fixture.api);
+  assert.notEqual(first.observations[1].raw_revision,changed.observations[1].raw_revision);
+  const delta=operationalChanges(changed,operationalBaseline(first));
+  assert.equal(delta.state,"changed");
+  assert.equal(delta.original_evidence_manifest,changed.original_evidence_manifest);
+  assert.equal(operationalEnvelope(changed,operationalBaseline(first)).operational_snapshot.original_evidence_manifest,
+    changed.original_evidence_manifest);
+  assert.equal(delta.board,null);
+  assert.deepEqual(Object.keys(delta.checkpoints),["cloud-a"]);
+  assert.deepEqual(first.checkpoints["cloud-a"].last_meaningful_progress,changed.checkpoints["cloud-a"].last_meaningful_progress);
+  const quiet=readOperationalBoard(fixture.configured,fixture.api);
+  assert.deepEqual({...changed,original_evidence_manifest:null},{...quiet,original_evidence_manifest:null});
+  const quietDelta=operationalChanges(quiet,operationalBaseline(changed));
+  assert.equal(quietDelta.state,"unchanged");
+  assert.equal(quietDelta.snapshot,undefined);
+  assert.notEqual(original,fixture.records[endpoint].body);
+  assert.ok(fixture.calls.every(({method})=>method==="GET"));
+});
+
+test("timestamp-only fixed checkpoint edits are detected and invalid baselines cannot suppress state",()=>{
+  const fixture=operationalFixture();
+  const first=readOperationalBoard(fixture.configured,fixture.api);
+  fixture.records[`repos/${config.repository}/issues/comments/101`].updated_at="2026-10-06T16:01:00Z";
+  const edited=readOperationalBoard(fixture.configured,fixture.api);
+  assert.equal(first.observations[1].raw_revision,edited.observations[1].raw_revision);
+  const delta=operationalChanges(edited,operationalBaseline(first));
+  assert.equal(delta.state,"changed");
+  assert.deepEqual(Object.keys(delta.checkpoints),["cloud-a"]);
+  assert.deepEqual(first.checkpoints["cloud-a"].last_meaningful_progress,edited.checkpoints["cloud-a"].last_meaningful_progress);
+  for(const mutate of [baseline=>baseline.schema_version=2,baseline=>baseline.status="unknown",
+    baseline=>baseline.coordinator_instance_id="another-coordinator",
+    baseline=>baseline.assignment_generation=2,baseline=>baseline.assignment_binding_revision="0".repeat(64),
+    baseline=>baseline.observations.reverse(),baseline=>baseline.observations[0].raw_revision="invalid",
+    baseline=>baseline.observations[0].edited_at="invalid"]) {
+    const baseline=structuredClone(operationalBaseline(edited));mutate(baseline);
+    assert.equal(operationalChanges(edited,baseline).state,"baseline_unavailable");
+  }
+});
+
+test("the actual subprocess runner clips its request timeout to the remaining monotonic budget",()=>{
+  const fixture=operationalFixture();let time=0;const timeouts=[];
+  const client=new RoadmapClient(fixture.configured,fixture.api);
+  const snapshot=client.operationalSnapshot({now:()=>time,runnerFactory:options=>{
+    timeouts.push(options.timeoutMs);
+    return args=>{
+      const endpoint=args[args.indexOf("--include")+1];
+      time += timeouts.length===3 ? 29_500 : 15_000;
+      return `HTTP/2 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(fixture.records[endpoint])}`;
+    };
+  }});
+  assert.deepEqual(timeouts,[15_000,15_000,15_000,500]);
+  assert.equal(snapshot.status,"unknown");
+});
+
+test("fresh changed and unchanged coordination envelopes include metadata in their measured ceiling",()=>{
+  const fixture=operationalFixture();const snapshot=readOperationalBoard(fixture.configured,fixture.api);
+  const baseline=operationalBaseline(snapshot);
+  for(const old of [null,baseline,{...baseline,observations:baseline.observations.map((record,index)=>
+    index===1?{...record,edited_at:"2026-10-06T15:59:00Z"}:record)}]) {
+    const envelope=operationalEnvelope(snapshot,old);
+    assert.equal(envelope.operational_metrics.model_facing_bytes,Buffer.byteLength(JSON.stringify(envelope),"utf8"));
+    const oversized=structuredClone(snapshot);
+    oversized.authority_limit="x".repeat(12_000);
+    assert.throws(()=>operationalEnvelope(oversized,old),/oversized/);
+  }
+  for(let size=0;size<1000;size++) {
+    const padded=structuredClone(snapshot);padded.authority_limit="x".repeat(size);
+    const envelope=operationalEnvelope(padded);
+    assert.equal(envelope.operational_metrics.model_facing_bytes,Buffer.byteLength(JSON.stringify(envelope),"utf8"));
+    assert.equal(typeof envelope.operational_metrics.over_design_target,"number");
+  }
+});
+
+test("missing, oversized, malformed, stale and unavailable operational state stays unknown without fallback",()=>{
+  const missing=operationalFixture();
+  missing.configured.runner_coordination.board_issue=null;
+  assert.equal(readOperationalBoard(missing.configured,missing.api).status,"unknown");
+  assert.equal(missing.calls.length,0);
+  for(const replacement of ["not a board", "x".repeat(8193)]) {
+    const fixture=operationalFixture();
+    fixture.records[`repos/${config.repository}/issues/1800`].body=replacement;
+    const result=readOperationalBoard(fixture.configured,fixture.api);
+    assert.equal(result.status,"unknown");assert.equal(result.state,null);
+    assert.match(result.authority_limit,/not unowned/);
+  }
+  const stale=operationalFixture();
+  stale.records[`repos/${config.repository}/issues/comments/101`].body=stale.format("runner-checkpoint",{
+    ...stale.checkpoints["cloud-a"],assignment_generation:2});
+  assert.equal(readOperationalBoard(stale.configured,stale.api).status,"unknown");
+  const inaccessible=operationalFixture();
+  inaccessible.api.request=()=>{throw Error("unavailable observation");};
+  assert.equal(readOperationalBoard(inaccessible.configured,inaccessible.api).status,"unknown");
+  const expired=operationalFixture();let time=0;
+  const result=readOperationalBoard(expired.configured,expired.api,{now:()=>time+=20000});
+  assert.equal(result.status,"unknown");assert.ok(expired.calls.length<4);
+});
+
+test("conflicting assignments and malformed outstanding requests refuse interpretation",()=>{
+  const fixture=operationalFixture();
+  const duplicate={...fixture.board,assignments:[...fixture.board.assignments,fixture.board.assignments[0]]};
+  assert.throws(()=>parseOperationalBoard(fixture.format("runner-board",duplicate),fixture.configured),/conflicting/);
+  const request=fixture.checkpoints["cloud-a"].outstanding_requests[0];
+  const checkpoint={...fixture.checkpoints["cloud-a"],outstanding_requests:[request,request]};
+  assert.throws(()=>parseRunnerCheckpoint(fixture.format("runner-checkpoint",checkpoint),"cloud-a",fixture.board),/ambiguous/);
+});
+
+test("task instance binding and fixed checkpoint planning preserve unresolved requests and preimages",()=>{
+  const fixture=operationalFixture();const snapshot=readOperationalBoard(fixture.configured,fixture.api);
+  const binding=bindOperationalAssignment(snapshot,"fixture-cloud-a",1104);
+  assert.equal(binding.assignment_id,"fixture-task-1");
+  assert.throws(()=>bindOperationalAssignment(snapshot,"unknown-instance",1104),/exactly one/);
+  assert.throws(()=>bindOperationalAssignment(snapshot,"fixture-cloud-a",1550),/exactly one/);
+  const original=snapshot.checkpoints["cloud-a"];
+  const expected=snapshot.observations[1];
+  const plan=prepareOperationalCheckpoint(fixture.configured,snapshot,"cloud-a",original,expected);
+  assert.equal(plan.status,"planned");assert.equal(plan.writer_mode,"coordinator-only");
+  assert.throws(()=>prepareOperationalCheckpoint(fixture.configured,snapshot,"cloud-a",
+    {...original,outstanding_requests:[]},expected),/cannot disappear/);
+  const resolution={request_id:original.outstanding_requests[0].request_id,
+    recipient_instance_or_coordinator:original.outstanding_requests[0].recipient_instance_or_coordinator,
+    disposition:"cancelled",observed_response_reference:"PR1543#issuecomment-6020220069"};
+  assert.equal(prepareOperationalCheckpoint(fixture.configured,snapshot,"cloud-a",
+    {...original,outstanding_requests:[]},expected,[resolution]).status,"planned");
+  assert.throws(()=>prepareOperationalCheckpoint(fixture.configured,snapshot,"cloud-a",
+    {...original,outstanding_requests:[]},expected,[{...resolution,observed_response_reference:null}]),/resolution/);
+  assert.throws(()=>prepareOperationalCheckpoint(fixture.configured,snapshot,"cloud-a",original,
+    {...expected,edited_at:"2026-10-06T16:01:00Z"}),/preimage changed/);
+  assert.throws(()=>prepareOperationalCheckpoint(fixture.configured,snapshot,"cloud-a",
+    {...original,owning_task:1550},expected),/conflicts/);
+  const request=original.outstanding_requests[0];
+  assert.throws(()=>prepareOperationalCheckpoint(fixture.configured,snapshot,"cloud-a",
+    {...original,outstanding_requests:[{...request,recipient_instance_or_coordinator:"another-instance"}]},expected),/change recipient/);
+  const acknowledged={...original,outstanding_requests:[{...request,acknowledgment_state:"acknowledged",
+    disposition_reference:"PR1543#issuecomment-6020220069"}]};
+  assert.equal(prepareOperationalCheckpoint(fixture.configured,snapshot,"cloud-a",acknowledged,expected).status,"planned");
+  const missing=structuredClone(fixture.board);delete missing.assignments[0].reserved_scope;
+  assert.throws(()=>parseOperationalBoard(fixture.format("runner-board",missing),fixture.configured),/conflicting/);
+  const substituted=structuredClone(fixture.board);
+  substituted.assignments.push({...substituted.assignments[0],assignment_id:"waiting-assignment",
+    runner_instance_id:"substituted-instance",execution_slot:"reviewed_waiting"});
+  assert.throws(()=>parseOperationalBoard(fixture.format("runner-board",substituted),fixture.configured),/conflicting/);
+  fixture.records[`repos/${config.repository}/issues/comments/101`].user.id=1;
+  assert.equal(readOperationalBoard(fixture.configured,fixture.api).status,"unknown");
+});
+
+test("normal consumption plans only a fixed checkpoint native handoff, preserving progress and refusing lane writes",()=>{
+  const fixture=operationalFixture();let snapshot=readOperationalBoard(fixture.configured,fixture.api);
+  let item=pickupIssue();const relationships=pickupRelations();
+  const context=pickupContext(item,relationships,{runner:"fixture-cloud-a"});
+  context.operational_baseline=operationalBaseline(snapshot);
+  context.operational_binding=bindOperationalAssignment(snapshot,"fixture-cloud-a",1104);
+  const client={operationalSnapshot:()=>snapshot,executionIssue:()=>({item,relationships}),
+    coordinationRecords:()=>assert.fail("normal path must never read task history"),
+    postCoordinationComment:()=>assert.fail("normal path must never append comments")};
+  const input={client,config:fixture.configured,context,runner:"fixture-cloud-a",
+    action:"Consumed actual material acceptance",evidence:"PR1543#issuecomment-6020220069"};
+  const plan=prepareOperationalConsumption(input);
+  assert.equal(plan.status,"planned");assert.equal(plan.request.acknowledgment_state,"pending");
+  const updated=JSON.parse(plan.body.split("```json\n")[1].split("\n```")[0]);
+  assert.deepEqual(updated.last_meaningful_progress,snapshot.checkpoints["cloud-a"].last_meaningful_progress);
+  assert.equal(updated.outstanding_requests.length,2);
+  assert.throws(()=>prepareOperationalConsumption({...input,apply:true}),/coordinator-only/);
+  assert.throws(()=>prepareOperationalConsumption({...input,runner:"other-instance"}),/exactly one/);
+  const wrongContext=structuredClone(context);wrongContext.pickup.reported_runner="fixture-cloud-b";
+  assert.throws(()=>prepareOperationalConsumption({...input,context:wrongContext}),/does not bind/);
+  const staleBinding=structuredClone(context);staleBinding.operational_binding.generation=2;
+  assert.throws(()=>prepareOperationalConsumption({...input,context:staleBinding}),/does not bind/);
+  item=pickupIssue(1104,"Changed mandatory acceptance");
+  assert.throws(()=>prepareOperationalConsumption(input),/requirements or raw observation changed/);
+  item=pickupIssue();snapshot.checkpoints["cloud-a"]=updated;
+  // Simulate a fresh validated context after the coordinator preserved this request.
+  context.operational_baseline=operationalBaseline(snapshot);
+  assert.equal(prepareOperationalConsumption(input).status,"quiet");
+  const oldId=plan.request.request_id;
+  item={...pickupIssue(),priority:"Low"};
+  const changedContext=pickupContext(item,relationships,{runner:"fixture-cloud-a"});
+  changedContext.operational_baseline=operationalBaseline(snapshot);
+  changedContext.operational_binding=bindOperationalAssignment(snapshot,"fixture-cloud-a",1104);
+  assert.equal(changedContext.observation_revision,context.observation_revision);
+  const material=prepareOperationalConsumption({...input,context:changedContext});
+  assert.equal(material.status,"planned");assert.notEqual(material.request.request_id,oldId);
+  snapshot.checkpoints["cloud-a"]=JSON.parse(material.body.split("```json\n")[1].split("\n```")[0]);
+  snapshot.checkpoints["cloud-a"].outstanding_requests.reverse();
+  item=pickupIssue();
+  const revisited=prepareOperationalConsumption(input);
+  assert.equal(revisited.status,"planned");assert.notEqual(revisited.request.request_id,oldId);
+  item={...pickupIssue(),priority:"Low"};
+  snapshot.board.assignments[0].generation=2;snapshot.checkpoints["cloud-a"].assignment_generation=2;
+  changedContext.operational_baseline=operationalBaseline(snapshot);
+  changedContext.operational_binding=bindOperationalAssignment(snapshot,"fixture-cloud-a",1104);
+  const generation=prepareOperationalConsumption({...input,context:changedContext});
+  assert.equal(generation.status,"planned");assert.notEqual(generation.request.request_id,material.request.request_id);
+  const currentCheckpoint=snapshot.checkpoints["cloud-a"];
+  const anchor=currentCheckpoint.outstanding_requests.find(request=>request.request_id===material.request.request_id);
+  const withoutAnchor={...currentCheckpoint,outstanding_requests:currentCheckpoint.outstanding_requests.filter(request=>request!==anchor)};
+  assert.throws(()=>prepareOperationalCheckpoint(fixture.configured,snapshot,"cloud-a",withoutAnchor,snapshot.observations[1],
+    [{request_id:anchor.request_id,recipient_instance_or_coordinator:anchor.recipient_instance_or_coordinator,
+      disposition:"resolved",observed_response_reference:input.evidence}]),/latest consumption anchor/);
+  const duplicate={...currentCheckpoint,outstanding_requests:[...currentCheckpoint.outstanding_requests,
+    {...anchor,request_id:`CONSUME-${"f".repeat(64)}-2`}]};
+  assert.throws(()=>parseRunnerCheckpoint(fixture.format("runner-checkpoint",duplicate),"cloud-a",snapshot.board),/duplicated/);
 });
 
 test("requirements comparison ignores formatting, check marks and bare delivered links, not safety text", () => {
