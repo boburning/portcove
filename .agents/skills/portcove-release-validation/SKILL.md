@@ -21,3 +21,11 @@ For disposable signing fixtures, distinguish artifact secret scans from runtime 
 Run required repository checks in an isolated qualification environment. A Windows test cannot qualify Linux/macOS, and a test-signed fixture cannot qualify production signing. Preserve existing immutable releases; do not repair a published release by replacing assets.
 
 Report passed/failed/not-run checks, artifact identities, environment, evidence paths, and remaining external observations. Preparing and validating a candidate does not authorize publication, key changes, protected gates or administrator bypass. Reconfirm revision and authority immediately before an authorized external action.
+
+Current-user NSIS registration and application processes are shared host resources. Serialize installed rehearsals with checks that exercise installer guards, or use an isolated host. After a collision, verify the exact rehearsal's registration and owned processes are gone before rerunning; retain the original failure and distinguish an unchanged serialized pass from a repair.
+
+When qualification adds generated diagnostics, test failure-path artifact upload selectors with representative produced paths while preserving secret exclusions. Retrieve and inspect actual retained bytes before claiming trace-content proof; receipt hashes establish neither retention nor contents.
+
+Bind package/API compatibility separately from persistent-library schema and migration compatibility. Before a different runtime opens a preserved native profile, follow the retained-profile checks in [desktop verification](../portcove-desktop-verification/SKILL.md). Preserve the compatible package for outstanding acceptance; newer-runtime qualification needs a separately owned copy or fresh fixture.
+
+When installer admission compares parent/child workspace paths, exercise a real Windows short temporary-path entry spelling before canonical construction. Verify the native canonicalization behavior used by each side while retaining exact equality, hashes and live-owner checks. Surface child exit status, stdout and stderr before reading expected receipts. This controlled path proof does not broaden arbitrary manifest alias admission or replace actual installed acceptance.
