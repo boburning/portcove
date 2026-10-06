@@ -154,10 +154,20 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
 });
 
 it.each([
-  ["allowed", "available", false],
-  ["held", "invalid_installation", true],
-  ["held", "missing_runtime", true],
-] as const)("renders retained rollback action %s/%s", (availability, reason, disabled) => {
+  ["allowed", "available", false, null],
+  [
+    "held",
+    "invalid_installation",
+    true,
+    "Portcove could not verify the previous version. Restore previous version is on hold.",
+  ],
+  [
+    "held",
+    "missing_runtime",
+    true,
+    "The previous version needs its verified runtime before it can be restored.",
+  ],
+] as const)("renders retained rollback action %s/%s", (availability, reason, disabled, message) => {
   const html = renderToStaticMarkup(
     <DetailPanel
       port={port}
@@ -179,10 +189,8 @@ it.each([
   expect(button).toBeDefined();
   expect(button?.includes('disabled=""')).toBe(disabled);
   expect(html.includes("data-rollback-assessment")).toBe(disabled);
-  if (reason === "invalid_installation")
-    expect(html).toContain("could not verify the previous version");
-  if (reason === "missing_runtime")
-    expect(html).toContain("previous version needs its verified runtime");
+  const assessment = html.match(/<p\b[^>]*data-rollback-assessment[^>]*>(.*?)<\/p>/s)?.[1] ?? null;
+  expect(assessment).toBe(message);
 });
 
 const bundledRuntime = {
