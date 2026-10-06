@@ -2,13 +2,26 @@
   "schema_version": 1,
   "owner": "boburning",
   "repository": "boburning/portcove",
+  "runner_coordination": {
+    "schema_version": 1,
+    "board_issue": 1583,
+    "coordinator_github_login": "boburning",
+    "coordinator_github_id": 43177418,
+    "coordinator_instance_id": "dot-primary-20261006",
+    "durable_writer_mode": "coordinator-only",
+    "checkpoint_comment_ids": {
+      "cloud-a": 6020715607,
+      "cloud-b": 6020718690,
+      "local": 6020721282
+    }
+  },
   "active_release": "Public beta",
   "project": {
     "number": 1,
     "title": "Portcove Roadmap",
     "visibility": "PUBLIC",
     "description": "Product outcomes, release readiness, execution and the complete port pipeline in one live Project.",
-    "readme": "Start with [Product Outcomes](https://github.com/users/boburning/projects/1/views/5) for direction and delivered foundations.\n\n[Required for Beta](https://github.com/users/boburning/projects/1/views/6) and [Required through 1.0](https://github.com/users/boburning/projects/1/views/10) show direct obligations; use roadmap.mjs readiness for the complete dependency-derived gate. [Planned Additions](https://github.com/users/boburning/projects/1/views/9) remain approved executable work.\n\n[In Progress](https://github.com/users/boburning/projects/1/views/3) plus [accepted reservations #793](https://github.com/boburning/portcove/issues/793) describe execution; [Next Queue](https://github.com/users/boburning/projects/1/views/2) shows selection, and [Port Pipeline](https://github.com/users/boburning/projects/1/views/4) retains every durable port record.\n\nIssues own current acceptance/evidence, catalog.json owns support, and [roadmap orientation](https://github.com/boburning/portcove/blob/main/docs/ROADMAP.md) explains the release contract. roadmap-outcome is presentation only. Required and Planned share execution. Genuine owner decisions appear with effect/recommendation in the existing nightly report; Blocked alone is not an owner action."
+    "readme": "Start with [Product Outcomes](https://github.com/users/boburning/projects/1/views/5) for direction and delivered foundations.\n\n[Required for Beta](https://github.com/users/boburning/projects/1/views/6) and [Required through 1.0](https://github.com/users/boburning/projects/1/views/10) show direct obligations; use roadmap.mjs readiness for the complete dependency-derived gate. [Planned Additions](https://github.com/users/boburning/projects/1/views/9) remain approved executable work.\n\n[In Progress](https://github.com/users/boburning/projects/1/views/3) plus accepted assignments on the [operational board](https://github.com/boburning/portcove/issues/1583), exactly three fixed lane checkpoints and actual direct runner acknowledgments describe execution; [Next Queue](https://github.com/users/boburning/projects/1/views/2) shows selection, and [Port Pipeline](https://github.com/users/boburning/projects/1/views/4) retains every durable port record.\n\nIssues own current acceptance/evidence, catalog.json owns support, and [roadmap orientation](https://github.com/boburning/portcove/blob/main/docs/ROADMAP.md) explains the release contract. roadmap-outcome is presentation only. Required and Planned share execution. Genuine owner decisions appear with effect/recommendation in the existing nightly report; Blocked alone is not an owner action."
   },
   "fields": [
     {

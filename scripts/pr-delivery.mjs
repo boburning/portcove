@@ -627,7 +627,7 @@ export function inspectRenovateQueue(client, config, contexts, inspectBase = ins
           url: html_url,
         })),
       next_action: snapshot.pull.draft
-        ? "Resume the current owner's draft checkpoint in #793."
+        ? "Resume the current owner's draft using the configured operational board and fixed lane checkpoint."
         : failures.length
           ? "Inspect the first failed exact-head job and retained evidence; repair causally before rerunning."
           : pending.length
@@ -639,8 +639,8 @@ export function inspectRenovateQueue(client, config, contexts, inspectBase = ins
                 : ["reject", "waiting"].includes(result.verdict)
                   ? "Resolve the reported classifier condition before selection."
                   : result.verdict === "metadata-required"
-                    ? `Confirm #793 ownership, then just renovate-check --pr ${listed.number} --head ${head}; final delivering-agent review and guarded merge follow only merge-ready.`
-                    : "Confirm #793 ownership, inspect advisory/graph/features and select the existing local/hosted/behavior plan; independent review and guarded merge remain.",
+                    ? `Confirm the accepted assignment on the configured operational board, then just renovate-check --pr ${listed.number} --head ${head}; final delivering-agent review and guarded merge follow only merge-ready.`
+                    : "Confirm the accepted assignment on the configured operational board, inspect advisory/graph/features and select the existing local/hosted/behavior plan; independent review and guarded merge remain.",
     };
   });
   candidates.sort(
@@ -657,7 +657,7 @@ export function inspectRenovateQueue(client, config, contexts, inspectBase = ins
     candidates,
     selected: candidates.find(({ actionable }) => actionable)?.number ?? null,
     selection_boundary:
-      "Recommendation only. Existing #793 reservations govern ownership; this command neither approves, rebases, retries nor merges. Refresh after each delivered candidate.",
+      "Recommendation only. Accepted coordinator assignments and reserved scopes on the configured operational board govern ownership; this command neither approves, rebases, retries nor merges. Refresh after each delivered candidate.",
   };
 }
 

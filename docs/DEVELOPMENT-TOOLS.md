@@ -199,7 +199,7 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
 [Development storage](DEVELOPMENT-STORAGE.md) only for that case.
 
 1. Read the canonical issue's unmet acceptance, current PR and latest relevant
-   #793 reservation. Resolve `git rev-parse --show-toplevel`, then inspect
+   bounded operational snapshot and accepted assignment. Resolve `git rev-parse --show-toplevel`, then inspect
    `git status --short --branch --untracked-files=all`, `git rev-parse HEAD` and
    `git worktree list --porcelain`. Reconcile them with the recorded owner,
    branch and evidence; process absence alone is not an ownership transfer.
@@ -210,7 +210,7 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
    reset, delete or overwrite work to make it possible. After a confirmed merge,
    fetch the target, inspect relevant drift and create the next branch in this
    same checkout only when those conditions hold.
-3. Keep a compact task contract in the issue/PR or #793 note: **outcome and
+3. Keep a compact task contract in the owning issue/PR: **outcome and
    acceptance; checkout, branch and head; reserved files and owning references;
    boundaries/non-goals; narrow edit-test command; coherent pre-push plan;
    resources; completed/failed evidence; exact next action**. Link existing
@@ -238,7 +238,7 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
 
 The authorized two-cloud/one-local arrangement keeps one writer per reserved
 scope, disjoint task ownership and the existing local scheduler/integration
-authority. Preserve healthy candidates and compact canonical #793 handoffs;
+authority. Preserve healthy candidates and compact fixed-lane checkpoints;
 independent review remains required by the applicable delivery contract. This
 does not introduce a new coordinator, duplicate dispatch or a dependency on
 the general autonomous-engineering workstream.
@@ -283,7 +283,7 @@ remain authoritative; separate worktrees keep separate mutable Cargo targets.
 At a handoff, record current head and dirty state, active owned process/session
 identities or confirmed terminal state, evidence locations, unresolved findings or
 external boundaries, and the exact resume command/condition. Put it on the current
-issue/PR and link a short #793 checkpoint. No second ledger, scheduler or daemon is
+issue/PR and update only the assigned fixed checkpoint; use direct messages for attention. No second ledger, scheduler or daemon is
 needed. Choose a cohesive independently verifiable outcome, not setup-heavy trivial
 fragments or an unrelated mega-refactor.
 

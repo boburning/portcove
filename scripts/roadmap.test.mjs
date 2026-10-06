@@ -17,6 +17,16 @@ import {
   normalizeRequirements,
   compareExecutionSnapshots,
   deriveExecutionContext,
+  coordinationTarget,
+  readOperationalBoard,
+  parseOperationalBoard,
+  parseRunnerCheckpoint,
+  operationalChanges,
+  operationalBaseline,
+  operationalEnvelope,
+  bindOperationalAssignment,
+  prepareOperationalCheckpoint,
+  prepareOperationalConsumption,
   prepareConsumption,
   parseConsumptionRecord,
   consumedReference,
@@ -100,8 +110,703 @@ const acknowledgment = (context = pickupContext(), runner = "Local") =>
 const acknowledgmentComment = (context = pickupContext(), runner = "Local") => ({
   id: 1,
   body: acknowledgment(context, runner).body,
-  url: `https://github.com/${config.repository}/issues/793#issuecomment-1`,
+  url: `${context.coordination_target.url}#issuecomment-1`,
   author: { login: "recorder" },
+});
+
+function operationalFixture() {
+  const lanes = ["cloud-a", "cloud-b", "local"];
+  const configured = {
+    ...config,
+    runner_coordination: {
+      schema_version: 1,
+      board_issue: 1800,
+      coordinator_github_login: "boburning",
+      coordinator_github_id: 43177418,
+      coordinator_instance_id: "dot-fixture-1",
+      durable_writer_mode: "coordinator-only",
+      checkpoint_comment_ids: { "cloud-a": 101, "cloud-b": 102, local: 103 },
+    },
+  };
+  const board = {
+    repository: config.repository,
+    protocol_revision: 1,
+    cutover_state: "staged",
+    coordinator_instance_id: "dot-fixture-1",
+    assignment_generation: 1,
+    checkpoint_pointers: configured.runner_coordination.checkpoint_comment_ids,
+    pending_transfers: [],
+    assignments: lanes.map((lane, index) => ({
+      lane,
+      runner_instance_id: `fixture-${lane}`,
+      assignment_id: `fixture-task-${index + 1}`,
+      generation: 1,
+      owning_issue: 1104,
+      pr_and_source: "PR1543 private fixture source",
+      reserved_scope: "fixture only",
+      intentional_pause: false,
+      execution_slot: "active",
+      accepted_ack: {
+        request_id: `fixture-request-${index + 1}`,
+        observed_ack_reference: `https://github.com/${config.repository}/issues/1104#issuecomment-${index + 1}`,
+      },
+    })),
+  };
+  const format = (kind, value) =>
+    `<!-- portcove-${kind}:v1 -->\n\`\`\`json\n${JSON.stringify(value, null, 2)}\n\`\`\``;
+  const issueUrl = `https://github.com/${config.repository}/issues/1800`;
+  const records = {};
+  records[`repos/${config.repository}/issues/1800`] = {
+    number: 1800,
+    html_url: issueUrl,
+    comments: 3,
+    user: { login: "boburning", id: 43177418 },
+    updated_at: "2026-10-06T16:00:00Z",
+    body: format("runner-board", board),
+  };
+  const checkpoints = {};
+  for (const [index, lane] of lanes.entries()) {
+    const assignment = board.assignments[index];
+    const checkpoint = {
+      lane,
+      runner_instance_id: assignment.runner_instance_id,
+      assignment_id: assignment.assignment_id,
+      assignment_generation: 1,
+      owning_task: 1104,
+      pr_and_source: "PR1543 fixture source",
+      execution_phase: "fixture development",
+      last_meaningful_progress: { at: "2026-10-06T15:00:00Z", summary: "Fixture only" },
+      next_action: "Fixture check",
+      outstanding_requests: [
+        {
+          request_id: `fixture-handoff-${index + 1}`,
+          recipient_instance_or_coordinator: "dot-fixture-1",
+          acknowledgment_state: "pending",
+          disposition_reference: null,
+        },
+      ],
+      necessary_evidence_pointers: [],
+    };
+    checkpoints[lane] = checkpoint;
+    const id = configured.runner_coordination.checkpoint_comment_ids[lane];
+    records[`repos/${config.repository}/issues/comments/${id}`] = {
+      id,
+      html_url: `${issueUrl}#issuecomment-${id}`,
+      issue_url: `https://api.github.com/repos/${config.repository}/issues/1800`,
+      user: { login: "boburning", id: 43177418 },
+      updated_at: "2026-10-06T16:00:00Z",
+      body: format("runner-checkpoint", checkpoint),
+    };
+  }
+  const calls = [];
+  const api = {
+    request(method, endpoint, body, options) {
+      calls.push({ method, endpoint, options });
+      assert.equal(method, "GET");
+      assert.ok(records[endpoint], "only fixed endpoints allowed");
+      return { body: records[endpoint] };
+    },
+  };
+  return { configured, board, checkpoints, records, format, api, calls };
+}
+
+test("ordinary operational snapshot reads exactly four fixed records and measures final model envelope", () => {
+  const fixture = operationalFixture();
+  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  assert.equal(snapshot.status, "staged");
+  assert.equal(fixture.calls.length, 4);
+  assert.ok(
+    fixture.calls.every(({ endpoint }) => !endpoint.includes("793") && !endpoint.includes("?")),
+  );
+  assert.equal(
+    snapshot.checkpoints["cloud-a"].outstanding_requests[0].acknowledgment_state,
+    "pending",
+  );
+  const envelope = operationalEnvelope(snapshot);
+  assert.equal(
+    envelope.operational_metrics.model_facing_bytes,
+    Buffer.byteLength(JSON.stringify(envelope), "utf8"),
+  );
+  assert.match(envelope.operational_metrics.estimate_method, /not billed/);
+});
+
+test("edited fixed checkpoints change raw identity while quiet reads never mutate progress", () => {
+  const fixture = operationalFixture();
+  const first = readOperationalBoard(fixture.configured, fixture.api);
+  const endpoint = `repos/${config.repository}/issues/comments/101`;
+  const original = fixture.records[endpoint].body;
+  fixture.records[endpoint].body = fixture.format("runner-checkpoint", {
+    ...fixture.checkpoints["cloud-a"],
+    next_action: "A changed action",
+  });
+  const changed = readOperationalBoard(fixture.configured, fixture.api);
+  assert.notEqual(first.observations[1].raw_revision, changed.observations[1].raw_revision);
+  const delta = operationalChanges(changed, operationalBaseline(first));
+  assert.equal(delta.state, "changed");
+  assert.equal(delta.original_evidence_manifest, changed.original_evidence_manifest);
+  assert.equal(
+    operationalEnvelope(changed, operationalBaseline(first)).operational_snapshot
+      .original_evidence_manifest,
+    changed.original_evidence_manifest,
+  );
+  assert.equal(delta.board, null);
+  assert.deepEqual(Object.keys(delta.checkpoints), ["cloud-a"]);
+  assert.deepEqual(
+    first.checkpoints["cloud-a"].last_meaningful_progress,
+    changed.checkpoints["cloud-a"].last_meaningful_progress,
+  );
+  const quiet = readOperationalBoard(fixture.configured, fixture.api);
+  assert.deepEqual(
+    { ...changed, original_evidence_manifest: null },
+    { ...quiet, original_evidence_manifest: null },
+  );
+  const quietDelta = operationalChanges(quiet, operationalBaseline(changed));
+  assert.equal(quietDelta.state, "unchanged");
+  assert.equal(quietDelta.snapshot, undefined);
+  assert.notEqual(original, fixture.records[endpoint].body);
+  assert.ok(fixture.calls.every(({ method }) => method === "GET"));
+});
+
+test("timestamp-only fixed checkpoint edits are detected and invalid baselines cannot suppress state", () => {
+  const fixture = operationalFixture();
+  const first = readOperationalBoard(fixture.configured, fixture.api);
+  fixture.records[`repos/${config.repository}/issues/comments/101`].updated_at =
+    "2026-10-06T16:01:00Z";
+  const edited = readOperationalBoard(fixture.configured, fixture.api);
+  assert.equal(first.observations[1].raw_revision, edited.observations[1].raw_revision);
+  const delta = operationalChanges(edited, operationalBaseline(first));
+  assert.equal(delta.state, "changed");
+  assert.deepEqual(Object.keys(delta.checkpoints), ["cloud-a"]);
+  assert.deepEqual(
+    first.checkpoints["cloud-a"].last_meaningful_progress,
+    edited.checkpoints["cloud-a"].last_meaningful_progress,
+  );
+  for (const mutate of [
+    (baseline) => (baseline.schema_version = 2),
+    (baseline) => (baseline.status = "unknown"),
+    (baseline) => (baseline.coordinator_instance_id = "another-coordinator"),
+    (baseline) => (baseline.assignment_generation = 2),
+    (baseline) => (baseline.assignment_binding_revision = "0".repeat(64)),
+    (baseline) => baseline.observations.reverse(),
+    (baseline) => (baseline.observations[0].raw_revision = "invalid"),
+    (baseline) => (baseline.observations[0].edited_at = "invalid"),
+  ]) {
+    const baseline = structuredClone(operationalBaseline(edited));
+    mutate(baseline);
+    assert.equal(operationalChanges(edited, baseline).state, "baseline_unavailable");
+  }
+});
+
+test("the actual subprocess runner clips its request timeout to the remaining monotonic budget", () => {
+  const fixture = operationalFixture();
+  let time = 0;
+  const timeouts = [];
+  const client = new RoadmapClient(fixture.configured, fixture.api);
+  const snapshot = client.operationalSnapshot({
+    now: () => time,
+    runnerFactory: (options) => {
+      timeouts.push(options.timeoutMs);
+      return (args) => {
+        const endpoint = args[args.indexOf("--include") + 1];
+        time += timeouts.length === 3 ? 29_500 : 15_000;
+        return `HTTP/2 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(fixture.records[endpoint])}`;
+      };
+    },
+  });
+  assert.deepEqual(timeouts, [15_000, 15_000, 15_000, 500]);
+  assert.equal(snapshot.status, "unknown");
+});
+
+test("fresh changed and unchanged coordination envelopes include metadata in their measured ceiling", () => {
+  const fixture = operationalFixture();
+  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const baseline = operationalBaseline(snapshot);
+  for (const old of [
+    null,
+    baseline,
+    {
+      ...baseline,
+      observations: baseline.observations.map((record, index) =>
+        index === 1 ? { ...record, edited_at: "2026-10-06T15:59:00Z" } : record,
+      ),
+    },
+  ]) {
+    const envelope = operationalEnvelope(snapshot, old);
+    assert.equal(
+      envelope.operational_metrics.model_facing_bytes,
+      Buffer.byteLength(JSON.stringify(envelope), "utf8"),
+    );
+    const oversized = structuredClone(snapshot);
+    oversized.authority_limit = "x".repeat(12_000);
+    assert.throws(() => operationalEnvelope(oversized, old), /oversized/);
+  }
+  for (let size = 0; size < 1000; size++) {
+    const padded = structuredClone(snapshot);
+    padded.authority_limit = "x".repeat(size);
+    const envelope = operationalEnvelope(padded);
+    assert.equal(
+      envelope.operational_metrics.model_facing_bytes,
+      Buffer.byteLength(JSON.stringify(envelope), "utf8"),
+    );
+    assert.equal(typeof envelope.operational_metrics.over_design_target, "number");
+  }
+});
+
+test("missing, oversized, malformed, stale and unavailable operational state stays unknown without fallback", () => {
+  const missing = operationalFixture();
+  missing.configured.runner_coordination.board_issue = null;
+  assert.equal(readOperationalBoard(missing.configured, missing.api).status, "unknown");
+  assert.equal(missing.calls.length, 0);
+  for (const replacement of ["not a board", "x".repeat(8193)]) {
+    const fixture = operationalFixture();
+    fixture.records[`repos/${config.repository}/issues/1800`].body = replacement;
+    const result = readOperationalBoard(fixture.configured, fixture.api);
+    assert.equal(result.status, "unknown");
+    assert.equal(result.state, null);
+    assert.match(result.authority_limit, /not unowned/);
+  }
+  const stale = operationalFixture();
+  stale.records[`repos/${config.repository}/issues/comments/101`].body = stale.format(
+    "runner-checkpoint",
+    {
+      ...stale.checkpoints["cloud-a"],
+      assignment_generation: 2,
+    },
+  );
+  assert.equal(readOperationalBoard(stale.configured, stale.api).status, "unknown");
+  const inaccessible = operationalFixture();
+  inaccessible.api.request = () => {
+    throw Error("unavailable observation");
+  };
+  assert.equal(readOperationalBoard(inaccessible.configured, inaccessible.api).status, "unknown");
+  const expired = operationalFixture();
+  let time = 0;
+  const result = readOperationalBoard(expired.configured, expired.api, {
+    now: () => (time += 20000),
+  });
+  assert.equal(result.status, "unknown");
+  assert.ok(expired.calls.length < 4);
+});
+
+test("conflicting assignments and malformed outstanding requests refuse interpretation", () => {
+  const fixture = operationalFixture();
+  const duplicate = {
+    ...fixture.board,
+    assignments: [...fixture.board.assignments, fixture.board.assignments[0]],
+  };
+  assert.throws(
+    () => parseOperationalBoard(fixture.format("runner-board", duplicate), fixture.configured),
+    /conflicting/,
+  );
+  const request = fixture.checkpoints["cloud-a"].outstanding_requests[0];
+  const checkpoint = {
+    ...fixture.checkpoints["cloud-a"],
+    outstanding_requests: [request, request],
+  };
+  assert.throws(
+    () =>
+      parseRunnerCheckpoint(
+        fixture.format("runner-checkpoint", checkpoint),
+        "cloud-a",
+        fixture.board,
+      ),
+    /ambiguous/,
+  );
+});
+
+test("completed assignments retain their accepted checkpoint and release evidence without an active scope", () => {
+  const fixture = operationalFixture();
+  const assignment = fixture.board.assignments[1];
+  const accepted = structuredClone(assignment.accepted_ack);
+  assignment.execution_slot = "completed";
+  assignment.reserved_scope = null;
+  assignment.released_reference = `https://github.com/${config.repository}/issues/1104#issuecomment-6021341506`;
+  const checkpoint = fixture.checkpoints["cloud-b"];
+  checkpoint.execution_phase = "completed";
+  checkpoint.necessary_evidence_pointers = ["issue1104#issuecomment-6021341506"];
+  fixture.records[`repos/${config.repository}/issues/1800`].body = fixture.format(
+    "runner-board",
+    fixture.board,
+  );
+  fixture.records[`repos/${config.repository}/issues/comments/102`].body = fixture.format(
+    "runner-checkpoint",
+    checkpoint,
+  );
+  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  assert.equal(snapshot.status, "staged");
+  assert.deepEqual(snapshot.board.assignments[1].accepted_ack, accepted);
+  assert.equal(snapshot.checkpoints["cloud-b"].assignment_id, assignment.assignment_id);
+  const binding = bindOperationalAssignment(snapshot, "fixture-cloud-b", 1104);
+  assert.equal(binding.execution_slot, "completed");
+  assert.equal(binding.reserved_scope, null);
+  assert.equal(binding.released_reference, assignment.released_reference);
+  const output = operationalEnvelope(snapshot, null, binding);
+  assert.match(output.operational_snapshot.details, /Scope: none; assignment released/);
+  assert.match(output.operational_snapshot.details, /Release: https:\/\/github.com/);
+  assert.equal(output.operational_binding.released_reference, assignment.released_reference);
+  const retainedWaiting = {
+    ...assignment,
+    assignment_id: "retained-frozen-assignment",
+    owning_issue: 1550,
+    execution_slot: "reviewed_waiting",
+    reserved_scope: "four frozen query paths",
+    released_reference: undefined,
+  };
+  const withWaiting = {
+    ...fixture.board,
+    assignments: [...fixture.board.assignments, retainedWaiting],
+  };
+  const preserved = parseOperationalBoard(
+    fixture.format("runner-board", withWaiting),
+    fixture.configured,
+  );
+  assert.equal(preserved.assignments.at(-1).reserved_scope, "four frozen query paths");
+  assert.equal(
+    parseRunnerCheckpoint(fixture.format("runner-checkpoint", checkpoint), "cloud-b", preserved)
+      .assignment_id,
+    assignment.assignment_id,
+  );
+  const revisedRelease = structuredClone(snapshot);
+  revisedRelease.board.assignments[1].released_reference = "issue1104#issuecomment-6021341507";
+  assert.equal(
+    operationalChanges(revisedRelease, operationalBaseline(snapshot)).state,
+    "baseline_unavailable",
+  );
+  const context = pickupContext(pickupIssue(), pickupRelations(), { runner: "fixture-cloud-b" });
+  context.operational_baseline = operationalBaseline(snapshot);
+  context.operational_binding = binding;
+  assert.throws(
+    () =>
+      prepareOperationalConsumption({
+        client: { operationalSnapshot: () => snapshot },
+        config: fixture.configured,
+        context,
+        runner: "fixture-cloud-b",
+        action: "Start another task",
+        evidence: assignment.released_reference,
+      }),
+    /no active reservation/,
+  );
+  for (const patch of [
+    { reserved_scope: "old active scope" },
+    { reserved_scope: "" },
+    { released_reference: null },
+    { released_reference: "issue314#issuecomment-6021341506" },
+    { intentional_pause: true },
+  ]) {
+    const board = structuredClone(fixture.board);
+    Object.assign(board.assignments[1], patch);
+    assert.throws(
+      () => parseOperationalBoard(fixture.format("runner-board", board), fixture.configured),
+      /conflicting/,
+    );
+  }
+  for (const patch of [
+    { assignment_generation: 2 },
+    { assignment_id: "previous-assignment" },
+    { runner_instance_id: "previous-instance" },
+    { execution_phase: "active" },
+    { necessary_evidence_pointers: [] },
+  ]) {
+    assert.throws(
+      () =>
+        parseRunnerCheckpoint(
+          fixture.format("runner-checkpoint", { ...checkpoint, ...patch }),
+          "cloud-b",
+          fixture.board,
+        ),
+      /stale|conflicts|delivered phase/,
+    );
+  }
+  const active = {
+    ...assignment,
+    assignment_id: "successor-not-yet-accepted",
+    execution_slot: "active",
+    reserved_scope: "new scope",
+    released_reference: undefined,
+  };
+  for (const records of [
+    [assignment, active],
+    [active, assignment],
+    [assignment, { ...assignment, assignment_id: "duplicate-completed" }],
+  ]) {
+    const board = {
+      ...fixture.board,
+      assignments: [fixture.board.assignments[0], ...records, fixture.board.assignments[2]],
+    };
+    assert.throws(
+      () => parseOperationalBoard(fixture.format("runner-board", board), fixture.configured),
+      /conflicting/,
+    );
+  }
+  const missingRelease = structuredClone(fixture.board);
+  delete missingRelease.assignments[1].released_reference;
+  fixture.records[`repos/${config.repository}/issues/1800`].body = fixture.format(
+    "runner-board",
+    missingRelease,
+  );
+  assert.equal(readOperationalBoard(fixture.configured, fixture.api).status, "unknown");
+});
+
+test("task instance binding and fixed checkpoint planning preserve unresolved requests and preimages", () => {
+  const fixture = operationalFixture();
+  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const binding = bindOperationalAssignment(snapshot, "fixture-cloud-a", 1104);
+  assert.equal(binding.assignment_id, "fixture-task-1");
+  assert.throws(() => bindOperationalAssignment(snapshot, "unknown-instance", 1104), /exactly one/);
+  assert.throws(() => bindOperationalAssignment(snapshot, "fixture-cloud-a", 1550), /exactly one/);
+  const original = snapshot.checkpoints["cloud-a"];
+  const expected = snapshot.observations[1];
+  const plan = prepareOperationalCheckpoint(
+    fixture.configured,
+    snapshot,
+    "cloud-a",
+    original,
+    expected,
+  );
+  assert.equal(plan.status, "planned");
+  assert.equal(plan.writer_mode, "coordinator-only");
+  assert.throws(
+    () =>
+      prepareOperationalCheckpoint(
+        fixture.configured,
+        snapshot,
+        "cloud-a",
+        { ...original, outstanding_requests: [] },
+        expected,
+      ),
+    /cannot disappear/,
+  );
+  const resolution = {
+    request_id: original.outstanding_requests[0].request_id,
+    recipient_instance_or_coordinator:
+      original.outstanding_requests[0].recipient_instance_or_coordinator,
+    disposition: "cancelled",
+    observed_response_reference: "PR1543#issuecomment-6020220069",
+  };
+  assert.equal(
+    prepareOperationalCheckpoint(
+      fixture.configured,
+      snapshot,
+      "cloud-a",
+      { ...original, outstanding_requests: [] },
+      expected,
+      [resolution],
+    ).status,
+    "planned",
+  );
+  assert.throws(
+    () =>
+      prepareOperationalCheckpoint(
+        fixture.configured,
+        snapshot,
+        "cloud-a",
+        { ...original, outstanding_requests: [] },
+        expected,
+        [{ ...resolution, observed_response_reference: null }],
+      ),
+    /resolution/,
+  );
+  assert.throws(
+    () =>
+      prepareOperationalCheckpoint(fixture.configured, snapshot, "cloud-a", original, {
+        ...expected,
+        edited_at: "2026-10-06T16:01:00Z",
+      }),
+    /preimage changed/,
+  );
+  assert.throws(
+    () =>
+      prepareOperationalCheckpoint(
+        fixture.configured,
+        snapshot,
+        "cloud-a",
+        { ...original, owning_task: 1550 },
+        expected,
+      ),
+    /conflicts/,
+  );
+  const request = original.outstanding_requests[0];
+  assert.throws(
+    () =>
+      prepareOperationalCheckpoint(
+        fixture.configured,
+        snapshot,
+        "cloud-a",
+        {
+          ...original,
+          outstanding_requests: [
+            { ...request, recipient_instance_or_coordinator: "another-instance" },
+          ],
+        },
+        expected,
+      ),
+    /change recipient/,
+  );
+  const acknowledged = {
+    ...original,
+    outstanding_requests: [
+      {
+        ...request,
+        acknowledgment_state: "acknowledged",
+        disposition_reference: "PR1543#issuecomment-6020220069",
+      },
+    ],
+  };
+  assert.equal(
+    prepareOperationalCheckpoint(fixture.configured, snapshot, "cloud-a", acknowledged, expected)
+      .status,
+    "planned",
+  );
+  const missing = structuredClone(fixture.board);
+  delete missing.assignments[0].reserved_scope;
+  assert.throws(
+    () => parseOperationalBoard(fixture.format("runner-board", missing), fixture.configured),
+    /conflicting/,
+  );
+  const substituted = structuredClone(fixture.board);
+  substituted.assignments.push({
+    ...substituted.assignments[0],
+    assignment_id: "waiting-assignment",
+    runner_instance_id: "substituted-instance",
+    execution_slot: "reviewed_waiting",
+  });
+  assert.throws(
+    () => parseOperationalBoard(fixture.format("runner-board", substituted), fixture.configured),
+    /conflicting/,
+  );
+  fixture.records[`repos/${config.repository}/issues/comments/101`].user.id = 1;
+  assert.equal(readOperationalBoard(fixture.configured, fixture.api).status, "unknown");
+});
+
+test("normal consumption plans only a fixed checkpoint native handoff, preserving progress and refusing lane writes", () => {
+  const fixture = operationalFixture();
+  let snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  let item = pickupIssue();
+  const relationships = pickupRelations();
+  const context = pickupContext(item, relationships, { runner: "fixture-cloud-a" });
+  context.operational_baseline = operationalBaseline(snapshot);
+  context.operational_binding = bindOperationalAssignment(snapshot, "fixture-cloud-a", 1104);
+  const client = {
+    operationalSnapshot: () => snapshot,
+    executionIssue: () => ({ item, relationships }),
+    coordinationRecords: () => assert.fail("normal path must never read task history"),
+    postCoordinationComment: () => assert.fail("normal path must never append comments"),
+  };
+  const input = {
+    client,
+    config: fixture.configured,
+    context,
+    runner: "fixture-cloud-a",
+    action: "Consumed actual material acceptance",
+    evidence: "PR1543#issuecomment-6020220069",
+  };
+  const plan = prepareOperationalConsumption(input);
+  assert.equal(plan.status, "planned");
+  assert.equal(plan.request.acknowledgment_state, "pending");
+  const updated = JSON.parse(plan.body.split("```json\n")[1].split("\n```")[0]);
+  assert.deepEqual(
+    updated.last_meaningful_progress,
+    snapshot.checkpoints["cloud-a"].last_meaningful_progress,
+  );
+  assert.equal(updated.outstanding_requests.length, 2);
+  assert.throws(() => prepareOperationalConsumption({ ...input, apply: true }), /coordinator-only/);
+  assert.throws(
+    () => prepareOperationalConsumption({ ...input, runner: "other-instance" }),
+    /exactly one/,
+  );
+  const wrongContext = structuredClone(context);
+  wrongContext.pickup.reported_runner = "fixture-cloud-b";
+  assert.throws(
+    () => prepareOperationalConsumption({ ...input, context: wrongContext }),
+    /does not bind/,
+  );
+  const staleBinding = structuredClone(context);
+  staleBinding.operational_binding.generation = 2;
+  assert.throws(
+    () => prepareOperationalConsumption({ ...input, context: staleBinding }),
+    /does not bind/,
+  );
+  item = pickupIssue(1104, "Changed mandatory acceptance");
+  assert.throws(
+    () => prepareOperationalConsumption(input),
+    /requirements or raw observation changed/,
+  );
+  item = pickupIssue();
+  snapshot.checkpoints["cloud-a"] = updated;
+  // Simulate a fresh validated context after the coordinator preserved this request.
+  context.operational_baseline = operationalBaseline(snapshot);
+  assert.equal(prepareOperationalConsumption(input).status, "quiet");
+  const oldId = plan.request.request_id;
+  item = { ...pickupIssue(), priority: "Low" };
+  const changedContext = pickupContext(item, relationships, { runner: "fixture-cloud-a" });
+  changedContext.operational_baseline = operationalBaseline(snapshot);
+  changedContext.operational_binding = bindOperationalAssignment(snapshot, "fixture-cloud-a", 1104);
+  assert.equal(changedContext.observation_revision, context.observation_revision);
+  const material = prepareOperationalConsumption({ ...input, context: changedContext });
+  assert.equal(material.status, "planned");
+  assert.notEqual(material.request.request_id, oldId);
+  snapshot.checkpoints["cloud-a"] = JSON.parse(
+    material.body.split("```json\n")[1].split("\n```")[0],
+  );
+  snapshot.checkpoints["cloud-a"].outstanding_requests.reverse();
+  item = pickupIssue();
+  const revisited = prepareOperationalConsumption(input);
+  assert.equal(revisited.status, "planned");
+  assert.notEqual(revisited.request.request_id, oldId);
+  item = { ...pickupIssue(), priority: "Low" };
+  snapshot.board.assignments[0].generation = 2;
+  snapshot.checkpoints["cloud-a"].assignment_generation = 2;
+  changedContext.operational_baseline = operationalBaseline(snapshot);
+  changedContext.operational_binding = bindOperationalAssignment(snapshot, "fixture-cloud-a", 1104);
+  const generation = prepareOperationalConsumption({ ...input, context: changedContext });
+  assert.equal(generation.status, "planned");
+  assert.notEqual(generation.request.request_id, material.request.request_id);
+  const currentCheckpoint = snapshot.checkpoints["cloud-a"];
+  const anchor = currentCheckpoint.outstanding_requests.find(
+    (request) => request.request_id === material.request.request_id,
+  );
+  const withoutAnchor = {
+    ...currentCheckpoint,
+    outstanding_requests: currentCheckpoint.outstanding_requests.filter(
+      (request) => request !== anchor,
+    ),
+  };
+  assert.throws(
+    () =>
+      prepareOperationalCheckpoint(
+        fixture.configured,
+        snapshot,
+        "cloud-a",
+        withoutAnchor,
+        snapshot.observations[1],
+        [
+          {
+            request_id: anchor.request_id,
+            recipient_instance_or_coordinator: anchor.recipient_instance_or_coordinator,
+            disposition: "resolved",
+            observed_response_reference: input.evidence,
+          },
+        ],
+      ),
+    /latest consumption anchor/,
+  );
+  const duplicate = {
+    ...currentCheckpoint,
+    outstanding_requests: [
+      ...currentCheckpoint.outstanding_requests,
+      { ...anchor, request_id: `CONSUME-${"f".repeat(64)}-2` },
+    ],
+  };
+  assert.throws(
+    () =>
+      parseRunnerCheckpoint(
+        fixture.format("runner-checkpoint", duplicate),
+        "cloud-a",
+        snapshot.board,
+      ),
+    /duplicated/,
+  );
 });
 
 test("requirements comparison ignores formatting, check marks and bare delivered links, not safety text", () => {
@@ -275,7 +980,7 @@ test("acknowledgment payload roundtrips action and evidence code fences without 
   assert.equal(record.evidence, evidence);
   assert.equal(
     prepareConsumption(context, { runner: "Local", action, evidence }, [
-      { body: prepared.body, url: "existing" },
+      { body: prepared.body, url: `${context.coordination_target.url}#issuecomment-1` },
     ]).needed,
     false,
   );
@@ -286,9 +991,10 @@ function consumptionClient({
   transport = false,
   readback = true,
   prior = [],
+  context = pickupContext(),
+  complete = true,
 } = {}) {
   const writes = [];
-  const context = pickupContext();
   const saved = acknowledgment(context);
   return {
     writes,
@@ -296,8 +1002,17 @@ function consumptionClient({
     client: {
       coordinationRecords: () => ({
         nodes: writes.length
-          ? [...prior, { ...acknowledgmentComment(context), body: writes[0].body }]
+          ? [
+              ...prior,
+              {
+                ...acknowledgmentComment(context),
+                id: 2,
+                body: writes[0].body,
+                url: `${context.coordination_target.url}#issuecomment-2`,
+              },
+            ]
           : prior,
+        coverage: { complete, count: prior.length, total: complete ? prior.length : 100 },
       }),
       executionIssue: () => ({
         item: changed ? pickupIssue(1104, "Concurrent requirements") : pickupIssue(),
@@ -306,15 +1021,23 @@ function consumptionClient({
       api: {
         request(method, endpoint, payload) {
           assert.equal(method, "POST");
-          assert.equal(endpoint, `repos/${config.repository}/issues/793/comments`);
+          assert.equal(
+            endpoint,
+            `repos/${config.repository}/issues/${context.coordination_target.number}/comments`,
+          );
           writes.push(payload);
           if (transport) throw new Error("lost POST response");
-          return { body: { id: 1 } };
+          return { body: { id: 2 } };
         },
       },
       coordinationComment: () => {
         if (!readback) throw new Error("unavailable readback");
-        return { ...acknowledgmentComment(context), body: writes[0]?.body ?? saved.body };
+        return {
+          ...acknowledgmentComment(context),
+          id: 2,
+          url: `${context.coordination_target.url}#issuecomment-2`,
+          body: writes[0]?.body ?? saved.body,
+        };
       },
     },
   };
@@ -465,17 +1188,245 @@ test("selected context collects typed relationships completely and matches opaqu
   assert.throws(() => client.executionIssue(1104), /duplicate/);
 });
 
-test("acknowledgment history fails closed on count changes and recent-window truncation", () => {
+test("acknowledgment history validates bounded coverage and refuses count changes", () => {
   const client = new RoadmapClient(config);
-  client.repositoryIssue = () => ({ comments: 1 });
-  client.api.paginateRest = () => [];
-  assert.throws(() => client.coordinationRecords({ complete: true }), /incomplete/);
+  const target = coordinationTarget(config, 1104);
+  client.coordinationBinding = () => ({ comments: 100 });
   client.graphql = () => ({
     repository: {
-      issue: { comments: { nodes: [], totalCount: 100, pageInfo: { hasPreviousPage: true } } },
+      issue: {
+        url: target.url,
+        comments: { nodes: [], totalCount: 100, pageInfo: { hasPreviousPage: true } },
+      },
     },
   });
-  assert.throws(() => client.coordinationRecords(), /incomplete/);
+  assert.throws(() => client.coordinationRecords(target), /incomplete/);
+  const nodes = Array.from({ length: 50 }, (_, i) => ({
+    id: String(i),
+    url: `${target.url}#issuecomment-${i + 1}`,
+    body: "plain checkpoint",
+    createdAt: "2026-10-06T12:00:00Z",
+    updatedAt: "2026-10-06T12:00:00Z",
+  }));
+  client.graphql = () => ({
+    repository: {
+      issue: {
+        url: target.url,
+        comments: { nodes, totalCount: 100, pageInfo: { hasPreviousPage: true } },
+      },
+    },
+  });
+  assert.equal(client.coordinationRecords(target).coverage.complete, false);
+  let reads = 0;
+  client.coordinationBinding = () => ({ comments: ++reads === 1 ? 100 : 101 });
+  assert.throws(() => client.coordinationRecords(target), /incomplete/);
+});
+
+test("selected issue and explicit PR routes bind work/repository and never write legacy793", () => {
+  const target = coordinationTarget(config, 1104, 1543);
+  const context = pickupContext(pickupIssue(), pickupRelations(), { target });
+  const scenario = consumptionClient({ context });
+  const result = executeConsumption({
+    ...scenario,
+    config,
+    runner: "Local",
+    action: "Consumed",
+    evidence: "actual",
+    apply: true,
+  });
+  assert.equal(result.url, `${target.url}#issuecomment-2`);
+  const client = new RoadmapClient(config);
+  let node = {
+    number: 1543,
+    html_url: target.url,
+    pull_request: { url: "bound" },
+    comments: 2,
+    body: "Refs #1104.",
+  };
+  client.api = { request: () => ({ body: node }) };
+  assert.equal(client.coordinationBinding(target).number, 1543);
+  for (const body of [
+    "Refs #11040",
+    "https://github.com/other/repo/issues/1104",
+    "no work reference",
+    `https://github.com/${config.repository}/issues/1104x`,
+    `https://github.com/${config.repository}/issues/1104-not-the-issue`,
+    `https://github.com/${config.repository}/issues/11040`,
+  ]) {
+    node = { ...node, body };
+    assert.throws(() => client.coordinationBinding(target), /does not reference/);
+  }
+  for (const suffix of ["", ")", "#issuecomment-1", "?query=value"]) {
+    node = {
+      ...node,
+      body: `[Owner](https://github.com/${config.repository}/issues/1104${suffix}`,
+    };
+    assert.equal(client.coordinationBinding(target).number, 1543);
+  }
+  node = { ...node, body: "Refs #1104", html_url: "https://github.com/other/repo/pull/1543" };
+  assert.throws(() => client.coordinationBinding(target), /identity/);
+  assert.throws(() => coordinationTarget(config, 793), /read-only/);
+  assert.throws(() => coordinationTarget(config, 1104, 793), /read-only/);
+  for (const mutation of [
+    { pickup: { reported_runner: "Other" } },
+    { coordination_target: { ...target, work_issue: 209 } },
+    { coordination_target: { ...target, repository: "other/repo" } },
+  ]) {
+    const invalid = consumptionClient({ context });
+    invalid.context = { ...context, ...mutation };
+    assert.throws(() =>
+      executeConsumption({
+        ...invalid,
+        config,
+        runner: "Local",
+        action: "Consumed",
+        evidence: "actual",
+        apply: true,
+      }),
+    );
+    assert.equal(invalid.writes.length, 0);
+  }
+});
+
+test("exact legacy refs are read-only comparison; other work refs and identity substitutions fail", () => {
+  const client = new RoadmapClient(config);
+  const target = coordinationTarget(config, 1104);
+  const url = `https://github.com/${config.repository}/issues/793#issuecomment-1`;
+  const requests = [];
+  let original = {
+    html_url: url,
+    issue_url: `https://api.github.com/repos/${config.repository}/issues/793`,
+    body: acknowledgment().body,
+  };
+  client.api = {
+    request: (method, endpoint) => {
+      requests.push([method, endpoint]);
+      return { body: original };
+    },
+  };
+  assert.equal(
+    consumedReference(client.coordinationComment(url, target), {
+      repository: config.repository,
+      runner: "Local",
+      issue: 1104,
+    }).issue.number,
+    1104,
+  );
+  assert.deepEqual(requests, [["GET", `repos/${config.repository}/issues/comments/1`]]);
+  assert.throws(
+    () =>
+      client.coordinationComment(
+        `https://github.com/${config.repository}/issues/209#issuecomment-1`,
+        target,
+      ),
+    /selected issue/,
+  );
+  assert.throws(
+    () =>
+      consumedReference(client.coordinationComment(url, target), {
+        repository: config.repository,
+        runner: "Other",
+        issue: 1104,
+      }),
+    /does not match/,
+  );
+  original = {
+    ...original,
+    issue_url: `https://api.github.com/repos/${config.repository}/issues/1104`,
+  };
+  assert.throws(() => client.coordinationComment(url, target), /identity/);
+  const substituted = acknowledgmentComment(
+    pickupContext(pickupIssue(), pickupRelations(), {
+      target: coordinationTarget(config, 1104, 1543),
+    }),
+  );
+  substituted.url = `${target.url}#issuecomment-1`;
+  assert.throws(
+    () =>
+      consumedReference(substituted, {
+        repository: config.repository,
+        runner: "Local",
+        issue: 1104,
+        target,
+      }),
+    /bound issue\/PR/,
+  );
+});
+
+test("incomplete absence refuses new writes while covered quiet repeats and revisited revisions remain correct", () => {
+  const options = { config, runner: "Local", action: "Consumed", evidence: "actual", apply: true };
+  const absent = consumptionClient({ complete: false });
+  assert.throws(() => executeConsumption({ ...options, ...absent }), /absence\/latest is unknown/);
+  assert.equal(absent.writes.length, 0);
+  const outside = consumptionClient({ complete: false });
+  outside.context.consumed_reference = {
+    url: "exact old reference",
+    latest_consumption: "not established",
+  };
+  assert.throws(() => executeConsumption({ ...options, ...outside }), /absence\/latest is unknown/);
+  const quiet = consumptionClient({ complete: false, prior: [acknowledgmentComment()] });
+  assert.equal(executeConsumption({ ...options, ...quiet }).needed, false);
+  assert.equal(quiet.writes.length, 0);
+  const reordered = JSON.parse(JSON.stringify(acknowledgmentComment()));
+  const prepared = acknowledgment();
+  prepared.record.coordination_target = Object.fromEntries(
+    Object.entries(prepared.record.coordination_target).reverse(),
+  );
+  reordered.body = `<!-- portcove-roadmap-consumed:v1 -->\n\`\`\`json\n${JSON.stringify(prepared.record)}\n\`\`\``;
+  const semanticQuiet = consumptionClient({ complete: false, prior: [reordered] });
+  assert.equal(executeConsumption({ ...options, ...semanticQuiet }).needed, false);
+  assert.equal(semanticQuiet.writes.length, 0);
+  const changed = pickupContext(pickupIssue(1104, "Changed acceptance"));
+  const revisited = consumptionClient({
+    complete: false,
+    prior: [acknowledgmentComment(), acknowledgmentComment(changed)],
+  });
+  assert.equal(executeConsumption({ ...options, ...revisited }).needed, true);
+  assert.equal(revisited.writes.length, 1);
+});
+
+test("same-count raw history edits and changed raw observations stop before writing", () => {
+  const scenario = consumptionClient();
+  let reads = 0;
+  scenario.client.coordinationRecords = () => ({
+    nodes: [{ id: 1, body: ++reads === 1 ? "before" : "after" }],
+    coverage: { complete: true, count: 1, total: 1 },
+  });
+  assert.throws(
+    () =>
+      executeConsumption({
+        ...scenario,
+        config,
+        runner: "Local",
+        action: "Consumed",
+        evidence: "actual",
+        apply: true,
+      }),
+    /history changed/,
+  );
+  assert.equal(scenario.writes.length, 0);
+  const raw = consumptionClient();
+  let observations = 0;
+  raw.client.executionIssue = () => ({
+    item:
+      ++observations === 1
+        ? pickupIssue()
+        : pickupIssue(1104, "## Acceptance\n- [x] Preserve recovery."),
+    relationships: pickupRelations(),
+  });
+  assert.throws(
+    () =>
+      executeConsumption({
+        ...raw,
+        config,
+        runner: "Local",
+        action: "Consumed",
+        evidence: "actual",
+        apply: true,
+      }),
+    /snapshot is stale/,
+  );
+  assert.equal(raw.writes.length, 0);
 });
 
 test("capability milestones preserve history and fail closed during partial migration", () => {

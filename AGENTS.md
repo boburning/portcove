@@ -59,24 +59,32 @@ head.
 
 Use the live Project's common `roadmap.mjs next` queue for Required and Planned
 work. Commitment controls release readiness, never blanket execution eligibility.
-At clean handoffs, preserve accepted reservations and rotate useful coverage of
-required product/delivery, full-backlog port rollout, and bounded acceleration or
-other Planned work across two cloud lanes plus local; no fixed roles or idle quota.
+At clean handoffs, preserve healthy accepted reservations and favor completion of
+accepted beta outcomes, exact remaining acceptance, demonstrated prerequisites
+for several beta outcomes or fitting frozen-cohort routes, and actual delivery
+bottlenecks. Immediate safety/data-loss problems and broken required validation
+come first. A Planned task can be the best beta accelerator; commitment alone is
+not a scheduling algorithm. Use relevance, dependencies, capability and ownership
+across two cloud lanes plus local; no fixed roles or idle quota. Unrelated approved
+work remains eligible when no higher-value available beta work can use that lane.
 Each actionable Now/Next item has an accepted assignment or an ordered position
 behind named work. Scheduling predecessors are not blockers; recommendations
 are not reservations. Record concrete pass-over reasons and resume conditions in
-#793, prefer older comparable executable work, and report repeated deferrals in
-the existing nightly report. Being Planned is never a pass-over reason.
-Prioritize concrete development acceleration, bound it to completion/no-change,
-and preserve real resource guards, independent review and current model/cost
-choices. Do not serialize disjoint lanes or preempt healthy work.
+the owning issue/PR, prefer older comparable executable work, and report repeated
+deferrals in the existing nightly report. Being Planned is never a pass-over reason.
+Execute acceleration before beta when it is a necessary repair, a safe bounded
+part of approved work, or an evidenced recurring bottleneck likely to repay its
+implementation and qualification cost during remaining beta delivery. Capture
+speculative improvements with their canonical owner and later disposition.
+Preserve real resource guards, independent review and current model/cost choices.
+Do not serialize disjoint lanes or preempt healthy work.
 See `docs/PROJECT-GOVERNANCE.md` for the complete selection/reporting rule.
 
 ## Maintaining the roadmap
 
 Start at `docs/ROADMAP.md`. Product Outcomes is a presentation of canonical
 finite outcomes, not an execution or readiness filter. Use the common `next`
-queue, actual reservations in #793, and complete release-readiness analysis.
+queue, actual accepted reservations and complete release-readiness analysis.
 Native children contribute to their parent's defined completion; later
 independent outcomes are siblings linked by topic and genuine prerequisites.
 Keep the issue body a coherent current specification, preserve superseded text
@@ -89,8 +97,11 @@ At invocation/resume, selection, clean handoff, review and final acceptance, con
 the relevant live requirements and accepted reservation. Use `roadmap-context`
 and the pickup/upkeep contract in `docs/PROJECT-GOVERNANCE.md`; compare actual
 deltas before repeating affected work. Queue recommendations, sent steers and
-consumption records do not prove assignment or worker activity. Use existing
-accepted grants; a checkout lock is not cross-machine exclusivity. Capture
+consumption records do not prove assignment or worker activity. Use the operational issue and three fixed checkpoint IDs in
+`.github/roadmap.json:runner_coordination`, direct connected runner messages and
+actual pointer/instance/assignment-generation ACKs. Dot alone edits durable state
+and serializes grants; missing or invalid state is UNKNOWN, never unowned.
+Use existing accepted grants; a checkout lock is not cross-machine exclusivity. Capture
 discoveries and narrow blockers with their canonical owner before ending or
 switching. After verified delivery reconcile the task, finite parent and affected
 prerequisites and blocking consumers, then release/hand off and select eligible
