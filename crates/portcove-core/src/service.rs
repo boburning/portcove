@@ -9112,31 +9112,7 @@ fn main() {
             crate::external_runtime::inspect(&external, &runtime, &library_root).unwrap_err();
         runtime.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
         let mut service = service_with_release(library, "v1");
-        let mut document = service.catalog().authoritative_document();
-        let mut port = document
-            .ports
-            .iter()
-            .find(|port| port.id == "zelda64-recomp")
-            .unwrap()
-            .clone();
-        port.id = "external-location-probe".into();
-        port.name = "External location probe".into();
-        port.platforms = vec![platform];
-        port.automated_tested_platforms.clear();
-        port.manually_validated_platforms.clear();
-        port.source_profile = None;
-        port.bios_source_profile = None;
-        port.runtime_source_filename = None;
-        port.persistent_paths.clear();
-        port.presentation = None;
-        port.release.provider = ReleaseSource::UserPrepared;
-        port.release.asset_hints.clear();
-        port.release.user_prepared.insert(platform, runtime);
-        port.executable_hints = [(platform, vec!["game.exe".into()])].into();
-        document.ports.push(port);
-        service.replace_catalog_for_test(
-            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
-        );
+        service.replace_catalog_for_test(external_location_catalog(platform, runtime));
         let preview = service
             .preview_external_runtime("external-location-probe", &external)
             .unwrap();
@@ -9151,6 +9127,39 @@ fn main() {
             .register_external_runtime("external-location-probe", &external, &authorization.token)
             .unwrap();
         (temporary, service, record)
+    }
+
+    // Declare the source-free contract independently of live title definitions.
+    // The fixture still performs the real service bootstrap before replacement.
+    fn external_location_catalog(
+        platform: Platform,
+        runtime: crate::UserPreparedRuntimeSpec,
+    ) -> Catalog {
+        let platform_key = serde_json::to_value(platform).unwrap();
+        let platform_key = platform_key.as_str().unwrap();
+        let document = serde_json::json!({
+            "schema_version": 2,
+            "source_catalog": {
+                "evidence": [], "identities": [], "contracts": [],
+                "validators": [], "qualification": []
+            },
+            "ports": [{
+                "id": "external-location-probe",
+                "name": "External location probe",
+                "summary": "Inert external registration status fixture.",
+                "project_url": "https://example.invalid/external-location-probe",
+                "support_tier": "stable",
+                "channels": ["stable"],
+                "platforms": [platform],
+                "adapter": "n64-recomp-portable",
+                "release": {
+                    "provider": "user-prepared",
+                    "user_prepared": { (platform_key): runtime }
+                },
+                "executable_hints": { (platform_key): ["game.exe"] }
+            }]
+        });
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
     }
 
     fn prepare_external_location_fixture_launch(
@@ -9223,6 +9232,36 @@ fn main() {
             assert!(listed.is_none());
         }
         assert_eq!(retained_row(), before);
+    }
+
+    #[test]
+    fn external_location_fixture_contains_only_its_source_free_registration_contract() {
+        let started = std::time::Instant::now();
+        let (_temporary, service, record) = external_location_fixture();
+        let document = service.catalog().authoritative_document();
+        let bytes = serde_json::to_vec(&document).unwrap();
+        eprintln!(
+            "external fixture: ports={}, profiles={}, bytes={}, setup={:?}",
+            document.ports.len(),
+            document.source_profiles.len(),
+            bytes.len(),
+            started.elapsed()
+        );
+        assert_eq!(document.ports.len(), 1);
+        assert!(document.source_profiles.is_empty());
+        let source = document.source_catalog.as_ref().unwrap();
+        assert!(source.evidence.is_empty());
+        assert!(source.identities.is_empty());
+        assert!(source.contracts.is_empty());
+        assert!(source.validators.is_empty());
+        assert!(source.qualification.is_empty());
+        let port = service.catalog().port(&record.port_id).unwrap();
+        assert_eq!(port.id, "external-location-probe");
+        assert!(port.source_profile.is_none());
+        assert!(port.bios_source_profile.is_none());
+        assert!(port.persistent_paths.is_empty());
+        assert_external_location_readiness(&service, false);
+        assert!(service.catalog().port("zelda64-recomp").is_err());
     }
 
     #[test]
@@ -9360,6 +9399,178 @@ fn main() {
         assert_eq!(row(), before);
         assert_eq!(fs::read(second.executable).unwrap(), b"accepted runtime");
         assert!(!first.executable.exists());
+    }
+
+    #[test]
+    fn dkc3_prepared_positional_source_preflight_and_removal_preserve_external_files() {
+        // Redistributable inert bytes exercise the real admitted definition and
+        // Core operation path. No upstream executable or game source is run.
+        let temporary = tempfile::tempdir().unwrap();
+        let library_root = temporary.path().join("library");
+        let library = Library::open(&library_root).unwrap();
+        let external = temporary.path().join("player owned runtime");
+        fs::create_dir(&external).unwrap();
+        let expected_external = fs::canonicalize(&external).unwrap();
+        fs::write(external.join("DKC3Recomp.exe"), b"inert executable fixture").unwrap();
+        fs::write(external.join("SDL2.dll"), b"inert immutable dependency").unwrap();
+        fs::create_dir(external.join("saves")).unwrap();
+        fs::write(external.join("saves/unknown-save.dat"), b"player save").unwrap();
+        let source = temporary.path().join("original source ; literal.sfc");
+        let source_bytes = b"inert exact headerless source fixture";
+        fs::write(&source, source_bytes).unwrap();
+        let mut service = service_with_release(library.clone(), "v1");
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "dkc3-na-en-fr")
+            .unwrap();
+        let crate::SourceRepresentationKind::RawFile { identities } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("DKC3 must retain exact original-file admission")
+        };
+        identities[0].sha256 = Some(hex::encode(Sha256::digest(source_bytes)));
+        let platform = Platform::current().unwrap();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "dkc3-recomp")
+            .unwrap();
+        let mut runtime = port.release.user_prepared[&Platform::WindowsX86_64].clone();
+        // Only fixture bytes/platform replace the accepted real-package pin.
+        let mismatch =
+            crate::external_runtime::inspect(&external, &runtime, &library_root).unwrap_err();
+        runtime.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
+        port.platforms = vec![platform];
+        port.release.user_prepared = [(platform, runtime)].into();
+        port.executable_hints = [(platform, vec!["DKC3Recomp.exe".into()])].into();
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        service.register_source("dkc3-na-en-fr", &source).unwrap();
+        assert!(
+            service
+                .preview_external_runtime("dkc3-recomp", &library_root)
+                .is_err()
+        );
+        let preview = service
+            .preview_external_runtime("dkc3-recomp", &external)
+            .unwrap();
+        assert!(
+            service
+                .register_external_runtime("dkc3-recomp", &external, "unreviewed")
+                .is_err()
+        );
+        fs::write(external.join("SDL2.dll"), b"changed after review").unwrap();
+        assert!(
+            service
+                .authorize_external_runtime("dkc3-recomp", &external, &preview.preview_sha256)
+                .is_err()
+        );
+        fs::write(external.join("SDL2.dll"), b"inert immutable dependency").unwrap();
+        let authorization = service
+            .authorize_external_runtime("dkc3-recomp", &external, &preview.preview_sha256)
+            .unwrap();
+        let record = service
+            .register_external_runtime("dkc3-recomp", &external, &authorization.token)
+            .unwrap();
+        assert!(
+            service
+                .register_external_runtime("dkc3-recomp", &external, &authorization.token)
+                .is_err()
+        );
+        drop(service);
+        let mut reopened = service_with_release(Library::open(&library_root).unwrap(), "v1");
+        reopened.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        let (retained_record, catalog) = reopened
+            .library
+            .external_runtime_with_port("dkc3-recomp")
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained_record.id, record.id);
+        let prepare = |source_override| {
+            reopened.prepare_launch_for_external(
+                &retained_record,
+                &catalog,
+                source_override,
+                &OperationCoordinator::new("launch", None),
+            )
+        };
+        let launch = prepare(None).unwrap();
+        assert_eq!(launch.arguments, [source.to_str().unwrap()]);
+        assert_eq!(launch.executable, expected_external.join("DKC3Recomp.exe"));
+        assert_eq!(launch.working_directory, expected_external);
+        assert_eq!(
+            launch.environment,
+            [("SNESRECOMP_NO_LAUNCHER".into(), "1".into())].into()
+        );
+        assert_eq!(launch.launch_kind, crate::LaunchKind::Native);
+        let command = ChildProcessPolicy::game_command(&launch.process_spec(), &[]).unwrap();
+        assert_eq!(command.get_args().collect::<Vec<_>>(), [source.as_os_str()]);
+        assert!(prepare(Some(&source)).is_ok());
+        for changed in [
+            b"changed original".to_vec(),
+            [vec![0_u8; 512], source_bytes.to_vec()].concat(),
+        ] {
+            fs::write(&source, changed).unwrap();
+            assert!(prepare(None).is_err());
+            assert!(prepare(Some(&source)).is_err());
+        }
+        fs::write(&source, source_bytes).unwrap();
+        let wrong_extension = temporary.path().join("wrong.smc");
+        fs::write(&wrong_extension, source_bytes).unwrap();
+        assert!(prepare(Some(&wrong_extension)).is_err());
+        fs::rename(&source, temporary.path().join("moved.sfc")).unwrap();
+        assert!(prepare(None).is_err());
+        fs::rename(temporary.path().join("moved.sfc"), &source).unwrap();
+        fs::write(external.join("DKC3Recomp.exe"), b"altered executable").unwrap();
+        assert!(prepare(None).is_err());
+        fs::write(external.join("DKC3Recomp.exe"), b"inert executable fixture").unwrap();
+        fs::write(external.join("SDL2.dll"), b"altered dependency").unwrap();
+        assert!(prepare(None).is_err());
+        fs::write(external.join("SDL2.dll"), b"inert immutable dependency").unwrap();
+        fs::write(external.join("rom.cfg"), source.to_str().unwrap()).unwrap();
+        fs::write(external.join("launcher.cfg"), b"player settings").unwrap();
+        assert!(prepare(None).is_ok());
+        fs::write(external.join("unknown-save.out"), b"unmapped user data").unwrap();
+        assert!(prepare(None).is_err());
+        assert!(
+            reopened
+                .remove_external_runtime("dkc3-recomp", "unreviewed")
+                .is_err()
+        );
+        let removal = reopened.preview_external_removal("dkc3-recomp").unwrap();
+        assert!(removal.external_files_will_be_preserved);
+        let authorization = reopened
+            .authorize_external_removal("dkc3-recomp", &removal.preview_sha256)
+            .unwrap();
+        reopened
+            .remove_external_runtime("dkc3-recomp", &authorization.token)
+            .unwrap();
+        assert!(
+            reopened
+                .library
+                .external_runtime_with_port("dkc3-recomp")
+                .unwrap()
+                .is_none()
+        );
+        for (relative, bytes) in [
+            ("DKC3Recomp.exe", b"inert executable fixture".as_slice()),
+            ("SDL2.dll", b"inert immutable dependency".as_slice()),
+            ("saves/unknown-save.dat", b"player save".as_slice()),
+            ("launcher.cfg", b"player settings".as_slice()),
+            ("unknown-save.out", b"unmapped user data".as_slice()),
+            ("rom.cfg", source.to_str().unwrap().as_bytes()),
+        ] {
+            assert_eq!(fs::read(external.join(relative)).unwrap(), bytes);
+        }
+        assert_eq!(fs::read(&source).unwrap(), source_bytes);
     }
 
     #[test]

@@ -1384,6 +1384,74 @@ mod tests {
         include_str!("../catalog/catalog-schema1-admission-baseline.json");
     const SCHEMA_1_CATALOG_FIXTURE: &str = include_str!("../catalog/catalog-schema1-fixture.json");
 
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct ReviewedLegacyAdditions {
+        source_profile_ids: Vec<String>,
+        port_ids: Vec<String>,
+    }
+
+    fn reviewed_legacy_additions(legacy: &Catalog, current: &Catalog) -> ReviewedLegacyAdditions {
+        let additions: ReviewedLegacyAdditions = serde_json::from_str(include_str!(
+            "../catalog/catalog-legacy-additions-fixture.json"
+        ))
+        .expect("independently reviewed additive expectations");
+        for (ids, frozen) in [
+            (
+                &additions.source_profile_ids,
+                legacy
+                    .document()
+                    .source_profiles
+                    .iter()
+                    .map(|profile| profile.id.as_str())
+                    .collect::<HashSet<_>>(),
+            ),
+            (
+                &additions.port_ids,
+                legacy
+                    .document()
+                    .ports
+                    .iter()
+                    .map(|port| port.id.as_str())
+                    .collect::<HashSet<_>>(),
+            ),
+        ] {
+            assert!(!ids.is_empty());
+            assert_eq!(ids.iter().collect::<HashSet<_>>().len(), ids.len());
+            for id in ids {
+                assert!(
+                    id.split('-').all(|part| !part.is_empty()
+                        && part
+                            .bytes()
+                            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())),
+                    "invalid expected identity: {id}"
+                );
+                assert!(
+                    !frozen.contains(id.as_str()),
+                    "expected addition overlaps legacy: {id}"
+                );
+            }
+        }
+        for id in &additions.source_profile_ids {
+            assert!(
+                current
+                    .source_catalog()
+                    .unwrap()
+                    .identities
+                    .iter()
+                    .any(|profile| &profile.id == id),
+                "missing independently expected profile: {id}"
+            );
+        }
+        for id in &additions.port_ids {
+            assert!(
+                current.port(id).is_ok(),
+                "missing independently expected port: {id}"
+            );
+        }
+        additions
+    }
+
     fn canonical_json(value: &mut serde_json::Value) {
         match value {
             serde_json::Value::Array(items) => {
@@ -1415,6 +1483,66 @@ mod tests {
         assert!(!valid_direct_release_url(
             "http://127.0.0.1:43210/fixture.tar.gz"
         ));
+    }
+
+    #[test]
+    fn dkc3_recomp_pins_only_the_nonowning_windows_prepared_route() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("dkc3-recomp").unwrap();
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.release.provider, ReleaseSource::UserPrepared);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert!(port.persistent_paths.is_empty());
+        assert!(port.runtime_source_filename.is_none());
+        assert!(port.setup_executable_hints.is_empty());
+        assert!(port.launch_arguments.is_empty());
+        assert!(port.release.direct.is_empty());
+        assert!(port.release.asset_hints.is_empty());
+        assert_eq!(port.launch_environment.len(), 1);
+        assert_eq!(port.launch_environment["SNESRECOMP_NO_LAUNCHER"], "1");
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        assert_eq!(runtime.version, "v0.0.6");
+        assert_eq!(runtime.archive_name, "DKC3Recomp-v0.0.6-windows-x64.zip");
+        assert_eq!(runtime.archive_size, 6_009_000);
+        assert_eq!(
+            runtime.archive_sha256,
+            "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11"
+        );
+        assert_eq!(runtime.executable, "DKC3Recomp.exe");
+        assert_eq!(
+            runtime.immutable_tree_sha256,
+            "3b8e1a483ada9a544a084717eba4eeb5c8f4b7168cda85b3697776f1a0dacdee"
+        );
+        assert_eq!(runtime.source_argument_extension.as_deref(), Some("sfc"));
+        assert_eq!(
+            runtime.mutable_paths,
+            [
+                "saves",
+                "launcher.cfg",
+                "rom.cfg",
+                "performance.log",
+                "diagnostics",
+                "keybinds.ini",
+                ".snesrecomp_write_probe"
+            ]
+        );
+        assert!(
+            catalog
+                .source_catalog()
+                .unwrap()
+                .qualification
+                .iter()
+                .all(|record| record.scope.port_id != port.id)
+        );
+        let profile = catalog.source_profile("dkc3-na-en-fr").unwrap();
+        assert_eq!(port.source_profile.as_deref(), Some(profile.id.as_str()));
+        assert_eq!(profile.accepted_extensions, ["sfc"]);
+        assert!(profile.accepted_sha1.is_empty());
+        assert_eq!(
+            profile.accepted_sha256,
+            ["2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b"]
+        );
     }
 
     #[test]
@@ -1596,33 +1724,18 @@ mod tests {
     fn schema_2_compatibility_projection_preserves_every_schema_1_profile() {
         let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
         let migrated = Catalog::embedded().unwrap();
+        let additions = reviewed_legacy_additions(&legacy, &migrated);
         assert_eq!(migrated.document().schema_version, 2);
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 12
+            legacy.document().source_profiles.len() + additions.source_profile_ids.len()
         );
         let projected_legacy_profiles = migrated
             .document()
             .source_profiles
             .iter()
-            .filter(|profile| {
-                ![
-                    "pokemon-snap",
-                    "castlevania-legacy-of-darkness",
-                    "diddy-kong-racing-golden-balloon",
-                    "star-fox-enhanced-usa-v1-0",
-                    "duke-nukem-zero-hour",
-                    "ape-escape-psx",
-                    "mega-man-x5-psx",
-                    "paperboat-paper-mario-us",
-                    "open-nectar-pikmin-disc",
-                    "wave-race-64",
-                    "f-zero-snes-usa",
-                    "road-rash-64",
-                ]
-                .contains(&profile.id.as_str())
-            })
+            .filter(|profile| !additions.source_profile_ids.contains(&profile.id))
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(
@@ -1775,23 +1888,7 @@ mod tests {
             .document()
             .ports
             .iter()
-            .filter(|port| {
-                ![
-                    "snap64-recomp",
-                    "cvlod-recomp",
-                    "diddy-kong-racing-golden-balloon",
-                    "star-fox-enhanced",
-                    "duke-nukem-zero-hour-recompiled",
-                    "ape-escape-recompiled",
-                    "mega-man-x5-recompiled",
-                    "paperboat",
-                    "open-nectar-pikmin",
-                    "wave-race-64-recomp",
-                    "f-zero-snes-recomp",
-                    "road-rash-64-recompiled",
-                ]
-                .contains(&port.id.as_str())
-            })
+            .filter(|port| !additions.port_ids.contains(&port.id))
             .cloned()
             .collect::<Vec<_>>();
         // Presentation and concise summaries are additive schema-2 client
@@ -2211,27 +2308,12 @@ mod tests {
         );
 
         let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
+        let additions = reviewed_legacy_additions(&legacy, &catalog);
         let projected_legacy_profiles = catalog
             .document()
             .source_profiles
             .iter()
-            .filter(|profile| {
-                ![
-                    "pokemon-snap",
-                    "castlevania-legacy-of-darkness",
-                    "diddy-kong-racing-golden-balloon",
-                    "star-fox-enhanced-usa-v1-0",
-                    "duke-nukem-zero-hour",
-                    "ape-escape-psx",
-                    "mega-man-x5-psx",
-                    "paperboat-paper-mario-us",
-                    "open-nectar-pikmin-disc",
-                    "wave-race-64",
-                    "f-zero-snes-usa",
-                    "road-rash-64",
-                ]
-                .contains(&profile.id.as_str())
-            })
+            .filter(|profile| !additions.source_profile_ids.contains(&profile.id))
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(

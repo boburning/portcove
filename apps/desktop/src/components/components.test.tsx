@@ -574,9 +574,11 @@ describe("desktop components", () => {
     expect(ready.indexOf("Ready to play")).toBeLessThan(ready.indexOf("Play"));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf(port.summary));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Change artwork"));
-    expect(downloaded).toContain("Installed · update saved for later");
+    expect(downloaded).toContain("Ready to play");
+    expect(downloaded).toContain("Use update · 1.0");
     expect(downloaded).toContain("Play the installed version or use the saved update 1.0.");
-    expect(downloaded).toContain('class="hero-reason"');
+    expect(downloaded).toContain("data-update-attention");
+    expect(downloaded).not.toContain('class="hero-reason"');
     expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
     expect(`${ready}${downloaded}`).not.toContain("update staged");
     expect(`${ready}${downloaded}`).not.toContain("active version");
@@ -2981,10 +2983,56 @@ describe("desktop components", () => {
 
     expect(html).toContain("Update downloaded");
     expect(html).toContain("1 update downloaded");
-    expect(html).toContain("Review update");
+    expect(html).toMatch(/<h2[^>]*>Sample Port<\/h2>[\s\S]*?Ready to play/u);
+    expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
     expect(html).not.toContain("Staged updates");
   });
+
+  it.each([
+    {
+      readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" },
+      label: "Ready to play",
+      action: "View details",
+    },
+    {
+      readiness: {
+        launchable: false,
+        blockers: ["missing_runtime"],
+        pending_setup: false,
+        source: "current",
+      },
+      label: "Runtime required",
+      action: "Finish setup",
+    },
+    { readiness: null, label: "Readiness unavailable", action: "Review game" },
+  ] satisfies { readiness: PortStatus["readiness"]; label: string; action: string }[])(
+    "announces downloaded update attention beside $label on Catalog cards",
+    ({ readiness, label, action }) => {
+      const install = installRecord();
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        active: install,
+        staged: { ...install, id: "2", version: "2.0", staged: true },
+        readiness,
+      };
+      const html = renderToStaticMarkup(
+        <PortBrowser
+          view="catalog"
+          ports={[port]}
+          statuses={new Map([[port.id, status]])}
+          overview={{ installed: 1, ready: 0, needsSetup: 0, staged: 1 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={vi.fn()}
+          loading={false}
+        />,
+      );
+      expect(html).toContain(`aria-label="Sample Port. ${label}. Update downloaded. ${action}."`);
+      expect(html).toContain("Update downloaded</span>");
+    },
+  );
 
   it("offers Continue only from a recorded successful launch", () => {
     const install = installRecord();

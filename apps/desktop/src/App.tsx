@@ -24,6 +24,7 @@ import {
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import { focusSettingsTarget } from "./features/app-shell/focus-settings-target";
+import { GameFileScanProvider } from "./features/game-file-discovery/use-game-file-scan";
 import { useSetupSource } from "./features/app-shell/use-setup-source";
 import { focusApplicationUpdateRoute } from "./features/application-update/focus-application-update-route";
 import {
@@ -136,20 +137,21 @@ export default function App() {
       />
     );
   return (
-    <Workspace
-      key={bootstrap.generation}
-      bootstrap={bootstrap}
-      initialBrowsingContext={
-        bootstrap.library_root
-          ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
-          : undefined
-      }
-      rememberBrowsingContext={rememberBrowsingContext}
-      switchLibrary={switchFromSettings}
-      resetLibrary={resetFromSettings}
-      returnToSelection={returnToSelection}
-      consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
-    />
+    <GameFileScanProvider key={bootstrap.generation}>
+      <Workspace
+        bootstrap={bootstrap}
+        initialBrowsingContext={
+          bootstrap.library_root
+            ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
+            : undefined
+        }
+        rememberBrowsingContext={rememberBrowsingContext}
+        switchLibrary={switchFromSettings}
+        resetLibrary={resetFromSettings}
+        returnToSelection={returnToSelection}
+        consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
+      />
+    </GameFileScanProvider>
   );
 }
 

@@ -3,6 +3,11 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
+import {
+  GameFileScanProvider,
+  useGameFileScan,
+  useGameFileScanObserver,
+} from "../features/game-file-discovery/use-game-file-scan";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
 import * as picker from "../file-picker";
 import { portDefinition, portStatus } from "../test-fixtures";
@@ -353,6 +358,99 @@ it("recognizes a registered source in streamed results but still reviews a diffe
   expect(button("Review game files now")).toBeDefined();
 });
 
+it("keeps live catalog associations distinct through completion and stale readback", async () => {
+  const ports = [
+    { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" },
+    { ...portDefinition(), id: "game-b", name: "Game B", source_profile: "game" },
+    {
+      ...portDefinition(),
+      id: "firmware-consumer",
+      name: "Firmware consumer",
+      source_profile: "other",
+      bios_source_profile: "game",
+    },
+    { ...portDefinition(), id: "unrelated", name: "Unrelated", source_profile: "other" },
+  ];
+  const orphan = {
+    ...snapshot.report.candidates[0],
+    profile_id: "orphan",
+    path: "D:/Games/orphan.bin",
+  };
+  const completed = {
+    ...snapshot,
+    report: { ...snapshot.report, candidates: [...snapshot.report.candidates, orphan] },
+  };
+  let onEvent: ((event: OperationEvent) => void) | undefined;
+  let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    onEvent = callback;
+    return new Promise<GameFileScanSnapshot>((resolve) => {
+      finish = resolve;
+    });
+  });
+  await act(async () => root.render(<GameFileLibraries ports={ports} profiles={[]} />));
+  await click("Scan saved folders");
+  for (const [index, candidate] of completed.report.candidates.entries()) {
+    await act(async () =>
+      onEvent?.({
+        schema_version: 3,
+        operation_id: "scan-1",
+        parent_operation_id: null,
+        target: null,
+        sequence: index,
+        timestamp_ms: 1,
+        operation: "discover_sources",
+        type: "source_candidate",
+        profile_id: candidate.profile_id,
+        path: candidate.path,
+        sha256: candidate.sha256,
+        size: candidate.size,
+      }),
+    );
+  }
+  const row = (kind: "live" | "completed", profile: string) => {
+    const element = document.querySelector(
+      `[data-${kind}-candidate][data-profile-id="${profile}"]`,
+    );
+    expect(element).not.toBeNull();
+    return element!;
+  };
+  expect(row("live", "game").textContent).toContain(
+    "Catalog ports using this profile: Game A, Game B, Firmware consumer",
+  );
+  expect(row("live", "game").textContent).not.toContain("Unrelated");
+  expect(row("live", "orphan").textContent).toContain(
+    "No catalog port currently uses this profile",
+  );
+  expect(document.body.textContent).not.toContain("Ready for setup review");
+  expect(document.body.textContent).not.toContain("Already added");
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+
+  const currentPorts = ports.filter((port) => port.id !== "game-a");
+  await act(async () => root.render(<GameFileLibraries ports={currentPorts} profiles={[]} />));
+  expect(row("live", "game").textContent).toContain(
+    "Catalog ports using this profile: Game B, Firmware consumer",
+  );
+  expect(row("live", "game").textContent).not.toContain("Game A");
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(completed);
+  await act(async () => finish?.(completed));
+  expect(document.querySelector("[data-live-candidate]")).toBeNull();
+  expect(row("completed", "game").textContent).toContain(
+    "Catalog ports using this profile: Game B, Firmware consumer",
+  );
+  expect(row("completed", "orphan").textContent).toContain(
+    "No catalog port currently uses this profile",
+  );
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...completed,
+    freshness: "inputs_changed",
+  });
+  await click("Refresh folders");
+  expect(row("completed", "game").querySelector("button")?.disabled).toBe(true);
+  expect(row("completed", "orphan").querySelector("button")?.disabled).toBe(true);
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
 it("reviews a streamed match through a fresh core plan before the scan completes", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot)
     .mockResolvedValueOnce(null)
@@ -580,6 +678,76 @@ it("reports cancelled source addition while keeping its review and completed sca
   expect(document.body.textContent).not.toContain("Scan cancelled");
 });
 
+it("retains a progressive scan across selected game details without starting another scan", async () => {
+  const source = snapshot.report.candidates[0];
+  let emit: ((event: OperationEvent) => void) | undefined;
+  let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    emit = callback;
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  });
+  function WorkspaceJourney() {
+    const [details, setDetails] = useState(false);
+    return details ? (
+      <button onClick={() => setDetails(false)}>Back to settings</button>
+    ) : (
+      <GameFileLibraries
+        ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
+        profiles={[]}
+        registeredSources={[source]}
+        onOpenPort={() => setDetails(true)}
+      />
+    );
+  }
+  await act(async () =>
+    root.render(
+      <GameFileScanProvider>
+        <WorkspaceJourney />
+      </GameFileScanProvider>,
+    ),
+  );
+  await click("Scan saved folders");
+  await act(async () => {
+    emit?.({
+      schema_version: 3,
+      type: "started",
+      operation_id: "scan-owned",
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+    });
+    emit?.({
+      schema_version: 3,
+      type: "source_candidate",
+      operation_id: "scan-owned",
+      parent_operation_id: null,
+      target: null,
+      sequence: 2,
+      timestamp_ms: 2,
+      operation: "discover_sources",
+      ...source,
+    });
+  });
+  await click("View Game A details");
+  await click("Back to settings");
+  expect(document.body.textContent).toContain("Scanning selected folders…");
+  expect(button("Scan saved folders").disabled).toBe(true);
+  expect(button("Cancel scan")).toBeDefined();
+  expect(button("View Game A details")).toBeDefined();
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+  await act(async () => {
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+    finish?.(snapshot);
+  });
+  expect(document.body.textContent).not.toContain("Scanning selected folders…");
+  expect(document.body.textContent).toContain(source.path);
+  expect(button("Scan saved folders").disabled).toBe(false);
+});
+
 it("offers only affected catalog ports after explicit source registration", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
   const source = snapshot.report.candidates[0];
@@ -669,6 +837,157 @@ it("offers only affected catalog ports after explicit source registration", asyn
   ).not.toBeNull();
   await act(async () => removeRegisteredSource?.());
   expect(document.body.querySelector('[aria-label="Continue to a game"]')).toBeNull();
+});
+
+it("coalesces simultaneous scan requests before root validation finishes", async () => {
+  let scan: ReturnType<typeof useGameFileScan> | undefined;
+  let rootsReady: ((roots: GameFileRoot[]) => void) | undefined;
+  function Owner() {
+    scan = useGameFileScan();
+    return null;
+  }
+  await act(async () => root.render(<Owner />));
+  const readRoots = vi.fn(
+    () =>
+      new Promise<GameFileRoot[]>((resolve) => {
+        rootsReady = resolve;
+      }),
+  );
+  let first: Promise<void> | undefined;
+  await act(async () => {
+    first = scan?.start(readRoots);
+    await scan?.start(readRoots);
+  });
+  expect(readRoots).toHaveBeenCalledOnce();
+  expect(scan?.scanning).toBe(true);
+  await act(async () => {
+    rootsReady?.([saved]);
+    await first;
+  });
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+  expect(scan?.scanning).toBe(false);
+});
+
+it("disposes scan observation with its workspace and ignores old events and completion", async () => {
+  let scan: ReturnType<typeof useGameFileScan> | undefined;
+  const callbacks: ((event: OperationEvent) => void)[] = [];
+  const finishes: ((value: GameFileScanSnapshot) => void)[] = [];
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    callbacks.push(callback!);
+    return new Promise((resolve) => finishes.push(resolve));
+  });
+  function Owner() {
+    scan = useGameFileScanObserver();
+    return null;
+  }
+  await act(async () =>
+    root.render(
+      <GameFileScanProvider key="old-library">
+        <Owner />
+      </GameFileScanProvider>,
+    ),
+  );
+  await act(async () => {
+    void scan?.start();
+  });
+  await act(async () =>
+    root.render(
+      <GameFileScanProvider key="new-library">
+        <Owner />
+      </GameFileScanProvider>,
+    ),
+  );
+  await act(async () => {
+    void scan?.start();
+  });
+  const source = snapshot.report.candidates[0];
+  await act(async () => {
+    callbacks[0]({
+      schema_version: 3,
+      type: "source_candidate",
+      operation_id: "old",
+      parent_operation_id: null,
+      target: null,
+      sequence: 2,
+      timestamp_ms: 2,
+      operation: "discover_sources",
+      ...source,
+    });
+    finishes[0](snapshot);
+  });
+  expect(scan?.scanning).toBe(true);
+  expect(scan?.candidates).toEqual([]);
+  expect(scan?.completion).toBe(0);
+  await act(async () => {
+    callbacks[1]({
+      schema_version: 3,
+      type: "started",
+      operation_id: "new",
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+    });
+  });
+  expect(scan?.operationId).toBe("new");
+  await act(async () => finishes[1](snapshot));
+  expect(scan?.completion).toBe(1);
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("retains a scan failure that arrives while selected game details are open", async () => {
+  const source = snapshot.report.candidates[0];
+  let emit: ((event: OperationEvent) => void) | undefined;
+  let fail: ((error: Error) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    emit = callback;
+    return new Promise((_resolve, reject) => {
+      fail = reject;
+    });
+  });
+  function Journey() {
+    const [details, setDetails] = useState(false);
+    return details ? (
+      <button onClick={() => setDetails(false)}>Back to settings</button>
+    ) : (
+      <GameFileLibraries
+        profiles={[]}
+        registeredSources={[source]}
+        ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
+        onOpenPort={() => setDetails(true)}
+      />
+    );
+  }
+  await act(async () =>
+    root.render(
+      <GameFileScanProvider>
+        <Journey />
+      </GameFileScanProvider>,
+    ),
+  );
+  await click("Scan saved folders");
+  await act(async () =>
+    emit?.({
+      schema_version: 3,
+      type: "source_candidate",
+      operation_id: "owned",
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      ...source,
+    }),
+  );
+  await click("View Game A details");
+  await act(async () => fail?.(new Error("The selected drive disconnected")));
+  await click("Back to settings");
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+    "The selected drive disconnected",
+  );
+  expect(button("Scan saved folders").disabled).toBe(false);
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
 });
 
 it("keeps a committed source visible but holds setup until a failed refresh recovers", async () => {

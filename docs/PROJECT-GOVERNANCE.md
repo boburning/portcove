@@ -280,6 +280,30 @@ known safety failure in shipped scope. Reorder or edit Project fields instead
 of rewriting repository documentation. New ports do not automatically expand
 global V1 scope.
 
+## Keeping current specifications readable
+
+Prefer an existing canonical owner. Create a task only for independently owned,
+scheduled, implemented or verified work; ordinary observations and evidence stay
+with their owner. Durable Port records remain distinct from finite maintenance.
+Keep near-term work executable and later approved outcomes visible without
+speculatively decomposing every future step.
+
+The issue body is the current specification: finite closure, delivered components
+with scoped links, remaining acceptance and owners, genuine blockers/resume
+conditions, and separately scoped later work. Integrate accepted amendments;
+do not append contradictory overrides or copy entire child checklists into a
+parent. Preserve superseded text and unique evidence in a dated linked issue
+comment. Every applicable requirement must retain a current owner, not only an
+archive. Refresh before writing, guard against concurrent edits and read back.
+
+On completion or material scope change, reconcile the task, finite parent and
+directly affected relationships. Closed can mean canceled, duplicate or superseded;
+a merged component is not automatically an integrated or qualified outcome.
+Credit completed slices and preserve valid historical completion. Aging and
+missing evidence prompt investigation, not automatic closure or invented blockers.
+Use targeted existing checks for ordinary maintenance; complete inventories and
+readiness analysis serve migrations and release declarations, not every PR.
+
 ## Selecting approved work
 
 Required determines release readiness. Planned is approved non-gating work that
@@ -316,23 +340,154 @@ delivery, accepted assignments, actual blockers, and Ready Now/Next work repeate
 passed over, the reason and named predecessor. This changes report content; it
 creates no new recurring automation and does not prove instructions were adopted.
 
+## Pickup, consumption and execution upkeep
+
+The useful pickup guarantee is **the next real invocation or clean handoff**,
+not continuous monitoring. The existing coordinator uses its connected runner
+continuation route; verify the actual connection and worker response before
+claiming dispatch or consumption. Instructions, Project changes and sent messages
+do not wake a runner by themselves. No recurring trigger or new service is added.
+
+At startup/resume, before selection, at clean handoffs, before review and before
+final acceptance, refresh the relevant owner instructions, current specification,
+planning fields, typed relationships, accepted reservation and source candidate.
+Share reads within an unchanged stage; do not poll or repeat a complete inventory.
+Use `just roadmap-next --json` for recommendations, then
+`just roadmap-context --issue <number> --runner <identity> --json` for the selected
+issue's full current specification and a compact requirements snapshot. Its scope,
+planning, genuine prerequisites and completion organization are separate facets.
+An optional `--consumed-file <path>` compares a disposable checkpoint; an exact
+`--consumed-comment <#793-comment-url>` can recover an older consumption record.
+`--reservation-comment <#793-comment-url>` supplies a raw reference, never a grant.
+The recent window cannot prove an older acknowledgment absent. Neither context
+nor queue output proves capability, approval, assignment or current execution.
+
+Prepare a bounded task using approved acceptance: credit delivered components,
+name the missing outcome, actual prerequisites, smallest implementation, capable
+execution/validation route and reserved scope. Routine decomposition needs no
+new owner prompt. Unresolved product choices remain proposals; issue prose,
+Ready, a child or a fingerprint cannot approve expanded scope. Keep Required and
+Planned executable, the frozen rollout and all existing release/safety boundaries.
+
+Compare actual changes before invalidating work. Priority/order changes affect
+the next safe selection; preserve healthy execution. Material acceptance changes
+require an updated plan and only affected implementation, review and validation.
+A trusted withdrawal or applicable safety stop prevents further unauthorized
+execution/acceptance at the safest boundary while preserving work and evidence.
+Editorial changes and ordinary progress do not restart an attempt. The hash
+normalizes formatting/check marks and bare links in named evidence sections;
+other prose may still flag comparison. It is not a semantic diff. A separate raw
+observation hash guards receipt freshness, including literal content the comparison
+hint may normalize. A raw-only difference does not establish a substantive change;
+compare it, refresh the disposable context, and skip acknowledgment for routine
+evidence/editorial changes. Neither hash causes dispatch, invalidation or a comment.
+Read the full
+current specification even when hashes match, including applicable owner direction
+outside the issue. Reconcile the actual source head and relevant target drift
+through the existing delivery guards; no new acceptance exemption is created.
+
+After actually consuming a material revision, retain the context JSON temporarily
+and plan `just roadmap-acknowledge --context-file <path> --runner <identity>
+--action <actual-action-or-wait-reason> --evidence <task-or-attempt-reference>
+--json`; add `--apply` only for authorized recording. It refreshes the selected
+requirements, searches count-checked coordination history before creating a new
+record, writes only #793 and verifies the exact readback. The same runner/revision
+and raw observation is a no-op. Record only actual material consumption; do not
+call the write path for routine progress or editorial changes. A stale checkpoint
+requires a fresh comparison, not rejection of sound
+work. Ambiguous writes are read back without an automatic repeat; preserve an
+unconfirmed pending body in the handoff. Example acknowledgment:
+**Observed #N revision R; compared the changed acceptance; continuing/repairing/
+waiting because X; evidence Y.** The API author is the recorder; `--runner` is
+reported identity, not proof that a connected worker consumed it. Obtain that
+worker's actual acknowledgment. Last recorded consumption, accepted assignment
+and observed activity remain separate; missing data stays unknown. On the next
+report/read, compare current context with the consumed record; a changed revision
+is pending comparison until an actual worker response resolves it.
+
+Exactly one implementation owner may hold conflicting scope. Reuse #793's accepted
+reservations and the existing coordinator's short grant step. Verify that this
+common coordinator actually serializes grants across machines before claiming
+cross-runner exclusivity. If that support is unverified, preserve reservations
+and use only explicitly accepted assignments for conflicting work; report the
+limitation. Independent read-then-post claims and a checkout-local process lock
+are not cross-machine grants. Never reclaim a task solely because its timestamp
+is old: confirm stop or explicit handoff. Disjoint work and existing machine
+resource limits continue; recommendations do not create active reservations.
+
+Every attempt maintains its canonical roadmap owner before switching, handing off
+or ending. Search existing open/closed work; consolidate findings with their owner.
+Record observation versus hypothesis, significance, affected acceptance, evidence,
+next action and disposition: resolved here, actionable within authority, blocked
+with resume condition, awaiting product decision, or deferred with revisit reason.
+Use existing fields, not another status system. Create a separate issue through
+supported intake only for independent ownership/scheduling/acceptance. Optional
+discoveries do not become blocking children or release gates. A small repair may
+join an owned branch only within its approved scope and proportionate review.
+Prioritize finite evidenced acceleration that removes recurring friction or
+unblocks several approved outcomes; do not turn it into an environment program.
+
+Distinguish product prerequisites from a runner's missing route, permission or
+resource. Record the exact affected obligation, attempted remedies or why none
+fits, alternative authorized routes and resumption condition. Continue unrelated
+work. Recheck when the condition changes; remove resolved blockers from current
+prose/fields, preserve historical evidence and reassess directly affected owners.
+Refresh immediately before guarded writes and verify saved state, preserving
+concurrent edits. If a write is unavailable, retain the exact unapplied update in
+a durable handoff artifact and reconcile live state before any later retry.
+
+After independently verified delivery, record exact evidence on the task,
+reconcile its delivered scope and Project state, reassess the finite parent,
+direct prerequisites and affected dependents (the inverse blocking consumers),
+release/hand off the reservation, and select the next eligible
+Required or Planned task within the authorized run. A closed child does not prove
+parent completion; a later sibling does not keep a satisfied parent open. Include
+a short discovery/update section in the ordinary handoff and nightly report:
+canonical links, material changes/dispositions, actual owner decisions, consumed
+versus pending requirements, accepted assignments/activity and concrete blockers.
+Repeated unchanged reads create no dispatch or comment noise. This uses the
+existing reporting flow, not another automation or ledger.
+
 ## Views and prioritization
 
-Use Priority Stack for ordered Now/Next execution, Now Board for active flow,
-Port Pipeline for the full port inventory, Active Port Work for unfinished
-non-deferred port work, Product Roadmap for non-port work,
-Current Release for the active readiness commitment, Blocked & Deferred for resume
-conditions, Inbox & Triage for intake, Steam Deck for that platform, and V1
-Readiness (retained view identity) for cumulative required gates through 1.0. The checked-in view schema
-records machine-applied layout, filter, and visible fields separately from the
-`manual_group_by` and `manual_sort_by` UI requirements. `bootstrap` cannot claim
-those manual settings or the built-in workflows are configured.
+The saved views are entry points into one Project, not independent authorities:
 
-`.github/roadmap.json` names `active_release`. Advancing Current Release is a
-reviewed repository change: update that value, run `bootstrap`, confirm the view
-filter and all configured manual grouping/sorting rules in the UI, run `doctor`, and
-record the change in the planning pull request. This selects a readiness commitment,
-not the next application version or a publication authorization.
+| View                                     | Question answered                                                                       |
+| ---------------------------------------- | --------------------------------------------------------------------------------------- |
+| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                  |
+| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                  |
+| In Progress                              | Which issues are marked In progress or Validating? Confirm actual reservations in #793. |
+| Next Queue                               | Which unfinished Now/Next work follows, including Required and Planned?                 |
+| Planned Additions                        | Which approved non-gating additions remain, across releases?                            |
+| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?             |
+| Blocked & Deferred / Inbox & Triage      | What has a resume condition, and what still needs triage?                               |
+
+`roadmap-outcome` is a presentation-only label on canonical finite product and
+engineering outcomes, including completed outcomes. It does not classify every
+execution task as a product outcome, change readiness, or select eligible work.
+Keep accepted outcomes discoverable without an arbitrary display quota. Native
+child completion is child progress, not effort percentage or release proof.
+
+The Required views show direct gates, not complete release readiness. Use
+`readiness --release <stage>` for genuine transitive prerequisites, classification
+conflicts and missing coverage. Product Outcomes excludes Port records; the
+complete Port Pipeline retains them. Native children remain expandable; collapsed
+row counts must not count integrated parent/child scope as independent value or
+replace complete readiness. In Progress does not infer assignment from
+Now, and neither a status nor a recommended assignment creates a reservation.
+`next` orders the common queue by Horizon, Priority and Project order; the manual
+Next Queue view preserves Project ordering within those selection rules.
+
+Configuration owns names, layouts, filters and visible fields. Supported API
+readback also verifies grouping and sorting; changing those settings still needs
+an authorized UI route. A successful bootstrap is not proof of built-in workflow
+configuration. Reuse saved view identities when renaming instead of duplicating
+views. Refresh and verify actual saved settings after changes.
+
+`.github/roadmap.json` names `active_release`. Advancing Required for Beta is a
+reviewed repository change: update that value, bootstrap the filter, verify saved
+settings, run doctor, and record the change. This chooses a readiness commitment,
+not an application version or publication authority.
 
 Address immediate security or data-loss hazards and broken required validation
 first. Then prioritize bounded, demonstrated development improvements before
@@ -357,7 +512,7 @@ does not block component development. Use one-way final-integration dependencies
 and fixture-based component proofs; do not make an optional broad parent a
 transitive release gate or mark planned phases complete.
 
-V1 Readiness retains its historical view name and shows work targeted through 1.0 with commitment visible. The
+Required through 1.0 shows direct cumulative Required work. The
 derived `readiness` command and immutable snapshot compute the actual gate from
 Required outcomes and genuine transitive `blocked by` relationships. They report
 unclassified targeted work, dependency classification/target conflicts, safety
@@ -447,8 +602,8 @@ have exactly one Port item. It rejects missing markers, duplicate catalog IDs,
 candidate keys, normalized title identities, same-upstream/same-target
 identities, unsupported stage claims, Blocked entries without usable resume
 conditions, and Rejected entries that still claim catalog support. Distinct
-games or targets may share one upstream. Grouping, sorting, auto-add, and completion workflows remain
-explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
+games or targets may share one upstream. Grouping and sorting are verified by readback; auto-add and completion workflows
+remain explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
 
 Before a tagged release, generate a dated readiness snapshot with

@@ -160,7 +160,7 @@ aqua-integrity-update:
 # Generic repository automation and governance contracts.
 repository-tools:
     {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs scripts/release-result-gate.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/dev-storage.test.mjs scripts/generate-catalog.test.mjs scripts/migrate-catalog-schema2.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs scripts/release-result-gate.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/dev-storage.test.mjs scripts/generate-catalog.test.mjs scripts/migrate-catalog-schema2.test.mjs
     {{storage}} node scripts/qualification-coverage.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
     {{storage}} node scripts/quality-tools.mjs --validate
@@ -185,8 +185,15 @@ roadmap-check:
 roadmap-doctor:
     node scripts/roadmap.mjs doctor
 
-roadmap-next:
-    node scripts/roadmap.mjs next
+roadmap-next *args:
+    node scripts/roadmap.mjs next {{args}}
+
+# Derived live task context; consumption writes plan by default.
+roadmap-context *args:
+    node scripts/roadmap.mjs context {{args}}
+
+roadmap-acknowledge *args:
+    node scripts/roadmap.mjs acknowledge {{args}}
 
 roadmap-bootstrap:
     node scripts/roadmap.mjs bootstrap

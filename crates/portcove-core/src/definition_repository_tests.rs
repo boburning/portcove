@@ -1175,6 +1175,65 @@ async fn revoked_selected_definition_falls_back_to_the_existing_catalog() {
 }
 
 #[tokio::test]
+async fn stored_selection_rejects_revision_mismatch_in_active_and_previous() {
+    let fixture = RepositoryFixture::new();
+    let catalog = metadata_catalog();
+    let port_id = &catalog.ports()[0].id;
+    let targets = repository_targets_for(&catalog, port_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    select_candidate(&library, &candidate, port_id);
+    let valid = library.definition_selection_status().unwrap();
+    let active_json: String = library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT active_json FROM definition_selection_state WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let mut mismatched: Value = serde_json::from_str(&active_json).unwrap();
+    mismatched["definition_revision"] =
+        (mismatched["definition_revision"].as_u64().unwrap() + 1).into();
+    let mismatched_json = serde_json::to_string(&mismatched).unwrap();
+    for previous in [false, true] {
+        let (active, prior) = if previous {
+            (&active_json, Some(&mismatched_json))
+        } else {
+            (&mismatched_json, None)
+        };
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE definition_selection_state SET active_json=?1,previous_json=?2 WHERE singleton=1",
+                [Some(active), prior],
+            )
+            .unwrap();
+        let error = library.definition_selection_status().unwrap_err();
+        assert_eq!(error.code, ErrorCode::State);
+        assert_eq!(
+            error.details.get("cause").map(String::as_str),
+            Some("definition admission revision differs from its exact entry")
+        );
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE definition_selection_state SET active_json=?1,previous_json=NULL WHERE singleton=1",
+                [&active_json],
+            )
+            .unwrap();
+        assert_eq!(library.definition_selection_status().unwrap(), valid);
+    }
+}
+
+#[tokio::test]
 async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
     let fixture = RepositoryFixture::new();
     let (catalog, port_id) = post_client_catalog();

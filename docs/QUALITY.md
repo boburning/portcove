@@ -181,12 +181,14 @@ still require measured justification. Completed measurements and transition
 evidence remain on [#922](https://github.com/boburning/portcove/issues/922); they
 are evidence, not ordinary startup instructions.
 
-The exhaustive Rust runner retains two test slots and the thirty-second hang
-deadline. Cohesive filesystem, database, diagnostics, cancellation, catalog and
+The exhaustive Rust runner retains two test slots and a thirty-second default
+per-test execution budget. Cohesive filesystem, database, diagnostics, cancellation, catalog and
 native-process lifecycle families reserve both slots instead of competing with an
 unrelated case. Diagnostics are deferred until the initial process-start burst has
 cleared, and the real-process CLI contracts run last. These are ordering and
-isolation boundaries only: failures are not retried and no timeout is enlarged.
+isolation boundaries only: failures are not retried. Evidence-backed calibration
+of a narrowly matched heavyweight test's finite harness budget follows the
+procedure below; scheduling changes do not authorize budget changes.
 
 ## Local feedback and hosted authority
 
@@ -472,6 +474,14 @@ qualification consumers do not change Rust, signed catalog inputs, or publisher
 authority. The exact inventory lives in the protected hosted selector. New or
 renamed unknown harness paths retain all-fast fallback; mixed product, native,
 signing, and policy changes retain their additional owners and qualification.
+
+The maintained `apps/desktop/scripts/desktop-source-dialog-test.mjs` consumer
+also has explicit frontend ownership and selects its Node scenario contracts
+locally. It observes source intake, discovery and scan presentation through the
+existing application and CLI; it does not implement durable scanning or source
+authority. Its changed native interactions still require the ordinary isolated
+native scenario. This exact entry grants no ownership to another harness, its
+Core/Tauri implementation, or a renamed or mixed authority input.
 
 The reviewed `apps/desktop/scripts/desktop-install-fixture.test.mjs` assertion
 file also belongs to frontend validation: both frontend lanes discover its
@@ -1002,13 +1012,37 @@ step over further sharding, reduced assertions or a growing monitoring service.
 
 The required Rust test lanes and `just rust-test` use the version of cargo-nextest
 pinned in `.github/quality-tools.json`. Five seconds is a diagnostic threshold,
-not an acceptance limit. Nextest reports slow tests every five seconds and
-terminates a test at thirty seconds with no retries or termination grace period.
-This hang guard bounds real filesystem and process lifecycle tests while allowing
-normal runner variability. Investigate slow cases using their actual work and
-repeated timings; preserve coherent scenarios instead of splitting assertions
-solely to satisfy a stopwatch. Pure unit tests should normally finish well below
-the diagnostic threshold. A timeout or failed assertion still fails the lane.
+not an acceptance limit. Nextest reports slow tests every five seconds and, by
+default, terminates a test at thirty seconds with no retries or termination grace
+period. Keep that tight default for small tests. An explicit, narrowly matched
+override may give a demonstrated heavyweight filesystem, signed-catalog,
+database or real-process lifecycle test a justified finite execution budget.
+Its setup and teardown budget is distinct from the product timing assertions
+inside the test; cancellation, shutdown and other product deadlines remain intact.
+
+Do not hide failures with larger timeouts. Preserve the original failure and
+identify the firing deadline: per-test harness, product assertion, whole command
+or job, admission queue, or observation window. A live process whose observer
+stopped still needs supported observation and cleanup before another invocation.
+Use a bounded, hypothesis-driven diagnostic with unchanged assertions, fixture,
+concurrency and retries. Around ninety seconds is an initial heavyweight-test
+experiment, not a permanent default. Retain total and phase timings, actual
+platform and meaningful warm/cold or resource conditions; obtain a matched
+confirmation when necessary. Another platform or one extended-budget pass does
+not resolve the original platform's failure or supply merge clearance.
+
+Select the smallest causal repair or an evidence-supported narrow budget
+correction with room for supported-platform variability. Fix identified deadlocks,
+leaks, accidental contention or unnecessary repeated work; a larger budget does
+not substitute for that repair. Do not require prolonged optimization merely to
+defend an inherited number. Preserve coherent scenarios and full-catalog coverage
+where required. Independently review the exact override and evidence, retain
+slow warnings and finite termination, and satisfy normal selected validation,
+protected pre-change qualification and exact-head hosted gates. A permitted
+diagnostic budget experiment is not its own final policy-transition qualification.
+Do not automatically enlarge Node, network, CI-job or other test budgets.
+Pure unit tests should normally finish well below the diagnostic threshold.
+A timeout or failed assertion still fails the lane.
 Nextest prints individual elapsed times. Documentation tests still run separately
 with Cargo on Windows, Linux, and both macOS architectures. Their required jobs
 run in parallel with unit tests because Cargo's documentation build uses a
@@ -1057,14 +1091,14 @@ conversion failure cleanup race does the same while it reaps owned process trees
 CLI contracts also use nextest's lowest priority so an exhaustive workspace run
 drains default-priority in-process tests before beginning repeated executable
 launches. This ordering introduces no test dependency and changes neither the
-two-thread budget nor the thirty-second hang deadline.
+two-thread budget nor any configured per-test execution budget.
 This slot reservation applies within each nextest invocation; it does not
 exclude other CI partitions or unrelated host work. Signed-definition coverage
 retains full authenticated catalogs, ordinary artifact installs and corrections.
 Intel macOS
 uses two exhaustive hash partitions to keep this work off the critical path.
 This changes scheduling
-only; every Rust test retains the same deadline. CI caches compiled dependencies
+only; it does not change test execution budgets. CI caches compiled dependencies
 after test failures so fixing a failed assertion does not require a cold rebuild.
 
 Supported local Rust validation commands serialize their heavyweight compiler
@@ -1252,3 +1286,21 @@ target-only paths; any relevant overlap exits the exception. The delivering
 agent's concise final dependency diff and upstream review is sufficient for that
 bounded class, while the same exact-head merge guard and remote readback remain
 mandatory.
+
+## Consumed Intel test transfers
+
+The `intel-rust-tests-<attempt>` archive transfers compiled tests from the Apple
+Silicon producer to both Intel test partitions. It is not a release artifact.
+`Cleanup consumed Intel transfers` runs trusted default-branch code after CI or
+qualification completion and hourly. Its only write authority is a job-scoped
+Actions token. It deletes a transfer only after a complete job inventory proves
+that its exact producer and both Intel consumers succeeded in the same completed
+run attempt. Active runs, failed Intel attempts, ambiguous inventories, all other
+artifacts, and release assets are preserved. The one-day upload retention remains
+as the fallback. After successful transfer cleanup, rerun Intel tests together
+with their producer rather than rerunning only an already-successful consumer.
+
+Use `node scripts/cleanup-intel-artifacts.mjs` for a read-only inventory and add
+`--apply` only for the authorized scoped cleanup. A restarted attempt or changed
+artifact identity stops deletion. Failed or ambiguous deletion responses require
+readback; the tool never retries an uncertain mutation.

@@ -17,6 +17,17 @@ function scenario(id, description, options = {}) {
 
 export const DESKTOP_SCENARIOS = Object.freeze([
   scenario(
+    "native-external-runtime-review",
+    "Private prepared runtime picker, review, registration and non-owning removal preserve player files.",
+    {
+      prerequisites: ["desktop", "native-dialog", "external-runtime-fixture"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-external-runtime-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-startup-preferences-recovery",
     "Malformed saved preferences remain intact until an owned stopped-host repair, then reopen reliably.",
     {
@@ -194,6 +205,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "owned-fixture"],
       source: "desktop-preparation-recovery-test.mjs",
       qualification_only: true,
+    },
+  ),
+  scenario(
+    "native-closed-preparation-recovery",
+    "Ordinary Windows host close during live preparation preserves originals and exposes uncertain recovery safely.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
     },
   ),
   scenario(
@@ -442,6 +463,7 @@ export function resolveDesktopSelection({
   scenarios = [],
   reloadCycles = 0,
   defaultProfile = "smoke",
+  platform = process.platform,
 } = {}) {
   if (profile && scenarios.length) throw new Error("--profile and --scenario cannot be combined");
   const selectedProfile = profile ?? (scenarios.length ? null : defaultProfile);
@@ -460,6 +482,10 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
+    throw new Error("native-external-runtime-review requires one exact standalone scenario");
+  if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")
+    throw new Error("native-external-runtime-review requires Windows");
   if (
     uniqueRequested.includes("native-startup-preferences-recovery") &&
     uniqueRequested.length !== 1
@@ -469,6 +495,11 @@ export function resolveDesktopSelection({
     throw new Error("native-startup-library-recovery requires one exact standalone scenario");
   if (uniqueRequested.includes("native-library-switch-recovery") && uniqueRequested.length !== 1)
     throw new Error("native-library-switch-recovery requires one exact standalone scenario");
+  if (
+    uniqueRequested.includes("native-closed-preparation-recovery") &&
+    uniqueRequested.length !== 1
+  )
+    throw new Error("native-closed-preparation-recovery requires one exact standalone scenario");
   const nonRunnable = uniqueRequested.filter((id) => !desktopScenarioById.get(id).runnable);
   if (!selectedProfile && nonRunnable.length)
     throw new Error(`${nonRunnable.join(", ")} is an acceptance gap, not a runnable scenario`);

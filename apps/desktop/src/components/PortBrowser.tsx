@@ -454,11 +454,12 @@ function PortCard({
       view={view}
     />
   );
+  const accessibleLabel = `${port.name}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
   if (view === "library")
     return (
       <article
         className={className}
-        aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+        aria-label={accessibleLabel}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
         data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
       >
@@ -470,7 +471,7 @@ function PortCard({
       data-focusable
       data-detail-origin={detailOrigin}
       className={className}
-      aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+      aria-label={accessibleLabel}
       onClick={() => onSelect(port.id, detailOrigin)}
       data-source-drop-port-id={dropEligible ? port.id : undefined}
       data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
@@ -550,8 +551,11 @@ function PortCardContents({
             Release channel: {channel.label}
           </small>
         )}
-        {(updateAvailable || port.upstream_status === "retired") && (
+        {(status?.staged || updateAvailable || port.upstream_status === "retired") && (
           <div className="flex min-h-[18px] flex-wrap gap-[5px]">
+            {status?.staged && (
+              <span className={`badge update ${cardBadgeClass}`}>Update downloaded</span>
+            )}
             {updateAvailable && (
               <span className={`badge update ${cardBadgeClass}`}>Update available</span>
             )}
@@ -705,7 +709,7 @@ function readinessPresentation(readiness: PortReadiness) {
     },
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
     setup: { label: "Setup required", action: "Finish setup", tone: "setup" },
-    staged: { label: "Update downloaded", action: "Review update", tone: "staged" },
+    staged: { label: "Ready to play", action: "View details", tone: "ready" },
     unknown: {
       label: "Readiness unavailable",
       action: "Review game",

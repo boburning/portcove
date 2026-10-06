@@ -38,8 +38,9 @@ Normalization preserves the submitted form content, rejects repository-wide
 duplicates, reconciles canonical identity markers, ensures exactly one Project
 item with neutral values only where fields are unset, and classifies it as a Port.
 Both intake paths preserve existing parent relationships and leave unparented
-issues unparented. Project membership defines the complete port inventory;
-optional parents coordinate finite outcomes with a clear completion condition.
+issues unparented. Project membership defines the complete port inventory.
+Durable Port records stay in Port Pipeline; native children contribute to a
+finite parent completion rather than grouping all consumers of an adapter.
 Use Port Pipeline for the full inventory and Active Port Work for unfinished,
 non-deferred work. Neither intake path grants catalog support.
 
@@ -62,7 +63,8 @@ issue must state the user outcome, current evidence, scope, non-goals,
 acceptance criteria, required tests, documentation impact, dependencies, and
 completion evidence. Priority, horizon, target release, and release commitment
 belong only in the Project. A target is a forecast; Required versus
-Opportunistic determines whether the outcome gates that release. Unset relevant
+Planned determines whether the outcome gates that release. Both participate in
+the common execution queue. Unset relevant
 work is intentionally visible as unclassified.
 
 Scope completion to the promised integration or research. Optional gameplay
@@ -126,9 +128,10 @@ After a successful Windows Tauri build, `scripts/package-local.ps1` refreshes th
 
 Link every pull request to its durable issue, describe the user outcome and
 non-goals, list exact validation commands, and move the Project item to In
-progress or Validating. Keep interactive, physical, or external work Blocked or
-Deferred with its exact resume condition. Automated evidence must not close an
-item that explicitly requires human observation. Do not create a second backlog
+progress or Validating. Use Blocked or Deferred only when a real prerequisite
+or capable execution route is unavailable, with its exact resume condition.
+Automated evidence must not close an
+item whose promised observation actually requires human participation. Do not create a second backlog
 in repository documentation; see [PROJECT-GOVERNANCE.md](docs/PROJECT-GOVERNANCE.md).
 
 Routine authorized work follows the review, exact-head CI, target-interaction and

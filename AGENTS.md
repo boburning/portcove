@@ -72,6 +72,30 @@ and preserve real resource guards, independent review and current model/cost
 choices. Do not serialize disjoint lanes or preempt healthy work.
 See `docs/PROJECT-GOVERNANCE.md` for the complete selection/reporting rule.
 
+## Maintaining the roadmap
+
+Start at `docs/ROADMAP.md`. Product Outcomes is a presentation of canonical
+finite outcomes, not an execution or readiness filter. Use the common `next`
+queue, actual reservations in #793, and complete release-readiness analysis.
+Native children contribute to their parent's defined completion; later
+independent outcomes are siblings linked by topic and genuine prerequisites.
+Keep the issue body a coherent current specification, preserve superseded text
+and evidence through linked history, and reconcile the task, its finite parent
+and directly affected relationships on completion or material scope change.
+Prefer existing owners and targeted checks; a complete roadmap inventory is
+needed for migrations and release claims, not every ordinary change.
+
+At invocation/resume, selection, clean handoff, review and final acceptance, consume
+the relevant live requirements and accepted reservation. Use `roadmap-context`
+and the pickup/upkeep contract in `docs/PROJECT-GOVERNANCE.md`; compare actual
+deltas before repeating affected work. Queue recommendations, sent steers and
+consumption records do not prove assignment or worker activity. Use existing
+accepted grants; a checkout lock is not cross-machine exclusivity. Capture
+discoveries and narrow blockers with their canonical owner before ending or
+switching. After verified delivery reconcile the task, finite parent and affected
+prerequisites and blocking consumers, then release/hand off and select eligible
+Required or Planned work.
+
 ## Validation and failures
 
 Use focused edit-time tests, the complete diff-selected `just local-check`, and

@@ -1,12 +1,17 @@
 param(
     [Parameter(Mandatory)][int]$DriverProcessId,
     [Parameter(Mandatory)][string]$ApplicationPath,
-    [Parameter(Mandatory)][string]$Title,
-    [Parameter(Mandatory)][string]$ExpectedText,
-    [Parameter(Mandatory)][string]$Button,
-    [string]$FilePath,
-    [string]$DirectoryPath,
-    [string]$ScreenshotPath
+    [Parameter(Mandatory, ParameterSetName='Confirmation')][string]$Title,
+    [Parameter(Mandatory, ParameterSetName='Confirmation')][string]$ExpectedText,
+    [Parameter(Mandatory, ParameterSetName='Confirmation')][string]$Button,
+    [Parameter(ParameterSetName='Confirmation')][string]$FilePath,
+    [Parameter(ParameterSetName='Confirmation')][string]$DirectoryPath,
+    [Parameter(ParameterSetName='Confirmation')][string]$ScreenshotPath,
+    [Parameter(Mandatory, ParameterSetName='Observation')][switch]$ObservePicker,
+    [Parameter(Mandatory, ParameterSetName='Observation')][string]$ExpectedDriverPath,
+    [Parameter(Mandatory, ParameterSetName='Observation')][ValidatePattern('^[0-9]+$')][string]$ExpectedDriverStartedFiletime,
+    [Parameter(Mandatory, ParameterSetName='Observation')][string]$ObservationPath,
+    [Parameter(ParameterSetName='Observation')][string]$PreparedRuntimeDirectory
 )
 $ErrorActionPreference = 'Stop'
 $progressPath = $null
@@ -30,6 +35,27 @@ Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Write-ObservationProgress 'automation-assemblies-ready'
 . (Join-Path $PSScriptRoot 'native-process-tree.ps1')
+function Assert-CapturedPickerDriver {
+    $capturedDriver = [Diagnostics.Process]::GetProcessById($DriverProcessId)
+    if ($capturedDriver.StartTime.ToUniversalTime().ToFileTimeUtc().ToString() -ne $ExpectedDriverStartedFiletime -or
+        -not [string]::Equals($capturedDriver.MainModule.FileName, $ExpectedDriverPath, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Captured picker driver identity changed; no input permitted.'
+    }
+}
+if ($ObservePicker) {
+    if (-not [IO.Path]::IsPathFullyQualified($ObservationPath) -or [IO.File]::Exists($ObservationPath) -or
+        -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ObservationPath))) { throw 'Picker observation requires a fresh owned output file.' }
+    Assert-CapturedPickerDriver
+    if ($PreparedRuntimeDirectory) {
+        $expectedPreparedDirectory = [IO.Path]::Combine([IO.Path]::GetDirectoryName($ObservationPath), 'player-owned-runtime')
+        if (-not [IO.Path]::IsPathFullyQualified($PreparedRuntimeDirectory) -or
+            -not [string]::Equals([IO.Path]::GetFullPath($PreparedRuntimeDirectory), $expectedPreparedDirectory, [StringComparison]::OrdinalIgnoreCase) -or
+            -not [IO.Directory]::Exists($PreparedRuntimeDirectory) -or
+            ([IO.File]::GetAttributes($PreparedRuntimeDirectory) -band [IO.FileAttributes]::ReparsePoint)) {
+            throw 'Prepared runtime input requires the exact regular owned fixture directory.'
+        }
+    }
+}
 Write-ObservationProgress 'owned-process-tree-start'
 $tree = Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
 Write-ObservationProgress 'owned-process-tree-ready'
@@ -39,6 +65,127 @@ $applicationId = [int]$application.ProcessId
 function Assert-LiveApplication {
     $live = Get-CimInstance Win32_Process -Filter "ProcessId = $applicationId"
     if (-not $live -or $live.CreationDate -ne $application.CreationDate -or $live.ExecutablePath -ne $application.ExecutablePath) { throw 'Owned application identity changed while waiting for confirmation.' }
+}
+if ($ObservePicker) {
+    # Observation cancels without input. Prepared selection is separately limited
+    # to the exact regular fixture directory and the independently observed title.
+    $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
+    $fieldCondition = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@(
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, 'Folder:')
+    ))
+    $observedWindow = $null
+    $lastWindowSample = $null
+    $windowSamplesPath = "$ObservationPath.window-samples.jsonl"
+    $windowSamplesStream = [IO.File]::Open($windowSamplesPath, [IO.FileMode]::CreateNew)
+    $windowSamplesStream.Dispose()
+    $observationDeadline = [DateTime]::UtcNow.AddSeconds(10)
+    while ([DateTime]::UtcNow -lt $observationDeadline) {
+        Assert-CapturedPickerDriver
+        Assert-LiveApplication
+        $windows = @{}
+        $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
+        $sampleData = @($roots | ForEach-Object {
+            $items = @($_.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object {
+                $_.Current.ProcessId -eq $applicationId -and $_.Current.ControlType -in @([System.Windows.Automation.ControlType]::Edit, [System.Windows.Automation.ControlType]::Button, [System.Windows.Automation.ControlType]::Window)
+            })
+            [pscustomobject]@{
+                title = $_.Current.Name; handle = $_.Current.NativeWindowHandle; process = $_.Current.ProcessId; class = $_.Current.ClassName
+                control_count = $items.Count; controls_truncated = $items.Count -gt 100
+                controls = @($items | Select-Object -First 100 | ForEach-Object {
+                    [pscustomobject]@{ name = $_.Current.Name; process = $_.Current.ProcessId; type = $_.Current.ControlType.ProgrammaticName; handle = $_.Current.NativeWindowHandle }
+                })
+            }
+        })
+        $sample = ConvertTo-Json -InputObject $sampleData -Depth 6 -Compress
+        if ($sample -cne $lastWindowSample) {
+            Assert-CapturedPickerDriver
+            Assert-LiveApplication
+            $line = [pscustomobject]@{ at = [DateTime]::UtcNow.ToString('o'); application_pid = $applicationId; owned_window_sample = $sampleData } | ConvertTo-Json -Depth 7 -Compress
+            [IO.File]::AppendAllText($windowSamplesPath, "$line`n")
+            $lastWindowSample = $sample
+        }
+        foreach ($root in $roots) {
+            foreach ($field in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $fieldCondition)) {
+                $ancestor = $field
+                do { $ancestor = [System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($ancestor) }
+                while ($ancestor -and $ancestor.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window)
+                if ($ancestor -and $ancestor.Current.ProcessId -eq $applicationId -and $ancestor.Current.NativeWindowHandle) {
+                    $windows[[string]$ancestor.Current.NativeWindowHandle] = $ancestor
+                }
+            }
+        }
+        if ($windows.Count -gt 1) { throw 'Ambiguous owned native folder window; no input supplied.' }
+        if ($windows.Count -eq 1) { $observedWindow = @($windows.Values)[0]; break }
+        Start-Sleep -Milliseconds 100
+    }
+    if (-not $observedWindow) { throw 'No unique owned native folder window observed; no input supplied.' }
+    $controls = $observedWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+    $fields = @($controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
+    $buttonName = if ($PreparedRuntimeDirectory) { 'Select Folder' } else { 'Cancel' }
+    if ($PreparedRuntimeDirectory -and $observedWindow.Current.Name -ne 'Select Folder') { throw 'Prepared runtime selection requires the observed exact Select Folder title.' }
+    $actionButton = @($controls | Where-Object { $_.Current.ProcessId -eq $applicationId -and $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $_.Current.Name -eq $buttonName -and $_.Current.IsEnabled })
+    if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId -or $actionButton.Count -ne 1) { throw 'Owned picker requires one exact owned Folder field and action button.' }
+    $observation = [ordered]@{
+        observed_at = [DateTime]::UtcNow.ToString('o'); title = $observedWindow.Current.Name
+        handle = $observedWindow.Current.NativeWindowHandle; class = $observedWindow.Current.ClassName
+        application_pid = $applicationId; application_created_at = $application.CreationDate.ToUniversalTime().ToString('o')
+        application_path = $applicationFull; driver_pid = $DriverProcessId
+        driver_created_at = $tree.driver.CreationDate.ToUniversalTime().ToString('o')
+        field_names = @($fields | ForEach-Object { $_.Current.Name })
+        button_names = @($controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button } | ForEach-Object { $_.Current.Name })
+        supplied_directory = $false; cancelled = $false; selected = $false; action = $buttonName
+    }
+    $freshTree = Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
+    if ($freshTree.driver.CreationDate -ne $tree.driver.CreationDate -or $freshTree.application.CreationDate -ne $application.CreationDate) { throw 'Owned picker process identity changed before cancellation.' }
+    $beforeBytes = [Text.Encoding]::UTF8.GetBytes(($observation | ConvertTo-Json -Depth 5))
+    $beforeStream = [IO.File]::Open($ObservationPath, [IO.FileMode]::CreateNew)
+    try { $beforeStream.Write($beforeBytes, 0, $beforeBytes.Length) } finally { $beforeStream.Dispose() }
+    Assert-CapturedPickerDriver
+    Assert-LiveApplication
+    if ($PreparedRuntimeDirectory) {
+        $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($PreparedRuntimeDirectory)
+        $observation.supplied_directory = $true
+        Assert-CapturedPickerDriver
+        Assert-LiveApplication
+    }
+    $actionButton[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    $cancelDeadline = [DateTime]::UtcNow.AddSeconds(2)
+    $closeSamples = @()
+    $closeCondition = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@(
+        $ownedCondition,
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NativeWindowHandleProperty, [int]$observation.handle),
+        [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
+    ))
+    do {
+        Assert-CapturedPickerDriver
+        Assert-LiveApplication
+        # A saved UIA element may continue to expose its old handle after Cancel.
+        # Re-enumerate the exact application's live windows instead of treating
+        # that retained value as evidence the dialog is still present.
+        $liveRoots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
+        $liveHandles = [Collections.Generic.HashSet[int]]::new()
+        foreach ($root in $liveRoots) {
+            if ($root.Current.NativeWindowHandle -eq $observation.handle) { [void]$liveHandles.Add([int]$root.Current.NativeWindowHandle) }
+            foreach ($nested in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $closeCondition)) {
+                [void]$liveHandles.Add([int]$nested.Current.NativeWindowHandle)
+            }
+        }
+        $present = $liveHandles.Contains([int]$observation.handle)
+        try { $retainedHandle = $observedWindow.Current.NativeWindowHandle }
+        catch [System.Windows.Automation.ElementNotAvailableException] { $retainedHandle = $null }
+        $closeSamples += [pscustomobject]@{ at = [DateTime]::UtcNow.ToString('o'); retained_uia_handle = $retainedHandle; fresh_owned_window_present = $present }
+        if (-not $present) { break }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $cancelDeadline)
+    $closeBytes = [Text.Encoding]::UTF8.GetBytes(($closeSamples | ConvertTo-Json -Depth 4))
+    $closeStream = [IO.File]::Open("$ObservationPath.close-samples.json", [IO.FileMode]::CreateNew)
+    try { $closeStream.Write($closeBytes, 0, $closeBytes.Length) } finally { $closeStream.Dispose() }
+    if ($present) { throw 'Observed owned picker did not close after its exact action.' }
+    $observation.cancelled = -not [bool]$PreparedRuntimeDirectory
+    $observation.selected = [bool]$PreparedRuntimeDirectory
+    $observation | ConvertTo-Json -Depth 5 -Compress
+    exit 0
 }
 $condition = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@(
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId),

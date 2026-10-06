@@ -194,6 +194,66 @@ function proposalChanges(before, after) {
   return { ports, source_records: sourceRecords, order_changes: orderChanges };
 }
 
+// Independently curated test expectations, never generated from a proposal.
+// This checks identity bookkeeping only; Rust retains full frozen equality.
+function compatibilityFixtureReview(catalog) {
+  const legacy = readJson(join(catalogRoot, "catalog-schema1-fixture.json"));
+  const additionsPath = join(catalogRoot, "catalog-legacy-additions-fixture.json");
+  const additionsBytes = readFileSync(additionsPath);
+  const additions = JSON.parse(additionsBytes);
+  if (
+    !additions ||
+    typeof additions !== "object" ||
+    Array.isArray(additions) ||
+    JSON.stringify(Object.keys(additions).sort()) !== '["port_ids","source_profile_ids"]'
+  )
+    throw new Error("Malformed compatibility fixture; expected only explicit identity lists.");
+  const checkedIds = (values, label) => {
+    if (
+      !Array.isArray(values) ||
+      !values.length ||
+      values.some((id) => typeof id !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id)) ||
+      new Set(values).size !== values.length
+    )
+      throw new Error(`Malformed compatibility fixture ${label}: nonempty unique IDs required.`);
+    return values;
+  };
+  const collections = {};
+  for (const [name, baseline, actual] of [
+    [
+      "source_profile_ids",
+      legacy.source_profiles.map(({ id }) => id),
+      catalog.source_catalog.identities.map(({ id }) => id),
+    ],
+    ["port_ids", legacy.ports.map(({ id }) => id), catalog.ports.map(({ id }) => id)],
+  ]) {
+    checkedIds(baseline, `frozen ${name}`);
+    const reviewed = checkedIds(additions[name], name);
+    if (reviewed.some((id) => baseline.includes(id)))
+      throw new Error(`Malformed compatibility fixture ${name}: overlaps frozen legacy IDs.`);
+    const expected = new Set([...baseline, ...reviewed]);
+    const observed = new Set(actual);
+    collections[name] = {
+      expected_count: expected.size,
+      unreviewed_ids: [...observed].filter((id) => !expected.has(id)).sort(),
+      missing_expected_ids: [...expected].filter((id) => !observed.has(id)).sort(),
+    };
+  }
+  return {
+    status: Object.values(collections).every(
+      ({ unreviewed_ids, missing_expected_ids }) =>
+        !unreviewed_ids.length && !missing_expected_ids.length,
+    )
+      ? "matched"
+      : "requires-review",
+    fixture: "crates/portcove-core/catalog/catalog-legacy-additions-fixture.json",
+    fixture_sha256: createHash("sha256").update(additionsBytes).digest("hex"),
+    collections,
+    scope:
+      "Identity bookkeeping only; manually review expectations. Full frozen equality, source contracts and qualification remain separate Rust checks.",
+  };
+}
+
 function validateCurrentCatalog(catalog) {
   if (catalog.schema_version !== 2) throw new Error("current catalog source is not schema 2");
   if ("source_profiles" in catalog) {
@@ -377,6 +437,7 @@ async function prepareArtworkProposal(fullProposal = false) {
   const proposalChecks = fullProposal
     ? { ...beforeChecks, output: inspectProposal.inspect("output", proposalBytes) }
     : undefined;
+  const compatibilityReview = fullProposal ? compatibilityFixtureReview(result.catalog) : undefined;
   const evidence = {
     format_version: 1,
     input_sha256: digest(input),
@@ -406,6 +467,7 @@ async function prepareArtworkProposal(fullProposal = false) {
           proposed_catalog_sha256: digest(result.catalog),
           differences: differences(current, result.catalog),
           proposal_changes: proposalChanges(current, result.catalog),
+          compatibility_fixture_review: compatibilityReview,
           checks: proposalChecks,
           artwork_evidence: "artwork-evidence.json",
           scope:
@@ -450,6 +512,11 @@ if (preparing) {
     )}\n`,
   );
 } else {
+  const compatibility = compatibilityFixtureReview(current);
+  if (compatibility.status !== "matched")
+    throw new Error(
+      `Review independent compatibility fixture before generation: ${JSON.stringify(compatibility.collections)}`,
+    );
   const output = `${JSON.stringify(current, null, 2)}\n`;
   if (process.argv.includes("--check")) {
     if (readFileSync(outputPath, "utf8") !== output) {

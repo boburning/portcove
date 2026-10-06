@@ -73,6 +73,13 @@ Keep the five template sections in order:
 5. **Readiness and follow-ups** — state the live Roadmap status, merge authority,
    remaining blockers or linked follow-up issues, or `None`.
 
+Before review and final acceptance, refresh applicable issue/Project requirements
+and accepted ownership as well as the source candidate. Compare material deltas
+under [Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep):
+reconcile superseded acceptance and repeat only affected obligations. A changed
+fingerprint alone neither rejects sound work nor approves stale work. This does
+not replace exact-head, relevant-target, independent review or protected gates.
+
 Record the reviewed source head, target tip used for the comparison, and actual
 merge-base. If `main` advances without changing the source head, do not imply the
 later target revision was tested. An unrelated target advance does not by itself

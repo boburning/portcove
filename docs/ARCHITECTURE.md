@@ -686,6 +686,12 @@ bounded source discovery hashes selected files. It is provisional, carries no
 registration authority, and cannot substitute for the completed report or
 saved-root snapshot. Desktop renders candidates during a scan, then replaces
 them with core's completed snapshot; source import still requires a fresh plan.
+The current Desktop workspace owns the ephemeral saved-folder scan observer.
+Opening a selected game's details and returning to Settings preserves that
+request's progress, provisional matches and cancellation target, and does not
+start another scan. Settled or disposed-workspace callbacks cannot populate a
+new observer. Library replacement disposes observation without automatically
+cancelling core work; this is not a durable scan intent or restart guarantee.
 The Playnite reference client negotiates event schemas 2 and 3 independently
 from API schema and validates candidate fields without changing lifecycle state.
 
