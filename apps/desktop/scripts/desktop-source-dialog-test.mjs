@@ -739,6 +739,33 @@ async function selectedSetupDetail(browser, port, biosRegistered) {
   return { state, reason, bios_registered: biosRegistered };
 }
 
+// Preserve the original journey error even if read-only failure capture also fails.
+export async function recordSelectedSetupFailure(browser, report, error) {
+  report.failure = String(error);
+  report.failure_details = {
+    checkpoint: report.checkpoint ?? "not recorded",
+    name: error?.name,
+    message: error?.message,
+    stack: error?.stack,
+  };
+  try {
+    report.failure_state = await browser.executeScript(() => ({
+      candidates: [...document.querySelectorAll("[data-completed-candidate]")].map((row) => ({
+        profile_id: row.getAttribute("data-profile-id"),
+        controls: [...row.querySelectorAll("button")].map((button) => ({
+          text: button.textContent.trim(),
+          disabled: button.disabled,
+          review: button.hasAttribute("data-candidate-review"),
+        })),
+      })),
+      focus: document.activeElement?.getAttribute("aria-label") ?? null,
+      viewport: { width: innerWidth, height: innerHeight },
+    }));
+  } catch (captureError) {
+    report.failure_state_error = String(captureError);
+  }
+}
+
 export async function selectedSetupScenario({
   browser,
   invoke,
@@ -1014,11 +1041,19 @@ export async function selectedSetupScenario({
         fixture.refreshPort,
         true,
       );
+      report.checkpoint = "registered-bios-return-control";
       await click(By.css('[aria-label="Back to previous workspace"]'));
-      await browser.wait(until.elementLocated(continuation), 5_000);
+      report.checkpoint = "registered-bios-return-continuation";
+      await browser.wait(
+        until.elementLocated(continuation),
+        5_000,
+        "Selected setup: return continuation after registered BIOS details",
+      );
+      report.checkpoint = "unavailable-root-refresh";
       await rename(owned.directory, missingRoot);
       rootMoved = true;
       await click(button("Refresh folders"));
+      report.checkpoint = "unavailable-root-disabled-review";
       await browser.wait(
         async () =>
           !(
@@ -1027,7 +1062,9 @@ export async function selectedSetupScenario({
               .findElement(By.css("[data-candidate-review]"))
           ).isEnabled(),
         5_000,
+        "Selected setup: stale review disabled after unavailable-root refresh",
       );
+      report.checkpoint = "unavailable-root-observations";
       const snapshot = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(snapshot.freshness, "inputs_changed");
       const roots = command(["source", "roots", "list"]);
@@ -1080,7 +1117,7 @@ export async function selectedSetupScenario({
       );
     } catch (error) {
       journeyFailure = error;
-      report.failure = String(error);
+      await recordSelectedSetupFailure(browser, report, error);
     } finally {
       try {
         if (rootMoved) await rename(missingRoot, owned.directory);

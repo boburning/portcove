@@ -13,6 +13,7 @@ import {
   externalRuntimePickerObservation,
   externalRuntimeReviewScenario,
 } from "../apps/desktop/scripts/desktop-external-runtime-test.mjs";
+import { recordSelectedSetupFailure } from "../apps/desktop/scripts/desktop-source-dialog-test.mjs";
 import { nativePreparedRuntimePicker } from "../apps/desktop/scripts/desktop-native-confirmation.mjs";
 import {
   verifyNormalPackageEvidence,
@@ -988,6 +989,37 @@ test("saved-folder selected setup stays standalone and opt-in", () => {
     /standalone/,
   );
   assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
+});
+
+test("selected setup failure capture preserves the failing boundary and original stack", async () => {
+  const failure = new Error("Original five-second wait failed");
+  failure.name = "TimeoutError";
+  for (const captureFails of [false, true]) {
+    const report = { checkpoint: "unavailable-root-disabled-review" };
+    const state = { candidates: [{ profile_id: "inert", controls: [{ disabled: false }] }] };
+    await recordSelectedSetupFailure(
+      {
+        executeScript: async () => {
+          if (captureFails) throw new Error("Read-only state capture failed");
+          return state;
+        },
+      },
+      report,
+      failure,
+    );
+    assert.equal(report.failure, String(failure));
+    assert.deepEqual(report.failure_details, {
+      checkpoint: "unavailable-root-disabled-review",
+      name: "TimeoutError",
+      message: failure.message,
+      stack: failure.stack,
+    });
+    if (captureFails) {
+      assert.match(report.failure_state_error, /Read-only state capture failed/);
+      assert.equal(report.failure_state, undefined);
+    } else assert.deepEqual(report.failure_state, state);
+    assert.equal(failure.message, "Original five-second wait failed");
+  }
 });
 
 test("selected setup identities admit both replacements only in the opt-in catalog", async (t) => {
