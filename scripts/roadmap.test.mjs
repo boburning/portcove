@@ -17,6 +17,7 @@ import {
   normalizeRequirements,
   compareExecutionSnapshots,
   deriveExecutionContext,
+  coordinationTarget,
   prepareConsumption,
   parseConsumptionRecord,
   consumedReference,
@@ -100,7 +101,7 @@ const acknowledgment = (context = pickupContext(), runner = "Local") =>
 const acknowledgmentComment = (context = pickupContext(), runner = "Local") => ({
   id: 1,
   body: acknowledgment(context, runner).body,
-  url: `https://github.com/${config.repository}/issues/793#issuecomment-1`,
+  url: `${context.coordination_target.url}#issuecomment-1`,
   author: { login: "recorder" },
 });
 
@@ -275,7 +276,7 @@ test("acknowledgment payload roundtrips action and evidence code fences without 
   assert.equal(record.evidence, evidence);
   assert.equal(
     prepareConsumption(context, { runner: "Local", action, evidence }, [
-      { body: prepared.body, url: "existing" },
+      { body: prepared.body, url: `${context.coordination_target.url}#issuecomment-1` },
     ]).needed,
     false,
   );
@@ -286,9 +287,10 @@ function consumptionClient({
   transport = false,
   readback = true,
   prior = [],
+  context = pickupContext(),
+  complete = true,
 } = {}) {
   const writes = [];
-  const context = pickupContext();
   const saved = acknowledgment(context);
   return {
     writes,
@@ -296,8 +298,10 @@ function consumptionClient({
     client: {
       coordinationRecords: () => ({
         nodes: writes.length
-          ? [...prior, { ...acknowledgmentComment(context), body: writes[0].body }]
+          ? [...prior, { ...acknowledgmentComment(context), id: 2, body: writes[0].body,
+              url: `${context.coordination_target.url}#issuecomment-2` }]
           : prior,
+        coverage: { complete, count: prior.length, total: complete ? prior.length : 100 },
       }),
       executionIssue: () => ({
         item: changed ? pickupIssue(1104, "Concurrent requirements") : pickupIssue(),
@@ -306,15 +310,16 @@ function consumptionClient({
       api: {
         request(method, endpoint, payload) {
           assert.equal(method, "POST");
-          assert.equal(endpoint, `repos/${config.repository}/issues/793/comments`);
+          assert.equal(endpoint, `repos/${config.repository}/issues/${context.coordination_target.number}/comments`);
           writes.push(payload);
           if (transport) throw new Error("lost POST response");
-          return { body: { id: 1 } };
+          return { body: { id: 2 } };
         },
       },
       coordinationComment: () => {
         if (!readback) throw new Error("unavailable readback");
-        return { ...acknowledgmentComment(context), body: writes[0]?.body ?? saved.body };
+        return { ...acknowledgmentComment(context), id: 2,
+          url: `${context.coordination_target.url}#issuecomment-2`, body: writes[0]?.body ?? saved.body };
       },
     },
   };
@@ -465,17 +470,117 @@ test("selected context collects typed relationships completely and matches opaqu
   assert.throws(() => client.executionIssue(1104), /duplicate/);
 });
 
-test("acknowledgment history fails closed on count changes and recent-window truncation", () => {
+test("acknowledgment history validates bounded coverage and refuses count changes", () => {
   const client = new RoadmapClient(config);
-  client.repositoryIssue = () => ({ comments: 1 });
-  client.api.paginateRest = () => [];
-  assert.throws(() => client.coordinationRecords({ complete: true }), /incomplete/);
+  const target = coordinationTarget(config, 1104);
+  client.coordinationBinding = () => ({ comments: 100 });
   client.graphql = () => ({
     repository: {
-      issue: { comments: { nodes: [], totalCount: 100, pageInfo: { hasPreviousPage: true } } },
+      issue: { url: target.url, comments: { nodes: [], totalCount: 100, pageInfo: { hasPreviousPage: true } } },
     },
   });
-  assert.throws(() => client.coordinationRecords(), /incomplete/);
+  assert.throws(() => client.coordinationRecords(target), /incomplete/);
+  const nodes = Array.from({length:50}, (_, i) => ({id:String(i), url:`${target.url}#issuecomment-${i+1}`,
+    body:"plain checkpoint",createdAt:"2026-10-06T12:00:00Z",updatedAt:"2026-10-06T12:00:00Z"}));
+  client.graphql = () => ({repository:{issue:{url:target.url,comments:{nodes,totalCount:100,pageInfo:{hasPreviousPage:true}}}}});
+  assert.equal(client.coordinationRecords(target).coverage.complete, false);
+  let reads = 0;
+  client.coordinationBinding = () => ({comments: ++reads === 1 ? 100 : 101});
+  assert.throws(() => client.coordinationRecords(target), /incomplete/);
+});
+
+test("selected issue and explicit PR routes bind work/repository and never write legacy793", () => {
+  const target = coordinationTarget(config, 1104, 1543);
+  const context = pickupContext(pickupIssue(), pickupRelations(), { target });
+  const scenario = consumptionClient({ context });
+  const result = executeConsumption({ ...scenario, config, runner:"Local", action:"Consumed", evidence:"actual", apply:true });
+  assert.equal(result.url, `${target.url}#issuecomment-2`);
+  const client = new RoadmapClient(config);
+  let node = {number:1543,html_url:target.url,pull_request:{url:"bound"},comments:2,body:"Refs #1104."};
+  client.api = {request: () => ({body:node})};
+  assert.equal(client.coordinationBinding(target).number,1543);
+  for(const body of ["Refs #11040", "https://github.com/other/repo/issues/1104", "no work reference",
+    `https://github.com/${config.repository}/issues/1104x`,
+    `https://github.com/${config.repository}/issues/1104-not-the-issue`,
+    `https://github.com/${config.repository}/issues/11040`]) {
+    node = {...node,body};
+    assert.throws(() => client.coordinationBinding(target), /does not reference/);
+  }
+  for (const suffix of ["", ")", "#issuecomment-1", "?query=value"]) {
+    node={...node,body:`[Owner](https://github.com/${config.repository}/issues/1104${suffix}`};
+    assert.equal(client.coordinationBinding(target).number,1543);
+  }
+  node = {...node,body:"Refs #1104",html_url:"https://github.com/other/repo/pull/1543"};
+  assert.throws(() => client.coordinationBinding(target), /identity/);
+  assert.throws(() => coordinationTarget(config,793), /read-only/);
+  assert.throws(() => coordinationTarget(config,1104,793), /read-only/);
+  for(const mutation of [
+    {pickup:{reported_runner:"Other"}},
+    {coordination_target:{...target,work_issue:209}},
+    {coordination_target:{...target,repository:"other/repo"}},
+  ]) {
+    const invalid = consumptionClient({context});
+    invalid.context = {...context,...mutation};
+    assert.throws(() => executeConsumption({...invalid,config,runner:"Local",action:"Consumed",evidence:"actual",apply:true}));
+    assert.equal(invalid.writes.length,0);
+  }
+});
+
+test("exact legacy refs are read-only comparison; other work refs and identity substitutions fail", () => {
+  const client = new RoadmapClient(config);
+  const target = coordinationTarget(config,1104);
+  const url = `https://github.com/${config.repository}/issues/793#issuecomment-1`;
+  const requests=[];
+  let original = {html_url:url,issue_url:`https://api.github.com/repos/${config.repository}/issues/793`,body:acknowledgment().body};
+  client.api={request:(method,endpoint) => {requests.push([method,endpoint]);return {body:original};}};
+  assert.equal(consumedReference(client.coordinationComment(url,target),{repository:config.repository,runner:"Local",issue:1104}).issue.number,1104);
+  assert.deepEqual(requests,[["GET",`repos/${config.repository}/issues/comments/1`]]);
+  assert.throws(() => client.coordinationComment(`https://github.com/${config.repository}/issues/209#issuecomment-1`,target), /selected issue/);
+  assert.throws(() => consumedReference(client.coordinationComment(url,target),{repository:config.repository,runner:"Other",issue:1104}), /does not match/);
+  original={...original,issue_url:`https://api.github.com/repos/${config.repository}/issues/1104`};
+  assert.throws(() => client.coordinationComment(url,target), /identity/);
+  const substituted=acknowledgmentComment(pickupContext(pickupIssue(),pickupRelations(),{
+    target:coordinationTarget(config,1104,1543),
+  }));
+  substituted.url=`${target.url}#issuecomment-1`;
+  assert.throws(() => consumedReference(substituted,{repository:config.repository,runner:"Local",issue:1104,target}), /bound issue\/PR/);
+});
+
+test("incomplete absence refuses new writes while covered quiet repeats and revisited revisions remain correct", () => {
+  const options={config,runner:"Local",action:"Consumed",evidence:"actual",apply:true};
+  const absent=consumptionClient({complete:false});
+  assert.throws(() => executeConsumption({...options,...absent}), /absence\/latest is unknown/);
+  assert.equal(absent.writes.length,0);
+  const outside=consumptionClient({complete:false});
+  outside.context.consumed_reference={url:"exact old reference",latest_consumption:"not established"};
+  assert.throws(() => executeConsumption({...options,...outside}), /absence\/latest is unknown/);
+  const quiet=consumptionClient({complete:false,prior:[acknowledgmentComment()]});
+  assert.equal(executeConsumption({...options,...quiet}).needed,false);
+  assert.equal(quiet.writes.length,0);
+  const reordered = JSON.parse(JSON.stringify(acknowledgmentComment()));
+  const prepared = acknowledgment();
+  prepared.record.coordination_target = Object.fromEntries(Object.entries(prepared.record.coordination_target).reverse());
+  reordered.body = `<!-- portcove-roadmap-consumed:v1 -->\n\`\`\`json\n${JSON.stringify(prepared.record)}\n\`\`\``;
+  const semanticQuiet = consumptionClient({complete:false,prior:[reordered]});
+  assert.equal(executeConsumption({...options,...semanticQuiet}).needed,false);
+  assert.equal(semanticQuiet.writes.length,0);
+  const changed=pickupContext(pickupIssue(1104,"Changed acceptance"));
+  const revisited=consumptionClient({complete:false,prior:[acknowledgmentComment(),acknowledgmentComment(changed)]});
+  assert.equal(executeConsumption({...options,...revisited}).needed,true);
+  assert.equal(revisited.writes.length,1);
+});
+
+test("same-count raw history edits and changed raw observations stop before writing", () => {
+  const scenario=consumptionClient();
+  let reads=0;
+  scenario.client.coordinationRecords=() => ({nodes:[{id:1,body:++reads===1?"before":"after"}],coverage:{complete:true,count:1,total:1}});
+  assert.throws(() => executeConsumption({...scenario,config,runner:"Local",action:"Consumed",evidence:"actual",apply:true}), /history changed/);
+  assert.equal(scenario.writes.length,0);
+  const raw=consumptionClient();
+  let observations=0;
+  raw.client.executionIssue=() => ({item:++observations===1?pickupIssue():pickupIssue(1104,"## Acceptance\n- [x] Preserve recovery."),relationships:pickupRelations()});
+  assert.throws(() => executeConsumption({...raw,config,runner:"Local",action:"Consumed",evidence:"actual",apply:true}), /snapshot is stale/);
+  assert.equal(raw.writes.length,0);
 });
 
 test("capability milestones preserve history and fail closed during partial migration", () => {

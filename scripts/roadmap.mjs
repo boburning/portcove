@@ -1156,7 +1156,7 @@ usage:
   node scripts/roadmap.mjs set-many --spec-file <path> [--apply] [--json]
   node scripts/roadmap.mjs move <item> --before <item>
   node scripts/roadmap.mjs next [--json]
-  node scripts/roadmap.mjs context --issue <number> --runner <identity> [--consumed-file <path> | --consumed-comment <url>] [--reservation-comment <url>] [--json]
+  node scripts/roadmap.mjs context --issue <number> --runner <identity> [--coordination-pr <number>] [--consumed-file <path> | --consumed-comment <url>] [--reservation-comment <url>] [--json]
   node scripts/roadmap.mjs acknowledge --context-file <path> --runner <identity> --action <actual-action> --evidence <reference> [--apply] [--json]
   node scripts/roadmap.mjs rename-commitment [--apply]
   node scripts/roadmap.mjs readiness --release <release>
@@ -1267,7 +1267,51 @@ export function renderExecutionQueue(items) {
   );
 }
 
-const coordinationIssue = 793;
+const legacyCoordinationIssue = 793;
+export function coordinationTarget(config, issue, pullRequest = null) {
+  const positive = (value) => Number.isSafeInteger(value) && value > 0;
+  if (!positive(issue) || (pullRequest !== null && !positive(pullRequest)))
+    throw new Error("coordination requires a positive work issue and optional PR number");
+  const number = pullRequest ?? issue;
+  if (number === legacyCoordinationIssue)
+    throw new Error("#793 is read-only; select the owning issue or explicitly bound PR");
+  return {
+    repository: config.repository,
+    work_issue: issue,
+    kind: pullRequest === null ? "issue" : "pull_request",
+    number,
+    url: `https://github.com/${config.repository}/${pullRequest === null ? "issues" : "pull"}/${number}`,
+  };
+}
+
+function sameCoordinationTarget(target, expected) {
+  return Boolean(target) && Object.keys(target).length === Object.keys(expected).length &&
+    Object.entries(expected).every(([key, value]) => target[key] === value);
+}
+
+function validateCoordinationTarget(target, snapshot) {
+  const expected = coordinationTarget(
+    { repository: snapshot.repository },
+    snapshot.issue.number,
+    target?.kind === "pull_request" ? target.number : null,
+  );
+  if (!sameCoordinationTarget(target, expected))
+    throw new Error("coordination target does not match this repository and work issue");
+  return target;
+}
+
+function matchingConsumption(comment, snapshot, runner, target) {
+  const url = comment.html_url ?? comment.url;
+  if (!url?.startsWith(`${target.url}#issuecomment-`) ||
+    !/^[1-9]\d*$/.test(url.slice(`${target.url}#issuecomment-`.length))) return null;
+  const record = parseConsumptionRecord(comment.body);
+  return record?.runner === runner &&
+    record.snapshot.repository === snapshot.repository &&
+    record.snapshot.issue.id === snapshot.issue.id &&
+    sameCoordinationTarget(record.coordination_target, target)
+    ? record
+    : null;
+}
 const consumptionMarker = "<!-- portcove-roadmap-consumed:v1 -->";
 const executionFields = [
   "Status",
@@ -1504,6 +1548,8 @@ export function parseConsumptionRecord(body) {
   )
     throw new Error("invalid roadmap consumption record");
   validateExecutionSnapshot(record.snapshot);
+  if (record.coordination_target)
+    validateCoordinationTarget(record.coordination_target, record.snapshot);
   return record;
 }
 
@@ -1511,16 +1557,15 @@ export function prepareConsumption(context, { runner, action, evidence }, commen
   if (!runner?.trim() || !action?.trim() || !evidence?.trim())
     throw new Error("acknowledgment requires actual runner, action and evidence");
   validateExecutionSnapshot(context.snapshot);
+  const target = validateCoordinationTarget(context.coordination_target, context.snapshot);
   if (!/^[a-f0-9]{64}$/.test(context.observation_revision ?? ""))
     throw new Error("context requires the full raw observation identity");
   const prior = comments
-    .map((comment) => ({ comment, record: parseConsumptionRecord(comment.body) }))
-    .filter(
-      ({ record }) =>
-        record?.runner === runner &&
-        record.snapshot.repository === context.snapshot.repository &&
-        record.snapshot.issue.id === context.snapshot.issue.id,
-    )
+    .map((comment) => ({
+      comment,
+      record: matchingConsumption(comment, context.snapshot, runner, target),
+    }))
+    .filter(({ record }) => record)
     .at(-1);
   if (
     prior?.record.snapshot.revision === context.snapshot.revision &&
@@ -1537,6 +1582,7 @@ export function prepareConsumption(context, { runner, action, evidence }, commen
     runner,
     snapshot: context.snapshot,
     observation_revision: context.observation_revision,
+    coordination_target: target,
     action,
     evidence,
   };
@@ -1548,18 +1594,15 @@ export function deriveExecutionContext(
   config,
   item,
   relationships,
-  { runner, comments, coverage, consumed = null, reservation = null },
+  { runner, comments, coverage, consumed = null, reservation = null, target = null },
 ) {
   const snapshot = executionSnapshot(config, item, relationships);
+  target ??= coordinationTarget(config, snapshot.issue.number);
+  validateCoordinationTarget(target, snapshot);
   const observation_revision = executionObservation(item, relationships);
   const latest = comments
-    .map((comment) => ({ comment, record: parseConsumptionRecord(comment.body) }))
-    .filter(
-      ({ record }) =>
-        record?.runner === runner &&
-        record.snapshot.repository === snapshot.repository &&
-        record.snapshot.issue.id === snapshot.issue.id,
-    )
+    .map((comment) => ({ comment, record: matchingConsumption(comment, snapshot, runner, target) }))
+    .filter(({ record }) => record)
     .at(-1);
   const previous = consumed ?? latest?.record.snapshot ?? null;
   const comparison = compareExecutionSnapshots(snapshot, previous);
@@ -1580,6 +1623,7 @@ export function deriveExecutionContext(
     observed_at: new Date().toISOString(),
     snapshot,
     observation_revision,
+    coordination_target: target,
     canonical_issue: {
       number: item.content.number,
       url: item.content.url,
@@ -1617,7 +1661,7 @@ export function deriveExecutionContext(
         }
       : {
           assessment: "unknown",
-          coordination_url: `https://github.com/${config.repository}/issues/${coordinationIssue}`,
+          coordination_url: target.url,
         },
     comparison,
     pickup: {
@@ -1656,7 +1700,7 @@ function executionObservation(item, relationships) {
   });
 }
 
-export function consumedReference(comment, { repository, runner, issue }) {
+export function consumedReference(comment, { repository, runner, issue, target = null }) {
   const record = parseConsumptionRecord(comment.body);
   if (
     !record ||
@@ -1665,6 +1709,12 @@ export function consumedReference(comment, { repository, runner, issue }) {
     record.snapshot.issue.number !== issue
   )
     throw new Error("consumed comment does not match this repository, runner and task");
+  const url = comment.html_url ?? comment.url;
+  const legacyPrefix = `https://github.com/${repository}/issues/${legacyCoordinationIssue}#issuecomment-`;
+  const legacy = url?.startsWith(legacyPrefix) && /^[1-9]\d*$/.test(url.slice(legacyPrefix.length));
+  if (!legacy && !matchingConsumption(comment, record.snapshot, runner,
+    target ?? coordinationTarget({repository}, issue)))
+    throw new Error("consumed comment does not match its bound issue/PR target");
   return record.snapshot;
 }
 
@@ -1698,9 +1748,8 @@ export function executeConsumption({
     throw new Error(
       "context runner differs from the reported consumer; read that runner's current context",
     );
-  // Complete history is necessary before absence can justify a new comment.
-  // This is only a material acknowledgment, never the ordinary read path.
-  const comments = client.coordinationRecords({ complete: true });
+  const target = validateCoordinationTarget(context.coordination_target, context.snapshot);
+  const comments = client.coordinationRecords(target);
   const live = client.executionIssue(context.snapshot.issue.number);
   const current = executionSnapshot(config, live.item, live.relationships);
   if (
@@ -1712,7 +1761,23 @@ export function executeConsumption({
     );
   const planned = prepareConsumption(context, { runner, action, evidence }, comments.nodes);
   if (!planned.needed || !apply) return { status: apply ? "succeeded" : "planned", ...planned };
-  const endpoint = `repos/${config.repository}/issues/${coordinationIssue}/comments`;
+  const knownLatest = comments.nodes.some((comment) =>
+    matchingConsumption(comment, context.snapshot, runner, target),
+  );
+  if (!comments.coverage.complete && !knownLatest)
+    throw new Error("Consumption history is bounded; absence/latest is unknown. Retain the planned body; use an exact current-window reference or the owning issue with complete bounded coverage.");
+  // A stable count does not exclude edited/replaced comments. Recheck the
+  // bounded raw window immediately before writing, without scanning archives.
+  const refreshed = client.coordinationRecords(target);
+  if (digest(refreshed) !== digest(comments))
+    throw new Error("Coordination history changed before acknowledgment; refresh context before writing");
+  const fresh = client.executionIssue(context.snapshot.issue.number);
+  if (
+    executionSnapshot(config, fresh.item, fresh.relationships).revision !== current.revision ||
+    executionObservation(fresh.item, fresh.relationships) !== context.observation_revision
+  )
+    throw new Error("Consumed snapshot is stale before acknowledgment");
+  const endpoint = `repos/${config.repository}/issues/${target.number}/comments`;
   let transportError = null;
   let written;
   try {
@@ -1725,10 +1790,13 @@ export function executeConsumption({
     saved = written?.id
       ? [
           client.coordinationComment(
-            `https://github.com/${config.repository}/issues/${coordinationIssue}#issuecomment-${written.id}`,
+            `${target.url}#issuecomment-${written.id}`,
+            target,
           ),
         ]
-      : client.coordinationRecords({ complete: true }).nodes;
+      : client.coordinationRecords(target).nodes.filter(
+          (comment) => !comments.nodes.some((prior) => prior.id === comment.id),
+        );
   } catch (error) {
     transportError ??= error;
     saved = [];
@@ -1737,7 +1805,7 @@ export function executeConsumption({
     (comment) =>
       comment.body === planned.body &&
       (comment.html_url ?? comment.url)?.startsWith(
-        `https://github.com/${config.repository}/issues/${coordinationIssue}#issuecomment-`,
+        `${target.url}#issuecomment-`,
       ),
   );
   if (matching.length !== 1) {
@@ -2698,41 +2766,55 @@ export class RoadmapClient {
     };
   }
 
-  coordinationRecords({ complete = false } = {}) {
-    if (complete) {
-      const count = () => this.repositoryIssue(coordinationIssue).comments;
-      const before = count();
-      if (!Number.isSafeInteger(before) || before < 0)
-        throw new Error("coordination comment count is unavailable");
-      const nodes = this.api
-        .paginateRest(
-          `repos/${this.config.repository}/issues/${coordinationIssue}/comments?per_page=100`,
-          {
-            identity: (node) =>
-              Number.isSafeInteger(node.id) && node.id > 0 ? String(node.id) : null,
-            label: "coordination acknowledgment history",
-          },
-        )
-        .map((node) => ({ ...node, url: node.html_url, author: node.user }));
-      if (count() !== before || nodes.length !== before)
-        throw new Error(
-          "coordination history changed or is incomplete; refresh before acknowledgment",
-        );
-      return { nodes, coverage: { complete: true, count: nodes.length } };
-    }
-    const [owner, name] = this.config.repository.split("/");
-    const result = this.graphql(
-      "query($owner:String!,$name:String!){repository(owner:$owner,name:$name){issue(number:793){comments(last:50){totalCount nodes{id url body createdAt author{login}} pageInfo{hasPreviousPage startCursor}}}}}",
-      { owner, name },
-    )?.repository?.issue?.comments;
+  coordinationBinding(target) {
+    validateCoordinationTarget(target, {
+      repository: this.config.repository,
+      issue: { number: target.work_issue },
+    });
+    const node = this.api.request(
+      "GET", `repos/${this.config.repository}/issues/${target.number}`,
+    ).body;
     if (
+      node?.number !== target.number || node.html_url !== target.url ||
+      Boolean(node.pull_request) !== (target.kind === "pull_request") ||
+      !Number.isSafeInteger(node.comments) || node.comments < 0
+    ) throw new Error("coordination issue/PR identity is unavailable or mismatched");
+    if (target.kind === "pull_request") {
+      const linked = [...String(node.body ?? "").matchAll(/(?:^|[\s(,])#(\d+)\b/g)]
+        .some((match) => Number(match[1]) === target.work_issue);
+      const link = `https://github.com/${this.config.repository}/issues/${target.work_issue}`;
+      const linkedUrl = String(node.body ?? "").split(link).slice(1)
+        .some((suffix) => suffix === "" || /^[\s)\]>"'`#?]/.test(suffix));
+      if (!linked && !linkedUrl)
+        throw new Error("explicit coordination PR does not reference the selected work issue");
+    }
+    return node;
+  }
+
+  coordinationRecords(target) {
+    const before = this.coordinationBinding(target).comments;
+    const [owner, name] = this.config.repository.split("/");
+    const field = target.kind === "pull_request" ? "pullRequest" : "issue";
+    const observed = this.graphql(
+      `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){${field}(number:$number){url comments(last:50){totalCount nodes{id url body createdAt updatedAt author{login}} pageInfo{hasPreviousPage startCursor}}}}}`,
+      { owner, name, number: target.number },
+    )?.repository?.[field];
+    const result = observed?.comments;
+    if (
+      observed?.url !== target.url ||
       !Array.isArray(result?.nodes) ||
       !Number.isSafeInteger(result.totalCount) ||
       result.totalCount < 0 ||
       result.nodes.length !== Math.min(50, result.totalCount) ||
-      result.nodes.some((node) => !node?.id) ||
+      result.nodes.some((node) => !node?.id || typeof node.body !== "string" ||
+        !node.url?.startsWith(`${target.url}#issuecomment-`) ||
+        !/^[1-9]\d*$/.test(node.url.slice(`${target.url}#issuecomment-`.length)) ||
+        !Number.isFinite(Date.parse(node.createdAt)) || !Number.isFinite(Date.parse(node.updatedAt))) ||
       new Set(result.nodes.map((node) => node.id)).size !== result.nodes.length ||
-      result.pageInfo?.hasPreviousPage !== result.totalCount > 50
+      new Set(result.nodes.map((node) => node.url)).size !== result.nodes.length ||
+      result.nodes.some((node, index) => index > 0 && Date.parse(node.createdAt) < Date.parse(result.nodes[index - 1].createdAt)) ||
+      result.pageInfo?.hasPreviousPage !== (result.totalCount > 50) ||
+      result.totalCount !== before || this.coordinationBinding(target).comments !== before
     )
       throw new Error("coordination read is unavailable or incomplete");
     return {
@@ -2746,20 +2828,22 @@ export class RoadmapClient {
     };
   }
 
-  coordinationComment(url) {
-    const match = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/issues\/793#issuecomment-(\d+)$/.exec(
+  coordinationComment(url, target) {
+    const match = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/(issues|pull)\/(\d+)#issuecomment-(\d+)$/.exec(
       url,
     );
-    if (!match || match[1] !== this.config.repository)
-      throw new Error("coordination reference must belong to this repository's #793");
+    if (!match || match[1] !== this.config.repository ||
+      !((match[2] === "issues" && Number(match[3]) === legacyCoordinationIssue) ||
+        url.startsWith(`${target?.url}#issuecomment-`)))
+      throw new Error("coordination reference must belong to this repository's selected issue/PR or legacy #793");
     const comment = this.api.request(
       "GET",
-      `repos/${this.config.repository}/issues/comments/${match[2]}`,
+      `repos/${this.config.repository}/issues/comments/${match[4]}`,
     ).body;
     if (
       comment?.html_url !== url ||
       comment.issue_url !==
-        `https://api.github.com/repos/${this.config.repository}/issues/${coordinationIssue}`
+        `https://api.github.com/repos/${this.config.repository}/issues/${match[3]}`
     )
       throw new Error("coordination comment identity is mismatched");
     return { ...comment, url: comment.html_url, author: comment.user };
@@ -3832,6 +3916,7 @@ async function main(argv) {
     if (parsed.command === "context") {
       executionOptions(parsed, [
         "--issue",
+        "--coordination-pr",
         "--runner",
         "--consumed-file",
         "--consumed-comment",
@@ -3842,6 +3927,10 @@ async function main(argv) {
       if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1)
         throw new Error("--issue must be a positive repository issue number");
       const runner = requiredOption(parsed.options, "--runner");
+      const pr = parsed.options["--coordination-pr"];
+      if (pr !== undefined && (typeof pr !== "string" || !/^\d+$/.test(pr)))
+        throw new Error("--coordination-pr must be a positive repository PR number");
+      const target = coordinationTarget(config, Number(value), pr === undefined ? null : Number(pr));
       if (parsed.options["--consumed-file"] && parsed.options["--consumed-comment"])
         throw new Error("choose one consumed file or comment");
       let consumed = null;
@@ -3854,11 +3943,12 @@ async function main(argv) {
         reference = { kind: "disposable checkpoint", latest_consumption: "not established" };
       }
       if (parsed.options["--consumed-comment"]) {
-        const comment = client.coordinationComment(parsed.options["--consumed-comment"]);
+        const comment = client.coordinationComment(parsed.options["--consumed-comment"], target);
         consumed = consumedReference(comment, {
           repository: config.repository,
           runner,
           issue: Number(value),
+          target,
         });
         reference = {
           url: comment.url,
@@ -3867,9 +3957,9 @@ async function main(argv) {
         };
       }
       const reservation = parsed.options["--reservation-comment"]
-        ? client.coordinationComment(parsed.options["--reservation-comment"])
+        ? client.coordinationComment(parsed.options["--reservation-comment"], target)
         : null;
-      const history = client.coordinationRecords();
+      const history = client.coordinationRecords(target);
       const live = client.executionIssue(Number(value));
       const context = deriveExecutionContext(config, live.item, live.relationships, {
         runner,
@@ -3877,6 +3967,7 @@ async function main(argv) {
         coverage: history.coverage,
         consumed,
         reservation,
+        target,
       });
       context.consumed_reference = reference;
       console.log(

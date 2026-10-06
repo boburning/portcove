@@ -340,13 +340,13 @@ evidence-backed satisfactory/compatibility-retained disposition; file size alone
 does not justify another required refactor. Design-system closure uses accepted
 surfaces/states/references, not reopened stack selection or new aesthetic goals.
 
-Every actionable Now/Next item has either an accepted assignment in #793 or an
+Every actionable Now/Next item has either an explicitly accepted assignment or an
 ordered queue position from the live Project behind named work. Queue predecessors
 express scheduling, not blocking dependencies. Recommendations are not reservations.
 Before passing over executable work, record the concrete dependency, ownership
 conflict, missing execution capability, urgent regression, or higher-value choice
-in #793, including what it is queued behind and the resume condition. Being Planned
-is never a reason. For comparably valuable executable candidates, prefer older
+in its owning issue/PR, including what it is queued behind and the resume condition.
+Being Planned is never a reason. For comparably valuable executable candidates, prefer older
 waiting work over repeatedly selecting new small tasks; use existing comments
 and queue order to record repeated deferrals, without a new scheduler or ledger.
 
@@ -382,8 +382,13 @@ Use `just roadmap-next --json` for recommendations, then
 issue's full current specification and a compact requirements snapshot. Its scope,
 planning, genuine prerequisites and completion organization are separate facets.
 An optional `--consumed-file <path>` compares a disposable checkpoint; an exact
-`--consumed-comment <#793-comment-url>` can recover an older consumption record.
-`--reservation-comment <#793-comment-url>` supplies a raw reference, never a grant.
+`--consumed-comment <exact-comment-url>` can recover an older consumption record.
+`--reservation-comment <exact-comment-url>` supplies a raw reference, never a grant.
+Context and acknowledgments use the selected work issue by default. An explicit
+`--coordination-pr <number>` binds a PR in this repository that references that
+work issue; this routing binding does not establish authority. The latest 50
+comments are observed with count, identity and raw-body checks. Exact legacy
+#793 links remain readable; no new comments or history scans use that archive.
 The recent window cannot prove an older acknowledgment absent. Neither context
 nor queue output proves capability, approval, assignment or current execution.
 
@@ -415,8 +420,12 @@ After actually consuming a material revision, retain the context JSON temporaril
 and plan `just roadmap-acknowledge --context-file <path> --runner <identity>
 --action <actual-action-or-wait-reason> --evidence <task-or-attempt-reference>
 --json`; add `--apply` only for authorized recording. It refreshes the selected
-requirements, searches count-checked coordination history before creating a new
-record, writes only #793 and verifies the exact readback. The same runner/revision
+requirements and the bound issue/PR's count-checked recent window before creating
+a new record, writes only that owning issue/PR and verifies the exact readback. An
+absent record in incomplete history remains unknown and cannot authorize a new
+acknowledgment. An older exact reference is comparison evidence, not proof of
+the latest record across an uncovered interval. Raw window identities and bodies
+are rechecked before writing, including same-count edits. The same runner/revision
 and raw observation is a no-op. Record only actual material consumption; do not
 call the write path for routine progress or editorial changes. A stale checkpoint
 requires a fresh comparison, not rejection of sound
@@ -430,8 +439,13 @@ and observed activity remain separate; missing data stays unknown. On the next
 report/read, compare current context with the consumed record; a changed revision
 is pending comparison until an actual worker response resolves it.
 
-Exactly one implementation owner may hold conflicting scope. Reuse #793's accepted
-reservations and the existing coordinator's short grant step. Verify that this
+Exactly one implementation owner may hold conflicting scope. Preserve accepted
+reservations and use direct existing runner messages for steers, grants and
+observed acknowledgments, with compact durable checkpoints on the owning issue
+or explicitly bound PR. Retain exact comment links for later reads. Neither a
+sent message nor a checkpoint establishes a grant, consumption or worker activity
+without the corresponding actual response. Legacy #793 links remain read-only;
+do not create another global tracker or scan its archive. Verify that this
 common coordinator actually serializes grants across machines before claiming
 cross-runner exclusivity. If that support is unverified, preserve reservations
 and use only explicitly accepted assignments for conflicting work; report the
@@ -488,7 +502,7 @@ The saved views are entry points into one Project, not independent authorities:
 | ---------------------------------------- | --------------------------------------------------------------------------------------- |
 | Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                  |
 | Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                  |
-| In Progress                              | Which issues are marked In progress or Validating? Confirm actual reservations in #793. |
+| In Progress                              | Which issues are marked In progress or Validating? Confirm accepted reservations and observed runner acknowledgments on owning issues/PRs. |
 | Next Queue                               | Which unfinished Now/Next work follows, including Required and Planned?                 |
 | Planned Additions                        | Which approved non-gating additions remain, across releases?                            |
 | Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?             |

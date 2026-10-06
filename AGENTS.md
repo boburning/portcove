@@ -70,8 +70,8 @@ work remains eligible when no higher-value available beta work can use that lane
 Each actionable Now/Next item has an accepted assignment or an ordered position
 behind named work. Scheduling predecessors are not blockers; recommendations
 are not reservations. Record concrete pass-over reasons and resume conditions in
-#793, prefer older comparable executable work, and report repeated deferrals in
-the existing nightly report. Being Planned is never a pass-over reason.
+the owning issue/PR, prefer older comparable executable work, and report repeated
+deferrals in the existing nightly report. Being Planned is never a pass-over reason.
 Execute acceleration before beta when it is a necessary repair, a safe bounded
 part of approved work, or an evidenced recurring bottleneck likely to repay its
 implementation and qualification cost during remaining beta delivery. Capture
@@ -84,7 +84,7 @@ See `docs/PROJECT-GOVERNANCE.md` for the complete selection/reporting rule.
 
 Start at `docs/ROADMAP.md`. Product Outcomes is a presentation of canonical
 finite outcomes, not an execution or readiness filter. Use the common `next`
-queue, actual reservations in #793, and complete release-readiness analysis.
+queue, actual accepted reservations and complete release-readiness analysis.
 Native children contribute to their parent's defined completion; later
 independent outcomes are siblings linked by topic and genuine prerequisites.
 Keep the issue body a coherent current specification, preserve superseded text
