@@ -2989,6 +2989,51 @@ describe("desktop components", () => {
     expect(html).not.toContain("Staged updates");
   });
 
+  it.each([
+    {
+      readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" },
+      label: "Ready to play",
+      action: "View details",
+    },
+    {
+      readiness: {
+        launchable: false,
+        blockers: ["missing_runtime"],
+        pending_setup: false,
+        source: "current",
+      },
+      label: "Runtime required",
+      action: "Finish setup",
+    },
+    { readiness: null, label: "Readiness unavailable", action: "Review game" },
+  ] satisfies { readiness: PortStatus["readiness"]; label: string; action: string }[])(
+    "announces downloaded update attention beside $label on Catalog cards",
+    ({ readiness, label, action }) => {
+      const install = installRecord();
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        active: install,
+        staged: { ...install, id: "2", version: "2.0", staged: true },
+        readiness,
+      };
+      const html = renderToStaticMarkup(
+        <PortBrowser
+          view="catalog"
+          ports={[port]}
+          statuses={new Map([[port.id, status]])}
+          overview={{ installed: 1, ready: 0, needsSetup: 0, staged: 1 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={vi.fn()}
+          loading={false}
+        />,
+      );
+      expect(html).toContain(`aria-label="Sample Port. ${label}. Update downloaded. ${action}."`);
+      expect(html).toContain("Update downloaded</span>");
+    },
+  );
+
   it("offers Continue only from a recorded successful launch", () => {
     const install = installRecord();
     const recentStatus: PortStatus = {

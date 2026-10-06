@@ -553,6 +553,7 @@ export async function installScenarios({
         if (!card || card.querySelector(".readiness")?.textContent?.trim() !== "Ready to play")
           return null;
         return {
+          label: card.getAttribute("aria-label"),
           state: card.querySelector(".readiness").textContent.trim(),
           attention: [...card.querySelectorAll(".badge.update")].map((item) =>
             item.textContent.trim(),
@@ -561,6 +562,10 @@ export async function installScenarios({
       }, port.name);
     }, 15_000);
     assert.equal(libraryCard.state, "Ready to play");
+    assert.equal(
+      libraryCard.label,
+      `${port.name}. Ready to play. Update downloaded. View details.`,
+    );
     assert.ok(libraryCard.attention.includes("Update downloaded"));
     const layouts = await captureStagedLayouts(port, nextVersion);
     const finalResult = await invoke("get_statuses");

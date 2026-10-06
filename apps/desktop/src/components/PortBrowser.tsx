@@ -454,11 +454,12 @@ function PortCard({
       view={view}
     />
   );
+  const accessibleLabel = `${port.name}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
   if (view === "library")
     return (
       <article
         className={className}
-        aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+        aria-label={accessibleLabel}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
         data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
       >
@@ -470,7 +471,7 @@ function PortCard({
       data-focusable
       data-detail-origin={detailOrigin}
       className={className}
-      aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+      aria-label={accessibleLabel}
       onClick={() => onSelect(port.id, detailOrigin)}
       data-source-drop-port-id={dropEligible ? port.id : undefined}
       data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
