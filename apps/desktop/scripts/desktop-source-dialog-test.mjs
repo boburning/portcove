@@ -697,7 +697,7 @@ async function selectedSetupDetail(browser, port, biosRegistered) {
   const state = await browser.findElement(By.css(".hero-state")).getText();
   const reason = await browser.findElement(By.css(".hero-reason")).getText();
   if (!biosRegistered) {
-    assert.equal(state, "Required BIOS file");
+    assert.equal(state, "Required BIOS file needed");
     assert.ok(
       (await browser.findElement(By.css(".hero-requirement")).getText()).includes(
         "Selected setup inert BIOS",
@@ -716,7 +716,10 @@ async function selectedSetupDetail(browser, port, biosRegistered) {
     );
   } else {
     assert.equal(state, "Available to install");
-    assert.ok(reason.includes("have not been checked"));
+    assert.equal(
+      reason,
+      "Portcove will check required game files and verify the release before it becomes active.",
+    );
     assert.equal((await browser.findElements(By.css(".hero-requirement"))).length, 0);
     assert.equal(
       await browser
