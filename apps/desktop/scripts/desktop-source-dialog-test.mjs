@@ -801,6 +801,9 @@ export async function selectedSetupScenario({
       return snapshot;
     };
     let rootMoved = false;
+    let journeyFailure;
+    let cleanupFailure;
+    let artifactFailure;
     const missingRoot = `${owned.directory}-unavailable`;
     try {
       assert.deepEqual(command(["source", "list"]), []);
@@ -1040,10 +1043,9 @@ export async function selectedSetupScenario({
         "Read-only plans must not acquire or install the inert package",
       );
     } catch (error) {
+      journeyFailure = error;
       report.failure = String(error);
-      throw error;
     } finally {
-      let cleanupFailure;
       try {
         if (rootMoved) await rename(missingRoot, owned.directory);
         await writeFile(owned.gamePath, owned.game);
@@ -1061,10 +1063,12 @@ export async function selectedSetupScenario({
       } catch (error) {
         // Retain both observations in the harness log if its artifact cannot be written.
         console.error(JSON.stringify({ report, artifact_write_failure: String(error) }));
-        if (!report.failure && !cleanupFailure) throw error;
+        artifactFailure = error;
       }
-      // Cleanup/report failures must not replace the original journey error.
-      if (cleanupFailure && !report.failure) throw cleanupFailure;
     }
+    // Cleanup/report failures must not replace the original journey error.
+    if (journeyFailure) throw journeyFailure;
+    if (cleanupFailure) throw cleanupFailure;
+    if (artifactFailure) throw artifactFailure;
   });
 }
