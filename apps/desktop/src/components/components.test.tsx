@@ -723,9 +723,8 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Ready to play");
     expect(html).toContain("Update downloaded</span>");
-    if (difference === "same target" || difference.startsWith("stale "))
-      expect(html).not.toContain("Update available</span>");
-    else expect(html).toContain("Update available</span>");
+      const expectedAvailable = difference !== "same target" && !difference.startsWith("stale ");
+      expect(html.includes("Update available</span>")).toBe(expectedAvailable);
   });
 
   it.each([
