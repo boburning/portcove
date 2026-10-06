@@ -111,6 +111,42 @@ describe("catalog view model", () => {
     ]);
   });
 
+  it("combines declared platform and installation method in one query", () => {
+    const linux = {
+      ...ports[1],
+      platforms: ["linux-x86-64"] as PortDefinition["platforms"],
+      presentation: {
+        installation_method: "user-prepared-runtime" as const,
+        source_requirements: [],
+        saves_and_settings: "portcove-managed" as const,
+      },
+    };
+    expect(
+      filterPorts(
+        [ports[0], linux],
+        new Map(),
+        "catalog",
+        {
+          version: 1,
+          platforms: ["linux-x86-64"],
+          installationMethods: ["user-prepared-runtime"],
+        },
+        "",
+      ).map(({ id }) => id),
+    ).toEqual(["beta"]);
+  });
+
+  it("retains search and sorting while using explicit selected-library query context", () => {
+    const structured = { version: 1, membership: ["in-library"] };
+    expect(filterPorts(ports, indexStatuses([status]), "catalog", structured, "")).toEqual([]);
+    expect(
+      filterPorts(ports, indexStatuses([status]), "catalog", structured, "ALPHA", "name", {
+        library: { id: "selected-library", statuses: indexStatuses([status]) },
+      }).map(({ id }) => id),
+    ).toEqual(["alpha"]);
+    expect(filterPorts(ports, new Map(), "catalog", { version: 2 }, "")).toEqual([]);
+  });
+
   it("combines channel and text filters", () => {
     expect(
       filterPorts(ports, new Map(), "catalog", "rolling", "BETA").map((value) => value.id),
