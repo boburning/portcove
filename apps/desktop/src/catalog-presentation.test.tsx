@@ -3,11 +3,69 @@ import { describe, expect, it, vi } from "vitest";
 import { SettingsView } from "./components/Chrome";
 import { PortBrowser } from "./components/PortBrowser";
 import { ReleaseChannelControl } from "./components/ReleaseChannel";
-import { portDefinition } from "./test-fixtures";
-import type { GithubAuthStatus, PortDefinition, ReleaseChannel } from "./types";
+import { portDefinition, portStatus } from "./test-fixtures";
+import type { GithubAuthStatus, PortDefinition, PortStatus, ReleaseChannel } from "./types";
 import { formatBytes, platformLabel } from "./view-model";
 
 describe("catalog and capacity presentation", () => {
+  it.each([undefined, portStatus()])(
+    "keeps a missing Catalog setup assessment unknown: %j",
+    (status) => {
+      const port = { ...portDefinition(), support_tier: "untested" };
+      const html = renderToStaticMarkup(
+        <PortBrowser
+          view="catalog"
+          ports={[port]}
+          statuses={new Map(status ? [[port.id, status]] : [])}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={vi.fn()}
+          loading={false}
+        />,
+      );
+      expect(html).toContain("Setup status unknown");
+      expect(html).toContain(`aria-label="${port.name}. Setup status unknown. View details."`);
+      expect(html).not.toContain("Available");
+      expect(html).not.toContain("Unsupported");
+      const card = html.match(/<button[^>]*class="port-card [^>]*>/u)?.[0];
+      expect(card).toBeDefined();
+      expect(card).not.toContain(" disabled=");
+      if (!status) {
+        expect(html).toContain("Installation status unknown");
+        expect(html).not.toContain("Not installed");
+      } else {
+        expect(html).toContain("Not installed");
+      }
+    },
+  );
+
+  it("separates observed uninstalled membership from Catalog setup eligibility", () => {
+    const port = portDefinition();
+    const status: PortStatus = {
+      ...portStatus(),
+      readiness: { launchable: false, blockers: ["missing_source"], pending_setup: false },
+    };
+    const html = renderToStaticMarkup(
+      <PortBrowser
+        view="catalog"
+        ports={[port]}
+        statuses={new Map([[port.id, status]])}
+        overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+      />,
+    );
+    expect(html).toContain("Not installed");
+    expect(html).not.toContain("Available");
+    expect(html).not.toContain("Ready to play");
+    const card = html.match(/<button[^>]*class="port-card [^>]*>/u)?.[0];
+    expect(card).toBeDefined();
+    expect(card).not.toContain(" disabled=");
+  });
+
   it.each(["future-platform", "constructor", "__proto__", "toString"])(
     "renders explicit platform fallback for %s without manufacturing a selected channel",
     (value) => {

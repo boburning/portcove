@@ -460,7 +460,7 @@ function PortCard({
   nativeSourceDrag,
   view,
 }: PortCardProps) {
-  const state = readinessPresentation(readiness);
+  const state = readinessPresentation(readiness, view, status);
   const channel = status?.channel ? releaseChannelPresentation(status.channel) : undefined;
   const updateAvailable = hasAvailableUpdate(status);
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
@@ -628,13 +628,15 @@ function PortCardStatus({
     >
       {view === "catalog" && (
         <strong className="font-semibold text-[var(--color-text-secondary)]">
-          {status?.active
-            ? status.active.version
-            : status?.external_runtime
-              ? `External ${status.external_runtime.version}`
-              : port.release.provider === "user-prepared"
-                ? "Prepare game"
-                : "Not installed"}
+          {!status
+            ? "Installation status unknown"
+            : status.active
+              ? status.active.version
+              : status?.external_runtime
+                ? `External ${status.external_runtime.version}`
+                : port.release.provider === "user-prepared"
+                  ? "Prepare game"
+                  : "Not installed"}
         </strong>
       )}
       {view === "library" ? (
@@ -710,7 +712,16 @@ function filterLabel(filter: Filter) {
   return filter;
 }
 
-function readinessPresentation(readiness: PortReadiness) {
+function readinessPresentation(readiness: PortReadiness, view: View, status?: PortStatus) {
+  if (view === "catalog" && readiness === "available")
+    return {
+      label:
+        typeof status?.readiness?.launchable === "boolean"
+          ? "Not installed"
+          : "Setup status unknown",
+      action: "View details",
+      tone: "available",
+    } as const;
   const values = {
     available: {
       label: "Available",
