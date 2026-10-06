@@ -1,6 +1,6 @@
 import type { PortStatus } from "../../types";
 
-type PresentedAction = "install" | "launch";
+type PresentedAction = "install" | "launch" | "rollback";
 type ActionPresentation = { blocked: false; reason?: never } | { blocked: true; reason: string };
 type Assessment = NonNullable<PortStatus["port_actions"]>[number];
 
@@ -49,12 +49,30 @@ const actionReasons: Record<string, string> = {
 function unavailable(action: PresentedAction): ActionPresentation {
   return {
     blocked: true,
-    reason: `Current ${action === "install" ? "setup" : "launch"} availability is unavailable. Refresh the workspace to check again.`,
+    reason: `Current ${action === "install" ? "setup" : action} availability is unavailable. Refresh the workspace to check again.`,
   };
 }
 
 function presentAssessment(assessment: Assessment, action: PresentedAction): ActionPresentation {
   const { availability, reason, definition } = assessment;
+  if (action === "rollback") {
+    if (definition != null) return unavailable(action);
+    if (availability === "allowed" && reason === "available") return { blocked: false };
+    if (availability === "not_offered" && reason === "not_installed")
+      return { blocked: true, reason: "No previous managed version is retained for rollback." };
+    if (availability === "held" && reason === "missing_runtime")
+      return {
+        blocked: true,
+        reason: "The previous version needs its verified runtime before it can be restored.",
+      };
+    if (availability === "held" && reason === "invalid_installation")
+      return {
+        blocked: true,
+        reason:
+          "Portcove could not verify the previous version. Restore previous version is on hold.",
+      };
+    return unavailable(action);
+  }
   if (
     availability === "allowed" &&
     reason === "available" &&
@@ -88,7 +106,7 @@ export function portActionPresentation(
   const assessments = status?.port_actions;
   // Earlier status contracts omitted this projection or serialized an empty list.
   if (assessments === undefined || (Array.isArray(assessments) && assessments.length === 0))
-    return { blocked: false };
+    return action === "rollback" ? unavailable(action) : { blocked: false };
   if (!Array.isArray(assessments)) return unavailable(action);
   const matching = assessments.filter((assessment) => assessment?.action === action);
   if (matching.length !== 1) return unavailable(action);

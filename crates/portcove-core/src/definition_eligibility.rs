@@ -92,6 +92,7 @@ pub enum PortAction {
     Launch,
     RemoveManaged,
     RemoveExternal,
+    Rollback,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

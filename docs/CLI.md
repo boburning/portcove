@@ -173,6 +173,18 @@ particular, an uninstalled registered source is not hashed merely to render
 status; `allowed` means the attempt can start without a known blocker, not
 that every mutable input has already passed execution validation.
 
+Schema 60 adds a required `rollback` action assessment for the retained previous
+managed version. It is `not_offered/not_installed` without a previous version,
+`allowed/available` after retained contract, runtime, ownership and critical-file
+checks, or `held/missing_runtime` or `held/invalid_installation` when those checks
+fail. Status checks are read-only; they neither restore saved data nor grant
+execution authority. Rollback rechecks its target under the operation lock and
+verifies critical files again after restoring saved data. Current launch or
+definition eligibility is not a substitute for retained rollback checks.
+Private paired candidates used schemas 58 and 59; they are not included in this
+public reference client's compatibility declaration. This contract does not
+establish a published standalone schema-60 release.
+
 Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
 `source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
 exported schema. Scan uses core's bounded limits and emits the existing

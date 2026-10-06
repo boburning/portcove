@@ -14,8 +14,50 @@ it.each([undefined, { ...portStatus(), port_actions: [] }, portStatus()])(
   (status) => {
     expect(portActionPresentation(status, "install")).toEqual({ blocked: false });
     expect(portActionPresentation(status, "launch")).toEqual({ blocked: false });
+    expect(portActionPresentation(status, "rollback").blocked).toBe(true);
   },
 );
+
+it.each([
+  ["allowed", "available", false],
+  ["not_offered", "not_installed", true],
+  ["held", "missing_runtime", true],
+  ["held", "invalid_installation", true],
+] as const)("consumes retained rollback assessment %s/%s", (availability, reason, blocked) => {
+  const status = withAssessment({ action: "rollback", availability, reason });
+  const before = JSON.stringify(status);
+  expect(portActionPresentation(status, "rollback").blocked).toBe(blocked);
+  expect(JSON.stringify(status)).toBe(before);
+});
+
+it.each(
+  [
+    [{ action: "launch", availability: "allowed", reason: "available" }],
+    [{ action: "rollback", availability: "allowed", reason: "missing_runtime" }],
+    [{ action: "rollback", availability: "waiting", reason: "missing_runtime" }],
+    [{ action: "rollback", availability: "held", reason: "missing_source" }],
+    [{ action: "rollback", availability: "held", reason: "future_reason" }],
+    [
+      {
+        action: "rollback",
+        availability: "allowed",
+        reason: "available",
+        definition: { outcome: "eligible", reason: "mandatory_checks_passed" },
+      },
+    ],
+    [
+      { action: "rollback", availability: "allowed", reason: "available" },
+      { action: "rollback", availability: "held", reason: "invalid_installation" },
+    ],
+  ].map((port_actions) => ({ port_actions })),
+)("holds incomplete or contradictory rollback projections: %s", ({ port_actions }) => {
+  expect(
+    portActionPresentation({ ...portStatus(), port_actions } as PortStatus, "rollback"),
+  ).toEqual({
+    blocked: true,
+    reason: "Current rollback availability is unavailable. Refresh the workspace to check again.",
+  });
+});
 
 it.each(["install", "launch"] as const)(
   "projects allowed %s without granting execution",

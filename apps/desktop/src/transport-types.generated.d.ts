@@ -73,7 +73,7 @@ export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "mac
  * An `allowed` result is not an authorization token: execution rechecks current
  * inputs under its own lock and may still require an exact reviewed plan.
  */
-export type PortAction = "install" | "register_external" | "launch" | "remove_managed" | "remove_external";
+export type PortAction = "install" | "register_external" | "launch" | "remove_managed" | "remove_external" | "rollback";
 export type PortActionAvailability = "not_offered" | "waiting" | "held" | "allowed";
 export type PortActionReason =
   | "available"

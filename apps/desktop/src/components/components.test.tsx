@@ -153,6 +153,38 @@ const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord =>
   ...overrides,
 });
 
+it.each([
+  ["allowed", "available", false],
+  ["held", "invalid_installation", true],
+  ["held", "missing_runtime", true],
+] as const)("renders retained rollback action %s/%s", (availability, reason, disabled) => {
+  const html = renderToStaticMarkup(
+    <DetailPanel
+      port={port}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+      status={{
+        ...portStatus(),
+        port_id: port.id,
+        active: installRecord(),
+        previous: installRecord({ id: "previous", version: "0.9" }),
+        port_actions: [{ action: "rollback", availability, reason }],
+      }}
+    />,
+  );
+  const button = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].find(
+    ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim() === "Restore previous version",
+  )?.[0];
+  expect(button).toBeDefined();
+  expect(button?.includes('disabled=""')).toBe(disabled);
+  expect(html.includes("data-rollback-assessment")).toBe(disabled);
+  if (reason === "invalid_installation")
+    expect(html).toContain("could not verify the previous version");
+  if (reason === "missing_runtime")
+    expect(html).toContain("previous version needs its verified runtime");
+});
+
 const bundledRuntime = {
   archive_root: "runtime",
   asset: {
