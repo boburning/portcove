@@ -8,9 +8,20 @@ import type { GithubAuthStatus, PortDefinition, PortStatus, ReleaseChannel } fro
 import { formatBytes, platformLabel } from "./view-model";
 
 describe("catalog and capacity presentation", () => {
-  it.each([undefined, portStatus()])(
-    "keeps a missing Catalog setup assessment unknown: %j",
-    (status) => {
+  it.each([
+    {
+      status: undefined,
+      installationLabel: "Installation status unknown",
+      absentInstallationLabel: "Not installed",
+    },
+    {
+      status: portStatus(),
+      installationLabel: "Not installed",
+      absentInstallationLabel: "Installation status unknown",
+    },
+  ])(
+    "keeps a missing Catalog setup assessment unknown: $installationLabel",
+    ({ status, installationLabel, absentInstallationLabel }) => {
       const port = portDefinition();
       const html = renderToStaticMarkup(
         <PortBrowser
@@ -31,12 +42,8 @@ describe("catalog and capacity presentation", () => {
       const card = html.match(/<button[^>]*class="port-card [^>]*>/u)?.[0];
       expect(card).toBeDefined();
       expect(card).not.toContain(" disabled=");
-      if (!status) {
-        expect(html).toContain("Installation status unknown");
-        expect(html).not.toContain("Not installed");
-      } else {
-        expect(html).toContain("Not installed");
-      }
+      expect(html).toContain(installationLabel);
+      expect(html).not.toContain(absentInstallationLabel);
     },
   );
 
