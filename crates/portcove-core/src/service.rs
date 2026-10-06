@@ -9112,31 +9112,7 @@ fn main() {
             crate::external_runtime::inspect(&external, &runtime, &library_root).unwrap_err();
         runtime.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
         let mut service = service_with_release(library, "v1");
-        let mut document = service.catalog().authoritative_document();
-        let mut port = document
-            .ports
-            .iter()
-            .find(|port| port.id == "zelda64-recomp")
-            .unwrap()
-            .clone();
-        port.id = "external-location-probe".into();
-        port.name = "External location probe".into();
-        port.platforms = vec![platform];
-        port.automated_tested_platforms.clear();
-        port.manually_validated_platforms.clear();
-        port.source_profile = None;
-        port.bios_source_profile = None;
-        port.runtime_source_filename = None;
-        port.persistent_paths.clear();
-        port.presentation = None;
-        port.release.provider = ReleaseSource::UserPrepared;
-        port.release.asset_hints.clear();
-        port.release.user_prepared.insert(platform, runtime);
-        port.executable_hints = [(platform, vec!["game.exe".into()])].into();
-        document.ports.push(port);
-        service.replace_catalog_for_test(
-            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
-        );
+        service.replace_catalog_for_test(external_location_catalog(platform, runtime));
         let preview = service
             .preview_external_runtime("external-location-probe", &external)
             .unwrap();
@@ -9151,6 +9127,39 @@ fn main() {
             .register_external_runtime("external-location-probe", &external, &authorization.token)
             .unwrap();
         (temporary, service, record)
+    }
+
+    // Declare the source-free contract independently of live title definitions.
+    // The fixture still performs the real service bootstrap before replacement.
+    fn external_location_catalog(
+        platform: Platform,
+        runtime: crate::UserPreparedRuntimeSpec,
+    ) -> Catalog {
+        let platform_key = serde_json::to_value(platform).unwrap();
+        let platform_key = platform_key.as_str().unwrap();
+        let document = serde_json::json!({
+            "schema_version": 2,
+            "source_catalog": {
+                "evidence": [], "identities": [], "contracts": [],
+                "validators": [], "qualification": []
+            },
+            "ports": [{
+                "id": "external-location-probe",
+                "name": "External location probe",
+                "summary": "Inert external registration status fixture.",
+                "project_url": "https://example.invalid/external-location-probe",
+                "support_tier": "stable",
+                "channels": ["stable"],
+                "platforms": [platform],
+                "adapter": "n64-recomp-portable",
+                "release": {
+                    "provider": "user-prepared",
+                    "user_prepared": { (platform_key): runtime }
+                },
+                "executable_hints": { (platform_key): ["game.exe"] }
+            }]
+        });
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
     }
 
     fn prepare_external_location_fixture_launch(
@@ -9223,6 +9232,36 @@ fn main() {
             assert!(listed.is_none());
         }
         assert_eq!(retained_row(), before);
+    }
+
+    #[test]
+    fn external_location_fixture_contains_only_its_source_free_registration_contract() {
+        let started = std::time::Instant::now();
+        let (_temporary, service, record) = external_location_fixture();
+        let document = service.catalog().authoritative_document();
+        let bytes = serde_json::to_vec(&document).unwrap();
+        eprintln!(
+            "external fixture: ports={}, profiles={}, bytes={}, setup={:?}",
+            document.ports.len(),
+            document.source_profiles.len(),
+            bytes.len(),
+            started.elapsed()
+        );
+        assert_eq!(document.ports.len(), 1);
+        assert!(document.source_profiles.is_empty());
+        let source = document.source_catalog.as_ref().unwrap();
+        assert!(source.evidence.is_empty());
+        assert!(source.identities.is_empty());
+        assert!(source.contracts.is_empty());
+        assert!(source.validators.is_empty());
+        assert!(source.qualification.is_empty());
+        let port = service.catalog().port(&record.port_id).unwrap();
+        assert_eq!(port.id, "external-location-probe");
+        assert!(port.source_profile.is_none());
+        assert!(port.bios_source_profile.is_none());
+        assert!(port.persistent_paths.is_empty());
+        assert_external_location_readiness(&service, false);
+        assert!(service.catalog().port("zelda64-recomp").is_err());
     }
 
     #[test]

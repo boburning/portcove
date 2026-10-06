@@ -359,6 +359,7 @@ export function domainsForPath(input) {
     const name = path.posix.basename(file);
     if (/roadmap|source-provenance|catalog-schema/u.test(name)) add(domains, "roadmap");
     if (
+      ["desktop-scenarios.mjs", "desktop-scenarios.test.mjs"].includes(name) ||
       /dev-|development-|local-validation|rust-test-impact|native-session|desktop-test|tool-cache|bootstrap-quality/u.test(
         name,
       )

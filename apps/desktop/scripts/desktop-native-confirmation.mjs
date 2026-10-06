@@ -1,7 +1,7 @@
 // UI automation is limited to one exact executable descended from this harness's driver.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { stat, writeFile } from "node:fs/promises";
+import { lstat, stat, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 
@@ -23,6 +23,89 @@ async function validatePickerInput({ output, title, button, filePath, directoryP
     assert.equal(button, "Select Folder");
     assert.ok((await stat(directoryPath)).isDirectory(), "Owned picker fixture is not a directory");
   }
+}
+
+async function retainPickerResult({ output, artifacts }, name, before, result) {
+  for (const record of [before, `${before}.window-samples.jsonl`, `${before}.close-samples.json`])
+    if (
+      await stat(record).then(
+        () => true,
+        () => false,
+      )
+    )
+      artifacts.push(record);
+  const execution = path.join(output, `${name}-helper-result.json`);
+  await writeFile(
+    execution,
+    JSON.stringify(
+      {
+        status: result.status,
+        signal: result.signal,
+        error: result.error?.message,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      },
+      null,
+      2,
+    ),
+    { flag: "wx" },
+  );
+  artifacts.push(execution);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const observation = JSON.parse(result.stdout);
+  const report = path.join(output, `${name}.json`);
+  await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
+  artifacts.push(report);
+  return observation;
+}
+
+function ownedRuntimePicker({ application, getDriverIdentity, output, artifacts }, select) {
+  return async (name, directoryPath) => {
+    assert.equal(process.platform, "win32");
+    assert.match(name, /^[a-z0-9-]+$/u);
+    if (select) {
+      assert.equal(directoryPath, path.join(output, "player-owned-runtime"));
+      const directory = await lstat(directoryPath);
+      assert.ok(directory.isDirectory() && !directory.isSymbolicLink());
+    } else assert.equal(directoryPath, undefined, "Observation cannot supply directory input");
+    const driver = getDriverIdentity();
+    assert.ok(
+      driver?.pid > 0 && path.isAbsolute(driver.path),
+      "Captured launch driver is required",
+    );
+    assert.match(driver.started_filetime, /^[0-9]+$/u);
+    const before = path.join(output, `${name}-before-cancel.json`);
+    const result = spawnCommand(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-File",
+        fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url)),
+        "-DriverProcessId",
+        String(driver.pid),
+        "-ExpectedDriverPath",
+        driver.path,
+        "-ExpectedDriverStartedFiletime",
+        driver.started_filetime,
+        "-ObservationPath",
+        before,
+        "-ApplicationPath",
+        application,
+        "-ObservePicker",
+        ...(select ? ["-PreparedRuntimeDirectory", directoryPath] : []),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+    );
+    return retainPickerResult({ output, artifacts }, name, before, result);
+  };
+}
+
+export function nativePickerObservation(options) {
+  return ownedRuntimePicker(options, false);
+}
+
+export function nativePreparedRuntimePicker(options) {
+  return ownedRuntimePicker(options, true);
 }
 
 export function nativeConfirmation({ application, getDriverPid, output, artifacts }) {

@@ -130,6 +130,7 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
   const ownedFixture = selection.prerequisites.includes("owned-fixture");
   const installFixture = selection.prerequisites.includes("install-fixture");
   const steamFixture = selection.prerequisites.includes("steam-fixture");
+  const externalFixture = selection.prerequisites.includes("external-runtime-fixture");
   return {
     format_version: 1,
     profile: selection.profile,
@@ -141,7 +142,11 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
     harness_deadline_ms: desktopHarnessDeadlineMs(selection),
     prerequisites: selection.prerequisites,
     host_resources: selection.host_resources,
-    qualification_features: installFixture || steamFixture ? ["qualification-fixtures"] : [],
+    cli_features: selection.selected_scenarios.includes("native-saved-folder-selected-setup")
+      ? ["portcove-core/qualification-fixtures"]
+      : [],
+    qualification_features:
+      installFixture || steamFixture || externalFixture ? ["qualification-fixtures"] : [],
     source,
     workspace_packages: packages,
     drivers: drivers
@@ -400,7 +405,8 @@ async function runVerification(options, selection) {
     const desktopFeatures = [
       "tauri/custom-protocol",
       ...(selection.prerequisites.includes("install-fixture") ||
-      selection.prerequisites.includes("steam-fixture")
+      selection.prerequisites.includes("steam-fixture") ||
+      selection.prerequisites.includes("external-runtime-fixture")
         ? ["qualification-fixtures"]
         : []),
     ];
@@ -413,7 +419,12 @@ async function runVerification(options, selection) {
     ]);
     let probe;
     if (selection.prerequisites.includes("owned-fixture")) {
-      await phase("cli-build", "cargo", ["build", "-p", "portcove-cli"]);
+      await phase("cli-build", "cargo", [
+        "build",
+        "-p",
+        "portcove-cli",
+        ...(plan.cli_features.length ? ["--features", plan.cli_features.join(",")] : []),
+      ]);
       probe = path.join(runDirectory, `portcove-host-tool-fixture${executableSuffix()}`);
       await phase("owned-probe-build", "rustc", [
         "--crate-name",

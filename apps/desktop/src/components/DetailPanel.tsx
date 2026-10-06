@@ -325,6 +325,11 @@ function DetailHero({
           {state.title}
         </span>
         {state.tone !== "ready" && <p className="hero-reason">{state.description}</p>}
+        {"updateAttention" in state && (
+          <p className="mt-2 text-sm text-pc-muted-foreground" data-update-attention>
+            {state.updateAttention}
+          </p>
+        )}
         {missingSourceLabels.length > 0 && (
           <p className="hero-requirement">
             Required for setup: <strong>{missingSourceLabels.join(" · ")}</strong>
@@ -2169,10 +2174,11 @@ function detailState(
     };
   if (stagedVersion)
     return {
-      title: "Installed · update saved for later",
-      description: `Play the installed version or use the saved update ${stagedVersion}.`,
-      tone: "staged",
-      icon: RefreshCw,
+      title: "Ready to play",
+      description: "The installed version and all required game files are available.",
+      updateAttention: `Play the installed version or use the saved update ${stagedVersion}.`,
+      tone: "ready",
+      icon: CheckCircle2,
     };
   return {
     title: "Ready to play",

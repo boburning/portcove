@@ -82,6 +82,30 @@ their affected scope. Unknown saves grant no destructive management. Exact
 artifact/platform/source/operation evidence cannot qualify unrelated versions
 or ports.
 
+## Planned browsing enhancements
+
+[Composable catalog/library queries #1550](https://github.com/boburning/portcove/issues/1550)
+retain small, explainable filters and current browsing state. Separate owners cover
+[local file/attention/update snapshots #1551](https://github.com/boburning/portcove/issues/1551),
+[lightweight Favorites #1552](https://github.com/boburning/portcove/issues/1552) and
+[later metadata, feature and recency browsing #1553](https://github.com/boburning/portcove/issues/1553).
+[Saved queries/sharing #1554](https://github.com/boburning/portcove/issues/1554) and
+[exact evidence browsing #1555](https://github.com/boburning/portcove/issues/1555) remain later independent additions.
+These Planned enhancements do not expand the Required Desktop/discovery boundary.
+Unknown facts remain visible in unfiltered browsing; operational filters reuse
+Core snapshots and do not authorize work or establish qualification. See the
+[dated reconciliation](archive/2026-10-05-browsing-reconciliation.md).
+
+Chips, detail rows and filters reuse truthful scoped facts rather than quality
+ratings. [#206](https://github.com/boburning/portcove/issues/206) owns bounded
+state/copy corrections; [#917](https://github.com/boburning/portcove/issues/917)
+owns passive/interactive semantics and accessible emphasis. Planned
+[#1553](https://github.com/boburning/portcove/issues/1553) adds a small attributable
+capability contract and its first consumers before broader comparison under
+[#251](https://github.com/boburning/portcove/issues/251). Unknown testing does not
+block admission, a source match is not playability, and an update does not erase
+readiness. See the [dated chip reconciliation](archive/2026-10-05-chip-roadmap-reconciliation.md).
+
 ## During beta, before 1.0
 
 [Steam Deck #51](https://github.com/boburning/portcove/issues/51) and

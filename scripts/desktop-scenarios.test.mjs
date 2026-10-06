@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
+import { copyFile, mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { runInNewContext } from "node:vm";
+import { createInstallFixture } from "../apps/desktop/scripts/desktop-install-fixture.mjs";
 import { fileIdentity } from "./development-evidence.mjs";
+import { toolCachePaths } from "./tool-cache.mjs";
+import {
+  createExternalRuntimeFixture,
+  externalFixtureTreeDigest,
+  externalRuntimePickerObservation,
+  externalRuntimeReviewScenario,
+} from "../apps/desktop/scripts/desktop-external-runtime-test.mjs";
+import { nativePreparedRuntimePicker } from "../apps/desktop/scripts/desktop-native-confirmation.mjs";
 import {
   verifyNormalPackageEvidence,
   assertOwnedBoundaryRequests,
@@ -32,6 +42,253 @@ import {
   DESKTOP_SCENARIOS,
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
+
+test("external fixture contracts execute without installed native-driver dependencies", async (t) => {
+  // Storage guards can put os.tmpdir() inside an installed workspace. Keep this
+  // small module fixture outside its dependency ancestry and prove resolution fails.
+  const isolation = path.join(toolCachePaths().sharedRoot, "node-contracts");
+  await mkdir(isolation, { recursive: true });
+  const root = await mkdtemp(path.join(isolation, "native-contract-import-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const modules = path.join(root, "apps", "desktop", "scripts");
+  const output = path.join(root, "output");
+  await mkdir(modules, { recursive: true });
+  await mkdir(path.join(root, "scripts"));
+  await mkdir(output);
+  for (const file of [
+    "apps/desktop/scripts/desktop-external-runtime-test.mjs",
+    "scripts/development-evidence.mjs",
+  ])
+    await copyFile(file, path.join(root, file));
+  const consumer = path.join(modules, "consumer.mjs");
+  await writeFile(
+    consumer,
+    `
+    import assert from "node:assert/strict";
+    import { readFile } from "node:fs/promises";
+    import path from "node:path";
+    assert.throws(() => import.meta.resolve("selenium-webdriver"), { code: "ERR_MODULE_NOT_FOUND" });
+    const { createExternalRuntimeFixture, externalFixtureTreeDigest } =
+      await import("./desktop-external-runtime-test.mjs");
+    const fixture = await createExternalRuntimeFixture(process.argv[2]);
+    const files = new Map(await Promise.all(["game.exe", "unknown-save.bin"].map(async name =>
+      [name, await readFile(path.join(fixture.directory, name))])));
+    assert.equal(fixture.port.release.user_prepared["windows-x86-64"].immutable_tree_sha256,
+      externalFixtureTreeDigest(files));
+    assert.equal(fixture.identities.length, 3);
+    console.log("dependency-free fixture contracts passed");
+  `,
+  );
+  const result = spawnSync(process.execPath, [consumer, output], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 30_000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /dependency-free fixture contracts passed/);
+});
+
+test("external runtime qualification is standalone and keeps a source-free inert tree", async (t) => {
+  const id = "native-external-runtime-review";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, [
+    "desktop",
+    "native-dialog",
+    "external-runtime-fixture",
+  ]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.deepEqual(desktopScenarioById.get(id).platforms, ["win32"]);
+  assert.equal(desktopScenarioById.get(id).qualification_only, true);
+  for (const platform of ["linux", "darwin"])
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /requires Windows/);
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id, "empty-library"] }), /standalone/);
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-external-runtime-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const fixture = await createExternalRuntimeFixture(output);
+  const document = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+  assert.equal(document.ports.length, 1);
+  assert.deepEqual(document.source_catalog, {
+    evidence: [],
+    identities: [],
+    contracts: [],
+    validators: [],
+  });
+  assert.equal(document.ports[0].source_profile, undefined);
+  const spec = document.ports[0].release.user_prepared["windows-x86-64"];
+  const files = new Map(
+    await Promise.all(
+      ["game.exe", "unknown-save.bin"].map(async (name) => [
+        name,
+        await readFile(path.join(fixture.directory, name)),
+      ]),
+    ),
+  );
+  assert.equal(spec.immutable_tree_sha256, externalFixtureTreeDigest(files));
+  files.set("unknown-save.bin", Buffer.from("different unknown save"));
+  assert.notEqual(spec.immutable_tree_sha256, externalFixtureTreeDigest(files));
+  assert.equal(fixture.identities.length, 3);
+  for (const identity of fixture.identities)
+    assert.equal((await fileIdentity(identity.path)).sha256, identity.sha256);
+  await assert.rejects(createExternalRuntimeFixture(output), /EEXIST/);
+  await assert.rejects(createExternalRuntimeFixture("relative"), /absolute/);
+});
+
+test("external tree hash is ordered, byte-sensitive and refuses unsafe path declarations", () => {
+  const first = new Map([
+    ["z.bin", Buffer.from("z")],
+    ["a.bin", Buffer.from("a")],
+  ]);
+  assert.equal(
+    externalFixtureTreeDigest(first),
+    externalFixtureTreeDigest(new Map([...first].reverse())),
+  );
+  const changed = new Map(first);
+  changed.set("a.bin", Buffer.from("aa"));
+  assert.notEqual(externalFixtureTreeDigest(first), externalFixtureTreeDigest(changed));
+  assert.throws(() => externalFixtureTreeDigest(new Map([["../outside", Buffer.from("x")]])));
+});
+
+test("external picker observation leaves immutable Tauri internals untouched and preserves failures", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-unmodified-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const refused of [false, true]) {
+    const output = path.join(root, refused ? "refused" : "cancelled");
+    await mkdir(output);
+    const fixture = await createExternalRuntimeFixture(output);
+    const original = () => {};
+    const internals = Object.freeze({ invoke: original });
+    const failure = new Error("original owned helper failure");
+    let chosen = 0;
+    const browser = {
+      executeScript: () => {
+        throw new Error("Unexpected internal instrumentation");
+      },
+      wait: async () => {},
+      findElement: (locator) => ({
+        click: async () => {
+          if (locator.value.includes("Choose game folder")) chosen++;
+        },
+        sendKeys: async () => {},
+        isEnabled: async () => true,
+      }),
+    };
+    const action = externalRuntimePickerObservation({
+      browser,
+      By: { xpath: (value) => ({ value }), id: (value) => ({ value }) },
+      Key: { chord: (...keys) => keys.join(""), CONTROL: "control", BACK_SPACE: "backspace" },
+      until: { elementLocated: (locator) => locator },
+      fixture,
+      observePicker: async () => {
+        assert.equal(chosen, 1);
+        if (refused) throw failure;
+        return { cancelled: true };
+      },
+    });
+    if (refused) await assert.rejects(action, (error) => error === failure);
+    else assert.equal((await action).cancelled, true);
+    assert.equal(internals.invoke, original);
+  }
+});
+
+test("external runtime journey retains a failed dispatcher picker phase before later actions", async (t) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-phase-failure-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const failure = new Error("Original owned picker phase failed");
+  const artifacts = [];
+  await assert.rejects(
+    externalRuntimeReviewScenario({
+      output,
+      By: { xpath: (value) => ({ value }) },
+      artifacts,
+      fixture: await createExternalRuntimeFixture(output),
+      pickerObservation: Promise.reject(failure),
+      invoke: () => {
+        throw new Error("Later native actions must not run after failed picker cancellation");
+      },
+    }),
+    (error) => error === failure,
+  );
+  const reportPath = path.join(output, "external-runtime-review.json");
+  assert.deepEqual(artifacts, [reportPath]);
+  const report = JSON.parse(await readFile(reportPath, "utf8"));
+  assert.equal(report.error, String(failure));
+  assert.deepEqual(report.steps, []);
+});
+
+test(
+  "picker observation refuses stale launch identities and directory input before UI enumeration",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const output = await mkdtemp(path.join(os.tmpdir(), "portcove-picker-identity-"));
+    t.after(() => rm(output, { recursive: true, force: true }));
+    const script = path
+      .resolve("apps/desktop/scripts/native-confirmation.ps1")
+      .replaceAll("'", "''");
+    for (const kind of ["stale-time", "wrong-image", "directory-input", "outside-prepared"]) {
+      const helper = path.join(output, `${kind}.ps1`);
+      const extra =
+        kind === "directory-input"
+          ? "-DirectoryPath $PSScriptRoot"
+          : kind === "outside-prepared"
+            ? "-PreparedRuntimeDirectory $PSScriptRoot"
+            : "";
+      await writeFile(
+        helper,
+        `
+$ErrorActionPreference = 'Stop'
+$owned = [Diagnostics.Process]::GetCurrentProcess()
+$image = $owned.MainModule.FileName
+$expectedImage = ${kind === "wrong-image" ? "'C:\\not-the-owned-driver.exe'" : "$image"}
+$filetime = ${kind === "stale-time" ? "'1'" : "$owned.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()"}
+try {
+    & '${script}' -DriverProcessId $PID -ApplicationPath $image -ObservePicker -ExpectedDriverPath $expectedImage -ExpectedDriverStartedFiletime $filetime -ObservationPath (Join-Path $PSScriptRoot '${kind}.json') ${extra}
+    exit 0
+} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
+`,
+        { flag: "wx" },
+      );
+      const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", helper], {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 15_000,
+      });
+      assert.equal(result.error, undefined);
+      assert.equal(result.status, 1, result.stderr);
+      assert.match(
+        result.stderr,
+        kind === "directory-input"
+          ? /Parameter set cannot be resolved/
+          : kind === "outside-prepared"
+            ? /exact regular owned fixture directory/
+            : /Captured picker driver identity changed/,
+      );
+      await assert.rejects(stat(path.join(output, `${kind}.json`)), /ENOENT/);
+    }
+  },
+);
+
+test(
+  "prepared runtime picker refuses a different directory before obtaining a driver",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const output = await mkdtemp(path.join(os.tmpdir(), "portcove-prepared-input-"));
+    t.after(() => rm(output, { recursive: true, force: true }));
+    const input = nativePreparedRuntimePicker({
+      output,
+      getDriverIdentity: () => {
+        throw new Error("Driver must not be observed for rejected input");
+      },
+      artifacts: [],
+    });
+    await assert.rejects(
+      input("refused-selection", output),
+      /Expected values to be strictly equal/,
+    );
+  },
+);
 
 test("preferences recovery is standalone and preserves a malformed original before repair", async (t) => {
   const id = "native-startup-preferences-recovery";
@@ -199,9 +456,187 @@ test("cancelled navigation permits only observed GETs and never popup or executi
     { ...request, method: "POST" },
     { ...request, path: "/untrusted/popup" },
     { ...request, path: "/untrusted/executed-marker" },
+    { ...request, path: "/", phase: "frame-csp" },
     { ...request, phase: "main-controls" },
   ])
     assert.throws(() => assertOwnedBoundaryRequests([invalid]));
+});
+
+test("owned frame CSP requires a trusted enforced event and removes its frame/listener/timer", async (t) => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-frame-boundary-"));
+  t.after(() => rm(outputRoot, { recursive: true, force: true }));
+  const library = path.resolve("work", "frame-boundary-library");
+  const url = "http://tauri.localhost/";
+  const valid = {
+    isTrusted: true,
+    effectiveDirective: "frame-src",
+    disposition: "enforce",
+    blockedURI: "owned-frame",
+    documentURI: url,
+    originalPolicy: "default-src 'self'",
+  };
+  async function run(events, { changedContext = false, failSetup = false } = {}) {
+    const output = await mkdtemp(path.join(outputRoot, "case-"));
+    const listeners = new Set();
+    const timers = new Set();
+    const frames = [];
+    let attempts = 0;
+    let appended = false;
+    const invoke = async (command) => {
+      if (command === "get_locale_preference")
+        throw new Error("Contract fixture stops after frame guard");
+      if (command === "set_locale_preference") return { ok: true, value: null };
+      if (command.startsWith("open_"))
+        return {
+          ok: false,
+          error: {
+            code: command === "open_external_url" ? "usage" : "not_found",
+            message:
+              command === "open_external_url"
+                ? "only reviewed project, artwork source and GitHub sign-in links may be opened"
+                : "unknown source evidence id: portcove-boundary-unknown-evidence",
+          },
+        };
+      if (command.includes("boundary")) return { ok: false, error: `command ${command} not found` };
+      return command === "get_bootstrap_status"
+        ? {
+            ok: true,
+            value: {
+              ready: true,
+              error: null,
+              library_root: library,
+              generation: appended && changedContext ? 2 : 1,
+              selection: { root: library, source: "environment" },
+            },
+          }
+        : { ok: true, value: { id: "owned-library", root: library } };
+    };
+    let scriptCalls = 0;
+    const browser = {
+      getCurrentUrl: async () => url,
+      manage: () => ({ setTimeouts: async () => {} }),
+      executeScript: async () => (++scriptCalls === 1 ? {} : [url]),
+      executeAsyncScript: (callback, attempted) => {
+        if (attempted === undefined) return {};
+        return new Promise((resolve) => {
+          const document = {
+            createElement: (tag) => {
+              assert.equal(tag, "iframe");
+              const frame = {
+                isConnected: false,
+                remove() {
+                  this.isConnected = false;
+                },
+              };
+              frames.push(frame);
+              return frame;
+            },
+            addEventListener: (type, handler) => {
+              assert.equal(type, "securitypolicyviolation");
+              listeners.add(handler);
+            },
+            removeEventListener: (type, handler) => {
+              assert.equal(type, "securitypolicyviolation");
+              listeners.delete(handler);
+            },
+            body: {
+              append(frame) {
+                appended = true;
+                attempts++;
+                assert.equal(frame.src, attempted);
+                if (failSetup) throw new Error("Owned fixture append failed");
+                frame.isConnected = true;
+                for (const event of events)
+                  for (const listener of [...listeners]) {
+                    const wrongOrigin = new URL(attempted);
+                    wrongOrigin.port = String(
+                      Number(wrongOrigin.port) === 65535 ? 1 : Number(wrongOrigin.port) + 1,
+                    );
+                    listener({
+                      ...event,
+                      blockedURI:
+                        event.blockedURI === "owned-frame"
+                          ? attempted
+                          : event.blockedURI === "wrong-origin"
+                            ? wrongOrigin.href
+                            : event.blockedURI === "wrong-path"
+                              ? new URL("/other", attempted).href
+                              : event.blockedURI,
+                    });
+                  }
+                // Advance the fixture's virtual deadline, without a real wait.
+                for (const timer of [...timers]) timer();
+              },
+            },
+          };
+          runInNewContext(
+            `(${callback.toString()})(attempted, done)`,
+            {
+              URL,
+              document,
+              attempted,
+              done: resolve,
+              setTimeout: (handler, milliseconds) => {
+                assert.equal(milliseconds, 9000);
+                timers.add(handler);
+                return handler;
+              },
+              clearTimeout: (handler) => timers.delete(handler),
+            },
+            { timeout: 1000 },
+          );
+        });
+      },
+    };
+    let error;
+    try {
+      await normalPackageBoundaryScenario({
+        browser,
+        invoke,
+        library,
+        output,
+        artifacts: [],
+        packageEvidence: { fixture: true },
+      });
+    } catch (caught) {
+      if (caught.message !== "Contract fixture stops after frame guard") error = caught;
+    }
+    const observations = JSON.parse(
+      await readFile(path.join(output, "normal-package-boundary.json")),
+    );
+    assert.equal(attempts, 1);
+    assert.equal(frames.length, 1);
+    assert.equal(frames[0].isConnected, false);
+    assert.equal(listeners.size, 0);
+    assert.equal(timers.size, 0);
+    return { observations, error };
+  }
+  const wrong = [
+    { ...valid, isTrusted: false },
+    { ...valid, disposition: "report" },
+    { ...valid, effectiveDirective: "script-src" },
+    { ...valid, blockedURI: "wrong-origin" },
+    { ...valid, blockedURI: "wrong-path" },
+    { ...valid, blockedURI: "inline" },
+  ];
+  const positive = await run([...wrong, valid]);
+  assert.equal(positive.error, undefined);
+  assert.equal(new URL(positive.observations.cspFrame.attempted).hostname, "127.0.0.1");
+  assert.equal(new URL(positive.observations.cspFrame.attempted).pathname, "/");
+  assert.deepEqual(positive.observations.cspFrame.after, positive.observations.cspFrame.before);
+  for (const events of [[], ...wrong.map((event) => [event])]) {
+    const rejected = await run(events);
+    assert.match(rejected.error.message, /enforced owned-frame CSP refusal/);
+    assert.equal(rejected.observations.cspFrame.refusal.observed, false);
+    assert.equal(rejected.observations.cspFrame.refusal.frameRemoved, true);
+  }
+  assert.match(
+    (await run([valid], { changedContext: true })).error.message,
+    /preserve main and library context/,
+  );
+  const setupFailure = await run([], { failSetup: true });
+  assert.match(setupFailure.error.message, /enforced owned-frame CSP refusal/);
+  assert.equal(setupFailure.observations.cspFrame.refusal.reason, "frame-setup-failed");
 });
 
 test("reviewed link refusals require guard errors and preserve the ready native context", async (t) => {
@@ -714,4 +1149,141 @@ test("backup success-focus acceptance is isolated and exact-selection-only", () 
     "native-dialog",
   ]);
   assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+});
+
+test("saved-folder selected setup stays standalone and opt-in", () => {
+  const id = "native-saved-folder-selected-setup";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "install-fixture", "owned-fixture"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  for (const profile of ["smoke", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "keyboard-layout"], platform: "win32" }),
+    /standalone/,
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
+});
+
+test("unavailable-root wait observes enabled state and preserves read rejection", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-source-dialog-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf('report.checkpoint = "unavailable-root-disabled-review";');
+  const end = source.indexOf('report.checkpoint = "unavailable-root-observations";', start);
+  assert.ok(start >= 0 && end > start, "Execute the actual bounded harness wait");
+  const wait = source.slice(start, end);
+  const rejection = new Error("Original enabled-state read failed");
+  for (const enabled of [true, false, rejection]) {
+    let reads = 0;
+    const action = runInNewContext(`(async () => { ${wait} })()`, {
+      report: {},
+      owned: { profiles: ["inert-profile"] },
+      row: (profile) => profile,
+      By: { css: (selector) => selector },
+      browser: {
+        findElement(profile) {
+          assert.equal(profile, "inert-profile");
+          return {
+            findElement(selector) {
+              assert.equal(selector, "[data-candidate-review]");
+              return {
+                async isEnabled() {
+                  reads++;
+                  if (enabled === rejection) throw rejection;
+                  return enabled;
+                },
+              };
+            },
+          };
+        },
+        async wait(predicate, timeout, message) {
+          assert.equal(timeout, 5_000);
+          assert.equal(
+            message,
+            "Selected setup: stale review disabled after unavailable-root refresh",
+          );
+          assert.equal(await predicate(), !enabled);
+        },
+      },
+    });
+    if (enabled === rejection) await assert.rejects(action, (error) => error === rejection);
+    else await action;
+    assert.equal(reads, 1);
+  }
+});
+
+test("selected setup identities admit both replacements only in the opt-in catalog", async (t) => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-selected-setup-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const fixture = await createInstallFixture({
+    root,
+    output,
+    sourceJourney: true,
+    revision: "a".repeat(40),
+  });
+  t.after(() => fixture.close());
+  const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+  const owned = fixture.sourceJourney;
+  assert.equal(owned.game.length, owned.replacement.length);
+  assert.notDeepEqual(owned.game, owned.replacement);
+  for (const [name, original] of [
+    ["gamePath", "gameBefore"],
+    ["biosPath", "biosBefore"],
+  ])
+    assert.deepEqual(await readFile(owned[name]), await readFile(owned[original]));
+  const identities = catalog.source_catalog.identities.filter((item) =>
+    owned.profiles.includes(item.id),
+  );
+  assert.deepEqual(
+    identities.map((item) => item.variants.length),
+    [2, 1],
+  );
+  const expectedHashes = await Promise.all(
+    [owned.gameBefore, owned.gameReplacement].map(
+      async (file) => (await fileIdentity(file)).sha256,
+    ),
+  );
+  assert.deepEqual(
+    identities[0].variants.map((item) => item.representations[0].identities[0].sha256),
+    expectedHashes,
+  );
+  for (const port of [fixture.port, fixture.refreshPort]) {
+    const contract = catalog.source_catalog.contracts.find(
+      (item) => item.port_id === port.id && item.role === "game",
+    );
+    assert.deepEqual(contract.supported_variant_ids, ["inert-0", "inert-1"]);
+    assert.equal(contract.admission_mode, "enforced");
+    assert.ok(contract.immutable_review_url.includes("a".repeat(40)));
+    for (const requirement of port.presentation.source_requirements) {
+      const sourceContract = catalog.source_catalog.contracts.find(
+        (item) => item.port_id === port.id && item.role === requirement.role,
+      );
+      assert.equal(sourceContract.admission_mode, "enforced");
+      assert.equal(sourceContract.validator_contract_id, null);
+      assert.equal(requirement.verification, "catalog-identity");
+    }
+  }
+  assert.equal(fixture.port.adapter, "libultraship-portable");
+  assert.equal(fixture.refreshPort.adapter, "psx-recomp-managed");
+  assert.equal(fixture.refreshPort.bios_source_profile, owned.profiles[1]);
+  assert.equal(fixture.requests.length, 0);
+  const ordinaryOutput = await mkdtemp(path.join(os.tmpdir(), "portcove-ordinary-install-"));
+  t.after(() => rm(ordinaryOutput, { recursive: true, force: true }));
+  const ordinary = await createInstallFixture({ root, output: ordinaryOutput });
+  t.after(() => ordinary.close());
+  assert.equal(ordinary.sourceJourney, null);
+  assert.equal(ordinary.port.source_profile, undefined);
+  assert.equal(ordinary.refreshPort.bios_source_profile, undefined);
+  const original = JSON.parse(
+    await readFile(path.join(root, "crates/portcove-core/catalog/catalog.json"), "utf8"),
+  );
+  const ordinaryCatalog = JSON.parse(await readFile(ordinary.catalogPath, "utf8"));
+  assert.deepEqual(ordinaryCatalog.source_catalog, original.source_catalog);
 });

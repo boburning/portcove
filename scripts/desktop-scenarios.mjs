@@ -17,6 +17,27 @@ function scenario(id, description, options = {}) {
 
 export const DESKTOP_SCENARIOS = Object.freeze([
   scenario(
+    "native-saved-folder-selected-setup",
+    "Real saved-folder discovery, guarded registration and selected-port requirements preserve owned inputs.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-source-dialog-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-external-runtime-review",
+    "Private prepared runtime picker, review, registration and non-owning removal preserve player files.",
+    {
+      prerequisites: ["desktop", "native-dialog", "external-runtime-fixture"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-external-runtime-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-startup-preferences-recovery",
     "Malformed saved preferences remain intact until an owned stopped-host repair, then reopen reliably.",
     {
@@ -452,6 +473,7 @@ export function resolveDesktopSelection({
   scenarios = [],
   reloadCycles = 0,
   defaultProfile = "smoke",
+  platform = process.platform,
 } = {}) {
   if (profile && scenarios.length) throw new Error("--profile and --scenario cannot be combined");
   const selectedProfile = profile ?? (scenarios.length ? null : defaultProfile);
@@ -470,6 +492,16 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (uniqueRequested.includes("native-saved-folder-selected-setup")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-saved-folder-selected-setup requires one exact standalone scenario");
+    if (platform !== "win32")
+      throw new Error("native-saved-folder-selected-setup requires Windows");
+  }
+  if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
+    throw new Error("native-external-runtime-review requires one exact standalone scenario");
+  if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")
+    throw new Error("native-external-runtime-review requires Windows");
   if (
     uniqueRequested.includes("native-startup-preferences-recovery") &&
     uniqueRequested.length !== 1
