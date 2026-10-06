@@ -20,6 +20,10 @@ import {
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
+import {
+  observeStartupNetwork,
+  startupNetworkReply,
+} from "../apps/desktop/scripts/desktop-startup-network-diagnostic.mjs";
 import { DatabaseSync } from "node:sqlite";
 import {
   librarySwitchRecoverySelection,
@@ -1067,6 +1071,107 @@ test("staged native composition installs its isolated fixture before review", ()
   assert.deepEqual(selection.selected_scenarios, ["native-staged-update-composition"]);
   assert.deepEqual(selection.setup_scenarios, ["install-commit-refresh-recovery"]);
   assert.ok(selection.prerequisites.includes("install-fixture"));
+});
+
+test("startup network diagnostics are standalone and never enter ordinary acceptance profiles", () => {
+  const id = "native-startup-network-diagnostic";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.deepEqual(catalogReport().find((item) => item.id === id).profiles, []);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "native-error-recovery"] }),
+    /standalone/,
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id], platform: "linux" }),
+    /requires Windows/,
+  );
+});
+
+test("diagnostic reply drops credential-shaped data even in summary and success payload", () => {
+  const secret = "Bearer private-token";
+  assert.deepEqual(startupNetworkReply({ ok: true, value: { token: secret } }), { ok: true });
+  assert.deepEqual(
+    startupNetworkReply({
+      ok: false,
+      error: {
+        code: "network",
+        message: secret,
+        details: { token: secret },
+        presentation: { summary: secret },
+        context: secret,
+      },
+    }),
+    { ok: false, code: "network" },
+  );
+  assert.deepEqual(startupNetworkReply({ ok: false, error: { code: secret } }), {
+    ok: false,
+    code: "unknown",
+  });
+  assert.throws(() => startupNetworkReply({}), /coverage/);
+});
+
+test("current failed network observation is complete without retry or library change", async () => {
+  const commands = [];
+  const bootstrap = { ready: true, error: null, generation: 1, library_root: "owned-library" };
+  const report = await observeStartupNetwork({
+    invoke: async (command) => {
+      commands.push(command);
+      if (command === "get_bootstrap_status") return { ok: true, value: bootstrap };
+      if (command === "get_library_identity")
+        return { ok: true, value: { id: "owned-id", root: "owned-library" } };
+      return { ok: false, error: { code: "network", message: "private diagnostic" } };
+    },
+    readAlerts: async () => 1,
+  });
+  assert.equal(report.completed, true);
+  assert.equal(report.explicit_auth_calls, 1);
+  assert.deepEqual(report.auth_status, { ok: false, code: "network" });
+  assert.equal(commands.filter((command) => command === "get_github_auth_status").length, 1);
+  assert.equal(
+    commands.some((command) => /install|token|logout/.test(command)),
+    false,
+  );
+  assert.doesNotMatch(JSON.stringify(report), /private diagnostic/);
+});
+
+test("transport failure retains only coverage phase and does not retry", async () => {
+  let calls = 0;
+  const report = await observeStartupNetwork({
+    invoke: async () => {
+      calls++;
+      throw new Error("Bearer secret");
+    },
+    readAlerts: async () => 0,
+  });
+  assert.equal(report.completed, false);
+  assert.equal(report.explicit_auth_calls, 0);
+  assert.equal(report.coverage_failure, "before-library");
+  assert.equal(calls, 1);
+  assert.doesNotMatch(JSON.stringify(report), /Bearer|secret/);
+});
+
+test("diagnostic refuses a changed library after its one explicit read", async () => {
+  let reads = 0;
+  const report = await observeStartupNetwork({
+    invoke: async (command) => {
+      if (command === "get_bootstrap_status")
+        return {
+          ok: true,
+          value: { ready: true, error: null, generation: ++reads, library_root: "owned-library" },
+        };
+      if (command === "get_library_identity")
+        return { ok: true, value: { id: "owned-id", root: "owned-library" } };
+      return { ok: true, value: { login: "private-login" } };
+    },
+    readAlerts: async () => 0,
+  });
+  assert.equal(report.completed, false);
+  assert.equal(report.coverage_failure, "after-library");
+  assert.equal(report.explicit_auth_calls, 1);
+  assert.doesNotMatch(JSON.stringify(report), /private-login/);
 });
 
 test("missing Steam review context fails without loading Selenium", () => {
