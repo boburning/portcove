@@ -1056,11 +1056,10 @@ export async function selectedSetupScenario({
       report.checkpoint = "unavailable-root-disabled-review";
       await browser.wait(
         async () =>
-          !(
-            await browser
-              .findElement(row(owned.profiles[0]))
-              .findElement(By.css("[data-candidate-review]"))
-          ).isEnabled(),
+          !(await browser
+            .findElement(row(owned.profiles[0]))
+            .findElement(By.css("[data-candidate-review]"))
+            .isEnabled()),
         5_000,
         "Selected setup: stale review disabled after unavailable-root refresh",
       );

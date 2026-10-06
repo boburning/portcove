@@ -1169,6 +1169,55 @@ test("saved-folder selected setup stays standalone and opt-in", () => {
   assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
 });
 
+test("unavailable-root wait observes enabled state and preserves read rejection", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-source-dialog-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf('report.checkpoint = "unavailable-root-disabled-review";');
+  const end = source.indexOf('report.checkpoint = "unavailable-root-observations";', start);
+  assert.ok(start >= 0 && end > start, "Execute the actual bounded harness wait");
+  const wait = source.slice(start, end);
+  const rejection = new Error("Original enabled-state read failed");
+  for (const enabled of [true, false, rejection]) {
+    let reads = 0;
+    const action = runInNewContext(`(async () => { ${wait} })()`, {
+      report: {},
+      owned: { profiles: ["inert-profile"] },
+      row: (profile) => profile,
+      By: { css: (selector) => selector },
+      browser: {
+        findElement(profile) {
+          assert.equal(profile, "inert-profile");
+          return {
+            findElement(selector) {
+              assert.equal(selector, "[data-candidate-review]");
+              return Promise.resolve({
+                async isEnabled() {
+                  reads++;
+                  if (enabled === rejection) throw rejection;
+                  return enabled;
+                },
+              });
+            },
+          };
+        },
+        async wait(predicate, timeout, message) {
+          assert.equal(timeout, 5_000);
+          assert.equal(
+            message,
+            "Selected setup: stale review disabled after unavailable-root refresh",
+          );
+          assert.equal(await predicate(), !enabled);
+        },
+      },
+    });
+    if (enabled === rejection) await assert.rejects(action, (error) => error === rejection);
+    else await action;
+    assert.equal(reads, 1);
+  }
+});
+
 test("selected setup identities admit both replacements only in the opt-in catalog", async (t) => {
   const root = path.resolve(import.meta.dirname, "..");
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-selected-setup-"));
