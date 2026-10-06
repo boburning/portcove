@@ -362,9 +362,9 @@ describe("source identity presentation", () => {
     expect(html).toContain(`>${expected}</span>`);
     expect(html).not.toContain(">Supported</span>");
     expect(html).not.toContain("Not applicable to this release");
-    if (state === "known_incompatible") {
-      expect(html).toContain("File not accepted · file does not match the required edition");
-    }
+    expect(html.includes("File not accepted · file does not match the required edition")).toBe(
+      state === "known_incompatible",
+    );
   });
 
   it("distinguishes structural checks from consent when an edition is unknown", () => {
