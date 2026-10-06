@@ -3,7 +3,10 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -21,6 +24,36 @@ use tracing_subscriber::{Layer, layer::SubscriberExt};
 const LOG_FILE_NAME: &str = "portcove-desktop.jsonl";
 const MAX_LOG_BYTES: u64 = 4 * 1024 * 1024;
 const RETAINED_LOG_FILES: usize = 5;
+
+static NEXT_GITHUB_AUTH_OBSERVATION: AtomicU64 = AtomicU64::new(1);
+
+pub(crate) struct GithubAuthObservation(u64);
+
+impl GithubAuthObservation {
+    pub(crate) fn begin() -> Self {
+        let observation = Self(NEXT_GITHUB_AUTH_OBSERVATION.fetch_add(1, Ordering::Relaxed));
+        tracing::debug!(
+            command = "get_github_auth_status",
+            request_id = observation.0,
+            phase = "start",
+            "GitHub auth status observation"
+        );
+        observation
+    }
+
+    pub(crate) fn finish<T>(self, result: crate::DesktopResult<T>) -> crate::DesktopResult<T> {
+        // Only the closed error-code enum is recorded, never a payload or error report.
+        tracing::debug!(
+            command = "get_github_auth_status",
+            request_id = self.0,
+            phase = "complete",
+            success = result.is_ok(),
+            code = ?result.as_ref().err().map(|error| error.code),
+            "GitHub auth status observation"
+        );
+        result
+    }
+}
 
 #[derive(Clone)]
 struct DiagnosticLog {
@@ -275,6 +308,71 @@ fn unix_timestamp_millis() -> u128 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn auth_observation_preserves_results_and_records_only_fixed_safe_fields() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join(LOG_FILE_NAME);
+        let subscriber = tracing_subscriber::registry().with(DiagnosticLayer {
+            log: DiagnosticLog::new(path.clone(), MAX_LOG_BYTES, RETAINED_LOG_FILES),
+        });
+        let value = Box::new("github_pat_success_payload".to_owned());
+        let value_address = std::ptr::from_ref(value.as_ref());
+        let failure = crate::DesktopError::from(
+            PortcoveError::network("private_transport_message")
+                .detail("Authorization", "Bearer private_header_value"),
+        );
+        tracing::subscriber::with_default(subscriber, || {
+            let forwarded = GithubAuthObservation::begin().finish(Ok(value)).unwrap();
+            assert_eq!(std::ptr::from_ref(forwarded.as_ref()), value_address);
+            assert_eq!(forwarded.as_str(), "github_pat_success_payload");
+            let forwarded = GithubAuthObservation::begin()
+                .finish::<()>(Err(failure.clone()))
+                .unwrap_err();
+            assert_eq!(forwarded, failure);
+        });
+        let text = fs::read_to_string(path).unwrap();
+        for secret in [
+            "github_pat_success_payload",
+            "private_transport_message",
+            "Authorization",
+            "private_header_value",
+        ] {
+            assert!(!text.contains(secret));
+        }
+        let events: Vec<Value> = text
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap())
+            .collect();
+        assert_eq!(events.len(), 4);
+        for (pair_index, pair) in events.chunks_exact(2).enumerate() {
+            let start = pair[0]["fields"].as_object().unwrap();
+            let complete = pair[1]["fields"].as_object().unwrap();
+            assert_eq!(start["command"], "get_github_auth_status");
+            assert_eq!(start["phase"], "start");
+            assert_eq!(start.len(), 4);
+            assert_eq!(complete["command"], "get_github_auth_status");
+            assert_eq!(complete["phase"], "complete");
+            assert_eq!(complete.len(), 6);
+            assert_eq!(complete["request_id"], start["request_id"]);
+            assert_eq!(
+                complete["success"],
+                if pair_index == 0 { "true" } else { "false" }
+            );
+            assert_eq!(
+                complete["code"],
+                if pair_index == 0 {
+                    "None"
+                } else {
+                    "Some(Network)"
+                }
+            );
+        }
+        assert_ne!(
+            events[0]["fields"]["request_id"],
+            events[2]["fields"]["request_id"]
+        );
+    }
 
     #[test]
     fn redaction_covers_structured_fields_and_common_inline_credentials() {
