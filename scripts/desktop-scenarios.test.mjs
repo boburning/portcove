@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { createInstallFixture } from "../apps/desktop/scripts/desktop-install-fixture.mjs";
 import { fileIdentity } from "./development-evidence.mjs";
+import { toolCachePaths } from "./tool-cache.mjs";
 import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,
@@ -44,7 +45,7 @@ import {
 test("external fixture contracts execute without installed native-driver dependencies", async (t) => {
   // Storage guards can put os.tmpdir() inside an installed workspace. Keep this
   // small module fixture outside its dependency ancestry and prove resolution fails.
-  const isolation = path.join(os.homedir(), ".cache", "portcove", "node-contracts");
+  const isolation = path.join(toolCachePaths().sharedRoot, "node-contracts");
   await mkdir(isolation, { recursive: true });
   const root = await mkdtemp(path.join(isolation, "native-contract-import-"));
   t.after(() => rm(root, { recursive: true, force: true }));
