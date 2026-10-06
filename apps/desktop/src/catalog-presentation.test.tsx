@@ -11,7 +11,7 @@ describe("catalog and capacity presentation", () => {
   it.each([undefined, portStatus()])(
     "keeps a missing Catalog setup assessment unknown: %j",
     (status) => {
-      const port = { ...portDefinition(), support_tier: "untested" };
+      const port: PortDefinition = { ...portDefinition(), support_tier: "untested" };
       const html = renderToStaticMarkup(
         <PortBrowser
           view="catalog"
