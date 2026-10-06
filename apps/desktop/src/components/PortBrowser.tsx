@@ -550,8 +550,11 @@ function PortCardContents({
             Release channel: {channel.label}
           </small>
         )}
-        {(updateAvailable || port.upstream_status === "retired") && (
+        {(status?.staged || updateAvailable || port.upstream_status === "retired") && (
           <div className="flex min-h-[18px] flex-wrap gap-[5px]">
+            {status?.staged && (
+              <span className={`badge update ${cardBadgeClass}`}>Update downloaded</span>
+            )}
             {updateAvailable && (
               <span className={`badge update ${cardBadgeClass}`}>Update available</span>
             )}
@@ -705,7 +708,7 @@ function readinessPresentation(readiness: PortReadiness) {
     },
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
     setup: { label: "Setup required", action: "Finish setup", tone: "setup" },
-    staged: { label: "Update downloaded", action: "Review update", tone: "staged" },
+    staged: { label: "Ready to play", action: "View details", tone: "ready" },
     unknown: {
       label: "Readiness unavailable",
       action: "Review game",

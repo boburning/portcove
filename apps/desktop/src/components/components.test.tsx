@@ -574,9 +574,11 @@ describe("desktop components", () => {
     expect(ready.indexOf("Ready to play")).toBeLessThan(ready.indexOf("Play"));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf(port.summary));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Change artwork"));
-    expect(downloaded).toContain("Installed · update saved for later");
+    expect(downloaded).toContain("Ready to play");
+    expect(downloaded).toContain("Use update · 1.0");
     expect(downloaded).toContain("Play the installed version or use the saved update 1.0.");
-    expect(downloaded).toContain('class="hero-reason"');
+    expect(downloaded).toContain("data-update-attention");
+    expect(downloaded).not.toContain('class="hero-reason"');
     expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
     expect(`${ready}${downloaded}`).not.toContain("update staged");
     expect(`${ready}${downloaded}`).not.toContain("active version");
@@ -2981,7 +2983,8 @@ describe("desktop components", () => {
 
     expect(html).toContain("Update downloaded");
     expect(html).toContain("1 update downloaded");
-    expect(html).toContain("Review update");
+    expect(html).toMatch(/<h2[^>]*>Sample Port<\/h2>[\s\S]*?Ready to play/u);
+    expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
     expect(html).not.toContain("Staged updates");
   });
