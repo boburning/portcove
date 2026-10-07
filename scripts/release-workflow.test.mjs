@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -263,7 +263,13 @@ test(
   { skip: !bashExecutable },
   async (t) => {
     const root = await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-"));
-    t.after(() => rm(root, { recursive: true, force: true }));
+    const evidence = await mkdtemp(path.join(os.tmpdir(), "portcove-draft-publication-evidence-"));
+    console.log(`Retained mock publisher diagnostics: ${evidence}`);
+    t.after(async () => {
+      // Preserve only this test's isolated mock files, before the original teardown.
+      await cp(root, path.join(evidence, "terminal-fixture"), { recursive: true });
+      await rm(root, { recursive: true, force: true });
+    });
     const assets = path.join(root, "release-assets-aggregate");
     const metadata = path.join(root, "release-metadata");
     const bin = path.join(root, "bin");
@@ -319,18 +325,80 @@ test(
     );
     await chmod(ghShim, 0o755);
 
+    const fixtureEnvironment = {
+      ...process.env,
+      GH_TOKEN: "controlled-fixture-only",
+      RELEASE_TAG: "v0.3.0-fixture",
+      FAKE_GH_STATE: stateRoot,
+      PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+    };
+    const childEvidence = (child) => ({
+      status: child.status,
+      signal: child.signal,
+      error: child.error
+        ? { name: child.error.name, message: child.error.message, code: child.error.code }
+        : null,
+      stdout: child.stdout,
+      stderr: child.stderr,
+    });
+    const binding = spawnSync(
+      bashExecutable,
+      [
+        "-euo",
+        "pipefail",
+        "-c",
+        'printf "%s\\n" "$BASH_VERSION" "$(type -t gh)" "$(command -v gh)" "$(command -v bash)"',
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: fixtureEnvironment,
+        timeout: 5_000,
+        killSignal: "SIGKILL",
+      },
+    );
+    const [bashVersion, ghKind, ghPath, bashPath, ...extraOutput] =
+      binding.stdout?.trimEnd().split("\n") ?? [];
+    await writeFile(
+      path.join(evidence, "binding.json"),
+      JSON.stringify(
+        {
+          ...childEvidence(binding),
+          cwd: root,
+          expectedShim: ghShim,
+          bashVersion,
+          bashPath,
+          ghKind,
+          ghPath,
+          environmentPresence: {
+            BASH_ENV: Object.hasOwn(process.env, "BASH_ENV"),
+            ENV: Object.hasOwn(process.env, "ENV"),
+            SHELLOPTS: Object.hasOwn(process.env, "SHELLOPTS"),
+            BASHOPTS: Object.hasOwn(process.env, "BASHOPTS"),
+            exportedGhFunction: Object.keys(process.env).some((key) =>
+              key.startsWith("BASH_FUNC_gh"),
+            ),
+          },
+        },
+        null,
+        2,
+      ),
+      { mode: 0o600 },
+    );
+    // Never run the publisher fixture against a real gh command or imported function.
+    assert.equal(binding.status, 0, `Bash binding probe failed; diagnostics: ${evidence}`);
+    assert.equal(extraOutput.length, 0, `Ambiguous Bash binding output: ${evidence}`);
+    assert.ok(bashVersion && bashPath, `Missing Bash identity: ${evidence}`);
+    assert.equal(ghKind, "file", `gh is not the fixture executable; diagnostics: ${evidence}`);
+    assert.equal(ghPath, ghShim, `gh escaped its fixture; diagnostics: ${evidence}`);
     const runPublisher = (overrides = {}) =>
       spawnSync(bashExecutable, ["-euo", "pipefail", "-c", publicationScript], {
         cwd: root,
         encoding: "utf8",
-        env: {
-          ...process.env,
-          GH_TOKEN: "controlled-fixture-only",
-          RELEASE_TAG: "v0.3.0-fixture",
-          FAKE_GH_STATE: stateRoot,
-          PATH: `${bin}${path.delimiter}${process.env.PATH}`,
-          ...overrides,
-        },
+        // Five mock calls plus the binding probe fit the existing 30-second test budget.
+        timeout: 4_000,
+        killSignal: "SIGKILL",
+        env: { ...fixtureEnvironment, ...overrides },
       });
     const readState = async () => {
       const assetLines = (await readFile(path.join(stateRoot, "assets"), "utf8")).trim();
@@ -342,7 +410,14 @@ test(
       };
     };
 
-    assert.equal(runPublisher().status, 0);
+    const first = runPublisher();
+    await writeFile(
+      path.join(evidence, "first-publisher.json"),
+      JSON.stringify(childEvidence(first), null, 2),
+      { mode: 0o600 },
+    );
+    await cp(root, path.join(evidence, "first-fixture"), { recursive: true });
+    assert.equal(first.status, 0, `First mock publisher failed; diagnostics: ${evidence}`);
     assert.deepEqual(await readState(), {
       exists: true,
       draft: true,
