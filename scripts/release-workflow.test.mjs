@@ -1,7 +1,19 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { constants, existsSync } from "node:fs";
+import {
+  access,
+  chmod,
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -332,6 +344,40 @@ test(
       FAKE_GH_STATE: stateRoot,
       PATH: `${bin}${path.delimiter}${process.env.PATH}`,
     };
+    const fixtureIdentities = await Promise.all(
+      [root, bin, ghShim].map(async (entry) => {
+        const metadata = await stat(entry, { bigint: true });
+        return {
+          path: entry,
+          realPath: await realpath(entry),
+          device: String(metadata.dev),
+          inode: String(metadata.ino),
+          mode: (metadata.mode & 0o7777n).toString(8),
+          uid: String(metadata.uid),
+          gid: String(metadata.gid),
+          size: String(metadata.size),
+          regularFile: metadata.isFile(),
+          directory: metadata.isDirectory(),
+        };
+      }),
+    );
+    const parentFixture = {
+      pathDelimiter: path.delimiter,
+      intendedPathFirstEntry: fixtureEnvironment.PATH.split(path.delimiter)[0],
+      identities: fixtureIdentities,
+      shimSha256: createHash("sha256")
+        .update(await readFile(ghShim))
+        .digest("hex"),
+      executableAccess: await access(ghShim, constants.X_OK).then(
+        () => ({ permitted: true, errorCode: null }),
+        (error) => ({ permitted: false, errorCode: error.code }),
+      ),
+    };
+    await writeFile(
+      path.join(evidence, "parent-fixture.json"),
+      JSON.stringify(parentFixture, null, 2),
+      { mode: 0o600 },
+    );
     const childEvidence = (child) => ({
       status: child.status,
       signal: child.signal,
@@ -347,7 +393,13 @@ test(
         "-euo",
         "pipefail",
         "-c",
-        'printf "%s\\n" "$BASH_VERSION" "$(type -t gh)" "$(command -v gh)" "$(command -v bash)"',
+        [
+          'printf "%s\\n" "$BASH_VERSION" "$(type -t gh)" "$(command -v gh)" "$(command -v bash)"',
+          'printf "%s\\n" "$PWD" "$(pwd -P)" "${PATH%%:*}"',
+          'case ":$PATH:" in *":${FAKE_GH_STATE%/*}/bin:"*) printf "true\\n";; *) printf "false\\n";; esac',
+          'if [[ -f "${FAKE_GH_STATE%/*}/bin/gh" ]]; then printf "true\\n"; else printf "false\\n"; fi',
+          'if [[ -x "${FAKE_GH_STATE%/*}/bin/gh" ]]; then printf "true\\n"; else printf "false\\n"; fi',
+        ].join("\n"),
       ],
       {
         cwd: root,
@@ -357,8 +409,19 @@ test(
         killSignal: "SIGKILL",
       },
     );
-    const [bashVersion, ghKind, ghPath, bashPath, ...extraOutput] =
-      binding.stdout?.trimEnd().split("\n") ?? [];
+    const [
+      bashVersion,
+      ghKind,
+      ghPath,
+      bashPath,
+      childCwd,
+      childPhysicalCwd,
+      childPathFirstEntry,
+      childFixtureBinInPath,
+      childShimRegularFile,
+      childShimExecutable,
+      ...extraOutput
+    ] = binding.stdout?.trimEnd().split("\n") ?? [];
     await writeFile(
       path.join(evidence, "binding.json"),
       JSON.stringify(
@@ -370,6 +433,13 @@ test(
           bashPath,
           ghKind,
           ghPath,
+          parentFixture,
+          childCwd,
+          childPhysicalCwd,
+          childPathFirstEntry,
+          childFixtureBinInPath,
+          childShimRegularFile,
+          childShimExecutable,
           environmentPresence: {
             BASH_ENV: Object.hasOwn(process.env, "BASH_ENV"),
             ENV: Object.hasOwn(process.env, "ENV"),
