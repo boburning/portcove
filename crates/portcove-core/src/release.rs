@@ -174,14 +174,7 @@ impl GithubReleaseProvider {
         web_root: &str,
         bounds: ProviderNetworkBounds,
     ) -> Result<Self> {
-        Self::build_with_credential(
-            library,
-            api_root,
-            web_root,
-            bounds,
-            load_credential(),
-            false,
-        )
+        Self::build_with_credential(library, api_root, web_root, bounds, None, false)
     }
 
     fn build_with_credential(
@@ -189,7 +182,7 @@ impl GithubReleaseProvider {
         api_root: &str,
         web_root: &str,
         bounds: ProviderNetworkBounds,
-        credential: GithubCredential,
+        credential: Option<GithubCredential>,
         qualification: bool,
     ) -> Result<Self> {
         let metadata_builder = reqwest::Client::builder();
@@ -228,7 +221,7 @@ impl GithubReleaseProvider {
             library,
             #[cfg(feature = "qualification-fixtures")]
             qualification_origin: None,
-            credential: Arc::new(StdRwLock::new(credential)),
+            credential: Arc::new(StdRwLock::new(credential.unwrap_or_else(load_credential))),
             cache: Arc::new(RwLock::new(HashMap::new())),
             device_sessions: Arc::new(Mutex::new(HashMap::new())),
         })
@@ -254,11 +247,11 @@ impl GithubReleaseProvider {
             origin,
             origin,
             PROVIDER_NETWORK_BOUNDS,
-            GithubCredential {
+            Some(GithubCredential {
                 token: None,
                 source: GithubAuthSource::Anonymous,
                 intent: 0,
-            },
+            }),
             true,
         )?;
         provider.qualification_origin = Some(origin.to_owned());
