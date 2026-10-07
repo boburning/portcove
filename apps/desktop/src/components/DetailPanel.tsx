@@ -183,27 +183,40 @@ export function DetailPanel(props: DetailPanelProps) {
           tone: "setup",
           icon: AlertTriangle,
         }
-      : installed && typeof status?.readiness?.launchable !== "boolean"
+      : !installed &&
+          port.release.provider !== "user-prepared" &&
+          !missingRequirement &&
+          !status?.port_actions?.some((assessment) => assessment.action === "install")
         ? {
-            title: "Readiness unavailable",
-            description: "Current launch readiness is unavailable. Reopen Portcove to check again.",
+            title: "Setup status unknown",
+            description: selectedRequirement
+              ? `${availableInstallState(selectedRequirement).description} Current setup availability is unavailable. Refresh the workspace to check again.`
+              : "Current setup availability is unavailable. Refresh the workspace to check again.",
             tone: "setup",
             icon: AlertTriangle,
           }
-        : detailState(
-            installed,
-            launchReady,
-            status?.staged?.version,
-            pendingSetup,
-            Boolean(status?.readiness?.blockers.includes("missing_runtime")),
-            runtimeUpdateAvailable,
-            status?.readiness?.source,
-            status?.readiness?.bios,
-            selectedRequirement,
-            missingRequirement,
-            Boolean(status?.readiness?.blockers.includes("invalid_installation")),
-            port.release.provider === "user-prepared",
-          );
+        : installed && typeof status?.readiness?.launchable !== "boolean"
+          ? {
+              title: "Readiness unavailable",
+              description:
+                "Current launch readiness is unavailable. Reopen Portcove to check again.",
+              tone: "setup",
+              icon: AlertTriangle,
+            }
+          : detailState(
+              installed,
+              launchReady,
+              status?.staged?.version,
+              pendingSetup,
+              Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+              runtimeUpdateAvailable,
+              status?.readiness?.source,
+              status?.readiness?.bios,
+              selectedRequirement,
+              missingRequirement,
+              Boolean(status?.readiness?.blockers.includes("invalid_installation")),
+              port.release.provider === "user-prepared",
+            );
   const sources: SourceControls = {
     port,
     source,

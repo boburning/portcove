@@ -54,6 +54,84 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+it.each([undefined, portStatus(), { ...portStatus(), port_actions: [] }])(
+  "keeps managed detail setup unknown without an assessment: %j",
+  (status) => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(
+      <DetailPanel
+        port={portDefinition()}
+        status={status}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+      />,
+    );
+    expect(host.querySelector(".hero-state")?.textContent).toBe("Setup status unknown");
+    expect(host.textContent).not.toContain("Available to install");
+    expect(host.textContent).not.toContain("Unsupported");
+  },
+);
+
+it("keeps an assessed eligible, untested managed route available to install", () => {
+  const host = document.createElement("div");
+  const status: PortStatus = {
+    ...portStatus(),
+    port_actions: [
+      {
+        action: "install",
+        availability: "allowed",
+        reason: "available",
+        definition: { outcome: "eligible", reason: "mandatory_checks_passed" },
+      },
+    ],
+  };
+  host.innerHTML = renderToStaticMarkup(
+    <DetailPanel
+      port={portDefinition()}
+      status={status}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(host.textContent).toContain("Available to install");
+  expect(host.textContent).not.toContain("Setup status unknown");
+});
+
+it("preserves known missing inputs when managed setup has no action assessment", () => {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
+    <DetailPanel
+      port={port}
+      status={portStatus()}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(host.querySelector(".hero-state")?.textContent).toBe("Game files needed");
+  expect(host.textContent).not.toContain("Available to install");
+});
+
+it("preserves external runtime preparation without a managed setup assessment", () => {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
+    <DetailPanel
+      port={{
+        ...portDefinition(),
+        release: { ...portDefinition().release, provider: "user-prepared" },
+      }}
+      status={portStatus()}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  expect(host.querySelector(".hero-state")?.textContent).toBe("Prepare your runtime");
+  expect(host.textContent).not.toContain("Setup status unknown");
+});
+
 it("shows a core-held managed setup reason before installation review", () => {
   const status: PortStatus = {
     ...portStatus(),
