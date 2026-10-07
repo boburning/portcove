@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { readProcessIdentity } from "./heavy-rust-test-lock.mjs";
 import { inspectLinuxSupervisor, parseRustRunMode, runRustTests } from "./run-rust-tests.mjs";
 
 const testCompilerIdentity = Object.freeze({
@@ -430,7 +431,7 @@ test("Linux runner monitors its reaper and registers the separate gated Node gro
     assert.match(spawnedArgs[1], /nextest-status\.json$/u);
     assert.match(spawnedArgs[2], /containment-cleanup\.json$/u);
     assert.match(spawnedArgs[3], /linux-supervisor\.json$/u);
-    assert.match(spawnedArgs[4], new RegExp(`^linux:[a-f0-9-]{36}:${process.pid}:[0-9]+$`, "u"));
+    assert.equal(spawnedArgs[4], readProcessIdentity(process.pid));
     assert.equal(spawnedArgs[5], process.execPath);
     assert.equal(spawnedArgs[6], path.resolve("scripts/rust-test-tree-supervisor.mjs"));
     assert.deepEqual(spawnedArgs.slice(7), [
