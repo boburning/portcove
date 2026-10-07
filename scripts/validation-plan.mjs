@@ -74,6 +74,8 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/qualification-coverage.mjs",
   "scripts/repository-settings.mjs",
   "scripts/run-rust-tests.mjs",
+  "scripts/rust-test-tree-supervisor.mjs",
+  "scripts/fixtures/linux-process-tree-reaper.rs.txt",
   "scripts/select-ci-plan.mjs",
   "scripts/validation-plan.mjs",
   "scripts/workflow-provenance.mjs",

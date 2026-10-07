@@ -103,7 +103,34 @@ const oxfmtExtensions = new Set([
   ".yml",
 ]);
 
+// Exact containment inputs share admission, registration, source-cache and
+// descendant-closure consumers. Helper-only edits must exercise those contracts.
+const containmentContractTests = [
+  "scripts/heavy-rust-test-lock.test.mjs",
+  "scripts/run-rust-tests.test.mjs",
+  "scripts/rust-support-cache.test.mjs",
+  "scripts/rust-test-tree-supervisor.test.mjs",
+];
+const containmentInputs = new Set([
+  ...containmentContractTests,
+  ...containmentContractTests.map((file) => file.replace(".test.mjs", ".mjs")),
+  "scripts/fixtures/linux-process-tree-reaper.rs.txt",
+  "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
+]);
+const selectionContractTests = [
+  "scripts/validation-plan.test.mjs",
+  "scripts/local-validation.test.mjs",
+  "scripts/audit.test.mjs",
+  "scripts/select-ci-plan.test.mjs",
+];
+
 const explicitNodeTests = new Map([
+  ...[
+    "scripts/validation-plan.mjs",
+    "scripts/validation-plan.test.mjs",
+    "scripts/local-validation.mjs",
+    "scripts/local-validation.test.mjs",
+  ].map((file) => [file, selectionContractTests]),
   ["AGENTS.md", ["scripts/repository-settings.test.mjs", "scripts/repository-skills.test.mjs"]],
   [
     "CONTRIBUTING.md",
@@ -121,7 +148,10 @@ const explicitNodeTests = new Map([
   ["docs/PROJECT-GOVERNANCE.md", ["scripts/repository-settings.test.mjs"]],
   ["docs/QUALITY.md", ["scripts/repository-settings.test.mjs"]],
   ["docs/REPOSITORY-SETTINGS.md", ["scripts/repository-settings.test.mjs"]],
-  ["scripts/local-validation.mjs", ["scripts/repository-settings.test.mjs"]],
+  [
+    "scripts/local-validation.mjs",
+    [...selectionContractTests, "scripts/repository-settings.test.mjs"],
+  ],
   [
     ".config/rust-test-impact.json",
     ["scripts/rust-test-impact.test.mjs", "scripts/local-validation.test.mjs"],
@@ -451,11 +481,8 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     }
     if (extension === ".ps1") selection.powershellLint = true;
     if (extension === ".sh") selection.shellLint = true;
-    if (file === "scripts/fixtures/windows-process-tree-supervisor.rs.txt") {
-      addNodeTest(selection, "scripts/heavy-rust-test-lock.test.mjs");
-      addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
-      addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
-    }
+    if (containmentInputs.has(file))
+      for (const testFile of containmentContractTests) addNodeTest(selection, testFile);
     if (file === "scripts/lint-tools.integration.mjs") {
       for (const fixture of [
         "actionlint",
@@ -467,10 +494,6 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
         "stylelint",
       ])
         selection.lintToolFixtures.add(fixture);
-    }
-    if (["scripts/run-rust-tests.mjs", "scripts/rust-support-cache.mjs"].includes(file)) {
-      addNodeTest(selection, "scripts/run-rust-tests.test.mjs");
-      addNodeTest(selection, "scripts/rust-support-cache.test.mjs");
     }
     if (validationOwnershipForPath(file).areas.includes("release-security")) {
       selection.scopes.add("release-tooling");

@@ -786,3 +786,31 @@ test("plan construction is side-effect free when no receipt directory exists", (
   assert.equal(plan.stages[0].action, "run");
   assert.equal(existsSync(receiptRoot), false);
 });
+
+test("containment authorities invalidate every reusable audit receipt domain", () => {
+  const paths = [
+    "scripts/rust-test-tree-supervisor.mjs",
+    "scripts/rust-test-tree-supervisor.test.mjs",
+    "scripts/fixtures/linux-process-tree-reaper.rs.txt",
+  ];
+  for (const pathname of paths) {
+    const before = inventory("before", [file(pathname, "original containment")]);
+    const after = inventory("after", [file(pathname, "changed containment")]);
+    const removed = inventory("after", []);
+    const renamed = inventory("after", [
+      file("new-subsystem/future-supervisor.mjs", "original containment"),
+    ]);
+    for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable)) {
+      assert.ok(domainsForPath(pathname).domains.has(stage.domain), `${pathname} -> ${stage.id}`);
+      for (const next of [after, removed, renamed])
+        assert.notEqual(
+          fingerprintStage(stage, before, runtime),
+          fingerprintStage(stage, next, runtime),
+          `${pathname} -> ${stage.id}`,
+        );
+    }
+    const context = transitionContext([pathname]);
+    assert.equal(context.validationPlan.qualification_required, true);
+    assert.equal(selectTransitionAudit(context).profile, "complete");
+  }
+});
