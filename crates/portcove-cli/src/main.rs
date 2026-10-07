@@ -3218,9 +3218,9 @@ mod tests {
         let cli = Cli::try_parse_from([
             "portcove",
             "--library",
-            "/owned/library",
+            "owned-library",
             "--qualification-provider-library",
-            "/owned/library",
+            "owned-library",
             "--qualification-provider-origin",
             "http://127.0.0.1:8123",
             "installation",
