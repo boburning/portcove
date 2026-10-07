@@ -540,6 +540,109 @@ describe("desktop components", () => {
     expect(html).not.toContain("Portcove will run and verify the upstream setup before play.");
   });
 
+  it.each(["opengoal-jak1", "paperboat"])(
+    "offers guarded preparation review for the installed %s definition",
+    (id) => {
+      const definition = currentCatalogPort(id);
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: id,
+        active: installRecord({ port_id: id }),
+        readiness: {
+          launchable: false,
+          blockers: ["preparation_required"],
+          pending_setup: true,
+          source: "current",
+        },
+      };
+      const props = {
+        port: definition,
+        status,
+        sourcePath: "source.z64",
+        setSourcePath: vi.fn(),
+        prepare: vi.fn(),
+        actions,
+      };
+      const ready = renderToStaticMarkup(<DetailPanel {...props} />);
+      const reviewButton = ready.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
+      expect(reviewButton).toBeDefined();
+      expect(reviewButton).not.toMatch(/\sdisabled(?:\s|=|>)/);
+      expect(ready).toContain("First-time setup required");
+      expect(ready).not.toContain(">Play</button>");
+
+      const blocked = [
+        { ...props, busy: "prepare" },
+        { ...props, prepare: undefined },
+        ...(["missing", "changed"] as const).flatMap((health) => [
+          {
+            ...props,
+            status: { ...status, readiness: { ...status.readiness!, source: health } },
+          },
+          {
+            ...props,
+            // These explicit refusal fixtures add a BIOS contract; the embedded ports do not.
+            port: { ...definition, bios_source_profile: "required-test-bios" },
+            status: { ...status, readiness: { ...status.readiness!, bios: health } },
+          },
+        ]),
+      ];
+      for (const refusal of blocked) {
+        const html = renderToStaticMarkup(<DetailPanel {...refusal} />);
+        const button = html.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
+        expect(button).toBeDefined();
+        expect(button).toMatch(/\sdisabled(?:\s|=|>)/);
+      }
+      expect(props.prepare).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["opengoal-jak1", "paperboat"])(
+    "does not manufacture preparation review outside the %s managed contract",
+    (id) => {
+      const definition = currentCatalogPort(id);
+      const status: PortStatus = {
+        ...portStatus(),
+        active: installRecord(),
+        readiness: {
+          launchable: false,
+          blockers: ["preparation_required"],
+          pending_setup: true,
+          source: "current",
+        },
+      };
+      const props = {
+        port: definition,
+        status,
+        sourcePath: "source.z64",
+        setSourcePath: vi.fn(),
+        prepare: vi.fn(),
+        actions,
+      };
+      const unavailable = [
+        { ...props, port: { ...definition, adapter: "staged-source-portable" as const } },
+        { ...props, port: { ...definition, setup_output_paths: [] } },
+        { ...props, status: { ...status, active: null } },
+        {
+          ...props,
+          status: {
+            ...status,
+            readiness: {
+              ...status.readiness!,
+              launchable: true,
+              blockers: [],
+              pending_setup: false,
+            },
+          },
+        },
+      ];
+      for (const outsideContract of unavailable) {
+        const html = renderToStaticMarkup(<DetailPanel {...outsideContract} />);
+        expect(html).not.toContain("Review game preparation");
+      }
+      expect(props.prepare).not.toHaveBeenCalled();
+    },
+  );
+
   it("uses player-facing ready and downloaded-update labels", () => {
     const status: PortStatus = {
       ...portStatus(),

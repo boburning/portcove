@@ -404,7 +404,9 @@ function DetailBody({
   openLibraryStorage?: () => void;
 }) {
   const managedPreparation = Boolean(
-    installed && port.adapter === "upstream-managed-setup" && port.setup_output_paths.length,
+    installed &&
+    (port.adapter === "upstream-managed-setup" || port.adapter === "libultraship-portable") &&
+    port.setup_output_paths.length,
   );
   return (
     <div className="detail-body px-8 pt-7 pb-10">
