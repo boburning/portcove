@@ -201,33 +201,40 @@ it.each(["other:7", "sample:8"])(
   },
 );
 
-it("uses the selected requirements fallback when the surviving opener becomes disabled", async () => {
-  vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
-  function SelectedRequirements() {
-    const [disabled, setDisabled] = useState(false);
-    const summary = useRef<HTMLElement>(null);
-    return (
-      <details open>
-        <summary ref={summary}>Game-file requirements and setup</summary>
-        <PreparationControl
-          portId="sample"
-          generation={7}
-          disabled={disabled}
-          focusFallback={() => summary.current}
-          run={async () => {
-            setDisabled(true);
-            return undefined;
-          }}
-        />
-      </details>
-    );
-  }
-  await act(async () => root.render(<SelectedRequirements />));
-  await click("Review game preparation");
-  await click("Prepare game data");
-  expect(container.querySelector("button")?.disabled).toBe(true);
-  expect(document.activeElement).toBe(container.querySelector("summary"));
-});
+it.each(["disabled", "unavailable"])(
+  "uses the selected requirements fallback when the surviving opener becomes %s",
+  async (availability) => {
+    vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+    function SelectedRequirements() {
+      const [disabled, setDisabled] = useState(false);
+      const summary = useRef<HTMLElement>(null);
+      return (
+        <details open>
+          <summary ref={summary}>Game-file requirements and setup</summary>
+          <PreparationControl
+            portId="sample"
+            generation={7}
+            disabled={availability === "disabled" && disabled}
+            focusFallback={() => summary.current}
+            run={
+              availability === "unavailable" && disabled
+                ? undefined
+                : async () => {
+                    setDisabled(true);
+                    return undefined;
+                  }
+            }
+          />
+        </details>
+      );
+    }
+    await act(async () => root.render(<SelectedRequirements />));
+    await click("Review game preparation");
+    await click("Prepare game data");
+    expect(container.querySelector("button")?.disabled).toBe(true);
+    expect(document.activeElement).toBe(container.querySelector("summary"));
+  },
+);
 
 it("reviews without executing and binds explicit confirmation to the returned plan", async () => {
   const review = vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);

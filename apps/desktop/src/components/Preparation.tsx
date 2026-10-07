@@ -121,7 +121,8 @@ export function PreparationControl({
               if (focusFallback && !fallback?.isConnected) return false;
               // Popup cleanup precedes this commit's removal of the opener's
               // temporary hidden/pending state. Its owner determines availability.
-              if (reviewButton.current?.isConnected && !disabled) return reviewButton.current;
+              if (reviewButton.current?.isConnected && !disabled && run)
+                return reviewButton.current;
               return fallback?.isConnected ? fallback : false;
             }}
             className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
