@@ -12,6 +12,11 @@ corrections. Agents investigate changed contracts and genuine exceptions.
 Normal use stays local-first, without paid inference, mandatory accounts,
 telemetry or redistribution of copyrighted game data.
 
+Execution uses the configured fixed coordination board. Bounded offers preserve
+accepted reservations; only independently established actual responses and exact
+evidence readback permit ACK or serialized ownership transfer. See
+[the pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
+
 ## Start here
 
 | Question                                     | Authoritative starting point                                                                                                                                                                                                                                                                                                                                                    |

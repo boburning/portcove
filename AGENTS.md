@@ -46,7 +46,11 @@ Follow one loop: understand the owned outcome and active reservations; implement
 one coherent change with focused tests; review that candidate and repair
 substantive findings; finish applicable local validation; push and freeze the
 candidate; complete required exact-head CI and distinct acceptance; guarded merge;
-concise handoff. Use the task map below for details instead of loading every
+concise handoff. Prefer healthy cloud owners finishing their delivery. A genuine
+cloud-to-Local transfer requires source-owner release and Local’s actual instance,
+generation and scope ACK; Local then owns remaining validation, fixes, independent
+review, evidence and normal guarded merge while preserving its other reservations.
+Use the task map below for details instead of loading every
 specialist contract.
 
 Preserve other workers' changes, processes, evidence and reservations. A worktree
@@ -101,6 +105,9 @@ consumption records do not prove assignment or worker activity. Use the operatio
 `.github/roadmap.json:runner_coordination`, direct connected runner messages and
 actual pointer/instance/assignment-generation ACKs. Dot alone edits durable state
 and serializes grants; missing or invalid state is UNKNOWN, never unowned.
+At a genuine safe checkpoint, preserve a bounded offer and exact return evidence;
+only independently established delivery plus fresh readback permits Dot to ACK.
+An offer never replaces an accepted assignment or wakes an idle session.
 Use existing accepted grants; a checkout lock is not cross-machine exclusivity. Capture
 discoveries and narrow blockers with their canonical owner before ending or
 switching. After verified delivery reconcile the task, finite parent and affected

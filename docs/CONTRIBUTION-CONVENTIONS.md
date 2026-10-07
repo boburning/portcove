@@ -80,6 +80,13 @@ reconcile superseded acceptance and repeat only affected obligations. A changed
 fingerprint alone neither rejects sound work nor approves stale work. This does
 not replace exact-head, relevant-target, independent review or protected gates.
 
+Prefer healthy cloud owners completing their delivery. A genuine cloud-to-Local
+transfer requires explicit source-owner release and Local’s actual instance,
+generation and scope ACK through the coordinator. Local then owns the remaining
+validation, fixes, independent review, evidence and normal guarded merge, preserving
+its other reservations. Capability assistance alone transfers no ownership; every
+existing acceptance and merge gate still applies.
+
 Record the reviewed source head, target tip used for the comparison, and actual
 merge-base. If `main` advances without changing the source head, do not imply the
 later target revision was tested. An unrelated target advance does not by itself
