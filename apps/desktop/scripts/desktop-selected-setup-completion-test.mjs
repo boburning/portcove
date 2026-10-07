@@ -14,6 +14,9 @@ import {
 export async function assertCompletionCoreParity({ read, core, portId, prepared, observations }) {
   // Installation reinspects the source; retain both snapshots and compare the current record.
   observations.completed_sources = await read("get_sources");
+  assert.ok(Array.isArray(observations.sources) && observations.sources.length > 0);
+  assert.ok(Array.isArray(observations.completed_sources));
+  assert.equal(observations.completed_sources.length, observations.sources.length);
   assert.deepEqual(core(["status", portId]), prepared);
   assert.deepEqual(core(["source", "list"]), observations.completed_sources);
 }
@@ -361,7 +364,7 @@ export async function selectedSetupCompletionScenario({
         5_000,
         "Return must restore focus to the authoritative setup continuation",
       );
-      assert.deepEqual(await read("get_sources"), report.observations.sources);
+      assert.deepEqual(await read("get_sources"), report.observations.completed_sources);
       for (const label of choices)
         assert.equal(await browser.findElement(button(label)).isEnabled(), true);
       report.observations.returned_choices = choices;

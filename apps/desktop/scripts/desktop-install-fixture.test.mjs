@@ -24,10 +24,16 @@ import { run as runLifecycleCommand } from "../../../integrations/playnite/lifec
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-for (const mismatch of [null, "updated_at", "sha256"]) {
+for (const mismatch of [null, "updated_at", "sha256", "missing", "empty", "extra"]) {
   test(`completion parity uses current full source records: ${mismatch ?? "matching"}`, async () => {
     const initial = [{ id: "owned-source", sha256: "a".repeat(64), updated_at: 1605 }];
-    const completed = [{ ...initial[0], updated_at: 1613 }];
+    const completed =
+      mismatch === "missing"
+        ? undefined
+        : mismatch === "empty"
+          ? []
+          : [{ ...initial[0], updated_at: 1613 }];
+    if (mismatch === "extra") completed.push({ ...completed[0], id: "unexpected-source" });
     const cliSources = structuredClone(completed);
     if (mismatch === "updated_at") cliSources[0].updated_at = 1605;
     if (mismatch === "sha256") cliSources[0].sha256 = "b".repeat(64);
