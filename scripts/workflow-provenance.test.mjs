@@ -484,8 +484,8 @@ function cargoFixture(t, twoManifests = false) {
   return { ...f, spec, commit };
 }
 
-test("opt-in Cargo binding admits only the reviewed one/two-manifest updates", async (t) => {
-  for (const count of [false, true]) {
+for (const count of [false, true]) {
+  test(`opt-in Cargo binding admits only the reviewed ${count ? "two" : "one"}-manifest update`, async (t) => {
     const f = cargoFixture(t, count);
     assert.equal(await runHostedLocalCheck("prepare", f.options), 0);
     const calls = [];
@@ -519,8 +519,8 @@ test("opt-in Cargo binding admits only the reviewed one/two-manifest updates", a
     );
     delete f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING;
     await assert.rejects(runHostedLocalCheck("prepare", f.options), /changes trusted.*authority/);
-  }
-});
+  });
+}
 
 test("Cargo binding rejects every other tree, mode and dependency-byte change", async (t) => {
   const mutations = [
@@ -669,8 +669,8 @@ test("planning cannot change the reviewed lock before fresh execution", async (t
   assert.ok(!f.logs.some((line) => line.startsWith("Hosted local-check completed:")));
 });
 
-test("multiline TOML descriptions cannot masquerade as dependency tables", async (t) => {
-  for (const delimiter of ['"""', "'''"]) {
+for (const delimiter of ['"""', "'''"]) {
+  test(`multiline TOML ${delimiter} descriptions cannot masquerade as dependency tables`, async (t) => {
     const f = cargoFixture(t);
     f.git(f.source, ["reset", "--hard", f.env.PORTCOVE_LOCAL_AUTHORITY_SHA]);
     const manifest = f.spec.manifests[0].path;
@@ -693,8 +693,8 @@ test("multiline TOML descriptions cannot masquerade as dependency tables", async
       runHostedLocalCheck("prepare", f.options),
       /Invalid reviewed Cargo dependency binding/,
     );
-  }
-});
+  });
+}
 
 test("hosted execution binds actual Git source, default base, controller and final child", async (t) => {
   const f = hostedFixture(t);
