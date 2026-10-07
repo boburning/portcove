@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile, readdir, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { collectRepositoryHealth, renderRepositoryHealth } from "./check-catalog-repositories.mjs";
 import os from "node:os";
 import path from "node:path";
@@ -501,6 +502,192 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(qualification, /package_managed_files_unchanged: true/);
 });
 
+// Observe only the first reader; asynchronous scheduling is diagnostic, not a repair.
+// Keep the same command, environment, SIGTERM deadline and wait-for-close cleanup.
+async function observeFirstReader(executable, args, options, hooks = {}) {
+  const started = performance.now();
+  const observation = {
+    representation: "instrumented asynchronous first invocation; not original-cause proof",
+    pid: null,
+    spawned_ms: null,
+    first_stderr_ms: null,
+    closed_ms: null,
+    deadline_reached: false,
+    samples: [],
+    sample_scope: "PID-addressed Linux State/RSS/Threads; not start identity, CPU or process tree",
+  };
+  return await new Promise((resolve) => {
+    const { timeout, ...spawnOptions } = options;
+    const child = (hooks.spawn ?? spawn)(executable, args, {
+      ...spawnOptions,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let error = null;
+    let stdout = "";
+    let stderr = "";
+    let sampling = false;
+    let closed = false;
+    const elapsed = () => performance.now() - started;
+    const deadline = setTimeout(() => {
+      observation.deadline_reached = true;
+      error ??= Object.assign(new Error(`spawn ${executable} ETIMEDOUT`), {
+        code: "ETIMEDOUT",
+      });
+      child.kill("SIGTERM");
+    }, timeout);
+    const sample = async () => {
+      if (closed || sampling || observation.samples.length >= 4 || !child.pid) return;
+      sampling = true;
+      try {
+        const body = await (hooks.readStatus ?? readFile)(`/proc/${child.pid}/status`, "utf8");
+        if (closed) return;
+        observation.samples.push({
+          elapsed_ms: elapsed(),
+          status: body.split("\n").filter((line) => /^(?:State|VmRSS|Threads):/u.test(line)),
+        });
+      } catch (cause) {
+        if (!closed)
+          observation.samples.push({ elapsed_ms: elapsed(), error: cause.code ?? cause.name });
+      } finally {
+        sampling = false;
+      }
+    };
+    const sampler = process.platform === "linux" ? setInterval(sample, 250) : null;
+    child.once("spawn", () => {
+      observation.pid = child.pid;
+      observation.spawned_ms = elapsed();
+      if (process.platform === "linux") void sample();
+    });
+    // Preserve spawnSync's default 1 MiB output bound, instead of hiding overflow.
+    const collect = (name, chunk) => {
+      if (name === "stderr" && observation.first_stderr_ms === null)
+        observation.first_stderr_ms = elapsed();
+      if (error?.code === "ENOBUFS") return;
+      const retained = name === "stdout" ? stdout : stderr;
+      if (Buffer.byteLength(retained) + Buffer.byteLength(chunk) > 1024 * 1024) {
+        error ??= Object.assign(new Error(`spawn ${executable} ENOBUFS`), { code: "ENOBUFS" });
+        child.kill("SIGTERM");
+        return;
+      }
+      if (name === "stdout") stdout += chunk;
+      else stderr += chunk;
+    };
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => collect("stdout", chunk));
+    child.stderr.on("data", (chunk) => collect("stderr", chunk));
+    child.once("error", (cause) => {
+      error ??= cause;
+    });
+    child.once("close", (status, signal) => {
+      closed = true;
+      clearTimeout(deadline);
+      if (sampler) clearInterval(sampler);
+      observation.closed_ms = elapsed();
+      resolve({ status: error ? null : status, signal, error, stdout, stderr, observation });
+    });
+    // spawnSync sends EOF when there is no input; keep that contract here.
+    child.stdin.end();
+  });
+}
+
+function readerControlChild() {
+  const child = new EventEmitter();
+  child.pid = 123;
+  child.stdin = {
+    end: () => {
+      child.stdinEnded = true;
+    },
+  };
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.stdout.setEncoding = child.stderr.setEncoding = () => {};
+  child.kill = (signal) => {
+    child.killedWith = signal;
+    queueMicrotask(() => child.emit("close", null, signal));
+    return true;
+  };
+  return child;
+}
+
+for (const outcome of ["success", "failure", "spawn-error", "timeout", "overflow"]) {
+  test(`first reader observation control: ${outcome}`, async () => {
+    const child = readerControlChild();
+    const spawnError = Object.assign(new Error("missing owned control"), { code: "ENOENT" });
+    const result = await observeFirstReader(
+      "owned-control",
+      ["unchanged-command"],
+      { timeout: 20 },
+      {
+        spawn: () => {
+          queueMicrotask(() => {
+            if (outcome === "spawn-error") child.emit("error", spawnError);
+            else child.emit("spawn");
+            if (outcome === "timeout") return;
+            if (outcome === "overflow") child.stdout.emit("data", "x".repeat(1024 * 1024 + 1));
+            else if (outcome !== "spawn-error") {
+              child.stdout.emit("data", "original-output");
+              child.stderr.emit("data", "first-marker");
+            }
+            if (outcome !== "overflow") child.emit("close", outcome === "failure" ? 7 : 0, null);
+          });
+          return child;
+        },
+        readStatus: async () => "State:\tR (running)\nVmRSS:\t100 kB\nThreads:\t1\n",
+      },
+    );
+    assert.ok(result.observation.closed_ms !== null);
+    assert.equal(child.stdinEnded, true);
+    if (outcome === "timeout" || outcome === "overflow") {
+      assert.equal(child.killedWith, "SIGTERM");
+      assert.equal(result.error.code, outcome === "timeout" ? "ETIMEDOUT" : "ENOBUFS");
+      assert.equal(result.status, null);
+      assert.equal(result.signal, "SIGTERM");
+      assert.equal(result.observation.deadline_reached, outcome === "timeout");
+    } else if (outcome === "spawn-error") {
+      assert.equal(result.error, spawnError);
+      assert.equal(result.observation.spawned_ms, null);
+    } else {
+      assert.equal(result.error, null);
+      assert.equal(result.status, outcome === "failure" ? 7 : 0);
+      assert.equal(result.stdout, "original-output");
+      assert.equal(result.stderr, "first-marker");
+      assert.ok(result.observation.first_stderr_ms !== null);
+    }
+  });
+}
+
+test("first reader observation ignores a sample finishing after close", async () => {
+  const child = readerControlChild();
+  let finishSample;
+  const result = await observeFirstReader(
+    "owned-control",
+    [],
+    { timeout: 20 },
+    {
+      spawn: () => {
+        queueMicrotask(() => {
+          child.emit("spawn");
+          child.emit("close", 0, null);
+        });
+        return child;
+      },
+      readStatus: () =>
+        new Promise((resolve) => {
+          finishSample = resolve;
+        }),
+    },
+  );
+  const closed = structuredClone(result.observation);
+  if (process.platform === "linux") {
+    assert.equal(typeof finishSample, "function");
+    finishSample("State:\tR (running)\n");
+    await Promise.resolve();
+    assert.deepEqual(result.observation, closed);
+  }
+  assert.equal(child.killedWith, undefined);
+});
+
 test("repository toolchain reader exports the declared components before installation", async (context) => {
   const setup = await readFile(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
@@ -538,10 +725,11 @@ test("repository toolchain reader exports the declared components before install
     `\n${phaseDiagnostic("completed")}\n`;
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-toolchain-reader-"));
   const output = path.join(directory, "github-output");
-  function runReader(fixture, command = tracedScript) {
+  async function runReader(fixture, command = tracedScript) {
     const startedAt = new Date().toISOString();
     const started = performance.now();
-    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
+    const execute = fixture === "valid-1" ? observeFirstReader : spawnSync;
+    const result = await execute("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
       cwd: directory,
       env: { ...process.env, GITHUB_OUTPUT: output },
       encoding: "utf8",
@@ -556,6 +744,7 @@ test("repository toolchain reader exports the declared components before install
     context.diagnostic(
       JSON.stringify({
         reader_fixture: fixture,
+        first_invocation_observation: result.observation ?? null,
         observation_order: "reader-then-startup; startup is diagnostic-only",
         node: process.version,
         platform: process.platform,
@@ -587,7 +776,7 @@ test("repository toolchain reader exports the declared components before install
         `[toolchain]\nchannel = "1.98.1"\ncomponents = ${JSON.stringify(components)}\n`,
       );
       await writeFile(output, "");
-      const result = runReader(`valid-${index + 1}`);
+      const result = await runReader(`valid-${index + 1}`);
       assert.ifError(result.error);
       assert.equal(result.status, 0, result.stdout + result.stderr);
       const phases = [
@@ -629,7 +818,7 @@ test("repository toolchain reader exports the declared components before install
         `[toolchain]\nchannel = "1.98.1"\n${declaration}\n`,
       );
       await writeFile(output, "");
-      const result = runReader(`invalid-${index + 1}`);
+      const result = await runReader(`invalid-${index + 1}`);
       assert.ifError(result.error);
       assert.notEqual(result.status, 0, declaration);
       assert.equal(await readFile(output, "utf8"), "");
@@ -638,7 +827,7 @@ test("repository toolchain reader exports the declared components before install
     try {
       // Observe startup after the reader without warming its first invocation.
       // This result cannot replace the reader verdict or explain an earlier timeout.
-      runReader(
+      await runReader(
         "startup-after-reader-diagnostic-only",
         '[Console]::Error.WriteLine("portcove-startup-discriminator:entered"); ' +
           "[PSCustomObject]@{version=$PSVersionTable.PSVersion.ToString();executable=[Environment]::ProcessPath} | ConvertTo-Json -Compress",
