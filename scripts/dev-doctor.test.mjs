@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, symlinkSync 
 import os from "node:os";
 import path from "node:path";
 import {
+  collectProfileDoctor,
   probeTool,
   selectedPrerequisites,
   collectSelectedPrerequisites,
@@ -398,4 +399,138 @@ test("doctor reports a timeout rather than a version pass", () => {
     })).status,
     "timeout",
   );
+});
+
+test("Core profile observes only Rust capabilities; missing frontend cannot block it", async () => {
+  const commands = [];
+  const report = await collectProfileDoctor("core", {
+    storage: {},
+    pnpmDefinition: () => null,
+    aquaDefinition: () => null,
+    run(command, args, options) {
+      commands.push([command, args]);
+      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      if (command === "rustc") return { status: 0, stdout: "rustc 1.98.1" };
+      if (args[0] === "nextest") return { status: 0, stdout: "cargo-nextest 0.9.100" };
+      return { status: 0, stdout: "1.98.1" };
+    },
+  });
+  assert.equal(report.ok, true);
+  assert.ok(commands.every(([command]) => command === "rustc" || command === "cargo"));
+  assert.ok(!report.capabilities.includes("node"));
+  assert.ok(!report.capabilities.includes("frontend-dependencies"));
+});
+
+test("requested profile stays failed when one capability is missing; observations never provision", async () => {
+  const commands = [];
+  const report = await collectProfileDoctor("frontend", {
+    storage: {},
+    pnpmDefinition: () => null,
+    run(command, args, options) {
+      commands.push([command, args]);
+      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      return { status: 0, stdout: "24.21.0" };
+    },
+  });
+  assert.equal(report.ok, false);
+  assert.equal(report.tools.find((tool) => tool.id === "pnpm").status, "unavailable");
+  assert.equal(report.tools.find((tool) => tool.id === "node").status, "ok");
+  assert.equal(commands.length, 1);
+});
+
+test("native Windows profile observes installed compiler paths while ordinary validation stays unverified", async () => {
+  const { developmentCapabilityPlan } = await import("./development-capabilities.mjs");
+  const { readFileSync } = await import("node:fs");
+  const plan = await developmentCapabilityPlan("native-desktop", { platform: "win32" });
+  const quality = JSON.parse(
+    readFileSync(new URL("../.github/quality-tools.json", import.meta.url), "utf8"),
+  );
+  const pssa = readFileSync(
+    new URL("../.config/powershell-resources.psd1", import.meta.url),
+    "utf8",
+  ).match(/version\s*=\s*'([^']+)'/u)[1];
+  const calls = [];
+  const options = {
+    platform: "win32",
+    storage: {},
+    readToolState: () => ({
+      desktop: {
+        tauri_driver_version: JSON.parse(
+          readFileSync(new URL("../.config/tool-bootstrap.json", import.meta.url), "utf8"),
+        ).desktop.tauri_driver,
+        webview2_version: "100.0.0.1",
+      },
+    }),
+    frontendDependenciesAvailable: () => true,
+    desktopDrivers: () => ({
+      driver: "/verified/tauri-driver",
+      nativeDriver: "/verified/msedgedriver",
+    }),
+    pnpmDefinition: (version) => ({ id: "pnpm", version, command: ["cached-pnpm", "--version"] }),
+    aquaDefinition: (definition) => ({ ...definition, command: [definition.id, "--version"] }),
+    run(command, args) {
+      calls.push([command, args]);
+      if (command === "/verified/msedgedriver") return { status: 0, stdout: "100.0.0.1" };
+      const tool = quality.tools.find(
+        (tool) => JSON.stringify(tool.command) === JSON.stringify([command, ...args]),
+      );
+      const version =
+        tool?.version ??
+        (command === "rustc"
+          ? plan.pins.rust
+          : command === "cached-pnpm"
+            ? plan.pins.package_manager.split("@")[1]
+            : command === "aqua"
+              ? readFileSync(new URL("../.aqua-version", import.meta.url), "utf8")
+                  .trim()
+                  .replace(/^v/u, "")
+              : command === "pwsh" && args.join(" ").includes("Import-Module")
+                ? pssa
+                : command === "pwsh"
+                  ? "7.6.6"
+                  : plan.pins.node);
+      if (["ruff", "shellcheck", "actionlint"].includes(command)) {
+        const pin = readFileSync(new URL("../aqua.yaml", import.meta.url), "utf8")
+          .match(new RegExp(`(?:ruff|shellcheck|actionlint)@([^\\s]+)`, "g"))
+          ?.find((value) => value.startsWith(command + "@"));
+        return { status: 0, stdout: pin.split("@")[1].replace(/^v/u, "") };
+      }
+      return { status: 0, stdout: version };
+    },
+  };
+  const report = await collectProfileDoctor("native-desktop", options);
+  assert.equal(report.ok, true, JSON.stringify(report.tools));
+  assert.equal(report.tools.find((tool) => tool.id === "native-desktop-build").status, "ok");
+  assert.match(
+    report.tools.find((tool) => tool.id === "native-desktop-build").interpretation,
+    /presence only/,
+  );
+  assert.ok(
+    calls.some(
+      ([command, args]) =>
+        command === "pwsh" &&
+        args.join(" ").includes("Microsoft.VisualStudio.Component.VC.Tools.x86.x64"),
+    ),
+  );
+  const legacy = await collectSelectedPrerequisites(
+    [{ id: "rust-clippy:portcove-desktop" }],
+    options,
+  );
+  assert.equal(legacy.find((tool) => tool.id === "native-desktop-build").status, "unverified");
+});
+
+test("Linux native PATH help cannot approve unverified driver identity", async () => {
+  const commands = [];
+  const report = await collectProfileDoctor("native-desktop", {
+    platform: "linux",
+    storage: {},
+    run(command) {
+      commands.push(command);
+      return { status: 0, stdout: "24.21.0" };
+    },
+  });
+  for (const id of ["tauri-driver", "native-driver"])
+    assert.equal(report.tools.find((tool) => tool.id === id).status, "unverified");
+  assert.equal(report.ok, false);
+  assert.ok(!commands.includes("tauri-driver") && !commands.includes("WebKitWebDriver"));
 });

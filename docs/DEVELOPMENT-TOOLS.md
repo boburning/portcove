@@ -68,6 +68,40 @@ proof of Cargo's auto-selected linker. Inspect a verbose native build when
 compiler selection matters. Keep each worktree's Cargo target separate and use
 the existing development-storage wrapper for heavy commands.
 
+Selective development uses the shared capability map in
+`scripts/development-capabilities.mjs`. Observe a requested profile with
+`just doctor --profile frontend|core|daily|native-desktop`; observation never
+acquires tools or dependencies. Existing `standard` and `desktop` defaults retain
+their legacy behavior. Profile readiness is prerequisite evidence; it does not
+prove a build, test run, fresh execution task, cold acquisition or native session.
+
+| Profile          | Required capabilities                                                                                                                                                                                                                                                                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend`       | Pinned Node and pnpm, installed root and desktop frontend dependencies.                                                                                                                                                                                                                                                                |
+| `core`           | Pinned Rust/Cargo, rustfmt and Clippy components, pinned cargo-nextest. Direct Cargo development does not require Node, frontend dependencies or Tauri.                                                                                                                                                                                |
+| `daily`          | Frontend and Core, Git, PowerShell, pinned Aqua and its verified Ruff/ShellCheck/actionlint payloads, all required Cargo tools from the quality manifest, and PSScriptAnalyzer on Windows.                                                                                                                                             |
+| `native-desktop` | Daily plus platform build prerequisites, tauri-driver and the platform driver; Linux also requires Xvfb. Missing or unverified platform capabilities fail this requested profile. Windows observes installed compiler/linker paths; this does not prove Cargo selection. Linux/macOS driver identity remains unverified by this slice. |
+
+Explicitly provision only the requested supported profile with
+`./scripts/bootstrap-quality-tools.sh --profile frontend|core|daily` on Linux/macOS,
+or `./scripts/bootstrap-quality-tools.ps1 -Profile frontend|core|daily|native-desktop`
+on Windows. These setup planners use Node to read the shared map and existing pin
+files; this launcher prerequisite does not make Node a prerequisite of direct
+Cargo commands. Validation commands that execute Node wrappers still require
+Node. Selective profiles cannot be combined with legacy deep/desktop switches.
+Frontend setup uses the pinned package-manager declaration and frozen lockfile;
+Core setup selects the existing Rust pin/components and cargo-nextest only.
+Daily keeps existing Aqua checksum/attestation and Cargo cache boundaries.
+
+Native setup remains platform-scoped: the PowerShell route provisions existing
+Windows drivers; the POSIX bootstrap refuses native setup with the existing
+approved platform route as its remedy. A platform observation or fixture never
+substitutes for actual native qualification. Required missing tools, failed
+acquisition and partial profiles return failure; previously verified cache/state
+and unrelated shims remain intact. Git and PowerShell must already be available
+for daily setup; an unavailable prerequisite remains an explicit limitation.
+No ordinary validation command invokes these provisioning routes implicitly.
+
 The active toolchain authorities are Rust 1.98.1 in `rust-toolchain.toml`, Node
 24.21.0 in `.node-version`, and pnpm 12.8.1 in the repository root package's
 `packageManager` field. GitHub workflows derive pnpm from that package manifest
