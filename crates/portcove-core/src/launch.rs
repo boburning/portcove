@@ -519,8 +519,11 @@ pub(crate) mod child_diagnostic {
                 .unwrap();
             record(42, "fixture", "other_pid", None, None);
             assert!(guard.events().is_empty());
-            let original = Ok(Some("private/path is never printed".to_owned()));
-            assert_eq!(identity(41, original.clone()).unwrap(), original.unwrap());
+            let original = "private/path is never printed".to_owned();
+            assert_eq!(
+                identity(41, Ok(Some(original.clone()))).unwrap(),
+                Some(original)
+            );
             assert!(guard.events()[0].identity.is_none());
             for _ in 0..MAX_EVENTS + 3 {
                 record(41, "fixture", "synthetic", None, None);
