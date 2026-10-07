@@ -127,6 +127,7 @@ export async function normalPackageBoundaryScenario({
       assert.equal(result.ok, false);
       assert.match(result.error, /command .* not found/i);
     }
+    await assertSecondaryCreationRefusal({ browser, invoke, library, observations });
     observations.assets = await browser.executeScript(() =>
       [...document.scripts].filter((script) => script.src).map((script) => script.src),
     );
@@ -264,6 +265,70 @@ async function readyMainContext({ browser, invoke, library }) {
     identity: identity.value,
     url: await browser.getCurrentUrl(),
   };
+}
+
+async function captureSecondaryContext({ browser, invoke, library }) {
+  const readers = [
+    ["context", () => readyMainContext({ browser, invoke, library })],
+    ["locale", () => invoke("get_locale_preference")],
+    ["windows", () => invoke("plugin:window|get_all_windows")],
+    ["webviews", () => invoke("plugin:webview|get_all_webviews")],
+  ];
+  const outcomes = await Promise.allSettled(
+    readers.map(([, read]) => Promise.resolve().then(read)),
+  );
+  const snapshot = { readFailures: {} };
+  for (const [index, outcome] of outcomes.entries()) {
+    const [name] = readers[index];
+    if (outcome.status === "fulfilled") snapshot[name] = outcome.value;
+    else
+      snapshot.readFailures[name] =
+        outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
+  }
+  return snapshot;
+}
+
+function assertSecondaryMainContext(snapshot) {
+  assert.deepEqual(snapshot.readFailures, {}, "Require every actual native context observation");
+  assert.equal(new URL(snapshot.context.url).origin, "http://tauri.localhost");
+  assert.deepEqual(snapshot.windows, { ok: true, value: ["main"] });
+  assert.deepEqual(snapshot.webviews, {
+    ok: true,
+    value: [{ window_label: "main", label: "main" }],
+  });
+  assert.equal(snapshot.locale.ok, true);
+  assert.equal(snapshot.locale.value?.locale, "en");
+}
+
+async function assertSecondaryCreationRefusal({ browser, invoke, library, observations }) {
+  const command = "plugin:webview|create_webview_window";
+  // The pinned SDK sends valid WindowConfig options. ACL refusal precedes
+  // argument decoding, so it proves refusal of this request, not option parsing.
+  const args = {
+    options: {
+      label: "portcove-boundary-secondary",
+      url: "index.html",
+      title: "Owned denied secondary boundary",
+      visible: false,
+    },
+  };
+  const record = { request: { command, args } };
+  observations.secondaryCreation = record;
+  record.before = await captureSecondaryContext({ browser, invoke, library });
+  assertSecondaryMainContext(record.before);
+  try {
+    record.result = await invoke(command, args);
+  } catch (error) {
+    record.invocationFailure = error instanceof Error ? error.message : String(error);
+  }
+  // Keep every post-attempt observation even when creation unexpectedly succeeds,
+  // its reply fails, or another observation fails. Existing IPC bounds still apply.
+  record.after = await captureSecondaryContext({ browser, invoke, library });
+  assert.equal(record.invocationFailure, undefined, record.invocationFailure);
+  assert.equal(record.result.ok, false, "Unauthorized secondary creation must be refused");
+  assert.equal(record.result.error, `Command ${command} not allowed by ACL`);
+  assertSecondaryMainContext(record.after);
+  assert.deepEqual(record.after, record.before, "Creation refusal must preserve native main state");
 }
 
 async function assertRemoteFrameCsp({ browser, invoke, library, fixtureUrl, observations }) {

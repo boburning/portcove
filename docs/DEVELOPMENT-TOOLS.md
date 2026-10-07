@@ -1067,6 +1067,21 @@ remain unchanged across each refusal, with subsequent legitimate IPC working.
 This qualifies negative link controls only. It does not establish delivery of
 an approved link in the external browser or trust for another webview context.
 
+The boundary scenario also submits one fixed, valid local secondary-window
+request through `plugin:webview|create_webview_window`. Before attempting it,
+actual window and webview inventories must contain only `main`, with a ready
+library, working identity IPC and the established locale. The pinned Tauri
+2.11.6 ordinary release must return the command-specific `not allowed by ACL`
+refusal; debug-only permission descriptions, missing commands and unrelated
+errors cannot satisfy this assertion. Every post-attempt context, locale,
+window and webview observation is retained independently, including failed
+reads and unexpected creation results. All successful observations must remain
+unchanged. ACL rejection precedes option decoding, so this proves refusal of a
+validly constructed creation request, not runtime argument validation or IPC
+from an executed hostile secondary context. Package/native acceptance still
+requires a fresh source and installed-byte binding; these assertions do not
+complete the other #1280/#993 platform, browser-delivery or hostile-context rows.
+
 WebView2 documents that cancelled `NavigationStarting` can still issue GET
 requests while the host responds. The boundary case records every owned server
 request and requires the popup destination to receive none; it does not promise

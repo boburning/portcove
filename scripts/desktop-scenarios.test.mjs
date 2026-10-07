@@ -484,8 +484,17 @@ test("owned frame CSP requires a trusted enforced event and removes its frame/li
     let attempts = 0;
     let appended = false;
     const invoke = async (command) => {
-      if (command === "get_locale_preference")
+      if (command === "get_locale_preference" && appended)
         throw new Error("Contract fixture stops after frame guard");
+      if (command === "get_locale_preference") return { ok: true, value: { locale: "en" } };
+      if (command === "plugin:window|get_all_windows") return { ok: true, value: ["main"] };
+      if (command === "plugin:webview|get_all_webviews")
+        return { ok: true, value: [{ window_label: "main", label: "main" }] };
+      if (command === "plugin:webview|create_webview_window")
+        return {
+          ok: false,
+          error: "Command plugin:webview|create_webview_window not allowed by ACL",
+        };
       if (command === "set_locale_preference") return { ok: true, value: null };
       if (command.startsWith("open_"))
         return {
@@ -753,6 +762,245 @@ test("reviewed link refusals require guard errors and preserve the ready native 
       run({ identityRoot: path.toNamespacedPath(path.resolve("work", "other-library")) }),
     );
   }
+});
+
+test("shipping secondary creation requires ACL refusal and preserves native main state", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-secondary-boundary-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const library = path.join(parent, "library");
+  const command = "plugin:webview|create_webview_window";
+  const error = `Command ${command} not allowed by ACL`;
+  const request = {
+    options: {
+      label: "portcove-boundary-secondary",
+      url: "index.html",
+      title: "Owned denied secondary boundary",
+      visible: false,
+    },
+  };
+  const status = {
+    ready: true,
+    error: null,
+    library_root: library,
+    generation: 1,
+    selection: { root: library, source: "environment" },
+  };
+  async function run(changes = {}) {
+    const output = await mkdtemp(path.join(parent, "case-"));
+    const calls = [];
+    let attempted = false;
+    let secondaryReady = false;
+    const state = () => {
+      if (attempted) return changes;
+      return secondaryReady ? (changes.before ?? {}) : {};
+    };
+    const invoke = async (name, args) => {
+      calls.push({ command: name, args, afterAttempt: attempted });
+      if (name === command) {
+        assert.deepEqual(args, request, "Bind the valid pinned SDK creation options");
+        attempted = true;
+        if (changes.throwCreate) throw new Error(changes.throwCreate);
+        return changes.result ?? { ok: false, error };
+      }
+      const current = state();
+      if (current.throwOn?.[name]) throw new Error(current.throwOn[name]);
+      const replies = {
+        get_bootstrap_status: { ok: true, value: { ...status, ...current.bootstrap } },
+        get_library_identity: {
+          ok: true,
+          value: { id: "owned-library", root: library, ...current.identity },
+        },
+        get_locale_preference: current.localeResult ?? {
+          ok: true,
+          value: { locale: current.locale ?? "en" },
+        },
+        "plugin:window|get_all_windows": current.windowsResult ?? {
+          ok: true,
+          value: current.windows ?? ["main"],
+        },
+        "plugin:webview|get_all_webviews": current.webviewsResult ?? {
+          ok: true,
+          value: current.webviews ?? [{ window_label: "main", label: "main" }],
+        },
+        set_locale_preference: { ok: true, value: null },
+        open_external_url: {
+          ok: false,
+          error: {
+            code: "usage",
+            message: "only reviewed project, artwork source and GitHub sign-in links may be opened",
+          },
+        },
+        open_source_evidence: {
+          ok: false,
+          error: {
+            code: "not_found",
+            message: "unknown source evidence id: portcove-boundary-unknown-evidence",
+          },
+        },
+      };
+      if (Object.hasOwn(replies, name)) return replies[name];
+      assert.ok(name.includes("boundary"), `Unexpected fixture command: ${name}`);
+      if (name === "recreate_boundary_owner") secondaryReady = true;
+      return { ok: false, error: `command ${name} not found` };
+    };
+    let failure;
+    try {
+      await normalPackageBoundaryScenario({
+        browser: {
+          getCurrentUrl: async () => state().url ?? "http://tauri.localhost/",
+          manage: () => ({ setTimeouts: async () => {} }),
+          executeScript: async (callback) => {
+            if (callback.toString().includes("document.scripts"))
+              throw new Error("Contract fixture stops after secondary creation guard");
+            return {};
+          },
+          executeAsyncScript: async () => ({}),
+        },
+        invoke,
+        library,
+        output,
+        artifacts: [],
+        packageEvidence: { fixture: true },
+      });
+    } catch (caught) {
+      if (caught.message !== "Contract fixture stops after secondary creation guard")
+        failure = caught;
+    }
+    const observations = JSON.parse(
+      await readFile(path.join(output, "normal-package-boundary.json"), "utf8"),
+    );
+    return { failure, observations, calls };
+  }
+  const positive = await run();
+  assert.equal(positive.failure, undefined);
+  assert.deepEqual(
+    positive.calls.filter(({ command: name }) => name === command),
+    [{ command, args: request, afterAttempt: false }],
+  );
+  assert.deepEqual(positive.observations.secondaryCreation.request, { command, args: request });
+  assert.deepEqual(positive.observations.secondaryCreation.result, { ok: false, error });
+  assert.deepEqual(
+    positive.observations.secondaryCreation.after,
+    positive.observations.secondaryCreation.before,
+  );
+  assert.equal(positive.observations.reviewedLinkRefusals.length, 2);
+  const wrongLibrary = path.join(parent, "other-library");
+  for (const [name, changes] of [
+    ["unexpected success", { result: { ok: true, value: null } }],
+    [
+      "malformed argument error",
+      { result: { ok: false, error: "invalid args: missing field label" } },
+    ],
+    [
+      "unknown command",
+      { result: { ok: false, error: "command create_webview_window not found" } },
+    ],
+    [
+      "another command ACL",
+      { result: { ok: false, error: "Command plugin:webview|unknown not allowed by ACL" } },
+    ],
+    [
+      "debug-only message",
+      {
+        result: {
+          ok: false,
+          error:
+            "webview.create_webview_window not allowed. Permissions associated with this command: core:webview:allow-create-webview-window",
+        },
+      },
+    ],
+    ["generic error", { result: { ok: false, error: "operation failed" } }],
+    ["timeout", { throwCreate: "owned IPC timeout" }],
+    ["changed generation", { bootstrap: { generation: 2 } }],
+    ["changed selection", { bootstrap: { selection: { root: library, source: "saved" } } }],
+    ["changed identity", { identity: { id: "other-library" } }],
+    ["changed identity root", { identity: { root: wrongLibrary } }],
+    ["changed URL", { url: "http://tauri.localhost/other" }],
+    ["changed locale", { locale: "fr" }],
+    ["unexpected window", { windows: ["main", "portcove-boundary-secondary"] }],
+    ["duplicate window", { windows: ["main", "main"] }],
+    [
+      "unexpected webview",
+      {
+        webviews: [
+          { window_label: "main", label: "main" },
+          { window_label: "main", label: "other" },
+        ],
+      },
+    ],
+    ["unavailable windows", { windowsResult: { ok: false, error: "inventory unavailable" } }],
+    ["malformed webviews", { webviews: ["main"] }],
+  ])
+    await t.test(name, async () => {
+      const result = await run(changes);
+      assert.ok(result.failure, `${name} must fail`);
+      assert.equal(result.calls.filter(({ command: name }) => name === command).length, 1);
+      for (const field of ["context", "locale", "windows", "webviews"])
+        assert.ok(
+          Object.hasOwn(result.observations.secondaryCreation.after, field) ||
+            Object.hasOwn(result.observations.secondaryCreation.after.readFailures, field),
+        );
+      if (changes.throwCreate)
+        assert.equal(result.observations.secondaryCreation.invocationFailure, changes.throwCreate);
+    });
+  for (const [name, before] of [
+    ["reserved window already exists", { windows: ["main", "portcove-boundary-secondary"] }],
+    ["duplicate initial windows", { windows: ["main", "main"] }],
+    ["empty initial windows", { windows: [] }],
+    ["missing initial window inventory", { windowsResult: { ok: false, error: "unavailable" } }],
+    ["malformed initial window inventory", { windows: {} }],
+    [
+      "extra initial webview",
+      {
+        webviews: [
+          { window_label: "main", label: "main" },
+          { window_label: "other", label: "other" },
+        ],
+      },
+    ],
+    [
+      "duplicate initial webviews",
+      {
+        webviews: [
+          { window_label: "main", label: "main" },
+          { window_label: "main", label: "main" },
+        ],
+      },
+    ],
+    ["malformed initial webviews", { webviews: ["main"] }],
+    ["missing initial webview inventory", { webviewsResult: { ok: false, error: "unavailable" } }],
+    ["unready initial context", { bootstrap: { ready: false } }],
+    ["initial bootstrap error", { bootstrap: { error: "library unavailable" } }],
+    ["wrong initial root", { bootstrap: { library_root: wrongLibrary } }],
+    ["wrong initial identity", { identity: { root: wrongLibrary } }],
+    ["missing initial locale", { localeResult: { ok: false, error: "unavailable" } }],
+  ])
+    await t.test(name, async () => {
+      const result = await run({ before });
+      assert.ok(result.failure, `${name} must fail before creation`);
+      assert.equal(result.calls.filter(({ command: name }) => name === command).length, 0);
+      assert.ok(result.observations.secondaryCreation.before);
+      assert.equal(result.observations.secondaryCreation.result, undefined);
+    });
+  const collectors = {
+    context: "get_bootstrap_status",
+    locale: "get_locale_preference",
+    windows: "plugin:window|get_all_windows",
+    webviews: "plugin:webview|get_all_webviews",
+  };
+  for (const [field, name] of Object.entries(collectors))
+    await t.test(`retains ${field} failure after failed creation`, async () => {
+      const message = `owned ${field} read failure`;
+      const result = await run({ throwCreate: "owned IPC timeout", throwOn: { [name]: message } });
+      assert.ok(result.failure);
+      assert.equal(result.observations.secondaryCreation.invocationFailure, "owned IPC timeout");
+      assert.equal(result.observations.secondaryCreation.after.readFailures[field], message);
+      for (const [survivor, readCommand] of Object.entries(collectors)) {
+        assert.ok(result.calls.some((call) => call.command === readCommand && call.afterAttempt));
+        if (survivor !== field)
+          assert.ok(Object.hasOwn(result.observations.secondaryCreation.after, survivor));
+      }
+    });
 });
 
 test("ordinary package boundary is isolated and rejects stale or substituted evidence", async (t) => {
