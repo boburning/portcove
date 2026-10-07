@@ -3948,11 +3948,22 @@ impl PortcoveService {
                 spawn()?
             };
             let child_pid = child.id();
-            let child_identity = match crate::launch::process_identity_for_child(&child) {
+            #[cfg(test)]
+            crate::launch::child_diagnostic::spawned(&mut child);
+            let observed_identity = crate::launch::process_identity_for_child(&child);
+            #[cfg(test)]
+            let observed_identity =
+                crate::launch::child_diagnostic::identity(child_pid, observed_identity);
+            let child_identity = match observed_identity {
                 Ok(identity) => identity,
                 Err(error) => {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    #[cfg(test)]
+                    crate::launch::child_diagnostic::cleanup(&mut child);
+                    #[cfg(not(test))]
+                    {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                    }
                     return Err(error);
                 }
             };
@@ -3983,7 +3994,10 @@ impl PortcoveService {
                 };
                 on_started(&session);
 
-                let status = match child.wait() {
+                let observed_wait = child.wait();
+                #[cfg(test)]
+                crate::launch::child_diagnostic::waited(child_pid, "running_wait", &observed_wait);
+                let status = match observed_wait {
                     Ok(status) => status,
                     Err(error) => {
                         return Err(PortcoveError::launch(format!(
@@ -3993,11 +4007,19 @@ impl PortcoveService {
                 };
                 (status, first_error)
             } else {
-                let status = match child.try_wait() {
+                let observed_wait = child.try_wait();
+                #[cfg(test)]
+                crate::launch::child_diagnostic::tried_wait(child_pid, &observed_wait);
+                let status = match observed_wait {
                     Ok(Some(status)) => status,
                     Ok(None) => {
-                        let _ = child.kill();
-                        let _ = child.wait();
+                        #[cfg(test)]
+                        crate::launch::child_diagnostic::cleanup(&mut child);
+                        #[cfg(not(test))]
+                        {
+                            let _ = child.kill();
+                            let _ = child.wait();
+                        }
                         return Err(PortcoveError::state(format!(
                             "child process {child_pid} was still running after its start identity disappeared"
                         )));
@@ -12475,6 +12497,9 @@ fn main() {
 
     #[test]
     fn cancellation_loses_exactly_at_the_final_pre_spawn_boundary() {
+        let _diagnostic = crate::launch::child_diagnostic::Guard::begin(
+            crate::launch::child_diagnostic::Control::Observe,
+        );
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_launch_probe(&library, "v1", true);
@@ -12519,6 +12544,115 @@ fn main() {
                 .outcome,
             Some(LaunchSessionOutcome::Succeeded)
         );
+    }
+
+    #[test]
+    fn missing_child_identity_with_pending_exit_refuses_and_reaps_owned_child() {
+        assert_missing_child_identity_control(
+            crate::launch::child_diagnostic::Control::MissingPending,
+        );
+    }
+
+    #[test]
+    fn missing_child_identity_with_completed_exit_collects_exact_result() {
+        assert_missing_child_identity_control(
+            crate::launch::child_diagnostic::Control::MissingCompleted,
+        );
+    }
+
+    fn assert_missing_child_identity_control(control: crate::launch::child_diagnostic::Control) {
+        use crate::launch::child_diagnostic::{Control, Guard};
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_launch_probe(&library, "v1", true);
+        let service = launch_service_with_faults(library.clone(), Arc::new(NoLifecycleFaults));
+        let request_id = Uuid::new_v4().to_string();
+        let diagnostic = Guard::begin(control);
+        let arguments = vec![
+            temporary.path().join("started").display().to_string(),
+            if control == Control::MissingPending {
+                "10000"
+            } else {
+                "0"
+            }
+            .into(),
+            "completed-control".into(),
+            "0".into(),
+        ];
+        let mut started = false;
+        let result = service.supervise_launch_identified(
+            IdentifiedLaunchRequest {
+                request_id: &request_id,
+                port_id: "zelda64-recomp",
+                source_override: None,
+                arguments: &arguments,
+                stdio: LaunchStdio::Null,
+            },
+            |_| {},
+            |_| started = true,
+        );
+        assert!(
+            !started,
+            "missing identity cannot publish an identified running child"
+        );
+        let events = diagnostic.events();
+        assert!(
+            events
+                .iter()
+                .any(|event| event.stage == "identity_control"
+                    && event.outcome == "injected_missing")
+        );
+        assert!(
+            events
+                .windows(2)
+                .all(|pair| pair[0].elapsed_us <= pair[1].elapsed_us)
+        );
+        let request = library.launch_request(&request_id).unwrap().unwrap();
+        if control == Control::MissingPending {
+            let error = result.unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::State);
+            assert!(
+                error
+                    .message
+                    .contains("was still running after its start identity disappeared")
+            );
+            assert_eq!(request.outcome, Some(LaunchSessionOutcome::Failed));
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event.stage == "try_wait" && event.outcome == "pending")
+            );
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event.stage == "kill" && event.outcome == "returned_ok")
+            );
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event.stage == "cleanup_wait" && event.outcome == "reaped")
+            );
+        } else {
+            let outcome = result.unwrap();
+            assert!(outcome.successful);
+            assert_eq!(outcome.exit_code, Some(0));
+            assert_eq!(request.outcome, Some(LaunchSessionOutcome::Succeeded));
+            assert_eq!(
+                fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
+                b"completed-control",
+            );
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event.stage == "control_wait" && event.outcome == "reaped")
+            );
+            assert!(
+                events
+                    .iter()
+                    .any(|event| event.stage == "try_wait" && event.outcome == "completed")
+            );
+            assert!(!events.iter().any(|event| event.stage == "kill"));
+        }
     }
 
     fn assert_supervisor_crashes_after_spawn_or_during_collection_never_become_success(

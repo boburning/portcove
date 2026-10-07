@@ -222,6 +222,14 @@ pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
     };
     if read == 0 {
         let error = std::io::Error::last_os_error();
+        #[cfg(test)]
+        child_diagnostic::record(
+            pid as u32,
+            "proc_pidinfo",
+            "error",
+            error.raw_os_error(),
+            Some(i64::from(read)),
+        );
         return if error.raw_os_error() == Some(libc::ESRCH) {
             Ok(None)
         } else {
@@ -230,6 +238,14 @@ pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
             )))
         };
     }
+    #[cfg(test)]
+    child_diagnostic::record(
+        pid as u32,
+        "proc_pidinfo",
+        "returned",
+        None,
+        Some(i64::from(read)),
+    );
     if read as usize != expected {
         return Err(PortcoveError::state(format!(
             "process {pid} returned an incomplete start identity"
@@ -294,6 +310,238 @@ pub(crate) fn wait_for_process_exit(pid: u32, expected: &str) -> Result<()> {
                 .detail("recovery_action", "manual_review"));
             }
             None => return Ok(()),
+        }
+    }
+}
+
+// Opt-in diagnostics for the owned child of one unit test. This is absent from
+// production builds and never changes native identity or recovery authority.
+#[cfg(test)]
+pub(crate) mod child_diagnostic {
+    use std::{
+        cell::RefCell,
+        process::{Child, ExitStatus},
+        time::Instant,
+    };
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub(crate) enum Control {
+        Observe,
+        MissingPending,
+        MissingCompleted,
+    }
+
+    #[derive(Clone, Debug)]
+    pub(crate) struct Event {
+        pub(crate) stage: &'static str,
+        pub(crate) outcome: &'static str,
+        pub(crate) raw_error: Option<i32>,
+        pub(crate) value: Option<i64>,
+        pub(crate) identity: Option<String>,
+        pub(crate) elapsed_us: u128,
+    }
+
+    struct Trace {
+        start: Instant,
+        control: Control,
+        pid: Option<u32>,
+        events: Vec<Event>,
+        dropped: usize,
+    }
+
+    thread_local! { static TRACE: RefCell<Option<Trace>> = const { RefCell::new(None) }; }
+    const MAX_EVENTS: usize = 16;
+
+    pub(crate) struct Guard(std::marker::PhantomData<std::rc::Rc<()>>);
+    impl Guard {
+        pub(crate) fn begin(control: Control) -> Self {
+            TRACE.with_borrow_mut(|trace| {
+                assert!(trace.is_none(), "child diagnostic scope is already active");
+                *trace = Some(Trace {
+                    start: Instant::now(),
+                    control,
+                    pid: None,
+                    events: Vec::new(),
+                    dropped: 0,
+                });
+            });
+            Self(std::marker::PhantomData)
+        }
+        pub(crate) fn events(&self) -> Vec<Event> {
+            TRACE.with_borrow(|trace| trace.as_ref().unwrap().events.clone())
+        }
+    }
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            if let Some(trace) = TRACE.with_borrow_mut(Option::take) {
+                // Numeric fields, static labels and a bounded numeric identity
+                // only: never command arguments, paths, environment or secrets.
+                eprintln!(
+                    "PORTCOVE_CHILD_DIAGNOSTIC v1 control={:?} pid={:?} dropped={}",
+                    trace.control, trace.pid, trace.dropped
+                );
+                for (order, event) in trace.events.iter().enumerate() {
+                    eprintln!(
+                        "PORTCOVE_CHILD_DIAGNOSTIC order={order} us={} stage={} outcome={} raw_error={:?} value={:?} identity={:?}",
+                        event.elapsed_us,
+                        event.stage,
+                        event.outcome,
+                        event.raw_error,
+                        event.value,
+                        event.identity
+                    );
+                }
+            }
+        }
+    }
+
+    pub(crate) fn record(
+        pid: u32,
+        stage: &'static str,
+        outcome: &'static str,
+        raw_error: Option<i32>,
+        value: Option<i64>,
+    ) {
+        push(pid, stage, outcome, raw_error, value, None);
+    }
+    fn push(
+        pid: u32,
+        stage: &'static str,
+        outcome: &'static str,
+        raw_error: Option<i32>,
+        value: Option<i64>,
+        identity: Option<String>,
+    ) {
+        TRACE.with_borrow_mut(|trace| {
+            let Some(trace) = trace.as_mut().filter(|trace| trace.pid == Some(pid)) else {
+                return;
+            };
+            if trace.events.len() == MAX_EVENTS {
+                trace.dropped += 1;
+                return;
+            }
+            trace.events.push(Event {
+                stage,
+                outcome,
+                raw_error,
+                value,
+                identity,
+                elapsed_us: trace.start.elapsed().as_micros(),
+            });
+        });
+    }
+    pub(crate) fn spawned(child: &mut Child) {
+        let control = TRACE.with_borrow_mut(|trace| {
+            let trace = trace.as_mut()?;
+            assert!(trace.pid.is_none(), "diagnostic scope already owns a child");
+            trace.pid = Some(child.id());
+            Some(trace.control)
+        });
+        record(child.id(), "spawn", "owned", None, None);
+        if control == Some(Control::MissingCompleted) {
+            let result = child.wait();
+            waited(child.id(), "control_wait", &result);
+            assert!(
+                result.is_ok(),
+                "completed-exit control could not reap its owned child"
+            );
+        }
+    }
+    pub(crate) fn identity(
+        pid: u32,
+        result: crate::Result<Option<String>>,
+    ) -> crate::Result<Option<String>> {
+        let (outcome, value) = match &result {
+            Ok(Some(identity)) => (
+                "present",
+                Some(identity.clone()).filter(|identity| {
+                    identity.len() <= 96
+                        && identity
+                            .bytes()
+                            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b':' | b'-'))
+                }),
+            ),
+            Ok(None) => ("missing", None),
+            Err(_) => ("error", None),
+        };
+        push(pid, "identity_original", outcome, None, None, value);
+        let injected = TRACE.with_borrow(|trace| {
+            trace
+                .as_ref()
+                .is_some_and(|trace| trace.pid == Some(pid) && trace.control != Control::Observe)
+        });
+        if injected {
+            record(pid, "identity_control", "injected_missing", None, None);
+            Ok(None)
+        } else {
+            result
+        }
+    }
+    pub(crate) fn tried_wait(pid: u32, result: &std::io::Result<Option<ExitStatus>>) {
+        match result {
+            Ok(Some(status)) => record(
+                pid,
+                "try_wait",
+                "completed",
+                None,
+                status.code().map(i64::from),
+            ),
+            Ok(None) => record(pid, "try_wait", "pending", None, None),
+            Err(error) => record(pid, "try_wait", "error", error.raw_os_error(), None),
+        }
+    }
+    pub(crate) fn waited(pid: u32, stage: &'static str, result: &std::io::Result<ExitStatus>) {
+        match result {
+            Ok(status) => record(pid, stage, "reaped", None, status.code().map(i64::from)),
+            Err(error) => record(pid, stage, "error", error.raw_os_error(), None),
+        }
+    }
+    pub(crate) fn cleanup(child: &mut Child) {
+        let result = child.kill();
+        match result {
+            Ok(()) => record(child.id(), "kill", "returned_ok", None, None),
+            Err(error) => record(child.id(), "kill", "error", error.raw_os_error(), None),
+        }
+        let result = child.wait();
+        waited(child.id(), "cleanup_wait", &result);
+    }
+
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn recorder_is_bounded_thread_local_and_does_not_change_identity_result() {
+            let guard = Guard::begin(Control::Observe);
+            // Synthetic recorder token: no process operation is performed.
+            TRACE.with_borrow_mut(|trace| trace.as_mut().unwrap().pid = Some(41));
+            std::thread::spawn(|| record(41, "fixture", "other_thread", None, None))
+                .join()
+                .unwrap();
+            record(42, "fixture", "other_pid", None, None);
+            assert!(guard.events().is_empty());
+            let original = Ok(Some("private/path is never printed".to_owned()));
+            assert_eq!(identity(41, original.clone()).unwrap(), original.unwrap());
+            assert!(guard.events()[0].identity.is_none());
+            for _ in 0..MAX_EVENTS + 3 {
+                record(41, "fixture", "synthetic", None, None);
+            }
+            assert_eq!(guard.events().len(), MAX_EVENTS);
+            assert_eq!(
+                TRACE.with_borrow(|trace| trace.as_ref().unwrap().dropped),
+                4
+            );
+            drop(guard);
+            assert!(TRACE.with_borrow(Option::is_none));
+        }
+
+        #[test]
+        fn diagnostic_scope_clears_on_unwind() {
+            let result = std::panic::catch_unwind(|| {
+                let _guard = Guard::begin(Control::Observe);
+                panic!("synthetic diagnostic unwind");
+            });
+            assert!(result.is_err());
+            assert!(TRACE.with_borrow(Option::is_none));
         }
     }
 }
