@@ -142,9 +142,11 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
     harness_deadline_ms: desktopHarnessDeadlineMs(selection),
     prerequisites: selection.prerequisites,
     host_resources: selection.host_resources,
-    cli_features: selection.selected_scenarios.includes("native-saved-folder-selected-setup")
-      ? ["portcove-core/qualification-fixtures"]
-      : [],
+    cli_features:
+      selection.selected_scenarios.includes("native-saved-folder-selected-setup") ||
+      selection.selected_scenarios.includes("native-selected-setup-completion")
+        ? ["portcove-core/qualification-fixtures"]
+        : [],
     qualification_features:
       installFixture || steamFixture || externalFixture ? ["qualification-fixtures"] : [],
     source,

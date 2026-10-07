@@ -135,25 +135,27 @@ test("the native build script preserves identical generated inputs for Cargo reu
   assert.doesNotMatch(buildScript, /fs::write\(generated/u);
 });
 
-test("selected setup builds a catalog-aware CLI only for its standalone route", async () => {
+test("standalone selected setup routes build catalog-aware CLIs", async () => {
   const common = {
     paths: { output_root: path.resolve("out"), target_directory: path.resolve("target") },
     drivers: { driver: "driver", nativeDriver: "native" },
     source: { revision: "a".repeat(40), clean: true },
     packages: { ready: true, selenium: "module" },
   };
-  const selected = buildDesktopVerifyPlan({
-    ...common,
-    selection: resolveDesktopSelection({
-      scenarios: ["native-saved-folder-selected-setup"],
-      platform: "win32",
-    }),
-  });
-  assert.deepEqual(selected.cli_features, ["portcove-core/qualification-fixtures"]);
-  assert.deepEqual(selected.qualification_features, ["qualification-fixtures"]);
-  assert.deepEqual(selected.setup_scenarios, []);
-  assert.equal(selected.harness_deadline_ms, 180_000);
-  assert.ok(selected.paths.cli);
+  for (const scenario of [
+    "native-saved-folder-selected-setup",
+    "native-selected-setup-completion",
+  ]) {
+    const selected = buildDesktopVerifyPlan({
+      ...common,
+      selection: resolveDesktopSelection({ scenarios: [scenario], platform: "win32" }),
+    });
+    assert.deepEqual(selected.cli_features, ["portcove-core/qualification-fixtures"]);
+    assert.deepEqual(selected.qualification_features, ["qualification-fixtures"]);
+    assert.deepEqual(selected.setup_scenarios, []);
+    assert.equal(selected.harness_deadline_ms, 180_000);
+    assert.ok(selected.paths.cli);
+  }
   const ordinary = buildDesktopVerifyPlan({
     ...common,
     selection: resolveDesktopSelection({ scenarios: ["native-preparation-review-and-play"] }),
