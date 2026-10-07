@@ -431,7 +431,7 @@ function DetailBody({
         openLibraryStorage={openLibraryStorage}
       />
       <RequirementsGroup
-        key={`${port.id}:${libraryGeneration}`}
+        key={`requirements:${port.id}:${libraryGeneration}`}
         port={port}
         status={status}
         installed={installed}
