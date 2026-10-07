@@ -72,6 +72,27 @@ const publicationScript = inlineRunScript(publishSection, "Create or reconcile d
 // this fixture against the same Bash boundary as the privileged job.
 const bashExecutable = process.platform === "win32" ? undefined : "bash";
 
+function mockPublisherArguments(script, bin, ghShim) {
+  return [
+    "-euo",
+    "pipefail",
+    "-c",
+    [
+      // Shell startup may reorder inherited PATH; establish fixture lookup afterwards.
+      'export PATH="$1:$PATH"',
+      "hash -r",
+      'if [[ "$(type -t gh)" != file || "$(command -v gh)" != "$2" ]]; then',
+      "  printf '%s\\n' 'Refusing publisher fixture: gh escaped its private shim' >&2",
+      "  exit 1",
+      "fi",
+      script,
+    ].join("\n"),
+    "portcove-mock-publisher",
+    bin,
+    ghShim,
+  ];
+}
+
 test("write authority is split across isolated attestation publication and cleanup jobs", () => {
   assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(buildSection, /^ {4}permissions:\r?\n {6}contents: read$/m);
@@ -271,6 +292,114 @@ test("publisher mutates drafts only from precomputed metadata and attested asset
 });
 
 test(
+  "mock publisher restores private lookup after startup reorder and refuses functions",
+  { skip: !bashExecutable },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-mock-path ' $ ; "));
+    const evidence = await mkdtemp(path.join(os.tmpdir(), "portcove-mock-path-evidence-"));
+    console.log(`Retained synthetic mock lookup evidence: ${evidence}`);
+    t.after(async () => {
+      await cp(root, path.join(evidence, "terminal-fixture"), { recursive: true });
+      await rm(root, { recursive: true, force: true });
+    });
+    const bin = path.join(root, "private ' $ ; bin");
+    const decoyBin = path.join(root, "decoy ' $ ; bin");
+    await mkdir(bin);
+    await mkdir(decoyBin);
+    const ghShim = path.join(bin, "gh");
+    const decoyShim = path.join(decoyBin, "gh");
+    const privateMarker = path.join(root, "private-marker");
+    const decoyMarker = path.join(root, "decoy-marker");
+    const functionMarker = path.join(root, "function-marker");
+    const startupMarker = path.join(root, "startup-marker");
+    const startup = path.join(root, "startup ' $ ; .bash");
+    await writeFile(ghShim, '#!/usr/bin/env bash\nprintf "private\\n" >> "$MOCK_PRIVATE_MARKER"\n');
+    await writeFile(decoyShim, '#!/usr/bin/env bash\nprintf "decoy\\n" >> "$MOCK_DECOY_MARKER"\n');
+    await chmod(ghShim, 0o755);
+    await chmod(decoyShim, 0o755);
+    await writeFile(
+      startup,
+      [
+        'export PATH="$MOCK_DECOY_BIN:$PATH"',
+        'hash -p "$MOCK_DECOY_SHIM" gh',
+        'printf "startup\\n" >> "$MOCK_STARTUP_MARKER"',
+      ].join("\n"),
+    );
+    const environment = {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+      BASH_ENV: startup,
+      MOCK_DECOY_BIN: decoyBin,
+      MOCK_DECOY_SHIM: decoyShim,
+      MOCK_PRIVATE_MARKER: privateMarker,
+      MOCK_DECOY_MARKER: decoyMarker,
+      MOCK_FUNCTION_MARKER: functionMarker,
+      MOCK_STARTUP_MARKER: startupMarker,
+    };
+    const run = (args, overrides = {}) =>
+      spawnSync(bashExecutable, args, {
+        cwd: root,
+        env: { ...environment, ...overrides },
+        encoding: "utf8",
+        timeout: 5_000,
+        killSignal: "SIGKILL",
+      });
+    // Synthetic ordering/hash controls do not identify Local's historical startup mechanism.
+    const before = run([
+      "-euo",
+      "pipefail",
+      "-c",
+      'printf "%s\\n" "${PATH%%:*}" "$(command -v gh)" "$(hash -t gh)" "$PWD"',
+    ]);
+    const restored = run(
+      mockPublisherArguments(
+        'printf "%s\\n" "${PATH%%:*}" "$(type -t gh)" "$(command -v gh)" "$PWD"; gh',
+        bin,
+        ghShim,
+      ),
+    );
+    const refused = run(mockPublisherArguments("gh", bin, ghShim), {
+      "BASH_FUNC_gh%%": '() { printf "function\\n" >> "$MOCK_FUNCTION_MARKER"; }',
+    });
+    const safeResult = ({ status, signal, error, stdout, stderr }) => ({
+      status,
+      signal,
+      error: error ? { code: error.code, message: error.message } : null,
+      stdout,
+      stderr,
+    });
+    await writeFile(
+      path.join(evidence, "synthetic-lookup.json"),
+      JSON.stringify(
+        {
+          scope:
+            "inert synthetic startup reorder/hash/function controls; not historical cause proof",
+          cwd: root,
+          expectedShim: ghShim,
+          decoyShim,
+          before: safeResult(before),
+          restored: safeResult(restored),
+          refused: safeResult(refused),
+        },
+        null,
+        2,
+      ),
+      { mode: 0o600 },
+    );
+    assert.equal(before.status, 0);
+    assert.deepEqual(before.stdout.trimEnd().split("\n"), [decoyBin, decoyShim, decoyShim, root]);
+    assert.ok(existsSync(startupMarker));
+    assert.equal(restored.status, 0);
+    assert.deepEqual(restored.stdout.trimEnd().split("\n"), [bin, "file", ghShim, root]);
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /Refusing publisher fixture: gh escaped its private shim/u);
+    assert.equal(await readFile(privateMarker, "utf8"), "private\n");
+    assert.equal(existsSync(decoyMarker), false);
+    assert.equal(existsSync(functionMarker), false);
+  },
+);
+
+test(
   "publisher retries and recovers an interrupted draft without touching a published release",
   { skip: !bashExecutable },
   async (t) => {
@@ -389,10 +518,7 @@ test(
     });
     const binding = spawnSync(
       bashExecutable,
-      [
-        "-euo",
-        "pipefail",
-        "-c",
+      mockPublisherArguments(
         [
           'printf "%s\\n" "$BASH_VERSION" "$(type -t gh)" "$(command -v gh)" "$(command -v bash)"',
           'printf "%s\\n" "$PWD" "$(pwd -P)" "${PATH%%:*}"',
@@ -400,7 +526,9 @@ test(
           'if [[ -f "${FAKE_GH_STATE%/*}/bin/gh" ]]; then printf "true\\n"; else printf "false\\n"; fi',
           'if [[ -x "${FAKE_GH_STATE%/*}/bin/gh" ]]; then printf "true\\n"; else printf "false\\n"; fi',
         ].join("\n"),
-      ],
+        bin,
+        ghShim,
+      ),
       {
         cwd: root,
         encoding: "utf8",
@@ -462,7 +590,7 @@ test(
     assert.equal(ghKind, "file", `gh is not the fixture executable; diagnostics: ${evidence}`);
     assert.equal(ghPath, ghShim, `gh escaped its fixture; diagnostics: ${evidence}`);
     const runPublisher = (overrides = {}) =>
-      spawnSync(bashExecutable, ["-euo", "pipefail", "-c", publicationScript], {
+      spawnSync(bashExecutable, mockPublisherArguments(publicationScript, bin, ghShim), {
         cwd: root,
         encoding: "utf8",
         // Five mock calls plus the binding probe fit the existing 30-second test budget.
