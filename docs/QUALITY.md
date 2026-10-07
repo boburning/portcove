@@ -187,7 +187,7 @@ process group, and reaps direct and adopted children after closing the anchored
 group. The wrapper observes the reaper's termination separately from the exact
 Node identity registered with the shared lock. Success requires both completed
 reaping and actual group absence; zombies do not count as absent. Initialization,
-identity, control-pipe, signal, wait, and receipt failures cannot supply cleanup
+identity, control-channel, signal, wait, and receipt failures cannot supply cleanup
 acceptance. A withheld lock release preserves the fresh invocation's evidence
 directory, including original failed receipts and space for a missing or late
 receipt. The five-second cleanup bound, command/test deadlines, inherited

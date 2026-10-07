@@ -793,7 +793,10 @@ reaper is the wrapper's direct child and becomes a subreaper before launching a
 Node child in its own process group. A private handshake binds that child's birth
 identity, parent and group before registration; its launch gate still precedes
 the guarded payload. The wrapper monitors and reaps the helper while registering
-the separate Node group. Wrapper pipe loss closes that anchored group; reaper pipe
+the separate Node group. The wrapper channel accepts an anonymous pipe or a connected
+Unix stream socket whose peer matches the wrapper PID and supplied birth identity.
+Readable EOF closes the group; unexpected bytes fail closed. Wrapper pipe loss
+closes that anchored group; reaper pipe
 loss makes the Node supervisor close its own group without inventing a receipt.
 The reaper stays outside the killed group, drains direct and adopted children, and
 publishes an atomic positive receipt only after actual group absence and completed

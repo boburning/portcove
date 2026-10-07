@@ -402,6 +402,7 @@ export async function runRustTests(args, dependencies = {}) {
               statusPath,
               cleanupReceiptPath,
               registrationPath,
+              readProcessIdentity(process.pid),
               process.execPath,
               path.join(root, "scripts/rust-test-tree-supervisor.mjs"),
               mode.executable,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -430,9 +430,10 @@ test("Linux runner monitors its reaper and registers the separate gated Node gro
     assert.match(spawnedArgs[1], /nextest-status\.json$/u);
     assert.match(spawnedArgs[2], /containment-cleanup\.json$/u);
     assert.match(spawnedArgs[3], /linux-supervisor\.json$/u);
-    assert.equal(spawnedArgs[4], process.execPath);
-    assert.equal(spawnedArgs[5], path.resolve("scripts/rust-test-tree-supervisor.mjs"));
-    assert.deepEqual(spawnedArgs.slice(6), [
+    assert.match(spawnedArgs[4], new RegExp(`^linux:[a-f0-9-]{36}:${process.pid}:[0-9]+$`, "u"));
+    assert.equal(spawnedArgs[5], process.execPath);
+    assert.equal(spawnedArgs[6], path.resolve("scripts/rust-test-tree-supervisor.mjs"));
+    assert.deepEqual(spawnedArgs.slice(7), [
       "cargo-nextest",
       "nextest",
       "run",
