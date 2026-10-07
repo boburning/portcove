@@ -721,20 +721,40 @@ production credentials. Automatic unchanged-client publication, signed readback
 and production refusal/recovery remain #246 acceptance and do not belong to the
 client implementation boundary.
 
-The existing compiled adapter-conformance route also consumes the signed managed
-ordinary-release fixture. It builds and hashes CLI and Desktop once before any
-fixture publication, then starts those same binaries in fresh sessions after the
-new definition, both owned artifact installations and both compatible corrections.
+The existing compiled adapter-conformance route consumes the signed managed
+ordinary-release fixture. It builds and hashes the fixture-capable CLI and Desktop
+once before publication, then starts those same binaries in fresh sessions after
+the new definition, both owned artifact acquisitions and compatible corrections.
+The CLI uses canonical reviewed first-install authority for v1 and reviewed update
+authority for v2. Its hidden qualification-only update commands forward Core's
+existing plan fingerprint, explicit confirmation, activation and one-use authorization
+checks. They do not change the ordinary CLI update command. The fixture records the
+exact reviewed releases, digests, install records and selected definition identities.
 Complete status documents must equal Core and each other; CLI `catalog show` must
-return the corrected content. Desktop evidence remains its actual status projection.
-Authenticated authorization narrowing and restoration cannot revive the retained
-Launch permission. The fixture checks exact installation contracts and player bytes;
-consumer digests must stay unchanged. Existing revoke and invalid-manifest cases
-remain in the route. The opt-in test seam installs only disposable fixture authority
-and uses canonical policy admission and selection. It adds no public trust setter.
+return corrected content. Desktop evidence remains its actual status projection.
 
-This establishes fixture-produced state consumption by unchanged compiled clients,
-not acquisition by those binaries through a production provider, installed GUI
-behavior, automatic protected publication or a real production feed. The owned
-provider override stays test-only. #246/#534 retain production authority, publication
-readback and operation-delivery acceptance.
+The CLI's nondefault `qualification-fixtures` feature forwards Core's existing fixture
+feature. Its explicit origin and library flags bind the provider to a canonical literal
+loopback HTTP origin and the exact fixture library; malformed, nonloopback and
+mismatched bindings refuse before ordinary-origin fallback or provider requests.
+Only independently admitted managed scopes can acquire fixture artifacts. The
+provider starts anonymous without loading ambient credentials. Default builds reject
+these flags and hidden update commands. This route does not alter publisher policy,
+trust roots, grant checks, serialization or production provider selection.
+
+Stale plans, digest mismatch and redirects outside the bound origin must refuse
+without changing selected definitions or retained installation bytes and records.
+Authenticated authorization narrowing and restoration cannot revive retained Launch
+permission. Existing revoke and invalid-manifest cases remain. Consumer digests stay
+unchanged through all phases. The opt-in fixture seam uses canonical policy admission
+and selection; it adds no production trust setter or publisher authority.
+
+The separate opt-in compiled CLI acquisition test exercises this component on hosts
+without a Desktop SDK. Its report explicitly records that Desktop projection was
+not executed; it cannot satisfy the combined adapter-conformance gate. Combined
+evidence requires both actual compiled consumers. These fixtures demonstrate
+reviewed acquisition of inert loopback artifacts and unchanged-client correction
+consumption, without executing any fixture payload. They do not establish a real
+production feed, installed GUI behavior, automatic protected publication or native
+platform qualification. #246/#534 retain production custody, publication readback,
+zero routine owner intervention and operation-delivery acceptance.

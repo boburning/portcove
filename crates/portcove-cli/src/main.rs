@@ -50,6 +50,17 @@ struct Cli {
     /// Select a library for this invocation; overrides the saved default and PORTCOVE_LIBRARY.
     #[arg(long, global = true, env = "PORTCOVE_LIBRARY")]
     library: Option<PathBuf>,
+    #[cfg(feature = "qualification-fixtures")]
+    #[arg(
+        long,
+        global = true,
+        hide = true,
+        requires = "qualification_provider_library"
+    )]
+    qualification_provider_origin: Option<String>,
+    #[cfg(feature = "qualification-fixtures")]
+    #[arg(long, global = true, hide = true, requires_all = ["qualification_provider_origin", "library"])]
+    qualification_provider_library: Option<PathBuf>,
     /// Emit one versioned JSON result for an external client.
     #[arg(long, global = true, conflicts_with = "jsonl")]
     json: bool,
@@ -235,6 +246,18 @@ enum InstallationCommand {
         #[arg(long)]
         expected_plan: String,
         /// Confirm this reviewed install without a prompt; the plan check still applies.
+        #[arg(long)]
+        yes: bool,
+    },
+    #[cfg(feature = "qualification-fixtures")]
+    #[command(hide = true)]
+    QualificationUpdatePlan { port_id: String },
+    #[cfg(feature = "qualification-fixtures")]
+    #[command(hide = true)]
+    QualificationUpdateRun {
+        port_id: String,
+        #[arg(long)]
+        expected_plan: String,
         #[arg(long)]
         yes: bool,
     },
@@ -978,6 +1001,15 @@ fn main() -> ExitCode {
 }
 
 fn command_is_observation(command: &Commands) -> bool {
+    #[cfg(feature = "qualification-fixtures")]
+    if matches!(
+        command,
+        Commands::Installation {
+            command: InstallationCommand::QualificationUpdatePlan { .. }
+        }
+    ) {
+        return true;
+    }
     matches!(
         command,
         Commands::Auth {
@@ -1103,7 +1135,28 @@ fn requested_output_mode(args: &[std::ffi::OsString]) -> OutputMode {
         .unwrap_or(OutputMode::Human)
 }
 
+#[cfg(feature = "qualification-fixtures")]
+fn require_qualification_update_binding(cli: &Cli) -> Result<()> {
+    if matches!(
+        &cli.command,
+        Commands::Installation {
+            command: InstallationCommand::QualificationUpdatePlan { .. }
+                | InstallationCommand::QualificationUpdateRun { .. }
+        }
+    ) && (cli.qualification_provider_origin.is_none()
+        || cli.qualification_provider_library.is_none()
+        || cli.library.is_none())
+    {
+        return Err(PortcoveError::usage(
+            "qualification update requires an explicit provider and library binding",
+        ));
+    }
+    Ok(())
+}
+
 async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
+    #[cfg(feature = "qualification-fixtures")]
+    require_qualification_update_binding(&cli)?;
     if let Commands::Catalog {
         command: CatalogCommand::InspectProposal { file },
     } = &cli.command
@@ -1183,28 +1236,59 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         )?;
         return Ok(ExitCode::SUCCESS);
     }
-    let service = std::sync::Arc::new(if command_is_observation(&cli.command) {
-        PortcoveService::new_read_only(library)?
-    } else {
-        PortcoveService::new(library)?
+    #[cfg(feature = "qualification-fixtures")]
+    let qualification_provider = match (
+        cli.qualification_provider_origin.as_deref(),
+        cli.qualification_provider_library.as_deref(),
+    ) {
+        (Some(origin), Some(root)) => Some(std::sync::Arc::new(
+            GithubReleaseProvider::for_qualification_library(&library, root, origin)?,
+        )
+            as std::sync::Arc<dyn portcove_core::ReleaseProvider>),
+        (None, None) => None,
+        _ => {
+            return Err(PortcoveError::verification(
+                "incomplete qualification provider binding",
+            ));
+        }
+    };
+    #[cfg(not(feature = "qualification-fixtures"))]
+    let qualification_provider: Option<std::sync::Arc<dyn portcove_core::ReleaseProvider>> = None;
+    let service = std::sync::Arc::new(match qualification_provider {
+        Some(provider) if command_is_observation(&cli.command) => {
+            PortcoveService::with_provider_read_only(library, provider)?
+        }
+        Some(provider) => PortcoveService::with_provider(library, provider)?,
+        None if command_is_observation(&cli.command) => PortcoveService::new_read_only(library)?,
+        None => PortcoveService::new(library)?,
     });
-    let _cancellation_signals = matches!(
+    #[cfg(feature = "qualification-fixtures")]
+    let qualification_update_run = matches!(
         &cli.command,
-        Commands::Install(_)
-            | Commands::Installation {
-                command: InstallationCommand::Run { .. }
-            }
-            | Commands::Update(_)
-            | Commands::Ensure(_)
-            | Commands::Reconcile(_)
-            | Commands::Check(_)
-            | Commands::Catalog {
-                command: CatalogCommand::Update { apply: true, .. }
-            }
-            | Commands::Source {
-                command: SourceCommand::Discover(_)
-            }
-    )
+        Commands::Installation {
+            command: InstallationCommand::QualificationUpdateRun { .. }
+        }
+    );
+    #[cfg(not(feature = "qualification-fixtures"))]
+    let qualification_update_run = false;
+    let _cancellation_signals = (qualification_update_run
+        || matches!(
+            &cli.command,
+            Commands::Install(_)
+                | Commands::Installation {
+                    command: InstallationCommand::Run { .. }
+                }
+                | Commands::Update(_)
+                | Commands::Ensure(_)
+                | Commands::Reconcile(_)
+                | Commands::Check(_)
+                | Commands::Catalog {
+                    command: CatalogCommand::Update { apply: true, .. }
+                }
+                | Commands::Source {
+                    command: SourceCommand::Discover(_)
+                }
+        ))
     .then(|| cancellation::CancellationSignals::start(service.clone()))
     .transpose()?;
     match cli.command {
@@ -1246,6 +1330,41 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 .apply_game_install(&port_id, &authorization.token, &mut progress)
                 .await?;
             render_success(mode, "installation.run", installed)?;
+        }
+        #[cfg(feature = "qualification-fixtures")]
+        Commands::Installation {
+            command: InstallationCommand::QualificationUpdatePlan { port_id },
+        } => {
+            let review = service.plan_game_update(&port_id, true).await?;
+            render_read_success(
+                mode,
+                "installation.qualification-update-plan",
+                review,
+                |review| human::plan(&review.plan),
+            )?;
+        }
+        #[cfg(feature = "qualification-fixtures")]
+        Commands::Installation {
+            command:
+                InstallationCommand::QualificationUpdateRun {
+                    port_id,
+                    expected_plan,
+                    yes,
+                },
+        } => {
+            require_confirmation(
+                "Activate this exact reviewed fixture update?",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization = service
+                .authorize_game_update(&port_id, true, &expected_plan)
+                .await?;
+            let mut progress = progress_renderer(mode);
+            let installed = service
+                .apply_game_update(&port_id, true, &authorization.token, &mut progress)
+                .await?;
+            render_success(mode, "installation.qualification-update-run", installed)?;
         }
         Commands::Artwork { command } => {
             execute_artwork(&service, command, mode, cli.non_interactive)?
@@ -2998,6 +3117,14 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Installation { command } => match command {
             InstallationCommand::Plan { .. } => "installation.plan",
             InstallationCommand::Run { .. } => "installation.run",
+            #[cfg(feature = "qualification-fixtures")]
+            InstallationCommand::QualificationUpdatePlan { .. } => {
+                "installation.qualification-update-plan"
+            }
+            #[cfg(feature = "qualification-fixtures")]
+            InstallationCommand::QualificationUpdateRun { .. } => {
+                "installation.qualification-update-run"
+            }
         },
         Commands::Preparation {
             command: PreparationCommand::Plan { .. },
@@ -3040,6 +3167,71 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(feature = "qualification-fixtures"))]
+    #[test]
+    fn ordinary_cli_rejects_qualification_provider_and_update_commands() {
+        use clap::Parser;
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "--qualification-provider-origin",
+                "http://127.0.0.1:8123",
+                "status"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "installation",
+                "qualification-update-plan",
+                "fixture"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "installation",
+                "qualification-update-run",
+                "fixture",
+                "--expected-plan",
+                "abc",
+                "--yes"
+            ])
+            .is_err()
+        );
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn qualification_update_requires_explicit_provider_binding() {
+        use clap::Parser;
+        let unbound = Cli::try_parse_from([
+            "portcove",
+            "installation",
+            "qualification-update-plan",
+            "fixture",
+        ])
+        .unwrap();
+        assert!(super::require_qualification_update_binding(&unbound).is_err());
+        let cli = Cli::try_parse_from([
+            "portcove",
+            "--library",
+            "/owned/library",
+            "--qualification-provider-library",
+            "/owned/library",
+            "--qualification-provider-origin",
+            "http://127.0.0.1:8123",
+            "installation",
+            "qualification-update-plan",
+            "fixture",
+        ])
+        .unwrap();
+        super::require_qualification_update_binding(&cli).unwrap();
+        assert!(super::command_is_observation(&cli.command));
+    }
+
     #[test]
     fn discovery_human_summary_uses_real_bounded_core_result_without_registering() {
         let root = tempfile::tempdir().unwrap();

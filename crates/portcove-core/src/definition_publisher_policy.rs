@@ -940,7 +940,7 @@ pub(crate) fn acquisition_scope(
         max_redirects,
         grant_id: document.grant_id,
         policy_revision: document.policy_revision,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "qualification-fixtures"))]
         fixture_origin: None,
     };
     scope.require_port(catalog.port(port_id)?)?;

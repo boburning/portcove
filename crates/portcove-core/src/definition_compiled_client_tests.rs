@@ -18,6 +18,10 @@ impl Consumer {
     }
 
     fn invoke(&self, library: &Library, args: &[&str]) -> Value {
+        self.invoke_result(library, args, true)
+    }
+
+    fn invoke_result(&self, library: &Library, args: &[&str], success: bool) -> Value {
         assert_eq!(
             hex::encode(Sha256::digest(fs::read(&self.path).unwrap())),
             self.sha256
@@ -32,6 +36,9 @@ impl Consumer {
         .unwrap()
         .args(args)
         .env_remove("PORTCOVE_QUALIFICATION_CATALOG")
+        // The qualification provider must not load or send either ambient token.
+        .env("GH_TOKEN", "owned-inert-qualification-token")
+        .env("GITHUB_TOKEN", "owned-inert-qualification-token")
         .env("PORTCOVE_QUALIFICATION_LIBRARY", library.root())
         .stdin(Stdio::null())
         .stdout(fs::File::create(&stdout).unwrap())
@@ -61,20 +68,38 @@ impl Consumer {
             "{observation:?}; {}",
             fs::read_to_string(&stderr).unwrap()
         );
-        assert!(status.success(), "{}", fs::read_to_string(&stderr).unwrap());
+        let result: Value = serde_json::from_slice(&fs::read(&stdout).unwrap()).unwrap();
+        assert_eq!(
+            status.success(),
+            success,
+            "arguments: {args:?}; error: {}; stderr: {}",
+            result["error"],
+            fs::read_to_string(&stderr).unwrap()
+        );
         assert_eq!(
             hex::encode(Sha256::digest(fs::read(&self.path).unwrap())),
             self.sha256
         );
-        serde_json::from_slice(&fs::read(stdout).unwrap()).unwrap()
+        result
     }
 }
 
 #[tokio::test]
 #[ignore = "explicit unchanged compiled-client correction consumption"]
 async fn qualification_compiled_clients_consume_managed_corrections() {
+    qualification_managed_compiled_clients(true).await;
+}
+
+#[tokio::test]
+#[ignore = "explicit unchanged compiled CLI acquisition; Desktop acceptance remains separate"]
+async fn qualification_compiled_cli_acquires_managed_artifacts() {
+    qualification_managed_compiled_clients(false).await;
+}
+
+async fn qualification_managed_compiled_clients(include_desktop: bool) {
     let cli = Consumer::from_environment("PORTCOVE_QUALIFICATION_CLI");
-    let desktop = Consumer::from_environment("PORTCOVE_QUALIFICATION_DESKTOP");
+    let desktop =
+        include_desktop.then(|| Consumer::from_environment("PORTCOVE_QUALIFICATION_DESKTOP"));
     let report = PathBuf::from(std::env::var_os("PORTCOVE_QUALIFICATION_CONSUMER_REPORT").unwrap());
     let mut stages = Vec::new();
     let mut observe = |library: &Library, stage: &str| {
@@ -85,12 +110,15 @@ async fn qualification_compiled_clients_consume_managed_corrections() {
         );
         assert_eq!(cli_status["ok"], true);
         assert_eq!(cli_status["command"], "status");
-        let desktop_status =
-            desktop.invoke(library, &["--portcove-adapter-conformance-statuses", root]);
+        let desktop_status = desktop.as_ref().map(|desktop| {
+            desktop.invoke(library, &["--portcove-adapter-conformance-statuses", root])
+        });
         let service = PortcoveService::new(library.clone()).unwrap();
         let expected = serde_json::to_value(service.statuses().unwrap()).unwrap();
         assert_eq!(cli_status["data"], expected, "{stage}: CLI projection");
-        assert_eq!(desktop_status, expected, "{stage}: Desktop projection");
+        if let Some(desktop_status) = desktop_status {
+            assert_eq!(desktop_status, expected, "{stage}: Desktop projection");
+        }
         let content = cli.invoke(
             library,
             &[
@@ -120,10 +148,172 @@ async fn qualification_compiled_clients_consume_managed_corrections() {
             "selected": library.definition_selection_status().unwrap().selected,
             "cli_catalog_content": content["data"],
             "statuses": expected,
-            "complete_status_parity": true,
+            "core_cli_status_parity": true,
+            "complete_status_parity": desktop.is_some(),
         }));
     };
-    managed_ordinary_lifecycle(Some(&mut observe)).await;
+    let mut acquisitions = Vec::new();
+    let mut acquire = |library: &Library,
+                       server: &AcquisitionHttp,
+                       repository_id: u64,
+                       version: &str,
+                       release: &Value,
+                       bytes: &[u8]| {
+        let root = library.root().to_str().unwrap();
+        let base = [
+            "--library",
+            root,
+            "--json",
+            "--non-interactive",
+            "--qualification-provider-library",
+            root,
+            "--qualification-provider-origin",
+            server.origin.as_str(),
+            "installation",
+        ];
+        let (plan_command, run_command) = if version == "v1" {
+            ("plan", "run")
+        } else {
+            ("qualification-update-plan", "qualification-update-run")
+        };
+        let metadata = || {
+            server.json(serde_json::json!({"id":repository_id,"archived":false}));
+            server.json(release.clone());
+        };
+        let requests_before = server.requests.lock().unwrap().len();
+        let before_selection = library.definition_selection_status().unwrap();
+        let before_records = library.status(ID, ReleaseChannel::Stable).unwrap();
+        let retained_before = before_records
+            .active
+            .as_ref()
+            .map(|installed| crate::library_transfer::reviewed_tree(&installed.path).unwrap());
+        let wrong_library = tempfile::tempdir().unwrap();
+        for (origin, bound_root) in [
+            ("https://github.com", root),
+            ("http://localhost:8123", root),
+            (
+                server.origin.as_str(),
+                wrong_library.path().to_str().unwrap(),
+            ),
+        ] {
+            let refused = cli.invoke_result(
+                library,
+                &[
+                    "--library",
+                    root,
+                    "--json",
+                    "--non-interactive",
+                    "--qualification-provider-library",
+                    bound_root,
+                    "--qualification-provider-origin",
+                    origin,
+                    "installation",
+                    plan_command,
+                    ID,
+                ],
+                false,
+            );
+            assert_eq!(refused["ok"], false);
+        }
+        assert_eq!(server.requests.lock().unwrap().len(), requests_before);
+        metadata();
+        let plan = cli.invoke(library, &[base.as_slice(), &[plan_command, ID]].concat());
+        assert_eq!(plan["ok"], true);
+        let fingerprint = plan["data"]["plan_sha256"].as_str().unwrap();
+        let expected_release = &plan["data"]["plan"]["release"];
+        assert_eq!(expected_release["version"], version);
+        let before = library.status(ID, ReleaseChannel::Stable).unwrap();
+        // A stale reviewed fingerprint refuses before authorization or download.
+        metadata();
+        let refused = cli.invoke_result(
+            library,
+            &[
+                base.as_slice(),
+                &[run_command, ID, "--expected-plan", &"0".repeat(64), "--yes"],
+            ]
+            .concat(),
+            false,
+        );
+        assert_eq!(refused["ok"], false);
+        assert_eq!(
+            serde_json::to_value(library.status(ID, ReleaseChannel::Stable).unwrap()).unwrap(),
+            serde_json::to_value(&before).unwrap()
+        );
+        assert!(server.responses.lock().unwrap().is_empty());
+        let mut corrupt = bytes.to_vec();
+        corrupt[0] ^= 1;
+        for redirect in [false, true] {
+            metadata();
+            server.json(serde_json::json!({"id":repository_id,"archived":false}));
+            server.json(serde_json::json!({"id":repository_id,"archived":false}));
+            if redirect {
+                server.redirect("https://github.com/owned-fixture.zip");
+            } else {
+                server.bytes(&corrupt);
+            }
+            let refused = cli.invoke_result(
+                library,
+                &[
+                    base.as_slice(),
+                    &[run_command, ID, "--expected-plan", fingerprint, "--yes"],
+                ]
+                .concat(),
+                false,
+            );
+            assert_eq!(refused["ok"], false);
+            assert_eq!(
+                serde_json::to_value(library.status(ID, ReleaseChannel::Stable).unwrap()).unwrap(),
+                serde_json::to_value(&before).unwrap()
+            );
+            assert_eq!(
+                serde_json::to_value(library.definition_selection_status().unwrap()).unwrap(),
+                serde_json::to_value(&before_selection).unwrap()
+            );
+            if let Some(retained) = &retained_before {
+                assert_eq!(
+                    &crate::library_transfer::reviewed_tree(
+                        &before_records.active.as_ref().unwrap().path
+                    )
+                    .unwrap(),
+                    retained
+                );
+            }
+            assert!(server.responses.lock().unwrap().is_empty());
+        }
+        metadata();
+        // Canonical reviewed execution revalidates repository identity at both
+        // apply-time planning and acquisition, while retaining the exact release.
+        server.json(serde_json::json!({"id":repository_id,"archived":false}));
+        server.json(serde_json::json!({"id":repository_id,"archived":false}));
+        server.bytes(bytes);
+        let result = cli.invoke(
+            library,
+            &[
+                base.as_slice(),
+                &[run_command, ID, "--expected-plan", fingerprint, "--yes"],
+            ]
+            .concat(),
+        );
+        let installed: crate::InstallRecord =
+            serde_json::from_value(result["data"].clone()).unwrap();
+        assert_eq!(installed.version, expected_release["version"]);
+        assert_eq!(
+            installed.artifact.sha256,
+            expected_release["asset"]["sha256"]
+        );
+        assert_eq!(installed.artifact.size, expected_release["asset"]["size"]);
+        assert!(server.responses.lock().unwrap().is_empty());
+        acquisitions.push(
+            serde_json::json!({"version":version, "plan_sha256":fingerprint,
+            "reviewed_release": expected_release, "installed":installed,
+            "stale_plan_refused":true, "digest_mismatch_refused":true,
+            "outside_origin_redirect_refused":true, "nonloopback_origin_refused":true,
+            "mismatched_library_refused":true, "retained_state_preserved_after_refusals":true}),
+        );
+        installed
+    };
+    managed_ordinary_lifecycle(Some(&mut observe), Some(&mut acquire)).await;
+
     assert_eq!(
         stages
             .iter()
@@ -141,9 +331,11 @@ async fn qualification_compiled_clients_consume_managed_corrections() {
     );
     let bytes = serde_json::to_vec_pretty(&serde_json::json!({
         "schema_version": 1,
-        "scope": "Fixture-produced signed managed state consumed by unchanged compiled CLI/Desktop; no production acquisition, publication or installed GUI claim",
+        "scope": "Unchanged fixture-capable CLI drives canonical reviewed install/update acquisition of inert loopback artifacts; Desktop execution is reported separately; no production feed, protected publication or installed GUI claim",
+        "acquisitions": acquisitions,
         "cli_sha256": cli.sha256,
-        "desktop_sha256": desktop.sha256,
+        "desktop_sha256": desktop.as_ref().map(|desktop| &desktop.sha256),
+        "desktop_projection_executed": desktop.is_some(),
         "stages": stages,
     })).unwrap();
     use std::io::Write;

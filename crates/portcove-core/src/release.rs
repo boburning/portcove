@@ -63,6 +63,8 @@ pub struct GithubReleaseProvider {
     api_root: String,
     web_root: String,
     library: Option<Library>,
+    #[cfg(feature = "qualification-fixtures")]
+    qualification_origin: Option<String>,
     credential: Arc<StdRwLock<GithubCredential>>,
     cache: Arc<RwLock<HashMap<ReleaseSelectionCacheKey, CachedRelease>>>,
     device_sessions: Arc<Mutex<HashMap<String, DeviceSession>>>,
@@ -172,7 +174,37 @@ impl GithubReleaseProvider {
         web_root: &str,
         bounds: ProviderNetworkBounds,
     ) -> Result<Self> {
-        let client = reqwest::Client::builder()
+        Self::build_with_credential(
+            library,
+            api_root,
+            web_root,
+            bounds,
+            load_credential(),
+            false,
+        )
+    }
+
+    fn build_with_credential(
+        library: Option<Library>,
+        api_root: &str,
+        web_root: &str,
+        bounds: ProviderNetworkBounds,
+        credential: GithubCredential,
+        qualification: bool,
+    ) -> Result<Self> {
+        let metadata_builder = reqwest::Client::builder();
+        let metadata_builder = if qualification {
+            metadata_builder.no_proxy()
+        } else {
+            metadata_builder
+        };
+        let download_builder = reqwest::Client::builder();
+        let download_builder = if qualification {
+            download_builder.no_proxy()
+        } else {
+            download_builder
+        };
+        let client = metadata_builder
             .redirect(reqwest::redirect::Policy::none())
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(bounds.connect)
@@ -180,7 +212,7 @@ impl GithubReleaseProvider {
             .timeout(bounds.request)
             .build()
             .map_err(|error| PortcoveError::network(error.to_string()))?;
-        let download_client = reqwest::Client::builder()
+        let download_client = download_builder
             .redirect(reqwest::redirect::Policy::limited(5))
             .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
             .connect_timeout(bounds.connect)
@@ -194,10 +226,70 @@ impl GithubReleaseProvider {
             api_root: api_root.into(),
             web_root: web_root.into(),
             library,
-            credential: Arc::new(StdRwLock::new(load_credential())),
+            #[cfg(feature = "qualification-fixtures")]
+            qualification_origin: None,
+            credential: Arc::new(StdRwLock::new(credential)),
             cache: Arc::new(RwLock::new(HashMap::new())),
             device_sessions: Arc::new(Mutex::new(HashMap::new())),
         })
+    }
+
+    /// Bind an explicitly qualification-capable client to one fixture library.
+    #[cfg(feature = "qualification-fixtures")]
+    pub fn for_qualification_library(
+        library: &Library,
+        expected_root: &std::path::Path,
+        origin: &str,
+    ) -> Result<Self> {
+        crate::definition_acquisition::validate_fixture_origin(origin)?;
+        let expected = std::fs::canonicalize(expected_root)?;
+        let actual = std::fs::canonicalize(library.root())?;
+        if expected != actual {
+            return Err(PortcoveError::verification(
+                "qualification library binding does not match",
+            ));
+        }
+        let mut provider = Self::build_with_credential(
+            Some(library.clone()),
+            origin,
+            origin,
+            PROVIDER_NETWORK_BOUNDS,
+            GithubCredential {
+                token: None,
+                source: GithubAuthSource::Anonymous,
+                intent: 0,
+            },
+            true,
+        )?;
+        provider.qualification_origin = Some(origin.to_owned());
+        Ok(provider)
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    fn bind_qualification_scope(
+        &self,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+        let Some(origin) = &self.qualification_origin else {
+            return Ok(scope.cloned());
+        };
+        crate::definition_acquisition::validate_fixture_origin(origin)?;
+        let mut scope = scope.cloned().ok_or_else(|| {
+            PortcoveError::verification(
+                "qualification acquisition requires an admitted managed definition",
+            )
+        })?;
+        if self
+            .library
+            .as_ref()
+            .is_none_or(|library| library.root() != scope.library.root())
+        {
+            return Err(PortcoveError::verification(
+                "qualification acquisition library does not match",
+            ));
+        }
+        scope.fixture_origin = Some(origin.clone());
+        Ok(Some(scope))
     }
 
     #[cfg(test)]
@@ -397,9 +489,13 @@ impl GithubReleaseProvider {
     ) -> Result<T> {
         scope.require_current()?;
         let permitted_origin = self.api_root == "https://api.github.com";
-        #[cfg(test)]
-        let permitted_origin =
-            permitted_origin || scope.fixture_origin.as_deref() == Some(self.api_root.as_str());
+        #[cfg(any(test, feature = "qualification-fixtures"))]
+        let permitted_origin = if let Some(origin) = &scope.fixture_origin {
+            crate::definition_acquisition::validate_fixture_origin(origin)?;
+            origin == &self.api_root
+        } else {
+            permitted_origin
+        };
         if !permitted_origin
             || !same_origin(url, &self.api_root)
             || self
@@ -853,6 +949,8 @@ impl ReleaseProvider for GithubReleaseProvider {
             }
             None => None,
         };
+        #[cfg(feature = "qualification-fixtures")]
+        let scope = self.bind_qualification_scope(scope.as_ref())?;
         self.resolve_with_scope(port, channel, platform, scope.as_ref())
             .await
     }
@@ -864,6 +962,10 @@ impl ReleaseProvider for GithubReleaseProvider {
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<crate::ScopedResolvedRelease> {
+        #[cfg(feature = "qualification-fixtures")]
+        let bound_scope = self.bind_qualification_scope(scope)?;
+        #[cfg(feature = "qualification-fixtures")]
+        let scope = bound_scope.as_ref();
         if scope.is_none() {
             return self
                 .resolve(port, channel, platform)

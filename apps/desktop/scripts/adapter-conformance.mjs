@@ -123,7 +123,7 @@ async function main() {
     "-p",
     "portcove-cli",
     "--features",
-    "portcove-core/qualification-fixtures",
+    "qualification-fixtures",
   ]);
   runSync("cargo", [
     "build",
