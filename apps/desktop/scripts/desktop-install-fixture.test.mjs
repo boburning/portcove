@@ -27,19 +27,33 @@ import { run as runLifecycleCommand } from "../../../integrations/playnite/lifec
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 
-for (const focus of [
-  "origin",
-  "continue",
-  "outside",
-  "body",
-  "disabled",
-  "hidden",
-  "inert",
-  "hidden-continuation",
-  "missing",
-  "missing-origin",
-  "detached",
-  "detail",
+for (const [focus, selector, expected, mutate] of [
+  ["origin", "article", { tag: "ARTICLE", id: "", origin: true }],
+  ["continue", "#continue", { tag: "BUTTON", id: "continue", origin: false }],
+  ["outside", "#outside", false],
+  ["body", "body", false],
+  ["disabled", "#disabled", false],
+  [
+    "hidden",
+    "article",
+    false,
+    (origin) => {
+      origin.hidden = true;
+    },
+  ],
+  ["inert", "article", false, (origin) => origin.setAttribute("inert", "")],
+  [
+    "hidden-continuation",
+    "article",
+    false,
+    (_origin, document) => {
+      document.querySelector("section").hidden = true;
+    },
+  ],
+  ["missing", "article", false, (_origin, document) => document.querySelector("section").remove()],
+  ["missing-origin", "article", false, (origin) => origin.removeAttribute("data-detail-origin")],
+  ["detached", "article", false, (origin) => origin.remove()],
+  ["detail", "#detail", false],
 ]) {
   test(`completion return focus follows the stable setup origin: ${focus}`, () => {
     const dom = new JSDOM(`<!doctype html>
@@ -54,36 +68,13 @@ for (const focus of [
     for (const element of document.querySelectorAll("*")) {
       element.getClientRects = () => [{ width: 100, height: 20 }];
     }
-    if (focus === "hidden") origin.hidden = true;
-    if (focus === "inert") origin.setAttribute("inert", "");
-    if (focus === "hidden-continuation") document.querySelector("section").hidden = true;
-    if (focus === "missing") document.querySelector("section").remove();
-    if (focus === "missing-origin") origin.removeAttribute("data-detail-origin");
-    const target = [
-      "origin",
-      "hidden",
-      "inert",
-      "hidden-continuation",
-      "missing",
-      "missing-origin",
-      "detached",
-    ].includes(focus)
-      ? origin
-      : document.getElementById(focus);
-    target?.focus();
-    if (focus === "detached") origin.remove();
+    document.querySelector(selector).focus();
+    mutate?.(origin, document);
     vi.stubGlobal("document", document);
     vi.stubGlobal("getComputedStyle", dom.window.getComputedStyle.bind(dom.window));
     try {
       const observed = observeCompletionReturnFocus();
-      assert.deepEqual(
-        observed,
-        focus === "origin"
-          ? { tag: "ARTICLE", id: "", origin: true }
-          : focus === "continue"
-            ? { tag: "BUTTON", id: "continue", origin: false }
-            : false,
-      );
+      assert.deepEqual(observed, expected);
       assert.deepEqual(
         structuredClone(
           runInNewContext(`(${observeCompletionReturnFocus.toString()})()`, {
