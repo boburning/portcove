@@ -573,7 +573,16 @@ describe("desktop components", () => {
       const blocked = [
         { ...props, busy: "prepare" },
         { ...props, prepare: undefined },
-        ...(["missing", "changed"] as const).flatMap((health) => [
+        ...(
+          [
+            "unregistered",
+            "missing",
+            "unreadable",
+            "changed",
+            "not_checked",
+            "not_baselined",
+          ] as const
+        ).flatMap((health) => [
           {
             ...props,
             status: { ...status, readiness: { ...status.readiness!, source: health } },
@@ -602,7 +611,8 @@ describe("desktop components", () => {
       const definition = currentCatalogPort(id);
       const status: PortStatus = {
         ...portStatus(),
-        active: installRecord(),
+        port_id: id,
+        active: installRecord({ port_id: id }),
         readiness: {
           launchable: false,
           blockers: ["preparation_required"],
