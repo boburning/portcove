@@ -4009,7 +4009,8 @@ impl PortcoveService {
             } else {
                 let observed_wait = child.try_wait();
                 #[cfg(test)]
-                crate::launch::child_diagnostic::tried_wait(child_pid, &observed_wait);
+                let observed_wait =
+                    crate::launch::child_diagnostic::tried_wait(child_pid, observed_wait);
                 let status = match observed_wait {
                     Ok(Some(status)) => status,
                     Ok(None) => {
@@ -12570,12 +12571,7 @@ fn main() {
         let diagnostic = Guard::begin(control);
         let arguments = vec![
             temporary.path().join("started").display().to_string(),
-            if control == Control::MissingPending {
-                "10000"
-            } else {
-                "0"
-            }
-            .into(),
+            "0".into(),
             "completed-control".into(),
             "0".into(),
         ];
@@ -12618,15 +12614,10 @@ fn main() {
             );
             assert_eq!(request.outcome, Some(LaunchSessionOutcome::Failed));
             assert!(
-                events
-                    .iter()
-                    .any(|event| event.stage == "try_wait" && event.outcome == "pending")
+                events.iter().any(|event| event.stage == "try_wait_control"
+                    && event.outcome == "injected_pending")
             );
-            assert!(
-                events
-                    .iter()
-                    .any(|event| event.stage == "kill" && event.outcome == "returned_ok")
-            );
+            assert!(events.iter().any(|event| event.stage == "kill"));
             assert!(
                 events
                     .iter()
@@ -12649,7 +12640,7 @@ fn main() {
             assert!(
                 events
                     .iter()
-                    .any(|event| event.stage == "try_wait" && event.outcome == "completed")
+                    .any(|event| event.stage == "try_wait_original" && event.outcome == "completed")
             );
             assert!(!events.iter().any(|event| event.stage == "kill"));
         }

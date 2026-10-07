@@ -477,17 +477,37 @@ pub(crate) mod child_diagnostic {
             result
         }
     }
-    pub(crate) fn tried_wait(pid: u32, result: &std::io::Result<Option<ExitStatus>>) {
-        match result {
+    pub(crate) fn tried_wait(
+        pid: u32,
+        result: std::io::Result<Option<ExitStatus>>,
+    ) -> std::io::Result<Option<ExitStatus>> {
+        match &result {
             Ok(Some(status)) => record(
                 pid,
-                "try_wait",
+                "try_wait_original",
                 "completed",
                 None,
                 status.code().map(i64::from),
             ),
-            Ok(None) => record(pid, "try_wait", "pending", None, None),
-            Err(error) => record(pid, "try_wait", "error", error.raw_os_error(), None),
+            Ok(None) => record(pid, "try_wait_original", "pending", None, None),
+            Err(error) => record(
+                pid,
+                "try_wait_original",
+                "error",
+                error.raw_os_error(),
+                None,
+            ),
+        }
+        let injected = TRACE.with_borrow(|trace| {
+            trace.as_ref().is_some_and(|trace| {
+                trace.pid == Some(pid) && trace.control == Control::MissingPending
+            })
+        });
+        if injected {
+            record(pid, "try_wait_control", "injected_pending", None, None);
+            Ok(None)
+        } else {
+            result
         }
     }
     pub(crate) fn waited(pid: u32, stage: &'static str, result: &std::io::Result<ExitStatus>) {
