@@ -1,0 +1,262 @@
+//! Job-owned Linux adopting supervisor. No dependency or persistent host service.
+use std::env;
+use std::ffi::c_void;
+use std::fs::{self, OpenOptions};
+use std::io::{self, Write};
+use std::os::unix::process::CommandExt;
+use std::path::Path;
+use std::process::{Command, ExitCode, Stdio};
+use std::time::{Duration, Instant};
+
+#[repr(C)]
+struct PollFd {
+    fd: i32,
+    events: i16,
+    revents: i16,
+}
+
+#[repr(C)]
+struct PeerCredentials { pid: i32, uid: u32, gid: u32 }
+
+unsafe extern "C" {
+    fn getppid() -> i32;
+    fn geteuid() -> u32;
+    fn getsockopt(fd: i32, level: i32, option: i32, value: *mut c_void, length: *mut u32) -> i32;
+    fn getpeername(fd: i32, address: *mut c_void, length: *mut u32) -> i32;
+    fn fcntl(fd: i32, command: i32, ...) -> i32;
+    fn read(fd: i32, buffer: *mut c_void, count: usize) -> isize;
+    fn prctl(option: i32, ...) -> i32;
+    fn setpgid(pid: i32, group: i32) -> i32;
+    fn kill(pid: i32, signal: i32) -> i32;
+    fn waitpid(pid: i32, status: *mut i32, options: i32) -> i32;
+    fn poll(fds: *mut PollFd, count: usize, timeout: i32) -> i32;
+}
+
+fn last_error() -> io::Error {
+    io::Error::last_os_error()
+}
+
+fn atomic_file(path: &Path, contents: &str) -> io::Result<()> {
+    let pending = path.with_extension(format!("pending-{}", std::process::id()));
+    let mut file = OpenOptions::new().write(true).create_new(true).open(&pending)?;
+    file.write_all(contents.as_bytes())?;
+    file.sync_all()?;
+    // Atomic no-clobber publication also refuses a late receipt or symlink.
+    fs::hard_link(&pending, path)?;
+    fs::remove_file(pending)
+}
+
+fn stat(pid: i32) -> io::Result<Vec<String>> {
+    let value = fs::read_to_string(format!("/proc/{pid}/stat"))?;
+    let closing = value.rfind(')').ok_or_else(|| io::Error::other("invalid process stat"))?;
+    let fields: Vec<_> = value[closing + 2..].split_whitespace().map(str::to_owned).collect();
+    if fields.len() < 20 {
+        return Err(io::Error::other("incomplete process stat"));
+    }
+    Ok(fields)
+}
+
+fn process_identity(pid: i32) -> io::Result<String> {
+    let fields = stat(pid)?;
+    let boot = fs::read_to_string("/proc/sys/kernel/random/boot_id")?;
+    let boot = boot.trim();
+    if boot.len() != 36 || !boot.bytes().all(|value| value.is_ascii_hexdigit() || value == b'-')
+        || fields[19].is_empty() || !fields[19].bytes().all(|value| value.is_ascii_digit()) {
+        return Err(io::Error::other("invalid wrapper birth identity"));
+    }
+    Ok(format!("linux:{boot}:{pid}:{}", fields[19]))
+}
+
+fn socket_option(option: i32) -> io::Result<i32> {
+    let mut value = 0i32;
+    let mut length = std::mem::size_of::<i32>() as u32;
+    if unsafe { getsockopt(0, 1, option, (&mut value as *mut i32).cast(), &mut length) } < 0 {
+        return Err(last_error());
+    }
+    if length != std::mem::size_of::<i32>() as u32 {
+        return Err(io::Error::other("invalid wrapper socket option"));
+    }
+    Ok(value)
+}
+
+fn validate_control(expected_parent: &str) -> io::Result<()> {
+    let parent = unsafe { getppid() };
+    if parent <= 1 || process_identity(parent)? != expected_parent {
+        return Err(io::Error::other("wrapper parent birth identity mismatch"));
+    }
+    let endpoint = fs::read_link("/proc/self/fd/0")?;
+    let endpoint = endpoint.to_string_lossy();
+    if endpoint.starts_with("socket:[") {
+        // Node/libuv uses an AF_UNIX stream socketpair for stdio: "pipe".
+        if socket_option(39)? != 1 || socket_option(3)? != 1 {
+            return Err(io::Error::other("wrapper control socket is not a Unix stream"));
+        }
+        let mut address = [0u8; 128];
+        let mut length = address.len() as u32;
+        if unsafe { getpeername(0, address.as_mut_ptr().cast(), &mut length) } < 0 {
+            return Err(last_error());
+        }
+        if length < 2 || length > address.len() as u32 || u16::from_ne_bytes([address[0], address[1]]) != 1 {
+            return Err(io::Error::other("wrapper control socket is not connected to Unix peer"));
+        }
+        let mut peer = PeerCredentials { pid: 0, uid: 0, gid: 0 };
+        let mut length = std::mem::size_of::<PeerCredentials>() as u32;
+        if unsafe { getsockopt(0, 1, 17, (&mut peer as *mut PeerCredentials).cast(), &mut length) } < 0 {
+            return Err(last_error());
+        }
+        if length != std::mem::size_of::<PeerCredentials>() as u32 || peer.pid != parent
+            || peer.uid != unsafe { geteuid() } {
+            return Err(io::Error::other("wrapper control socket peer mismatch"));
+        }
+    } else if !endpoint.starts_with("pipe:[") {
+        return Err(io::Error::other("wrapper control input is not an owned pipe or socket"));
+    }
+    if unsafe { getppid() } != parent || process_identity(parent)? != expected_parent {
+        return Err(io::Error::other("wrapper parent identity changed during admission"));
+    }
+    let flags = unsafe { fcntl(0, 3) };
+    if flags < 0 { return Err(last_error()); }
+    if flags & 3 == 1 { return Err(io::Error::other("wrapper control input is not readable")); }
+    // EOF probes must never block, including a readable/HUP race.
+    if unsafe { fcntl(0, 4, flags | 2048) } < 0 { return Err(last_error()); }
+    Ok(())
+}
+
+fn pipe_lost() -> io::Result<bool> {
+    let mut descriptor = PollFd { fd: 0, events: 1, revents: 0 };
+    let result = unsafe { poll(&mut descriptor, 1, 10) };
+    if result < 0 {
+        let error = last_error();
+        return if error.raw_os_error() == Some(4) { Ok(false) } else { Err(error) };
+    }
+    if descriptor.revents & (8 | 32) != 0 {
+        return Err(io::Error::other("wrapper control channel failed"));
+    }
+    if descriptor.revents & (1 | 16) != 0 {
+        let mut byte = 0u8;
+        match unsafe { read(0, (&mut byte as *mut u8).cast(), 1) } {
+            0 => return Ok(true),
+            1 => return Err(io::Error::other("unexpected wrapper control pipe input")),
+            _ => {
+                let error = last_error();
+                if error.raw_os_error() == Some(4) { return Ok(false); }
+                if error.raw_os_error() == Some(11) && descriptor.revents & 16 == 0 { return Ok(false); }
+                return Err(error);
+            }
+        }
+    }
+    Ok(false)
+}
+
+fn close_group(group: i32) -> io::Result<()> {
+    // The unreaped direct Node child pins this group identity until this signal.
+    if unsafe { kill(-group, 9) } < 0 {
+        let error = last_error();
+        if error.raw_os_error() != Some(3) { return Err(error); }
+    }
+    Ok(())
+}
+
+fn drain_and_prove_absence(group: i32) -> io::Result<()> {
+    let deadline = Instant::now() + Duration::from_millis(5_000);
+    loop {
+        let mut status = 0;
+        let mut no_children = false;
+        loop {
+            if Instant::now() >= deadline {
+                return Err(io::Error::other("owned child reaping exceeded cleanup deadline"));
+            }
+            let waited = unsafe { waitpid(-1, &mut status, 1) };
+            if waited > 0 { continue; }
+            if waited == 0 { break; }
+            let error = last_error();
+            match error.raw_os_error() {
+                Some(4) => continue,
+                Some(10) => { no_children = true; break; }
+                _ => return Err(error),
+            }
+        }
+        let absent = if unsafe { kill(-group, 0) } < 0 {
+            let error = last_error();
+            if error.raw_os_error() != Some(3) { return Err(error); }
+            true
+        } else { false };
+        if no_children && absent { return Ok(()); }
+        if Instant::now() >= deadline {
+            return Err(io::Error::other("owned children or anchored group remain at cleanup deadline"));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn run(args: &[String], group: &mut Option<i32>) -> io::Result<()> {
+    // Move the adopter outside the payload group while retaining a common session.
+    if unsafe { setpgid(0, 0) } < 0 { return Err(last_error()); }
+    if unsafe { prctl(36, 1usize, 0usize, 0usize, 0usize) } < 0 { return Err(last_error()); }
+    validate_control(&args[4])?;
+    if pipe_lost()? { return Err(io::Error::other("wrapper lost before supervisor spawn")); }
+
+    let mut command = Command::new(&args[5]);
+    command.arg(&args[6]).arg("--linux-managed")
+        .args(&args[..3]).args(&args[7..]).stdin(Stdio::piped());
+    unsafe {
+        command.pre_exec(|| {
+            if setpgid(0, 0) < 0 { return Err(last_error()); }
+            Ok(())
+        });
+    }
+    let child = command.spawn()?;
+    let pid = i32::try_from(child.id()).map_err(|_| io::Error::other("invalid Node supervisor PID"))?;
+    *group = Some(pid);
+    // Do not try_wait/wait here: retain the Node PID until anchored cleanup starts.
+    let fields = stat(pid)?;
+    if fields[1] != std::process::id().to_string() || fields[2] != pid.to_string() {
+        return Err(io::Error::other("Node supervisor parent/group setup mismatch"));
+    }
+    let boot = fs::read_to_string("/proc/sys/kernel/random/boot_id")?;
+    let boot = boot.trim();
+    if !boot.bytes().all(|value| value.is_ascii_hexdigit() || value == b'-') || boot.len() != 36
+        || !fields[19].bytes().all(|value| value.is_ascii_digit()) {
+        return Err(io::Error::other("invalid supervisor birth identity"));
+    }
+    atomic_file(Path::new(&args[3]), &format!(
+        "{{\"pid\":{pid},\"identity\":\"linux:{boot}:{pid}:{}\"}}\n", fields[19]
+    ))?;
+    loop {
+        if pipe_lost()? || stat(pid)?[0] == "Z" { break; }
+        match fs::symlink_metadata(&args[1]) {
+            Ok(status) if status.is_file() => break,
+            Ok(_) => return Err(io::Error::other("supervisor status is not a regular file")),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
+
+fn main() -> ExitCode {
+    let args: Vec<_> = env::args().skip(1).collect();
+    if args.len() < 8 {
+        eprintln!("usage: linux-process-tree-reaper <gate> <status> <receipt> <registration> <parent-birth-identity> <node> <supervisor> <command> [arguments...]");
+        return ExitCode::from(2);
+    }
+    let mut group = None;
+    let initial = run(&args, &mut group);
+    // Even setup/pipe/publication failure must attempt closure of an admitted child.
+    let cleanup = match group {
+        Some(pid) => close_group(pid).and_then(|()| drain_and_prove_absence(pid)),
+        None => Ok(()),
+    };
+    let outcome = match initial.and(cleanup) {
+        Ok(()) => "quiescent",
+        Err(error) => {
+            eprintln!("Linux Heavy Rust reaper failed closed: {error}");
+            "failed:linux-reaper"
+        }
+    };
+    if let Err(error) = atomic_file(Path::new(&args[2]), &format!("{{\"outcome\":\"{outcome}\"}}\n")) {
+        eprintln!("Linux Heavy Rust cleanup receipt publication failed: {error}");
+        return ExitCode::from(1);
+    }
+    ExitCode::from(u8::from(outcome != "quiescent"))
+}

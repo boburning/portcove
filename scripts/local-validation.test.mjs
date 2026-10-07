@@ -1963,3 +1963,76 @@ test("selected validation uses the shared capability authority without narrowing
     "frontend-dependencies",
   ]);
 });
+
+test("containment inputs select every execution contract and preserve unknown refusal", () => {
+  const consumers = [
+    "scripts/heavy-rust-test-lock.test.mjs",
+    "scripts/run-rust-tests.test.mjs",
+    "scripts/rust-support-cache.test.mjs",
+    "scripts/rust-test-tree-supervisor.test.mjs",
+  ];
+  const inputs = [
+    ...consumers,
+    ...consumers.map((file) => file.replace(".test.mjs", ".mjs")),
+    "scripts/fixtures/linux-process-tree-reaper.rs.txt",
+    "scripts/fixtures/windows-process-tree-supervisor.rs.txt",
+  ];
+  const future = "new-subsystem/future-supervisor.mjs";
+  for (const input of inputs) {
+    for (const entry of [
+      change(input),
+      change(input, { status: "A" }),
+      change(input, { status: "D" }),
+      change(future, { status: "R100", previousPath: input, oldMode: "100644", newMode: "100644" }),
+      change(input, { status: "R100", previousPath: future, oldMode: "100644", newMode: "100644" }),
+    ]) {
+      const selection = classifyChanges([entry], { fileExists: allFilesExist });
+      for (const consumer of consumers)
+        assert.ok(selection.nodeTests.has(consumer), `${input} -> ${consumer}`);
+      if (entry.previousPath) {
+        assert.ok(selection.unknown.has(future));
+        // Mixed unknown/platform paths may be refused by the unchanged bound
+        // inventory validator before the executable-ownership guard. Neither
+        // refusal permits the renamed executable to run.
+        assert.throws(
+          () => buildPlan(selection, fallbackContext([entry])),
+          /unknown executable or configuration ownership|routed validation plan does not match its path inventory/,
+        );
+      } else {
+        const selected = buildPlan(selection);
+        const contracts = selected.find((command) => command.id === "node-tests");
+        for (const consumer of consumers) assert.ok(contracts.args.includes(consumer));
+        if (entry.status === "D") assert.ok(!selection.nodeSyntax.has(input));
+      }
+    }
+  }
+  const mixed = planFor([...inputs, "docs/QUALITY.md"]);
+  assert.ok(mixed.selection.nodeTests.has("scripts/repository-settings.test.mjs"));
+  for (const consumer of consumers) assert.ok(mixed.selection.nodeTests.has(consumer));
+  const unknown = [change(future, { oldMode: "100644", newMode: "100644" })];
+  assert.throws(
+    () => buildPlan(classifyChanges(unknown), fallbackContext(unknown)),
+    /unknown executable or configuration ownership/,
+  );
+});
+
+test("containment selector changes retain their dependent audit and hosted contracts", () => {
+  const consumers = [
+    "scripts/validation-plan.test.mjs",
+    "scripts/local-validation.test.mjs",
+    "scripts/audit.test.mjs",
+    "scripts/select-ci-plan.test.mjs",
+  ];
+  for (const input of [
+    "scripts/validation-plan.mjs",
+    "scripts/validation-plan.test.mjs",
+    "scripts/local-validation.mjs",
+    "scripts/local-validation.test.mjs",
+  ]) {
+    for (const status of ["M", "D"]) {
+      const { selection } = planFor([change(input, { status })]);
+      for (const consumer of consumers)
+        assert.ok(selection.nodeTests.has(consumer), `${input} -> ${consumer}`);
+    }
+  }
+});

@@ -567,3 +567,37 @@ test("release binding accepts only the exact complete reusable qualification", (
     /checkout mismatch/u,
   );
 });
+
+test("containment ownership requires complete protected qualification without unknown exemptions", () => {
+  const inputs = [
+    "scripts/rust-test-tree-supervisor.mjs",
+    "scripts/rust-test-tree-supervisor.test.mjs",
+    "scripts/fixtures/linux-process-tree-reaper.rs.txt",
+  ];
+  const future = "new-subsystem/future-supervisor.mjs";
+  for (const input of inputs) {
+    for (const changes of [
+      [change(input)],
+      [change(input, { status: "A", oldMode: "000000" })],
+      [change(input, { status: "D", newMode: "000000" })],
+      [change(input, { status: "R100", newPath: future })],
+      [change(future, { status: "R100", newPath: input })],
+      inputs.map((file) => change(file)),
+    ]) {
+      const selected = validateValidationPlan(plan(changes));
+      assert.equal(selected.mode, "qualification", input);
+      assert.equal(selected.qualification_required, true, input);
+      assert.deepEqual(selected.groups, fastGroups, input);
+      assert.deepEqual(selected.platforms, qualificationPlatforms, input);
+      const owned = selected.paths.find((entry) => entry.path === input);
+      assert.equal(owned.unknown, false, input);
+      assert.ok(owned.areas.includes("policy"), input);
+      assert.equal(owned.qualificationRequired, true, input);
+      if (changes.some((entry) => [entry.oldPath, entry.newPath].includes(future)))
+        assert.ok(selected.fallback.paths.includes(future));
+    }
+  }
+  const unknown = plan([change(future)]);
+  assert.equal(unknown.paths[0].unknown, true);
+  assert.deepEqual(unknown.fallback.paths, [future]);
+});

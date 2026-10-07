@@ -255,3 +255,59 @@ test("GitHub outputs are complete single-line values", async (t) => {
   ])
     assert.match(contents, new RegExp(`^${key}=`, "m"));
 });
+
+test("containment discovery binds complete protected coverage for both rename sides", () => {
+  const inputs = [
+    "scripts/rust-test-tree-supervisor.mjs",
+    "scripts/rust-test-tree-supervisor.test.mjs",
+    "scripts/fixtures/linux-process-tree-reaper.rs.txt",
+  ];
+  const future = "new-subsystem/future-supervisor.mjs";
+  for (const input of inputs) {
+    for (const diff of [
+      raw(modified(input)),
+      raw(":000000 100644 0000000 1111111 A", input),
+      raw(":100644 000000 1111111 0000000 D", input),
+      raw(":100644 100644 1111111 2222222 R100", input, future),
+      raw(":100644 100644 1111111 2222222 R100", future, input),
+      raw(...inputs.map((file) => modified(file))),
+    ]) {
+      const selected = discoverCiPlan(
+        {
+          eventName: "pull_request",
+          baseSha: sha("a"),
+          headSha: sha("b"),
+          checkoutSha: sha("c"),
+          fastValidationEnabled: true,
+        },
+        (args) => (args[0] === "merge-base" ? `${sha("d")}\n` : diff),
+      );
+      assert.equal(selected.discovery, "complete");
+      assert.equal(selected.mode, "qualification", input);
+      assert.equal(selected.qualification_required, true, input);
+      assert.deepEqual(selected.groups, [
+        "catalog",
+        "dependency-review",
+        "frontend",
+        "rust",
+        "rust-quality",
+      ]);
+      assert.deepEqual(selected.platforms, [
+        "linux-x86_64",
+        "macos-aarch64",
+        "macos-x86_64",
+        "windows-x86_64",
+      ]);
+      assert.equal(selected.paths.find((entry) => entry.path === input).unknown, false);
+      assert.deepEqual(selected.identities, {
+        base: sha("a"),
+        merge_base: sha("d"),
+        head: sha("b"),
+        checkout: sha("c"),
+      });
+      assert.match(selected.digest, /^[a-f0-9]{64}$/u);
+      if (selected.changed_files.includes(future))
+        assert.ok(selected.fallback.paths.includes(future));
+    }
+  }
+});

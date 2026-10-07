@@ -181,6 +181,23 @@ still require measured justification. Completed measurements and transition
 evidence remain on [#922](https://github.com/boburning/portcove/issues/922); they
 are evidence, not ordinary startup instructions.
 
+Linux Rust containment uses a source-bound first-party adopting reaper. It becomes
+a subreaper before spawning the gated Node supervisor, stays outside that Node
+process group, and reaps direct and adopted children after closing the anchored
+group. The wrapper observes the reaper's termination separately from the exact
+Node identity registered with the shared lock. Success requires both completed
+reaping and actual group absence; zombies do not count as absent. Initialization,
+identity, control-channel, signal, wait, and receipt failures cannot supply cleanup
+acceptance. A withheld lock release preserves the fresh invocation's evidence
+directory, including original failed receipts and space for a missing or late
+receipt. The five-second cleanup bound, command/test deadlines, inherited
+containment, Windows Job Object and other Unix behavior remain separate and
+unchanged. These observations do not reconcile an older held incident or establish
+its timing cause. If the entire wrapper is killed, the outer reaper can itself
+become PID1's child; a non-reaping PID1 may retain its eventual zombie even after
+the managed payload has been positively reaped. Payload closure is not proof that
+every host process disappeared.
+
 The exhaustive Rust runner retains two test slots and a thirty-second default
 per-test execution budget. Cohesive filesystem, database, diagnostics, cancellation, catalog and
 native-process lifecycle families reserve both slots instead of competing with an

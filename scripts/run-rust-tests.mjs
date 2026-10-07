@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { acquireHeavyRustTestLock } from "./heavy-rust-test-lock.mjs";
+import { acquireHeavyRustTestLock, readProcessIdentity } from "./heavy-rust-test-lock.mjs";
 import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -139,6 +139,26 @@ async function closeChildTree(child, observation, dependencies, force) {
   const runSync = dependencies.spawnSync ?? spawnSync;
   const waitMilliseconds =
     dependencies.treeWaitMilliseconds === undefined ? 5_000 : dependencies.treeWaitMilliseconds;
+  if (platform === "linux") {
+    // The direct child is the adopting reaper, not the registered payload group.
+    // Pipe loss asks that ancestor to close only its own anchored Node group.
+    if (force && !observation.outcome()) {
+      await (
+        dependencies.closeLinuxControl ??
+        ((managed) =>
+          new Promise((resolve, reject) => {
+            managed.stdin.once("error", reject);
+            managed.stdin.end(resolve);
+          }))
+      )(child);
+    }
+    if (!(await waitForBoundedExit(observation, waitMilliseconds))) {
+      const error = new Error("Linux Heavy Rust reaper did not exit; retaining the shared lock");
+      error.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
+      throw error;
+    }
+    return;
+  }
   if (!force) {
     await observation.completed.catch(() => {});
     return;
@@ -154,6 +174,55 @@ async function closeChildTree(child, observation, dependencies, force) {
     );
     error.code = "PORTCOVE_HEAVY_RUST_TREE_ACTIVE";
     throw error;
+  }
+}
+
+export function inspectLinuxSupervisor(value, reaperPid, read = readFileSync) {
+  if (!Number.isSafeInteger(value?.pid) || value.pid < 2 || typeof value.identity !== "string")
+    throw new Error("Linux Heavy Rust registration handshake is malformed");
+  const stat = read(`/proc/${value.pid}/stat`, "utf8");
+  const fields = stat
+    .slice(stat.lastIndexOf(")") + 2)
+    .trim()
+    .split(/\s+/u);
+  if (
+    stat.lastIndexOf(")") < 0 ||
+    !["R", "S", "D", "T", "t", "I", "W"].includes(fields[0]) ||
+    Number(fields[1]) !== reaperPid ||
+    Number(fields[2]) !== value.pid ||
+    readProcessIdentity(value.pid, { platform: "linux", readFileSync: read }) !== value.identity
+  )
+    throw new Error("Linux Heavy Rust registration identity, parent or group does not match");
+  return { pid: value.pid };
+}
+
+async function waitForLinuxSupervisor(
+  registrationPath,
+  child,
+  observation,
+  cancellation,
+  dependencies,
+) {
+  const deadline = Date.now() + 5_000;
+  const inspect =
+    dependencies.readLinuxSupervisor ??
+    ((file, managed) =>
+      inspectLinuxSupervisor(JSON.parse(readFileSync(file, "utf8")), managed.pid));
+  for (;;) {
+    if (cancellation.requested()) throw new Error("Linux Heavy Rust registration cancelled");
+    try {
+      const registered = inspect(registrationPath, child);
+      if (observation.outcome())
+        throw new Error("Linux Heavy Rust reaper exited during registration");
+      return registered;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      if (observation.outcome() || Date.now() >= deadline)
+        throw new Error("Linux Heavy Rust reaper did not publish its gated supervisor identity", {
+          cause: error,
+        });
+    }
+    await new Promise((resolve) => setTimeout(resolve, dependencies.treePollMilliseconds ?? 25));
   }
 }
 
@@ -242,6 +311,8 @@ export async function runRustTests(args, dependencies = {}) {
     throw new Error("Fixture escaped its temporary root");
   const fixtureExecutable = path.join(directory, platform === "win32" ? "probe.exe" : "probe");
   const supervisor = path.join(directory, "portcove-process-tree-supervisor.exe");
+  const linuxReaper = path.join(directory, "portcove-linux-process-tree-reaper");
+  const registrationPath = path.join(directory, "linux-supervisor.json");
   const gatePath = path.join(directory, "registered.gate");
   const statusPath = path.join(directory, "nextest-status.json");
   const cleanupReceiptPath = path.join(directory, "containment-cleanup.json");
@@ -311,23 +382,44 @@ export async function runRustTests(args, dependencies = {}) {
       });
       return await waitForChild(nested).completed;
     }
+    if (platform === "linux") {
+      prepareSupportProduct({
+        product: "linux-process-tree-reaper",
+        source: "scripts/fixtures/linux-process-tree-reaper.rs.txt",
+        output: linuxReaper,
+        rustcArgs: ["--edition=2024", "--crate-name", "portcove_linux_process_tree_reaper"],
+      });
+    }
     cancellation = observeCancellation(dependencies.signalTarget ?? process);
-    const command = platform === "win32" ? supervisor : process.execPath;
+    const command =
+      platform === "win32" ? supervisor : platform === "linux" ? linuxReaper : process.execPath;
     const commandArgs =
       platform === "win32"
         ? [gatePath, mode.executable, ...mode.args]
-        : [
-            path.join(root, "scripts/rust-test-tree-supervisor.mjs"),
-            gatePath,
-            statusPath,
-            cleanupReceiptPath,
-            mode.executable,
-            ...mode.args,
-          ];
+        : platform === "linux"
+          ? [
+              gatePath,
+              statusPath,
+              cleanupReceiptPath,
+              registrationPath,
+              readProcessIdentity(process.pid),
+              process.execPath,
+              path.join(root, "scripts/rust-test-tree-supervisor.mjs"),
+              mode.executable,
+              ...mode.args,
+            ]
+          : [
+              path.join(root, "scripts/rust-test-tree-supervisor.mjs"),
+              gatePath,
+              statusPath,
+              cleanupReceiptPath,
+              mode.executable,
+              ...mode.args,
+            ];
     const tested = start(command, commandArgs, {
       cwd: root,
-      detached: platform !== "win32",
-      stdio: "inherit",
+      detached: platform !== "win32" && platform !== "linux",
+      stdio: platform === "linux" ? ["pipe", "inherit", "inherit"] : "inherit",
       windowsHide: true,
       env: {
         ...environment,
@@ -342,8 +434,15 @@ export async function runRustTests(args, dependencies = {}) {
       cleanupAttempted = true;
       try {
         await closeChildTree(tested, observation, dependencies, force);
-        if (platform !== "win32" && gateOpened)
+        if (platform === "linux" || (platform !== "win32" && gateOpened))
           await waitForUnixCleanupReceipt(cleanupReceiptPath, dependencies);
+        if (
+          platform === "linux" &&
+          (observation.outcome()?.error || observation.outcome()?.code !== 0)
+        )
+          throw new Error(
+            "Linux Heavy Rust reaper failed after cleanup; retaining the shared lock",
+          );
       } catch (error) {
         releaseLock = false;
         throw error;
@@ -351,7 +450,17 @@ export async function runRustTests(args, dependencies = {}) {
     };
     let registered;
     try {
-      registered = await lock.registerChild(tested, {
+      const registrationChild =
+        platform === "linux"
+          ? await waitForLinuxSupervisor(
+              registrationPath,
+              tested,
+              observation,
+              cancellation,
+              dependencies,
+            )
+          : tested;
+      registered = await lock.registerChild(registrationChild, {
         containment: platform === "win32" ? "windows-job" : "unix-watchdog",
         cleanupReceipt: platform === "win32" ? undefined : cleanupReceiptPath,
       });
@@ -360,10 +469,12 @@ export async function runRustTests(args, dependencies = {}) {
         await proveQuiescence(true);
         return cancellationExitCode(cancellation.requested());
       }
+      if (platform === "linux") releaseLock = false;
       const finished = observation.outcome();
       if (finished?.error) throw finished.error;
       if (finished && Object.hasOwn(finished, "code")) {
         await proveQuiescence(false);
+        if (platform === "linux") throw error;
         return finished.code;
       }
       await proveQuiescence(true);
@@ -372,6 +483,10 @@ export async function runRustTests(args, dependencies = {}) {
     if (registered === null) {
       const status = await observation.completed;
       await proveQuiescence(false);
+      if (platform === "linux") {
+        releaseLock = false;
+        throw new Error("Linux Heavy Rust supervisor exited before registered payload admission");
+      }
       return cancellation.requested() ? cancellationExitCode(cancellation.requested()) : status;
     }
     if (cancellation.requested()) {
@@ -393,7 +508,8 @@ export async function runRustTests(args, dependencies = {}) {
         await proveQuiescence(true);
         return cancellationExitCode(first.signal);
       }
-      if (platform === "win32") await proveQuiescence(false);
+      if (platform === "linux") await proveQuiescence(!observation.outcome());
+      else if (platform === "win32") await proveQuiescence(false);
       else if (!observation.outcome()) await proveQuiescence(true);
       else await waitForUnixCleanupReceipt(cleanupReceiptPath, dependencies);
       return cancellation.requested()
@@ -401,7 +517,7 @@ export async function runRustTests(args, dependencies = {}) {
         : first.status;
     } catch (error) {
       if (!cleanupAttempted) {
-        if (platform !== "win32" && gateOpened && observation.outcome()) {
+        if (platform !== "linux" && platform !== "win32" && gateOpened && observation.outcome()) {
           try {
             await waitForUnixCleanupReceipt(cleanupReceiptPath, dependencies);
           } catch (cleanupError) {
@@ -417,7 +533,7 @@ export async function runRustTests(args, dependencies = {}) {
   } finally {
     cancellation?.dispose();
     if (lock && releaseLock) await lock.release();
-    if (!retained) rmSync(directory, { recursive: true, force: true });
+    if (!retained && releaseLock) rmSync(directory, { recursive: true, force: true });
   }
 }
 
