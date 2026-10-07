@@ -180,6 +180,14 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
             server.json(serde_json::json!({"id":repository_id,"archived":false}));
             server.json(release.clone());
         };
+        let user = library.user_dir(ID);
+        if version == "v2" {
+            fs::create_dir_all(user.join("saves")).unwrap();
+            fs::create_dir_all(user.join("config")).unwrap();
+            fs::write(user.join("saves/progress.bin"), b"owned retained progress").unwrap();
+            fs::write(user.join("config/settings.json"), b"{\"owned\":true}").unwrap();
+        }
+        let user_before = crate::library_transfer::reviewed_tree(&user).unwrap();
         let requests_before = server.requests.lock().unwrap().len();
         let before_selection = library.definition_selection_status().unwrap();
         let before_records = library.status(ID, ReleaseChannel::Stable).unwrap();
@@ -235,6 +243,11 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
             false,
         );
         assert_eq!(refused["ok"], false);
+        assert_eq!(refused["error"]["code"], "conflict");
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&user).unwrap(),
+            user_before
+        );
         assert_eq!(
             serde_json::to_value(library.status(ID, ReleaseChannel::Stable).unwrap()).unwrap(),
             serde_json::to_value(&before).unwrap()
@@ -251,6 +264,7 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
             } else {
                 server.bytes(&corrupt);
             }
+            let invocation_started = time::OffsetDateTime::now_utc().unix_timestamp();
             let refused = cli.invoke_result(
                 library,
                 &[
@@ -261,9 +275,51 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
                 false,
             );
             assert_eq!(refused["ok"], false);
+            if redirect {
+                assert_eq!(refused["error"]["code"], "network");
+            } else {
+                assert_eq!(refused["error"]["code"], "verification");
+                assert_eq!(
+                    refused["error"]["details"]["expected"],
+                    expected_release["asset"]["sha256"]
+                );
+                assert_eq!(
+                    refused["error"]["details"]["actual"],
+                    hex::encode(Sha256::digest(&corrupt))
+                );
+            }
+            let mut after = library.status(ID, ReleaseChannel::Stable).unwrap();
+            if version == "v2" {
+                // Canonical reviewed updates record the truthful check before
+                // acquisition. Validate it independently; preserve every other
+                // status field exactly through either download refusal.
+                let snapshot = after.last_update_check.as_ref().unwrap();
+                assert!(snapshot.checked_at >= invocation_started);
+                assert!(snapshot.checked_at <= time::OffsetDateTime::now_utc().unix_timestamp());
+                let active = before.active.as_ref().unwrap();
+                let expected_check = crate::UpdateCheck {
+                    port_id: ID.into(),
+                    channel: before.channel,
+                    installed_version: Some(active.version.clone()),
+                    installed_artifact: Some(active.artifact.clone()),
+                    installed_runtime: active.runtime.clone(),
+                    required_runtime: None,
+                    update_available: true,
+                    release: serde_json::from_value(expected_release.clone()).unwrap(),
+                };
+                assert_eq!(
+                    serde_json::to_value(&snapshot.check).unwrap(),
+                    serde_json::to_value(expected_check).unwrap()
+                );
+                after.last_update_check = before.last_update_check.clone();
+            }
             assert_eq!(
-                serde_json::to_value(library.status(ID, ReleaseChannel::Stable).unwrap()).unwrap(),
+                serde_json::to_value(after).unwrap(),
                 serde_json::to_value(&before).unwrap()
+            );
+            assert_eq!(
+                crate::library_transfer::reviewed_tree(&user).unwrap(),
+                user_before
             );
             assert_eq!(
                 serde_json::to_value(library.definition_selection_status().unwrap()).unwrap(),
@@ -303,9 +359,14 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
         );
         assert_eq!(installed.artifact.size, expected_release["asset"]["size"]);
         assert!(server.responses.lock().unwrap().is_empty());
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&user).unwrap(),
+            user_before
+        );
         acquisitions.push(
             serde_json::json!({"version":version, "plan_sha256":fingerprint,
             "reviewed_release": expected_release, "installed":installed,
+            "retained_user_tree":user_before,
             "stale_plan_refused":true, "digest_mismatch_refused":true,
             "outside_origin_redirect_refused":true, "nonloopback_origin_refused":true,
             "mismatched_library_refused":true, "retained_state_preserved_after_refusals":true}),
