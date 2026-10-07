@@ -431,7 +431,7 @@ function DetailBody({
         openLibraryStorage={openLibraryStorage}
       />
       <RequirementsGroup
-        key={port.id}
+        key={`${port.id}:${libraryGeneration}`}
         port={port}
         status={status}
         installed={installed}
@@ -664,6 +664,7 @@ function RequirementsGroup({
     (managedPreparation && pendingSetup);
   const [initiallyOpen] = useState(needsAttention);
   const disclosure = useRef<HTMLDetailsElement>(null);
+  const preparationFocus = useRef<HTMLElement>(null);
   useEffect(() => {
     if (needsAttention && disclosure.current) disclosure.current.open = true;
   }, [needsAttention]);
@@ -675,7 +676,11 @@ function RequirementsGroup({
         className="requirements-disclosure border-y border-pc-border"
         open={initiallyOpen}
       >
-        <summary data-focusable className={`requirements-summary ${disclosureSummaryStyle}`}>
+        <summary
+          ref={preparationFocus}
+          data-focusable
+          className={`requirements-summary ${disclosureSummaryStyle}`}
+        >
           Game-file requirements and setup
           <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>File controls</span>
           <Icon glyph={ChevronDown} />
@@ -691,6 +696,7 @@ function RequirementsGroup({
               generation={libraryGeneration}
               disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
               run={prepare}
+              focusFallback={() => preparationFocus.current}
             />
           )}
         </div>

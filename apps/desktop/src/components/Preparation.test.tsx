@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../api";
@@ -88,6 +88,147 @@ async function pressEscape() {
   });
 }
 
+it.each(["remove", "replace"])(
+  "restores selected requirements focus when successful preparation %s changes its opener",
+  async (completion) => {
+    vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+    function SelectedRequirements() {
+      const [pendingSetup, setPendingSetup] = useState(true);
+      const [installId, setInstallId] = useState("original");
+      const summary = useRef<HTMLElement>(null);
+      return (
+        <>
+          <button>Settings</button>
+          <section data-detail-workspace>
+            <details open>
+              <summary ref={summary}>Game-file requirements and setup</summary>
+              {pendingSetup && (
+                <PreparationControl
+                  key={installId}
+                  portId="sample"
+                  generation={7}
+                  disabled={false}
+                  focusFallback={() => summary.current}
+                  run={async () => {
+                    if (completion === "remove") setPendingSetup(false);
+                    else setInstallId("prepared");
+                    return plan.inputs.install;
+                  }}
+                />
+              )}
+            </details>
+            <button>Play</button>
+          </section>
+        </>
+      );
+    }
+    await act(async () => root.render(<SelectedRequirements />));
+    container.querySelector("button")?.focus();
+    await click("Review game preparation");
+    await click("Prepare game data");
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    if (completion === "remove")
+      expect(document.body.textContent).not.toContain("Review game preparation");
+    expect(document.activeElement).toBe(container.querySelector("summary"));
+  },
+);
+
+it("does not restore stale preparation focus after its owning workspace disappears", async () => {
+  vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+  function SelectedRequirements() {
+    const summary = useRef<HTMLElement>(null);
+    return (
+      <section>
+        <details open>
+          <summary ref={summary}>Game-file requirements and setup</summary>
+          <PreparationControl
+            portId="sample"
+            generation={7}
+            disabled={false}
+            run={vi.fn()}
+            focusFallback={() => summary.current}
+          />
+        </details>
+      </section>
+    );
+  }
+  await act(async () => root.render(<SelectedRequirements />));
+  await click("Review game preparation");
+  await act(async () => root.render(<button>Other selected game</button>));
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(document.activeElement).toBe(document.body);
+});
+
+it.each(["other:7", "sample:8"])(
+  "preserves deliberate navigation focus after the requirements owner changes to %s",
+  async (nextOwner) => {
+    vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+    function RequirementsOwner({ owner }: { owner: string }) {
+      const summary = useRef<HTMLElement>(null);
+      return (
+        <details open>
+          <summary ref={summary}>Game-file requirements and setup</summary>
+          <PreparationControl
+            key={owner}
+            portId={owner.split(":")[0]}
+            generation={Number(owner.split(":")[1])}
+            disabled={false}
+            run={vi.fn()}
+            focusFallback={() => summary.current}
+          />
+        </details>
+      );
+    }
+    function SelectedRequirements({ owner }: { owner: string }) {
+      return (
+        <>
+          <button key={`navigation:${owner}`} autoFocus={owner !== "sample:7"}>
+            Choose another game
+          </button>
+          <RequirementsOwner key={owner} owner={owner} />
+        </>
+      );
+    }
+    await act(async () => root.render(<SelectedRequirements owner="sample:7" />));
+    await click("Review game preparation");
+    await act(async () => {
+      root.render(<SelectedRequirements owner={nextOwner} />);
+    });
+    const navigation = container.querySelector("button");
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement?.outerHTML).toContain("Choose another game");
+    expect(document.activeElement).toBe(navigation);
+  },
+);
+
+it("uses the selected requirements fallback when the surviving opener becomes disabled", async () => {
+  vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+  function SelectedRequirements() {
+    const [disabled, setDisabled] = useState(false);
+    const summary = useRef<HTMLElement>(null);
+    return (
+      <details open>
+        <summary ref={summary}>Game-file requirements and setup</summary>
+        <PreparationControl
+          portId="sample"
+          generation={7}
+          disabled={disabled}
+          focusFallback={() => summary.current}
+          run={async () => {
+            setDisabled(true);
+            return undefined;
+          }}
+        />
+      </details>
+    );
+  }
+  await act(async () => root.render(<SelectedRequirements />));
+  await click("Review game preparation");
+  await click("Prepare game data");
+  expect(container.querySelector("button")?.disabled).toBe(true);
+  expect(document.activeElement).toBe(container.querySelector("summary"));
+});
+
 it("reviews without executing and binds explicit confirmation to the returned plan", async () => {
   const review = vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
   const run = vi.fn().mockResolvedValue(plan.inputs.install);
@@ -156,10 +297,33 @@ it("requires a fresh review after an execution error and reports no success", as
   await click("Prepare game data");
   expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("Inputs changed");
   expect(document.body.textContent).not.toContain("Game data is prepared");
+  expect(document.activeElement?.textContent).toBe("Review game preparation");
   expect([...container.querySelectorAll("button")].map((button) => button.textContent)).toContain(
     "Review game preparation",
   );
 });
+
+it.each(["cancelled", "refused"])(
+  "restores the available opener after preparation is %s",
+  async (outcome) => {
+    vi.spyOn(desktopApi, "planPreparation").mockResolvedValue(plan);
+    const run =
+      outcome === "cancelled"
+        ? vi.fn().mockRejectedValue({ code: "cancelled" })
+        : vi.fn().mockResolvedValue(undefined);
+    await act(async () =>
+      root.render(<PreparationControl portId="sample" generation={7} disabled={false} run={run} />),
+    );
+    await click("Review game preparation");
+    await click("Prepare game data");
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.activeElement?.textContent).toBe("Review game preparation");
+    expect(document.body.textContent).not.toContain("Game data is prepared");
+    expect(document.body.textContent).toContain(
+      outcome === "cancelled" ? "Setup cancelled" : "Preparation did not complete",
+    );
+  },
+);
 
 it("does not carry a late review across a library or port switch", async () => {
   let complete!: (value: PreparationPlan) => void;
