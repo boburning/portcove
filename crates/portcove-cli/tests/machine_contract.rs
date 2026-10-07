@@ -1274,6 +1274,77 @@ fn library_move_requires_review_and_redirects_later_cli_processes() {
     assert_eq!(json_stdout(&resumed)["command"], "library.resume_move");
 }
 
+#[test]
+fn human_library_move_review_and_completion_keep_machine_identity() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("original library");
+    let destination = temporary.path().join("new library");
+    let identity = json_stdout(&portcove(&source, &["--json", "library", "identity"]));
+    let args = ["library", "move", destination.to_str().unwrap()];
+    let preview = portcove(&source, &args);
+    let text = human_stdout(&preview);
+    assert!(text.starts_with("Library move review\n"));
+    assert!(text.contains(&format!("Original library: {}", source.display())));
+    assert!(text.contains(&format!("New destination: {}", destination.display())));
+    assert!(text.contains("Content to copy:"));
+    assert!(text.contains("Working space required:"));
+    assert!(text.contains("Original retained as a recovery copy: Yes"));
+    assert!(text.contains("Review only; no move has been applied."));
+    assert!(text.contains("Original game-file references stay at their existing paths."));
+    assert!(!text.contains("Schema version:"));
+    assert!(!destination.exists());
+    let plan = json_stdout(&portcove(&source, &["--json", args[0], args[1], args[2]]));
+    let digest = plan["data"]["plan_sha256"].as_str().unwrap();
+    assert_eq!(digest.len(), 64);
+    assert!(text.contains(&format!("Review SHA-256: {digest}")));
+    let stream = json_stdout(&portcove(&source, &["--jsonl", args[0], args[1], args[2]]));
+    assert_eq!(stream["type"], "result");
+    assert_eq!(stream["data"]["plan_sha256"], digest);
+    let stale = portcove(
+        &source,
+        &[
+            args[0],
+            args[1],
+            args[2],
+            "--apply",
+            "--expected-plan",
+            &"0".repeat(64),
+        ],
+    );
+    assert_eq!(stale.status.code(), Some(14));
+    assert!(!destination.exists());
+    let moved = portcove(
+        &source,
+        &[
+            args[0],
+            args[1],
+            args[2],
+            "--apply",
+            "--expected-plan",
+            digest,
+        ],
+    );
+    let text = human_stdout(&moved);
+    assert!(text.starts_with("Library move completed\n"));
+    assert!(text.contains(&format!("Active library: {}", destination.display())));
+    assert!(text.contains("Original retained: Yes"));
+    let after = json_stdout(&portcove(&destination, &["--json", "library", "identity"]));
+    assert_eq!(identity["data"]["id"], after["data"]["id"]);
+    let resumed = portcove(&source, &["library", "resume-move"]);
+    assert!(human_stdout(&resumed).starts_with("Library move completed\n"));
+    let aborted = portcove(&source, &["library", "abort-move"]);
+    assert_eq!(aborted.status.code(), Some(14));
+    let machine_abort = portcove(&source, &["--json", "library", "abort-move"]);
+    assert_eq!(aborted.status.code(), machine_abort.status.code());
+    assert!(!aborted.stderr.is_empty());
+    assert!(aborted.stdout.is_empty());
+    assert_eq!(json_stdout(&machine_abort)["ok"], false);
+    assert_eq!(
+        after,
+        json_stdout(&portcove(&destination, &["--json", "library", "identity"]))
+    );
+}
+
 struct CliImportFixture {
     _temporary: tempfile::TempDir,
     destination: std::path::PathBuf,
