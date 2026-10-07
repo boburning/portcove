@@ -116,7 +116,7 @@ function bootstrapFixture(t) {
     cpSync(path.join(root, name), destination);
   }
   const log = path.join(directory, "calls.jsonl");
-  const marker = path.join(project, "work/tool-state.json");
+  const marker = path.join(project, "work/tool-bin/tool-state.json");
   mkdirSync(path.dirname(marker), { recursive: true });
   writeFileSync(marker, "verified prior state\n");
   const stub = path.join(directory, "stub.mjs");
@@ -133,7 +133,7 @@ if(command==="node") {
 }
 log([command,...args]);
 const manifest=JSON.parse(readFileSync(".github/quality-tools.json","utf8"));
-if(command==="corepack") process.exit(0);
+if(command==="corepack") process.exit(process.cwd()===process.env.PCV_TEST_PROJECT?0:94);
 if(command==="rustc") {if(process.env.PCV_TEST_MISSING_RUST)process.exit(1);console.log("rustc "+manifest.rust.channel+" (fixture)");process.exit(0)}
 if(command==="cargo") {console.log(args[0]==="nextest"?"cargo-nextest "+manifest.tools.find(t=>t.id==="cargo-nextest").version:"fixture component");process.exit(0)}
 process.exit(73);
@@ -150,16 +150,19 @@ process.exit(73);
   }
   return {
     project,
+    caller: directory,
     marker,
-    run(command, args, extra = {}) {
+    run(command, args, extra = {}, cwd = project) {
       return spawnSync(command, args, {
-        cwd: project,
+        cwd,
         encoding: "utf8",
         timeout: 15000,
         env: {
           ...process.env,
           PATH: bin + path.delimiter + process.env.PATH,
           PCV_TEST_LOG: log,
+          PCV_TEST_PROJECT: project,
+          PORTCOVE_SHARED_TOOL_CACHE: path.join(directory, "cache/portcove"),
           XDG_CACHE_HOME: path.join(directory, "cache"),
           LOCALAPPDATA: path.join(directory, "cache"),
           ...extra,
@@ -227,19 +230,41 @@ test(
   { skip: spawnSync("pwsh", ["--version"], { timeout: 5000 }).status !== 0 },
   (t) => {
     const fixture = bootstrapFixture(t);
-    const result = fixture.run("pwsh", [
-      "-NoProfile",
-      "-File",
-      "scripts/bootstrap-quality-tools.ps1",
-      "-Profile",
-      "frontend",
-    ]);
+    const result = fixture.run(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-File",
+        path.join(fixture.project, "scripts/bootstrap-quality-tools.ps1"),
+        "-Profile",
+        "frontend",
+      ],
+      {},
+      fixture.caller,
+    );
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
     assert.deepEqual(
       fixture.calls().map((call) => call[0]),
       ["corepack", "doctor"],
     );
+    assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
+  },
+);
+
+test(
+  "frontend pin drift fails before dependency acquisition and preserves previous state",
+  { skip: process.platform === "win32" },
+  (t) => {
+    const fixture = bootstrapFixture(t);
+    writeFileSync(path.join(fixture.project, ".node-version"), "0.0.1\n");
+    const result = fixture.run("bash", [
+      "scripts/bootstrap-quality-tools.sh",
+      "--profile",
+      "frontend",
+    ]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Node 0\.0\.1 is required/);
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
   },
 );

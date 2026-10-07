@@ -327,13 +327,28 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
     options.capabilities ?? plan.flatMap((entry) => selectedPrerequisites(entry, platform)),
   );
   if (platform === "win32" && (ids.has("tauri-driver") || ids.has("native-driver"))) {
-    const drivers = (options.desktopDrivers ?? cachedDesktopDrivers)({ paths: cachePaths });
-    definitions["tauri-driver"] = drivers
-      ? { id: "tauri-driver", command: [drivers.driver, "--help"] }
-      : null;
-    definitions["native-driver"] = drivers
-      ? { id: "native-driver", command: [drivers.nativeDriver, "--version"] }
-      : null;
+    const state = (options.readToolState ?? readToolState)({ paths: cachePaths });
+    const drivers = (options.desktopDrivers ?? cachedDesktopDrivers)({ paths: cachePaths, state });
+    const pinned =
+      state?.desktop?.tauri_driver_version === cachePaths.pins.bootstrap.desktop.tauri_driver;
+    definitions["tauri-driver"] =
+      drivers && pinned
+        ? {
+            id: "tauri-driver",
+            command: [drivers.driver, "--help"],
+            version: cachePaths.pins.bootstrap.desktop.tauri_driver,
+            version_source: "installed-package",
+            installed_version: state.desktop.tauri_driver_version,
+          }
+        : null;
+    definitions["native-driver"] =
+      drivers && pinned
+        ? {
+            id: "native-driver",
+            command: [drivers.nativeDriver, "--version"],
+            version: state.desktop.webview2_version,
+          }
+        : null;
   }
   if (platform === "darwin" && ids.has("native-driver")) definitions["native-driver"] = null;
   const results = [];
@@ -354,11 +369,14 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
     else if (id === "frontend-dependencies")
       results.push({
         id,
-        status:
-          existsSync(path.join(root, "node_modules")) &&
-          existsSync(path.join(root, "apps/desktop/node_modules"))
-            ? "ok"
-            : "unavailable",
+        status: (
+          options.frontendDependenciesAvailable ??
+          (() =>
+            existsSync(path.join(root, "node_modules")) &&
+            existsSync(path.join(root, "apps/desktop/node_modules")))
+        )()
+          ? "ok"
+          : "unavailable",
         remediation: "pnpm install --frozen-lockfile",
       });
     else if (id === "aqua-state")
@@ -370,7 +388,14 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
             : "unavailable",
         remediation: "./scripts/bootstrap-quality-tools.ps1",
       });
-    else if (id === "native-desktop-build") {
+    else if (["tauri-driver", "native-driver"].includes(id) && platform !== "win32") {
+      results.push({
+        id,
+        status: "unverified",
+        remediation:
+          "use the owning approved native platform route to establish driver pin and installed identity; arbitrary PATH help is not native readiness",
+      });
+    } else if (id === "native-desktop-build") {
       if (platform === "linux")
         results.push(
           probeTool(
@@ -384,6 +409,25 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
             { environment },
           ),
         );
+      else if (platform === "win32" && options.profile === "native-desktop")
+        results.push({
+          ...probeTool(
+            {
+              id,
+              command: [
+                "pwsh",
+                "-NoProfile",
+                "-Command",
+                "$locator=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'; if (!(Test-Path -LiteralPath $locator)) { exit 1 }; $compiler=& $locator -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe' | Select-Object -First 1; if (!$compiler -or !(Test-Path -LiteralPath $compiler) -or !(Test-Path -LiteralPath (Join-Path (Split-Path $compiler) 'link.exe'))) { exit 1 }; Write-Output 'MSVC compiler and linker are installed'",
+              ],
+              remediation: "establish the existing Visual Studio C++ build prerequisites",
+            },
+            run,
+            { environment },
+          ),
+          interpretation:
+            "Installed compiler/linker presence only; Cargo selection and native execution remain separate evidence",
+        });
       else
         results.push({
           id,
@@ -500,6 +544,7 @@ export async function collectProfileDoctor(profile, options = {}) {
   const plan = await developmentCapabilityPlan(profile, { platform: options.platform });
   const tools = await collectSelectedPrerequisites([], {
     ...options,
+    profile,
     capabilities: plan.capabilities,
   });
   let storage;

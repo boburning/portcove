@@ -75,12 +75,12 @@ acquires tools or dependencies. Existing `standard` and `desktop` defaults retai
 their legacy behavior. Profile readiness is prerequisite evidence; it does not
 prove a build, test run, fresh execution task, cold acquisition or native session.
 
-| Profile          | Required capabilities                                                                                                                                                                      |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `frontend`       | Pinned Node and pnpm, installed root and desktop frontend dependencies.                                                                                                                    |
-| `core`           | Pinned Rust/Cargo, rustfmt and Clippy components, pinned cargo-nextest. Direct Cargo development does not require Node, frontend dependencies or Tauri.                                    |
-| `daily`          | Frontend and Core, Git, PowerShell, pinned Aqua and its verified Ruff/ShellCheck/actionlint payloads, all required Cargo tools from the quality manifest, and PSScriptAnalyzer on Windows. |
-| `native-desktop` | Daily plus platform build prerequisites, tauri-driver and the platform driver; Linux also requires Xvfb. Missing or unverified platform capabilities fail this requested profile.          |
+| Profile          | Required capabilities                                                                                                                                                                                                                                                                                                                  |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend`       | Pinned Node and pnpm, installed root and desktop frontend dependencies.                                                                                                                                                                                                                                                                |
+| `core`           | Pinned Rust/Cargo, rustfmt and Clippy components, pinned cargo-nextest. Direct Cargo development does not require Node, frontend dependencies or Tauri.                                                                                                                                                                                |
+| `daily`          | Frontend and Core, Git, PowerShell, pinned Aqua and its verified Ruff/ShellCheck/actionlint payloads, all required Cargo tools from the quality manifest, and PSScriptAnalyzer on Windows.                                                                                                                                             |
+| `native-desktop` | Daily plus platform build prerequisites, tauri-driver and the platform driver; Linux also requires Xvfb. Missing or unverified platform capabilities fail this requested profile. Windows observes installed compiler/linker paths; this does not prove Cargo selection. Linux/macOS driver identity remains unverified by this slice. |
 
 Explicitly provision only the requested supported profile with
 `./scripts/bootstrap-quality-tools.sh --profile frontend|core|daily` on Linux/macOS,

@@ -9,7 +9,7 @@ export const developmentProfiles = Object.freeze(["frontend", "core", "daily", "
 // Capability names describe requested work, never successful execution evidence.
 export function profileCapabilities(
   profile,
-  { platform = process.platform, requiredTools = [] } = {},
+  { platform = process.platform, requiredTools = null } = {},
 ) {
   if (!developmentProfiles.includes(profile))
     throw new Error(`unknown development profile: ${profile}`);
@@ -17,6 +17,8 @@ export function profileCapabilities(
   const core = ["rustc", "cargo", "rustfmt-component", "clippy-component", "cargo-nextest"];
   if (profile === "frontend") return frontend;
   if (profile === "core") return core;
+  if (!Array.isArray(requiredTools) || requiredTools.length === 0)
+    throw new Error("daily capability selection requires the current required-tool inventory");
   const daily = [
     ...new Set([
       ...frontend,

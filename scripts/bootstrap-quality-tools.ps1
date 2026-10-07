@@ -19,6 +19,8 @@ variables. -Desktop also provisions tauri-driver and a matching EdgeDriver.
 
 $runningOnWindows = $env:OS -eq "Windows_NT"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+Push-Location -LiteralPath $projectRoot
+try {
 $qualityManifest = Get-Content -LiteralPath (Join-Path $projectRoot ".github\quality-tools.json") -Raw | ConvertFrom-Json
 $bootstrapManifest = Get-Content -LiteralPath (Join-Path $projectRoot ".config\tool-bootstrap.json") -Raw | ConvertFrom-Json
 $requiredAqua = (Get-Content -LiteralPath (Join-Path $projectRoot ".aqua-version") -Raw).Trim()
@@ -535,3 +537,6 @@ finally {
     if ($mutexHeld) { $cacheMutex.ReleaseMutex() }
     $cacheMutex.Dispose()
 }
+
+}
+finally { Pop-Location }
