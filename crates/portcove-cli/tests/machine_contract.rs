@@ -1281,11 +1281,18 @@ fn human_library_move_review_and_completion_keep_machine_identity() {
     let destination = temporary.path().join("new library");
     let identity = json_stdout(&portcove(&source, &["--json", "library", "identity"]));
     let args = ["library", "move", destination.to_str().unwrap()];
+    let plan = json_stdout(&portcove(&source, &["--json", args[0], args[1], args[2]]));
     let preview = portcove(&source, &args);
     let text = human_stdout(&preview);
     assert!(text.starts_with("Library move review\n"));
-    assert!(text.contains(&format!("Original library: {}", source.display())));
-    assert!(text.contains(&format!("New destination: {}", destination.display())));
+    assert!(text.contains(&format!(
+        "Original library: {}",
+        plan["data"]["source_root"].as_str().unwrap()
+    )));
+    assert!(text.contains(&format!(
+        "New destination: {}",
+        plan["data"]["destination_root"].as_str().unwrap()
+    )));
     assert!(text.contains("Content to copy:"));
     assert!(text.contains("Working space required:"));
     assert!(text.contains("Original retained as a recovery copy: Yes"));
@@ -1293,7 +1300,6 @@ fn human_library_move_review_and_completion_keep_machine_identity() {
     assert!(text.contains("Original game-file references stay at their existing paths."));
     assert!(!text.contains("Schema version:"));
     assert!(!destination.exists());
-    let plan = json_stdout(&portcove(&source, &["--json", args[0], args[1], args[2]]));
     let digest = plan["data"]["plan_sha256"].as_str().unwrap();
     assert_eq!(digest.len(), 64);
     assert!(text.contains(&format!("Review SHA-256: {digest}")));
@@ -1326,7 +1332,11 @@ fn human_library_move_review_and_completion_keep_machine_identity() {
     );
     let text = human_stdout(&moved);
     assert!(text.starts_with("Library move completed\n"));
-    assert!(text.contains(&format!("Active library: {}", destination.display())));
+    let result = json_stdout(&portcove(&source, &["--json", "library", "resume-move"]));
+    assert!(text.contains(&format!(
+        "Active library: {}",
+        result["data"]["active_root"].as_str().unwrap()
+    )));
     assert!(text.contains("Original retained: Yes"));
     let after = json_stdout(&portcove(&destination, &["--json", "library", "identity"]));
     assert_eq!(identity["data"]["id"], after["data"]["id"]);
