@@ -2615,7 +2615,8 @@ describe("desktop components", () => {
     expect(cards).toContain("Sample Port");
     expect(cards).toContain("Catalog order");
     expect(cards).toContain("Sort");
-    expect(cards).toContain("Available");
+    expect(cards).toContain("Setup status unknown");
+    expect(cards).toContain("Installation status unknown");
     expect(cards).toContain("Windows");
     expect(cards).toContain(port.summary);
     expect(cards).toContain(">Windows</span>");
