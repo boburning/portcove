@@ -1161,6 +1161,8 @@ usage:
   node scripts/roadmap.mjs next [--json]
   node scripts/roadmap.mjs context --issue <number> --runner <identity> [--coordination-pr <number>] [--consumed-file <path> | --consumed-comment <url>] [--reservation-comment <url>] [--json]
   node scripts/roadmap.mjs acknowledge --context-file <path> --runner <actual-instance> --action <actual-action> --evidence <reference> [--json]
+  node scripts/roadmap.mjs handoff-offer --spec-file <path> [--json]
+  node scripts/roadmap.mjs handoff-return --offer-file <path> --runner <actual-instance> --disposition <accepted|declined|pending> --evidence <exact-reference> [--json]
   node scripts/roadmap.mjs history --issue <number> [--coordination-pr <number>] [--json]
   node scripts/roadmap.mjs rename-commitment [--apply]
   node scripts/roadmap.mjs readiness --release <release>
@@ -1314,7 +1316,11 @@ function operationalReference(value, repository) {
   return (
     new RegExp(
       `^https://github\\.com/${escaped}/(?:issues|pull)/[1-9][0-9]*(?:#issuecomment-[1-9][0-9]*)?$`,
-    ).test(value) || /^(?:PR|issue)[1-9][0-9]*#issuecomment-[1-9][0-9]*$/.test(value)
+    ).test(value) ||
+    new RegExp(`^https://github\\.com/${escaped}/pull/[1-9][0-9]*#body-sha256-[a-f0-9]{64}$`).test(
+      value,
+    ) ||
+    /^(?:PR|issue)[1-9][0-9]*#issuecomment-[1-9][0-9]*$/.test(value)
   );
 }
 
@@ -1378,6 +1384,26 @@ export function validateOperationalConfig(config) {
       "operational board configuration is unavailable; no history or write fallback is permitted",
     );
   return board;
+}
+
+function validOperationalReleaseReference(reference, repository, issue) {
+  if (typeof reference !== "string") return false;
+  const issuePrefixes = [
+    `issue${issue}#issuecomment-`,
+    `https://github.com/${repository}/issues/${issue}#issuecomment-`,
+  ];
+  if (
+    issuePrefixes.some(
+      (prefix) =>
+        reference.startsWith(prefix) && /^[1-9][0-9]*$/.test(reference.slice(prefix.length)),
+    )
+  )
+    return true;
+  const prefix = `https://github.com/${repository}/pull/`;
+  return (
+    reference.startsWith(prefix) &&
+    /^[1-9][0-9]*#body-sha256-[a-f0-9]{64}$/.test(reference.slice(prefix.length))
+  );
 }
 
 export function parseOperationalBoard(body, config) {
@@ -1451,14 +1477,10 @@ export function parseOperationalBoard(body, config) {
       (assignment.execution_slot === "completed"
         ? assignment.reserved_scope !== null ||
           assignment.intentional_pause !== false ||
-          ![
-            `issue${assignment.owning_issue}#issuecomment-`,
-            `https://github.com/${config.repository}/issues/${assignment.owning_issue}#issuecomment-`,
-          ].some(
-            (prefix) =>
-              typeof assignment.released_reference === "string" &&
-              assignment.released_reference.startsWith(prefix) &&
-              /^[1-9][0-9]*$/.test(assignment.released_reference.slice(prefix.length)),
+          !validOperationalReleaseReference(
+            assignment.released_reference,
+            config.repository,
+            assignment.owning_issue,
           )
         : typeof assignment.reserved_scope !== "string" ||
           !assignment.reserved_scope.trim() ||
@@ -2095,6 +2117,519 @@ export function prepareOperationalConsumption({
     },
     authority_limit:
       "Send this actual worker response through the connected native route. Dot alone verifies it and edits the fixed checkpoint; no owning-task or archive comment fallback.",
+  };
+}
+
+// Offer/return packets are bounded claims, never grants or invocation authentication.
+function operationalOfferBinding(snapshot, runner, assignmentId = null) {
+  if (!["observed", "staged"].includes(snapshot.status))
+    throw new Error("offer state is unavailable; preserve accepted ownership");
+  const matches = snapshot.board.assignments.filter(
+    (entry) =>
+      entry.runner_instance_id === runner &&
+      (!assignmentId || entry.assignment_id === assignmentId),
+  );
+  if (matches.length !== 1) throw new Error("offer identity does not bind one current assignment");
+  const current = matches[0];
+  return {
+    ...bindOperationalAssignment(snapshot, runner, current.owning_issue),
+    pr_and_source: current.pr_and_source,
+  };
+}
+
+function operationalOfferPacket(config, snapshot, spec) {
+  validateOperationalConfig(config);
+  if (
+    !spec ||
+    !publicIdentity(spec.request_id) ||
+    !publicIdentity(spec.runner_instance_id) ||
+    !publicIdentity(spec.assignment_id) ||
+    !Number.isSafeInteger(spec.generation) ||
+    !Number.isSafeInteger(spec.owning_issue) ||
+    spec.owning_issue < 1 ||
+    !/^[a-f0-9]{40}$/u.test(spec.source ?? "") ||
+    ![spec.scope, spec.outcome].every(
+      (value) => typeof value === "string" && value.trim() && value.length <= 8192,
+    ) ||
+    !operationalReference(spec.evidence, config.repository)
+  )
+    throw new Error("bounded offer request, source, outcome, scope or evidence is malformed");
+  const current = operationalOfferBinding(
+    snapshot,
+    spec.runner_instance_id,
+    spec.current_assignment_id,
+  );
+  if (
+    spec.generation < current.generation ||
+    (spec.generation === current.generation &&
+      (spec.assignment_id !== current.assignment_id ||
+        spec.owning_issue !== current.owning_issue ||
+        spec.scope !== current.reserved_scope))
+  )
+    throw new Error("offer generation or scope conflicts with the accepted assignment");
+  const index = runnerLanes.indexOf(current.lane) + 1;
+  const packet = {
+    board_url: snapshot.observations[0].url,
+    checkpoint_url: snapshot.observations[index].url,
+    coordinator_instance_id: snapshot.board.coordinator_instance_id,
+    current,
+    proposed: Object.fromEntries(
+      [
+        "request_id",
+        "runner_instance_id",
+        "assignment_id",
+        "generation",
+        "owning_issue",
+        "source",
+        "scope",
+        "outcome",
+        "evidence",
+      ].map((key) => [key, spec[key]]),
+    ),
+  };
+  if (Buffer.byteLength(JSON.stringify(packet), "utf8") > coordinationReadLimits.modelBytes)
+    throw new Error("offer packet is oversized; preserve its original scope without truncation");
+  return { ...packet, offer_digest: digest(packet) };
+}
+
+function operationalToken(value) {
+  return Buffer.from(digest(value), "hex").toString("base64url");
+}
+
+function operationalOfferRequest(offer) {
+  return `OFFER-${operationalToken(offer.proposed.request_id)}-${operationalToken(offer.offer_digest)}`;
+}
+
+function verifyCurrentOperationalOffer(config, snapshot, offer) {
+  const rebuilt = operationalOfferPacket(config, snapshot, {
+    ...offer?.proposed,
+    current_assignment_id: offer?.current?.assignment_id,
+  });
+  if (digest(rebuilt) !== digest(offer))
+    throw new Error(
+      "offer source, scope or generation is superseded; preserve the unapplied return",
+    );
+  const request = snapshot.checkpoints[offer.current.lane].outstanding_requests.find(
+    (entry) => entry.request_id === operationalOfferRequest(offer),
+  );
+  if (!request || request.recipient_instance_or_coordinator !== offer.proposed.runner_instance_id)
+    throw new Error(
+      "offer is not preserved in the current fixed checkpoint; return remains pending",
+    );
+  if (
+    request.acknowledgment_state === "not_admitted" ||
+    (request.acknowledgment_state !== "acknowledged" &&
+      request.disposition_reference !== offer.proposed.evidence)
+  )
+    throw new Error(
+      "offer evidence changed or request is not admitted; preserve pending ownership",
+    );
+  if (request.acknowledgment_state === "acknowledged") {
+    const anchors = snapshot.checkpoints[offer.current.lane].outstanding_requests.filter((entry) =>
+      entry.request_id.startsWith(`RETURN-${operationalToken(offer.offer_digest)}-`),
+    );
+    if (
+      anchors.length !== 1 ||
+      anchors[0].acknowledgment_state !== "acknowledged" ||
+      anchors[0].disposition_reference !== request.disposition_reference
+    )
+      throw new Error("acknowledged offer evidence conflicts with its preserved return anchor");
+  }
+  return request;
+}
+
+export function prepareOperationalOffer({ config, snapshot, spec, apply = false }) {
+  if (apply) throw new Error("offer writes are coordinator-only");
+  const offer = operationalOfferPacket(config, snapshot, spec);
+  const lane = offer.current.lane;
+  const checkpoint = snapshot.checkpoints[lane];
+  const prefix = `OFFER-${operationalToken(spec.request_id)}-`;
+  const previous = checkpoint.outstanding_requests.filter((entry) =>
+    entry.request_id.startsWith(prefix),
+  );
+  if (
+    previous.length > 1 ||
+    (previous[0] && previous[0].request_id !== operationalOfferRequest(offer))
+  )
+    throw new Error(
+      "offer changed under the same request; retain or explicitly resolve the original",
+    );
+  if (previous.length)
+    return {
+      status: "quiet",
+      offer,
+      authority_limit: "Existing offer remains a proposal, not assignment admission or invocation.",
+    };
+  const request = {
+    request_id: operationalOfferRequest(offer),
+    recipient_instance_or_coordinator: spec.runner_instance_id,
+    acknowledgment_state: "pending",
+    disposition_reference: spec.evidence,
+  };
+  return {
+    ...prepareOperationalCheckpoint(
+      config,
+      snapshot,
+      lane,
+      { ...checkpoint, outstanding_requests: [...checkpoint.outstanding_requests, request] },
+      snapshot.observations[runnerLanes.indexOf(lane) + 1],
+    ),
+    offer,
+    authority_limit:
+      "Dot alone issues and preserves this offer. It grants no execution scope, replaces no accepted assignment and cannot wake an idle session.",
+  };
+}
+
+function operationalReturnEvidenceReference(reference, repository, issue) {
+  const short = /^(PR|issue)([1-9][0-9]*)#issuecomment-([1-9][0-9]*)$/u.exec(reference ?? "");
+  const url = short
+    ? `https://github.com/${repository}/${short[1] === "PR" ? "pull" : "issues"}/${short[2]}#issuecomment-${short[3]}`
+    : reference;
+  const prefix = `https://github.com/${repository}/`;
+  if (typeof url !== "string" || !url.startsWith(prefix)) return null;
+  const match =
+    /^(issues|pull)\/([1-9][0-9]*)(?:#issuecomment-([1-9][0-9]*)|#body-sha256-([a-f0-9]{64}))$/u.exec(
+      url.slice(prefix.length),
+    );
+  return match && (match[1] === "pull" || (Number(match[2]) === issue && match[3])) ? url : null;
+}
+
+function operationalReturnRecord(offer, disposition, evidence, evidenceObservation = null) {
+  if (!["accepted", "declined", "pending"].includes(disposition))
+    throw new Error("return disposition is unavailable");
+  if (evidenceObservation !== null && !validOperationalEvidenceObservation(evidenceObservation))
+    throw new Error("return evidence observation has unsupported fields or invalid metadata");
+  const record = {
+    offer_digest: offer.offer_digest,
+    ...offer.proposed,
+    disposition,
+    evidence,
+    evidence_observation: evidenceObservation,
+  };
+  if (Buffer.byteLength(JSON.stringify(record), "utf8") > coordinationReadLimits.modelBytes - 84)
+    throw new Error(
+      "return receipt is oversized; preserve its original evidence without truncation",
+    );
+  return { ...record, receipt_digest: digest(record) };
+}
+
+export function prepareOperationalReturn({
+  config,
+  snapshot,
+  offer,
+  runner,
+  source,
+  disposition,
+  evidence,
+  evidenceObservation = null,
+  apply = false,
+}) {
+  if (apply) throw new Error("return writes are coordinator-only");
+  verifyCurrentOperationalOffer(config, snapshot, offer);
+  if (runner !== offer.proposed.runner_instance_id)
+    throw new Error("return identity differs from the offered instance");
+  if (source !== offer.proposed.source) throw new Error("return source differs from the offer");
+  if (!operationalReturnEvidenceReference(evidence, config.repository, offer.proposed.owning_issue))
+    throw new Error("return requires exact owning repository evidence");
+  const receipt = operationalReturnRecord(offer, disposition, evidence, evidenceObservation);
+  return {
+    status: "pending",
+    receipt,
+    authority_limit:
+      "Reported worker response only. Return via an available native route or one exact owning-evidence reference at a genuine safe checkpoint; origin must be independently established. No grant, ACK, durable write or autonomous wake is implied.",
+  };
+}
+
+export function prepareOperationalReturnAcceptance({
+  config,
+  snapshot,
+  offer,
+  receipt,
+  verifyDelivery,
+  readEvidence,
+  apply = false,
+}) {
+  if (apply) throw new Error("return acceptance writes are coordinator-only");
+  const request = verifyCurrentOperationalOffer(config, snapshot, offer);
+  const expected = operationalReturnRecord(
+    offer,
+    receipt?.disposition,
+    receipt?.evidence,
+    receipt?.evidence_observation ?? null,
+  );
+  if (
+    !operationalReturnEvidenceReference(
+      receipt?.evidence,
+      config.repository,
+      offer.proposed.owning_issue,
+    ) ||
+    Object.keys(expected).some((key) => receipt[key] !== expected[key])
+  )
+    throw new Error(
+      "return identity, generation, scope, source or evidence conflicts with the offer",
+    );
+  const lane = offer.current.lane;
+  const checkpoint = snapshot.checkpoints[lane];
+  const prefix = `RETURN-${operationalToken(offer.offer_digest)}-`;
+  const anchorId = `${prefix}${operationalToken(expected.receipt_digest)}`;
+  const previous = checkpoint.outstanding_requests.filter((entry) =>
+    entry.request_id.startsWith(prefix),
+  );
+  if (previous.length > 1 || (previous[0] && previous[0].request_id !== anchorId))
+    throw new Error("return evidence changed under the same offer; preserve the original receipt");
+  const observed = typeof readEvidence === "function" ? readEvidence(expected.evidence) : null;
+  if (!observed || !expected.evidence_observation)
+    return {
+      status: "unknown",
+      acknowledged: false,
+      receipt: expected,
+      reason: "exact evidence readback unavailable; preserve pending offer",
+    };
+  if (
+    !validOperationalEvidenceObservation(observed) ||
+    !validOperationalEvidenceObservation(expected.evidence_observation) ||
+    operationalReturnEvidenceReference(
+      observed.url,
+      config.repository,
+      offer.proposed.owning_issue,
+    ) !==
+      operationalReturnEvidenceReference(
+        expected.evidence,
+        config.repository,
+        offer.proposed.owning_issue,
+      ) ||
+    digest(observed) !== digest(expected.evidence_observation)
+  )
+    throw new Error(
+      "return evidence changed at its exact reference; preserve the original response",
+    );
+  // A trusted coordinator integration verifies the actual delivery independently.
+  // JSON/caller fields (including `verified`) are deliberately never consulted.
+  const delivery =
+    typeof verifyDelivery === "function" ? verifyDelivery({ offer, receipt: expected }) : null;
+  if (!delivery || delivery.status !== "established")
+    return {
+      status: "unknown",
+      acknowledged: false,
+      receipt: expected,
+      reason:
+        "independent delivery/invocation unavailable; preserve pending offer and original evidence",
+    };
+  if (
+    delivery.runner_instance_id !== offer.proposed.runner_instance_id ||
+    delivery.request_id !== offer.proposed.request_id ||
+    delivery.receipt_digest !== expected.receipt_digest ||
+    delivery.observed_response_reference !== expected.evidence ||
+    typeof delivery.invocation_reference !== "string" ||
+    !delivery.invocation_reference.trim()
+  )
+    throw new Error("independent delivery identity or exact receipt does not match the offer");
+  if (expected.disposition === "pending" || offer.current.intentional_pause)
+    return {
+      status: "unknown",
+      acknowledged: false,
+      receipt: expected,
+      reason: "pending response or intentional pause remains preserved; no assignment takeover",
+    };
+  if (previous.length)
+    return {
+      status: "quiet",
+      acknowledged: true,
+      receipt: expected,
+      authority_limit:
+        "Previously preserved response only; no new invocation, progress or scope admission.",
+    };
+  const updated = checkpoint.outstanding_requests.map((entry) =>
+    entry.request_id === request.request_id
+      ? { ...entry, acknowledgment_state: "acknowledged", disposition_reference: expected.evidence }
+      : entry,
+  );
+  updated.push({
+    request_id: anchorId,
+    recipient_instance_or_coordinator: offer.proposed.runner_instance_id,
+    acknowledgment_state: "acknowledged",
+    disposition_reference: expected.evidence,
+  });
+  return {
+    ...prepareOperationalCheckpoint(
+      config,
+      snapshot,
+      lane,
+      { ...checkpoint, outstanding_requests: updated },
+      snapshot.observations[runnerLanes.indexOf(lane) + 1],
+    ),
+    acknowledged: true,
+    receipt: expected,
+    established_delivery: delivery,
+    authority_limit:
+      "Dot-only intent after independently established delivery. This preserves the current assignment and release; a successor still requires serialized grant and actual scope ACK. No repository code authenticates native transport or provides a global lock.",
+  };
+}
+
+function validOperationalEvidenceObservation(value) {
+  return (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === 3 &&
+    Object.keys(value).every((key) => ["url", "body_sha256", "edited_at"].includes(key)) &&
+    typeof value.url === "string" &&
+    value.url.length <= 1024 &&
+    typeof value.edited_at === "string" &&
+    /^[a-f0-9]{64}$/u.test(value.body_sha256 ?? "") &&
+    Number.isFinite(Date.parse(value.edited_at))
+  );
+}
+
+export function readOperationalReturnEvidence(
+  config,
+  api,
+  reference,
+  issue,
+  source,
+  { now = Date.now } = {},
+) {
+  const short = /^(PR|issue)([1-9][0-9]*)#issuecomment-([1-9][0-9]*)$/u.exec(reference);
+  const url = short
+    ? `https://github.com/${config.repository}/${short[1] === "PR" ? "pull" : "issues"}/${short[2]}#issuecomment-${short[3]}`
+    : reference;
+  const match =
+    /^https:\/\/github\.com\/([^/]+\/[^/]+)\/(issues|pull)\/([1-9][0-9]*)(?:#issuecomment-([1-9][0-9]*)|#body-sha256-([a-f0-9]{64}))$/u.exec(
+      url ?? "",
+    );
+  if (
+    !match ||
+    match[1] !== config.repository ||
+    (match[2] === "issues" && (Number(match[3]) !== issue || !match[4]))
+  )
+    throw new Error("return evidence must be an exact owning-issue comment or bound PR evidence");
+  const started = now();
+  let calls = 0;
+  const get = (endpoint) => {
+    if (++calls > 2 || now() - started >= 30_000)
+      throw new Error("exact evidence collection expired");
+    const response = api.request("GET", endpoint, null, {
+      timeoutMs: Math.min(coordinationReadLimits.requestMs, 30_000 - (now() - started)),
+    }).body;
+    if (
+      now() - started >= 30_000 ||
+      Buffer.byteLength(JSON.stringify(response), "utf8") > coordinationReadLimits.responseBytes
+    )
+      throw new Error("exact evidence response expired or exceeded its byte limit");
+    return response;
+  };
+  let record;
+  if (match[2] === "pull") {
+    const pr = get(`repos/${config.repository}/pulls/${match[3]}`);
+    if (pr?.number !== Number(match[3]))
+      throw new Error("exact PR evidence identity is mismatched");
+    operationalPullRequestEvidence(config, issue, source, pr);
+    if (match[5] && createHash("sha256").update(pr.body).digest("hex") !== match[5])
+      throw new Error("PR body evidence hash changed; preserve its exact original pointer");
+    record = pr;
+  }
+  if (match[4]) {
+    record = get(`repos/${config.repository}/issues/comments/${match[4]}`);
+    if (
+      record?.html_url !== url ||
+      record.id !== Number(match[4]) ||
+      record.issue_url !== `https://api.github.com/repos/${config.repository}/issues/${match[3]}`
+    )
+      throw new Error("exact evidence comment identity is mismatched");
+  }
+  if (typeof record?.body !== "string" || !Number.isFinite(Date.parse(record.updated_at)))
+    throw new Error("exact evidence body or timestamp is unavailable");
+  return {
+    url,
+    body_sha256: createHash("sha256").update(record.body).digest("hex"),
+    edited_at: record.updated_at,
+  };
+}
+
+function operationalPullRequestEvidence(config, issue, source, pr) {
+  if (
+    !pr ||
+    !Number.isSafeInteger(pr.number) ||
+    pr.number < 1 ||
+    pr.html_url !== `https://github.com/${config.repository}/pull/${pr.number}` ||
+    !/^[a-f0-9]{40}$/u.test(source ?? "") ||
+    pr.head?.sha !== source ||
+    typeof pr.body !== "string" ||
+    Buffer.byteLength(pr.body, "utf8") > coordinationReadLimits.responseBytes ||
+    typeof pr.merged !== "boolean" ||
+    !Number.isFinite(Date.parse(pr.updated_at)) ||
+    (pr.merged && !/^[a-f0-9]{40}$/u.test(pr.merge_commit_sha ?? ""))
+  )
+    throw new Error(
+      "exact repository PR source, merge state or bounded release evidence is unavailable",
+    );
+  const linked = /^## Linked issue\s*\n([\s\S]*?)(?=\n## |$)/u.exec(pr.body)?.[1];
+  if (
+    !linked ||
+    !new RegExp(`(?:Refs|Closes|Fixes|Resolves|Related to) #${issue}(?![0-9])`).test(linked)
+  )
+    throw new Error("PR evidence does not bind the owning task in its linked-issue section");
+}
+
+export function prepareOperationalReleaseEvidence({
+  config,
+  snapshot,
+  runner,
+  source,
+  pullRequest,
+  verifyDelivery,
+  expectedReference,
+  apply = false,
+}) {
+  if (apply) throw new Error("release writes are coordinator-only");
+  const binding = operationalOfferBinding(snapshot, runner);
+  const pr = pullRequest;
+  operationalPullRequestEvidence(config, binding.owning_issue, source, pr);
+  const bodyHash = createHash("sha256").update(pr.body).digest("hex");
+  const reference = `${pr.html_url}#body-sha256-${bodyHash}`;
+  if (expectedReference !== undefined && expectedReference !== reference)
+    throw new Error("PR body evidence changed; preserve the original hash-pinned release");
+  const record = {
+    runner_instance_id: runner,
+    assignment_id: binding.assignment_id,
+    generation: binding.generation,
+    owning_issue: binding.owning_issue,
+    source,
+    reference,
+    edited_at: pr.updated_at,
+    merged: pr.merged,
+    merge_commit_sha: pr.merge_commit_sha,
+    body_sha256: bodyHash,
+  };
+  const receipt = { ...record, receipt_digest: digest(record) };
+  const delivery = typeof verifyDelivery === "function" ? verifyDelivery({ receipt }) : null;
+  if (!delivery || delivery.status !== "established")
+    return {
+      status: "unknown",
+      receipt,
+      reason:
+        "independent source-owner release delivery unavailable; PR authorship/body cannot release scope",
+    };
+  if (
+    delivery.role !== "source-owner-release" ||
+    delivery.runner_instance_id !== runner ||
+    delivery.assignment_id !== binding.assignment_id ||
+    delivery.generation !== binding.generation ||
+    delivery.receipt_digest !== receipt.receipt_digest ||
+    typeof delivery.invocation_reference !== "string" ||
+    !delivery.invocation_reference.trim()
+  )
+    throw new Error(
+      "independent release delivery does not bind the actual owner and exact evidence",
+    );
+  return {
+    status: "planned",
+    writer_mode: "coordinator-only",
+    reference,
+    receipt,
+    established_delivery: delivery,
+    authority_limit:
+      "Only Dot may reconcile a verified owner release. A pinned PR body is evidence, not authentication or permission. Open-PR handoff retains every remaining gate; source, merge-state or body edits invalidate this receipt.",
   };
 }
 
@@ -3701,6 +4236,22 @@ export class RoadmapClient {
     };
   }
 
+  operationalReturnEvidence(reference, issue, source, { runnerFactory = createGitHubRunner } = {}) {
+    const api = {
+      request(method, endpoint, body, { timeoutMs }) {
+        return new GitHubApiClient(
+          runnerFactory({
+            cwd: projectRoot,
+            command: process.env.PORTCOVE_ROADMAP_GH || "gh",
+            timeoutMs,
+            maxBuffer: coordinationReadLimits.responseBytes,
+          }),
+        ).request(method, endpoint, body);
+      },
+    };
+    return readOperationalReturnEvidence(this.config, api, reference, issue, source);
+  }
+
   coordinationComment(url, target) {
     const match =
       /^https:\/\/github\.com\/([^/]+\/[^/]+)\/(issues|pull)\/(\d+)#issuecomment-(\d+)$/.exec(url);
@@ -4882,6 +5433,59 @@ async function main(argv) {
           ? JSON.stringify(context)
           : `#${context.canonical_issue.number} ${context.canonical_issue.title}\n${context.canonical_issue.url}\nRevision: ${context.snapshot.revision}\nComparison: ${context.comparison.state}; ${context.comparison.action}\nPickup: ${context.pickup.current_requirements}; invoked/active/assigned unknown.\nReservation: ${context.reservation.assessment}\nUse --json for the full current specification, planning, typed relationships and coverage.`,
       );
+      return;
+    }
+    if (parsed.command === "handoff-offer") {
+      executionOptions(parsed, ["--spec-file", "--apply", "--json"]);
+      const spec = JSON.parse(
+        await readFile(
+          path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file")),
+          "utf8",
+        ),
+      );
+      const result = prepareOperationalOffer({
+        config,
+        snapshot: client.operationalSnapshot(),
+        spec,
+        apply: parsed.options["--apply"] === true,
+      });
+      console.log(JSON.stringify(result));
+      return;
+    }
+    if (parsed.command === "handoff-return") {
+      executionOptions(parsed, [
+        "--offer-file",
+        "--runner",
+        "--disposition",
+        "--evidence",
+        "--apply",
+        "--json",
+      ]);
+      const packet = JSON.parse(
+        await readFile(
+          path.resolve(projectRoot, requiredOption(parsed.options, "--offer-file")),
+          "utf8",
+        ),
+      );
+      const offer = packet.offer ?? packet;
+      const evidence = requiredOption(parsed.options, "--evidence");
+      const evidenceObservation = client.operationalReturnEvidence(
+        evidence,
+        offer.proposed.owning_issue,
+        offer.proposed.source,
+      );
+      const result = prepareOperationalReturn({
+        config,
+        snapshot: client.operationalSnapshot(),
+        offer,
+        runner: requiredOption(parsed.options, "--runner"),
+        source: gitHead(),
+        disposition: requiredOption(parsed.options, "--disposition"),
+        evidence,
+        evidenceObservation,
+        apply: parsed.options["--apply"] === true,
+      });
+      console.log(JSON.stringify(result));
       return;
     }
     if (parsed.command === "acknowledge") {

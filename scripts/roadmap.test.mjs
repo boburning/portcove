@@ -27,6 +27,11 @@ import {
   bindOperationalAssignment,
   prepareOperationalCheckpoint,
   prepareOperationalConsumption,
+  prepareOperationalOffer,
+  prepareOperationalReturn,
+  prepareOperationalReturnAcceptance,
+  prepareOperationalReleaseEvidence,
+  readOperationalReturnEvidence,
   prepareConsumption,
   parseConsumptionRecord,
   consumedReference,
@@ -677,6 +682,518 @@ test("task instance binding and fixed checkpoint planning preserve unresolved re
   );
   fixture.records[`repos/${config.repository}/issues/comments/101`].user.id = 1;
   assert.equal(readOperationalBoard(fixture.configured, fixture.api).status, "unknown");
+});
+
+function handoffFixture() {
+  const fixture = operationalFixture();
+  const snapshot = readOperationalBoard(fixture.configured, fixture.api);
+  const spec = {
+    request_id: "finite-offer",
+    runner_instance_id: "fixture-cloud-a",
+    assignment_id: "next-bounded-task",
+    generation: 2,
+    owning_issue: 1104,
+    source: "a".repeat(40),
+    scope: "scripts/roadmap.mjs and roadmap.test.mjs; existing fixtures only",
+    outcome: "Preserve an actual bounded acknowledgment return",
+    evidence: "issue1104#issuecomment-20",
+  };
+  const offer = prepareOperationalOffer({ config: fixture.configured, snapshot, spec });
+  const checkpoint = JSON.parse(offer.body.split("```json\n")[1].split("\n```")[0]);
+  fixture.records[`repos/${config.repository}/issues/comments/101`].body = fixture.format(
+    "runner-checkpoint",
+    checkpoint,
+  );
+  const current = () => readOperationalBoard(fixture.configured, fixture.api);
+  const receipt = prepareOperationalReturn({
+    config: fixture.configured,
+    snapshot: current(),
+    offer: offer.offer,
+    runner: spec.runner_instance_id,
+    source: spec.source,
+    disposition: "accepted",
+    evidence: "issue1104#issuecomment-21",
+    evidenceObservation: {
+      url: "issue1104#issuecomment-21",
+      body_sha256: "b".repeat(64),
+      edited_at: "2026-10-07T03:00:00Z",
+    },
+  });
+  return { ...fixture, spec, offer, receipt, current };
+}
+
+test("bounded offers preserve the accepted assignment and reject altered or superseded proposals", () => {
+  const f = handoffFixture();
+  assert.equal(f.offer.writer_mode, "coordinator-only");
+  assert.equal(f.receipt.status, "pending");
+  assert.deepEqual(f.current().board, readOperationalBoard(f.configured, f.api).board);
+  assert.equal(
+    prepareOperationalOffer({ config: f.configured, snapshot: f.current(), spec: f.spec }).status,
+    "quiet",
+  );
+  for (const delta of [
+    { source: "b".repeat(40) },
+    { scope: "extra product boundary" },
+    { evidence: "issue1104#issuecomment-22" },
+    { generation: 3 },
+  ]) {
+    assert.throws(
+      () =>
+        prepareOperationalOffer({
+          config: f.configured,
+          snapshot: f.current(),
+          spec: { ...f.spec, ...delta },
+        }),
+      /changed|conflict/,
+    );
+  }
+  for (const delta of [{ runner: "other-instance" }, { source: "b".repeat(40) }]) {
+    assert.throws(
+      () =>
+        prepareOperationalReturn({
+          config: f.configured,
+          snapshot: f.current(),
+          offer: f.offer.offer,
+          runner: f.spec.runner_instance_id,
+          source: f.spec.source,
+          disposition: "accepted",
+          evidence: "issue1104#issuecomment-21",
+          ...delta,
+        }),
+      /identity|source/,
+    );
+  }
+  const stale = f.current();
+  stale.board.assignments[0].generation++;
+  assert.throws(
+    () =>
+      prepareOperationalReturn({
+        config: f.configured,
+        snapshot: stale,
+        offer: f.offer.offer,
+        runner: f.spec.runner_instance_id,
+        source: f.spec.source,
+        disposition: "accepted",
+        evidence: "issue1104#issuecomment-21",
+      }),
+    /superseded|generation/,
+  );
+});
+
+test("worker receipts cannot authenticate themselves and preserve unavailable delivery as unknown", () => {
+  const f = handoffFixture();
+  const input = {
+    config: f.configured,
+    snapshot: f.current(),
+    offer: f.offer.offer,
+    receipt: { ...f.receipt.receipt, verified: true, github_author: "boburning" },
+  };
+  const unknown = prepareOperationalReturnAcceptance(input);
+  assert.equal(unknown.status, "unknown");
+  assert.equal(unknown.acknowledged, false);
+  assert.equal(
+    prepareOperationalReturnAcceptance({ ...input, verifyDelivery: () => null }).status,
+    "unknown",
+  );
+  assert.throws(
+    () =>
+      prepareOperationalReturnAcceptance({
+        ...input,
+        readEvidence: () => f.receipt.receipt.evidence_observation,
+        verifyDelivery: () => ({ status: "established", runner_instance_id: "other-instance" }),
+      }),
+    /delivery|identity/,
+  );
+  assert.throws(
+    () => prepareOperationalReturnAcceptance({ ...input, apply: true }),
+    /coordinator-only/,
+  );
+});
+
+test("independently established returns preserve other requests and refuse conflicting replay", () => {
+  const f = handoffFixture();
+  const verifyDelivery = ({ receipt }) => ({
+    status: "established",
+    runner_instance_id: f.spec.runner_instance_id,
+    request_id: f.spec.request_id,
+    receipt_digest: receipt.receipt_digest,
+    observed_response_reference: receipt.evidence,
+    invocation_reference: "fixture native role-bearing response; not production proof",
+  });
+  const readEvidence = () => f.receipt.receipt.evidence_observation;
+  const input = {
+    config: f.configured,
+    snapshot: f.current(),
+    offer: f.offer.offer,
+    receipt: f.receipt.receipt,
+    verifyDelivery,
+    readEvidence,
+  };
+  const accepted = prepareOperationalReturnAcceptance(input);
+  assert.equal(accepted.status, "planned");
+  assert.equal(accepted.writer_mode, "coordinator-only");
+  const updated = JSON.parse(accepted.body.split("```json\n")[1].split("\n```")[0]);
+  assert.deepEqual(
+    updated.outstanding_requests[0],
+    f.checkpoints["cloud-a"].outstanding_requests[0],
+  );
+  assert.deepEqual(
+    updated.last_meaningful_progress,
+    f.checkpoints["cloud-a"].last_meaningful_progress,
+  );
+  f.records[`repos/${config.repository}/issues/comments/101`].body = f.format(
+    "runner-checkpoint",
+    updated,
+  );
+  assert.equal(
+    prepareOperationalReturnAcceptance({ ...input, snapshot: f.current() }).status,
+    "quiet",
+  );
+  const changed = prepareOperationalReturn({
+    config: f.configured,
+    snapshot: f.current(),
+    offer: f.offer.offer,
+    runner: f.spec.runner_instance_id,
+    source: f.spec.source,
+    disposition: "accepted",
+    evidence: "issue1104#issuecomment-22",
+    evidenceObservation: {
+      ...f.receipt.receipt.evidence_observation,
+      url: "issue1104#issuecomment-22",
+    },
+  });
+  assert.throws(
+    () =>
+      prepareOperationalReturnAcceptance({
+        ...input,
+        snapshot: f.current(),
+        receipt: changed.receipt,
+      }),
+    /changed|conflict/,
+  );
+});
+
+test("pending offer evidence edits cannot acquire a worker acknowledgment", () => {
+  const f = handoffFixture();
+  const snapshot = f.current();
+  snapshot.checkpoints["cloud-a"].outstanding_requests.find((entry) =>
+    entry.request_id.startsWith("OFFER-"),
+  ).disposition_reference = "issue1104#issuecomment-99";
+  assert.throws(
+    () =>
+      prepareOperationalReturn({
+        config: f.configured,
+        snapshot,
+        offer: f.offer.offer,
+        runner: f.spec.runner_instance_id,
+        source: f.spec.source,
+        disposition: "accepted",
+        evidence: "issue1104#issuecomment-21",
+      }),
+    /evidence.*changed|conflict/,
+  );
+});
+
+test("owned PR release fallback pins actual body and source and cannot authenticate itself", () => {
+  const f = operationalFixture();
+  const snapshot = readOperationalBoard(f.configured, f.api);
+  const pullRequest = {
+    number: 1543,
+    html_url: `https://github.com/${config.repository}/pull/1543`,
+    head: { sha: "a".repeat(40) },
+    merged: false,
+    merge_commit_sha: null,
+    updated_at: "2026-10-07T03:00:00Z",
+    body: "## Linked issue\nRefs #1104.\n\n## Release\nRemaining delivery passes to Local after actual ACK.",
+  };
+  const input = {
+    config: f.configured,
+    snapshot,
+    runner: "fixture-cloud-a",
+    source: "a".repeat(40),
+    pullRequest,
+  };
+  assert.equal(prepareOperationalReleaseEvidence({ ...input, verified: true }).status, "unknown");
+  const verifyDelivery = ({ receipt }) => ({
+    status: "established",
+    role: "source-owner-release",
+    runner_instance_id: input.runner,
+    assignment_id: "fixture-task-1",
+    generation: 1,
+    receipt_digest: receipt.receipt_digest,
+    invocation_reference: "fixture independent native release; not production",
+  });
+  const proof = prepareOperationalReleaseEvidence({ ...input, verifyDelivery });
+  assert.equal(proof.status, "planned");
+  assert.match(proof.reference, /pull\/1543#body-sha256-[a-f0-9]{64}$/);
+  assert.equal(proof.receipt.merged, false);
+  assert.throws(
+    () =>
+      prepareOperationalReleaseEvidence({
+        ...input,
+        verifyDelivery,
+        pullRequest: { ...pullRequest, head: { sha: "b".repeat(40) } },
+      }),
+    /source/,
+  );
+  assert.throws(
+    () =>
+      prepareOperationalReleaseEvidence({
+        ...input,
+        verifyDelivery,
+        pullRequest: { ...pullRequest, body: "Refs #999." },
+      }),
+    /owning/,
+  );
+  assert.throws(
+    () =>
+      prepareOperationalReleaseEvidence({
+        ...input,
+        verifyDelivery,
+        expectedReference: proof.reference,
+        pullRequest: { ...pullRequest, body: pullRequest.body + "\nChanged evidence." },
+      }),
+    /evidence.*changed|hash/,
+  );
+});
+
+test("receipt acceptance detects same-reference raw edits and cannot replace unavailable reads", () => {
+  const f = handoffFixture();
+  const input = {
+    config: f.configured,
+    snapshot: f.current(),
+    offer: f.offer.offer,
+    receipt: f.receipt.receipt,
+    verifyDelivery: ({ receipt }) => ({
+      status: "established",
+      runner_instance_id: f.spec.runner_instance_id,
+      request_id: f.spec.request_id,
+      receipt_digest: receipt.receipt_digest,
+      observed_response_reference: receipt.evidence,
+      invocation_reference: "fixture independently delivered return",
+    }),
+  };
+  assert.equal(prepareOperationalReturnAcceptance(input).status, "unknown");
+  for (const delta of [{ body_sha256: "c".repeat(64) }, { edited_at: "2026-10-07T03:01:00Z" }]) {
+    assert.throws(
+      () =>
+        prepareOperationalReturnAcceptance({
+          ...input,
+          readEvidence: () => ({ ...f.receipt.receipt.evidence_observation, ...delta }),
+        }),
+      /evidence.*changed/,
+    );
+  }
+  assert.equal(
+    prepareOperationalReturnAcceptance({ ...input, readEvidence: () => null }).status,
+    "unknown",
+  );
+});
+
+test("return evidence reads only exact bounded references and detects foreign, wrong-source or body edits", () => {
+  const f = operationalFixture();
+  const body = "## Linked issue\nRefs #1104.\n\n## Outcome\nFixture owning PR.";
+  const pr = {
+    number: 1543,
+    html_url: `https://github.com/${config.repository}/pull/1543`,
+    head: { sha: "a".repeat(40) },
+    merged: false,
+    merge_commit_sha: null,
+    updated_at: "2026-10-07T03:00:00Z",
+    body,
+  };
+  const release = prepareOperationalReleaseEvidence({
+    config: f.configured,
+    snapshot: readOperationalBoard(f.configured, f.api),
+    runner: "fixture-cloud-a",
+    source: "a".repeat(40),
+    pullRequest: pr,
+  });
+  const reference = release.receipt.reference;
+  const calls = [];
+  const api = {
+    request(method, endpoint, _body, options) {
+      calls.push({ method, endpoint, options });
+      return { body: pr };
+    },
+  };
+  const observed = readOperationalReturnEvidence(
+    f.configured,
+    api,
+    reference,
+    1104,
+    "a".repeat(40),
+  );
+  assert.equal(observed.url, reference);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].endpoint, `repos/${config.repository}/pulls/1543`);
+  assert.equal(calls[0].options.timeoutMs, 15000);
+  assert.throws(
+    () => readOperationalReturnEvidence(f.configured, api, pr.html_url, 1104, "a".repeat(40)),
+    /exact/,
+  );
+  assert.throws(
+    () => readOperationalReturnEvidence(f.configured, api, reference, 1104, "b".repeat(40)),
+    /source/,
+  );
+  assert.throws(
+    () =>
+      readOperationalReturnEvidence(
+        f.configured,
+        api,
+        reference.replace(config.repository, "foreign/repository"),
+        1104,
+        "a".repeat(40),
+      ),
+    /exact/,
+  );
+  pr.body += "\nChanged.";
+  assert.throws(
+    () => readOperationalReturnEvidence(f.configured, api, reference, 1104, "a".repeat(40)),
+    /hash changed/,
+  );
+  pr.body = body;
+  pr.number = 1544;
+  assert.throws(
+    () => readOperationalReturnEvidence(f.configured, api, reference, 1104, "a".repeat(40)),
+    /identity/,
+  );
+  assert.throws(
+    () =>
+      readOperationalReturnEvidence(
+        f.configured,
+        {
+          request() {
+            throw new Error("unavailable transport");
+          },
+        },
+        reference,
+        1104,
+        "a".repeat(40),
+      ),
+    /unavailable/,
+  );
+});
+
+test("hash-pinned PR evidence roundtrips through released checkpoints and return requests", () => {
+  const f = operationalFixture();
+  const reference = `https://github.com/${config.repository}/pull/1543#body-sha256-${"d".repeat(64)}`;
+  const assignment = f.board.assignments[1];
+  assignment.execution_slot = "completed";
+  assignment.reserved_scope = null;
+  assignment.released_reference = reference;
+  f.checkpoints["cloud-b"].execution_phase = "completed";
+  f.checkpoints["cloud-b"].necessary_evidence_pointers = [reference];
+  f.records[`repos/${config.repository}/issues/1800`].body = f.format("runner-board", f.board);
+  f.records[`repos/${config.repository}/issues/comments/102`].body = f.format(
+    "runner-checkpoint",
+    f.checkpoints["cloud-b"],
+  );
+  assert.equal(readOperationalBoard(f.configured, f.api).status, "staged");
+  assignment.released_reference = reference.split("#")[0];
+  assert.throws(
+    () => parseOperationalBoard(f.format("runner-board", f.board), f.configured),
+    /assignment|release/,
+  );
+  const h = handoffFixture();
+  const receipt = prepareOperationalReturn({
+    config: h.configured,
+    snapshot: h.current(),
+    offer: h.offer.offer,
+    runner: h.spec.runner_instance_id,
+    source: h.spec.source,
+    disposition: "accepted",
+    evidence: reference,
+    evidenceObservation: {
+      url: reference,
+      body_sha256: "d".repeat(64),
+      edited_at: "2026-10-07T03:00:00Z",
+    },
+  }).receipt;
+  const accepted = prepareOperationalReturnAcceptance({
+    config: h.configured,
+    snapshot: h.current(),
+    offer: h.offer.offer,
+    receipt,
+    readEvidence: () => receipt.evidence_observation,
+    verifyDelivery: () => ({
+      status: "established",
+      runner_instance_id: h.spec.runner_instance_id,
+      request_id: h.spec.request_id,
+      receipt_digest: receipt.receipt_digest,
+      observed_response_reference: reference,
+      invocation_reference: "fixture genuine response",
+    }),
+  });
+  assert.equal(accepted.status, "planned");
+});
+
+test("return observations reject raw extra fields and oversized packets without truncation", () => {
+  const f = handoffFixture();
+  const input = {
+    config: f.configured,
+    snapshot: f.current(),
+    offer: f.offer.offer,
+    runner: f.spec.runner_instance_id,
+    source: f.spec.source,
+    disposition: "accepted",
+    evidence: "issue1104#issuecomment-21",
+  };
+  assert.throws(
+    () =>
+      prepareOperationalReturn({
+        ...input,
+        evidenceObservation: {
+          ...f.receipt.receipt.evidence_observation,
+          raw_body: "private evidence",
+        },
+      }),
+    /observation|unsupported/,
+  );
+  assert.throws(
+    () =>
+      prepareOperationalReturn({
+        ...input,
+        evidenceObservation: { ...f.receipt.receipt.evidence_observation, url: "x".repeat(13000) },
+      }),
+    /oversized|observation/,
+  );
+});
+
+test("receipt tuple edits and pause changes cannot acknowledge or replace current ownership", () => {
+  const f = handoffFixture();
+  const original = f.current();
+  const input = {
+    config: f.configured,
+    snapshot: original,
+    offer: f.offer.offer,
+    receipt: f.receipt.receipt,
+  };
+  for (const delta of [
+    { generation: 3 },
+    { assignment_id: "other-task" },
+    { scope: "other scope" },
+    { owning_issue: 999 },
+    { source: "c".repeat(40) },
+    { runner_instance_id: "other-instance" },
+    { outcome: "other outcome" },
+  ]) {
+    assert.throws(
+      () =>
+        prepareOperationalReturnAcceptance({
+          ...input,
+          receipt: { ...f.receipt.receipt, ...delta },
+        }),
+      /conflict/,
+    );
+  }
+  const paused = f.current();
+  paused.board.assignments[0].intentional_pause = true;
+  assert.throws(
+    () => prepareOperationalReturnAcceptance({ ...input, snapshot: paused }),
+    /superseded|changed/,
+  );
+  assert.deepEqual(f.current().board, original.board);
 });
 
 test("normal consumption plans only a fixed checkpoint native handoff, preserving progress and refusing lane writes", () => {

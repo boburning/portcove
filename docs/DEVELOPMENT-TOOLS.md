@@ -314,6 +314,16 @@ Never kill unrelated processes or change global editor, antivirus or storage set
 automatically. Existing [Rust admission](#rust-test-runner) and native-session guards
 remain authoritative; separate worktrees keep separate mutable Cargo targets.
 
+At a genuine safe checkpoint, the roadmap `handoff-offer` and `handoff-return`
+planners preserve a bounded request and exact evidence without new grants or
+autonomous wake. Dot independently verifies actual delivery and fresh raw evidence
+readback; an unavailable native route remains a named limitation. See
+[Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
+Prefer healthy cloud delivery; after a genuine source-owner release and Local’s
+actual instance/generation/scope ACK, Local owns remaining validation, repairs,
+independent review, evidence and normal guarded merge. Preserve Local’s other
+reservations and native/resource guards; assistance alone transfers no ownership.
+
 At a handoff, record current head and dirty state, active owned process/session
 identities or confirmed terminal state, evidence locations, unresolved findings or
 external boundaries, and the exact resume command/condition. Put it on the current

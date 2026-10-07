@@ -407,7 +407,12 @@ pauses. Staged state does not establish active cutover or adoption.
 After an accepted assignment is delivered and its scope explicitly released, use
 `execution_slot: "completed"`, `reserved_scope: null`, `intentional_pause: false`
 and `released_reference` pointing to that owning issue's exact verified release
-comment. Dot verifies the actual release response against the accepted instance,
+comment or an explicitly verified owning PR body pinned as
+`https://github.com/<owner>/<repo>/pull/<number>#body-sha256-<64hex>`.
+The PR must bind the owning issue, exact source and truthful merge state; preserve
+its raw body hash and edited timestamp. A bare PR URL or GitHub authorship cannot
+release scope. Open-PR transfers retain all remaining gates. Dot verifies the
+actual source-owner release response against the accepted instance,
 assignment and generation before editing. Retain the last accepted identity and
 ACK; the fixed checkpoint binds that same tuple, uses phase `completed` or
 `delivered`, and retains the release reference in its necessary evidence pointers.
@@ -469,12 +474,41 @@ instance/task/generation and preserves existing request IDs/recipients and progr
 Send the planned response through the connected native route. Dot verifies the
 actual response and alone edits the assigned fixed checkpoint in place after fresh
 preimage/generation checks and unresolved-request preservation. Runner `--apply`
-refuses under this coordinator-only contract; there is no issue-comment fallback.
+refuses under this coordinator-only contract; ordinary consumption adds no comment.
 Duplicate current consumption requests are quiet. Routine reads never advance
 meaningful progress. A stale baseline requires a fresh comparison. A changed
 revision remains pending comparison until the actual worker response resolves it.
 Keep attempted writes, transport response and exact readback distinct; after an
 ambiguous write retain the intent and read back without automatic retry.
+
+At a genuine safe checkpoint, `node scripts/roadmap.mjs handoff-offer --spec-file
+<path> --json` plans a bounded offer without replacing the accepted assignment.
+The spec binds request ID, actual instance, assignment/generation, owning issue,
+exact source, bounded outcome/scope and evidence. Supporting tests, fixtures and
+necessary inventory companions may belong to that finite outcome; a new product,
+security, native or resource boundary requires an explicit amendment.
+`handoff-return --offer-file <path> --runner <actual-instance> --disposition
+accepted|declined|pending --evidence <exact-reference> --json` prepares a reported
+response from the current source and reads only its exact owning issue comment or
+bound PR evidence (at most two additional calls, 30 seconds and 64KiB per response).
+Prefer the available connected route. An existing owning evidence surface may
+carry the response when that route is unavailable, without a progress stream.
+These commands cannot authenticate origin or wake a session. Dot must independently
+establish actual delivery/invocation and freshly read the exact raw evidence and
+edited timestamp before preserving an ACK through the existing checkpoint intent.
+Caller fields, a receipt or GitHub authorship cannot supply that verification.
+Missing transport/readback stays UNKNOWN and pending; duplicate exact returns
+are quiet. Wrong or superseded tuples, changed evidence, unresolved requests,
+pauses and completed releases remain preserved. Preimage checks and ambiguous
+write/readback rules still apply; no automatic retry or global lock is added.
+
+Prefer healthy cloud owners completing their delivery. A genuine cloud-to-Local
+transfer requires the source owner’s explicit release and Local’s actual instance,
+generation and remaining-scope ACK, serialized by Dot. Local then owns remaining
+validation, repairs, independent review, evidence reconciliation and normal guarded
+merge; do not bounce merge back to Cloud. Preserve Local’s existing work and guards.
+Capability assistance alone transfers no ownership, and CI cannot prove native
+Windows acceptance.
 
 Exactly one implementation owner may hold conflicting scope. Preserve accepted
 reservations and use direct existing runner messages for steers, grants and
