@@ -127,8 +127,9 @@ it.each(["remove", "replace"])(
     await click("Review game preparation");
     await click("Prepare game data");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-    if (completion === "remove")
-      expect(document.body.textContent).not.toContain("Review game preparation");
+    expect(document.body.textContent?.includes("Review game preparation")).toBe(
+      completion === "replace",
+    );
     expect(document.activeElement).toBe(container.querySelector("summary"));
   },
 );
@@ -182,7 +183,12 @@ it.each(["other:7", "sample:8"])(
     function SelectedRequirements({ owner }: { owner: string }) {
       return (
         <>
-          <button key={`navigation:${owner}`} autoFocus={owner !== "sample:7"}>
+          <button
+            key={`navigation:${owner}`}
+            ref={(button) => {
+              if (owner !== "sample:7") button?.focus();
+            }}
+          >
             Choose another game
           </button>
           <RequirementsOwner key={owner} owner={owner} />
