@@ -159,8 +159,9 @@ async function linuxInnerCase({ mode, directory, reaper, supervisor }) {
   ];
   const captured = [];
   writeFileSync(path.join(directory, "captured.json"), JSON.stringify(captured));
-  const capture = (pid) => {
+  const capture = (pid, beforePersistence) => {
     const value = identity(pid);
+    beforePersistence?.(value);
     captured.push(value);
     writeFileSync(path.join(directory, "captured.json"), JSON.stringify(captured));
     return value;
@@ -240,10 +241,17 @@ async function linuxInnerCase({ mode, directory, reaper, supervisor }) {
       else {
         if (mode === "receipt-refusal")
           writeFileSync(receipt, '{"outcome":"failed:original"}\n', { flag: "wx" });
+        if (mode === "escaped-refusal")
+          writeFileSync(
+            path.join(directory, "escaped-coverage.json"),
+            JSON.stringify({ state: "unknown", reason: "descendant discovery pending" }),
+            { flag: "wx" },
+          );
         writeFileSync(gate, "registered\n", { flag: "wx" });
         await wait(() => existsSync(descendant));
-        const child = capture(Number(readFileSync(descendant, "utf8")));
-        if (mode === "escaped-refusal") escaped = child;
+        const child = capture(Number(readFileSync(descendant, "utf8")), (value) => {
+          if (mode === "escaped-refusal") escaped = value;
+        });
         if (
           mode === "natural" ||
           mode === "receipt-refusal" ||
@@ -359,6 +367,10 @@ async function linuxInnerCase({ mode, directory, reaper, supervisor }) {
           }
         });
       }
+      writeFileSync(
+        path.join(directory, "escaped-coverage.json"),
+        JSON.stringify({ state: "signal-complete", identity: escaped.identity }),
+      );
     }
   }
 }
@@ -467,6 +479,11 @@ for (const mode of [
             process.identity,
             `fixture identity ${process.identity} was not reaped`,
           );
+        if (mode === "escaped-refusal")
+          assert.equal(
+            JSON.parse(await readFile(path.join(directory, "escaped-coverage.json"), "utf8")).state,
+            "signal-complete",
+          );
         completed = true;
         linuxEvidenceHeld = false;
       } finally {
@@ -484,7 +501,17 @@ for (const mode of [
             );
             await writeFile(
               path.join(directory, "failure-closure.json"),
-              JSON.stringify({ code, cleanup, remaining }),
+              JSON.stringify({
+                code,
+                cleanup,
+                remaining,
+                escapedCoverage:
+                  mode === "escaped-refusal"
+                    ? JSON.parse(
+                        await readFile(path.join(directory, "escaped-coverage.json"), "utf8"),
+                      )
+                    : null,
+              }),
             );
           } catch (error) {
             await writeFile(path.join(directory, "failure-closure-error.txt"), String(error));
