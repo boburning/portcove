@@ -16,6 +16,7 @@ function run(command, args) {
 }
 
 for (const [name, command, args] of [
+  ["capability selection", process.execPath, ["scripts/development-capabilities.mjs", "--help"]],
   ["doctor", process.execPath, ["scripts/dev-doctor.mjs", "--help"]],
   ["local validation", process.execPath, ["scripts/local-validation.mjs", "check", "--help"]],
   ["audit", process.execPath, ["scripts/audit.mjs", "--help"]],
@@ -58,3 +59,13 @@ test(
     assert.match(result.stdout, /usage:/u);
   },
 );
+
+test("capability selection rejects an unknown profile before any setup", () => {
+  const result = run(process.execPath, [
+    "scripts/development-capabilities.mjs",
+    "--profile",
+    "unknown",
+  ]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /unknown development profile/);
+});

@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, symlinkSync 
 import os from "node:os";
 import path from "node:path";
 import {
+  collectProfileDoctor,
   probeTool,
   selectedPrerequisites,
   collectSelectedPrerequisites,
@@ -398,4 +399,41 @@ test("doctor reports a timeout rather than a version pass", () => {
     })).status,
     "timeout",
   );
+});
+
+test("Core profile observes only Rust capabilities; missing frontend cannot block it", async () => {
+  const commands = [];
+  const report = await collectProfileDoctor("core", {
+    storage: {},
+    pnpmDefinition: () => null,
+    aquaDefinition: () => null,
+    run(command, args, options) {
+      commands.push([command, args]);
+      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      if (command === "rustc") return { status: 0, stdout: "rustc 1.98.1" };
+      if (args[0] === "nextest") return { status: 0, stdout: "cargo-nextest 0.9.100" };
+      return { status: 0, stdout: "1.98.1" };
+    },
+  });
+  assert.equal(report.ok, true);
+  assert.ok(commands.every(([command]) => command === "rustc" || command === "cargo"));
+  assert.ok(!report.capabilities.includes("node"));
+  assert.ok(!report.capabilities.includes("frontend-dependencies"));
+});
+
+test("requested profile stays failed when one capability is missing; observations never provision", async () => {
+  const commands = [];
+  const report = await collectProfileDoctor("frontend", {
+    storage: {},
+    pnpmDefinition: () => null,
+    run(command, args, options) {
+      commands.push([command, args]);
+      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      return { status: 0, stdout: "24.21.0" };
+    },
+  });
+  assert.equal(report.ok, false);
+  assert.equal(report.tools.find((tool) => tool.id === "pnpm").status, "unavailable");
+  assert.equal(report.tools.find((tool) => tool.id === "node").status, "ok");
+  assert.equal(commands.length, 1);
 });

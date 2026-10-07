@@ -1944,3 +1944,22 @@ test("failed, interrupted, invalid, missing, and fresh local stages cannot claim
   run({ fresh: true });
   assert.equal(executions, 3);
 });
+
+test("selected validation uses the shared capability authority without narrowing Node obligations", async () => {
+  const { selectedPrerequisites } = await import("./dev-doctor.mjs");
+  const { validationCapabilities, profileCapabilities } =
+    await import("./development-capabilities.mjs");
+  assert.equal(selectedPrerequisites, validationCapabilities);
+  assert.ok(!profileCapabilities("core").includes("node"));
+  assert.deepEqual(selectedPrerequisites({ id: "rust-tests:portcove-cli" }), [
+    "node",
+    "rustc",
+    "cargo",
+    "cargo-nextest",
+  ]);
+  assert.deepEqual(selectedPrerequisites({ id: "oxfmt" }), [
+    "node",
+    "pnpm",
+    "frontend-dependencies",
+  ]);
+});
