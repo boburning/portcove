@@ -2563,7 +2563,11 @@ function operationalPullRequestEvidence(config, issue, source, pr) {
     throw new Error(
       "exact repository PR source, merge state or bounded release evidence is unavailable",
     );
-  const linked = /^## Linked issue\s*\n([\s\S]*?)(?=\n## |$)/u.exec(pr.body)?.[1];
+  const headings = [...pr.body.matchAll(/^## Linked issue[ \t]*\r?$/gmu)];
+  if (headings.length !== 1)
+    throw new Error("PR evidence requires one unambiguous owning linked-issue section");
+  const heading = headings[0];
+  const linked = pr.body.slice(heading.index + heading[0].length).split(/^## /mu)[0];
   if (
     !linked ||
     !new RegExp(`(?:Refs|Closes|Fixes|Resolves|Related to) #${issue}(?![0-9])`).test(linked)

@@ -1196,6 +1196,37 @@ test("receipt tuple edits and pause changes cannot acknowledge or replace curren
   assert.deepEqual(f.current().board, original.board);
 });
 
+test("owning PR evidence accepts normal section order and refuses absent wrong or duplicate linked sections", () => {
+  const f = operationalFixture();
+  const input = {
+    config: f.configured,
+    snapshot: readOperationalBoard(f.configured, f.api),
+    runner: "fixture-cloud-a",
+    source: "a".repeat(40),
+  };
+  const pr = {
+    number: 1543,
+    html_url: `https://github.com/${config.repository}/pull/1543`,
+    head: { sha: input.source },
+    merged: false,
+    merge_commit_sha: null,
+    updated_at: "2026-10-07T03:00:00Z",
+    body: "## Summary\nPreserve real evidence.\n\n## Linked issue\nRefs #1104.\n\n## Validation\nRemain draft.",
+  };
+  assert.equal(prepareOperationalReleaseEvidence({ ...input, pullRequest: pr }).status, "unknown");
+  for (const body of [
+    "## Summary\nRefs #1104.\n\n## Validation\nNo linked section.",
+    pr.body.replace("Refs #1104.", "Refs #999."),
+    pr.body + "\n\n## Linked issue\nRefs #1104.",
+    pr.body.replace("Refs #1104.", "Refs #11040."),
+  ]) {
+    assert.throws(
+      () => prepareOperationalReleaseEvidence({ ...input, pullRequest: { ...pr, body } }),
+      /owning|ambiguous/,
+    );
+  }
+});
+
 test("normal consumption plans only a fixed checkpoint native handoff, preserving progress and refusing lane writes", () => {
   const fixture = operationalFixture();
   let snapshot = readOperationalBoard(fixture.configured, fixture.api);
