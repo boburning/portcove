@@ -6,8 +6,10 @@ import path from "node:path";
 import { setTimeout as scheduleRealTime } from "node:timers";
 import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
 import { gunzipSync } from "node:zlib";
 import { test, vi } from "vitest";
+import { JSDOM } from "jsdom";
 import {
   createInstallFixture,
   INSTALL_FIXTURE_PORT_ID,
@@ -16,6 +18,7 @@ import {
 import { installScenarios } from "./desktop-install-test.mjs";
 import {
   assertCompletionCoreParity,
+  observeCompletionReturnFocus,
   retainCompletionReport,
   selectedSetupCompletionScenario,
 } from "./desktop-selected-setup-completion-test.mjs";
@@ -23,6 +26,79 @@ import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { run as runLifecycleCommand } from "../../../integrations/playnite/lifecycle-check.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
+
+for (const focus of [
+  "origin",
+  "continue",
+  "outside",
+  "body",
+  "disabled",
+  "hidden",
+  "inert",
+  "hidden-continuation",
+  "missing",
+  "missing-origin",
+  "detached",
+  "detail",
+]) {
+  test(`completion return focus follows the stable setup origin: ${focus}`, () => {
+    const dom = new JSDOM(`<!doctype html>
+      <button id="outside">Settings</button>
+      <div data-detail-workspace><button id="detail">Play</button></div>
+      <article data-detail-origin="game-file-libraries-setup" tabindex="-1">
+        <section aria-label="Continue to a game"><button id="continue">Open details</button></section>
+        <button id="disabled" aria-disabled="true">Unavailable</button>
+      </article>`);
+    const document = dom.window.document;
+    const origin = document.querySelector("article");
+    for (const element of document.querySelectorAll("*")) {
+      element.getClientRects = () => [{ width: 100, height: 20 }];
+    }
+    if (focus === "hidden") origin.hidden = true;
+    if (focus === "inert") origin.setAttribute("inert", "");
+    if (focus === "hidden-continuation") document.querySelector("section").hidden = true;
+    if (focus === "missing") document.querySelector("section").remove();
+    if (focus === "missing-origin") origin.removeAttribute("data-detail-origin");
+    const target = [
+      "origin",
+      "hidden",
+      "inert",
+      "hidden-continuation",
+      "missing",
+      "missing-origin",
+      "detached",
+    ].includes(focus)
+      ? origin
+      : document.getElementById(focus);
+    target?.focus();
+    if (focus === "detached") origin.remove();
+    vi.stubGlobal("document", document);
+    vi.stubGlobal("getComputedStyle", dom.window.getComputedStyle.bind(dom.window));
+    try {
+      const observed = observeCompletionReturnFocus();
+      assert.deepEqual(
+        observed,
+        focus === "origin"
+          ? { tag: "ARTICLE", id: "", origin: true }
+          : focus === "continue"
+            ? { tag: "BUTTON", id: "continue", origin: false }
+            : false,
+      );
+      assert.deepEqual(
+        structuredClone(
+          runInNewContext(`(${observeCompletionReturnFocus.toString()})()`, {
+            document,
+            getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+          }),
+        ),
+        observed,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      dom.window.close();
+    }
+  });
+}
 
 for (const mismatch of [null, "updated_at", "sha256", "missing", "empty", "extra"]) {
   test(`completion parity uses current full source records: ${mismatch ?? "matching"}`, async () => {
