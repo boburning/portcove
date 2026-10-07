@@ -113,6 +113,74 @@ fn isolated_setup_copies_only_declared_generated_outputs() {
     assert!(!payload.join("optional").exists());
 }
 
+#[test]
+fn isolated_setup_copies_nested_declared_directories_with_missing_parent() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("setup-runtime");
+    let payload = temporary.path().join("payload");
+    fs::create_dir_all(source.join("data/out/jak1/iso")).unwrap();
+    fs::create_dir_all(source.join("data/log")).unwrap();
+    fs::create_dir_all(&payload).unwrap();
+    fs::write(
+        source.join("data/out/jak1/iso/0COMMON.TXT"),
+        b"owned validated output",
+    )
+    .unwrap();
+    fs::write(source.join("data/log/setup.log"), b"owned diagnostic").unwrap();
+    fs::write(source.join("data/private.cfg"), b"not declared").unwrap();
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("paperboat")
+        .unwrap()
+        .clone();
+    port.setup_output_paths = vec!["data/out".into(), "data/log".into()];
+    assert!(!payload.join("data").exists());
+
+    super::super::execution::copy_setup_outputs(&port, &source, &payload).unwrap();
+
+    assert_eq!(
+        fs::read(payload.join("data/out/jak1/iso/0COMMON.TXT")).unwrap(),
+        b"owned validated output"
+    );
+    assert_eq!(
+        fs::read(payload.join("data/log/setup.log")).unwrap(),
+        b"owned diagnostic"
+    );
+    assert!(!payload.join("data/private.cfg").exists());
+    assert_eq!(
+        fs::read(source.join("data/private.cfg")).unwrap(),
+        b"not declared"
+    );
+}
+
+#[test]
+fn isolated_setup_retains_conflicting_nested_output_parent_file() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("setup-runtime");
+    let payload = temporary.path().join("payload");
+    fs::create_dir_all(source.join("data/out")).unwrap();
+    fs::create_dir_all(&payload).unwrap();
+    fs::write(source.join("data/out/owned.bin"), b"owned output").unwrap();
+    fs::write(payload.join("data"), b"retained prior file").unwrap();
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("paperboat")
+        .unwrap()
+        .clone();
+    port.setup_output_paths = vec!["data/out".into()];
+
+    assert!(super::super::execution::copy_setup_outputs(&port, &source, &payload).is_err());
+
+    assert_eq!(
+        fs::read(payload.join("data")).unwrap(),
+        b"retained prior file"
+    );
+    assert_eq!(
+        fs::read(source.join("data/out/owned.bin")).unwrap(),
+        b"owned output"
+    );
+}
+
 impl Fixture {
     fn native(mode: &str) -> Self {
         Self::native_fixture(mode, None)

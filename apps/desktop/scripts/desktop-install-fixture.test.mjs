@@ -1,21 +1,347 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as scheduleRealTime } from "node:timers";
 import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
+import { gunzipSync } from "node:zlib";
 import { test, vi } from "vitest";
+import { JSDOM } from "jsdom";
 import {
   createInstallFixture,
   INSTALL_FIXTURE_PORT_ID,
   INSTALL_REFRESH_FIXTURE_PORT_ID,
 } from "./desktop-install-fixture.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
+import {
+  assertCompletionCoreParity,
+  observeCompletionReturnFocus,
+  retainCompletionReport,
+  selectedSetupCompletionScenario,
+} from "./desktop-selected-setup-completion-test.mjs";
+import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { run as runLifecycleCommand } from "../../../integrations/playnite/lifecycle-check.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
+
+for (const [focus, selector, expected, mutate] of [
+  ["origin", "article", { tag: "ARTICLE", id: "", origin: true }],
+  ["continue", "#continue", { tag: "BUTTON", id: "continue", origin: false }],
+  ["outside", "#outside", false],
+  ["body", "body", false],
+  ["disabled", "#disabled", false],
+  [
+    "hidden",
+    "article",
+    false,
+    (origin) => {
+      origin.hidden = true;
+    },
+  ],
+  ["inert", "article", false, (origin) => origin.setAttribute("inert", "")],
+  [
+    "hidden-continuation",
+    "article",
+    false,
+    (_origin, document) => {
+      document.querySelector("section").hidden = true;
+    },
+  ],
+  ["missing", "article", false, (_origin, document) => document.querySelector("section").remove()],
+  ["missing-origin", "article", false, (origin) => origin.removeAttribute("data-detail-origin")],
+  ["detached", "article", false, (origin) => origin.remove()],
+  ["detail", "#detail", false],
+]) {
+  test(`completion return focus follows the stable setup origin: ${focus}`, () => {
+    const dom = new JSDOM(`<!doctype html>
+      <button id="outside">Settings</button>
+      <div data-detail-workspace><button id="detail">Play</button></div>
+      <article data-detail-origin="game-file-libraries-setup" tabindex="-1">
+        <section aria-label="Continue to a game"><button id="continue">Open details</button></section>
+        <button id="disabled" aria-disabled="true">Unavailable</button>
+      </article>`);
+    const document = dom.window.document;
+    const origin = document.querySelector("article");
+    for (const element of document.querySelectorAll("*")) {
+      element.getClientRects = () => [{ width: 100, height: 20 }];
+    }
+    document.querySelector(selector).focus();
+    mutate?.(origin, document);
+    vi.stubGlobal("document", document);
+    vi.stubGlobal("getComputedStyle", dom.window.getComputedStyle.bind(dom.window));
+    try {
+      const observed = observeCompletionReturnFocus();
+      assert.deepEqual(observed, expected);
+      assert.deepEqual(
+        structuredClone(
+          runInNewContext(`(${observeCompletionReturnFocus.toString()})()`, {
+            document,
+            getComputedStyle: dom.window.getComputedStyle.bind(dom.window),
+          }),
+        ),
+        observed,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+      dom.window.close();
+    }
+  });
+}
+
+for (const mismatch of [null, "updated_at", "sha256", "missing", "empty", "extra"]) {
+  test(`completion parity uses current full source records: ${mismatch ?? "matching"}`, async () => {
+    const initial = [{ id: "owned-source", sha256: "a".repeat(64), updated_at: 1605 }];
+    const completed =
+      mismatch === "missing"
+        ? undefined
+        : mismatch === "empty"
+          ? []
+          : [{ ...initial[0], updated_at: 1613 }];
+    if (mismatch === "extra") completed.push({ ...completed[0], id: "unexpected-source" });
+    const cliSources = structuredClone(completed);
+    if (mismatch === "updated_at") cliSources[0].updated_at = 1605;
+    if (mismatch === "sha256") cliSources[0].sha256 = "b".repeat(64);
+    const observations = { sources: initial };
+    const prepared = { readiness: "ready" };
+    const reads = [];
+    const comparison = assertCompletionCoreParity({
+      read: async (command) => {
+        reads.push(command);
+        return completed;
+      },
+      core: (args) => {
+        if (args[0] === "status") {
+          assert.deepEqual(args, ["status", "owned-port"]);
+          return prepared;
+        }
+        assert.deepEqual(args, ["source", "list"]);
+        return cliSources;
+      },
+      portId: "owned-port",
+      prepared,
+      observations,
+    });
+    if (mismatch) await assert.rejects(comparison, { code: "ERR_ASSERTION" });
+    else await comparison;
+    assert.deepEqual(reads, ["get_sources"]);
+    assert.deepEqual(observations.completed_sources, completed);
+    assert.deepEqual(observations.sources, initial);
+    assert.equal(observations.sources[0].updated_at, 1605);
+  });
+}
+
+test("completion fixture pins the owned executable, valid synthetic source and isolated setup contract", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-completion-contract-"));
+  const tool = path.join(output, "probe.bin");
+  const executable = Buffer.from("owned fixture contract bytes; not executed");
+  await writeFile(tool, executable);
+  const fixture = await createInstallFixture({
+    root,
+    output,
+    completionJourney: true,
+    preparationTool: tool,
+    revision: "a".repeat(40),
+    holdFirstDownload: true,
+  });
+  try {
+    const archive = gunzipSync(fixture.artifact);
+    const size = Number.parseInt(
+      archive.subarray(124, 136).toString().replace(/\0.*$/s, "").trim(),
+      8,
+    );
+    assert.deepEqual(archive.subarray(512, 512 + size), executable);
+    assert.ok(fixture.artifact.length > 1024 * 1024);
+    assert.deepEqual(fixture.port.setup_arguments, [
+      "--owned-preparation",
+      "--owned-fixture-mode",
+      "success",
+    ]);
+    assert.equal(fixture.port.runtime_source_materialization, "n64-big-endian");
+    assert.equal(fixture.port.runtime_source_filename, "source.z64");
+    assert.ok(
+      fixture.port.setup_output_paths.some((prefix) =>
+        fixture.port.setup_marker.startsWith(`${prefix}/`),
+      ),
+    );
+    assert.deepEqual(
+      fixture.sourceJourney.game.subarray(0, 4),
+      Buffer.from([0x80, 0x37, 0x12, 0x40]),
+    );
+    assert.equal(fixture.sourceJourney.game.length % 4, 0);
+    assert.notDeepEqual(fixture.sourceJourney.game, fixture.sourceJourney.replacement);
+    assert.deepEqual(
+      await readFile(fixture.sourceJourney.gameBefore),
+      await readFile(fixture.sourceJourney.gamePath),
+    );
+    const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+    const identity = catalog.source_catalog.identities.find(
+      (item) => item.id === fixture.port.source_profile,
+    );
+    assert.deepEqual(identity.variants[0].representations[0].extensions, ["z64"]);
+    assert.equal(
+      identity.variants[0].representations[0].identities[0].sha256,
+      createHash("sha256").update(fixture.sourceJourney.game).digest("hex"),
+    );
+    assert.match(identity.evidence_gap, /No upstream|no upstream/i);
+    await assert.rejects(
+      fixture.publishRelease(fixture.port.id, {}),
+      /cannot publish inert upgrades/,
+    );
+  } finally {
+    await fixture.close();
+    await rm(output, { recursive: true, force: true });
+  }
+});
+
+test("completion fixture refuses missing tool inputs and mixed discovery selection before serving", async () => {
+  await assert.rejects(
+    createInstallFixture({ root, output: root, completionJourney: true }),
+    /absolute owned preparation tool/,
+  );
+  await assert.rejects(
+    createInstallFixture({
+      root,
+      output: root,
+      completionJourney: true,
+      preparationTool: "relative",
+    }),
+    /absolute owned preparation tool/,
+  );
+  await assert.rejects(
+    createInstallFixture({ root, output: root, sourceJourney: true, completionJourney: true }),
+    /separate isolated selections/,
+  );
+  const registered = [];
+  await selectedSetupCompletionScenario({ scenario: async (id) => registered.push(id) });
+  assert.deepEqual(registered, ["native-selected-setup-completion"]);
+});
+
+test.runIf(process.platform === "win32")(
+  "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route",
+  async () => {
+    const output = await mkdtemp(path.join(tmpdir(), "portcove-probe-mode-"));
+    try {
+      const tool = path.join(output, process.platform === "win32" ? "probe.exe" : "probe");
+      const compiled = spawnCommand(
+        "rustc",
+        [
+          "--crate-name",
+          "portcove_probe_mode_contract",
+          path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
+          "-o",
+          tool,
+        ],
+        { encoding: "utf8", windowsHide: true, timeout: 30_000 },
+      );
+      assert.equal(compiled.error, undefined);
+      assert.equal(compiled.status, 0, compiled.stderr);
+      for (const [name, args, legacy, succeeds, marker] of [
+        ["explicit", ["--owned-fixture-mode", "success"], null, true, true],
+        ["default", [], null, true, false],
+        ["legacy", [], "success", true, true],
+        ["missing-marker", ["--owned-fixture-mode", "missing-marker"], null, true, false],
+        ["failure", ["--owned-fixture-mode", "failure"], null, false, true],
+        ["missing-mode", ["--owned-fixture-mode"], null, false, false],
+        ["unsupported", ["--owned-fixture-mode", "invented"], null, false, false],
+        [
+          "duplicate",
+          ["--owned-fixture-mode", "success", "--owned-fixture-mode", "success"],
+          null,
+          false,
+          false,
+        ],
+      ]) {
+        const cwd = path.join(output, name);
+        await mkdir(cwd);
+        if (legacy) await writeFile(path.join(cwd, "owned-setup-mode"), legacy);
+        const result = spawnCommand(tool, ["--owned-preparation", ...args], {
+          cwd,
+          env: { ...process.env, SHIP_HOME: cwd },
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 5_000,
+        });
+        assert.equal(result.error, undefined, name);
+        assert.equal(result.status === 0, succeeds, `${name}: ${result.stderr}`);
+        if (marker)
+          assert.equal(
+            await readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT"), "utf8"),
+            "owned validated output",
+          );
+        else
+          await assert.rejects(readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT")), {
+            code: "ENOENT",
+          });
+      }
+    } finally {
+      await rm(output, { recursive: true, force: true });
+    }
+  },
+);
+
+test("completion report retains the original error across artifact and fallback-log failures", async () => {
+  const original = new Error("original journey failure");
+  const artifactFailure = new Error("report storage failure");
+  for (const brokenLog of [false, true]) {
+    const report = { failure: { message: original.message } },
+      artifacts = [],
+      logged = [];
+    await assert.rejects(
+      retainCompletionReport({
+        file: "owned-report.json",
+        report,
+        artifacts,
+        failure: original,
+        write: async () => {
+          throw artifactFailure;
+        },
+        log: (value) => {
+          logged.push(JSON.parse(value));
+          if (brokenLog) throw new Error("fallback unavailable");
+        },
+      }),
+      (error) => error === original,
+    );
+    assert.deepEqual(artifacts, []);
+    assert.equal(logged[0].report.failure.message, original.message);
+    assert.equal(report.artifact_write_failure, String(artifactFailure));
+    assert.equal(Boolean(report.fallback_log_failure), brokenLog);
+  }
+  await assert.rejects(
+    retainCompletionReport({
+      file: "owned-report.json",
+      report: {},
+      artifacts: [],
+      write: async () => {
+        throw artifactFailure;
+      },
+      log: () => {},
+    }),
+    (error) => error === artifactFailure,
+  );
+  const artifacts = [],
+    report = { failure: original.message };
+  let saved;
+  await assert.rejects(
+    retainCompletionReport({
+      file: "owned-report.json",
+      report,
+      artifacts,
+      failure: original,
+      write: async (file, bytes, options) => {
+        assert.equal(file, "owned-report.json");
+        assert.equal(options.flag, "wx");
+        saved = JSON.parse(bytes);
+      },
+    }),
+    (error) => error === original,
+  );
+  assert.deepEqual(saved, report);
+  assert.deepEqual(artifacts, ["owned-report.json"]);
+});
 
 async function waitFor(predicate, message) {
   const deadline = Date.now() + 5_000;

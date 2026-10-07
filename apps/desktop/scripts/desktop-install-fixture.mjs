@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
@@ -72,6 +72,22 @@ function createInstallArtifact(seed) {
   return gzipSync(tar, { level: 0 });
 }
 
+async function createCompletionArtifact(tool) {
+  if (!tool || !path.isAbsolute(tool) || !(await stat(tool)).isFile())
+    throw new Error("Selected setup completion requires an absolute owned preparation tool file");
+  const executable = await readFile(tool);
+  if (executable.length === 0) throw new Error("Owned preparation tool must not be empty");
+  return gzipSync(
+    Buffer.concat([
+      tarEntry(platformContract().executable, executable, 0o755),
+      // Keep the first download genuinely interruptible even for a small probe.
+      tarEntry("owned-download-padding.bin", deterministicPayload(), 0o644),
+      Buffer.alloc(1024),
+    ]),
+    { level: 0 },
+  );
+}
+
 function fixturePort({ id, name, summary, platform, executable, url, artifact, adapter }) {
   return {
     id,
@@ -112,50 +128,7 @@ async function listen(server) {
   return server.address().port;
 }
 
-async function addSelectedSetupSources({
-  baseCatalog,
-  portDefinitions,
-  portDefinition,
-  refreshPortDefinition,
-  output,
-  revision,
-}) {
-  if (!/^[a-f0-9]{40}$/.test(revision ?? ""))
-    throw new Error("Selected setup requires the actual frozen source revision");
-  const directory = path.join(output, "selected-setup-inputs");
-  await mkdir(directory);
-  const game = Buffer.from("Portcove inert selected game variant A\n");
-  const replacement = Buffer.from("Portcove inert selected game variant B\n");
-  const bios = Buffer.from("Portcove inert selected BIOS fixture\n");
-  const gamePath = path.join(directory, "game.pcgame");
-  const biosPath = path.join(directory, "bios.pcbios");
-  const gameBefore = path.join(output, "selected-game-before.pcgame");
-  const gameReplacement = path.join(output, "selected-game-replacement.pcgame");
-  const biosBefore = path.join(output, "selected-bios-before.pcbios");
-  await Promise.all([
-    writeFile(gamePath, game, { flag: "wx" }),
-    writeFile(biosPath, bios, { flag: "wx" }),
-    writeFile(gameBefore, game, { flag: "wx" }),
-    writeFile(gameReplacement, replacement, { flag: "wx" }),
-    writeFile(biosBefore, bios, { flag: "wx" }),
-  ]);
-  const evidenceGap =
-    "Owned inert qualification bytes only; no upstream identity, rights, preparation or runtime qualification.";
-  const immutableUrl = `https://github.com/boburning/portcove/blob/${revision}/apps/desktop/scripts/desktop-install-fixture.mjs`;
-  const profiles = [
-    {
-      id: "selected-setup-game",
-      label: "Selected setup inert game",
-      extension: "pcgame",
-      payloads: [game, replacement],
-    },
-    {
-      id: "selected-setup-bios",
-      label: "Selected setup inert BIOS",
-      extension: "pcbios",
-      payloads: [bios],
-    },
-  ];
+function addSourceIdentityProfiles(baseCatalog, profiles, evidenceGap) {
   for (const profile of profiles) {
     baseCatalog.source_catalog.identities.push({
       id: profile.id,
@@ -185,8 +158,17 @@ async function addSelectedSetupSources({
       })),
     });
   }
-  portDefinition.adapter = "libultraship-portable";
-  refreshPortDefinition.adapter = "psx-recomp-managed";
+}
+
+function addSourceContracts({
+  baseCatalog,
+  portDefinitions,
+  refreshPortDefinition,
+  profiles,
+  revision,
+  immutableUrl,
+  evidenceGap,
+}) {
   for (const definition of portDefinitions) {
     definition.source_profile = profiles[0].id;
     if (definition === refreshPortDefinition) definition.bios_source_profile = profiles[1].id;
@@ -217,6 +199,88 @@ async function addSelectedSetupSources({
       });
     }
   }
+}
+
+async function addSelectedSetupSources({
+  baseCatalog,
+  portDefinitions,
+  portDefinition,
+  refreshPortDefinition,
+  output,
+  revision,
+  completionJourney = false,
+}) {
+  if (!/^[a-f0-9]{40}$/.test(revision ?? ""))
+    throw new Error("Selected setup requires the actual frozen source revision");
+  const directory = path.join(output, "selected-setup-inputs");
+  await mkdir(directory);
+  const syntheticN64 = (variant) => {
+    const bytes = Buffer.alloc(64);
+    Buffer.from([0x80, 0x37, 0x12, 0x40]).copy(bytes);
+    bytes.write(`Portcove synthetic selected game ${variant}`, 4);
+    return bytes;
+  };
+  const game = completionJourney
+    ? syntheticN64("A")
+    : Buffer.from("Portcove inert selected game variant A\n");
+  const replacement = completionJourney
+    ? syntheticN64("B")
+    : Buffer.from("Portcove inert selected game variant B\n");
+  const bios = Buffer.from("Portcove inert selected BIOS fixture\n");
+  const gameExtension = completionJourney ? "z64" : "pcgame";
+  const gamePath = path.join(directory, `game.${gameExtension}`);
+  const biosPath = path.join(directory, "bios.pcbios");
+  const gameBefore = path.join(output, "selected-game-before.pcgame");
+  const gameReplacement = path.join(output, "selected-game-replacement.pcgame");
+  const biosBefore = path.join(output, "selected-bios-before.pcbios");
+  await Promise.all([
+    writeFile(gamePath, game, { flag: "wx" }),
+    writeFile(biosPath, bios, { flag: "wx" }),
+    writeFile(gameBefore, game, { flag: "wx" }),
+    writeFile(gameReplacement, replacement, { flag: "wx" }),
+    writeFile(biosBefore, bios, { flag: "wx" }),
+  ]);
+  const evidenceGap = completionJourney
+    ? "Owned synthetic valid-header N64 bytes and first-party preparation probe only; no upstream game identity, rights, gameplay or real-game qualification."
+    : "Owned inert qualification bytes only; no upstream identity, rights, preparation or runtime qualification.";
+  const immutableUrl = `https://github.com/boburning/portcove/blob/${revision}/apps/desktop/scripts/desktop-install-fixture.mjs`;
+  const profiles = [
+    {
+      id: "selected-setup-game",
+      label: "Selected setup inert game",
+      extension: gameExtension,
+      payloads: [game, replacement],
+    },
+    {
+      id: "selected-setup-bios",
+      label: "Selected setup inert BIOS",
+      extension: "pcbios",
+      payloads: [bios],
+    },
+  ];
+  addSourceIdentityProfiles(baseCatalog, profiles, evidenceGap);
+  portDefinition.adapter = "libultraship-portable";
+  if (completionJourney) {
+    const { platform, executable } = platformContract();
+    Object.assign(portDefinition, {
+      runtime_source_filename: "source.z64",
+      runtime_source_materialization: "n64-big-endian",
+      setup_executable_hints: { [platform]: [executable] },
+      setup_arguments: ["--owned-preparation", "--owned-fixture-mode", "success"],
+      setup_output_paths: ["data/out", "data/log"],
+      setup_marker: "data/out/jak1/iso/0COMMON.TXT",
+    });
+  }
+  refreshPortDefinition.adapter = "psx-recomp-managed";
+  addSourceContracts({
+    baseCatalog,
+    portDefinitions,
+    refreshPortDefinition,
+    profiles,
+    revision,
+    immutableUrl,
+    evidenceGap,
+  });
   return {
     directory,
     gamePath,
@@ -231,17 +295,7 @@ async function addSelectedSetupSources({
   };
 }
 
-export async function createInstallFixture({
-  root,
-  output,
-  holdFirstDownload = false,
-  sourceJourney = false,
-  revision,
-}) {
-  let artifact = createInstallArtifact();
-  const artifacts = new Map([[`/${artifactName}`, artifact]]);
-  const requests = [];
-  const sockets = new Set();
+function createArtifactServer({ artifacts, requests, sockets, holdFirstDownload }) {
   const server = createServer((request, response) => {
     const servedArtifact = request.method === "GET" ? artifacts.get(request.url) : null;
     if (!servedArtifact) {
@@ -304,6 +358,85 @@ export async function createInstallFixture({
     sockets.add(socket);
     socket.on("close", () => sockets.delete(socket));
   });
+  return server;
+}
+
+async function writeFixtureCatalog({
+  root,
+  output,
+  port,
+  artifact,
+  sourceJourney,
+  completionJourney,
+  revision,
+}) {
+  let url, portDefinition, refreshPortDefinition, artifactPath, catalogPath;
+  url = `http://127.0.0.1:${port}/${artifactName}`;
+  const contract = platformContract();
+  portDefinition = fixturePort({
+    id: INSTALL_FIXTURE_PORT_ID,
+    name: INSTALL_FIXTURE_NAME,
+    summary: "Isolated checksum-pinned native install and cancellation fixture.",
+    ...contract,
+    url,
+    artifact,
+    adapter: "n64-recomp-portable",
+  });
+  refreshPortDefinition = fixturePort({
+    id: INSTALL_REFRESH_FIXTURE_PORT_ID,
+    name: INSTALL_REFRESH_FIXTURE_NAME,
+    summary: "Isolated committed install and workspace refresh recovery fixture.",
+    ...contract,
+    url,
+    artifact,
+    adapter: "libultraship-portable",
+  });
+  const portDefinitions = [portDefinition, refreshPortDefinition];
+  const baseCatalog = JSON.parse(
+    await readFile(path.join(root, "crates", "portcove-core", "catalog", "catalog.json"), "utf8"),
+  );
+  for (const definition of portDefinitions) {
+    if (baseCatalog.ports.some((item) => item.id === definition.id))
+      throw new Error(`${definition.id} unexpectedly exists in the maintained catalog`);
+  }
+  if (sourceJourney || completionJourney)
+    sourceJourney = await addSelectedSetupSources({
+      baseCatalog,
+      portDefinitions,
+      portDefinition,
+      refreshPortDefinition,
+      output,
+      revision,
+      completionJourney,
+    });
+  baseCatalog.ports.push(...portDefinitions);
+  artifactPath = path.join(output, artifactName);
+  catalogPath = path.join(output, "qualification-catalog.json");
+  await Promise.all([
+    writeFile(artifactPath, artifact, { flag: "wx" }),
+    writeFile(catalogPath, `${JSON.stringify(baseCatalog, null, 2)}\n`, { flag: "wx" }),
+  ]);
+  return { url, portDefinition, refreshPortDefinition, artifactPath, catalogPath, sourceJourney };
+}
+
+export async function createInstallFixture({
+  root,
+  output,
+  holdFirstDownload = false,
+  sourceJourney = false,
+  completionJourney = false,
+  preparationTool,
+  revision,
+}) {
+  if (sourceJourney && completionJourney)
+    throw new Error("Discovery and completion fixtures require separate isolated selections");
+  let artifact = completionJourney
+    ? await createCompletionArtifact(preparationTool)
+    : createInstallArtifact();
+  const artifacts = new Map([[`/${artifactName}`, artifact]]);
+  const requests = [];
+  const sockets = new Set();
+  const server = createArtifactServer({ artifacts, requests, sockets, holdFirstDownload });
   const port = await listen(server);
   let url;
   let portDefinition;
@@ -311,50 +444,16 @@ export async function createInstallFixture({
   let artifactPath;
   let catalogPath;
   try {
-    url = `http://127.0.0.1:${port}/${artifactName}`;
-    const contract = platformContract();
-    portDefinition = fixturePort({
-      id: INSTALL_FIXTURE_PORT_ID,
-      name: INSTALL_FIXTURE_NAME,
-      summary: "Isolated checksum-pinned native install and cancellation fixture.",
-      ...contract,
-      url,
-      artifact,
-      adapter: "n64-recomp-portable",
-    });
-    refreshPortDefinition = fixturePort({
-      id: INSTALL_REFRESH_FIXTURE_PORT_ID,
-      name: INSTALL_REFRESH_FIXTURE_NAME,
-      summary: "Isolated committed install and workspace refresh recovery fixture.",
-      ...contract,
-      url,
-      artifact,
-      adapter: "libultraship-portable",
-    });
-    const portDefinitions = [portDefinition, refreshPortDefinition];
-    const baseCatalog = JSON.parse(
-      await readFile(path.join(root, "crates", "portcove-core", "catalog", "catalog.json"), "utf8"),
-    );
-    for (const definition of portDefinitions) {
-      if (baseCatalog.ports.some((item) => item.id === definition.id))
-        throw new Error(`${definition.id} unexpectedly exists in the maintained catalog`);
-    }
-    if (sourceJourney)
-      sourceJourney = await addSelectedSetupSources({
-        baseCatalog,
-        portDefinitions,
-        portDefinition,
-        refreshPortDefinition,
+    ({ url, portDefinition, refreshPortDefinition, artifactPath, catalogPath, sourceJourney } =
+      await writeFixtureCatalog({
+        root,
         output,
+        port,
+        artifact,
+        sourceJourney,
+        completionJourney,
         revision,
-      });
-    baseCatalog.ports.push(...portDefinitions);
-    artifactPath = path.join(output, artifactName);
-    catalogPath = path.join(output, "qualification-catalog.json");
-    await Promise.all([
-      writeFile(artifactPath, artifact, { flag: "wx" }),
-      writeFile(catalogPath, `${JSON.stringify(baseCatalog, null, 2)}\n`, { flag: "wx" }),
-    ]);
+      }));
   } catch (error) {
     for (const socket of sockets) socket.destroy();
     await new Promise((resolve) => server.close(resolve));
@@ -370,8 +469,11 @@ export async function createInstallFixture({
     refreshPort: refreshPortDefinition,
     requests,
     sourceJourney: sourceJourney || null,
+    completionJourney,
     url,
     async publishRelease(portId, { version, publishedAt, seed }) {
+      if (completionJourney)
+        throw new Error("Completion probe fixture cannot publish inert upgrades");
       if (![INSTALL_FIXTURE_PORT_ID, INSTALL_REFRESH_FIXTURE_PORT_ID].includes(portId))
         throw new Error(`Cannot publish an upgrade for unknown fixture port ${portId}`);
       if (!version || !publishedAt || !Number.isInteger(seed) || seed === 0)

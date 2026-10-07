@@ -579,10 +579,10 @@ pub(super) fn copy_setup_outputs(
         }
         let destination = payload.join(relative);
         crate::path::refuse_symlink_ancestors(&destination)?;
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent)?;
+        }
         if metadata.is_file() {
-            if let Some(parent) = destination.parent() {
-                fs::create_dir_all(parent)?;
-            }
             fs::copy(&source, &destination)?;
             crate::permissions::normalize_archive_entry(&destination, false, false)?;
             continue;

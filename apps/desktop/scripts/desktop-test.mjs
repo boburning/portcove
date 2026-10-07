@@ -33,6 +33,7 @@ import {
 } from "./desktop-bootstrap-recovery-test.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
 import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mjs";
+import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
@@ -141,6 +142,13 @@ if (selection.selected_scenarios.includes("native-saved-folder-selected-setup"))
   inputs.push(
     await fileIdentity(fileURLToPath(new URL("./desktop-source-dialog-test.mjs", import.meta.url))),
   );
+if (selection.selected_scenarios.includes("native-selected-setup-completion"))
+  for (const name of [
+    "desktop-selected-setup-completion-test.mjs",
+    "desktop-source-dialog-test.mjs",
+    "../../../crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
+  ])
+    inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
 if (bootstrapRecoverySession || preferencesRecoverySession)
   for (const name of [
     "desktop-bootstrap-recovery-test.mjs",
@@ -1530,6 +1538,9 @@ try {
       output,
       revision,
       sourceJourney: selection.selected_scenarios.includes("native-saved-folder-selected-setup"),
+      completionJourney: selection.selected_scenarios.includes("native-selected-setup-completion"),
+      holdFirstDownload: selection.selected_scenarios.includes("native-selected-setup-completion"),
+      preparationTool: values["preparation-tool"],
     });
     if (installFixture.sourceJourney) {
       for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
@@ -2907,6 +2918,16 @@ try {
     restartApplication,
   });
   await selectedSetupScenario({
+    browser,
+    invoke,
+    scenario,
+    library,
+    output,
+    artifacts,
+    cli: values["preparation-cli"],
+    fixture: installFixture,
+  });
+  await selectedSetupCompletionScenario({
     browser,
     invoke,
     scenario,

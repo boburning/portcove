@@ -17,6 +17,16 @@ function scenario(id, description, options = {}) {
 
 export const DESKTOP_SCENARIOS = Object.freeze([
   scenario(
+    "native-selected-setup-completion",
+    "Discovered synthetic inputs continue through ordinary installation, cancellation, retry and isolated preparation.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-selected-setup-completion-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-saved-folder-selected-setup",
     "Real saved-folder discovery, guarded registration and selected-port requirements preserve owned inputs.",
     {
@@ -501,6 +511,11 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (uniqueRequested.includes("native-selected-setup-completion")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-selected-setup-completion requires one exact standalone scenario");
+    if (platform !== "win32") throw new Error("native-selected-setup-completion requires Windows");
+  }
   if (uniqueRequested.includes("native-startup-network-diagnostic") && uniqueRequested.length !== 1)
     throw new Error("native-startup-network-diagnostic requires one exact standalone scenario");
   if (uniqueRequested.includes("native-startup-network-diagnostic") && platform !== "win32")
