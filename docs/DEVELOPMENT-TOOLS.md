@@ -787,11 +787,22 @@ one worktree cannot starve another worktree's timed tests. The lock is released
 between those stages; formatting, JavaScript/UI tests, research, editing, and
 review remain concurrent. The wrapper publishes complete lock metadata atomically, records an owned
 containment supervisor, and only then opens the supervisor's launch gate for the
-pinned exact command. Unix anchors a detached process group and starts
-an out-of-group cleanup watchdog before nextest; Windows uses a kill-on-close
-Job Object. The Unix watchdog publishes success only after the anchored process
-group is absent, and a new acquirer validates that receipt before reclaiming a
-dead wrapper and supervisor. Nested inherited commands stay inside that existing containment.
+pinned exact command. Linux prepares the first-party adopting reaper through the
+existing source/compiler/flags/platform/environment-bound support cache. The
+reaper is the wrapper's direct child and becomes a subreaper before launching a
+Node child in its own process group. A private handshake binds that child's birth
+identity, parent and group before registration; its launch gate still precedes
+the guarded payload. The wrapper monitors and reaps the helper while registering
+the separate Node group. Wrapper pipe loss closes that anchored group; reaper pipe
+loss makes the Node supervisor close its own group without inventing a receipt.
+The reaper stays outside the killed group, drains direct and adopted children, and
+publishes an atomic positive receipt only after actual group absence and completed
+reaping, within the existing five-second cleanup bound. A failed, missing or late
+receipt, failed handshake or failed reaper exit preserves ownership and the
+invocation's original evidence directory. Other Unix hosts retain the detached
+group and out-of-group watchdog; Windows retains the kill-on-close Job Object.
+A new acquirer still requires valid cleanup evidence before reclaiming a dead
+wrapper and supervisor. Nested inherited commands stay inside that existing containment.
 Ctrl-C and termination requests close the owned outer containment and return the
 conventional 130 or 143 status; signal listeners are removed after the command.
 It refuses to overlap a matching live owner and waits up to 60 minutes by default,
@@ -826,7 +837,27 @@ quiescent, the exact resume condition is a supported owner/containment exit plus
 the wrapper's valid cleanup evidence. Preserve the lock and report that condition;
 do not invent a manual recovery path or keep rerunning expensive checks while it
 remains false. Do not remove the lock, kill another worker, or use direct
-Cargo/nextest to evade it. After admission, diagnose any nextest timeout as a
+Cargo/nextest to evade it.
+
+At a real safe checkpoint before an authorized environment replacement, use the
+existing source and evidence channels to preserve the essential continuation:
+exact commits, branches/refs and uncommitted work; the accepted assignment and
+current qualification boundary; and the original acceptance/failure evidence
+referenced by that work, including incident identities, locks and receipts.
+Verify newly preserved originals incrementally by identity, checksum and readback;
+retain earlier verified evidence at its original scope instead of bulk-exporting
+everything at every checkpoint. Reproducible dependencies, build outputs and
+caches are distinct from irreplaceable source and evidence. Unreferenced optional
+historical payload can remain on the retained host with its access limitation
+reported. Missing essential evidence remains unknown and must be returned to the
+coordinator under the existing preservation requirement. An authentication/export
+failure belongs to the existing platform channel, not a credential workaround or
+a new backup service. Keep the failed host and its originals intact; a fresh
+environment and a repaired supervisor do not turn its old cleanup into success.
+Even a successful managed-payload receipt does not prove the outer adopting helper
+was reaped by a non-reaping PID1 after whole-wrapper loss.
+
+After admission, diagnose any nextest timeout as a
 separate per-test failure and retain its run ID and last completed phase.
 Direct Cargo commands are outside this guard, as are native desktop sessions,
 which retain their separate focus-taking lock and evidence rules. `--prepare-only`

@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { parseRustRunMode, runRustTests } from "./run-rust-tests.mjs";
+import { inspectLinuxSupervisor, parseRustRunMode, runRustTests } from "./run-rust-tests.mjs";
 
 const testCompilerIdentity = Object.freeze({
   verbose_version: "rustc test",
@@ -18,6 +18,7 @@ const testCompilerIdentity = Object.freeze({
 function supportCacheDoubles() {
   return {
     rustSupportCompilerIdentity: () => testCompilerIdentity,
+    readLinuxSupervisor: (_file, reaper) => ({ pid: reaper.pid + 1 }),
     prepareSupportArtifact: ({ product, runSync }) => {
       const compiled = runSync("rustc", [product]);
       if (compiled.error) throw compiled.error;
@@ -47,6 +48,29 @@ function childProcess(pid, exitCode) {
   if (exitCode !== null) queueMicrotask(() => child.emit("close", exitCode));
   return child;
 }
+
+test("inert Linux registration rejects stale identity, wrong parent/group and malformed handshakes", () => {
+  const fields = ["S", "800", "801", "800", ...Array(15).fill("0"), "123"];
+  const boot = "184ec16d-5c8c-41e0-bc9f-3ba1248a69ec";
+  const value = { pid: 801, identity: `linux:${boot}:801:123` };
+  const read = (file) => (file.endsWith("boot_id") ? boot : `801 (node) ${fields.join(" ")}`);
+  assert.deepEqual(inspectLinuxSupervisor(value, 800, read), { pid: 801 });
+  for (const candidate of [null, { pid: -1 }, { pid: 801.5 }, { pid: 801, identity: "stale" }])
+    assert.throws(() => inspectLinuxSupervisor(candidate, 800, read));
+  for (const [index, invalid] of [
+    [0, "Z"],
+    [0, "X"],
+    [0, "future"],
+    [1, "799"],
+    [2, "799"],
+    [19, "124"],
+  ]) {
+    const original = fields[index];
+    fields[index] = invalid;
+    assert.throws(() => inspectLinuxSupervisor(value, 800, read));
+    fields[index] = original;
+  }
+});
 
 test("runner distinguishes nextest, hosted preparation, and exact guarded commands", () => {
   const union = parseRustRunMode([
@@ -151,6 +175,164 @@ async function waitUntil(predicate, milliseconds = 5_000) {
   assert.fail("condition did not become true before its deadline");
 }
 
+test("inert Linux handshake failure retains ownership and closes only the owned reaper pipe", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let managed;
+  let released = false;
+  let closed = false;
+  try {
+    await assert.rejects(
+      runRustTests(["--guard-command", "inert-command"], {
+        ...supportCacheDoubles(),
+        tempRoot,
+        platform: "linux",
+        spawnSync: () => ({ status: 0 }),
+        spawn: () => (managed = childProcess(820, null)),
+        readLinuxSupervisor: () => {
+          throw new Error("identity mismatch");
+        },
+        closeLinuxControl: () => {
+          closed = true;
+          queueMicrotask(() => managed.emit("close", 0));
+        },
+        killProcess: () => assert.fail("wrapper must not signal a PID inferred from the reaper"),
+        readCleanupReceipt: () => ({ outcome: "quiescent" }),
+        writeGate: () => assert.fail("invalid identity must not launch a payload"),
+        acquireLock: async () => ({
+          childEnvironment: {},
+          registerChild: async () => assert.fail("invalid handshake must not register a group"),
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /identity mismatch/u,
+    );
+    assert.equal(closed, true);
+    assert.equal(released, false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("inert Linux pre-gate exit cannot turn successful cleanup into command success", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let managed;
+  let released = false;
+  try {
+    await assert.rejects(
+      runRustTests(["--guard-command", "inert-command"], {
+        ...supportCacheDoubles(),
+        tempRoot,
+        platform: "linux",
+        spawnSync: () => ({ status: 0 }),
+        spawn: () => (managed = childProcess(821, null)),
+        readCleanupReceipt: () => ({ outcome: "quiescent" }),
+        writeGate: () => assert.fail("dead supervisor must not launch a payload"),
+        acquireLock: async () => ({
+          childEnvironment: {},
+          registerChild: async () => {
+            queueMicrotask(() => managed.emit("close", 0));
+            return null;
+          },
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /before registered payload admission/u,
+    );
+    assert.equal(released, false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("inert Linux reaper failure cannot use an existing positive receipt", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let managed;
+  let released = false;
+  try {
+    await assert.rejects(
+      runRustTests(["--guard-command", "inert-command"], {
+        ...supportCacheDoubles(),
+        tempRoot,
+        platform: "linux",
+        spawnSync: () => ({ status: 0 }),
+        spawn: () => (managed = childProcess(822, null)),
+        writeGate: () => queueMicrotask(() => managed.emit("close", 1)),
+        readUnixSupervisorStatus: () => 0,
+        readCleanupReceipt: () => ({ outcome: "quiescent" }),
+        acquireLock: async () => ({
+          childEnvironment: {},
+          registerChild: async () => ({ pid: 823 }),
+          release: async () => {
+            released = true;
+          },
+        }),
+      }),
+      /reaper failed after cleanup/u,
+    );
+    assert.equal(released, false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("inert Linux payload status stays separate from successful reaper exit", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let managed;
+  let receiptPath;
+  let released = false;
+  const prepared = [];
+  const support = supportCacheDoubles();
+  try {
+    const status = await runRustTests(["--guard-command", "inert-command"], {
+      ...support,
+      tempRoot,
+      platform: "linux",
+      spawnSync: () => ({ status: 0 }),
+      prepareSupportArtifact: (request) => {
+        prepared.push(request);
+        return support.prepareSupportArtifact(request);
+      },
+      spawn: () => (managed = childProcess(824, null)),
+      writeGate: () => queueMicrotask(() => managed.emit("close", 0)),
+      readUnixSupervisorStatus: () => 17,
+      readCleanupReceipt: () => ({ outcome: "quiescent" }),
+      acquireLock: async () => ({
+        childEnvironment: {},
+        registerChild: async (_child, registration) => {
+          receiptPath = registration.cleanupReceipt;
+          return { pid: 825 };
+        },
+        release: async () => {
+          released = true;
+        },
+      }),
+    });
+    assert.equal(status, 17);
+    assert.equal(released, true);
+    assert.equal(
+      existsSync(path.dirname(receiptPath)),
+      false,
+      "ordinary proved closure leaked temporary evidence",
+    );
+    assert.equal(prepared.length, 1, "guarded command unnecessarily prepared a payload fixture");
+    assert.equal(prepared[0].product, "linux-process-tree-reaper");
+    assert.equal(prepared[0].source, "scripts/fixtures/linux-process-tree-reaper.rs.txt");
+    assert.deepEqual(prepared[0].rustcArgs, [
+      "--edition=2024",
+      "--crate-name",
+      "portcove_linux_process_tree_reaper",
+    ]);
+    assert.equal(prepared[0].compiler, testCompilerIdentity);
+    assert.equal(prepared[0].platform, "linux");
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("runner holds the lock through nextest and preserves its exit status", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   const events = [];
@@ -202,7 +384,7 @@ test("runner holds the lock through nextest and preserves its exit status", asyn
   }
 });
 
-test("Unix runner launches nextest in a detached process group", async () => {
+test("Linux runner monitors its reaper and registers the separate gated Node group", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   const events = [];
   let spawnedOptions;
@@ -210,6 +392,7 @@ test("Unix runner launches nextest in a detached process group", async () => {
   let spawnedArgs;
   let registeredContainment;
   let registeredCleanupReceipt;
+  let managed;
   try {
     const status = await runRustTests(["--package", "portcove-core"], {
       ...supportCacheDoubles(),
@@ -223,11 +406,14 @@ test("Unix runner launches nextest in a detached process group", async () => {
         spawnedCommand = command;
         spawnedArgs = args;
         spawnedOptions = options;
-        return childProcess(708, 0);
+        managed = childProcess(708, null);
+        return managed;
       },
+      writeGate: () => queueMicrotask(() => managed.emit("close", 0)),
       acquireLock: async () => ({
         childEnvironment: {},
-        registerChild: async (_child, registration) => {
+        registerChild: async (child, registration) => {
+          assert.equal(child.pid, 709, "reaper PID was confused with the registered group");
           registeredContainment = registration.containment;
           registeredCleanupReceipt = registration.cleanupReceipt;
         },
@@ -238,22 +424,60 @@ test("Unix runner launches nextest in a detached process group", async () => {
       killProcess: () => true,
     });
     assert.equal(status, 0);
-    assert.deepEqual(events, ["compile:rustc", "release"]);
-    assert.equal(spawnedCommand, process.execPath);
-    assert.equal(spawnedArgs[0], path.resolve("scripts/rust-test-tree-supervisor.mjs"));
-    assert.match(spawnedArgs[1], /registered\.gate$/u);
-    assert.match(spawnedArgs[2], /nextest-status\.json$/u);
-    assert.match(spawnedArgs[3], /containment-cleanup\.json$/u);
-    assert.deepEqual(spawnedArgs.slice(4), [
+    assert.deepEqual(events, ["compile:rustc", "compile:rustc", "release"]);
+    assert.match(spawnedCommand, /portcove-linux-process-tree-reaper$/u);
+    assert.match(spawnedArgs[0], /registered\.gate$/u);
+    assert.match(spawnedArgs[1], /nextest-status\.json$/u);
+    assert.match(spawnedArgs[2], /containment-cleanup\.json$/u);
+    assert.match(spawnedArgs[3], /linux-supervisor\.json$/u);
+    assert.equal(spawnedArgs[4], process.execPath);
+    assert.equal(spawnedArgs[5], path.resolve("scripts/rust-test-tree-supervisor.mjs"));
+    assert.deepEqual(spawnedArgs.slice(6), [
       "cargo-nextest",
       "nextest",
       "run",
       "--package",
       "portcove-core",
     ]);
-    assert.equal(spawnedOptions.detached, true);
+    assert.equal(spawnedOptions.detached, false);
+    assert.deepEqual(spawnedOptions.stdio, ["pipe", "inherit", "inherit"]);
     assert.equal(registeredContainment, "unix-watchdog");
     assert.match(registeredCleanupReceipt, /containment-cleanup\.json$/u);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("inert non-Linux Unix route preserves the original watchdog invocation", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+  let launched;
+  try {
+    const status = await runRustTests(["--guard-command", "inert-command"], {
+      ...supportCacheDoubles(),
+      tempRoot,
+      platform: "darwin",
+      spawnSync: () => assert.fail("non-Linux guarded command must not prepare the Linux helper"),
+      spawn: (command, args, options) => {
+        launched = { command, args, options };
+        return childProcess(826, 0);
+      },
+      readUnixSupervisorStatus: () => 0,
+      readCleanupReceipt: () => ({ outcome: "quiescent" }),
+      acquireLock: async () => ({
+        childEnvironment: {},
+        registerChild: async (_child, registration) => {
+          assert.equal(registration.containment, "unix-watchdog");
+          return { pid: 826 };
+        },
+        release: async () => {},
+      }),
+    });
+    assert.equal(status, 0);
+    assert.equal(launched.command, process.execPath);
+    assert.equal(launched.args[0], path.resolve("scripts/rust-test-tree-supervisor.mjs"));
+    assert.equal(launched.args.at(-1), "inert-command");
+    assert.equal(launched.options.detached, true);
+    assert.equal(launched.options.stdio, "inherit");
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -310,9 +534,9 @@ for (const [signal, expectedStatus] of [
           return managed;
         },
         writeGate: () => queueMicrotask(() => signalTarget.emit(signal)),
-        killProcess: (pid, deliveredSignal) => {
-          events.push(`kill:${pid}:${deliveredSignal}`);
-          queueMicrotask(() => managed.emit("close", 1));
+        closeLinuxControl: () => {
+          events.push("close:owned-reaper-pipe");
+          queueMicrotask(() => managed.emit("close", 0));
           return true;
         },
         readCleanupReceipt: () => ({ outcome: "quiescent" }),
@@ -324,7 +548,7 @@ for (const [signal, expectedStatus] of [
         }),
       });
       assert.equal(status, expectedStatus);
-      assert.deepEqual(events, ["kill:-713:SIGKILL", "release"]);
+      assert.deepEqual(events, ["close:owned-reaper-pipe", "release"]);
       assert.equal(signalTarget.listenerCount("SIGINT"), 0);
       assert.equal(signalTarget.listenerCount("SIGTERM"), 0);
     } finally {
@@ -350,9 +574,10 @@ test("cancellation during registration never opens the supervisor gate", async (
         return managed;
       },
       writeGate: () => assert.fail("cancelled registration must not open the gate"),
-      killProcess: (pid, signal) => {
-        events.push(`kill:${pid}:${signal}`);
-        queueMicrotask(() => managed.emit("close", 1));
+      readCleanupReceipt: () => ({ outcome: "quiescent" }),
+      closeLinuxControl: () => {
+        events.push("close:owned-reaper-pipe");
+        queueMicrotask(() => managed.emit("close", 0));
         return true;
       },
       acquireLock: async () => ({
@@ -366,7 +591,7 @@ test("cancellation during registration never opens the supervisor gate", async (
       }),
     });
     assert.equal(status, 130);
-    assert.deepEqual(events, ["kill:-714:SIGKILL", "release"]);
+    assert.deepEqual(events, ["close:owned-reaper-pipe", "release"]);
     assert.equal(signalTarget.listenerCount("SIGINT"), 0);
     assert.equal(signalTarget.listenerCount("SIGTERM"), 0);
   } finally {
@@ -381,6 +606,7 @@ test("runner preserves a fast nextest exit when registration observes no live ch
     const status = await runRustTests(["--invalid-fast-option"], {
       ...supportCacheDoubles(),
       tempRoot,
+      platform: "darwin",
       spawnSync: () => ({ status: 0 }),
       spawn: () => childProcess(703, 42),
       acquireLock: async () => ({
@@ -563,6 +789,63 @@ test("runner retains ownership when a published child cannot be stopped after ga
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+for (const outcome of ["failed", "missing", "late"]) {
+  test(`inert cleanup evidence preservation retains ${outcome} receipt directory`, async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
+    let released = false;
+    let receiptPath;
+    const originalReceipt = '{"outcome":"failed:timeout"}\n';
+    try {
+      await assert.rejects(
+        runRustTests(["--guard-command", "inert-command"], {
+          ...supportCacheDoubles(),
+          tempRoot,
+          platform: "linux",
+          spawnSync: () => ({ status: 0 }),
+          spawn: () => childProcess(713, 1),
+          treeWaitMilliseconds: 0,
+          acquireLock: async () => ({
+            inherited: false,
+            childEnvironment: {},
+            registerChild: async (_child, registration) => {
+              receiptPath = registration.cleanupReceipt;
+              await writeFile(
+                path.join(path.dirname(receiptPath), "original-status.json"),
+                "original\n",
+              );
+              if (outcome === "failed") await writeFile(receiptPath, originalReceipt);
+              return { pid: 713 };
+            },
+            release: async () => {
+              released = true;
+            },
+          }),
+        }),
+        /cleanup.*(?:evidence|quiescence)/u,
+      );
+      assert.equal(released, false);
+      assert.equal(
+        existsSync(path.dirname(receiptPath)),
+        true,
+        "held cleanup evidence was deleted",
+      );
+      assert.equal(
+        await readFile(path.join(path.dirname(receiptPath), "original-status.json"), "utf8"),
+        "original\n",
+      );
+      if (outcome === "failed") assert.equal(await readFile(receiptPath, "utf8"), originalReceipt);
+      else assert.equal(existsSync(receiptPath), false, "missing receipt was reconstructed");
+      if (outcome === "late") {
+        await writeFile(receiptPath, '{"outcome":"failed:late"}\n', { flag: "wx" });
+        assert.equal(await readFile(receiptPath, "utf8"), '{"outcome":"failed:late"}\n');
+        assert.equal(released, false, "a late receipt silently released ownership");
+      }
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+}
 
 test("runner retains ownership when an exited Unix supervisor has no cleanup receipt", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
