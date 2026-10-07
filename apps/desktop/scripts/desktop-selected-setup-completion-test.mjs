@@ -11,6 +11,13 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mjs";
 
+export async function assertCompletionCoreParity({ read, core, portId, prepared, observations }) {
+  // Installation reinspects the source; retain both snapshots and compare the current record.
+  observations.completed_sources = await read("get_sources");
+  assert.deepEqual(core(["status", portId]), prepared);
+  assert.deepEqual(core(["source", "list"]), observations.completed_sources);
+}
+
 export async function retainCompletionReport({
   file,
   report,
@@ -301,8 +308,13 @@ export async function selectedSetupCompletionScenario({
         status: prepared,
       };
       assert.ok(report.observations.prepared.activity);
-      assert.deepEqual(core(["status", port.id]), prepared);
-      assert.deepEqual(core(["source", "list"]), report.observations.sources);
+      await assertCompletionCoreParity({
+        read,
+        core,
+        portId: port.id,
+        prepared,
+        observations: report.observations,
+      });
       await browser.wait(until.elementLocated(button("Play")), 15_000);
       await browser.wait(until.elementIsEnabled(await browser.findElement(button("Play"))), 15_000);
       report.observations.result_focus = await browser.wait(

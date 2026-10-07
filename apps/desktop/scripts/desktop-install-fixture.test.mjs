@@ -15,6 +15,7 @@ import {
 } from "./desktop-install-fixture.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import {
+  assertCompletionCoreParity,
   retainCompletionReport,
   selectedSetupCompletionScenario,
 } from "./desktop-selected-setup-completion-test.mjs";
@@ -22,6 +23,42 @@ import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { run as runLifecycleCommand } from "../../../integrations/playnite/lifecycle-check.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
+
+for (const mismatch of [null, "updated_at", "sha256"]) {
+  test(`completion parity uses current full source records: ${mismatch ?? "matching"}`, async () => {
+    const initial = [{ id: "owned-source", sha256: "a".repeat(64), updated_at: 1605 }];
+    const completed = [{ ...initial[0], updated_at: 1613 }];
+    const cliSources = structuredClone(completed);
+    if (mismatch === "updated_at") cliSources[0].updated_at = 1605;
+    if (mismatch === "sha256") cliSources[0].sha256 = "b".repeat(64);
+    const observations = { sources: initial };
+    const prepared = { readiness: "ready" };
+    const reads = [];
+    const comparison = assertCompletionCoreParity({
+      read: async (command) => {
+        reads.push(command);
+        return completed;
+      },
+      core: (args) => {
+        if (args[0] === "status") {
+          assert.deepEqual(args, ["status", "owned-port"]);
+          return prepared;
+        }
+        assert.deepEqual(args, ["source", "list"]);
+        return cliSources;
+      },
+      portId: "owned-port",
+      prepared,
+      observations,
+    });
+    if (mismatch) await assert.rejects(comparison, { code: "ERR_ASSERTION" });
+    else await comparison;
+    assert.deepEqual(reads, ["get_sources"]);
+    assert.deepEqual(observations.completed_sources, completed);
+    assert.deepEqual(observations.sources, initial);
+    assert.equal(observations.sources[0].updated_at, 1605);
+  });
+}
 
 test("completion fixture pins the owned executable, valid synthetic source and isolated setup contract", async () => {
   const output = await mkdtemp(path.join(tmpdir(), "portcove-completion-contract-"));
