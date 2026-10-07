@@ -115,6 +115,148 @@ function hostedFixture(t) {
   };
 }
 
+function browserProvisioningReport(f, browser = true) {
+  return {
+    format_version: 1,
+    source: f.head,
+    base: f.base,
+    merge_base: f.base,
+    plan_digest: "d".repeat(64),
+    obligations: [{ id: browser ? "ui-browser-tests" : "diff-check" }],
+  };
+}
+
+test("selected hosted browser is provisioned before ordinary execution on a cold fixture", async (t) => {
+  const f = hostedFixture(t);
+  const calls = [];
+  let browserReady = false;
+  const spawn = (name, args, options) => {
+    calls.push([name, ...args]);
+    assert.equal(options.cwd, f.source);
+    assert.equal(options.env.GH_TOKEN, undefined);
+    assert.equal(options.env.CI, undefined);
+    assert.equal(options.env.CARGO_BUILD_JOBS, "4");
+    if (name === process.execPath)
+      return { status: 0, stdout: JSON.stringify(browserProvisioningReport(f)) };
+    if (name === "pnpm") {
+      browserReady = true;
+      return { status: 0 };
+    }
+    if (args.includes("--fresh")) assert.equal(browserReady, true);
+    return { status: 0 };
+  };
+  assert.equal(await runHostedLocalCheck("provision", { ...f.options, spawn }), 0);
+  assert.equal(await runHostedLocalCheck("run", { ...f.options, spawn }), 0);
+  assert.deepEqual(calls, [
+    [process.execPath, "scripts/local-validation.mjs", "check", "--preflight", "--json"],
+    ["pnpm", "--dir", "apps/desktop", "browser:bootstrap"],
+    ["just", "local-check", "--plan"],
+    ["just", "local-check", "--fresh"],
+  ]);
+  assert.ok(f.logs.some((line) => line.includes('"plan_digest":"' + "d".repeat(64))));
+});
+
+test("browser-free hosted selection acquires nothing", async (t) => {
+  const f = hostedFixture(t);
+  const calls = [];
+  assert.equal(
+    await runHostedLocalCheck("provision", {
+      ...f.options,
+      spawn: (name, args) => {
+        calls.push([name, ...args]);
+        return { status: 0, stdout: JSON.stringify(browserProvisioningReport(f, false)) };
+      },
+    }),
+    0,
+  );
+  assert.deepEqual(calls, [
+    [process.execPath, "scripts/local-validation.mjs", "check", "--preflight", "--json"],
+  ]);
+});
+
+test("failed preflight or browser acquisition cannot report provisioned readiness", async (t) => {
+  for (const failure of ["preflight", "bootstrap"]) {
+    const f = hostedFixture(t);
+    const calls = [];
+    assert.equal(
+      await runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          return name === process.execPath
+            ? {
+                status: failure === "preflight" ? 7 : 0,
+                stdout: JSON.stringify(browserProvisioningReport(f)),
+              }
+            : { status: 9 };
+        },
+      }),
+      failure === "preflight" ? 7 : 9,
+    );
+    assert.equal(calls.length, failure === "preflight" ? 1 : 2);
+    assert.ok(!f.logs.some((line) => line.startsWith("Hosted browser provisioning completed:")));
+    assert.ok(!calls.some((call) => call.includes("--fresh")));
+  }
+});
+
+test("invalid or incomplete selected plan refuses acquisition", async (t) => {
+  const f = hostedFixture(t);
+  const report = browserProvisioningReport(f);
+  for (const value of [
+    "not JSON",
+    { ...report, format_version: 2 },
+    { ...report, source: f.base },
+    { ...report, base: f.head },
+    { ...report, merge_base: f.head },
+    { ...report, plan_digest: "invalid" },
+    { ...report, status: "planning-blocked" },
+    { ...report, obligations: null },
+    { ...report, obligations: [] },
+    { ...report, obligations: [{ id: "" }] },
+    { ...report, obligations: [{ id: "ui-browser-tests" }, { id: "ui-browser-tests" }] },
+  ]) {
+    const calls = [];
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          return { status: 0, stdout: typeof value === "string" ? value : JSON.stringify(value) };
+        },
+      }),
+      /Invalid complete local-check preflight/,
+    );
+    assert.equal(calls.length, 1);
+  }
+});
+
+test("provisioning rechecks clean source and comparison before and after acquisition", async (t) => {
+  for (const change of ["source", "controller", "base", "bootstrap-source"]) {
+    const f = hostedFixture(t);
+    const calls = [];
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          if (name === process.execPath) {
+            if (change === "source") f.write(f.source, "subject.rs", "changed during preflight\n");
+            if (change === "controller")
+              f.write(f.controller, ".github/workflows/deep-quality.yml", "changed controller\n");
+            if (change === "base")
+              f.git(f.source, ["update-ref", "refs/remotes/origin/main", f.head]);
+            return { status: 0, stdout: JSON.stringify(browserProvisioningReport(f)) };
+          }
+          f.write(f.source, "subject.rs", "changed during bootstrap\n");
+          return { status: 0 };
+        },
+      }),
+      /dirty|comparison target changed/,
+    );
+    assert.equal(calls.length, change === "bootstrap-source" ? 2 : 1);
+  }
+});
+
 test("hosted local execution preserves defaults and removes provisioning credentials", () => {
   const child = hostedLocalCheckEnvironment(
     {
@@ -568,6 +710,12 @@ test("manual local-check transport preserves the audit and has no mutable execut
     /hosted-local-check controller[\s\S]*path: source[\s\S]*hosted-local-check prepare[\s\S]*bootstrap-quality-tools\.sh[\s\S]*hosted-local-check run/,
   );
   assert.match(local, /pnpm install --frozen-lockfile/);
+  const install = local.indexOf("pnpm install --frozen-lockfile");
+  const provision = local.indexOf("hosted-local-check provision");
+  const run = local.indexOf("hosted-local-check run");
+  assert.ok(provision > install && run > provision);
+  const provisioningStep = local.slice(local.lastIndexOf("      - name:", provision), run);
+  assert.doesNotMatch(provisioningStep, /continue-on-error|if:.*always/);
   assert.doesNotMatch(
     local,
     /actions\/cache|rust-cache|upload-artifact|secrets\.|contents: write|CARGO_PROFILE_/,

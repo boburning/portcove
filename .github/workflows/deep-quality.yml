@@ -193,6 +193,8 @@ jobs:
       - name: Install source frozen dependencies
         working-directory: source
         run: pnpm install --frozen-lockfile
+      - name: Provision selected browser prerequisite from the separate controller
+        run: node controller/scripts/workflow-provenance.mjs hosted-local-check provision
       - name: Execute exact fresh local-check from the separate controller
         run: node controller/scripts/workflow-provenance.mjs hosted-local-check run
       - name: Clean owned ephemeral local-check outputs

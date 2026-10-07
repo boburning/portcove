@@ -306,9 +306,36 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
   return { profile: "cargo-dependency", ...spec, manifests: manifestBindings };
 }
 
+function hostedBrowserSelection(stdout, identities) {
+  const invalid = () => new Error("Invalid complete local-check preflight for provisioning");
+  let report;
+  try {
+    report = JSON.parse(stdout);
+  } catch {
+    throw invalid();
+  }
+  if (
+    report?.format_version !== 1 ||
+    report.source !== identities.source ||
+    report.base !== identities.base ||
+    report.merge_base !== identities.mergeBase ||
+    !/^[a-f0-9]{64}$/u.test(report.plan_digest ?? "") ||
+    report.status !== undefined ||
+    !Array.isArray(report.obligations) ||
+    report.obligations.length === 0 ||
+    report.obligations.some((entry) => typeof entry?.id !== "string" || entry.id.length === 0) ||
+    new Set(report.obligations.map((entry) => entry.id)).size !== report.obligations.length
+  )
+    throw invalid();
+  return {
+    plan_digest: report.plan_digest,
+    browser: report.obligations.some((entry) => entry.id === "ui-browser-tests"),
+  };
+}
+
 export async function runHostedLocalCheck(phase, options = {}) {
-  if (!["controller", "prepare", "run"].includes(phase))
-    throw new Error("hosted-local-check requires controller, prepare or run");
+  if (!["controller", "prepare", "provision", "run"].includes(phase))
+    throw new Error("hosted-local-check requires controller, prepare, provision or run");
   const environment = options.environment ?? process.env;
   const identities = hostedLocalCheckIdentities(environment);
   const controllerRoot = options.controllerRoot ?? root;
@@ -436,6 +463,55 @@ export async function runHostedLocalCheck(phase, options = {}) {
     invoke("pnpm", ["--version"], sourceRoot) !== packageManager.replace(/^pnpm@/u, "")
   )
     throw new Error("Observed local-check tools differ from repository pins");
+  const execute = options.spawn ?? spawnSync;
+  if (phase === "provision") {
+    const preflight = execute(
+      process.execPath,
+      ["scripts/local-validation.mjs", "check", "--preflight", "--json"],
+      {
+        cwd: sourceRoot,
+        env: child,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "inherit"],
+        timeout: 60_000,
+        maxBuffer: 8 * 1024 * 1024,
+      },
+    );
+    if (preflight.error) throw preflight.error;
+    if (preflight.status !== 0) return preflight.status ?? 1;
+    const selection = hostedBrowserSelection(preflight.stdout, identities);
+    const recheck = async () => {
+      clean(controllerRoot, identities.controller);
+      clean(sourceRoot, identities.source);
+      if (git(sourceRoot, ["rev-parse", "origin/main"]) !== identities.base)
+        throw new Error("Local-check comparison target changed during provisioning");
+      if (dependency) {
+        cargoDependencyBinding(
+          environment.PORTCOVE_LOCAL_DEPENDENCY_BINDING,
+          git,
+          sourceRoot,
+          identities,
+        );
+        if (sha256(await readFile(path.join(sourceRoot, "Cargo.lock"))) !== dependency.lock_sha256)
+          throw new Error("Reviewed dependency lock changed during provisioning");
+      }
+    };
+    await recheck();
+    log(`Hosted browser selection: ${JSON.stringify({ ...binding, ...selection })}`);
+    if (!selection.browser) return 0;
+    const provision = execute("pnpm", ["--dir", "apps/desktop", "browser:bootstrap"], {
+      cwd: sourceRoot,
+      env: child,
+      stdio: "inherit",
+      timeout: 300_000,
+    });
+    if (provision.error) throw provision.error;
+    await recheck();
+    const status = provision.status ?? 1;
+    if (status === 0)
+      log(`Hosted browser provisioning completed: ${JSON.stringify({ ...binding, ...selection })}`);
+    return status;
+  }
   log(
     `Local-check execution: ${JSON.stringify({
       command: ["just", "local-check", "--fresh"],
@@ -458,7 +534,6 @@ export async function runHostedLocalCheck(phase, options = {}) {
       },
     })}`,
   );
-  const execute = options.spawn ?? spawnSync;
   const plan = execute("just", ["local-check", "--plan"], {
     cwd: sourceRoot,
     env: child,
