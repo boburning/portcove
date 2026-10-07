@@ -2373,11 +2373,21 @@ fn execute_library(
         }
         LibraryCommand::ResumeMove => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            render_success(mode, name, PortcoveService::resume_library_move(&root)?)?
+            render_read_success(
+                mode,
+                name,
+                PortcoveService::resume_library_move(&root)?,
+                human::library_move_result,
+            )?
         }
         LibraryCommand::AbortMove => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            render_success(mode, name, PortcoveService::abort_library_move(&root)?)?
+            render_read_success(
+                mode,
+                name,
+                PortcoveService::abort_library_move(&root)?,
+                human::library_move_result,
+            )?
         }
         LibraryCommand::Move {
             destination,
@@ -2386,7 +2396,7 @@ fn execute_library(
         } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
             let source = portcove_core::Library::open(&root)?.root().to_path_buf();
-            render_success(
+            render_read_success(
                 mode,
                 name,
                 PortcoveService::move_library(
@@ -2396,12 +2406,18 @@ fn execute_library(
                         PortcoveError::usage("applying a move requires --expected-plan")
                     })?,
                 )?,
+                human::library_move_result,
             )?;
         }
         LibraryCommand::Move { destination, .. } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
             let service = PortcoveService::new_read_only(portcove_core::Library::open(root)?)?;
-            render_success(mode, name, service.plan_library_move(destination)?)?;
+            render_read_success(
+                mode,
+                name,
+                service.plan_library_move(destination)?,
+                human::library_move_plan,
+            )?;
         }
         LibraryCommand::Export { output } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
