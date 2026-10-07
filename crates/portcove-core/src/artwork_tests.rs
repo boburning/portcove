@@ -490,6 +490,177 @@ fn unavailable_originals_retain_preference_and_do_not_block_other_library_reads(
 }
 
 #[test]
+fn local_artwork_writers_share_the_same_library_lock() {
+    for through_alias in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("library with spaces");
+        let owner = open_local_artwork_service(&root);
+        let png = image_file(temp.path(), "cover.png", image::ImageFormat::Png);
+        let jpeg = image_file(temp.path(), "detail.jpg", image::ImageFormat::Jpeg);
+        let png_bytes = fs::read(&png).unwrap();
+        let jpeg_bytes = fs::read(&jpeg).unwrap();
+        let unused = owner
+            .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 0)
+            .unwrap()
+            .choice
+            .asset_sha256
+            .unwrap();
+        let cover = owner
+            .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &jpeg, 1)
+            .unwrap();
+        let detail = owner
+            .import_artwork("zelda64-recomp", ArtworkSlot::Detail, &jpeg, 0)
+            .unwrap();
+        let unrelated = root.join("unrelated-save.bin");
+        let save_bytes = b"unrelated player bytes must remain exact";
+        fs::write(&unrelated, save_bytes).unwrap();
+        let other_root = if through_alias {
+            fs::create_dir(temp.path().join("alias")).unwrap();
+            temp.path().join("alias/../library with spaces")
+        } else {
+            root.clone()
+        };
+        // Open a second library, rather than clone the owner's in-memory handle.
+        let contender = open_local_artwork_service(&other_root);
+        assert_eq!(
+            owner.library().identity_record().unwrap(),
+            contender.library().identity_record().unwrap()
+        );
+        let snapshot = || {
+            let mut files = std::collections::BTreeMap::new();
+            for directory in ["artwork", "artwork-cache"] {
+                for entry in fs::read_dir(root.join(directory)).unwrap() {
+                    let path = entry.unwrap().path();
+                    assert!(path.is_file());
+                    files.insert(
+                        path.strip_prefix(&root).unwrap().to_path_buf(),
+                        fs::read(path).unwrap(),
+                    );
+                }
+            }
+            (
+                contender
+                    .export_library_metadata()
+                    .unwrap()
+                    .artwork
+                    .unwrap(),
+                files,
+                fs::read(&png).unwrap(),
+                fs::read(&jpeg).unwrap(),
+                fs::read(&unrelated).unwrap(),
+            )
+        };
+        let before = snapshot();
+        assert_eq!(before.0.choices.len(), 2);
+        assert_eq!(before.0.assets.len(), 2);
+        assert_eq!(contender.unused_local_artwork().unwrap()[0].sha256, unused);
+        let guard = owner.library().try_lock_artwork().unwrap();
+        for operation in ["import", "reset", "clear", "retire"] {
+            let error = match operation {
+                "import" => contender
+                    .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &png, 2)
+                    .unwrap_err(),
+                "reset" => contender
+                    .reset_artwork("zelda64-recomp", ArtworkSlot::Cover, 2)
+                    .unwrap_err(),
+                "clear" => contender.clear_artwork_cache().unwrap_err(),
+                "retire" => contender.remove_unused_local_artwork(&unused).unwrap_err(),
+                _ => unreachable!(),
+            };
+            assert_eq!(error.code, crate::ErrorCode::Conflict, "{operation}");
+            assert_eq!(error.details["resource_id"], "local artwork");
+            assert_eq!(error.details["operation"], "change-artwork");
+            assert_eq!(snapshot(), before, "{operation}, alias={through_alias}");
+        }
+        drop(guard);
+
+        assert_eq!(contender.clear_artwork_cache().unwrap().removed_files, 2);
+        assert_eq!(
+            contender
+                .export_library_metadata()
+                .unwrap()
+                .artwork
+                .unwrap(),
+            before.0
+        );
+        let reset = contender
+            .reset_artwork("zelda64-recomp", ArtworkSlot::Cover, cover.choice.revision)
+            .unwrap();
+        assert_eq!(reset.choice.revision, 3);
+        assert_eq!(reset.availability, ArtworkAvailability::Fallback);
+        contender.remove_unused_local_artwork(&unused).unwrap();
+        assert!(
+            !crate::artwork::original_path(owner.library(), &unused)
+                .unwrap()
+                .exists()
+        );
+        let imported = contender
+            .import_artwork(
+                "zelda64-recomp",
+                ArtworkSlot::Cover,
+                &png,
+                reset.choice.revision,
+            )
+            .unwrap();
+        assert_eq!(imported.choice.revision, 4);
+        assert_eq!(
+            imported.choice.asset_sha256.as_deref(),
+            Some(unused.as_str())
+        );
+        assert_eq!(
+            fs::read(crate::artwork::original_path(owner.library(), &unused).unwrap()).unwrap(),
+            png_bytes
+        );
+        let after = snapshot();
+        for stale in [0, cover.choice.revision, reset.choice.revision] {
+            assert_eq!(
+                contender
+                    .import_artwork("zelda64-recomp", ArtworkSlot::Cover, &jpeg, stale)
+                    .unwrap_err()
+                    .code,
+                crate::ErrorCode::Conflict
+            );
+            assert_eq!(
+                contender
+                    .reset_artwork("zelda64-recomp", ArtworkSlot::Cover, stale)
+                    .unwrap_err()
+                    .code,
+                crate::ErrorCode::Conflict
+            );
+            assert_eq!(snapshot(), after);
+        }
+        assert_eq!(
+            owner
+                .artwork("zelda64-recomp", ArtworkSlot::Cover)
+                .unwrap()
+                .choice,
+            imported.choice
+        );
+        assert_eq!(
+            owner
+                .artwork("zelda64-recomp", ArtworkSlot::Detail)
+                .unwrap()
+                .choice,
+            detail.choice
+        );
+        assert_eq!(
+            fs::read(
+                crate::artwork::original_path(
+                    owner.library(),
+                    detail.choice.asset_sha256.as_deref().unwrap()
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            jpeg_bytes
+        );
+        assert_eq!(fs::read(&png).unwrap(), png_bytes);
+        assert_eq!(fs::read(&jpeg).unwrap(), jpeg_bytes);
+        assert_eq!(fs::read(&unrelated).unwrap(), save_bytes);
+    }
+}
+
+#[test]
 fn an_artwork_writer_does_not_take_the_game_operation_lock() {
     let temp = tempfile::tempdir().unwrap();
     let service = open_local_artwork_service(&temp.path().join("library"));
