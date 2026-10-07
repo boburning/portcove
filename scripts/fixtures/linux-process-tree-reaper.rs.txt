@@ -140,6 +140,12 @@ fn run(args: &[String], group: &mut Option<i32>) -> io::Result<()> {
     ))?;
     loop {
         if pipe_lost()? || stat(pid)?[0] == "Z" { break; }
+        match fs::symlink_metadata(&args[1]) {
+            Ok(status) if status.is_file() => break,
+            Ok(_) => return Err(io::Error::other("supervisor status is not a regular file")),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error),
+        }
     }
     Ok(())
 }

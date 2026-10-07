@@ -142,7 +142,7 @@ async function linuxInnerCase({ mode, directory, reaper, supervisor }) {
     `const child=spawn(process.execPath,["-e","setInterval(()=>{},1000)"],{detached:${mode === "escaped-refusal"},stdio:"ignore"})`,
     `writeFileSync(${JSON.stringify(descendant)},String(child.pid))`,
     "child.unref()",
-    ...(mode === "natural" || mode === "receipt-refusal"
+    ...(mode === "natural" || mode === "receipt-refusal" || mode === "root-complete-reaper-loss"
       ? [`setInterval(()=>{if(existsSync(${JSON.stringify(finish)}))process.exit(0)},10)`]
       : ["setInterval(()=>{},1000)"]),
   ].join(";");
@@ -158,9 +158,11 @@ async function linuxInnerCase({ mode, directory, reaper, supervisor }) {
     payload,
   ];
   const captured = [];
+  writeFileSync(path.join(directory, "captured.json"), JSON.stringify(captured));
   const capture = (pid) => {
     const value = identity(pid);
     captured.push(value);
+    writeFileSync(path.join(directory, "captured.json"), JSON.stringify(captured));
     return value;
   };
   const closed = (child) =>
@@ -172,131 +174,193 @@ async function linuxInnerCase({ mode, directory, reaper, supervisor }) {
   let wrapper;
   let helper;
   let completion;
-  if (mode === "legacy-sibling-red") {
-    managed = spawn(
-      process.execPath,
-      [supervisor, gate, status, receipt, process.execPath, "-e", payload],
-      {
-        detached: true,
-        stdio: "inherit",
-      },
-    );
-    completion = closed(managed);
-    helper = managed.pid;
-    if (mode !== "init-refusal") capture(helper);
-  } else if (mode === "wrapper-loss") {
-    const wrapperScript = [
-      'const {spawn}=require("node:child_process")',
-      'const {writeFileSync}=require("node:fs")',
-      `const child=spawn(${JSON.stringify(reaper)},${JSON.stringify(args)},{stdio:["pipe","inherit","inherit"]})`,
-      `writeFileSync(${JSON.stringify(helperPid)},String(child.pid))`,
-      "setInterval(()=>{},1000)",
-    ].join(";");
-    wrapper = spawn(process.execPath, ["-e", wrapperScript], { stdio: "inherit" });
-    completion = closed(wrapper);
-    capture(wrapper.pid);
-    await wait(() => existsSync(helperPid));
-    helper = Number(readFileSync(helperPid, "utf8"));
-    capture(helper);
-  } else {
-    managed = spawn(reaper, args, {
-      stdio: mode === "init-refusal" ? "ignore" : ["pipe", "inherit", "inherit"],
-    });
-    completion = closed(managed);
-    helper = managed.pid;
-    capture(helper);
-  }
-  if (mode === "init-refusal") {
-    assert.equal((await completion).code, 1);
-    assert.equal(JSON.parse(readFileSync(receipt, "utf8")).outcome, "failed:linux-reaper");
-    assert.equal(existsSync(registration), false);
-    assert.equal(existsSync(started), false);
-  } else {
-    let node;
-    if (mode === "legacy-sibling-red") node = captured[0];
-    else {
-      await wait(() => existsSync(registration));
-      node = capture(JSON.parse(readFileSync(registration, "utf8")).pid);
-      assert.equal(node.parent, helper);
-      assert.equal(node.group, node.pid);
-      assert.notEqual(identity(helper).group, node.group, "adopter shared the killed group");
-    }
-    assert.equal(existsSync(started), false, "payload ran before the registration gate");
-    assert.equal(existsSync(receipt), false, "cleanup succeeded before group absence");
-    if (mode === "gate-refusal") managed.stdin.end();
-    else {
-      if (mode === "receipt-refusal")
-        writeFileSync(receipt, '{"outcome":"failed:original"}\n', { flag: "wx" });
-      writeFileSync(gate, "registered\n", { flag: "wx" });
-      await wait(() => existsSync(descendant));
-      const child = capture(Number(readFileSync(descendant, "utf8")));
-      if (mode === "natural" || mode === "receipt-refusal") writeFileSync(finish, "finish\n");
-      if (mode === "cancel-pipe") managed.stdin.end();
-      if (mode === "supervisor-loss" || mode === "legacy-sibling-red") {
-        assert.equal(identity(node.pid).start, node.start);
-        assert.equal(identity(node.pid).group, node.pid);
-        process.kill(-node.pid, "SIGKILL");
-      }
-      if (mode === "wrapper-loss") wrapper.kill("SIGKILL");
-      if (mode === "reaper-loss") managed.kill("SIGKILL");
-      if (mode === "pipe-refusal") managed.stdin.write("unexpected control input");
-      if (mode === "escaped-refusal") managed.stdin.end();
-      if (mode === "reaper-loss") {
-        await completion;
-        await wait(() => identity(node.pid).state === "Z" && identity(child.pid).state === "Z");
-        assert.equal(existsSync(receipt), false, "lost reaper manufactured a receipt");
-      }
-    }
-    if (mode !== "reaper-loss") {
-      // The old sibling cleaner and escaped-child refusal keep the existing 5s
-      // cleanup deadline; the enclosing Node test retains its unchanged 30s guard.
-      await wait(
-        () => existsSync(receipt),
-        mode === "legacy-sibling-red" || mode === "escaped-refusal" ? 6_000 : 5_000,
+  let escaped;
+  try {
+    if (mode === "legacy-sibling-red") {
+      managed = spawn(
+        process.execPath,
+        [supervisor, gate, status, receipt, process.execPath, "-e", payload],
+        {
+          detached: true,
+          stdio: "inherit",
+        },
       );
-      const outcome = JSON.parse(readFileSync(receipt, "utf8")).outcome;
-      if (mode === "legacy-sibling-red") {
-        assert.equal(
-          outcome,
-          "failed:timeout",
-          "old sibling topology did not reproduce its orphan defect",
-        );
-        assert.equal(identity(Number(readFileSync(descendant, "utf8"))).state, "Z");
-        await completion;
-      } else if (mode === "receipt-refusal") {
-        assert.equal((await completion).code, 1);
-        assert.equal(readFileSync(receipt, "utf8"), '{"outcome":"failed:original"}\n');
-      } else if (mode === "pipe-refusal") {
-        assert.equal(outcome, "failed:linux-reaper");
-        assert.equal((await completion).code, 1);
-      } else if (mode === "escaped-refusal") {
-        assert.equal(outcome, "failed:linux-reaper");
-        assert.equal((await completion).code, 1);
-        const child = captured.at(-1);
-        assert.equal(identity(child.pid).start, child.start);
-        const outerNode = identity(process.ppid);
-        assert.equal(
-          identity(child.pid).parent,
-          outerNode.parent,
-          "escaped fixture is not adopted by the test envelope",
-        );
-        process.kill(child.pid, "SIGKILL"); // Exactly identified inert fixture; never another owner.
-      } else {
-        assert.equal(outcome, "quiescent");
-        if (mode === "wrapper-loss") await completion;
-        else assert.equal((await completion).code, 0);
-        assert.equal(existsSync(`/proc/${node.pid}`), false, "Node group was not actually reaped");
-        if (mode === "gate-refusal") assert.equal(existsSync(started), false);
-        else
-          assert.equal(
-            existsSync(`/proc/${captured.at(-1).pid}`),
-            false,
-            "descendant was not actually reaped",
+      completion = closed(managed);
+      helper = managed.pid;
+      capture(helper);
+    } else if (mode === "root-complete-reaper-loss") {
+      managed = spawn(
+        process.execPath,
+        [supervisor, "--linux-managed", gate, status, receipt, process.execPath, "-e", payload],
+        { detached: true, stdio: ["pipe", "inherit", "inherit"] },
+      );
+      completion = closed(managed);
+      helper = managed.pid;
+      capture(helper);
+    } else if (mode === "wrapper-loss") {
+      const wrapperScript = [
+        'const {spawn}=require("node:child_process")',
+        'const {writeFileSync}=require("node:fs")',
+        `const child=spawn(${JSON.stringify(reaper)},${JSON.stringify(args)},{stdio:["pipe","inherit","inherit"]})`,
+        `writeFileSync(${JSON.stringify(helperPid)},String(child.pid))`,
+        "setInterval(()=>{},1000)",
+      ].join(";");
+      wrapper = spawn(process.execPath, ["-e", wrapperScript], { stdio: "inherit" });
+      completion = closed(wrapper);
+      capture(wrapper.pid);
+      await wait(() => existsSync(helperPid));
+      helper = Number(readFileSync(helperPid, "utf8"));
+      capture(helper);
+    } else {
+      managed = spawn(reaper, args, {
+        stdio: mode === "init-refusal" ? "ignore" : ["pipe", "inherit", "inherit"],
+      });
+      completion = closed(managed);
+      helper = managed.pid;
+      if (mode !== "init-refusal") capture(helper);
+    }
+    if (mode === "init-refusal") {
+      assert.equal((await completion).code, 1);
+      assert.equal(JSON.parse(readFileSync(receipt, "utf8")).outcome, "failed:linux-reaper");
+      assert.equal(existsSync(registration), false);
+      assert.equal(existsSync(started), false);
+    } else {
+      let node;
+      if (mode === "legacy-sibling-red" || mode === "root-complete-reaper-loss") node = captured[0];
+      else {
+        await wait(() => existsSync(registration));
+        node = capture(JSON.parse(readFileSync(registration, "utf8")).pid);
+        assert.equal(node.parent, helper);
+        assert.equal(node.group, node.pid);
+        assert.notEqual(identity(helper).group, node.group, "adopter shared the killed group");
+      }
+      assert.equal(existsSync(started), false, "payload ran before the registration gate");
+      assert.equal(existsSync(receipt), false, "cleanup succeeded before group absence");
+      if (mode === "gate-refusal") managed.stdin.end();
+      else {
+        if (mode === "receipt-refusal")
+          writeFileSync(receipt, '{"outcome":"failed:original"}\n', { flag: "wx" });
+        writeFileSync(gate, "registered\n", { flag: "wx" });
+        await wait(() => existsSync(descendant));
+        const child = capture(Number(readFileSync(descendant, "utf8")));
+        if (mode === "escaped-refusal") escaped = child;
+        if (
+          mode === "natural" ||
+          mode === "receipt-refusal" ||
+          mode === "root-complete-reaper-loss"
+        )
+          writeFileSync(finish, "finish\n");
+        if (mode === "root-complete-reaper-loss") {
+          await wait(() => existsSync(status));
+          assert.notEqual(
+            identity(node.pid).state,
+            "Z",
+            "completion abandoned the live control guard",
           );
+          managed.stdin.end();
+        }
+        if (mode === "cancel-pipe") managed.stdin.end();
+        if (mode === "supervisor-loss" || mode === "legacy-sibling-red") {
+          assert.equal(identity(node.pid).start, node.start);
+          assert.equal(identity(node.pid).group, node.pid);
+          process.kill(-node.pid, "SIGKILL");
+        }
+        if (mode === "wrapper-loss") wrapper.kill("SIGKILL");
+        if (mode === "reaper-loss") managed.kill("SIGKILL");
+        if (mode === "pipe-refusal") managed.stdin.write("unexpected control input");
+        if (mode === "escaped-refusal") managed.stdin.end();
+        if (mode === "reaper-loss" || mode === "root-complete-reaper-loss") {
+          await completion;
+          await wait(
+            () =>
+              (mode === "root-complete-reaper-loss"
+                ? !existsSync(`/proc/${node.pid}`)
+                : identity(node.pid).state === "Z") && identity(child.pid).state === "Z",
+          );
+          assert.equal(existsSync(receipt), false, "lost reaper manufactured a receipt");
+        }
+      }
+      if (mode !== "reaper-loss" && mode !== "root-complete-reaper-loss") {
+        // The old sibling cleaner and escaped-child refusal keep the existing 5s
+        // cleanup deadline; the enclosing Node test retains its unchanged 30s guard.
+        await wait(
+          () => existsSync(receipt),
+          mode === "legacy-sibling-red" || mode === "escaped-refusal" ? 6_000 : 5_000,
+        );
+        const outcome = JSON.parse(readFileSync(receipt, "utf8")).outcome;
+        if (mode === "legacy-sibling-red") {
+          assert.equal(
+            outcome,
+            "failed:timeout",
+            "old sibling topology did not reproduce its orphan defect",
+          );
+          assert.equal(identity(Number(readFileSync(descendant, "utf8"))).state, "Z");
+          await completion;
+        } else if (mode === "receipt-refusal") {
+          assert.equal((await completion).code, 1);
+          assert.equal(readFileSync(receipt, "utf8"), '{"outcome":"failed:original"}\n');
+        } else if (mode === "pipe-refusal") {
+          assert.equal(outcome, "failed:linux-reaper");
+          assert.equal((await completion).code, 1);
+        } else if (mode === "escaped-refusal") {
+          assert.equal(outcome, "failed:linux-reaper");
+          assert.equal((await completion).code, 1);
+          const child = captured.at(-1);
+          assert.equal(identity(child.pid).start, child.start);
+          const outerNode = identity(process.ppid);
+          assert.equal(
+            identity(child.pid).parent,
+            outerNode.parent,
+            "escaped fixture is not adopted by the test envelope",
+          );
+          // The identity-bound finally block closes this deliberately escaped fixture.
+        } else {
+          assert.equal(outcome, "quiescent");
+          if (mode === "wrapper-loss") await completion;
+          else assert.equal((await completion).code, 0);
+          assert.equal(
+            existsSync(`/proc/${node.pid}`),
+            false,
+            "Node group was not actually reaped",
+          );
+          if (mode === "gate-refusal") assert.equal(existsSync(started), false);
+          else
+            assert.equal(
+              existsSync(`/proc/${captured.at(-1).pid}`),
+              false,
+              "descendant was not actually reaped",
+            );
+        }
+      }
+    }
+  } finally {
+    if (managed?.stdin && !managed.stdin.destroyed) managed.stdin.end();
+    if (escaped) {
+      let current;
+      try {
+        current = identity(escaped.pid);
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      if (current) {
+        assert.equal(
+          current.identity,
+          escaped.identity,
+          "escaped fixture identity changed; no signal admitted",
+        );
+        if (current.state !== "Z") process.kill(escaped.pid, "SIGKILL");
+        await wait(() => {
+          try {
+            const value = identity(escaped.pid);
+            return value.identity !== escaped.identity || value.state === "Z";
+          } catch (error) {
+            if (error.code === "ENOENT") return true;
+            throw error;
+          }
+        });
       }
     }
   }
-  writeFileSync(path.join(directory, "captured.json"), JSON.stringify(captured));
 }
 
 let linuxEvidenceHeld = false;
@@ -308,6 +372,7 @@ for (const mode of [
   "supervisor-loss",
   "wrapper-loss",
   "reaper-loss",
+  "root-complete-reaper-loss",
   "escaped-refusal",
   "init-refusal",
   "pipe-refusal",
@@ -369,15 +434,31 @@ for (const mode of [
         outer.once("error", reject);
         outer.once("close", (code) => resolve(code));
       });
+      const boundedExit = async (milliseconds) => {
+        let timer;
+        try {
+          return await Promise.race([
+            exited,
+            new Promise((_, reject) => {
+              timer = setTimeout(
+                () =>
+                  reject(new Error("owned envelope did not close before its evidence deadline")),
+                milliseconds,
+              );
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      };
       let completed = false;
       try {
         await waitUntil(() => existsSync(registration), 5_000);
         inspectLinuxSupervisor(JSON.parse(readFileSync(registration, "utf8")), outer.pid);
         await writeFile(gate, "registered\n", { flag: "wx" });
-        const exitCode = await exited;
+        const exitCode = await boundedExit(15_000);
         assert.equal(exitCode, 0);
         assert.equal(JSON.parse(await readFile(receipt, "utf8")).outcome, "quiescent");
-        linuxEvidenceHeld = false;
         assert.equal(JSON.parse(await readFile(status, "utf8")).exit_code, 0);
         const captured = JSON.parse(await readFile(path.join(directory, "captured.json"), "utf8"));
         for (const process of captured)
@@ -387,10 +468,29 @@ for (const mode of [
             `fixture identity ${process.identity} was not reaped`,
           );
         completed = true;
+        linuxEvidenceHeld = false;
       } finally {
         outer.stdin.end(); // Request only the owned envelope's ordinary bounded closure.
         if (completed) await rm(directory, { recursive: true, force: true });
-        else console.error(`Retained failed Linux containment evidence: ${directory}`);
+        else {
+          try {
+            const code = await boundedExit(5_000);
+            const cleanup = JSON.parse(await readFile(receipt, "utf8"));
+            const captured = JSON.parse(
+              await readFile(path.join(directory, "captured.json"), "utf8"),
+            );
+            const remaining = captured.filter(
+              (value) => readProcessIdentity(value.pid) === value.identity,
+            );
+            await writeFile(
+              path.join(directory, "failure-closure.json"),
+              JSON.stringify({ code, cleanup, remaining }),
+            );
+          } catch (error) {
+            await writeFile(path.join(directory, "failure-closure-error.txt"), String(error));
+          }
+          console.error(`Retained failed Linux containment evidence: ${directory}`);
+        }
       }
     },
   );

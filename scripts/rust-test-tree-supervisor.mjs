@@ -12,10 +12,8 @@ if (!gatePath || !statusPath || !cleanupReceiptPath || !command) {
   process.exit(2);
 }
 
-let payloadCompleted = false;
 if (linuxManaged) {
   const reaperLost = () => {
-    if (payloadCompleted) return;
     try {
       process.kill(-process.pid, "SIGKILL");
     } catch {
@@ -50,12 +48,12 @@ if (linuxManaged) {
     child.once("error", () => resolve(1));
     child.once("close", (code) => resolve(code ?? 1));
   });
-  payloadCompleted = true;
-  process.stdin.destroy();
   const pendingStatus = `${statusPath}.pending-${process.pid}`;
   writeFileSync(pendingStatus, `${JSON.stringify({ exit_code: exitCode })}\n`, { flag: "wx" });
   renameSync(pendingStatus, statusPath);
-  process.exitCode = exitCode;
+  // Root completion is not descendant closure. Retain the reaper-loss fallback
+  // until the adopting parent closes and reaps this anchored group.
+  await new Promise(() => {});
 } else
   try {
     const cleanerReadyPath = `${cleanupReceiptPath}.ready`;
