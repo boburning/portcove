@@ -320,6 +320,7 @@ pub(crate) fn wait_for_process_exit(pid: u32, expected: &str) -> Result<()> {
 pub(crate) mod child_diagnostic {
     use std::{
         cell::RefCell,
+        io::Write,
         process::{Child, ExitStatus},
         time::Instant,
     };
@@ -376,12 +377,15 @@ pub(crate) mod child_diagnostic {
             if let Some(trace) = TRACE.with_borrow_mut(Option::take) {
                 // Numeric fields, static labels and a bounded numeric identity
                 // only: never command arguments, paths, environment or secrets.
-                eprintln!(
+                let mut output = std::io::stderr().lock();
+                let _ = writeln!(
+                    output,
                     "PORTCOVE_CHILD_DIAGNOSTIC v1 control={:?} pid={:?} dropped={}",
                     trace.control, trace.pid, trace.dropped
                 );
                 for (order, event) in trace.events.iter().enumerate() {
-                    eprintln!(
+                    let _ = writeln!(
+                        output,
                         "PORTCOVE_CHILD_DIAGNOSTIC order={order} us={} stage={} outcome={} raw_error={:?} value={:?} identity={:?}",
                         event.elapsed_us,
                         event.stage,
@@ -441,10 +445,10 @@ pub(crate) mod child_diagnostic {
         if control == Some(Control::MissingCompleted) {
             let result = child.wait();
             waited(child.id(), "control_wait", &result);
-            assert!(
-                result.is_ok(),
-                "completed-exit control could not reap its owned child"
-            );
+            if result.is_err() {
+                cleanup(child);
+                panic!("completed-exit control could not reap its owned child");
+            }
         }
     }
     pub(crate) fn identity(
