@@ -2185,6 +2185,10 @@ describe("desktop components", () => {
     const sourceFree = renderToStaticMarkup(
       <DetailPanel
         port={{ ...port, source_profile: null }}
+        status={{
+          ...portStatus(),
+          port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+        }}
         sourcePath=""
         setSourcePath={vi.fn()}
         actions={actions}
@@ -2547,6 +2551,10 @@ describe("desktop components", () => {
     const selected = renderToStaticMarkup(
       <DetailPanel
         port={biosPort}
+        status={{
+          ...portStatus(),
+          port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+        }}
         source={mortalKombat4Source}
         sourceProfile={mortalKombat4Profile}
         sourcePath="game.chd"
