@@ -328,7 +328,6 @@ test(
     const environment = {
       ...process.env,
       PATH: `${bin}${path.delimiter}${process.env.PATH}`,
-      BASH_ENV: startup,
       MOCK_DECOY_BIN: decoyBin,
       MOCK_DECOY_SHIM: decoyShim,
       MOCK_PRIVATE_MARKER: privateMarker,
@@ -336,20 +335,28 @@ test(
       MOCK_FUNCTION_MARKER: functionMarker,
       MOCK_STARTUP_MARKER: startupMarker,
     };
-    const run = (args, overrides = {}) =>
-      spawnSync(bashExecutable, args, {
+    const run = (args, overrides = {}) => {
+      // Inject the synthetic reorder after uncontrolled host startup, before the shared repair.
+      // The owned control file is positional data, never interpolated shell code.
+      const controlledArgs = [...args, startup];
+      controlledArgs[3] = `. "$3"\n${controlledArgs[3]}`;
+      return spawnSync(bashExecutable, controlledArgs, {
         cwd: root,
         env: { ...environment, ...overrides },
         encoding: "utf8",
         timeout: 5_000,
         killSignal: "SIGKILL",
       });
+    };
     // Synthetic ordering/hash controls do not identify Local's historical startup mechanism.
     const before = run([
       "-euo",
       "pipefail",
       "-c",
       'printf "%s\\n" "${PATH%%:*}" "$(command -v gh)" "$(hash -t gh)" "$PWD"',
+      "portcove-mock-negative-control",
+      bin,
+      ghShim,
     ]);
     const restored = run(
       mockPublisherArguments(
@@ -373,7 +380,7 @@ test(
       JSON.stringify(
         {
           scope:
-            "inert synthetic startup reorder/hash/function controls; not historical cause proof",
+            "inert post-startup injected reorder/hash/function controls; not historical cause proof",
           cwd: root,
           expectedShim: ghShim,
           decoyShim,
