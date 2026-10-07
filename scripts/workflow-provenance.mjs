@@ -306,7 +306,7 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
   return { profile: "cargo-dependency", ...spec, manifests: manifestBindings };
 }
 
-function hostedBrowserSelection(stdout, identities) {
+function hostedBrowserSelection(stdout, identities, exitStatus) {
   const invalid = () => new Error("Invalid complete local-check preflight for provisioning");
   let report;
   try {
@@ -327,9 +327,29 @@ function hostedBrowserSelection(stdout, identities) {
     new Set(report.obligations.map((entry) => entry.id)).size !== report.obligations.length
   )
     throw invalid();
+  if (
+    report.obligations.some(
+      (entry) =>
+        entry.route !== "local" || !Array.isArray(entry.missing) || entry.missing.length !== 0,
+    )
+  )
+    throw invalid();
+  // A policy preflight reports selection and the separate audit obligation together.
+  // Acquisition cannot satisfy that audit, but its named routing disposition is
+  // not a failure of the complete selected browser prerequisite observation.
+  const audit = report.pre_change_audit ?? null;
+  if (
+    exitStatus !== 0 &&
+    (exitStatus !== 1 ||
+      audit?.route !== "local-prerequisites-unverified" ||
+      !["complete", "transition"].includes(audit.profile) ||
+      audit.command !== "just audit --profile transition --fresh")
+  )
+    throw invalid();
   return {
     plan_digest: report.plan_digest,
     browser: report.obligations.some((entry) => entry.id === "ui-browser-tests"),
+    pre_change_audit: audit,
   };
 }
 
@@ -478,8 +498,8 @@ export async function runHostedLocalCheck(phase, options = {}) {
       },
     );
     if (preflight.error) throw preflight.error;
-    if (preflight.status !== 0) return preflight.status ?? 1;
-    const selection = hostedBrowserSelection(preflight.stdout, identities);
+    if (![0, 1].includes(preflight.status)) return preflight.status ?? 1;
+    const selection = hostedBrowserSelection(preflight.stdout, identities, preflight.status);
     const recheck = async () => {
       clean(controllerRoot, identities.controller);
       clean(sourceRoot, identities.source);

@@ -122,9 +122,43 @@ function browserProvisioningReport(f, browser = true) {
     base: f.base,
     merge_base: f.base,
     plan_digest: "d".repeat(64),
-    obligations: [{ id: browser ? "ui-browser-tests" : "diff-check" }],
+    obligations: [{ id: browser ? "ui-browser-tests" : "diff-check", route: "local", missing: [] }],
   };
 }
+
+test("complete policy preflight exit one preserves audit and provisions selected browser", async (t) => {
+  const f = hostedFixture(t);
+  const calls = [];
+  const report = {
+    ...browserProvisioningReport(f),
+    obligations: [{ id: "ui-browser-tests", route: "local", missing: [] }],
+    pre_change_audit: {
+      profile: "complete",
+      command: "just audit --profile transition --fresh",
+      route: "local-prerequisites-unverified",
+      stages: [{ id: "rust", command: "just check-rust" }],
+      local_prerequisites: [{ id: "complete-audit-prerequisites", status: "unverified" }],
+      missing_local_prerequisites: ["complete-audit-prerequisites"],
+    },
+  };
+  assert.equal(
+    await runHostedLocalCheck("provision", {
+      ...f.options,
+      spawn: (name, args) => {
+        calls.push([name, ...args]);
+        return name === process.execPath
+          ? { status: 1, stdout: JSON.stringify(report) }
+          : { status: 0 };
+      },
+    }),
+    0,
+  );
+  assert.deepEqual(calls, [
+    [process.execPath, "scripts/local-validation.mjs", "check", "--preflight", "--json"],
+    ["pnpm", "--dir", "apps/desktop", "browser:bootstrap"],
+  ]);
+  assert.ok(f.logs.some((line) => line.includes('"route":"local-prerequisites-unverified"')));
+});
 
 test("selected hosted browser is provisioned before ordinary execution on a cold fixture", async (t) => {
   const f = hostedFixture(t);
@@ -154,6 +188,76 @@ test("selected hosted browser is provisioned before ordinary execution on a cold
     ["just", "local-check", "--fresh"],
   ]);
   assert.ok(f.logs.some((line) => line.includes('"plan_digest":"' + "d".repeat(64))));
+});
+
+test("provisioning refuses blocked selection and unnamed preflight failures", async (t) => {
+  const f = hostedFixture(t);
+  const report = browserProvisioningReport(f);
+  const audit = {
+    profile: "complete",
+    route: "local-prerequisites-unverified",
+    command: "just audit --profile transition --fresh",
+  };
+  for (const [status, value] of [
+    [1, report],
+    [1, { ...report, pre_change_audit: { ...audit, route: "hosted-deep-audit" } }],
+    [1, { ...report, pre_change_audit: { ...audit, profile: "release" } }],
+    [
+      1,
+      {
+        ...report,
+        pre_change_audit: { ...audit, command: "just audit --profile release --fresh" },
+      },
+    ],
+    [
+      1,
+      {
+        ...report,
+        pre_change_audit: audit,
+        obligations: [{ id: "ui-browser-tests", route: "blocked", missing: ["ui-workspace"] }],
+      },
+    ],
+    [
+      1,
+      {
+        ...report,
+        pre_change_audit: audit,
+        obligations: [{ id: "ui-browser-tests", route: "local", missing: ["node"] }],
+      },
+    ],
+    [
+      0,
+      { ...report, obligations: [{ id: "ui-browser-tests", route: "blocked", missing: ["pnpm"] }] },
+    ],
+    [0, { ...report, obligations: [{ id: "ui-browser-tests", route: "local" }] }],
+  ]) {
+    const calls = [];
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          return { status, stdout: JSON.stringify(value) };
+        },
+      }),
+      /Invalid complete local-check preflight/,
+    );
+    assert.equal(calls.length, 1);
+  }
+  for (const status of [2, 7, null]) {
+    const calls = [];
+    assert.equal(
+      await runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          return { status, stdout: JSON.stringify({ ...report, pre_change_audit: audit }) };
+        },
+      }),
+      status ?? 1,
+    );
+    assert.equal(calls.length, 1);
+  }
 });
 
 test("browser-free hosted selection acquires nothing", async (t) => {
