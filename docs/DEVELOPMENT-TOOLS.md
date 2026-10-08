@@ -1139,6 +1139,10 @@ Review the baseline obligations independently under the preserved pre-change pol
 `selected` runs fresh selected validation, `compiled` runs the complete maintained
 `pnpm --dir apps/desktop test:adapter-conformance` command, and
 `qualification-history` runs the one explicit Linux normal-app native scenario.
+`candidate-consumer` runs the existing selected, compiled and history jobs on an
+independently admitted exact composition of the reviewed controller and four
+unchanged A16 product paths, before controller merge. It remains execution under
+test; it supplies neither controller trust nor bootstrap's separate complete audit.
 The separately reviewed adapter harness is bound through the exact source and full
 inventory; unrelated executable changes remain refused. A controller candidate's
 bootstrap result is validation evidence, not a self-issued trust or merge grant.

@@ -618,7 +618,19 @@ const bootstrapPaths = new Set([
   "docs/NATIVE-HOSTED-ACCEPTANCE.md",
   "docs/DEVELOPMENT-TOOLS.md",
 ]);
-const hostedOperations = new Set(["bootstrap", "selected", "compiled", "qualification-history"]);
+const hostedOperations = new Set([
+  "bootstrap",
+  "selected",
+  "compiled",
+  "qualification-history",
+  "candidate-consumer",
+]);
+const historyProductPaths = [
+  "apps/desktop/src/components/DetailPanel.tsx",
+  "apps/desktop/src/components/DetailQualificationSummary.test.tsx",
+  "apps/desktop/src/components/DetailQualificationSummary.tsx",
+  "apps/desktop/src/components/components.test.tsx",
+];
 const fixedWorkflow = ".github/workflows/native-design-compatibility.yml";
 const fixedPhaseJobs = {
   selected: "hosted_selected",
@@ -631,8 +643,13 @@ export function parseHostedValidationBinding(raw, digest) {
   if (typeof raw !== "string" || Buffer.byteLength(raw) > 60_000 || sha256(raw) !== digest)
     throw new Error("Reviewed execution binding digest or size differs");
   const binding = JSON.parse(raw);
-  const keys =
-    "authority,base,baseline_plan,controller,format_version,inventory_sha256,merge_base,operation,plan_digest,selected_plan,source";
+  const keys = (
+    "authority,base,baseline_plan,controller,format_version,inventory_sha256,merge_base,operation,plan_digest,selected_plan,source" +
+    (binding.operation === "candidate-consumer" ? ",consumer" : "")
+  )
+    .split(",")
+    .sort()
+    .join();
   if (
     Object.keys(binding).sort().join() !== keys ||
     binding.format_version !== 1 ||
@@ -647,6 +664,15 @@ export function parseHostedValidationBinding(raw, digest) {
     throw new Error("Invalid reviewed execution binding");
   if (binding.operation === "bootstrap" && binding.source !== binding.controller)
     throw new Error("Bootstrap source must be the independently reviewed controller candidate");
+  if (
+    binding.operation === "candidate-consumer" &&
+    (binding.source === binding.controller ||
+      !binding.consumer ||
+      Object.keys(binding.consumer).sort().join() !==
+        "controller_tree,product_source,product_tree,source_tree" ||
+      !Object.values(binding.consumer).every(exactSha))
+  )
+    throw new Error("Invalid independently reviewed candidate consumer composition");
   assertRetainedSelectedPlan(binding.baseline_plan, binding.selected_plan);
   return binding;
 }
@@ -701,6 +727,7 @@ export async function runHostedValidation(phase, options = {}) {
     selected: ["prepare", "provision", "selected"],
     compiled: ["prepare", "compiled"],
     "qualification-history": ["prepare", "native"],
+    "candidate-consumer": ["prepare", "provision", "selected", "compiled", "native"],
   };
   if (phase !== "controller" && !permitted[binding.operation].includes(phase))
     throw new Error("Phase differs from admitted operation");
@@ -795,6 +822,39 @@ export async function runHostedValidation(phase, options = {}) {
   if (binding.operation === "bootstrap") {
     if (authorityChanges.some((name) => !bootstrapPaths.has(name)))
       throw new Error("Bootstrap exceeds the independently admitted fourteen-path scope");
+  } else if (binding.operation === "candidate-consumer") {
+    const diff = (before, after) =>
+      git(source, ["diff", "--name-only", "--no-renames", before, after])
+        .split("\n")
+        .filter(Boolean);
+    git(source, ["merge-base", "--is-ancestor", binding.base, binding.controller]);
+    git(source, ["merge-base", "--is-ancestor", binding.controller, binding.source]);
+    if (diff(binding.authority, binding.controller).some((name) => !bootstrapPaths.has(name)))
+      throw new Error(
+        "Candidate controller exceeds the independently admitted fourteen-path scope",
+      );
+    const productBase = git(source, ["merge-base", binding.base, binding.consumer.product_source]);
+    for (const changes of [
+      diff(binding.controller, binding.source),
+      diff(productBase, binding.consumer.product_source),
+    ])
+      if (JSON.stringify(changes) !== JSON.stringify(historyProductPaths))
+        throw new Error("Candidate consumer must compose exactly the four reviewed product paths");
+    for (const [commit, expected] of [
+      [binding.controller, binding.consumer.controller_tree],
+      [binding.source, binding.consumer.source_tree],
+      [binding.consumer.product_source, binding.consumer.product_tree],
+    ])
+      if (git(source, ["rev-parse", `${commit}^{tree}`]) !== expected)
+        throw new Error("Candidate consumer tree differs from the independently reviewed binding");
+    for (const name of historyProductPaths) {
+      const product = git(source, ["ls-tree", binding.consumer.product_source, "--", name]);
+      if (
+        !/^100(?:644|755) blob [a-f0-9]{40}\t/u.test(product) ||
+        git(source, ["ls-tree", binding.source, "--", name]) !== product
+      )
+        throw new Error("Candidate consumer product bytes differ from the reviewed product source");
+    }
   } else {
     git(source, ["merge-base", "--is-ancestor", binding.controller, binding.base]);
     if (

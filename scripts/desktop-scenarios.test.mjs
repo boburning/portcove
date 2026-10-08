@@ -17,12 +17,29 @@ import { runInNewContext } from "node:vm";
 import { createInstallFixture } from "../apps/desktop/scripts/desktop-install-fixture.mjs";
 import { fileIdentity } from "./development-evidence.mjs";
 import { toolCachePaths } from "./tool-cache.mjs";
+import { pathToFileURL } from "node:url";
 import {
   captureHistorySession,
   historyDriverStillOwned,
   waitHistorySessionExit,
   qualificationHistoryScenario,
 } from "../apps/desktop/scripts/desktop-qualification-history-test.mjs";
+
+test("history fixture helpers import without installed desktop packages", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-import-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const module = path.join(root, "history.mjs");
+  await copyFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mjs", import.meta.url),
+    module,
+  );
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "-e", `await import(${JSON.stringify(pathToFileURL(module).href)})`],
+    { cwd: root, encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
 
 test(
   "history installation and lost-window failures retain original and restoration evidence",

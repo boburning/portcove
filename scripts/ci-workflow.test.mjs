@@ -28,6 +28,26 @@ const nativeCompatibilityRunner = await readFile(
   new URL("../apps/desktop/test/native-compatibility.mjs", import.meta.url),
   "utf8",
 );
+
+test("candidate consumer selects only existing selected, compiled and history jobs", () => {
+  const jobs = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
+  const consumers = jobs.filter((job) => /^hosted_.*\n    if:.*candidate-consumer/mu.test(job));
+  assert.deepEqual(
+    consumers.map((job) => job.match(/^hosted_[a-z]+/u)[0]),
+    ["hosted_selected", "hosted_compiled", "hosted_history"],
+  );
+  for (const [job, minutes, phase] of [
+    [consumers[0], 60, "selected"],
+    [consumers[1], 120, "compiled"],
+    [consumers[2], 45, "native"],
+  ]) {
+    assert.match(job, new RegExp(`timeout-minutes: ${minutes}\\n`));
+    assert.match(job, /runs-on: ubuntu-24\.04/u);
+    assert.match(job, /persist-credentials: false/u);
+    assert.match(job, new RegExp(`hosted-validation ${phase}\\n`));
+    assert.doesNotMatch(job, /upload-artifact|actions\/cache|cache: pnpm/u);
+  }
+});
 const desktopPackage = JSON.parse(
   await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
 );

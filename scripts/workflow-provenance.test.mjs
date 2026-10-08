@@ -167,6 +167,145 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
   );
 });
 
+test("candidate consumer binds four original product blobs and retains normal ancestry refusal", async (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "portcove-consumer-binding-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const source = path.join(directory, "source");
+  const controller = path.join(directory, "controller");
+  const git = (cwd, args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const write = (name, content) => {
+    mkdirSync(path.dirname(path.join(source, name)), { recursive: true });
+    writeFileSync(path.join(source, name), content);
+  };
+  const commit = (message) => {
+    git(source, ["add", "."]);
+    git(source, ["commit", "--quiet", "-m", message]);
+    return git(source, ["rev-parse", "HEAD"]);
+  };
+  const tree = (sha) => git(source, ["rev-parse", `${sha}^{tree}`]);
+  const products = [
+    "apps/desktop/src/components/DetailPanel.tsx",
+    "apps/desktop/src/components/DetailQualificationSummary.test.tsx",
+    "apps/desktop/src/components/DetailQualificationSummary.tsx",
+    "apps/desktop/src/components/components.test.tsx",
+  ];
+  mkdirSync(source);
+  git(source, ["init", "--quiet"]);
+  git(source, ["config", "user.name", "Reviewed fixture"]);
+  git(source, ["config", "user.email", "fixture@invalid"]);
+  write("rust-toolchain.toml", 'channel = "1.98.1"\n');
+  write("scripts/audit.mjs", "preserved audit\n");
+  const base = commit("actual base");
+  for (const name of [
+    ".github/workflows/native-design-compatibility.yml",
+    "scripts/workflow-provenance.mjs",
+    "scripts/native-backup-evidence.mjs",
+  ])
+    write(name, "reviewed controller\n");
+  const control = commit("reviewed controller");
+  git(directory, ["clone", "--quiet", source, controller]);
+  git(source, ["checkout", "--quiet", "--detach", base]);
+  for (const name of products) write(name, `original product ${name}\n`);
+  const product = commit("original product");
+  git(source, ["checkout", "--quiet", "--detach", control]);
+  for (const name of products) write(name, `original product ${name}\n`);
+  const composed = commit("reviewed composition");
+  const inventory = (head) =>
+    bindingDigest(
+      JSON.stringify(
+        git(source, ["diff", "--name-only", "--no-renames", base, head])
+          .split("\n")
+          .map((name) => ({
+            path: name,
+            base: git(source, ["ls-tree", base, "--", name]),
+            source: git(source, ["ls-tree", head, "--", name]),
+          })),
+      ),
+    );
+  const spec = reviewedBinding({
+    operation: "candidate-consumer",
+    source: composed,
+    controller: control,
+    base,
+    authority: base,
+    merge_base: base,
+    inventory_sha256: inventory(composed),
+    consumer: {
+      controller_tree: tree(control),
+      source_tree: tree(composed),
+      product_source: product,
+      product_tree: tree(product),
+    },
+  });
+  const options = (binding = spec, job = "hosted_history") => {
+    const raw = JSON.stringify(binding);
+    return {
+      controllerRoot: controller,
+      environment: {
+        GITHUB_REPOSITORY: "boburning/portcove",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_SHA: control,
+        GITHUB_WORKFLOW_SHA: control,
+        GITHUB_WORKFLOW_REF:
+          "boburning/portcove/.github/workflows/native-design-compatibility.yml@refs/heads/fixture",
+        GITHUB_RUN_ID: "42",
+        GITHUB_RUN_ATTEMPT: "1",
+        GITHUB_JOB: job,
+        RUNNER_OS: "Linux",
+        RUNNER_ARCH: "X64",
+        PORTCOVE_LOCAL_OPERATION: binding.operation,
+        PORTCOVE_LOCAL_BINDING: raw,
+        PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(raw),
+      },
+      command: (name, args, cwd) => {
+        assert.equal(name, "git", "Binding tests must not execute native or candidate tools");
+        return git(cwd, args);
+      },
+    };
+  };
+  for (const job of ["hosted_selected", "hosted_compiled", "hosted_history"])
+    assert.equal(await runHostedValidation("prepare", options(spec, job)), 0);
+  await assert.rejects(() => runHostedValidation("audit", options()), /Phase differs/);
+  await assert.rejects(() => runHostedValidation("prepare", options(spec, "hosted_audit")), /job/);
+  const { consumer, ...normal } = spec;
+  await assert.rejects(() =>
+    runHostedValidation("prepare", options({ ...normal, operation: "qualification-history" })),
+  );
+  for (const key of Object.keys(consumer))
+    await assert.rejects(() =>
+      runHostedValidation(
+        "prepare",
+        options({ ...spec, consumer: { ...consumer, [key]: "0".repeat(40) } }),
+      ),
+    );
+  for (const patch of [{ command: "arbitrary" }, { consumer: {} }, { source: control }]) {
+    const raw = JSON.stringify({ ...spec, ...patch });
+    assert.throws(() => parseHostedValidationBinding(raw, bindingDigest(raw)));
+  }
+  for (const [name, expected] of [
+    [products[0], /product bytes differ/],
+    ["scripts/workflow-provenance.mjs", /exactly the four/],
+  ]) {
+    write(name, "unreviewed composition change\n");
+    const changed = commit("unreviewed change");
+    await assert.rejects(
+      () =>
+        runHostedValidation(
+          "prepare",
+          options({
+            ...spec,
+            source: changed,
+            inventory_sha256: inventory(changed),
+            consumer: { ...consumer, source_tree: tree(changed) },
+          }),
+        ),
+      expected,
+    );
+    git(source, ["checkout", "--quiet", "--detach", composed]);
+  }
+});
+
 test("preflight and controller share the exact hosted script authority boundary", () => {
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/dev-doctor.mjs"), true);
   assert.equal(isHostedLocalCheckScriptAuthority("apps/desktop/scripts/example.mjs"), true);

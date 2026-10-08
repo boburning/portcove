@@ -7,7 +7,8 @@ on:
         description: Fixed manual operation; bootstrap execution requires separate exact-input admission.
         type: choice
         default: compatibility
-        options: [compatibility, bootstrap, selected, compiled, qualification-history]
+        options:
+          [compatibility, bootstrap, selected, compiled, qualification-history, candidate-consumer]
       execution_binding:
         description: Exact independently reviewed source/controller/inventory/selected-plan JSON.
         type: string
@@ -284,7 +285,7 @@ jobs:
           } finally { Remove-Item -LiteralPath $root -Recurse -Force }
 
   hosted_selected:
-    if: ${{ inputs.operation == 'bootstrap' || inputs.operation == 'selected' }}
+    if: ${{ inputs.operation == 'bootstrap' || inputs.operation == 'selected' || inputs.operation == 'candidate-consumer' }}
     timeout-minutes: 60
     runs-on: ubuntu-24.04
     env:
@@ -442,7 +443,7 @@ jobs:
         run: node controller/scripts/native-backup-evidence.mjs emit-hosted hosted-evidence
 
   hosted_compiled:
-    if: ${{ inputs.operation == 'compiled' }}
+    if: ${{ inputs.operation == 'compiled' || inputs.operation == 'candidate-consumer' }}
     timeout-minutes: 120
     runs-on: ubuntu-24.04
     env:
@@ -520,7 +521,7 @@ jobs:
         run: node controller/scripts/native-backup-evidence.mjs emit-hosted hosted-evidence
 
   hosted_history:
-    if: ${{ inputs.operation == 'qualification-history' }}
+    if: ${{ inputs.operation == 'qualification-history' || inputs.operation == 'candidate-consumer' }}
     timeout-minutes: 45
     runs-on: ubuntu-24.04
     env:
