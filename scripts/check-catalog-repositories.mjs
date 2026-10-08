@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { readFile, open } from "node:fs/promises";
+import { constants } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { observationHash } from "./upstream-observer.mjs";
@@ -32,8 +33,80 @@ const resume = {
     "Obtain bounded valid repository metadata before treating the endpoint as reachable.",
   "identity-mismatch": "Review the observed location mismatch; do not transfer upstream authority.",
   budget: "Start a separate bounded collection; retain this incomplete coverage report.",
+  "release-identity-unavailable":
+    "Complete exact accepted-ref and asset metadata; absent provider digests cannot verify accepted bytes.",
   "provider-status": "Investigate the observed HTTP status before rechecking.",
 };
+
+function inventoryOriginalLocation(records, port) {
+  const releaseProvider = port.release?.provider ?? "github";
+  // Changing provider does not remove the declared original upstream.
+  let project;
+  try {
+    project = new URL(port.project_url);
+  } catch {
+    if (port.project_url !== undefined) throw new Error("Unsupported original upstream location");
+    project = null;
+  }
+  if (
+    project?.protocol === "https:" &&
+    !project.username &&
+    !project.password &&
+    !project.port &&
+    !project.search &&
+    !project.hash &&
+    ["github.com", "gitlab.com"].includes(project.hostname)
+  ) {
+    const provider = project.hostname === "github.com" ? "github" : "gitlab";
+    const repository = project.pathname.replace(/^\/|\/$/gu, "").replace(/\.git$/u, "");
+    if (
+      !/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+$/u.test(repository) ||
+      repository.split("/").some((part) => part === "." || part === "..") ||
+      (provider === "github" && repository.split("/").length !== 2) ||
+      repository.length > 200
+    )
+      throw new Error("Unsupported original upstream repository");
+    const key = `${provider}:${provider === "github" ? repository.toLowerCase() : repository}`;
+    if (!records.has(key))
+      records.set(key, { provider, repository, port_ids: [], release_providers: [] });
+    const record = records.get(key);
+    if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
+    if (!record.release_providers.includes(releaseProvider))
+      record.release_providers.push(releaseProvider);
+    record.original_upstream_port_ids ??= [];
+    if (!record.original_upstream_port_ids.includes(port.id))
+      record.original_upstream_port_ids.push(port.id);
+  } else if (project) {
+    if (
+      project.protocol !== "https:" ||
+      project.username ||
+      project.password ||
+      project.port ||
+      project.search ||
+      project.hash ||
+      project.href.length > 2048 ||
+      !/^[a-z0-9.-]+$/iu.test(project.hostname) ||
+      !project.hostname.includes(".") ||
+      /^(?:[0-9.]+|.*\.local|.*\.localhost)$/iu.test(project.hostname)
+    )
+      throw new Error("Unsupported original upstream location");
+    const key = `project-page:${project.href}`;
+    if (!records.has(key))
+      records.set(key, {
+        provider: "project-page",
+        repository: project.href,
+        port_ids: [],
+        release_providers: [],
+      });
+    const record = records.get(key);
+    if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
+    if (!record.release_providers.includes(releaseProvider))
+      record.release_providers.push(releaseProvider);
+    record.original_upstream_port_ids ??= [];
+    if (!record.original_upstream_port_ids.includes(port.id))
+      record.original_upstream_port_ids.push(port.id);
+  }
+}
 
 function inventory(catalog) {
   const records = new Map();
@@ -102,67 +175,6 @@ function inventory(catalog) {
           size: artifact.size,
         });
       }
-      // Changing provider does not remove the declared original upstream.
-      let project;
-      try {
-        project = new URL(port.project_url);
-      } catch {
-        if (port.project_url !== undefined)
-          throw new Error("Unsupported original upstream location");
-        project = null;
-      }
-      if (
-        project?.protocol === "https:" &&
-        !project.username &&
-        !project.password &&
-        !project.port &&
-        !project.search &&
-        !project.hash &&
-        ["github.com", "gitlab.com"].includes(project.hostname)
-      ) {
-        const provider = project.hostname === "github.com" ? "github" : "gitlab";
-        const repository = project.pathname.replace(/^\/|\/$/gu, "").replace(/\.git$/u, "");
-        if (
-          !/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+$/u.test(repository) ||
-          repository.split("/").some((part) => part === "." || part === "..") ||
-          (provider === "github" && repository.split("/").length !== 2) ||
-          repository.length > 200
-        )
-          throw new Error("Unsupported original upstream repository");
-        const key = `${provider}:${provider === "github" ? repository.toLowerCase() : repository}`;
-        if (!records.has(key))
-          records.set(key, { provider, repository, port_ids: [], release_providers: [] });
-        const record = records.get(key);
-        if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
-        if (!record.release_providers.includes(releaseProvider))
-          record.release_providers.push(releaseProvider);
-      } else if (project) {
-        if (
-          project.protocol !== "https:" ||
-          project.username ||
-          project.password ||
-          project.port ||
-          project.search ||
-          project.hash ||
-          project.href.length > 2048 ||
-          !/^[a-z0-9.-]+$/iu.test(project.hostname) ||
-          !project.hostname.includes(".") ||
-          /^(?:[0-9.]+|.*\.local|.*\.localhost)$/iu.test(project.hostname)
-        )
-          throw new Error("Unsupported original upstream location");
-        const key = `project-page:${project.href}`;
-        if (!records.has(key))
-          records.set(key, {
-            provider: "project-page",
-            repository: project.href,
-            port_ids: [],
-            release_providers: [],
-          });
-        const record = records.get(key);
-        if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
-        if (!record.release_providers.includes(releaseProvider))
-          record.release_providers.push(releaseProvider);
-      }
       continue;
     }
     // Existing user-prepared entries declare a GitHub upstream repository;
@@ -187,6 +199,68 @@ function inventory(catalog) {
     records.get(key).port_ids.push(port.id);
     if (!records.get(key).release_providers.includes(releaseProvider))
       records.get(key).release_providers.push(releaseProvider);
+  }
+  for (const port of catalog.ports) inventoryOriginalLocation(records, port);
+  for (const port of catalog.ports) {
+    const scopes = (catalog.source_catalog?.qualification ?? [])
+      .filter((value) => value.scope?.port_id === port.id)
+      .map((value) => value.scope);
+    const repositories = [...records.values()].filter(
+      (record) =>
+        ["github", "gitlab"].includes(record.provider) && record.port_ids.includes(port.id),
+    );
+    for (const scope of scopes) {
+      if (
+        typeof scope.upstream_ref !== "string" ||
+        !scope.upstream_ref ||
+        scope.upstream_ref.length > 200 ||
+        !/^[a-f0-9]{64}$/u.test(scope.artifact_sha256)
+      )
+        throw new Error("Qualification requires an exact historical release identity");
+      const exactDirect = Object.values(port.release?.direct ?? {}).some(
+        (pin) => pin.version === scope.upstream_ref && pin.sha256 === scope.artifact_sha256,
+      );
+      if (exactDirect) continue;
+      if (!repositories.length) {
+        const key = `unlocated:${port.id}:${scope.upstream_ref}`;
+        if (!records.has(key))
+          records.set(key, {
+            provider: "unlocated-historical",
+            repository: "no declared historical acquisition location",
+            release_ref: scope.upstream_ref,
+            port_ids: [port.id],
+            release_providers: [],
+            historical_artifact_identities: [],
+          });
+        const record = records.get(key);
+        if (
+          !record.historical_artifact_identities.some(
+            (value) => observationHash(value) === observationHash(scope),
+          )
+        )
+          record.historical_artifact_identities.push(scope);
+      }
+      for (const location of repositories) {
+        const key = `${location.provider}:${location.repository}:release:${scope.upstream_ref}`;
+        if (!records.has(key))
+          records.set(key, {
+            provider: location.provider,
+            repository: location.repository,
+            release_ref: scope.upstream_ref,
+            historical_artifact_identities: [],
+            port_ids: [],
+            release_providers: location.release_providers,
+          });
+        const record = records.get(key);
+        if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
+        if (
+          !record.historical_artifact_identities.some(
+            (value) => observationHash(value) === observationHash(scope),
+          )
+        )
+          record.historical_artifact_identities.push(scope);
+      }
+    }
   }
   return { records: [...records.values()], directPorts };
 }
@@ -253,10 +327,39 @@ async function metadata(response, budget, now, deadline) {
 // pinned repository identity, complete release/asset pages or Core projection.
 export async function collectRepositoryHealth(
   catalog,
-  { fetch: fetcher = fetch, now = Date.now, githubToken, gitlabToken } = {},
+  { fetch: fetcher = fetch, now = Date.now, githubToken, gitlabToken, previousReport = null } = {},
 ) {
   const { records, directPorts } = inventory(catalog);
+  const catalogHash = observationHash(catalog);
   const started = now();
+  const previousUsable =
+    previousReport?.format_version === 2 &&
+    previousReport.catalog_sha256 === catalogHash &&
+    Array.isArray(previousReport.observations) &&
+    Array.isArray(previousReport.port_health) &&
+    previousReport.observations.length <= limits.requests * 4 &&
+    previousReport.observations.every(
+      (value) =>
+        value && typeof value.provider === "string" && typeof value.repository === "string",
+    ) &&
+    previousReport.port_health.length <= catalog.ports.length &&
+    previousReport.port_health.every(
+      (port) =>
+        Array.isArray(port?.canonical_incidents) &&
+        port.canonical_incidents.length <= limits.requests * 4 &&
+        port.canonical_incidents.every((value) => value && typeof value.key === "string"),
+    ) &&
+    Number.isFinite(Date.parse(previousReport.completed_at)) &&
+    Date.parse(previousReport.completed_at) <= started &&
+    started - Date.parse(previousReport.completed_at) <= 24 * 60 * 60 * 1000;
+  const priorObservations = previousUsable ? previousReport.observations : [];
+  const priorIncidents = new Map(
+    previousUsable
+      ? previousReport.port_health
+          .flatMap((port) => port.canonical_incidents ?? [])
+          .map((incident) => [incident.key, incident])
+      : [],
+  );
   const deadline = started + limits.duration_ms;
   const consumed = { requests: 0, response_bytes: 0 };
   const deferred = new Map();
@@ -295,6 +398,25 @@ export async function collectRepositoryHealth(
       fail("budget");
       continue;
     }
+    const priorLocation = priorObservations.find(
+      (value) =>
+        value.provider === record.provider &&
+        value.repository === record.repository &&
+        value.release_ref === record.release_ref,
+    );
+    if (
+      priorLocation?.reason === "rate-limit" &&
+      Number.isFinite(Date.parse(priorLocation.retry_at)) &&
+      Date.parse(priorLocation.retry_at) > started
+    ) {
+      fail("rate-limit");
+      result.retry_at = priorLocation.retry_at;
+      continue;
+    }
+    if (record.provider === "unlocated-historical") {
+      fail("release-identity-unavailable");
+      continue;
+    }
     const github = record.provider === "github";
     const direct = record.provider === "direct-manifest";
     const plain = direct || record.provider === "project-page";
@@ -318,6 +440,9 @@ export async function collectRepositoryHealth(
       : github
         ? `https://api.github.com/repos/${record.repository}`
         : `https://gitlab.com/api/v4/projects/${encodeURIComponent(record.repository)}`;
+    const requestUrl = record.release_ref
+      ? `${url}/releases/${github ? "tags/" : ""}${encodeURIComponent(record.release_ref)}`
+      : url;
     const headers = { "User-Agent": "Portcove-catalog-audit" };
     if (github) {
       headers.Accept = "application/vnd.github+json";
@@ -329,7 +454,7 @@ export async function collectRepositoryHealth(
     result.attempted = true;
     let response;
     try {
-      response = await fetcher(url, {
+      response = await fetcher(requestUrl, {
         headers,
         redirect: "error",
         signal,
@@ -352,6 +477,10 @@ export async function collectRepositoryHealth(
         // HEAD never verifies accepted bytes. No download, execution or redirect
         // authority follows from a reachable declared artifact location.
         const length = response.headers.get("content-length");
+        result.observed_size =
+          length !== null && /^\d+$/u.test(length) && Number.isSafeInteger(Number(length))
+            ? Number(length)
+            : null;
         if (
           direct &&
           (length === null ||
@@ -373,6 +502,39 @@ export async function collectRepositoryHealth(
         );
         continue;
       }
+      if (record.release_ref) {
+        const assets = github ? facts?.assets : facts?.assets?.links;
+        if (
+          !facts ||
+          facts.tag_name !== record.release_ref ||
+          !Array.isArray(assets) ||
+          assets.length >= 100 ||
+          (github && (!Number.isSafeInteger(facts.id) || facts.id <= 0))
+        ) {
+          fail("invalid-metadata");
+          continue;
+        }
+        result.observed_release_id = github ? facts.id : null;
+        result.observed_asset_digests = assets
+          .map((asset) => asset.digest)
+          .filter((digest) => /^sha256:[a-f0-9]{64}$/u.test(digest ?? ""));
+        result.accepted_digest_match = result.observed_asset_digests.length
+          ? "provider-reported"
+          : "unknown; provider supplied no digest";
+        if (
+          !assets.length ||
+          (result.observed_asset_digests.length &&
+            record.historical_artifact_identities.some(
+              (identity) =>
+                !result.observed_asset_digests.includes(`sha256:${identity.artifact_sha256}`),
+            ))
+        ) {
+          fail("release-identity-unavailable");
+          continue;
+        }
+        result.status = "reachable";
+        continue;
+      }
       if (
         !facts ||
         !Number.isSafeInteger(facts.id) ||
@@ -388,6 +550,12 @@ export async function collectRepositoryHealth(
         fail("identity-mismatch");
         continue;
       }
+      const prior = priorLocation;
+      if (prior?.observed_repository_id && prior.observed_repository_id !== facts.id) {
+        result.observed_repository_id = facts.id;
+        fail("identity-mismatch");
+        continue;
+      }
       result.status = "reachable";
       result.archived = typeof facts.archived === "boolean" ? facts.archived : null;
       result.observed_repository_id = facts.id;
@@ -398,10 +566,28 @@ export async function collectRepositoryHealth(
     }
   }
   const reachable = observations.filter((record) => record.status === "reachable").length;
-  const catalogHash = observationHash(catalog);
+  for (const record of observations) {
+    const knownMaintenance =
+      record.reason === "inaccessible-or-missing" &&
+      record.port_ids.every(
+        (id) =>
+          record.original_upstream_port_ids?.includes(id) &&
+          ["retired", "superseded", "abandoned"].includes(
+            catalog.ports.find((port) => port.id === id)?.upstream_status,
+          ),
+      );
+    record.accounted_for = record.status === "reachable" || knownMaintenance;
+    record.classification = knownMaintenance
+      ? "catalog-declared-unavailable-original"
+      : record.status === "reachable"
+        ? "location-reachable; exact-bytes-unverified"
+        : "unclassified-or-actionable";
+  }
   const portHealth = catalog.ports.map((port) => {
     const locations = observations.filter((record) => record.port_ids.includes(port.id));
-    const original = locations.filter((record) => record.provider !== "direct-manifest");
+    const original = locations.filter((record) =>
+      record.original_upstream_port_ids?.includes(port.id),
+    );
     const qualification = (catalog.source_catalog?.qualification ?? []).filter(
       (record) => record.scope?.port_id === port.id,
     );
@@ -420,14 +606,25 @@ export async function collectRepositoryHealth(
         resume_condition:
           "Complete original-location observations; reachability never establishes continuity.",
       },
-      lineage: { status: "unresolved", owner_issue: 139, successor_selected: false },
+      lineage: {
+        status: "unresolved",
+        owner_issue: 139,
+        successor_selected: false,
+        catalog_upstream_status: port.upstream_status ?? "active",
+      },
       accepted_artifact_obtainability: {
         status: "unknown",
-        identities: locations.flatMap((record) => record.artifact_identities ?? []),
+        identities: locations.flatMap((record) =>
+          (record.artifact_identities ?? []).filter((identity) => identity.port_id === port.id),
+        ),
         historical_identities: qualification.map((record) => record.scope),
         locations: locations.map((record) => ({
           provider: record.provider,
           location: record.repository,
+          release_ref: record.release_ref ?? null,
+          historical_identities: (record.historical_artifact_identities ?? []).filter(
+            (identity) => identity.port_id === port.id,
+          ),
           status: record.status,
           reason: record.reason,
         })),
@@ -439,6 +636,9 @@ export async function collectRepositoryHealth(
         status: "unknown",
         owner_issue: 315,
         authority: "not evaluated or modified",
+        reported_failures: qualification.filter((record) => record.outcome === "failed"),
+        resume_condition:
+          "Obtain artifact/authority/distribution-scoped decisions from #315/#246; reported failures never create or clear a hold here.",
       },
       qualification: {
         status: "retained-catalog-records",
@@ -451,25 +651,65 @@ export async function collectRepositoryHealth(
       },
       canonical_incidents: locations
         .filter((record) => record.status !== "reachable")
-        .map((record) => ({
-          key: observationHash({
+        .map((record) => {
+          const key = observationHash({
             port_id: port.id,
             provider: record.provider,
             location: record.repository,
+            release_ref: record.release_ref ?? null,
             operation: "observe-availability",
             rule: record.reason,
-          }),
-          port_id: port.id,
-          operation: "observe-availability",
-          rule: record.reason,
-          location: record.repository,
-          http_status: record.http_status,
-          observed_at: new Date(now()).toISOString(),
-          retry_at: record.retry_at,
-          resume_condition: record.resume_condition,
-        })),
+          });
+          const prior = priorIncidents.get(key);
+          const material = observationHash({
+            key,
+            http_status: record.http_status,
+            repository_id: record.observed_repository_id,
+            release_id: record.observed_release_id ?? null,
+            asset_digests: (record.observed_asset_digests ?? []).toSorted(),
+            size: record.observed_size ?? null,
+            classification: record.classification,
+          });
+          const priorValid =
+            prior &&
+            prior.key === key &&
+            prior.material_sha256 === material &&
+            Number.isSafeInteger(prior.occurrences) &&
+            prior.occurrences > 0 &&
+            Number.isFinite(Date.parse(prior.first_seen)) &&
+            Date.parse(prior.first_seen) <= started;
+          return {
+            key,
+            material_sha256: material,
+            notify: !priorValid,
+            first_seen: priorValid ? prior.first_seen : new Date(started).toISOString(),
+            occurrences: priorValid ? Math.min(prior.occurrences + 1, Number.MAX_SAFE_INTEGER) : 1,
+            accounted_for: record.accounted_for,
+            classification: record.classification,
+            port_id: port.id,
+            operation: "observe-availability",
+            rule: record.reason,
+            location: record.repository,
+            release_ref: record.release_ref ?? null,
+            http_status: record.http_status,
+            observed_at: new Date(now()).toISOString(),
+            retry_at: record.retry_at,
+            resume_condition: record.resume_condition,
+          };
+        }),
     };
   });
+  const resolvedIncidents = [...priorIncidents.values()]
+    .filter((incident) =>
+      observations.some(
+        (record) =>
+          record.status === "reachable" &&
+          record.port_ids.includes(incident.port_id) &&
+          record.repository === incident.location &&
+          (record.release_ref ?? null) === incident.release_ref,
+      ),
+    )
+    .map((incident) => incident.key);
   return {
     format_version: 2,
     authority:
@@ -480,7 +720,19 @@ export async function collectRepositoryHealth(
     completed_at: new Date(now()).toISOString(),
     collection_method:
       "one metadata request per hosted location or HEAD per exact direct location; no redirects or retries; accepted bytes unverified",
-    outcome: reachable === records.length ? "complete" : "incomplete",
+    resolved_incidents: resolvedIncidents,
+    material_changes: portHealth
+      .flatMap((port) => port.canonical_incidents)
+      .filter((incident) => incident.notify)
+      .map((incident) => incident.key),
+    outcome: observations.every((record) => record.accounted_for) ? "complete" : "incomplete",
+    degradation: observations.some((record) => record.status !== "reachable"),
+    previous_report:
+      previousReport === null
+        ? "not supplied"
+        : previousUsable
+          ? "matching recent evidence"
+          : "stale, mismatched or incomplete; not reused",
     coverage: {
       ports: catalog.ports.length,
       hosted_ports: catalog.ports.length - directPorts.length,
@@ -511,13 +763,17 @@ export function renderRepositoryHealth(report) {
     `Coverage: ${coverage.monitored_ports}/${coverage.ports} ports; ${coverage.direct_manifest_port_ids.length} direct-manifest ports included. Accepted bytes remain unverified.`,
     `Observed ${report.started_at} through ${report.completed_at}.`,
   ];
+  if (report.degradation)
+    lines.push(
+      "Degraded/unavailable conditions remain visible; complete means accounted-for monitoring, never installability.",
+    );
   for (const record of report.observations) {
     const status =
       record.status === "reachable"
         ? `reachable${record.archived === null ? " (archive state unknown)" : record.archived ? " (archived)" : ""}`
         : `unknown (${record.reason}${!record.attempted ? "; not attempted" : record.http_status === null ? "; not established" : `; HTTP ${record.http_status}`})`;
     lines.push(
-      `${record.provider}:${record.repository} [${record.port_ids.join(", ")}]: ${status}`,
+      `${record.provider}:${record.repository}${record.release_ref ? `@${record.release_ref}` : ""} [${record.port_ids.join(", ")}]: ${status}; ${record.classification}`,
     );
     if (record.resume_condition)
       lines.push(
@@ -534,18 +790,58 @@ export function renderRepositoryHealth(report) {
 }
 
 async function main() {
-  if (process.argv.slice(2).some((arg) => arg !== "--json"))
-    throw new Error("Usage: check-catalog-repositories.mjs [--json]");
+  const args = process.argv.slice(2);
+  if (
+    args.some((arg) => arg !== "--json" && !arg.startsWith("--previous-report=")) ||
+    args.filter((arg) => arg.startsWith("--previous-report=")).length > 1
+  )
+    throw new Error("Usage: check-catalog-repositories.mjs [--json] [--previous-report=PATH]");
+  const previousPath = args
+    .find((arg) => arg.startsWith("--previous-report="))
+    ?.slice("--previous-report=".length);
+  let previousReport = null;
+  if (previousPath !== undefined) {
+    const handle = await open(
+      previousPath,
+      constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+    );
+    try {
+      const stat = await handle.stat();
+      const maximum = 2 * 1024 * 1024;
+      if (!stat.isFile() || stat.size > maximum)
+        throw new Error("Previous report requires a bounded regular file");
+      const bytes = Buffer.alloc(maximum + 1);
+      let size = 0;
+      while (size < bytes.length) {
+        const { bytesRead } = await handle.read(bytes, size, bytes.length - size, null);
+        if (!bytesRead) break;
+        size += bytesRead;
+      }
+      if (size > maximum) throw new Error("Previous report exceeds its bound");
+      previousReport = JSON.parse(bytes.subarray(0, size).toString("utf8"));
+    } finally {
+      await handle.close();
+    }
+  }
   const catalogPath = new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url);
   const report = await collectRepositoryHealth(JSON.parse(await readFile(catalogPath, "utf8")), {
     githubToken: process.env.GITHUB_TOKEN,
     gitlabToken: process.env.GITLAB_TOKEN,
+    previousReport,
   });
-  console.log(
-    process.argv.includes("--json")
-      ? JSON.stringify(report, null, 2)
-      : renderRepositoryHealth(report),
-  );
+  if (
+    process.argv.includes("--json") ||
+    previousReport === null ||
+    report.outcome !== "complete" ||
+    report.degradation ||
+    report.resolved_incidents.length ||
+    report.material_changes.length
+  )
+    console.log(
+      process.argv.includes("--json")
+        ? JSON.stringify(report, null, 2)
+        : renderRepositoryHealth(report),
+    );
   process.exitCode = report.outcome === "complete" ? 0 : 1;
 }
 

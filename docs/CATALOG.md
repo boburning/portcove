@@ -765,3 +765,31 @@ The retained Star Fox Enhanced incident in #247 (run 36735216087, job
 `kandowontu/starfox-enhanced: github returned 404`. It is candidate continuity
 evidence for #124/#139 with authority unresolved. A bare 404 neither establishes
 retirement/deletion nor selects a successor or transfers historical qualification.
+
+Existing reviewed catalog maintenance declarations (`retired`, `superseded`,
+`abandoned`) account for a 404 only at that port's declared original location.
+They produce explicit degraded/unavailable output. They cannot suppress a missing
+artifact, new access/integrity failure, repository-name reuse, or an unclassified
+location shared with another port. An archived flag or a bare 404 creates no such
+declaration. The lineage, byte verification, preservation and distribution
+meaning remains independent, even when the monitoring job succeeds.
+
+Historical qualification identities are also inventoried at their exact refs
+and declared hosted locations, or the matching immutable DirectManifest pin.
+Provider-reported digests remain metadata, never verified bytes. Empty/conflicting
+asset inventories and capped/partial pages stay Unknown; unavailable optional
+provider digests are explicitly unverified. A historical identity without a
+locatable declaration stays visibly unmonitored. Failed qualification records are
+reported at their original scope without creating or clearing a publisher hold.
+
+An optional `--previous-report=PATH` consumes a bounded prior format-2 report as
+comparison evidence. It writes no state, issue comment or status ledger. Only a
+matching canonical catalog hash and a nonfuture report no older than 24 hours
+can provide comparison/backoff; stale or malformed scope is labeled unused.
+Repeated identical conditions keep their first-seen time, bounded occurrence
+count and `notify: false`; changed HTTP/identity/digest/size/classification facts
+request an update. Fresh recovery is reported separately. Unclassified failures
+remain prominent and keep their failure exit even when notification is
+unchanged. Ordinary unchanged success with a matching prior report is quiet;
+`--json` always emits the complete evidence record. The report never authenticates
+a prior snapshot as lineage, publication or distribution authority.
