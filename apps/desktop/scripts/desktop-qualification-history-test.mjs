@@ -7,7 +7,8 @@ import path from "node:path";
 // These observations add ownership/exit proof; they never signal a process.
 async function historyProcess(pid) {
   const raw = await readFile(`/proc/${pid}/stat`, "utf8").catch((error) => {
-    if (error.code === "ENOENT") return null;
+    // A process can exit after procfs opens stat but before its contents are read.
+    if (["ENOENT", "ESRCH"].includes(error.code)) return null;
     throw error;
   });
   if (!raw) return null;
@@ -424,6 +425,13 @@ export async function qualificationHistoryScenario({
       // Diagnostics import fixture/process helpers without desktop dependencies.
       ({ By, Key, until } = await import("selenium-webdriver"));
       technicalSummary = By.xpath('//summary[contains(., "Technical details")]');
+      await browser.wait(
+        async () =>
+          (await browser.executeScript(() => window.__portcoveHistoryProbe?.snapshots ?? 0)) > 0,
+        15_000,
+      );
+      // Catalog has no requested inspection profiles until a port is selected.
+      await openDetails();
       await browser.wait(
         async () =>
           (await browser.executeScript(() => window.__portcoveHistoryProbe?.reports ?? 0)) > 0,
