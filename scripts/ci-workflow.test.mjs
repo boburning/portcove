@@ -1222,6 +1222,102 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.doesNotMatch(rust, /continue-on-error/);
 });
 
+test("Windows analyzer acquisition retains the exact pin and both mandatory gates", (t) => {
+  const body = windowsStorage.match(
+    /- name: Lint PowerShell scripts\r?\n {8}shell: pwsh\r?\n {8}run: \|\r?\n([\s\S]*)/,
+  )?.[1];
+  assert.ok(body);
+  const script = body.replace(/^ {10}/gm, "");
+  assert.match(
+    script,
+    /Import-PowerShellDataFile -LiteralPath \.config\/powershell-resources\.psd1/,
+  );
+  assert.match(
+    script,
+    /Get-Module -ListAvailable -Name PSScriptAnalyzer \| Where-Object Version -EQ \$requiredVersion/,
+  );
+  assert.match(
+    script,
+    /Import-Module -Name PSScriptAnalyzer -RequiredVersion \$requiredVersion -Force/,
+  );
+  assert.doesNotMatch(script, /PSModulePath|ModuleBase|continue-on-error|SilentlyContinue/);
+  const available = spawnSync(
+    "pwsh",
+    ["-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()"],
+    { encoding: "utf8", timeout: 10_000 },
+  );
+  if (available.error?.code === "ENOENT" && process.platform !== "win32") {
+    t.skip("PowerShell unavailable; required Windows job executes this contract");
+    return;
+  }
+  assert.ifError(available.error);
+  assert.equal(available.status, 0, available.stdout + available.stderr);
+  const mocks = `
+$ErrorActionPreference = 'Stop'
+$script:pin = [string](Import-PowerShellDataFile -LiteralPath .config/powershell-resources.psd1).PSScriptAnalyzer.version
+$script:available = @($env:PORTCOVE_ANALYZER_VERSIONS | ConvertFrom-Json)
+function Get-Module {
+  param([switch]$ListAvailable, [string]$Name)
+  if (-not $ListAvailable -or $Name -ne 'PSScriptAnalyzer') { throw 'unexpected module lookup' }
+  $script:available | ForEach-Object { [pscustomobject]@{ Version = [version]$_ } }
+}
+function Install-PSResource {
+  param([string]$RequiredResourceFile, [string]$Scope, [switch]$TrustRepository)
+  if ($RequiredResourceFile -ne '.config/powershell-resources.psd1' -or $Scope -ne 'CurrentUser' -or -not $TrustRepository) { throw 'changed acquisition contract' }
+  Write-Output 'acquire-exact-pin'
+  if ($env:PORTCOVE_ANALYZER_FAILURE -eq 'acquisition') { throw 'acquisition failed' }
+  $script:available = @($script:pin)
+}
+function Import-Module {
+  param([string]$Name, [string]$RequiredVersion, [switch]$Force)
+  if ($Name -ne 'PSScriptAnalyzer' -or $RequiredVersion -ne $script:pin -or -not $Force) { throw 'changed import contract' }
+  Write-Output 'import-exact-pin'
+  if ($script:available -notcontains $RequiredVersion -or $env:PORTCOVE_ANALYZER_FAILURE -eq 'import') { throw 'exact import failed' }
+}
+function node {
+  param([string]$Script, [string]$Fixture)
+  Write-Output "gate:$Script"
+  if ($Script -eq 'scripts/run-powershell-lint.mjs' -and -not $Fixture) {
+    $global:LASTEXITCODE = [int]($env:PORTCOVE_ANALYZER_FAILURE -eq 'lint')
+  } elseif ($Script -eq 'scripts/lint-tools.integration.mjs' -and $Fixture -eq 'psscriptanalyzer') {
+    $global:LASTEXITCODE = [int]($env:PORTCOVE_ANALYZER_FAILURE -eq 'fixture')
+  } else { throw 'changed mandatory gate' }
+}
+`;
+  for (const [versions, failure, acquisition, gates, success] of [
+    [["1.25.0"], "", false, 2, true],
+    [["1.24.0", "1.25.0", "1.26.0"], "", false, 2, true],
+    [[], "", true, 2, true],
+    [["1.24.0", "1.26.0"], "", true, 2, true],
+    [[], "acquisition", true, 0, false],
+    [["1.25.0"], "import", false, 0, false],
+    [["1.25.0"], "lint", false, 1, false],
+    [["1.25.0"], "fixture", false, 2, false],
+  ]) {
+    const result = spawnSync(
+      "pwsh",
+      ["-NoProfile", "-NonInteractive", "-Command", mocks + script],
+      {
+        cwd: new URL("..", import.meta.url),
+        env: {
+          ...process.env,
+          PORTCOVE_ANALYZER_VERSIONS: JSON.stringify(versions),
+          PORTCOVE_ANALYZER_FAILURE: failure,
+        },
+        encoding: "utf8",
+        timeout: 10_000,
+        windowsHide: true,
+      },
+    );
+    assert.ifError(result.error);
+    const context = JSON.stringify({ versions, failure }) + result.stdout + result.stderr;
+    assert.equal(result.status === 0, success, context);
+    assert.equal(result.stdout.includes("acquire-exact-pin"), acquisition, context);
+    assert.equal((result.stdout.match(/gate:/g) ?? []).length, gates, context);
+    assert.equal(result.stdout.includes("import-exact-pin"), failure !== "acquisition", context);
+  }
+});
+
 test("Windows fixture setup selects runner-owned temporary storage before compilation", async () => {
   const setup = await readFile(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),

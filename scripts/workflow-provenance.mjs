@@ -603,6 +603,7 @@ export async function runHostedLocalCheck(phase, options = {}) {
 }
 
 const bootstrapPaths = new Set([
+  ".github/workflows/ci.yml",
   ".github/workflows/deep-quality.yml",
   ".github/workflows/native-design-compatibility.yml",
   "scripts/workflow-provenance.mjs",
@@ -821,7 +822,7 @@ export async function runHostedValidation(phase, options = {}) {
     .filter(Boolean);
   if (binding.operation === "bootstrap") {
     if (authorityChanges.some((name) => !bootstrapPaths.has(name)))
-      throw new Error("Bootstrap exceeds the independently admitted fourteen-path scope");
+      throw new Error("Bootstrap exceeds the independently admitted fifteen-path scope");
   } else if (binding.operation === "candidate-consumer") {
     const diff = (before, after) =>
       git(source, ["diff", "--name-only", "--no-renames", before, after])
@@ -830,9 +831,7 @@ export async function runHostedValidation(phase, options = {}) {
     git(source, ["merge-base", "--is-ancestor", binding.base, binding.controller]);
     git(source, ["merge-base", "--is-ancestor", binding.controller, binding.source]);
     if (diff(binding.authority, binding.controller).some((name) => !bootstrapPaths.has(name)))
-      throw new Error(
-        "Candidate controller exceeds the independently admitted fourteen-path scope",
-      );
+      throw new Error("Candidate controller exceeds the independently admitted fifteen-path scope");
     const productBase = git(source, ["merge-base", binding.base, binding.consumer.product_source]);
     for (const changes of [
       diff(binding.controller, binding.source),
