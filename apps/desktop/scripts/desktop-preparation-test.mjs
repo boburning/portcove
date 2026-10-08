@@ -1375,41 +1375,43 @@ export async function preparationScenarios({
         .map((item) => item.id)
         .sort();
     const observe = async (phase) => {
-      const bootstrap = await invoke("get_bootstrap_status");
-      assert.equal(bootstrap.ok, true);
-      assert.equal(bootstrap.value.ready, true);
       const observation = {
         phase,
         observed_at: new Date().toISOString(),
-        bootstrap: bootstrap.value,
-        activities: await activities(),
-        status: await status(port.id),
       };
       observations.phases.push(observation);
+      const bootstrap = await invoke("get_bootstrap_status");
+      observation.bootstrap_response = bootstrap;
+      assert.equal(bootstrap.ok, true);
+      assert.equal(bootstrap.value.ready, true);
+      observation.bootstrap = bootstrap.value;
+      observation.activities = await activities();
+      observation.status = await status(port.id);
       return observation;
     };
-    const before = await observe("before-start");
-    const baselineIds = preparationIds(before.activities);
-    const activePath = before.status.active.path;
-    for (const [index, input] of [
-      path.join(output, `${port.id}.chd`),
-      path.join(activePath, port.executable_hints[host][0]),
-      path.join(activePath, port.setup_executable_hints[host][0]),
-      path.join(activePath, "owned-setup-mode"),
-      path.join(activePath, ".portcove-manifest.json"),
-    ].entries()) {
-      const bytes = await readFile(input);
-      const retained = path.join(output, `live-reload-input-${index}.original`);
-      await writeFile(retained, bytes, { flag: "wx" });
-      artifacts.push(retained);
-      observations.inputs.push({
-        path: input,
-        retained,
-        size: bytes.length,
-        sha256: createHash("sha256").update(bytes).digest("hex"),
-      });
-    }
+    let originalFailure;
     try {
+      const before = await observe("before-start");
+      const baselineIds = preparationIds(before.activities);
+      const activePath = before.status.active.path;
+      for (const [index, input] of [
+        path.join(output, `${port.id}.chd`),
+        path.join(activePath, port.executable_hints[host][0]),
+        path.join(activePath, port.setup_executable_hints[host][0]),
+        path.join(activePath, "owned-setup-mode"),
+        path.join(activePath, ".portcove-manifest.json"),
+      ].entries()) {
+        const bytes = await readFile(input);
+        const retained = path.join(output, `live-reload-input-${index}.original`);
+        await writeFile(retained, bytes, { flag: "wx" });
+        artifacts.push(retained);
+        observations.inputs.push({
+          path: input,
+          retained,
+          size: bytes.length,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        });
+      }
       await browser.findElement(button("Review game preparation")).click();
       await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
       await browser.findElement(button("Prepare game data")).click();
@@ -1445,10 +1447,29 @@ export async function preparationScenarios({
       assert.deepEqual(preparationIds(restored.activities), [...baselineIds, activity.id].sort());
       assert.equal(restored.activities.find((item) => item.id === activity.id)?.status, "running");
       assert.equal(restored.status.readiness.launchable, false);
-      const cancel = await browser.findElement(button("Cancel operation"));
-      assert.equal(await cancel.isEnabled(), true);
+      const cancel = await browser.wait(
+        async () => {
+          const candidates = await browser.findElements(
+            By.xpath(
+              '//section[@data-detail-workspace]//button[normalize-space(.)="Cancel operation"]',
+            ),
+          );
+          if (candidates.length !== 1) return false;
+          const candidate = candidates[0];
+          return (await candidate.isDisplayed()) && (await candidate.isEnabled())
+            ? candidate
+            : false;
+        },
+        15_000,
+        "The restored detail must expose one enabled cancellation control",
+      );
       assert.equal((await browser.findElements(button("Prepare game data"))).length, 0);
-      assert.equal((await activities()).find((item) => item.id === activity.id)?.status, "running");
+      const cancellable = (await activities()).filter(
+        (item) => item.target_id === port.id && item.cancellation,
+      );
+      assert.equal(cancellable.length, 1);
+      assert.equal(cancellable[0].id, activity.id);
+      assert.equal(cancellable[0].status, "running");
       await cancel.click();
       await browser.wait(
         async () => {
@@ -1579,12 +1600,19 @@ export async function preparationScenarios({
       });
       artifacts.push(screenshot);
     } catch (error) {
+      originalFailure = error;
       observations.failure = { message: String(error), observed_at: new Date().toISOString() };
       throw error;
     } finally {
       const capture = path.join(output, "live-preparation-reload-observations.json");
-      await writeFile(capture, JSON.stringify(observations, null, 2), { flag: "wx" });
-      artifacts.push(capture);
+      try {
+        await writeFile(capture, JSON.stringify(observations, null, 2), { flag: "wx" });
+        artifacts.push(capture);
+      } catch (error) {
+        console.error("Live preparation evidence write failed:", error);
+        console.error(JSON.stringify(observations));
+        if (!originalFailure) throw error;
+      }
     }
   });
   browser = await interruptedPreparationScenario({
