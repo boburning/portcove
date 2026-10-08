@@ -11,6 +11,7 @@ import {
   validateObserverConfig,
 } from "./upstream-observer.mjs";
 import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mjs";
+import { collectRepositoryHealth, renderRepositoryHealth } from "./check-catalog-repositories.mjs";
 
 const config = JSON.parse(
   await readFile(new URL("../release/upstream-observer.json", import.meta.url), "utf8"),
@@ -436,4 +437,533 @@ test("deferred checkpoints honor retry clocks without requests and mismatched co
     advanceObservation(config, { ...good.checkpoint, config_sha256: "wrong" }, options),
     (error) => error.rule === "invalid-checkpoint",
   );
+});
+
+// #247 early slice: exact declared locations and six independent evidence roles.
+const healthPin = {
+  version: "v1",
+  url: "https://downloads.example.com/package.zip",
+  size: 42,
+  sha256: "a".repeat(64),
+};
+const healthCatalog = (pin = healthPin) => ({
+  source_catalog: {
+    qualification: [
+      {
+        scope: { port_id: "sample-port", artifact_sha256: "b".repeat(64), upstream_ref: "v0" },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        evidence_ids: ["historical"],
+      },
+    ],
+  },
+  ports: [
+    {
+      id: "sample-port",
+      project_url: "https://github.com/original/project",
+      release: { provider: "direct-manifest", direct: { "windows-x86-64": { ...pin } } },
+    },
+  ],
+});
+const healthTime = Date.parse("2026-10-08T12:00:00Z");
+const healthFetch = async (url, _options) =>
+  url.includes("/releases/tags/")
+    ? new Response(
+        JSON.stringify({ id: 3, tag_name: "v0", assets: [{ digest: `sha256:${"b".repeat(64)}` }] }),
+        { headers: { "content-type": "application/json" } },
+      )
+    : url === healthPin.url
+      ? new Response(null, { headers: { "content-length": String(healthPin.size) } })
+      : new Response(JSON.stringify({ id: 1, full_name: "original/project", archived: false }), {
+          headers: { "content-type": "application/json" },
+        });
+
+test("direct provider preserves original upstream and scopes HEAD separately from exact accepted bytes", async () => {
+  const calls = [];
+  const report = await collectRepositoryHealth(healthCatalog(), {
+    now: () => healthTime,
+    githubToken: "private-token",
+    gitlabToken: "private-gitlab",
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      if (url === healthPin.url) {
+        assert.equal(options.method, "HEAD");
+        assert.equal(options.headers.Authorization, undefined);
+        assert.equal(options.headers["PRIVATE-TOKEN"], undefined);
+        assert.equal(options.redirect, "error");
+      }
+      return healthFetch(url, options);
+    },
+  });
+  assert.equal(calls.length, 3);
+  assert.equal(report.coverage.monitored_ports, 1);
+  assert.equal(report.outcome, "complete");
+  const [health] = report.port_health;
+  assert.equal(health.original_upstream.status, "reachable");
+  assert.equal(health.lineage.status, "unresolved");
+  assert.equal(health.lineage.successor_selected, false);
+  assert.equal(health.accepted_artifact_obtainability.status, "unknown");
+  assert.equal(health.accepted_artifact_obtainability.identities[0].sha256, healthPin.sha256);
+  assert.equal(health.preservation.status, "unknown");
+  assert.equal(health.applicable_holds.status, "unknown");
+  assert.equal(health.qualification.records[0].scope.artifact_sha256, "b".repeat(64));
+  assert.equal(health.qualification.inherited, false);
+  assert.match(renderRepositoryHealth(report), /direct-manifest ports included/);
+  assert.match(renderRepositoryHealth(report), /Accepted bytes remain unverified/);
+  assert.doesNotMatch(JSON.stringify(report), /private-token|private-gitlab/);
+});
+
+test("direct endpoint corruption, unavailable headers and redirects remain unknown rather than verified artifacts", async () => {
+  for (const headers of [{}, { "content-length": "41" }, { "content-length": "42junk" }]) {
+    const report = await collectRepositoryHealth(healthCatalog(), {
+      now: () => healthTime,
+      fetch: async (url, options) =>
+        url === healthPin.url ? new Response(null, { headers }) : healthFetch(url, options),
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.observations[0].reason, "invalid-metadata");
+    assert.equal(report.port_health[0].accepted_artifact_obtainability.status, "unknown");
+  }
+  const report = await collectRepositoryHealth(healthCatalog(), {
+    now: () => healthTime,
+    fetch: async (url, options) =>
+      url === healthPin.url ? new Response(null, { status: 302 }) : healthFetch(url, options),
+  });
+  assert.equal(report.observations[0].reason, "provider-status");
+});
+
+test("partial direct inventory never becomes an empty or healthy collection", async () => {
+  for (const bad of [
+    { ...healthPin, sha256: "bad" },
+    { ...healthPin, url: "https://127.0.0.1/secret" },
+    { ...healthPin, url: "https://user:password@example.com/pkg" },
+  ]) {
+    let calls = 0;
+    await assert.rejects(
+      collectRepositoryHealth(healthCatalog(bad), {
+        fetch: async () => {
+          calls++;
+          return new Response();
+        },
+      }),
+      /safe exact artifact identity/,
+    );
+    assert.equal(calls, 0);
+  }
+});
+
+test("incident identity is stable across observation times while changed rules create distinct conditions", async () => {
+  const collect = (time, status) =>
+    collectRepositoryHealth(healthCatalog(), {
+      now: () => time,
+      fetch: async (url, options) =>
+        url === healthPin.url ? new Response(null, { status }) : healthFetch(url, options),
+    });
+  const first = await collect(healthTime, 404);
+  const repeated = await collect(healthTime + 60_000, 404);
+  const changed = await collect(healthTime + 60_000, 401);
+  const incident = (report) => report.port_health[0].canonical_incidents[0];
+  assert.equal(incident(first).key, incident(repeated).key);
+  assert.notEqual(incident(first).observed_at, incident(repeated).observed_at);
+  assert.notEqual(incident(first).key, incident(changed).key);
+  assert.match(incident(first).resume_condition, /404 does not establish deletion or succession/);
+  assert.equal(first.port_health[0].lineage.successor_selected, false);
+});
+
+test("non-hosted original project remains monitored after a provider change", async () => {
+  const input = healthCatalog();
+  input.ports[0].project_url = "https://original.example.com/";
+  const calls = [];
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    githubToken: "private-token",
+    gitlabToken: "private-token",
+    fetch: async (url, options) => {
+      calls.push(url);
+      assert.equal(options.method, "HEAD");
+      assert.equal(options.headers.Authorization, undefined);
+      assert.equal(options.headers["PRIVATE-TOKEN"], undefined);
+      return url === healthPin.url ? healthFetch(url, options) : new Response(null);
+    },
+  });
+  assert.deepEqual(calls, [healthPin.url, "https://original.example.com/"]);
+  assert.equal(report.port_health[0].original_upstream.status, "reachable");
+  assert.equal(report.port_health[0].lineage.status, "unresolved");
+});
+
+test("rate limits defer only the affected direct origin and preserve other acquisition locations", async () => {
+  const input = healthCatalog();
+  input.ports[0].release.direct.linux = {
+    ...healthPin,
+    url: "https://downloads.example.com/linux.zip",
+  };
+  input.ports[0].release.direct.macos = {
+    ...healthPin,
+    url: "https://other.example.com/package.zip",
+  };
+  const calls = [];
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async (url, options) => {
+      calls.push(url);
+      if (url === healthPin.url)
+        return new Response(null, { status: 429, headers: { "retry-after": "120" } });
+      if (url.startsWith("https://other.example.com/"))
+        return new Response(null, { headers: { "content-length": "42" } });
+      return healthFetch(url, options);
+    },
+  });
+  assert.equal(calls.length, 4);
+  assert.equal(report.observations[1].attempted, false);
+  assert.equal(report.observations[1].retry_at, new Date(healthTime + 120_000).toISOString());
+  assert.equal(report.observations[2].status, "reachable");
+  assert.equal(report.port_health[0].accepted_artifact_obtainability.locations.length, 5);
+});
+
+test("contradictory immutable pins at one location stay prominent without selecting an authority", async () => {
+  const input = healthCatalog();
+  input.ports[0].release.direct.linux = { ...healthPin, sha256: "c".repeat(64) };
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: healthFetch,
+  });
+  assert.equal(report.observations[0].reason, "identity-mismatch");
+  assert.equal(report.observations[0].attempted, false);
+  assert.equal(report.outcome, "incomplete");
+  assert.equal(report.port_health[0].accepted_artifact_obtainability.identities.length, 2);
+  assert.equal(report.port_health[0].applicable_holds.status, "unknown");
+});
+
+test("retained Star Fox failure is an unresolved availability condition with no historical qualification transfer", async () => {
+  // Exact failure text and immutable run identity retained in #247's early slice.
+  // HTTP fixture reconstructs that recorded failure; it is not a new live probe.
+  const incident = {
+    run: "36735216087",
+    job: "109955016518",
+    head: "5d6905ea8bf90fb887bb49a6a8524ab2ecc5846b",
+    stderr: "kandowontu/starfox-enhanced: github returned 404",
+    port_issue: 124,
+    lineage_issue: 139,
+  };
+  const repository = incident.stderr.split(": ")[0];
+  const report = await collectRepositoryHealth(
+    {
+      ports: [{ id: "star-fox-enhanced", release: { repository } }],
+    },
+    { now: () => healthTime, fetch: async () => new Response(null, { status: 404 }) },
+  );
+  const [health] = report.port_health;
+  assert.equal(report.outcome, "incomplete");
+  assert.equal(health.original_upstream.status, "unknown");
+  assert.equal(health.canonical_incidents[0].http_status, 404);
+  assert.equal(health.canonical_incidents[0].rule, "inaccessible-or-missing");
+  assert.equal(health.lineage.owner_issue, incident.lineage_issue);
+  assert.equal(health.lineage.status, "unresolved");
+  assert.equal(health.lineage.successor_selected, false);
+  assert.deepEqual(health.qualification.records, []);
+  assert.equal(health.qualification.inherited, false);
+});
+
+test("hosted relocation keeps original upstream distinct from the current acquisition repository", async () => {
+  const input = {
+    ports: [
+      {
+        id: "relocated",
+        project_url: "https://github.com/original/project",
+        release: { repository: "successor/project" },
+      },
+    ],
+  };
+  const calls = [];
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async (url) => {
+      calls.push(url);
+      if (url.endsWith("original/project")) return new Response(null, { status: 404 });
+      return new Response(
+        JSON.stringify({ id: 2, full_name: "successor/project", archived: false }),
+        { headers: { "content-type": "application/json" } },
+      );
+    },
+  });
+  assert.deepEqual(calls, [
+    "https://api.github.com/repos/successor/project",
+    "https://api.github.com/repos/original/project",
+  ]);
+  assert.equal(report.port_health[0].original_upstream.status, "unknown");
+  assert.equal(report.port_health[0].original_upstream.locations[0].repository, "original/project");
+  assert.equal(report.port_health[0].lineage.successor_selected, false);
+});
+
+test("shared acquisition request retains each port's exact artifact scope", async () => {
+  const input = healthCatalog();
+  input.ports.push({ ...structuredClone(input.ports[0]), id: "other-port" });
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: healthFetch,
+  });
+  assert.equal(report.consumed.requests, 3);
+  for (const port of report.port_health) {
+    assert.deepEqual(
+      port.accepted_artifact_obtainability.identities.map((identity) => identity.port_id),
+      [port.port_id],
+    );
+  }
+});
+
+test("reviewed catalog maintenance accounts for a known original outage without acquiring successor authority", async () => {
+  const input = healthCatalog();
+  input.source_catalog.qualification = [];
+  input.ports[0].upstream_status = "retired";
+  const options = {
+    now: () => healthTime,
+    fetch: async (url, opts) =>
+      url.includes("api.github.com") ? new Response(null, { status: 404 }) : healthFetch(url, opts),
+  };
+  const known = await collectRepositoryHealth(input, options);
+  assert.equal(known.outcome, "complete");
+  assert.equal(known.degradation, true);
+  assert.equal(known.observations[1].classification, "catalog-declared-unavailable-original");
+  assert.equal(known.port_health[0].accepted_artifact_obtainability.status, "unknown");
+  assert.equal(known.port_health[0].preservation.status, "unknown");
+  assert.equal(known.port_health[0].applicable_holds.status, "unknown");
+  assert.equal(known.port_health[0].lineage.successor_selected, false);
+  delete input.ports[0].upstream_status;
+  assert.equal((await collectRepositoryHealth(input, options)).outcome, "incomplete");
+  input.ports[0].upstream_status = "retired";
+  const artifactMissing = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async () => new Response(null, { status: 404 }),
+  });
+  assert.equal(artifactMissing.outcome, "incomplete");
+  assert.equal(artifactMissing.observations[0].accounted_for, false);
+});
+
+test("recent report comparison deduplicates unchanged conditions, exposes recovery and rejects stale scope", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  const collect = (time, previousReport, status) =>
+    collectRepositoryHealth(input, {
+      now: () => time,
+      previousReport,
+      fetch: async () =>
+        status === 200
+          ? new Response(JSON.stringify({ id: 1, full_name: "owner/tracked", archived: false }), {
+              headers: { "content-type": "application/json" },
+            })
+          : new Response(null, { status }),
+    });
+  const first = await collect(healthTime, null, 404);
+  const repeated = await collect(healthTime + 1000, first, 404);
+  assert.equal(repeated.material_changes.length, 0);
+  assert.equal(repeated.port_health[0].canonical_incidents[0].occurrences, 2);
+  assert.equal(
+    repeated.port_health[0].canonical_incidents[0].first_seen,
+    first.port_health[0].canonical_incidents[0].first_seen,
+  );
+  const recovered = await collect(healthTime + 2000, repeated, 200);
+  assert.deepEqual(recovered.resolved_incidents, [first.port_health[0].canonical_incidents[0].key]);
+  const stale = await collect(healthTime + 25 * 3600_000, first, 404);
+  assert.match(stale.previous_report, /stale/);
+  assert.equal(stale.material_changes.length, 1);
+  const altered = structuredClone(first);
+  altered.catalog_sha256 = "f".repeat(64);
+  assert.equal((await collect(healthTime + 1000, altered, 404)).material_changes.length, 1);
+});
+
+test("repository-name reuse is a changed unknown condition, never continuity or inherited qualification", async () => {
+  const input = {
+    ports: [
+      {
+        id: "tracked",
+        project_url: "https://github.com/owner/tracked",
+        release: { repository: "owner/tracked" },
+      },
+    ],
+  };
+  const collect = (id, previousReport = null) =>
+    collectRepositoryHealth(input, {
+      now: () => healthTime,
+      previousReport,
+      fetch: async () =>
+        new Response(JSON.stringify({ id, full_name: "owner/tracked", archived: false }), {
+          headers: { "content-type": "application/json" },
+        }),
+    });
+  const prior = await collect(1);
+  const replaced = await collect(2, prior);
+  assert.equal(replaced.observations[0].reason, "identity-mismatch");
+  assert.equal(replaced.outcome, "incomplete");
+  assert.equal(replaced.port_health[0].lineage.status, "unresolved");
+  assert.equal(replaced.port_health[0].qualification.inherited, false);
+});
+
+test("historical release digests are observed at exact tags and partial or conflicting asset pages remain unknown", async () => {
+  const input = healthCatalog();
+  const paths = [];
+  const complete = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async (url, options) => {
+      paths.push(url);
+      return healthFetch(url, options);
+    },
+  });
+  assert.ok(paths.includes("https://api.github.com/repos/original/project/releases/tags/v0"));
+  assert.equal(complete.port_health[0].accepted_artifact_obtainability.status, "unknown");
+  for (const assets of [
+    [],
+    [{ digest: `sha256:${"c".repeat(64)}` }],
+    Array(100).fill({ digest: `sha256:${"b".repeat(64)}` }),
+  ]) {
+    const report = await collectRepositoryHealth(input, {
+      now: () => healthTime,
+      fetch: async (url, options) =>
+        url.includes("/releases/tags/")
+          ? new Response(JSON.stringify({ id: 3, tag_name: "v0", assets }), {
+              headers: { "content-type": "application/json" },
+            })
+          : healthFetch(url, options),
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.observations.at(-1).status, "unknown");
+    assert.equal(
+      report.port_health[0].qualification.records[0].scope.artifact_sha256,
+      "b".repeat(64),
+    );
+  }
+});
+
+test("prior provider backoff is honored without using a previous failure as healthy evidence", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  const first = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async () => new Response(null, { status: 429, headers: { "retry-after": "120" } }),
+  });
+  const deferred = await collectRepositoryHealth(input, {
+    now: () => healthTime + 1000,
+    previousReport: first,
+    fetch: async () => assert.fail("backoff must not request"),
+  });
+  assert.equal(deferred.observations[0].attempted, false);
+  assert.equal(deferred.observations[0].reason, "rate-limit");
+  assert.equal(deferred.outcome, "incomplete");
+});
+
+test("known artifact, authority and distribution failures retain exact reported scope without creating or clearing holds", async () => {
+  for (const rule of ["artifact-integrity", "publisher-authority", "distribution-authority"]) {
+    const input = healthCatalog();
+    input.source_catalog.qualification[0].outcome = "failed";
+    input.source_catalog.qualification[0].method = rule;
+    input.ports.push({
+      id: "unaffected",
+      project_url: "https://github.com/original/project",
+      release: { repository: "original/project" },
+    });
+    const report = await collectRepositoryHealth(input, {
+      now: () => healthTime,
+      fetch: healthFetch,
+    });
+    assert.equal(report.port_health[0].applicable_holds.reported_failures[0].method, rule);
+    assert.equal(
+      report.port_health[0].applicable_holds.reported_failures[0].scope.artifact_sha256,
+      "b".repeat(64),
+    );
+    assert.equal(report.port_health[0].applicable_holds.status, "unknown");
+    assert.deepEqual(report.port_health[1].applicable_holds.reported_failures, []);
+    assert.equal(report.port_health[1].qualification.inherited, false);
+  }
+});
+
+test("repository identity baseline survives replacement, outage and aged snapshots", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  const collect = (id, previousReport, time = healthTime) =>
+    collectRepositoryHealth(input, {
+      now: () => time,
+      previousReport,
+      fetch: async () =>
+        id === null
+          ? new Response(null, { status: 404 })
+          : new Response(JSON.stringify({ id, full_name: "owner/tracked", archived: false }), {
+              headers: { "content-type": "application/json" },
+            }),
+    });
+  const original = await collect(1);
+  for (const intervening of [await collect(2, original), await collect(null, original), original]) {
+    const report = await collect(2, intervening, healthTime + 25 * 3600_000);
+    assert.equal(report.observations[0].baseline_repository_id, 1);
+    assert.equal(report.observations[0].observed_repository_id, 2);
+    assert.equal(report.observations[0].reason, "identity-mismatch");
+    assert.equal(report.outcome, "incomplete");
+    assert.deepEqual(report.resolved_incidents, []);
+  }
+  const replacement = await collect(2, original);
+  const repeated = await collect(2, replacement);
+  assert.equal(repeated.observations[0].reason, "identity-mismatch");
+  assert.equal(repeated.material_changes.length, 0);
+});
+
+test("changed material retains condition history and provider-specific recovery", async () => {
+  const input = {
+    ports: [
+      {
+        id: "tracked",
+        project_url: "https://github.com/owner/tracked",
+        release: { provider: "gitlab", repository: "owner/tracked" },
+      },
+    ],
+  };
+  const collect = (status, previousReport, time) =>
+    collectRepositoryHealth(input, {
+      now: () => time,
+      previousReport,
+      fetch: async (url) =>
+        url.includes("api.github.com")
+          ? new Response(null, { status })
+          : new Response(
+              JSON.stringify({ id: 2, path_with_namespace: "owner/tracked", archived: false }),
+              {
+                headers: { "content-type": "application/json" },
+              },
+            ),
+    });
+  const first = await collect(503, null, healthTime);
+  const changed = await collect(502, first, healthTime + 1000);
+  const before = first.port_health[0].canonical_incidents[0];
+  const after = changed.port_health[0].canonical_incidents[0];
+  assert.equal(after.first_seen, before.first_seen);
+  assert.equal(after.occurrences, 2);
+  assert.equal(after.notify, true);
+  assert.equal(after.provider, "github");
+  assert.deepEqual(changed.resolved_incidents, []);
+  const missing = await collect(404, null, healthTime);
+  const repeated = await collect(404, missing, healthTime + 1000);
+  assert.deepEqual(repeated.resolved_incidents, []);
+  assert.equal(repeated.material_changes.length, 0);
+});
+
+test("rate-limit fallback defers repeated runs while preserving comparison and incident history", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  for (const headers of [{}, { "retry-after": "120" }]) {
+    const first = await collectRepositoryHealth(input, {
+      now: () => healthTime,
+      fetch: async () => new Response(null, { status: 429, headers }),
+    });
+    let prior = first;
+    for (const elapsed of [1000, 2000]) {
+      const report = await collectRepositoryHealth(input, {
+        now: () => healthTime + elapsed,
+        previousReport: prior,
+        fetch: async () => assert.fail("backoff must not request"),
+      });
+      assert.equal(report.observations[0].attempted, false);
+      assert.equal(report.observations[0].http_status, null);
+      assert.equal(report.observations[0].comparison_http_status, 429);
+      assert.equal(report.material_changes.length, 0);
+      const incident = report.port_health[0].canonical_incidents[0];
+      assert.equal(incident.first_seen, first.port_health[0].canonical_incidents[0].first_seen);
+      assert.equal(incident.occurrences, elapsed / 1000 + 1);
+      assert.equal(incident.notify, false);
+      prior = report;
+    }
+    assert.ok(Date.parse(first.observations[0].retry_at) >= healthTime + 60_000);
+  }
 });
