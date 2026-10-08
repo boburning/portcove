@@ -108,69 +108,80 @@ export function nativePreparedRuntimePicker(options) {
   return ownedRuntimePicker(options, true);
 }
 
+const failureStages = [
+  "setup",
+  "automation-assemblies-start",
+  "automation-assemblies-ready",
+  "owned-process-tree-start",
+  "owned-process-tree-ready",
+  "exact-root-discovery-start",
+  "exact-root-discovery-ready",
+  "owned-root-discovery-start",
+  "owned-root-discovery-ready",
+  "nested-discovery-start",
+  "nested-discovery-ready",
+  "candidate-descendants-start",
+  "candidate-descendants-ready",
+  "candidate-text-ready",
+  "timeout-roots-start",
+  "timeout-nested-start",
+  "button-descendants-start",
+  "button-descendants-ready",
+  "target-identity-rechecked",
+  "screenshot-preparation-start",
+  "screenshot-written",
+  "observation-complete",
+  "unknown",
+];
+const failureTypes = [
+  "System.Exception",
+  "System.InvalidOperationException",
+  "System.ArgumentException",
+  "System.IO.IOException",
+  "System.UnauthorizedAccessException",
+  "System.Runtime.InteropServices.COMException",
+  "System.Management.Automation.RuntimeException",
+  "System.Management.Automation.MethodInvocationException",
+  "System.Management.Automation.ActionPreferenceStopException",
+  "System.Windows.Automation.ElementNotAvailableException",
+  "System.Windows.Automation.ElementNotEnabledException",
+  "other",
+];
+
+function validFailureLocation(location) {
+  if (location === null) return true;
+  const integer = (number) => Number.isSafeInteger(number) && number >= 0 && number <= 1_000_000;
+  return Boolean(
+    location &&
+    ["native-confirmation.ps1", "native-process-tree.ps1", "other"].includes(location.script) &&
+    integer(location.line) &&
+    location.line > 0 &&
+    integer(location.column),
+  );
+}
+
+function validFailureExceptions(exceptions) {
+  return (
+    Array.isArray(exceptions) &&
+    exceptions.length <= 4 &&
+    exceptions.every(
+      (entry) => failureTypes.includes(entry?.type) && /^0x[0-9A-F]{8}$/u.test(entry?.hresult),
+    )
+  );
+}
+
 function confirmationFailureDiagnostic(stderr) {
   try {
     const marker = "PORTCOVE_NATIVE_FAILURE ";
     const line = stderr?.split(/\r?\n/u).find((value) => value.startsWith(marker));
     if (!line || line.length > 4096) return null;
     const value = JSON.parse(line.slice(marker.length));
-    const stages = [
-      "setup",
-      "automation-assemblies-start",
-      "automation-assemblies-ready",
-      "owned-process-tree-start",
-      "owned-process-tree-ready",
-      "exact-root-discovery-start",
-      "exact-root-discovery-ready",
-      "owned-root-discovery-start",
-      "owned-root-discovery-ready",
-      "nested-discovery-start",
-      "nested-discovery-ready",
-      "candidate-descendants-start",
-      "candidate-descendants-ready",
-      "candidate-text-ready",
-      "timeout-roots-start",
-      "timeout-nested-start",
-      "button-descendants-start",
-      "button-descendants-ready",
-      "target-identity-rechecked",
-      "screenshot-preparation-start",
-      "screenshot-written",
-      "observation-complete",
-      "unknown",
-    ];
-    const types = [
-      "System.Exception",
-      "System.InvalidOperationException",
-      "System.ArgumentException",
-      "System.IO.IOException",
-      "System.UnauthorizedAccessException",
-      "System.Runtime.InteropServices.COMException",
-      "System.Management.Automation.RuntimeException",
-      "System.Management.Automation.MethodInvocationException",
-      "System.Management.Automation.ActionPreferenceStopException",
-      "System.Windows.Automation.ElementNotAvailableException",
-      "System.Windows.Automation.ElementNotEnabledException",
-      "other",
-    ];
-    const integer = (number) => Number.isSafeInteger(number) && number >= 0 && number <= 1_000_000;
     if (
       value?.format_version !== 1 ||
-      !stages.includes(value.stage) ||
-      !Array.isArray(value.exceptions) ||
-      value.exceptions.length > 4 ||
+      !failureStages.includes(value.stage) ||
+      !validFailureExceptions(value.exceptions) ||
       typeof value.exceptions_truncated !== "boolean" ||
-      value.exceptions.some(
-        (entry) => !types.includes(entry?.type) || !/^0x[0-9A-F]{8}$/u.test(entry?.hresult),
-      ) ||
-      (value.location !== null &&
-        (!value.location ||
-          !["native-confirmation.ps1", "native-process-tree.ps1", "other"].includes(
-            value.location.script,
-          ) ||
-          !integer(value.location.line) ||
-          value.location.line === 0 ||
-          !integer(value.location.column)))
+      !validFailureLocation(value.location)
     )
       return null;
     return {
