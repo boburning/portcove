@@ -100,7 +100,7 @@ describe("detail qualification history", () => {
 
   it("keeps missing reports distinct from absent catalog evidence", () => {
     const markup = details();
-    expect(markup).toContain("Qualification report unavailable");
+    expect(markup).toContain("File-check report unavailable");
     expect(markup).toContain("Catalog evidence may still exist");
     expect(markup).toContain("No legacy platform coverage recorded");
     expect(markup).not.toContain("No automated test recorded");
@@ -147,7 +147,7 @@ describe("detail qualification history", () => {
     const value = report();
     change(value);
     const markup = details(value);
-    expect(markup).toContain("Qualification report unavailable");
+    expect(markup).toContain("File-check report unavailable");
     expect(markup).not.toContain("165 Hz host");
   });
 
@@ -174,7 +174,7 @@ describe("detail qualification history", () => {
   it("does not carry a previous port's report into a newly selected port", () => {
     const otherPort = { ...snap64, id: "other-port", name: "Other port" };
     expect(details(report(), otherPort)).not.toContain("165 Hz host");
-    expect(details(report(), otherPort)).toContain("Qualification report unavailable");
+    expect(details(report(), otherPort)).toContain("File-check report unavailable");
   });
 
   it("shows BIOS evidence only through its own role and source profile", () => {
@@ -242,7 +242,7 @@ describe("detail qualification history", () => {
     expect(markup).toContain(record.method);
     expect(markup.match(/Not recorded — scope unknown/g)).toHaveLength(4);
     expect(markup).toContain("Current applicability is unknown");
-    expect(markup).toContain("not a fresh qualification");
+    expect(markup).toContain("not a fresh check");
   });
 
   it("keeps legacy platform coverage alongside recorded exact history", () => {

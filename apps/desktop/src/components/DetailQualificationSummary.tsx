@@ -37,9 +37,9 @@ export function DetailQualificationSummary({
         </span>
       </div>
       <p className="text-sm text-pc-muted-foreground">
-        Recorded history, not a fresh qualification of your current files, release or device.
-        Structural and lifecycle passes do not establish gameplay or permission to launch. Legacy
-        platform coverage does not identify an exact artifact, edition or file format.
+        Recorded history, not a fresh check of your current files, release or device. Structural and
+        lifecycle passes do not establish gameplay or permission to launch. Legacy platform coverage
+        does not identify an exact artifact, edition or file format.
       </p>
       {(["game", "bios"] as const).map((role) => {
         const profile = role === "game" ? port.source_profile : port.bios_source_profile;
@@ -82,14 +82,14 @@ export function DetailQualificationSummary({
         return (
           <section
             key={role}
-            aria-label={`Recorded ${role === "game" ? "game-file" : "BIOS"} qualification`}
+            aria-label={`Recorded ${role === "game" ? "game-file" : "BIOS"} checks`}
           >
             <h3 className="text-sm font-medium">
               {role === "game" ? "Game-file" : "BIOS"} recorded observations
             </h3>
             {!application ? (
               <p>
-                Qualification report unavailable for this requirement. Catalog evidence may still
+                File-check report unavailable for this requirement. Catalog evidence may still
                 exist.
               </p>
             ) : (
