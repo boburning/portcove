@@ -14,6 +14,55 @@ param(
     [Parameter(ParameterSetName='Observation')][string]$PreparedRuntimeDirectory
 )
 $ErrorActionPreference = 'Stop'
+$script:lastNativeStage = 'setup'
+function Get-NativeFailureEvidence([Management.Automation.ErrorRecord]$Record) {
+    # Only fixed identifiers and numeric locations/codes leave the helper.
+    # Exception messages, source lines, target objects and full paths are private.
+    $stages = @('setup', 'automation-assemblies-start', 'automation-assemblies-ready',
+        'owned-process-tree-start', 'owned-process-tree-ready', 'exact-root-discovery-start',
+        'exact-root-discovery-ready', 'owned-root-discovery-start', 'owned-root-discovery-ready',
+        'nested-discovery-start', 'nested-discovery-ready', 'candidate-descendants-start',
+        'candidate-descendants-ready', 'candidate-text-ready', 'timeout-roots-start',
+        'timeout-nested-start', 'button-descendants-start', 'button-descendants-ready',
+        'target-identity-rechecked', 'screenshot-preparation-start', 'screenshot-written',
+        'observation-complete')
+    $stage = if ($script:lastNativeStage -cin $stages) { $script:lastNativeStage } else { 'unknown' }
+    $types = @('System.Exception', 'System.InvalidOperationException', 'System.ArgumentException',
+        'System.IO.IOException', 'System.UnauthorizedAccessException',
+        'System.Runtime.InteropServices.COMException', 'System.Management.Automation.RuntimeException',
+        'System.Management.Automation.MethodInvocationException',
+        'System.Management.Automation.ActionPreferenceStopException',
+        'System.Windows.Automation.ElementNotAvailableException',
+        'System.Windows.Automation.ElementNotEnabledException')
+    $details = @()
+    $exception = $Record.Exception
+    for ($index = 0; $exception -and $index -lt 4; $index++) {
+        $type = $exception.GetType().FullName
+        $details += [pscustomobject]@{
+            type = $(if ($type -cin $types) { $type } else { 'other' })
+            hresult = ('0x{0:X8}' -f $exception.HResult)
+        }
+        $exception = $exception.InnerException
+    }
+    $location = $null
+    if ($Record.InvocationInfo -and $Record.InvocationInfo.ScriptLineNumber -gt 0) {
+        $scriptName = [IO.Path]::GetFileName($Record.InvocationInfo.ScriptName)
+        $location = [pscustomobject]@{
+            script = $(if ($scriptName -cin @('native-confirmation.ps1', 'native-process-tree.ps1')) { $scriptName } else { 'other' })
+            line = $Record.InvocationInfo.ScriptLineNumber; column = $Record.InvocationInfo.OffsetInLine
+        }
+    }
+    [pscustomobject]@{ format_version = 1; stage = $stage; location = $location
+        exceptions = $details; exceptions_truncated = [bool]$exception }
+}
+trap {
+    $nativeFailure = $_
+    try {
+        $diagnostic = Get-NativeFailureEvidence $nativeFailure | ConvertTo-Json -Depth 5 -Compress
+        [Console]::Error.WriteLine("PORTCOVE_NATIVE_FAILURE $diagnostic")
+    } catch { $null = $_ } # Secondary diagnostics must never replace the original error.
+    break
+}
 $progressPath = $null
 if ($ScreenshotPath) {
     if (-not [IO.Path]::IsPathFullyQualified($ScreenshotPath) -or
@@ -25,6 +74,7 @@ if ($ScreenshotPath) {
     $progressStream.Dispose()
 }
 function Write-ObservationProgress([string]$Stage) {
+    $script:lastNativeStage = $Stage
     if ($progressPath) {
         $record = [pscustomobject]@{ stage = $Stage; observed_at = [DateTime]::UtcNow.ToString('o') } | ConvertTo-Json -Compress
         [IO.File]::AppendAllText($progressPath, "$record`n")
@@ -241,9 +291,11 @@ while ([DateTime]::UtcNow -lt $deadline) {
 }
 if (-not $window) {
     $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
+    Write-ObservationProgress 'timeout-roots-start'
     $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
     $observed = @($roots | ForEach-Object {
         [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; process = $_.Current.ProcessId }
+        Write-ObservationProgress 'timeout-nested-start'
         $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)) | ForEach-Object {
             [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; process = $_.Current.ProcessId }
         }
@@ -280,7 +332,9 @@ if ($Button -ne '__observe__') {
         # one that still names the reviewed target.
         $freshTargets = @()
         foreach ($candidate in @(Get-OwnedConfirmationWindows)) {
+            Write-ObservationProgress 'button-descendants-start'
             $candidateChildren = $candidate.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+            Write-ObservationProgress 'button-descendants-ready'
             $candidateText = @($candidateChildren | ForEach-Object { $_.Current.Name }) -join "`n"
             if ($candidateText.Contains($ExpectedText)) {
                 $freshTargets += [pscustomobject]@{ window = $candidate; children = $candidateChildren; text = $candidateText }
