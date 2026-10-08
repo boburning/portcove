@@ -2,9 +2,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PortBrowser } from "../../components/PortBrowser";
-import { SettingsView } from "../../components/Chrome";
+import { LibrarySelectionCard, SettingsView } from "../../components/Chrome";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type { PortDefinition, PortStatus } from "../../types";
 import { filterPorts, summarizeLibrary } from "../../view-model";
@@ -105,6 +106,46 @@ afterEach(async () => {
 });
 
 describe("Catalog channel controls", () => {
+  it("binds the native switch confirmation selector to the rendered reviewed action", async () => {
+    const target = "E:/qualification/alternate-library";
+    const switchLibrary = vi.fn().mockResolvedValue(undefined);
+    await act(async () =>
+      root.render(
+        <LibrarySelectionCard
+          choose={vi.fn().mockResolvedValue(target)}
+          switchLibrary={switchLibrary}
+        />,
+      ),
+    );
+    const choose = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Choose another library",
+    )!;
+    await act(async () => choose.click());
+    const review = document.querySelector('[aria-labelledby="library-selection-review-title"]')!;
+    expect(review.textContent).toContain(target);
+    expect(switchLibrary).not.toHaveBeenCalled();
+    const source = readFileSync("scripts/desktop-test.mjs", "utf8");
+    const scenario = source.slice(
+      source.indexOf('await scenario("native-library-browsing-context"'),
+      source.indexOf("await catalogUpdateScenario"),
+    );
+    const selector = scenario.match(
+      /By\.xpath\('(\.\/\/button\[normalize-space\(\.\)="Switch [^"]+"\])'\)/u,
+    )?.[1];
+    expect(selector).toBeDefined();
+    const confirmation = document.evaluate(
+      selector!,
+      review,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null,
+    ).singleNodeValue as HTMLButtonElement | null;
+    expect(confirmation).not.toBeNull();
+    expect(confirmation!.disabled).toBe(false);
+    await act(async () => confirmation!.click());
+    expect(switchLibrary).toHaveBeenCalledExactlyOnceWith(target);
+    expect(document.querySelector('[aria-labelledby="library-selection-review-title"]')).toBeNull();
+  });
   it("binds the existing native library-switch lease observer to the rendered GitHub connection", () => {
     const settings = new DOMParser().parseFromString(
       renderToStaticMarkup(<SettingsView />),

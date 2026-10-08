@@ -1995,9 +1995,7 @@ try {
       );
       await browser.wait(until.elementIsVisible(review), 5_000);
       assert.ok((await review.getText()).includes(target));
-      await review
-        .findElement(By.xpath('.//button[normalize-space(.)="Switch whole library"]'))
-        .click();
+      await review.findElement(By.xpath('.//button[normalize-space(.)="Switch library"]')).click();
       const outcome = await browser.wait(
         async () => {
           const status = await invoke("get_bootstrap_status");
