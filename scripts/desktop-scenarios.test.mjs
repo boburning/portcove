@@ -44,6 +44,44 @@ import {
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
 
+test("qualification history is one opt-in Linux normal-app scenario without lifecycle setup", () => {
+  const selected = resolveDesktopSelection({
+    scenarios: ["native-qualification-history"],
+    platform: "linux",
+  });
+  assert.deepEqual(selected.selected_scenarios, ["native-qualification-history"]);
+  assert.deepEqual(selected.setup_scenarios, []);
+  assert.deepEqual(selected.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selected), 180_000);
+  assert.equal(
+    Object.values(DESKTOP_PROFILES).some((ids) => ids.includes("native-qualification-history")),
+    false,
+  );
+});
+
+test("native history fixture reuses exact maintained catalog records without inventing current applicability", async () => {
+  const { qualificationHistoryFixture } =
+    await import("../apps/desktop/scripts/desktop-qualification-history-test.mjs");
+  const catalog = JSON.parse(
+    await readFile(
+      new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const fixture = qualificationHistoryFixture(catalog);
+  assert.equal(fixture.profile_id, fixture.report.expected_identity.id);
+  assert.equal(fixture.report.applications[0].contract.profile_id, fixture.profile_id);
+  assert.deepEqual(
+    fixture.report.applications[0].qualification.exact_records,
+    catalog.source_catalog.qualification.filter(
+      (record) => record.scope.port_id === fixture.port_id,
+    ),
+  );
+  assert.equal(fixture.report.state_code, "not_inspected");
+  assert.equal(fixture.report.applications[0].release_applicability.state_code, "not_rebound");
+  assert.throws(() => qualificationHistoryFixture({ ports: [], source_catalog: {} }));
+});
+
 test("external fixture contracts execute without installed native-driver dependencies", async (t) => {
   // Storage guards can put os.tmpdir() inside an installed workspace. Keep this
   // small module fixture outside its dependency ancestry and prove resolution fails.

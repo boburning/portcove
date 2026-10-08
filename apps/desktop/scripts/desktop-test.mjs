@@ -39,6 +39,7 @@ import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
+import { qualificationHistoryScenario } from "./desktop-qualification-history-test.mjs";
 import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
 import {
@@ -179,6 +180,12 @@ inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", 
 inputs.push(
   await fileIdentity(fileURLToPath(new URL("desktop-workspace-refresh-test.mjs", import.meta.url))),
 );
+if (selection.selected_scenarios.includes("native-qualification-history"))
+  inputs.push(
+    await fileIdentity(
+      fileURLToPath(new URL("desktop-qualification-history-test.mjs", import.meta.url)),
+    ),
+  );
 inputs.push(
   await fileIdentity(fileURLToPath(new URL("desktop-catalog-update-test.mjs", import.meta.url))),
   await fileIdentity(fileURLToPath(new URL("desktop-default-cover-test.mjs", import.meta.url))),
@@ -2905,6 +2912,14 @@ try {
     artifacts,
     cli: values["preparation-cli"],
     tool: values["preparation-tool"],
+  });
+  await qualificationHistoryScenario({
+    browser,
+    invoke,
+    scenario,
+    output,
+    artifacts,
+    captureScreenshot: captureScenarioScreenshot,
   });
   await installScenarios({
     browser,

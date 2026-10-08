@@ -1316,6 +1316,20 @@ export function formatCommand(entry) {
   return [entry.executable, ...entry.args].map(quote).join(" ");
 }
 
+// Portable review inventory only; these records are never accepted as shell input.
+export function selectedPlanInventory(plan) {
+  const relative = (value) =>
+    typeof value === "string" && value.startsWith(projectRoot)
+      ? `$SOURCE/${value.slice(projectRoot.length).replaceAll("\\", "/")}`
+      : value;
+  return plan.map(({ id, executable, args, cwd }) => ({
+    id,
+    executable: executable === process.execPath ? "$NODE" : relative(executable),
+    args: args.map(relative),
+    cwd: relative(cwd),
+  }));
+}
+
 function printPlan(context, selection, plan, validationPlan) {
   console.log("# Focused local validation");
   console.log(`Base: ${context.base} (${context.baseSha})`);
@@ -1396,6 +1410,7 @@ export function buildExecutionPreflight({
     base: context.baseSha,
     merge_base: context.mergeBase,
     plan_digest: validationPlan.digest,
+    selected_plan: selectedPlanInventory(plan),
     local_profile: "default full-debug; selected command arguments and features are authoritative",
     prerequisites,
     hosted,

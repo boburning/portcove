@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { parseArgs } from "node:util";
@@ -602,6 +602,379 @@ export async function runHostedLocalCheck(phase, options = {}) {
   return status;
 }
 
+const bootstrapPaths = new Set([
+  ".github/workflows/deep-quality.yml",
+  ".github/workflows/native-design-compatibility.yml",
+  "scripts/workflow-provenance.mjs",
+  "scripts/workflow-provenance.test.mjs",
+  "scripts/local-validation.mjs",
+  "scripts/local-validation.test.mjs",
+  "scripts/native-backup-evidence.mjs",
+  "scripts/ci-workflow.test.mjs",
+  "scripts/desktop-scenarios.mjs",
+  "scripts/desktop-scenarios.test.mjs",
+  "apps/desktop/scripts/desktop-test.mjs",
+  "apps/desktop/scripts/desktop-qualification-history-test.mjs",
+  "docs/NATIVE-HOSTED-ACCEPTANCE.md",
+  "docs/DEVELOPMENT-TOOLS.md",
+]);
+const hostedOperations = new Set(["bootstrap", "selected", "compiled", "qualification-history"]);
+const fixedWorkflow = ".github/workflows/native-design-compatibility.yml";
+
+export function parseHostedValidationBinding(raw, digest) {
+  if (typeof raw !== "string" || Buffer.byteLength(raw) > 60_000 || sha256(raw) !== digest)
+    throw new Error("Reviewed execution binding digest or size differs");
+  const binding = JSON.parse(raw);
+  const keys =
+    "authority,base,baseline_plan,controller,format_version,inventory_sha256,merge_base,operation,plan_digest,selected_plan,source";
+  if (
+    Object.keys(binding).sort().join() !== keys ||
+    binding.format_version !== 1 ||
+    !hostedOperations.has(binding.operation) ||
+    !["source", "controller", "base", "merge_base", "authority"].every((key) =>
+      exactSha(binding[key]),
+    ) ||
+    !["inventory_sha256", "plan_digest"].every((key) => /^[a-f0-9]{64}$/u.test(binding[key])) ||
+    !Array.isArray(binding.selected_plan) ||
+    !Array.isArray(binding.baseline_plan)
+  )
+    throw new Error("Invalid reviewed execution binding");
+  if (binding.operation === "bootstrap" && binding.source !== binding.controller)
+    throw new Error("Bootstrap source must be the independently reviewed controller candidate");
+  assertRetainedSelectedPlan(binding.baseline_plan, binding.selected_plan);
+  return binding;
+}
+
+export function assertRetainedSelectedPlan(baseline, selected) {
+  const validate = (plan) => {
+    if (
+      !plan.length ||
+      new Set(plan.map((entry) => entry.id)).size !== plan.length ||
+      plan.some(
+        (entry) =>
+          Object.keys(entry).sort().join() !== "args,cwd,executable,id" ||
+          typeof entry.id !== "string" ||
+          !entry.id ||
+          typeof entry.executable !== "string" ||
+          typeof entry.cwd !== "string" ||
+          !Array.isArray(entry.args) ||
+          entry.args.some((arg) => typeof arg !== "string"),
+      )
+    )
+      throw new Error("Incomplete selected obligation inventory");
+  };
+  validate(baseline);
+  validate(selected);
+  for (const expected of baseline) {
+    const actual = selected.find((entry) => entry.id === expected.id);
+    if (!actual || actual.executable !== expected.executable || actual.cwd !== expected.cwd)
+      throw new Error(`Missing baseline selected obligation: ${expected.id}`);
+    if (JSON.stringify(actual.args) !== JSON.stringify(expected.args))
+      throw new Error(`Baseline selected arguments removed: ${expected.id}`);
+  }
+}
+
+// Explicit execution-under-test admission. This never changes the old route's refusal
+// or establishes that an unmerged controller is a trusted qualification authority.
+export async function runHostedValidation(phase, options = {}) {
+  if (
+    !["controller", "prepare", "provision", "selected", "audit", "compiled", "native"].includes(
+      phase,
+    )
+  )
+    throw new Error("Unsupported fixed hosted phase");
+  const env = options.environment ?? process.env;
+  const binding = parseHostedValidationBinding(
+    env.PORTCOVE_LOCAL_BINDING,
+    env.PORTCOVE_LOCAL_BINDING_SHA256,
+  );
+  if (env.PORTCOVE_LOCAL_OPERATION !== binding.operation)
+    throw new Error("Dispatch operation differs from the reviewed binding");
+  const permitted = {
+    bootstrap: ["prepare", "provision", "selected", "audit"],
+    selected: ["prepare", "provision", "selected"],
+    compiled: ["prepare", "compiled"],
+    "qualification-history": ["prepare", "native"],
+  };
+  if (phase !== "controller" && !permitted[binding.operation].includes(phase))
+    throw new Error("Phase differs from admitted operation");
+  if (
+    env.GITHUB_REPOSITORY !== "boburning/portcove" ||
+    env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
+    env.GITHUB_SHA !== binding.controller ||
+    env.GITHUB_WORKFLOW_SHA !== binding.controller ||
+    !env.GITHUB_WORKFLOW_REF?.startsWith(`boburning/portcove/${fixedWorkflow}@`) ||
+    env.RUNNER_OS !== "Linux" ||
+    env.RUNNER_ARCH !== "X64" ||
+    !exactPositiveInteger(env.GITHUB_RUN_ID) ||
+    !exactPositiveInteger(env.GITHUB_RUN_ATTEMPT)
+  )
+    throw new Error("Reviewed workflow/run/runner identity differs");
+  const controller = options.controllerRoot ?? root;
+  const source = path.resolve(controller, "../source");
+  const evidence = path.resolve(controller, "../hosted-evidence");
+  const invoke = options.command ?? command;
+  const git = (cwd, args) => invoke("git", args, cwd);
+  if (phase === "controller") {
+    if (
+      git(controller, ["rev-parse", "HEAD"]) !== binding.controller ||
+      git(controller, ["status", "--porcelain=v1", "--untracked-files=all"])
+    )
+      throw new Error("Reviewed controller checkout differs");
+    for (const name of [fixedWorkflow, "scripts/workflow-provenance.mjs"])
+      if (
+        git(controller, ["hash-object", name]) !==
+        git(controller, ["rev-parse", `${binding.controller}:${name}`])
+      )
+        throw new Error("Reviewed controller bytes differ");
+    return 0;
+  }
+  const clean = () => {
+    for (const [cwd, sha] of [
+      [controller, binding.controller],
+      [source, binding.source],
+    ])
+      if (
+        path.resolve(git(cwd, ["rev-parse", "--show-toplevel"])) !== path.resolve(cwd) ||
+        git(cwd, ["rev-parse", "HEAD"]) !== sha ||
+        git(cwd, ["status", "--porcelain=v1", "--untracked-files=all"])
+      )
+        throw new Error("Reviewed checkout is dirty or has a different identity");
+  };
+  clean();
+  git(source, ["merge-base", "--is-ancestor", binding.authority, binding.base]);
+  if (git(source, ["merge-base", binding.source, binding.base]) !== binding.merge_base)
+    throw new Error("Reviewed merge-base differs");
+  const names = git(source, [
+    "diff",
+    "--name-only",
+    "--no-renames",
+    binding.merge_base,
+    binding.source,
+  ])
+    .split("\n")
+    .filter(Boolean);
+  const inventory = names.map((name) => {
+    if (!/^[A-Za-z0-9_.\/-]+$/u.test(name) || name.split("/").includes(".."))
+      throw new Error("Unsafe changed inventory path");
+    const before = git(source, ["ls-tree", binding.merge_base, "--", name]);
+    const after = git(source, ["ls-tree", binding.source, "--", name]);
+    if (
+      [before, after]
+        .filter(Boolean)
+        .some((entry) => !/^100(?:644|755) blob [a-f0-9]{40}\t/u.test(entry))
+    )
+      throw new Error("Non-regular changed inventory input");
+    return { path: name, base: before, source: after };
+  });
+  if (sha256(JSON.stringify(inventory)) !== binding.inventory_sha256)
+    throw new Error("Complete reviewed changed inventory differs");
+  const authorityChanges = git(source, [
+    "diff",
+    "--name-only",
+    "--no-renames",
+    binding.authority,
+    binding.source,
+  ])
+    .split("\n")
+    .filter(Boolean);
+  if (binding.operation === "bootstrap") {
+    if (authorityChanges.some((name) => !bootstrapPaths.has(name)))
+      throw new Error("Bootstrap exceeds the independently admitted fourteen-path scope");
+  } else {
+    git(source, ["merge-base", "--is-ancestor", binding.controller, binding.base]);
+    if (
+      authorityChanges.some(
+        (name) =>
+          hostedLocalCheckAuthorityPaths.includes(name) ||
+          (isHostedLocalCheckScriptAuthority(name) &&
+            name !== "apps/desktop/scripts/adapter-conformance.mjs"),
+      )
+    )
+      throw new Error("Unrelated executable or trusted selected authority changed");
+    if (
+      git(source, ["rev-parse", `${binding.source}:scripts/workflow-provenance.mjs`]) !==
+      git(controller, ["rev-parse", `${binding.controller}:scripts/workflow-provenance.mjs`])
+    )
+      throw new Error("Source controller differs from the separately reviewed controller");
+  }
+  const preserved = [
+    "scripts/audit.mjs",
+    "justfile",
+    "rust-toolchain.toml",
+    ".node-version",
+    "package.json",
+    "apps/desktop/package.json",
+    "Cargo.toml",
+    "Cargo.lock",
+    "pnpm-lock.yaml",
+    "aqua.yaml",
+    "aqua-checksums.json",
+    ".github/quality-tools.json",
+    ".config/nextest.toml",
+    "scripts/run-rust-tests.mjs",
+    "scripts/heavy-rust-test-lock.mjs",
+    "scripts/rust-test-tree-supervisor.mjs",
+    "scripts/dev-storage.mjs",
+    "scripts/bootstrap-quality-tools.sh",
+    "scripts/install-linux-desktop-prerequisites.sh",
+  ];
+  if (git(source, ["diff", "--name-only", binding.authority, binding.source, "--", ...preserved]))
+    throw new Error("Bootstrap changed preserved recipes, pins, resources or containment");
+  for (const name of [
+    fixedWorkflow,
+    "scripts/workflow-provenance.mjs",
+    "scripts/native-backup-evidence.mjs",
+  ])
+    if (
+      git(controller, ["hash-object", name]) !==
+      git(controller, ["rev-parse", `${binding.controller}:${name}`])
+    )
+      throw new Error("Reviewed controller bytes changed");
+  const rustPin = (await readFile(path.join(source, "rust-toolchain.toml"), "utf8")).match(
+    /^channel = "([^"]+)"$/mu,
+  )?.[1];
+  if (!/^\d+\.\d+\.\d+$/u.test(rustPin ?? "")) throw new Error("Invalid Rust pin");
+  const child = hostedLocalCheckEnvironment(env, rustPin, source);
+  git(source, ["update-ref", "refs/remotes/origin/main", binding.base]);
+  await mkdir(evidence, { recursive: true });
+  const receipt = {
+    format_version: 1,
+    ...binding,
+    binding_sha256: env.PORTCOVE_LOCAL_BINDING_SHA256,
+    run: env.GITHUB_RUN_ID,
+    attempt: env.GITHUB_RUN_ATTEMPT,
+    phase,
+    source_tree: git(source, ["rev-parse", `${binding.source}^{tree}`]),
+    controller_tree: git(controller, ["rev-parse", `${binding.controller}^{tree}`]),
+    workflow_sha256: sha256(await readFile(path.join(controller, fixedWorkflow))),
+  };
+  await writeFile(path.join(evidence, "binding.json"), JSON.stringify(receipt, null, 2) + "\n");
+  if (phase === "prepare") return 0;
+  const nodePin = (await readFile(path.join(source, ".node-version"), "utf8")).trim();
+  const manager = JSON.parse(
+    await readFile(path.join(source, "package.json"), "utf8"),
+  ).packageManager;
+  const tools = JSON.parse(await readFile(path.join(source, ".github/quality-tools.json"), "utf8"));
+  const just = tools.tools.find((tool) => tool.id === "just")?.version;
+  if (
+    process.version !== `v${nodePin}` ||
+    invoke("just", ["--version"], source) !== `just ${just}` ||
+    invoke("pnpm", ["--version"], source) !== manager.replace(/^pnpm@/u, "") ||
+    rustVersion(invoke("rustc", ["--version"], source), "rustc") !== rustPin ||
+    rustVersion(invoke("cargo", ["--version"], source), "cargo") !== rustPin
+  )
+    throw new Error("Observed execution tools differ from preserved pins");
+  const execute = options.spawn ?? spawnSync;
+  if (["provision", "selected"].includes(phase)) {
+    const planned = execute(
+      process.execPath,
+      ["scripts/local-validation.mjs", "check", "--preflight", "--json"],
+      { cwd: source, env: child, encoding: "utf8", timeout: 60_000, maxBuffer: 16 * 1024 * 1024 },
+    );
+    if (planned.error) throw planned.error;
+    if (![0, 1].includes(planned.status))
+      throw new Error("Complete candidate-root planning failed");
+    const report = JSON.parse(planned.stdout);
+    if (
+      report.source !== binding.source ||
+      report.base !== binding.base ||
+      report.merge_base !== binding.merge_base ||
+      report.plan_digest !== binding.plan_digest ||
+      JSON.stringify(report.selected_plan) !== JSON.stringify(binding.selected_plan) ||
+      !Array.isArray(report.obligations) ||
+      report.obligations.some((entry) => entry.missing.length)
+    )
+      throw new Error("Full reviewed selected plan or prerequisites differ");
+    await writeFile(
+      path.join(evidence, "selected-plan.json"),
+      JSON.stringify(report, null, 2) + "\n",
+    );
+    clean();
+    if (phase === "provision") {
+      if (!report.obligations.some((entry) => entry.id === "ui-browser-tests")) return 0;
+      const result = execute("pnpm", ["--dir", "apps/desktop", "browser:bootstrap"], {
+        cwd: source,
+        env: child,
+        stdio: "inherit",
+        timeout: 300_000,
+      });
+      clean();
+      if (result.error) throw result.error;
+      return result.status ?? 1;
+    }
+  }
+  const commands = {
+    selected: ["just", ["local-check", "--fresh"]],
+    audit: ["just", ["audit", "--fresh"]],
+    compiled: ["pnpm", ["--dir", "apps/desktop", "test:adapter-conformance"]],
+    native: [
+      "xvfb-run",
+      [
+        "-a",
+        "dbus-run-session",
+        "--",
+        "pnpm",
+        "--dir",
+        "apps/desktop",
+        "test:desktop",
+        "--app",
+        path.join(source, "target", "debug", "portcove-desktop"),
+        "--driver",
+        phase === "native" ? invoke("which", ["tauri-driver"], source) : "",
+        "--native-driver",
+        phase === "native" ? invoke("which", ["WebKitWebDriver"], source) : "",
+        "--output",
+        path.join(evidence, "native"),
+        "--scenario",
+        "native-qualification-history",
+      ],
+    ],
+  };
+  const [executable, args] = commands[phase];
+  // No command parameters are supplied by the candidate or dispatch caller.
+  const stdout = await open(path.join(evidence, "stdout.log"), "wx");
+  const stderr = await open(path.join(evidence, "stderr.log"), "wx");
+  let result;
+  const started = new Date().toISOString();
+  try {
+    result = execute(executable, args, {
+      cwd: source,
+      env: {
+        ...child,
+        ...(phase === "native"
+          ? { PORTCOVE_OUTPUT_DIR: evidence, PORTCOVE_TEMP_DIR: path.join(source, "work", "temp") }
+          : {}),
+      },
+      stdio: ["ignore", stdout.fd, stderr.fd],
+    });
+  } finally {
+    await stdout.close();
+    await stderr.close();
+  }
+  clean();
+  if (git(source, ["rev-parse", "origin/main"]) !== binding.base)
+    throw new Error("Comparison target changed");
+  await writeFile(
+    path.join(evidence, "execution.json"),
+    JSON.stringify(
+      {
+        ...receipt,
+        command: [executable, ...args],
+        started,
+        finished: new Date().toISOString(),
+        exit_code: result.status ?? 1,
+        error: result.error?.message ?? null,
+        tools: { node: process.version, rust: rustPin, just, package_manager: manager },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  if (result.error) throw result.error;
+  return result.status ?? 1;
+}
+
 function cohortInputs(record) {
   return {
     workflow: record.workflow,
@@ -845,6 +1218,11 @@ export function validateWorkflowProvenance(
 }
 
 async function main(args = process.argv.slice(2)) {
+  if (args[0] === "hosted-validation") {
+    if (args.length !== 2) throw new Error("hosted-validation accepts one fixed phase only");
+    process.exitCode = await runHostedValidation(args[1]);
+    return;
+  }
   if (args[0] === "hosted-local-check") {
     if (args.length !== 2) throw new Error("hosted-local-check accepts only one fixed phase");
     process.exitCode = await runHostedLocalCheck(args[1]);

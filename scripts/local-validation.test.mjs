@@ -28,6 +28,7 @@ import {
   storageScopeForPlan,
   untrackedFileMode,
   buildExecutionPreflight,
+  selectedPlanInventory,
   inspectHostedLocalRoute,
   inspectPreChangeAudit,
   readDoctestPackages,
@@ -37,6 +38,26 @@ import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
 
 const allFilesExist = () => true;
+
+test("review inventory keeps command arguments while making candidate-root paths portable", () => {
+  const source = new URL("../", import.meta.url).pathname;
+  const entry = {
+    id: "owned",
+    executable: process.execPath,
+    args: [source + "scripts/check.mjs", "--all", "/other/input"],
+    cwd: source + "apps/desktop",
+  };
+  assert.deepEqual(selectedPlanInventory([entry]), [
+    {
+      id: "owned",
+      executable: "$NODE",
+      args: ["$SOURCE/scripts/check.mjs", "--all", "/other/input"],
+      cwd: "$SOURCE/apps/desktop",
+    },
+  ]);
+  assert.equal(entry.executable, process.execPath);
+  assert.equal(entry.args[0], source + "scripts/check.mjs");
+});
 
 function preflightFixture() {
   const context = { headSha: "a".repeat(40), baseSha: "b".repeat(40), mergeBase: "b".repeat(40) };

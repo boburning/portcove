@@ -14,7 +14,156 @@ import {
   isHostedLocalCheckScriptAuthority,
   hostedLocalCheckEnvironment,
   runHostedLocalCheck,
+  parseHostedValidationBinding,
+  assertRetainedSelectedPlan,
+  runHostedValidation,
 } from "./workflow-provenance.mjs";
+
+const reviewedPlan = [
+  { id: "diff-check", executable: "git", args: ["diff", "--check"], cwd: "$SOURCE/" },
+];
+function reviewedBinding(overrides = {}) {
+  return {
+    format_version: 1,
+    operation: "bootstrap",
+    source: "a".repeat(40),
+    controller: "a".repeat(40),
+    base: "b".repeat(40),
+    merge_base: "b".repeat(40),
+    authority: "b".repeat(40),
+    inventory_sha256: "c".repeat(64),
+    plan_digest: "d".repeat(64),
+    baseline_plan: reviewedPlan,
+    selected_plan: reviewedPlan,
+    ...overrides,
+  };
+}
+const bindingDigest = (raw) => createHash("sha256").update(raw).digest("hex");
+
+test("reviewed hosted bindings retain baseline obligations and reject caller command extensions", () => {
+  const raw = JSON.stringify(reviewedBinding());
+  assert.equal(parseHostedValidationBinding(raw, bindingDigest(raw)).operation, "bootstrap");
+  assert.throws(() => parseHostedValidationBinding(raw, "0".repeat(64)), /digest/);
+  for (const patch of [
+    { command: "arbitrary shell" },
+    { source: "not-a-sha" },
+    { controller: "e".repeat(40) },
+    { operation: "shell" },
+    { selected_plan: [] },
+  ]) {
+    const invalid = JSON.stringify(reviewedBinding(patch));
+    assert.throws(() => parseHostedValidationBinding(invalid, bindingDigest(invalid)));
+  }
+  assert.throws(
+    () => assertRetainedSelectedPlan(reviewedPlan, [{ ...reviewedPlan[0], args: ["diff"] }]),
+    /arguments removed/,
+  );
+  assert.throws(
+    () => assertRetainedSelectedPlan(reviewedPlan, [{ ...reviewedPlan[0], cwd: "another-root" }]),
+    /Missing baseline/,
+  );
+  assert.throws(
+    () => assertRetainedSelectedPlan(reviewedPlan, [reviewedPlan[0], reviewedPlan[0]]),
+    /inventory/,
+  );
+});
+
+test("bootstrap binds actual clean Git inventories and refuses out-of-scope or dirty inputs", async (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "portcove-reviewed-binding-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const source = path.join(directory, "source");
+  const controller = path.join(directory, "controller");
+  const git = (cwd, args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const write = (name, content) => {
+    mkdirSync(path.dirname(path.join(source, name)), { recursive: true });
+    writeFileSync(path.join(source, name), content);
+  };
+  mkdirSync(source);
+  git(source, ["init", "--quiet"]);
+  git(source, ["config", "user.name", "Reviewed fixture"]);
+  git(source, ["config", "user.email", "fixture@invalid"]);
+  write("rust-toolchain.toml", 'channel = "1.98.1"\n');
+  write("scripts/audit.mjs", "preserved audit\n");
+  git(source, ["add", "."]);
+  git(source, ["commit", "--quiet", "-m", "trusted base"]);
+  const base = git(source, ["rev-parse", "HEAD"]);
+  for (const name of [
+    ".github/workflows/native-design-compatibility.yml",
+    "scripts/workflow-provenance.mjs",
+    "scripts/native-backup-evidence.mjs",
+  ])
+    write(name, "reviewed transport bytes\n");
+  git(source, ["add", "."]);
+  git(source, ["commit", "--quiet", "-m", "reviewed bootstrap"]);
+  const head = git(source, ["rev-parse", "HEAD"]);
+  git(directory, ["clone", "--quiet", source, controller]);
+  const names = git(source, ["diff", "--name-only", "--no-renames", base, head]).split("\n");
+  const inventory = names.map((name) => ({
+    path: name,
+    base: git(source, ["ls-tree", base, "--", name]),
+    source: git(source, ["ls-tree", head, "--", name]),
+  }));
+  const spec = reviewedBinding({
+    source: head,
+    controller: head,
+    base,
+    authority: base,
+    merge_base: base,
+    inventory_sha256: bindingDigest(JSON.stringify(inventory)),
+  });
+  const raw = JSON.stringify(spec);
+  const environment = {
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_SHA: head,
+    GITHUB_WORKFLOW_SHA: head,
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/native-design-compatibility.yml@refs/heads/fixture",
+    GITHUB_RUN_ID: "42",
+    GITHUB_RUN_ATTEMPT: "1",
+    RUNNER_OS: "Linux",
+    RUNNER_ARCH: "X64",
+    PORTCOVE_LOCAL_OPERATION: "bootstrap",
+    PORTCOVE_LOCAL_BINDING: raw,
+    PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(raw),
+  };
+  const options = {
+    controllerRoot: controller,
+    environment,
+    command: (name, args, cwd) => {
+      assert.equal(name, "git", "Prepare must not provision or execute candidate tools");
+      return git(cwd, args);
+    },
+  };
+  assert.equal(await runHostedValidation("controller", options), 0);
+  assert.equal(await runHostedValidation("prepare", options), 0);
+  await assert.rejects(() => runHostedValidation("compiled", options), /Phase differs/);
+  await assert.rejects(
+    () =>
+      runHostedValidation("prepare", {
+        ...options,
+        environment: { ...environment, GITHUB_SHA: base },
+      }),
+    /identity differs/,
+  );
+  write("unowned.mjs", "outside scope\n");
+  await assert.rejects(() => runHostedValidation("prepare", options), /dirty/);
+  rmSync(path.join(source, "unowned.mjs"));
+  const wrong = JSON.stringify({ ...spec, inventory_sha256: "0".repeat(64) });
+  await assert.rejects(
+    () =>
+      runHostedValidation("prepare", {
+        ...options,
+        environment: {
+          ...environment,
+          PORTCOVE_LOCAL_BINDING: wrong,
+          PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(wrong),
+        },
+      }),
+    /inventory differs/,
+  );
+});
 
 test("preflight and controller share the exact hosted script authority boundary", () => {
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/dev-doctor.mjs"), true);

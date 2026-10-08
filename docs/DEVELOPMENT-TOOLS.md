@@ -1122,3 +1122,28 @@ request and requires the popup destination to receive none; it does not promise
 network silence for cancelled navigation. Native refusal, the preserved main
 URL/assets, absent remote fixture execution marker and returned-main IPC establish
 context containment. See the [Microsoft cancellation contract](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2navigationstartingeventargs?view=webview2-1.0.4129.50).
+
+### Fixed reviewed hosted validation
+
+For Cloud hosts lacking native build SDKs, use the separately reviewed manual
+operations in `native-design-compatibility.yml` after exact source-bound admission.
+Keep the existing hosted local-check authority refusal intact. Supply
+`operation`, `execution_binding` and `execution_binding_sha256`; no shell command
+is a workflow input. Binding format1 names source/controller/base/merge-base/authority,
+complete inventory SHA-256, hosted-plan digest, and complete baseline/selected
+obligation inventories. Generate the candidate-root structured inventory with
+`just local-check --preflight --json`; prerequisite observations are not execution.
+Review the baseline obligations independently under the preserved pre-change policy.
+
+`bootstrap` runs `just local-check --fresh` and `just audit --fresh` in separate jobs;
+`selected` runs fresh selected validation, `compiled` runs the complete maintained
+`pnpm --dir apps/desktop test:adapter-conformance` command, and
+`qualification-history` runs the one explicit Linux normal-app native scenario.
+The separately reviewed adapter harness is bound through the exact source and full
+inventory; unrelated executable changes remain refused. A controller candidate's
+bootstrap result is validation evidence, not a self-issued trust or merge grant.
+
+Use the supported decoded GitHub job-log connector to retrieve retained byte records;
+verify run/attempt/job/source, recover with the existing codec and inspect real PNGs.
+See [hosted acceptance](NATIVE-HOSTED-ACCEPTANCE.md) for allocations, identity and
+composition requirements, honest platform/fixture limits and recovery commands.

@@ -6,7 +6,12 @@ import { EventEmitter } from "node:events";
 import { collectRepositoryHealth, renderRepositoryHealth } from "./check-catalog-repositories.mjs";
 import os from "node:os";
 import path from "node:path";
-import { encodeBackupEvidence, recoverBackupEvidence } from "./native-backup-evidence.mjs";
+import {
+  encodeBackupEvidence,
+  recoverBackupEvidence,
+  encodeHostedEvidence,
+  recoverHostedEvidence,
+} from "./native-backup-evidence.mjs";
 import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
 import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
@@ -33,6 +38,81 @@ const windowsQualificationRunner = await readFile(
 );
 const requiredCiSurface = `${workflow}\n${windowsQualificationRunner}`;
 
+test("reviewed hosted phases retain independent allocations, fixed commands and read-only isolation", () => {
+  const source = nativeDesignCompatibilityWorkflow;
+  for (const [name, limit, phase] of [
+    ["hosted_selected", 60, "selected"],
+    ["hosted_audit", 30, "audit"],
+    ["hosted_compiled", 120, "compiled"],
+    ["hosted_history", 45, "native"],
+  ]) {
+    const section = source.split(`\n  ${name}:`)[1]?.split(/\n  [a-z_]+:\n/)[0];
+    assert.ok(section);
+    assert.match(section, new RegExp(`timeout-minutes: ${limit}`));
+    assert.match(section, /runs-on: ubuntu-24\.04/);
+    assert.match(section, /persist-credentials: false/);
+    assert.match(section, new RegExp(`hosted-validation ${phase}`));
+    assert.match(section, /emit-hosted hosted-evidence/);
+    assert.doesNotMatch(
+      section,
+      /upload-artifact|actions\/cache|rust-cache|secrets\.|VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE/,
+    );
+  }
+  assert.match(source, /^permissions:\n {2}contents: read$/m);
+  assert.doesNotMatch(source, /checks: write|contents: write|pull_request_target/);
+});
+
+test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or missing terminal data", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-hosted-evidence-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const expected = {
+    source: "a".repeat(40),
+    controller: "b".repeat(40),
+    base: "c".repeat(40),
+    run: "42",
+    attempt: "1",
+    binding_sha256: "d".repeat(64),
+  };
+  const input = path.join(root, "input");
+  await mkdir(input);
+  await writeFile(path.join(input, "binding.json"), JSON.stringify(expected));
+  await writeFile(
+    path.join(input, "execution.json"),
+    JSON.stringify({ ...expected, phase: "native", exit_code: 0 }),
+  );
+  // Codec unit fixture, never native acceptance evidence.
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aTfcAAAAASUVORK5CYII=",
+    "base64",
+  );
+  await writeFile(path.join(input, "fixture.png"), png);
+  const encoded = await encodeHostedEvidence(input);
+  const decodedLog = encoded
+    .split("\n")
+    .map((line) => `2026-10-08T00:00:00Z ${line}`)
+    .join("\n");
+  const output = path.join(root, "decoded");
+  assert.equal((await recoverHostedEvidence(decodedLog, output, expected)).exit_code, 0);
+  assert.deepEqual(await readFile(path.join(output, "fixture.png")), png);
+  await assert.rejects(
+    () =>
+      recoverHostedEvidence(decodedLog, path.join(root, "wrong-run"), { ...expected, run: "43" }),
+    /run differs/,
+  );
+  await rm(path.join(input, "execution.json"));
+  await assert.rejects(
+    async () =>
+      recoverHostedEvidence(
+        await encodeHostedEvidence(input),
+        path.join(root, "partial"),
+        expected,
+      ),
+    /terminal/,
+  );
+  await symlink(path.join(input, "fixture.png"), path.join(input, "linked.png"));
+  await assert.rejects(() => encodeHostedEvidence(input), /links/);
+});
+
 test("hosted backup focus is manual-only, pinned, isolated and retains real evidence without billed storage", async () => {
   const source = await readFile(
     new URL("../.github/workflows/native-design-compatibility.yml", import.meta.url),
@@ -56,11 +136,11 @@ test("hosted backup focus is manual-only, pinned, isolated and retains real evid
   );
   assert.match(
     source,
-    /qualify:\n {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
+    /qualify:\n {4}if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
   );
   assert.match(
     windows,
-    /^ {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
+    /^ {4}if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
   );
   assert.match(windows, /PORTCOVE_TEMP_DIR: \$\{\{ github.workspace \}\}/);
   assert.doesNotMatch(windows.split("    steps:")[0], /\$\{\{ runner\./);
@@ -135,9 +215,14 @@ test("native scenario consumers keep Node and context contracts in both frontend
 });
 
 test("EdgeDriver trust proof is manual, isolated, and does not launch the application", () => {
-  const job = nativeDesignCompatibilityWorkflow.split("\n  edge_driver_proof:")[1];
+  const job = nativeDesignCompatibilityWorkflow
+    .split("\n  edge_driver_proof:")[1]
+    ?.split("\n  hosted_selected:")[0];
   assert.ok(job);
-  assert.match(job, /if: inputs\.edge_driver_proof/u);
+  assert.match(
+    job,
+    /if: \$\{\{ inputs\.operation == 'compatibility' && inputs\.edge_driver_proof \}\}/u,
+  );
   assert.match(job, /runs-on: windows-2022/u);
   assert.match(job, /persist-credentials: false/u);
   assert.doesNotMatch(
@@ -152,7 +237,7 @@ test("EdgeDriver trust proof is manual, isolated, and does not launch the applic
   assert.match(job, /driver_sha256/u);
   assert.match(
     nativeDesignCompatibilityWorkflow,
-    /if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/u,
+    /if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/u,
   );
 });
 
