@@ -726,3 +726,42 @@ whose relevant inputs change; preserve historical and legacy evidence honestly.
 Opt-in reports must exclude game data, secrets and personal paths; untrusted
 reports cannot revoke the whole catalog. Ordinary success needs no owner action;
 exceptions have bounded retries, scope and a reproducible resume condition.
+
+## Read-only disappearance reporting
+
+`scripts/check-catalog-repositories.mjs` reports each catalog port against six
+separate facts: original-upstream reachability, lineage, exact accepted-artifact
+obtainability, preservation, applicable holds, and retained qualification. Its
+format-2 output binds the canonical catalog hash and observation interval. A
+complete location collection means its declared probes completed; it does not
+mean every port is installable or that an artifact was verified.
+
+DirectManifest entries remain in the inventory, with their exact declared
+version/platform/digest/size and acquisition URL. The declared original project
+is also observed after a provider change. Hosted repositories use their existing
+bounded metadata requests. Direct artifact and other project endpoints use HEAD
+without provider credentials or redirects. A matching Content-Length establishes
+endpoint reachability only; the exact accepted bytes remain Unknown until their
+identity is actually verified. Missing, corrupt, inaccessible, contradictory or
+partial inputs remain explicit rather than becoming empty healthy inventories.
+
+Lineage decisions remain owned by #139, preservation by #1306 and artifact or
+operation holds by #315/#246. This collector evaluates or modifies none of those
+authorities. Retained catalog qualification stays attached to its exact original
+artifact/source/platform scope; legacy platform arrays are labeled historical
+and neither is inherited by another release or location. An absent policy or
+preservation observation is Unknown, never permission or a clean hold status.
+
+Each failed availability condition has a deterministic incident key binding
+port, location, operation and failed rule, with HTTP evidence, collection time,
+backoff and a resume condition. Observation time is excluded from that key, so an
+unchanged condition retains its identity. The collector performs no issue writes,
+source transfer, installation, artifact execution or automatic qualification.
+The shared request, duration and byte bounds remain in force; direct-origin rate
+limits leave unrelated locations observable.
+
+The retained Star Fox Enhanced incident in #247 (run 36735216087, job
+109955016518, source `5d6905ea8bf90fb887bb49a6a8524ab2ecc5846b`) reported
+`kandowontu/starfox-enhanced: github returned 404`. It is candidate continuity
+evidence for #124/#139 with authority unresolved. A bare 404 neither establishes
+retirement/deletion nor selects a successor or transfers historical qualification.

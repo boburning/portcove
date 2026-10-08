@@ -11,6 +11,7 @@ import {
   validateObserverConfig,
 } from "./upstream-observer.mjs";
 import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mjs";
+import { collectRepositoryHealth, renderRepositoryHealth } from "./check-catalog-repositories.mjs";
 
 const config = JSON.parse(
   await readFile(new URL("../release/upstream-observer.json", import.meta.url), "utf8"),
@@ -436,4 +437,224 @@ test("deferred checkpoints honor retry clocks without requests and mismatched co
     advanceObservation(config, { ...good.checkpoint, config_sha256: "wrong" }, options),
     (error) => error.rule === "invalid-checkpoint",
   );
+});
+
+// #247 early slice: exact declared locations and six independent evidence roles.
+const healthPin = {
+  version: "v1",
+  url: "https://downloads.example.com/package.zip",
+  size: 42,
+  sha256: "a".repeat(64),
+};
+const healthCatalog = (pin = healthPin) => ({
+  source_catalog: {
+    qualification: [
+      {
+        scope: { port_id: "sample-port", artifact_sha256: "b".repeat(64), upstream_ref: "v0" },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        evidence_ids: ["historical"],
+      },
+    ],
+  },
+  ports: [
+    {
+      id: "sample-port",
+      project_url: "https://github.com/original/project",
+      release: { provider: "direct-manifest", direct: { "windows-x86-64": { ...pin } } },
+    },
+  ],
+});
+const healthTime = Date.parse("2026-10-08T12:00:00Z");
+const healthFetch = async (url, _options) =>
+  url === healthPin.url
+    ? new Response(null, { headers: { "content-length": String(healthPin.size) } })
+    : new Response(JSON.stringify({ id: 1, full_name: "original/project", archived: false }), {
+        headers: { "content-type": "application/json" },
+      });
+
+test("direct provider preserves original upstream and scopes HEAD separately from exact accepted bytes", async () => {
+  const calls = [];
+  const report = await collectRepositoryHealth(healthCatalog(), {
+    now: () => healthTime,
+    githubToken: "private-token",
+    gitlabToken: "private-gitlab",
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      if (url === healthPin.url) {
+        assert.equal(options.method, "HEAD");
+        assert.equal(options.headers.Authorization, undefined);
+        assert.equal(options.headers["PRIVATE-TOKEN"], undefined);
+        assert.equal(options.redirect, "error");
+      }
+      return healthFetch(url, options);
+    },
+  });
+  assert.equal(calls.length, 2);
+  assert.equal(report.coverage.monitored_ports, 1);
+  assert.equal(report.outcome, "complete");
+  const [health] = report.port_health;
+  assert.equal(health.original_upstream.status, "reachable");
+  assert.equal(health.lineage.status, "unresolved");
+  assert.equal(health.lineage.successor_selected, false);
+  assert.equal(health.accepted_artifact_obtainability.status, "unknown");
+  assert.equal(health.accepted_artifact_obtainability.identities[0].sha256, healthPin.sha256);
+  assert.equal(health.preservation.status, "unknown");
+  assert.equal(health.applicable_holds.status, "unknown");
+  assert.equal(health.qualification.records[0].scope.artifact_sha256, "b".repeat(64));
+  assert.equal(health.qualification.inherited, false);
+  assert.match(renderRepositoryHealth(report), /direct-manifest ports included/);
+  assert.match(renderRepositoryHealth(report), /Accepted bytes remain unverified/);
+  assert.doesNotMatch(JSON.stringify(report), /private-token|private-gitlab/);
+});
+
+test("direct endpoint corruption, unavailable headers and redirects remain unknown rather than verified artifacts", async () => {
+  for (const headers of [{}, { "content-length": "41" }, { "content-length": "42junk" }]) {
+    const report = await collectRepositoryHealth(healthCatalog(), {
+      now: () => healthTime,
+      fetch: async (url, options) =>
+        url === healthPin.url ? new Response(null, { headers }) : healthFetch(url, options),
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.observations[0].reason, "invalid-metadata");
+    assert.equal(report.port_health[0].accepted_artifact_obtainability.status, "unknown");
+  }
+  const report = await collectRepositoryHealth(healthCatalog(), {
+    now: () => healthTime,
+    fetch: async (url, options) =>
+      url === healthPin.url ? new Response(null, { status: 302 }) : healthFetch(url, options),
+  });
+  assert.equal(report.observations[0].reason, "provider-status");
+});
+
+test("partial direct inventory never becomes an empty or healthy collection", async () => {
+  for (const bad of [
+    { ...healthPin, sha256: "bad" },
+    { ...healthPin, url: "https://127.0.0.1/secret" },
+    { ...healthPin, url: "https://user:password@example.com/pkg" },
+  ]) {
+    let calls = 0;
+    await assert.rejects(
+      collectRepositoryHealth(healthCatalog(bad), {
+        fetch: async () => {
+          calls++;
+          return new Response();
+        },
+      }),
+      /safe exact artifact identity/,
+    );
+    assert.equal(calls, 0);
+  }
+});
+
+test("incident identity is stable across observation times while changed rules create distinct conditions", async () => {
+  const collect = (time, status) =>
+    collectRepositoryHealth(healthCatalog(), {
+      now: () => time,
+      fetch: async (url, options) =>
+        url === healthPin.url ? new Response(null, { status }) : healthFetch(url, options),
+    });
+  const first = await collect(healthTime, 404);
+  const repeated = await collect(healthTime + 60_000, 404);
+  const changed = await collect(healthTime + 60_000, 401);
+  const incident = (report) => report.port_health[0].canonical_incidents[0];
+  assert.equal(incident(first).key, incident(repeated).key);
+  assert.notEqual(incident(first).observed_at, incident(repeated).observed_at);
+  assert.notEqual(incident(first).key, incident(changed).key);
+  assert.match(incident(first).resume_condition, /404 does not establish deletion or succession/);
+  assert.equal(first.port_health[0].lineage.successor_selected, false);
+});
+
+test("non-hosted original project remains monitored after a provider change", async () => {
+  const input = healthCatalog();
+  input.ports[0].project_url = "https://original.example.com/";
+  const calls = [];
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    githubToken: "private-token",
+    gitlabToken: "private-token",
+    fetch: async (url, options) => {
+      calls.push(url);
+      assert.equal(options.method, "HEAD");
+      assert.equal(options.headers.Authorization, undefined);
+      assert.equal(options.headers["PRIVATE-TOKEN"], undefined);
+      return url === healthPin.url ? healthFetch(url, options) : new Response(null);
+    },
+  });
+  assert.deepEqual(calls, [healthPin.url, "https://original.example.com/"]);
+  assert.equal(report.port_health[0].original_upstream.status, "reachable");
+  assert.equal(report.port_health[0].lineage.status, "unresolved");
+});
+
+test("rate limits defer only the affected direct origin and preserve other acquisition locations", async () => {
+  const input = healthCatalog();
+  input.ports[0].release.direct.linux = {
+    ...healthPin,
+    url: "https://downloads.example.com/linux.zip",
+  };
+  input.ports[0].release.direct.macos = {
+    ...healthPin,
+    url: "https://other.example.com/package.zip",
+  };
+  const calls = [];
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async (url, options) => {
+      calls.push(url);
+      if (url === healthPin.url)
+        return new Response(null, { status: 429, headers: { "retry-after": "120" } });
+      if (url.startsWith("https://other.example.com/"))
+        return new Response(null, { headers: { "content-length": "42" } });
+      return healthFetch(url, options);
+    },
+  });
+  assert.equal(calls.length, 3);
+  assert.equal(report.observations[1].attempted, false);
+  assert.equal(report.observations[1].retry_at, new Date(healthTime + 120_000).toISOString());
+  assert.equal(report.observations[2].status, "reachable");
+  assert.equal(report.port_health[0].accepted_artifact_obtainability.locations.length, 4);
+});
+
+test("contradictory immutable pins at one location stay prominent without selecting an authority", async () => {
+  const input = healthCatalog();
+  input.ports[0].release.direct.linux = { ...healthPin, sha256: "c".repeat(64) };
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: healthFetch,
+  });
+  assert.equal(report.observations[0].reason, "identity-mismatch");
+  assert.equal(report.observations[0].attempted, false);
+  assert.equal(report.outcome, "incomplete");
+  assert.equal(report.port_health[0].accepted_artifact_obtainability.identities.length, 2);
+  assert.equal(report.port_health[0].applicable_holds.status, "unknown");
+});
+
+test("retained Star Fox failure is an unresolved availability condition with no historical qualification transfer", async () => {
+  // Exact failure text and immutable run identity retained in #247's early slice.
+  // HTTP fixture reconstructs that recorded failure; it is not a new live probe.
+  const incident = {
+    run: "36735216087",
+    job: "109955016518",
+    head: "5d6905ea8bf90fb887bb49a6a8524ab2ecc5846b",
+    stderr: "kandowontu/starfox-enhanced: github returned 404",
+    port_issue: 124,
+    lineage_issue: 139,
+  };
+  const repository = incident.stderr.split(": ")[0];
+  const report = await collectRepositoryHealth(
+    {
+      ports: [{ id: "star-fox-enhanced", release: { repository } }],
+    },
+    { now: () => healthTime, fetch: async () => new Response(null, { status: 404 }) },
+  );
+  const [health] = report.port_health;
+  assert.equal(report.outcome, "incomplete");
+  assert.equal(health.original_upstream.status, "unknown");
+  assert.equal(health.canonical_incidents[0].http_status, 404);
+  assert.equal(health.canonical_incidents[0].rule, "inaccessible-or-missing");
+  assert.equal(health.lineage.owner_issue, incident.lineage_issue);
+  assert.equal(health.lineage.status, "unresolved");
+  assert.equal(health.lineage.successor_selected, false);
+  assert.deepEqual(health.qualification.records, []);
+  assert.equal(health.qualification.inherited, false);
 });
