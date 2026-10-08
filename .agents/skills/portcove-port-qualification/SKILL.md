@@ -88,3 +88,5 @@ as gameplay, or a packaged fixture as installed-application behavior. Reserve
 human-only acceptance for claims about human perception or comprehension.
 
 Finish with linked acceptance observations and unresolved resume conditions. Use existing quality/release checks appropriate to the change; do not substitute a download, launch, or raw catalog assertion for lifecycle evidence.
+
+For a multi-port source inventory, join each canonical issue to its catalog marker or verified exact direct-upstream/target identity before consulting game-title aliases. Reject ambiguous many-to-one joins and report complete nonzero coverage for the claimed scope. Keep independent same-game implementations and their source variants/representations separate; a library title match only supplies a provisional source candidate and grants no catalog support.

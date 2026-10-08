@@ -270,6 +270,7 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
   const environment = {
     ...checkoutToolEnvironment(options.environment ?? process.env, { paths: cachePaths }),
     RUSTUP_AUTO_INSTALL: "0",
+    COREPACK_ENABLE_NETWORK: "0",
   };
   const definitions = {
     node: {
