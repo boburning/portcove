@@ -142,21 +142,7 @@ function RecordedObservation({
 }) {
   const identity =
     record.scope.variant.state === "exact" ? record.scope.variant.identity : undefined;
-  const variant = variants.find((candidate) => candidate.id === identity?.variant_id);
-  const representation = variant?.representations.find(
-    (candidate) => candidate.id === identity?.representation_id,
-  );
-  const edition =
-    variant && representation
-      ? [
-          variant.title,
-          variant.region,
-          variant.revision,
-          representation.extensions.map((extension) => `.${extension}`).join(", "),
-        ]
-          .filter(Boolean)
-          .join(" · ")
-      : "Not recorded — scope unknown";
+  const edition = recordedEdition(record, variants);
   const observedAt = new Date(record.observed_at * 1000);
   return (
     <div className="grid gap-1 text-sm break-words">
@@ -222,6 +208,27 @@ function RecordedObservation({
       )}
     </div>
   );
+}
+
+function recordedEdition(record: SourceEvidence, variants: SourceVariant[]) {
+  const identity =
+    record.scope.variant.state === "exact" ? record.scope.variant.identity : undefined;
+  const variant = variants.find((candidate) => candidate.id === identity?.variant_id);
+  const representation = variant?.representations.find(
+    (candidate) => candidate.id === identity?.representation_id,
+  );
+  const edition =
+    variant && representation
+      ? [
+          variant.title,
+          variant.region,
+          variant.revision,
+          representation.extensions.map((extension) => `.${extension}`).join(", "),
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "Not recorded — scope unknown";
+  return edition;
 }
 
 function legacyCoverage(
