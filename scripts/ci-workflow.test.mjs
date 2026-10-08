@@ -71,6 +71,8 @@ test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or 
     base: "c".repeat(40),
     run: "42",
     attempt: "1",
+    job: "hosted_history",
+    phase: "native",
     binding_sha256: "d".repeat(64),
   };
   const input = path.join(root, "input");
@@ -86,6 +88,13 @@ test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or 
     "base64",
   );
   await writeFile(path.join(input, "fixture.png"), png);
+  await mkdir(path.join(input, "native", "library"), { recursive: true });
+  await writeFile(
+    path.join(input, "native", "library", "portcove.sqlite3"),
+    "runtime state, not evidence",
+  );
+  await mkdir(path.join(input, "native", "webview"));
+  await writeFile(path.join(input, "native", "webview", "Cache"), "runtime state, not evidence");
   const encoded = await encodeHostedEvidence(input);
   const decodedLog = encoded
     .split("\n")
@@ -94,6 +103,16 @@ test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or 
   const output = path.join(root, "decoded");
   assert.equal((await recoverHostedEvidence(decodedLog, output, expected)).exit_code, 0);
   assert.deepEqual(await readFile(path.join(output, "fixture.png")), png);
+  assert.equal((await readdir(output)).includes("native"), false);
+  for (const patch of [{ phase: "audit" }, { job: "hosted_audit" }])
+    await assert.rejects(
+      () =>
+        recoverHostedEvidence(decodedLog, path.join(root, Object.keys(patch)[0]), {
+          ...expected,
+          ...patch,
+        }),
+      /differs/,
+    );
   await assert.rejects(
     () =>
       recoverHostedEvidence(decodedLog, path.join(root, "wrong-run"), { ...expected, run: "43" }),

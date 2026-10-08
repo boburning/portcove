@@ -1,8 +1,113 @@
 // One normal-app read-response fixture. No game launch, source registration or consent mutation.
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, readdir, readlink, realpath } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
+
+// Linux history uses the harness's existing detached driver group and SIGTERM.
+// These observations add ownership/exit proof; they never signal a process.
+async function historyProcess(pid) {
+  const raw = await readFile(`/proc/${pid}/stat`, "utf8").catch((error) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  if (!raw) return null;
+  const fields = raw.slice(raw.lastIndexOf(")") + 2).split(" ");
+  const executable = await readlink(`/proc/${pid}/exe`).catch((error) => {
+    if (["ENOENT", "EACCES", "EPERM"].includes(error.code)) return null;
+    throw error;
+  });
+  return {
+    state: fields[0],
+    pid: Number(pid),
+    parent: Number(fields[1]),
+    group: Number(fields[2]),
+    start_ticks: fields[19],
+    executable,
+  };
+}
+
+function sameHistoryIdentity(expected, actual) {
+  assert.ok(actual, `Captured native PID ${expected.pid} exited before identity validation`);
+  for (const key of ["pid", "parent", "group", "start_ticks", "executable"])
+    assert.equal(actual[key], expected[key], `Captured native ${key} changed`);
+}
+
+export async function captureHistoryDriver(driverPid, driverPath) {
+  assert.equal(process.platform, "linux");
+  const owner = await historyProcess(process.pid);
+  const driver = await historyProcess(driverPid);
+  assert.ok(driver && owner, "Owned history driver is not running");
+  assert.equal(driver.parent, owner.pid);
+  assert.equal(driver.group, driver.pid, "History driver must retain its owned detached group");
+  assert.equal(driver.executable, await realpath(driverPath));
+  assert.ok(BigInt(driver.start_ticks) >= BigInt(owner.start_ticks));
+  return { owner, driver, processes: [driver] };
+}
+
+export async function captureHistorySession(
+  driverPid,
+  driverPath,
+  applicationPath,
+  phase = "interaction",
+) {
+  assert.ok(["interaction", "cleanup"].includes(phase));
+  const { owner, driver } = await captureHistoryDriver(driverPid, driverPath);
+  const all = (
+    await Promise.all(
+      (await readdir("/proc")).filter((name) => /^\d+$/.test(name)).map(historyProcess),
+    )
+  ).filter(Boolean);
+  const processes = [driver];
+  for (let index = 0; index < processes.length; index++) {
+    const parent = processes[index];
+    for (const child of all.filter((entry) => entry.parent === parent.pid)) {
+      assert.ok(child.executable, "Owned descendant executable identity is unavailable");
+      assert.ok(
+        BigInt(child.start_ticks) >= BigInt(parent.start_ticks),
+        "Native ancestry creation order is invalid",
+      );
+      assert.ok(!processes.some((entry) => entry.pid === child.pid), "Native ancestry cycle");
+      processes.push(child);
+    }
+  }
+  const appExecutable = await realpath(applicationPath);
+  const application = processes.find((entry) => entry.executable === appExecutable);
+  const webviews = processes.filter(
+    (entry) => path.basename(entry.executable) === "WebKitWebProcess",
+  );
+  if (phase === "interaction") {
+    assert.ok(application, "Exact history application is not an observed driver descendant");
+    assert.ok(webviews.length, "Actual WebKit WebProcess identity is required before interaction");
+  }
+  for (const entry of processes) sameHistoryIdentity(entry, await historyProcess(entry.pid));
+  return { owner, driver, application, webviews, processes, captured_at: new Date().toISOString() };
+}
+
+export async function historyDriverStillOwned(inventory) {
+  const current = await historyProcess(inventory.driver.pid);
+  if (!current || current.state === "Z") return false;
+  sameHistoryIdentity(inventory.driver, current);
+  return true;
+}
+
+export async function waitHistorySessionExit(inventory) {
+  const deadline = Date.now() + 5_000;
+  let remaining;
+  do {
+    remaining = [];
+    for (const entry of inventory.processes) {
+      const current = await historyProcess(entry.pid);
+      if (current?.start_ticks === entry.start_ticks) remaining.push(entry.pid);
+    }
+    if (!remaining.length)
+      return { all_exited: true, observed_at: new Date().toISOString(), captured: inventory };
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  } while (Date.now() < deadline);
+  throw new Error(
+    `Captured history processes did not disappear within 5 seconds: ${remaining.join(", ")}`,
+  );
+}
 
 // The repository-level scripts/desktop-scenarios.test.mjs consumes this export.
 // Its test root is outside the frontend Fallow graph.
@@ -67,91 +172,97 @@ export async function qualificationHistoryScenario({
     const fixture = qualificationHistoryFixture(catalog);
     const originalWindow = await browser.manage().window().getRect();
     const originalFont = await browser.executeScript(() => document.documentElement.style.fontSize);
+    const originalComputedFont = await browser.executeScript(
+      () => getComputedStyle(document.documentElement).fontSize,
+    );
+    let expectedView;
     const observation = {
       limitation:
         "Actual Tauri/WebKit presentation with supplied historical read responses and synthetic runtime branches; no current file qualification or physical-controller evidence",
       source_response: fixture,
       views: [],
     };
-    const installed = await browser.executeAsyncScript((data, done) => {
-      const native = window.__TAURI_INTERNALS__;
-      const original = window.fetch;
-      const snapshotUrl = native.convertFileSrc("get_workspace_snapshot", "ipc");
-      const inspectionUrl = native.convertFileSrc("inspect_source", "ipc");
-      const probe = {
-        original,
-        data,
-        mode: "managed",
-        snapshots: 0,
-        reports: 0,
-        modeSnapshots: {},
-      };
-      window.__portcoveHistoryProbe = probe;
-      function suppliedSnapshot(snapshot) {
-        probe.snapshots++;
-        probe.modeSnapshots[probe.mode] = (probe.modeSnapshots[probe.mode] ?? 0) + 1;
-        snapshot.sources = [
-          {
-            profile_id: data.profile_id,
-            path: "owned-synthetic-history.rom",
-            sha256: "0".repeat(64),
-            size: 0,
-            storage_sha256: "0".repeat(64),
-            storage_size: 0,
-            updated_at: 1,
-          },
-        ];
-        const port = snapshot.catalog.ports.find((entry) => entry.id === data.port_id);
-        if (probe.mode === "user-prepared") {
-          port.release.provider = "user-prepared";
-          port.release.user_prepared = {};
+    async function installFixture() {
+      const installed = await browser.executeAsyncScript((data, done) => {
+        const native = window.__TAURI_INTERNALS__;
+        const original = window.fetch;
+        const snapshotUrl = native.convertFileSrc("get_workspace_snapshot", "ipc");
+        const inspectionUrl = native.convertFileSrc("inspect_source", "ipc");
+        const probe = {
+          original,
+          data,
+          mode: "managed",
+          snapshots: 0,
+          reports: 0,
+          modeSnapshots: {},
+        };
+        window.__portcoveHistoryProbe = probe;
+        function suppliedSnapshot(snapshot) {
+          probe.snapshots++;
+          probe.modeSnapshots[probe.mode] = (probe.modeSnapshots[probe.mode] ?? 0) + 1;
+          snapshot.sources = [
+            {
+              profile_id: data.profile_id,
+              path: "owned-synthetic-history.rom",
+              sha256: "0".repeat(64),
+              size: 0,
+              storage_sha256: "0".repeat(64),
+              storage_size: 0,
+              updated_at: 1,
+            },
+          ];
+          const port = snapshot.catalog.ports.find((entry) => entry.id === data.port_id);
+          if (probe.mode === "user-prepared") {
+            port.release.provider = "user-prepared";
+            port.release.user_prepared = {};
+          }
+          if (probe.mode === "external") {
+            const status = snapshot.statuses.find((entry) => entry.port_id === data.port_id);
+            status.external_runtime = {
+              id: "owned-history-runtime",
+              port_id: data.port_id,
+              path: "owned-history-runtime",
+              executable: "owned-history-runtime/game",
+              version: "1.0.5",
+              platform: "linux-x86-64",
+              archive_sha256: "a".repeat(64),
+              immutable_tree_sha256: "b".repeat(64),
+              registered_at: 1,
+            };
+          }
+          return snapshot;
         }
-        if (probe.mode === "external") {
-          const status = snapshot.statuses.find((entry) => entry.port_id === data.port_id);
-          status.external_runtime = {
-            id: "owned-history-runtime",
-            port_id: data.port_id,
-            path: "owned-history-runtime",
-            executable: "owned-history-runtime/game",
-            version: "1.0.5",
-            platform: "linux-x86-64",
-            archive_sha256: "a".repeat(64),
-            immutable_tree_sha256: "b".repeat(64),
-            registered_at: 1,
-          };
-        }
-        return snapshot;
-      }
-      window.fetch = async function (input, ...args) {
-        const url = typeof input === "string" ? input : input.url;
-        if (url === inspectionUrl) {
-          const body = typeof args[0]?.body === "string" ? JSON.parse(args[0].body) : null;
-          if (body?.profileId !== data.profile_id) return original.call(window, input, ...args);
-          probe.reports++;
-          return new Response(JSON.stringify(data.report), {
-            headers: { "Content-Type": "application/json", "Tauri-Response": "ok" },
+        window.fetch = async function (input, ...args) {
+          const url = typeof input === "string" ? input : input.url;
+          if (url === inspectionUrl) {
+            const body = typeof args[0]?.body === "string" ? JSON.parse(args[0].body) : null;
+            if (body?.profileId !== data.profile_id) return original.call(window, input, ...args);
+            probe.reports++;
+            return new Response(JSON.stringify(data.report), {
+              headers: { "Content-Type": "application/json", "Tauri-Response": "ok" },
+            });
+          }
+          const response = await original.call(window, input, ...args);
+          if (url !== snapshotUrl || !response.ok) return response;
+          const snapshot = suppliedSnapshot(await response.clone().json());
+          return new Response(JSON.stringify(snapshot), {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
           });
-        }
-        const response = await original.call(window, input, ...args);
-        if (url !== snapshotUrl || !response.ok) return response;
-        const snapshot = suppliedSnapshot(await response.clone().json());
-        return new Response(JSON.stringify(snapshot), {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-        });
-      };
-      native
-        .invoke("plugin:event|emit", {
-          event: "portcove://library-changed",
-          payload: "history-fixture",
-        })
-        .then(
-          () => done({ ok: true }),
-          (error) => done({ error: String(error) }),
-        );
-    }, fixture);
-    assert.equal(installed.ok, true, JSON.stringify(installed));
+        };
+        native
+          .invoke("plugin:event|emit", {
+            event: "portcove://library-changed",
+            payload: "history-fixture",
+          })
+          .then(
+            () => done({ ok: true }),
+            (error) => done({ error: String(error) }),
+          );
+      }, fixture);
+      assert.equal(installed.ok, true, JSON.stringify(installed));
+    }
     const technicalSummary = By.xpath('//summary[contains(., "Technical details")]');
     const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
     async function openDetails() {
@@ -221,7 +332,27 @@ export async function qualificationHistoryScenario({
         }
       }
     }
+    async function assertRenderedBranch(name) {
+      if (!["user-prepared", "external"].includes(name)) return "managed";
+      const required =
+        name === "external"
+          ? ["owned-history-runtime", "Stop using this installation"]
+          : ["Choose game folder"];
+      await browser.wait(
+        async () => {
+          const text = await browser.findElement(By.css(".detail-panel")).getText();
+          return (
+            required.every((label) => text.includes(label)) &&
+            (name === "external" || !text.includes("owned-history-runtime"))
+          );
+        },
+        15_000,
+        `The actual ${name} detail branch did not settle`,
+      );
+      return name;
+    }
     async function checkView(name) {
+      const renderedBranch = await assertRenderedBranch(name);
       const panel = await browser.findElement(By.css(".detail-panel"));
       const text = await panel.getText();
       for (const expected of [
@@ -263,8 +394,15 @@ export async function qualificationHistoryScenario({
       }, details);
       assert.equal(layout.horizontal_overflow, false, JSON.stringify(layout));
       assert.ok(layout.bounds.left >= 0 && layout.bounds.right <= layout.viewport.width + 1);
+      assert.equal(layout.theme, expectedView.theme);
+      assert.equal(layout.font_size, expectedView.font);
+      const actualWindow = await browser.manage().window().getRect();
+      assert.equal(actualWindow.width, expectedView.width);
+      assert.equal(actualWindow.height, expectedView.height);
       observation.views.push({
         name,
+        rendered_branch: renderedBranch,
+        expected_view: expectedView,
         tab_steps: tabSteps,
         window: await browser.manage().window().getRect(),
         ...layout,
@@ -283,6 +421,7 @@ export async function qualificationHistoryScenario({
       await captureScreenshot(`qualification-history-${name}-primary`, true);
     }
     try {
+      await installFixture();
       await browser.wait(
         async () =>
           (await browser.executeScript(() => window.__portcoveHistoryProbe?.reports ?? 0)) > 0,
@@ -295,6 +434,18 @@ export async function qualificationHistoryScenario({
       ]) {
         await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
         await browser.findElement(button(theme)).click();
+        await browser.wait(
+          async () =>
+            (await browser.executeScript(() => document.documentElement.dataset.theme)) ===
+            theme.toLowerCase(),
+          5_000,
+        );
+        expectedView = {
+          theme: theme.toLowerCase(),
+          width,
+          height,
+          font: font || originalComputedFont,
+        };
         await browser.manage().window().setRect({ width, height });
         await browser.executeScript((size) => {
           document.documentElement.style.fontSize = size;
@@ -305,6 +456,7 @@ export async function qualificationHistoryScenario({
       await browser.executeScript((font) => {
         document.documentElement.style.fontSize = font;
       }, originalFont);
+      expectedView = { ...expectedView, font: originalComputedFont };
       for (const mode of ["user-prepared", "external"]) {
         const refreshed = await browser.executeAsyncScript((next, done) => {
           window.__portcoveHistoryProbe.mode = next;
@@ -331,35 +483,57 @@ export async function qualificationHistoryScenario({
         await openDetails();
         await checkView(mode);
       }
+    } catch (error) {
+      observation.failure = { message: error.message };
+      throw error;
     } finally {
-      observation.restoration = await browser.executeAsyncScript((font, done) => {
-        const probe = window.__portcoveHistoryProbe;
-        window.fetch = probe.original;
-        document.documentElement.style.fontSize = font;
-        const result = {
-          restored: window.fetch === probe.original,
-          snapshots: probe.snapshots,
-          reports: probe.reports,
-        };
-        delete window.__portcoveHistoryProbe;
-        window.__TAURI_INTERNALS__
-          .invoke("plugin:event|emit", {
-            event: "portcove://library-changed",
-            payload: "history-restored",
-          })
-          .then(
-            () => done(result),
-            (error) => done({ ...result, error: String(error) }),
-          );
-      }, originalFont);
-      await browser.manage().window().setRect(originalWindow);
+      observation.restoration = await browser
+        .executeAsyncScript((font, done) => {
+          const probe = window.__portcoveHistoryProbe;
+          if (!probe) return done({ restored: true, installed: false, snapshots: 0, reports: 0 });
+          window.fetch = probe.original;
+          document.documentElement.style.fontSize = font;
+          const result = {
+            restored: window.fetch === probe.original,
+            snapshots: probe.snapshots,
+            reports: probe.reports,
+          };
+          delete window.__portcoveHistoryProbe;
+          window.__TAURI_INTERNALS__
+            .invoke("plugin:event|emit", {
+              event: "portcove://library-changed",
+              payload: "history-restored",
+            })
+            .then(
+              () => done(result),
+              (error) => done({ ...result, error: String(error) }),
+            );
+        }, originalFont)
+        .catch((error) => ({ restored: false, error: error.message }));
+      await browser
+        .manage()
+        .window()
+        .setRect(originalWindow)
+        .catch((error) => {
+          observation.restoration.window_error = error.message;
+        });
+      const nativeSources = await invoke("get_sources").catch((error) => ({
+        ok: false,
+        error: error.message,
+      }));
+      observation.native_source_restoration = {
+        ok: nativeSources.ok,
+        count: nativeSources.value?.length,
+        error: nativeSources.error,
+      };
       const report = path.join(output, "qualification-history.json");
       await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
       artifacts.push(report);
       assert.equal(observation.restoration.restored, true);
-      assert.ok(observation.restoration.snapshots > 0 && observation.restoration.reports > 0);
+      if (!observation.failure && observation.restoration.installed !== false)
+        assert.ok(observation.restoration.snapshots > 0 && observation.restoration.reports > 0);
       assert.equal(observation.restoration.error, undefined);
-      const nativeSources = await invoke("get_sources");
+      assert.equal(observation.restoration.window_error, undefined);
       assert.equal(nativeSources.ok, true);
       assert.equal(
         nativeSources.value.length,
