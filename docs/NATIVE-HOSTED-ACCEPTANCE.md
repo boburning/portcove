@@ -88,7 +88,12 @@ are additive. No arbitrary command is accepted through dispatch inputs.
 The source and controller use separate clean checkouts without persisted checkout
 credentials. Existing pins, audit/recipe authority, resource guards, and test-tree
 containment remain unchanged. Setup is explicit in the hosted workflow, never
-implicit in ordinary checks. The full audit is not selected validation, and neither
+implicit in ordinary checks. Selected setup installs frozen dependencies through
+Corepack using the source package-manager pin, populating the provider cache
+observed by preflight and used by the retained selected recipes. A separately
+installed pnpm executable alone does not establish that cache prerequisite.
+Preserve the actual preflight report before rejecting an identity, plan or
+prerequisite mismatch; retention does not turn a rejected plan into acceptance. The full audit is not selected validation, and neither
 is a substitute for required exact-head CI or native acceptance. The preserved
 audit job/provisioning bytes must also be reviewed when a controller workflow changes.
 

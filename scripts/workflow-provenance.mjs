@@ -950,6 +950,10 @@ export async function runHostedValidation(phase, options = {}) {
     if (![0, 1].includes(planned.status))
       throw new Error("Complete candidate-root planning failed");
     const report = JSON.parse(planned.stdout);
+    await writeFile(
+      path.join(evidence, "selected-plan.json"),
+      JSON.stringify(report, null, 2) + "\n",
+    );
     if (
       report.source !== binding.source ||
       report.base !== binding.base ||
@@ -960,10 +964,6 @@ export async function runHostedValidation(phase, options = {}) {
       report.obligations.some((entry) => entry.missing.length)
     )
       throw new Error("Full reviewed selected plan or prerequisites differ");
-    await writeFile(
-      path.join(evidence, "selected-plan.json"),
-      JSON.stringify(report, null, 2) + "\n",
-    );
     clean();
     if (phase === "provision") {
       if (!report.obligations.some((entry) => entry.id === "ui-browser-tests")) return 0;

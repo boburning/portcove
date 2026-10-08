@@ -82,6 +82,23 @@ test("reviewed hosted phases retain independent allocations, fixed commands and 
   assert.doesNotMatch(source, /checks: write|contents: write|pull_request_target/);
 });
 
+test("hosted selected setup prepares the provider observed by preflight and used by selected recipes", () => {
+  const selected = nativeDesignCompatibilityWorkflow
+    .split("\n  hosted_selected:")[1]
+    .split("\n  hosted_audit:")[0];
+  const install = selected.indexOf("run: corepack pnpm install --frozen-lockfile");
+  const preflight = selected.indexOf("hosted-validation provision");
+  assert.ok(install >= 0 && install < preflight);
+  assert.match(
+    selected,
+    /working-directory: source\n        run: corepack pnpm install --frozen-lockfile/u,
+  );
+  assert.doesNotMatch(
+    selected,
+    /COREPACK_ENABLE_PROJECT_SPEC: ["']?0|COREPACK_ENABLE_NETWORK: ["']?0/u,
+  );
+});
+
 test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or missing terminal data", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-hosted-evidence-"));
   t.after(() => rm(root, { recursive: true, force: true }));
