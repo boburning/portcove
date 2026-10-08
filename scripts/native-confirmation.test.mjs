@@ -7,6 +7,44 @@ import { spawnSync } from "node:child_process";
 
 const helper = path.resolve("apps/desktop/scripts/native-confirmation.ps1");
 
+test("bootstrap legacy Profile binding retains choices and default without acquiring tools", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "pcv-bootstrap-binding-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const bootstrap = path.resolve("scripts/bootstrap-quality-tools.ps1");
+  const script = path.join(root, "binding.ps1");
+  await writeFile(
+    script,
+    `
+$ErrorActionPreference = 'Stop'
+$ast = [Management.Automation.Language.Parser]::ParseFile('${bootstrap.replaceAll("'", "''")}', [ref]$null, [ref]$null)
+$parameters = $ast.ParamBlock.Extent.Text
+$probe = [scriptblock]::Create($parameters + [Environment]::NewLine + 'Write-Output $CapabilityProfile')
+$parameter = $probe.Ast.ParamBlock.Parameters | Where-Object { $_.Name.VariablePath.UserPath -ceq 'CapabilityProfile' }
+if (@($parameter).Count -ne 1) { throw 'Nonautomatic profile parameter missing' }
+if ((& $probe) -cne 'standard') { throw 'Default profile changed' }
+$values = @('standard', 'frontend', 'core', 'daily', 'native-desktop')
+foreach ($value in $values) {
+    if ((& $probe -Profile $value) -cne $value) { throw 'Legacy named profile binding changed' }
+    if ((& $probe -CapabilityProfile $value) -cne $value) { throw 'Internal named profile binding changed' }
+    if ((& $probe $value) -cne $value) { throw 'Positional profile binding changed' }
+}
+$refused = $false
+try { & $probe -Profile unsupported } catch { $refused = $true }
+if (-not $refused) { throw 'Profile validation weakened' }
+$source = [IO.File]::ReadAllText('${bootstrap.replaceAll("'", "''")}')
+if ($source -notmatch '-Profile standard\\|frontend\\|core\\|daily\\|native-desktop') { throw 'Legacy documented command changed' }
+'bootstrap-binding-preserved'
+`,
+  );
+  const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 15_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /bootstrap-binding-preserved/);
+});
+
 test("captured picker driver keeps explicit image and birth identity checks at every call", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "pcv-driver-contract-"));
   t.after(() => rm(root, { recursive: true, force: true }));
