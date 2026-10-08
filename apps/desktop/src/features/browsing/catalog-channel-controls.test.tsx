@@ -138,7 +138,9 @@ describe("Catalog channel controls", () => {
     const alert = host.querySelector('[role="alert"]')!;
     expect(alert.textContent).toContain("The selection changed");
     expect(alert.querySelector("details")!.open).toBe(false);
-    const projection = JSON.parse(alert.querySelector(".failure-details pre")!.textContent!);
+    const projection: unknown = JSON.parse(
+      alert.querySelector(".failure-details pre")!.textContent ?? "null",
+    );
     expect(projection).toEqual({
       mutation_state: "unknown",
       phase: null,
