@@ -170,31 +170,34 @@ function validFailureExceptions(exceptions) {
   );
 }
 
+function projectFailureDiagnostic(value) {
+  if (
+    value?.format_version !== 1 ||
+    !failureStages.includes(value.stage) ||
+    !validFailureExceptions(value.exceptions) ||
+    typeof value.exceptions_truncated !== "boolean" ||
+    !validFailureLocation(value.location)
+  )
+    return null;
+  return {
+    format_version: 1,
+    stage: value.stage,
+    location: value.location && {
+      script: value.location.script,
+      line: value.location.line,
+      column: value.location.column,
+    },
+    exceptions: value.exceptions.map(({ type, hresult }) => ({ type, hresult })),
+    exceptions_truncated: value.exceptions_truncated,
+  };
+}
+
 function confirmationFailureDiagnostic(stderr) {
   try {
     const marker = "PORTCOVE_NATIVE_FAILURE ";
     const line = stderr?.split(/\r?\n/u).find((value) => value.startsWith(marker));
     if (!line || line.length > 4096) return null;
-    const value = JSON.parse(line.slice(marker.length));
-    if (
-      value?.format_version !== 1 ||
-      !failureStages.includes(value.stage) ||
-      !validFailureExceptions(value.exceptions) ||
-      typeof value.exceptions_truncated !== "boolean" ||
-      !validFailureLocation(value.location)
-    )
-      return null;
-    return {
-      format_version: 1,
-      stage: value.stage,
-      location: value.location && {
-        script: value.location.script,
-        line: value.location.line,
-        column: value.location.column,
-      },
-      exceptions: value.exceptions.map(({ type, hresult }) => ({ type, hresult })),
-      exceptions_truncated: value.exceptions_truncated,
-    };
+    return projectFailureDiagnostic(JSON.parse(line.slice(marker.length)));
   } catch {
     return null;
   }
