@@ -85,17 +85,17 @@ Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Write-ObservationProgress 'automation-assemblies-ready'
 . (Join-Path $PSScriptRoot 'native-process-tree.ps1')
-function Assert-CapturedPickerDriver {
+function Assert-CapturedPickerDriver([string]$DriverPath, [string]$DriverStartedFiletime) {
     $capturedDriver = [Diagnostics.Process]::GetProcessById($DriverProcessId)
-    if ($capturedDriver.StartTime.ToUniversalTime().ToFileTimeUtc().ToString() -ne $ExpectedDriverStartedFiletime -or
-        -not [string]::Equals($capturedDriver.MainModule.FileName, $ExpectedDriverPath, [StringComparison]::OrdinalIgnoreCase)) {
+    if ($capturedDriver.StartTime.ToUniversalTime().ToFileTimeUtc().ToString() -ne $DriverStartedFiletime -or
+        -not [string]::Equals($capturedDriver.MainModule.FileName, $DriverPath, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'Captured picker driver identity changed; no input permitted.'
     }
 }
 if ($ObservePicker) {
     if (-not [IO.Path]::IsPathFullyQualified($ObservationPath) -or [IO.File]::Exists($ObservationPath) -or
         -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ObservationPath))) { throw 'Picker observation requires a fresh owned output file.' }
-    Assert-CapturedPickerDriver
+    Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
     if ($PreparedRuntimeDirectory) {
         $expectedPreparedDirectory = [IO.Path]::Combine([IO.Path]::GetDirectoryName($ObservationPath), 'player-owned-runtime')
         if (-not [IO.Path]::IsPathFullyQualified($PreparedRuntimeDirectory) -or
@@ -131,7 +131,7 @@ if ($ObservePicker) {
     $windowSamplesStream.Dispose()
     $observationDeadline = [DateTime]::UtcNow.AddSeconds(10)
     while ([DateTime]::UtcNow -lt $observationDeadline) {
-        Assert-CapturedPickerDriver
+        Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
         Assert-LiveApplication
         $windows = @{}
         $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
@@ -149,7 +149,7 @@ if ($ObservePicker) {
         })
         $sample = ConvertTo-Json -InputObject $sampleData -Depth 6 -Compress
         if ($sample -cne $lastWindowSample) {
-            Assert-CapturedPickerDriver
+            Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
             Assert-LiveApplication
             $line = [pscustomobject]@{ at = [DateTime]::UtcNow.ToString('o'); application_pid = $applicationId; owned_window_sample = $sampleData } | ConvertTo-Json -Depth 7 -Compress
             [IO.File]::AppendAllText($windowSamplesPath, "$line`n")
@@ -191,12 +191,12 @@ if ($ObservePicker) {
     $beforeBytes = [Text.Encoding]::UTF8.GetBytes(($observation | ConvertTo-Json -Depth 5))
     $beforeStream = [IO.File]::Open($ObservationPath, [IO.FileMode]::CreateNew)
     try { $beforeStream.Write($beforeBytes, 0, $beforeBytes.Length) } finally { $beforeStream.Dispose() }
-    Assert-CapturedPickerDriver
+    Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
     Assert-LiveApplication
     if ($PreparedRuntimeDirectory) {
         $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($PreparedRuntimeDirectory)
         $observation.supplied_directory = $true
-        Assert-CapturedPickerDriver
+        Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
         Assert-LiveApplication
     }
     $actionButton[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
@@ -208,7 +208,7 @@ if ($ObservePicker) {
         [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
     ))
     do {
-        Assert-CapturedPickerDriver
+        Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
         Assert-LiveApplication
         # A saved UIA element may continue to expose its old handle after Cancel.
         # Re-enumerate the exact application's live windows instead of treating

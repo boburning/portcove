@@ -7,6 +7,46 @@ import { spawnSync } from "node:child_process";
 
 const helper = path.resolve("apps/desktop/scripts/native-confirmation.ps1");
 
+test("captured picker driver keeps explicit image and birth identity checks at every call", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "pcv-driver-contract-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const script = path.join(root, "identity.ps1");
+  await writeFile(
+    script,
+    `
+$ErrorActionPreference = 'Stop'
+$ast = [Management.Automation.Language.Parser]::ParseFile('${helper.replaceAll("'", "''")}', [ref]$null, [ref]$null)
+$guard = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Assert-CapturedPickerDriver' }, $false)
+. ([scriptblock]::Create($guard.Extent.Text))
+$DriverProcessId = $PID
+$process = [Diagnostics.Process]::GetCurrentProcess()
+$image = $process.MainModule.FileName
+$birth = $process.StartTime.ToUniversalTime().ToFileTimeUtc().ToString()
+Assert-CapturedPickerDriver $image $birth
+Assert-CapturedPickerDriver $image.ToUpperInvariant() $birth
+$refused = 0
+foreach ($pair in @(@('not-the-driver', $birth), @($image, '1'))) {
+    try { Assert-CapturedPickerDriver $pair[0] $pair[1] }
+    catch { if ($_.Exception.Message -ne 'Captured picker driver identity changed; no input permitted.') { throw }; $refused++ }
+}
+if ($refused -ne 2) { throw 'Identity mismatch was not rejected' }
+$calls = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -eq 'Assert-CapturedPickerDriver' }, $true))
+if ($calls.Count -ne 6) { throw 'Unexpected driver check inventory' }
+foreach ($call in $calls) {
+    if ($call.CommandElements.Count -ne 3 -or $call.CommandElements[1].Extent.Text -cne '$ExpectedDriverPath' -or $call.CommandElements[2].Extent.Text -cne '$ExpectedDriverStartedFiletime') { throw 'Driver check lost exact explicit identity inputs' }
+}
+'identity-preserved'
+`,
+  );
+  const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 15_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /identity-preserved/);
+});
+
 async function isolatedConsumer(t, fixture) {
   const root = await mkdtemp(path.join(os.tmpdir(), "pcv-confirmation-contract-"));
   t.after(() => rm(root, { recursive: true, force: true }));
