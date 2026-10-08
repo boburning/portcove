@@ -25,6 +25,93 @@ import {
   qualificationHistoryScenario,
 } from "../apps/desktop/scripts/desktop-qualification-history-test.mjs";
 
+test("history opens populated details before waiting for requested inspections", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("      await installFixture();");
+  const end = source.indexOf("      for (const [name, theme, width, height, font]", start);
+  assert.ok(start >= 0 && end > start);
+  const startup = source
+    .slice(start, end)
+    .replace('({ By, Key, until } = await import("selenium-webdriver"));', "");
+  const window = { __portcoveHistoryProbe: { snapshots: 0, reports: 0 } };
+  const calls = [];
+  await runInNewContext(`(async () => { let technicalSummary; ${startup} })()`, {
+    window,
+    By: { xpath: () => ({}) },
+    installFixture: async () => {
+      window.__portcoveHistoryProbe.snapshots++;
+      calls.push("fixture");
+    },
+    openDetails: async () => {
+      assert.equal(window.__portcoveHistoryProbe.snapshots, 1);
+      assert.equal(window.__portcoveHistoryProbe.reports, 0);
+      calls.push("details");
+      window.__portcoveHistoryProbe.reports++;
+    },
+    browser: {
+      executeScript: async (callback) => callback(),
+      wait: async (predicate, timeout) => {
+        assert.equal(timeout, 15_000);
+        assert.equal(await predicate(), true, "Reports require an ordinary detail selection");
+        calls.push("settled");
+      },
+    },
+  });
+  assert.deepEqual(calls, ["fixture", "settled", "details", "settled"]);
+});
+
+test("history procfs disappearance retains narrow errors and live identities", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function historyProcess(pid)");
+  const end = source.indexOf("function sameHistoryIdentity", start);
+  assert.ok(start >= 0 && end > start);
+  for (const code of ["ENOENT", "ESRCH", "EACCES", "EIO"]) {
+    const error = Object.assign(new Error(code), { code });
+    const action = runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+      readFile: async () => {
+        throw error;
+      },
+      readlink: async () => {
+        assert.fail("Disappeared stat must not read executable");
+      },
+    });
+    if (["ENOENT", "ESRCH"].includes(code)) assert.equal(await action, null);
+    else await assert.rejects(action, (actual) => actual === error);
+  }
+  const fields = ["S", "10", "123", ...Array(16).fill("0"), "456"];
+  const live = await runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+    readFile: async () => `123 (owned child) ${fields.join(" ")}`,
+    readlink: async () => "/owned/driver",
+  });
+  assert.deepEqual(
+    { ...live },
+    {
+      state: "S",
+      pid: 123,
+      parent: 10,
+      group: 123,
+      start_ticks: "456",
+      executable: "/owned/driver",
+    },
+  );
+  const error = Object.assign(new Error("exe disappearance"), { code: "ESRCH" });
+  await assert.rejects(
+    runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+      readFile: async () => `123 (owned child) ${fields.join(" ")}`,
+      readlink: async () => {
+        throw error;
+      },
+    }),
+    (actual) => actual === error,
+  );
+});
+
 test("history fixture helpers import without installed desktop packages", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-import-"));
   t.after(() => rm(root, { recursive: true, force: true }));
