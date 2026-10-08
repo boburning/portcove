@@ -1,5 +1,6 @@
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1367,151 +1368,224 @@ export async function preparationScenarios({
   await scenario("native-preparation-cancellation", async () => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);
-    await browser.findElement(button("Review game preparation")).click();
-    await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
-    await browser.findElement(button("Prepare game data")).click();
-    let activity;
-    await browser.wait(
-      async () => {
-        activity = (await activities()).find(
-          (item) =>
-            item.operation === "prepare" && item.target_id === port.id && item.status === "running",
-        );
-        return (
-          activity &&
-          (await stat(
-            path.join(library, "staging", activity.id, "payload/data/out/setup-ready"),
-          ).then(
-            (value) => value.isFile(),
-            () => false,
-          ))
-        );
-      },
-      15_000,
-      "Preparation must reach its owned cancellation checkpoint",
-    );
-    await browser.findElement(button("Cancel preparation")).click();
-    await browser.wait(
-      async () => {
-        return (await activities()).find((item) => item.id === activity.id)?.status === "cancelled";
-      },
-      15_000,
-      "Preparation cancellation must become durable",
-    );
-    await browser.wait(
-      async () => (await browser.findElements(By.css("#preparation-review-title"))).length === 0,
-      15_000,
-      "Busy preparation review must close after cancellation",
-    );
-    await browser.findElement(By.css(".detail-back")).click();
-    await browser
-      .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
-      .click();
-    const cancelledRow = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//div[contains(@class, "activity-row") and contains(@class, "cancelled")][.//strong[normalize-space(.)="Game-data setup"]]',
+    const observations = { port_id: port.id, phases: [], inputs: [] };
+    const preparationIds = (items) =>
+      items
+        .filter((item) => item.operation === "prepare" && item.target_id === port.id)
+        .map((item) => item.id)
+        .sort();
+    const observe = async (phase) => {
+      const bootstrap = await invoke("get_bootstrap_status");
+      assert.equal(bootstrap.ok, true);
+      assert.equal(bootstrap.value.ready, true);
+      const observation = {
+        phase,
+        observed_at: new Date().toISOString(),
+        bootstrap: bootstrap.value,
+        activities: await activities(),
+        status: await status(port.id),
+      };
+      observations.phases.push(observation);
+      return observation;
+    };
+    const before = await observe("before-start");
+    const baselineIds = preparationIds(before.activities);
+    const activePath = before.status.active.path;
+    for (const [index, input] of [
+      path.join(output, `${port.id}.chd`),
+      path.join(activePath, port.executable_hints[host][0]),
+      path.join(activePath, port.setup_executable_hints[host][0]),
+      path.join(activePath, "owned-setup-mode"),
+      path.join(activePath, ".portcove-manifest.json"),
+    ].entries()) {
+      const bytes = await readFile(input);
+      const retained = path.join(output, `live-reload-input-${index}.original`);
+      await writeFile(retained, bytes, { flag: "wx" });
+      artifacts.push(retained);
+      observations.inputs.push({
+        path: input,
+        retained,
+        size: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      });
+    }
+    try {
+      await browser.findElement(button("Review game preparation")).click();
+      await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
+      await browser.findElement(button("Prepare game data")).click();
+      let activity;
+      await browser.wait(
+        async () => {
+          activity = (await activities()).find(
+            (item) =>
+              item.operation === "prepare" &&
+              item.target_id === port.id &&
+              item.status === "running",
+          );
+          return (
+            activity &&
+            (await stat(
+              path.join(library, "staging", activity.id, "payload/data/out/setup-ready"),
+            ).then(
+              (value) => value.isFile(),
+              () => false,
+            ))
+          );
+        },
+        15_000,
+        "Preparation must reach its owned cancellation checkpoint",
+      );
+      const running = await observe("live-before-reload");
+      assert.equal(running.activities.find((item) => item.id === activity.id)?.status, "running");
+      await open(port, false);
+      const restored = await observe("live-after-reload");
+      assert.equal(restored.bootstrap.library_root, before.bootstrap.library_root);
+      assert.equal(restored.bootstrap.generation, before.bootstrap.generation);
+      assert.equal(restored.status.active.id, install.id);
+      assert.deepEqual(preparationIds(restored.activities), [...baselineIds, activity.id].sort());
+      assert.equal(restored.activities.find((item) => item.id === activity.id)?.status, "running");
+      assert.equal(restored.status.readiness.launchable, false);
+      const cancel = await browser.findElement(button("Cancel operation"));
+      assert.equal(await cancel.isEnabled(), true);
+      assert.equal((await browser.findElements(button("Prepare game data"))).length, 0);
+      assert.equal((await activities()).find((item) => item.id === activity.id)?.status, "running");
+      await cancel.click();
+      await browser.wait(
+        async () => {
+          return (
+            (await activities()).find((item) => item.id === activity.id)?.status === "cancelled"
+          );
+        },
+        15_000,
+        "Preparation cancellation must become durable",
+      );
+      const terminal = await observe("terminal-cancelled");
+      assert.deepEqual(preparationIds(terminal.activities), [...baselineIds, activity.id].sort());
+      for (const input of observations.inputs) {
+        const bytes = await readFile(input.path);
+        input.after_sha256 = createHash("sha256").update(bytes).digest("hex");
+        assert.equal(input.after_sha256, input.sha256, `Owned input changed: ${input.path}`);
+      }
+      await browser.findElement(By.css(".detail-back")).click();
+      await browser
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .click();
+      const cancelledRow = await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//div[contains(@class, "activity-row") and contains(@class, "cancelled")][.//strong[normalize-space(.)="Game-data setup"]]',
+          ),
         ),
-      ),
-      15_000,
-      "Cancelled preparation must remain discoverable after navigating away",
-    );
-    const cancelledText = await cancelledRow.getText();
-    assert.ok(cancelledText.includes(port.name));
-    assert.match(cancelledText, /Cancelled/i);
-    assert.equal((await status(port.id)).active.id, install.id);
-    assert.equal((await status(port.id)).readiness.launchable, false);
-    const recorded = (await activities()).find((item) => item.id === activity.id);
-    assert.equal(recorded.failure.code, "cancelled");
-    assert.equal(recorded.failure.presentation.tone, "neutral");
-    assert.equal(recorded.failure.presentation.mutation_state, "recovery_required");
-    assert.equal(recorded.failure.presentation.phase, "preparation.setup");
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-    await browser.wait(
-      until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
-      15_000,
-    );
-    await browser
-      .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
-      .click();
-    await browser.wait(
-      until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-      15_000,
-      "Cancelled preparation must remain discoverable after navigating away and returning",
-    );
-    await browser.navigate().refresh();
-    await browser.wait(
-      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
-    );
-    assert.deepEqual(
-      (await activities()).find((item) => item.id === activity.id).failure,
-      recorded.failure,
-    );
-    await browser
-      .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
-      .click();
-    await browser.wait(
-      until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-      15_000,
-    );
-    const row = await browser.findElement(By.css(".activity-row.cancelled"));
-    assert.match(await row.getText(), /An earlier attempt left unfinished work/);
-    assert.doesNotMatch(await row.getText(), /No files were changed/);
-    await row.findElement(By.css("summary")).click();
-    const generation = (await invoke("get_bootstrap_status")).value.generation;
-    const retained = await invoke("get_activity_diagnostic", {
-      activityId: activity.id,
-      generation,
-    });
-    assert.equal(retained.ok, true);
-    assert.deepEqual(
-      retained.value.map((item) => item.phase),
-      ["preparation.extract", "preparation.setup"],
-    );
-    assert.equal(retained.value[0].complete, true);
-    assert.match(retained.value[0].stdout.text, /owned conversion began/);
-    assert.doesNotMatch(JSON.stringify(retained.value), /owned-conversion-secret/);
-    assert.equal(retained.value[1].complete, true);
-    assert.match(retained.value[1].stdout.text, /owned setup began/);
-    assert.match(retained.value[1].stderr.text, /owned setup diagnostic on stderr/);
-    assert.doesNotMatch(JSON.stringify(retained.value), /owned-fixture-private-value/);
-    assert.deepEqual(command(["activity", "log", activity.id]), retained.value);
-    const staleLog = await invoke("get_activity_diagnostic", {
-      activityId: activity.id,
-      generation: generation + 1,
-    });
-    assert.equal(staleLog.ok, false);
-    assert.equal(staleLog.error.code, "conflict");
-    await row
-      .findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]'))
-      .click();
-    await browser.wait(
-      async () => (await row.getText()).includes("owned setup diagnostic on stderr"),
-      15_000,
-      "The retained preparation log must render after expansion",
-    );
-    assert.match(await row.getText(), /Preparing source data/);
-    assert.match(await row.getText(), /owned conversion began/);
-    assert.doesNotMatch(await row.getText(), /owned-fixture-private-value|owned-conversion-secret/);
-    const bundle = await invoke("create_support_bundle");
-    assert.equal(bundle.ok, true);
-    artifacts.push(bundle.value);
-    const capture = path.join(output, "retained-preparation-log.json");
-    await writeFile(capture, JSON.stringify(retained.value, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(capture);
+        15_000,
+        "Cancelled preparation must remain discoverable after navigating away",
+      );
+      const cancelledText = await cancelledRow.getText();
+      assert.ok(cancelledText.includes(port.name));
+      assert.match(cancelledText, /Cancelled/i);
+      assert.equal((await status(port.id)).active.id, install.id);
+      assert.equal((await status(port.id)).readiness.launchable, false);
+      const recorded = (await activities()).find((item) => item.id === activity.id);
+      assert.equal(recorded.failure.code, "cancelled");
+      assert.equal(recorded.failure.presentation.tone, "neutral");
+      assert.equal(recorded.failure.presentation.mutation_state, "recovery_required");
+      assert.equal(recorded.failure.presentation.phase, "preparation.setup");
+      await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+      await browser.wait(
+        until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
+        15_000,
+      );
+      await browser
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .click();
+      await browser.wait(
+        until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
+        15_000,
+        "Cancelled preparation must remain discoverable after navigating away and returning",
+      );
+      await browser.navigate().refresh();
+      await browser.wait(
+        until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+        15_000,
+      );
+      assert.deepEqual(
+        (await activities()).find((item) => item.id === activity.id).failure,
+        recorded.failure,
+      );
+      await browser
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .click();
+      await browser.wait(
+        until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
+        15_000,
+      );
+      const row = await browser.findElement(By.css(".activity-row.cancelled"));
+      assert.match(await row.getText(), /An earlier attempt left unfinished work/);
+      assert.doesNotMatch(await row.getText(), /No files were changed/);
+      await row.findElement(By.css("summary")).click();
+      const generation = (await invoke("get_bootstrap_status")).value.generation;
+      const retained = await invoke("get_activity_diagnostic", {
+        activityId: activity.id,
+        generation,
+      });
+      assert.equal(retained.ok, true);
+      assert.deepEqual(
+        retained.value.map((item) => item.phase),
+        ["preparation.extract", "preparation.setup"],
+      );
+      assert.equal(retained.value[0].complete, true);
+      assert.match(retained.value[0].stdout.text, /owned conversion began/);
+      assert.doesNotMatch(JSON.stringify(retained.value), /owned-conversion-secret/);
+      assert.equal(retained.value[1].complete, true);
+      assert.match(retained.value[1].stdout.text, /owned setup began/);
+      assert.match(retained.value[1].stderr.text, /owned setup diagnostic on stderr/);
+      assert.doesNotMatch(JSON.stringify(retained.value), /owned-fixture-private-value/);
+      assert.deepEqual(command(["activity", "log", activity.id]), retained.value);
+      const staleLog = await invoke("get_activity_diagnostic", {
+        activityId: activity.id,
+        generation: generation + 1,
+      });
+      assert.equal(staleLog.ok, false);
+      assert.equal(staleLog.error.code, "conflict");
+      await row
+        .findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]'))
+        .click();
+      await browser.wait(
+        async () => (await row.getText()).includes("owned setup diagnostic on stderr"),
+        15_000,
+        "The retained preparation log must render after expansion",
+      );
+      assert.match(await row.getText(), /Preparing source data/);
+      assert.match(await row.getText(), /owned conversion began/);
+      assert.doesNotMatch(
+        await row.getText(),
+        /owned-fixture-private-value|owned-conversion-secret/,
+      );
+      const bundle = await invoke("create_support_bundle");
+      assert.equal(bundle.ok, true);
+      artifacts.push(bundle.value);
+      const capture = path.join(output, "retained-preparation-log.json");
+      await writeFile(capture, JSON.stringify(retained.value, null, 2), {
+        flag: "wx",
+      });
+      artifacts.push(capture);
 
-    const report = path.join(output, "recovery-details-accessibility.json");
-    await captureAccessibilityReport(browser, report, artifacts);
-    await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', row);
-    const screenshot = path.join(output, "native-preparation-retained-outcome.png");
-    await writeFile(screenshot, await browser.takeScreenshot(), {
-      encoding: "base64",
-      flag: "wx",
-    });
-    artifacts.push(screenshot);
+      const report = path.join(output, "recovery-details-accessibility.json");
+      await captureAccessibilityReport(browser, report, artifacts);
+      await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', row);
+      const screenshot = path.join(output, "native-preparation-retained-outcome.png");
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(screenshot);
+    } catch (error) {
+      observations.failure = { message: String(error), observed_at: new Date().toISOString() };
+      throw error;
+    } finally {
+      const capture = path.join(output, "live-preparation-reload-observations.json");
+      await writeFile(capture, JSON.stringify(observations, null, 2), { flag: "wx" });
+      artifacts.push(capture);
+    }
   });
   browser = await interruptedPreparationScenario({
     browser,
