@@ -1390,6 +1390,7 @@ export async function preparationScenarios({
       return observation;
     };
     let originalFailure;
+    let evidenceFailure;
     try {
       const before = await observe("before-start");
       const baselineIds = preparationIds(before.activities);
@@ -1611,9 +1612,10 @@ export async function preparationScenarios({
       } catch (error) {
         console.error("Live preparation evidence write failed:", error);
         console.error(JSON.stringify(observations));
-        if (!originalFailure) throw error;
+        if (!originalFailure) evidenceFailure = error;
       }
     }
+    if (evidenceFailure) throw evidenceFailure;
   });
   browser = await interruptedPreparationScenario({
     browser,
