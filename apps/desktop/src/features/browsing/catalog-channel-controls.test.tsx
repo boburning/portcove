@@ -2,7 +2,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import nativeHarnessSource from "../../../scripts/desktop-test.mjs?raw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PortBrowser } from "../../components/PortBrowser";
 import { LibrarySelectionCard, SettingsView } from "../../components/Chrome";
@@ -107,6 +106,7 @@ afterEach(async () => {
 
 describe("Catalog channel controls", () => {
   it("binds the native switch confirmation selector to the rendered reviewed action", async () => {
+    const { default: nativeHarnessSource } = await import("../../../scripts/desktop-test.mjs?raw");
     const target = "E:/qualification/alternate-library";
     const switchLibrary = vi.fn().mockResolvedValue(undefined);
     await act(async () =>
