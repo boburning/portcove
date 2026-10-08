@@ -755,7 +755,7 @@ export async function runHostedValidation(phase, options = {}) {
     .split("\n")
     .filter(Boolean);
   const inventory = names.map((name) => {
-    if (!/^[A-Za-z0-9_.\/-]+$/u.test(name) || name.split("/").includes(".."))
+    if (!/^[A-Za-z0-9_./-]+$/u.test(name) || name.split("/").includes(".."))
       throw new Error("Unsafe changed inventory path");
     const before = git(source, ["ls-tree", binding.merge_base, "--", name]);
     const after = git(source, ["ls-tree", binding.source, "--", name]);
