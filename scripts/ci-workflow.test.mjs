@@ -2697,7 +2697,20 @@ test("export refuses links and oversized evidence instead of silently dropping r
   const clock = 1_780_000_000_000;
   const port = (id, repository = `owner/${id}`, provider = "github") => ({
     id,
-    release: { repository, provider },
+    release:
+      provider === "direct-manifest"
+        ? {
+            provider,
+            direct: {
+              windows: {
+                version: "v1",
+                url: "https://downloads.example.com/direct.zip",
+                size: 42,
+                sha256: "a".repeat(64),
+              },
+            },
+          }
+        : { repository, provider },
   });
   const catalog = (...ports) => ({ ports });
   const response = (facts, status = 200, headers = {}) =>
@@ -2716,7 +2729,12 @@ test("export refuses links and oversized evidence instead of silently dropping r
   const collect = (input, fetcher, options = {}) =>
     collectRepositoryHealth(input, {
       now: () => clock,
-      fetch: fetcher ?? (async (url) => response(factsFor(url))),
+      fetch:
+        fetcher ??
+        (async (url) =>
+          url.startsWith("https://downloads.example.com/")
+            ? new Response(null, { headers: { "content-length": "42" } })
+            : response(factsFor(url))),
       ...options,
     });
 
@@ -2740,20 +2758,25 @@ test("export refuses links and oversized evidence instead of silently dropping r
         new URL(url).host === "gitlab.com",
         Object.hasOwn(options.headers, "PRIVATE-TOKEN"),
       );
+      if (url.startsWith("https://downloads.example.com/")) {
+        assert.equal(options.method, "HEAD");
+        return new Response(null, { headers: { "content-length": "42" } });
+      }
       return response({ ...factsFor(url), archived: true });
     };
     const report = await collect(input, fetcher, {
       githubToken: "fixture-github",
       gitlabToken: "fixture-gitlab",
     });
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     assert.deepEqual(report.coverage, {
       ports: 4,
       hosted_ports: 3,
       direct_manifest_port_ids: ["direct"],
-      repositories: 2,
-      attempted_repositories: 2,
-      reachable_repositories: 2,
+      monitored_ports: 4,
+      repositories: 3,
+      attempted_repositories: 3,
+      reachable_repositories: 3,
       unknown_repositories: 0,
     });
     assert.deepEqual(report.observations[0].port_ids, ["gold", "silver"]);
@@ -2763,7 +2786,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
     assert.ok(report.unassessed.includes("accepted-artifact-availability"));
     assert.doesNotMatch(JSON.stringify(report), /fixture-github|fixture-gitlab/);
     assert.deepEqual(await collect(input), await collect(input));
-    assert.match(renderRepositoryHealth(report), /1 direct-manifest ports not assessed/);
+    assert.match(renderRepositoryHealth(report), /1 direct-manifest ports included/);
   });
 
   test("transport failure does not truncate later repository coverage or expose error details", async () => {
@@ -2867,7 +2890,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
       assert.equal(report.observations[1].retry_at, report.observations[0].retry_at);
       assert.equal(
         report.observations[0].retry_at,
-        headers["retry-after"] === "invalid" ? null : new Date(clock + 120_000).toISOString(),
+        new Date(clock + (headers["retry-after"] === "invalid" ? 60_000 : 120_000)).toISOString(),
       );
     }
   });
@@ -2956,7 +2979,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
     assert.equal(report.observations[1].reason, "budget");
   });
 
-  test("malformed inventory refuses before network and direct-manifest-only is explicitly excluded", async () => {
+  test("malformed inventory refuses before network and direct-manifest-only retains exact coverage", async () => {
     for (const input of [
       {},
       catalog(port("repeat"), port("repeat")),
@@ -2971,11 +2994,12 @@ test("export refuses links and oversized evidence instead of silently dropping r
     }
     const report = await collect(
       catalog(port("direct", undefined, "direct-manifest")),
-      async () => {
-        assert.fail("direct manifest is outside repository coverage");
+      async (_url, options) => {
+        assert.equal(options.method, "HEAD");
+        return new Response(null, { headers: { "content-length": "42" } });
       },
     );
-    assert.equal(report.consumed.requests, 0);
+    assert.equal(report.consumed.requests, 1);
     assert.equal(report.coverage.hosted_ports, 0);
     assert.deepEqual(report.coverage.direct_manifest_port_ids, ["direct"]);
   });
@@ -2987,8 +3011,20 @@ test("export refuses links and oversized evidence instead of silently dropping r
       const preload = path.join(dir, "fetch.mjs");
       await writeFile(
         preload,
-        `let calls=0; globalThis.fetch=async(url)=>{
+        `const catalog=JSON.parse(await (await import('node:fs/promises')).readFile('crates/portcove-core/catalog/catalog.json','utf8'));
+    const pins=new Map(catalog.ports.flatMap(port=>Object.values(port.release.direct??{}).map(pin=>[pin.url,pin.size])));
+    let calls=0; globalThis.fetch=async(url,options)=>{
       if(process.env.HEALTH_FIXTURE_FAILURE==='yes' && ++calls===1) throw new Error('private fixture error');
+      if(options.method==='HEAD') return new Response(null,{headers:pins.has(url)?{'content-length':String(pins.get(url))}:{}});
+      if(url.includes('/releases/')) {
+        const github=url.startsWith('https://api.github.com/');
+        const [encoded,ref]=(github?url.split('/repos/')[1]:url.split('/projects/')[1]).split(github?'/releases/tags/':'/releases/');
+        const repository=decodeURIComponent(encoded);
+        const tag=decodeURIComponent(ref);
+        const ports=catalog.ports.filter(port=>port.release.repository===repository || port.project_url?.toLowerCase()==='https://github.com/'+repository.toLowerCase()).map(port=>port.id);
+        const digests=catalog.source_catalog.qualification.filter(value=>ports.includes(value.scope.port_id)&&value.scope.upstream_ref===tag).map(value=>({digest:'sha256:'+value.scope.artifact_sha256}));
+        return new Response(JSON.stringify({id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
+      }
       const github=url.startsWith('https://api.github.com/');
       return new Response(JSON.stringify({id:1,archived:false,...(github?{full_name:url.split('/repos/')[1]}:{path_with_namespace:decodeURIComponent(url.split('/projects/')[1])})}),{headers:{'content-type':'application/json'}});
     };`,
@@ -3022,7 +3058,19 @@ test("export refuses links and oversized evidence instead of silently dropping r
       assert.equal(report.coverage.ports, realCatalog.ports.length);
       assert.equal(report.observations.length, report.coverage.repositories);
       assert.equal(report.coverage.attempted_repositories, report.coverage.repositories);
-      assert.equal(report.coverage.unknown_repositories, 1);
+      assert.equal(
+        report.coverage.unknown_repositories,
+        1,
+        JSON.stringify(
+          report.observations
+            .filter((value) => value.status === "unknown")
+            .map((value) => ({
+              repository: value.repository,
+              ref: value.release_ref,
+              reason: value.reason,
+            })),
+        ),
+      );
       assert.equal(report.observations.at(-1).status, "reachable");
       const human = run([], true);
       assert.equal(human.status, 1, human.stderr);
