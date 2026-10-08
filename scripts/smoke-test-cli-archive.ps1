@@ -5,6 +5,60 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+function Invoke-IsolatedCliSmoke {
+    param(
+        [Parameter(Mandatory = $true)][string]$LibraryPath,
+        [Parameter(Mandatory = $true)][string]$PreferencePath,
+        [Parameter(Mandatory = $true)][scriptblock]$Operation,
+        [object[]]$Arguments = @()
+    )
+
+    $previousEnvironment = @{}
+    foreach ($name in @("PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES")) {
+        $previousEnvironment[$name] = @{
+            Present = Test-Path -LiteralPath "Env:$name"
+            Value = [Environment]::GetEnvironmentVariable($name, "Process")
+        }
+    }
+    $operationFailure = $null
+    try {
+        $env:PORTCOVE_LIBRARY = $LibraryPath
+        $env:PORTCOVE_PREFERENCES = $PreferencePath
+        & $Operation @Arguments
+    }
+    catch {
+        $operationFailure = $_
+        throw
+    }
+    finally {
+        $restorationFailures = @()
+        foreach ($name in $previousEnvironment.Keys) {
+            try {
+                $previous = $previousEnvironment[$name]
+                if ($previous.Present) {
+                    [Environment]::SetEnvironmentVariable($name, [string]$previous.Value, "Process")
+                }
+                elseif (Test-Path -LiteralPath "Env:$name") {
+                    Remove-Item -LiteralPath "Env:$name" -ErrorAction Stop
+                }
+                $present = Test-Path -LiteralPath "Env:$name"
+                if ($present -ne $previous.Present -or
+                    ($present -and [Environment]::GetEnvironmentVariable($name, "Process") -cne $previous.Value)) {
+                    throw "CLI smoke environment restoration failed for $name"
+                }
+            }
+            catch {
+                $restorationFailures += $_
+            }
+        }
+        if ($restorationFailures.Count -gt 0) {
+            if ($null -eq $operationFailure) { throw $restorationFailures[0] }
+            Write-Warning "CLI smoke environment restoration failed; retaining the original smoke failure." -WarningAction Continue
+        }
+    }
+}
+
 $archive = (Resolve-Path -LiteralPath $ArchivePath).Path
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $temporaryParent = if ([string]::IsNullOrWhiteSpace($env:PORTCOVE_TEMP_DIR)) {
@@ -22,112 +76,115 @@ $library = Join-Path $temporaryDirectory "Library $unicodeMarker space"
 [System.IO.Directory]::CreateDirectory($library) | Out-Null
 
 try {
-    $expectedExecutableName = if ($PlatformLabel -eq "windows-x86_64") { "portcove.exe" } else { "portcove" }
-    if ($archive.EndsWith(".zip", [System.StringComparison]::OrdinalIgnoreCase)) {
-        if ($PlatformLabel -ne "windows-x86_64") { throw "Only the Windows CLI package may use ZIP" }
-        $zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
-        try {
-            $entries = @($zip.Entries | ForEach-Object { $_.FullName })
+    Invoke-IsolatedCliSmoke -LibraryPath $library -PreferencePath (Join-Path $temporaryDirectory "preferences.json") -Operation {
+        param($PlatformLabel, $Version)
+        $expectedExecutableName = if ($PlatformLabel -eq "windows-x86_64") { "portcove.exe" } else { "portcove" }
+        if ($archive.EndsWith(".zip", [System.StringComparison]::OrdinalIgnoreCase)) {
+            if ($PlatformLabel -ne "windows-x86_64") { throw "Only the Windows CLI package may use ZIP" }
+            $zip = [System.IO.Compression.ZipFile]::OpenRead($archive)
+            try {
+                $entries = @($zip.Entries | ForEach-Object { $_.FullName })
+            }
+            finally {
+                $zip.Dispose()
+            }
+            if ($entries.Count -ne 1 -or $entries[0] -cne $expectedExecutableName) {
+                throw "CLI archive must contain exactly one top-level executable named $expectedExecutableName"
+            }
+            Expand-Archive -LiteralPath $archive -DestinationPath $extractDirectory
         }
-        finally {
-            $zip.Dispose()
+        elseif ($archive.EndsWith(".tar.gz", [System.StringComparison]::OrdinalIgnoreCase)) {
+            if ($PlatformLabel -eq "windows-x86_64") { throw "The Windows CLI package must use ZIP" }
+            $entries = @(& tar -tzf $archive)
+            if ($LASTEXITCODE -ne 0) { throw "CLI archive listing failed with exit code $LASTEXITCODE" }
+            if ($entries.Count -ne 1 -or $entries[0] -cne $expectedExecutableName) {
+                throw "CLI archive must contain exactly one top-level executable named $expectedExecutableName"
+            }
+            & tar -xzf $archive -C $extractDirectory
+            if ($LASTEXITCODE -ne 0) { throw "CLI archive extraction failed with exit code $LASTEXITCODE" }
         }
-        if ($entries.Count -ne 1 -or $entries[0] -cne $expectedExecutableName) {
-            throw "CLI archive must contain exactly one top-level executable named $expectedExecutableName"
+        else {
+            throw "Unsupported CLI archive format: $archive"
         }
-        Expand-Archive -LiteralPath $archive -DestinationPath $extractDirectory
-    }
-    elseif ($archive.EndsWith(".tar.gz", [System.StringComparison]::OrdinalIgnoreCase)) {
-        if ($PlatformLabel -eq "windows-x86_64") { throw "The Windows CLI package must use ZIP" }
-        $entries = @(& tar -tzf $archive)
-        if ($LASTEXITCODE -ne 0) { throw "CLI archive listing failed with exit code $LASTEXITCODE" }
-        if ($entries.Count -ne 1 -or $entries[0] -cne $expectedExecutableName) {
-            throw "CLI archive must contain exactly one top-level executable named $expectedExecutableName"
-        }
-        & tar -xzf $archive -C $extractDirectory
-        if ($LASTEXITCODE -ne 0) { throw "CLI archive extraction failed with exit code $LASTEXITCODE" }
-    }
-    else {
-        throw "Unsupported CLI archive format: $archive"
-    }
 
-    $files = @(Get-ChildItem -LiteralPath $extractDirectory -File -Recurse)
-    if ($files.Count -ne 1 -or $files[0].Name -cne $expectedExecutableName) {
-        throw "CLI archive must contain exactly one executable named $expectedExecutableName"
-    }
-    $executable = $files[0].FullName
-
-    if ($PlatformLabel -eq "windows-x86_64") {
-        $bytes = [System.IO.File]::ReadAllBytes($executable)
-        if ($bytes.Length -lt 64 -or $bytes[0] -ne 0x4d -or $bytes[1] -ne 0x5a) { throw "CLI executable is not a PE file" }
-        $peOffset = [System.BitConverter]::ToInt32($bytes, 0x3c)
-        if ($peOffset -lt 0 -or $peOffset + 6 -gt $bytes.Length) { throw "CLI PE header is malformed" }
-        $machine = [System.BitConverter]::ToUInt16($bytes, $peOffset + 4)
-        if ($machine -ne 0x8664) { throw ("CLI PE architecture is 0x{0:x4}, expected x86_64" -f $machine) }
-        $identity = "PE32+ x86_64"
-    }
-    else {
-        $identity = (& file -b $executable | Out-String).Trim()
-        if ($LASTEXITCODE -ne 0) { throw "Could not inspect CLI executable architecture" }
-        if ($PlatformLabel -eq "linux-x86_64" -and $identity -notmatch "ELF 64-bit.*x86-64") {
-            throw "CLI archive does not contain a Linux x86_64 ELF executable: $identity"
+        $files = @(Get-ChildItem -LiteralPath $extractDirectory -File -Recurse)
+        if ($files.Count -ne 1 -or $files[0].Name -cne $expectedExecutableName) {
+            throw "CLI archive must contain exactly one executable named $expectedExecutableName"
         }
-        if ($PlatformLabel -eq "macos-aarch64" -and $identity -notmatch "Mach-O 64-bit.*arm64") {
-            throw "CLI archive does not contain a macOS arm64 executable: $identity"
+        $executable = $files[0].FullName
+
+        if ($PlatformLabel -eq "windows-x86_64") {
+            $bytes = [System.IO.File]::ReadAllBytes($executable)
+            if ($bytes.Length -lt 64 -or $bytes[0] -ne 0x4d -or $bytes[1] -ne 0x5a) { throw "CLI executable is not a PE file" }
+            $peOffset = [System.BitConverter]::ToInt32($bytes, 0x3c)
+            if ($peOffset -lt 0 -or $peOffset + 6 -gt $bytes.Length) { throw "CLI PE header is malformed" }
+            $machine = [System.BitConverter]::ToUInt16($bytes, $peOffset + 4)
+            if ($machine -ne 0x8664) { throw ("CLI PE architecture is 0x{0:x4}, expected x86_64" -f $machine) }
+            $identity = "PE32+ x86_64"
         }
-        if ($PlatformLabel -eq "macos-x86_64" -and $identity -notmatch "Mach-O 64-bit.*x86_64") {
-            throw "CLI archive does not contain a macOS x86_64 executable: $identity"
+        else {
+            $identity = (& file -b $executable | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0) { throw "Could not inspect CLI executable architecture" }
+            if ($PlatformLabel -eq "linux-x86_64" -and $identity -notmatch "ELF 64-bit.*x86-64") {
+                throw "CLI archive does not contain a Linux x86_64 ELF executable: $identity"
+            }
+            if ($PlatformLabel -eq "macos-aarch64" -and $identity -notmatch "Mach-O 64-bit.*arm64") {
+                throw "CLI archive does not contain a macOS arm64 executable: $identity"
+            }
+            if ($PlatformLabel -eq "macos-x86_64" -and $identity -notmatch "Mach-O 64-bit.*x86_64") {
+                throw "CLI archive does not contain a macOS x86_64 executable: $identity"
+            }
         }
-    }
 
-    $versionOutput = (& $executable --version | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $versionOutput -cne "portcove $Version") {
-        throw "Packaged CLI version output must be exactly portcove $Version"
-    }
+        $versionOutput = (& $executable --library $library --version | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or $versionOutput -cne "portcove $Version") {
+            throw "Packaged CLI version output must be exactly portcove $Version"
+        }
 
-    $selectionOutput = (& $executable --library $library --json library show | Out-String).Trim() | ConvertFrom-Json
-    if ($LASTEXITCODE -ne 0 -or $selectionOutput.ok -ne $true -or $selectionOutput.command -ne "library.show") {
-        throw "Packaged CLI failed its explicit-library selection smoke test"
-    }
-    if ($selectionOutput.data.source -cne "invocation") {
-        throw "Packaged CLI did not report invocation provenance for the explicit library"
-    }
-    $resolvedLibrary = (Resolve-Path -LiteralPath $library).Path
-    $reportedLibrary = (Resolve-Path -LiteralPath ([string]$selectionOutput.data.root).Trim()).Path
-    $pathComparison = if ($PlatformLabel -eq "windows-x86_64") {
-        [System.StringComparison]::OrdinalIgnoreCase
-    }
-    else {
-        [System.StringComparison]::Ordinal
-    }
-    if (-not [string]::Equals($reportedLibrary, $resolvedLibrary, $pathComparison)) {
-        throw "Packaged CLI changed the explicit library identity: expected $resolvedLibrary, got $reportedLibrary"
-    }
+        $selectionOutput = (& $executable --library $library --json library show | Out-String).Trim() | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0 -or $selectionOutput.ok -ne $true -or $selectionOutput.command -ne "library.show") {
+            throw "Packaged CLI failed its explicit-library selection smoke test"
+        }
+        if ($selectionOutput.data.source -cne "invocation") {
+            throw "Packaged CLI did not report invocation provenance for the explicit library"
+        }
+        $resolvedLibrary = (Resolve-Path -LiteralPath $library).Path
+        $reportedLibrary = (Resolve-Path -LiteralPath ([string]$selectionOutput.data.root).Trim()).Path
+        $pathComparison = if ($PlatformLabel -eq "windows-x86_64") {
+            [System.StringComparison]::OrdinalIgnoreCase
+        }
+        else {
+            [System.StringComparison]::Ordinal
+        }
+        if (-not [string]::Equals($reportedLibrary, $resolvedLibrary, $pathComparison)) {
+            throw "Packaged CLI changed the explicit library identity: expected $resolvedLibrary, got $reportedLibrary"
+        }
 
-    $capabilitiesOutput = (& $executable --json capabilities | Out-String).Trim() | ConvertFrom-Json
-    if ($LASTEXITCODE -ne 0 -or $capabilitiesOutput.ok -ne $true -or $capabilitiesOutput.command -ne "capabilities") {
-        throw "Packaged CLI failed its launch-capability smoke test"
-    }
-    if (@($capabilitiesOutput.data.raw_stream_commands) -cnotcontains "exec") {
-        throw "Packaged CLI does not declare exec as its raw-stream launch route"
-    }
-    if (@($capabilitiesOutput.data.commands) -cnotcontains "launch.show") {
-        throw "Packaged CLI does not declare durable launch-session readback"
-    }
-    if (@($capabilitiesOutput.data.commands) -cnotcontains "launch.recover") {
-        throw "Packaged CLI does not declare durable launch-session recovery"
-    }
+        $capabilitiesOutput = (& $executable --library $library --json capabilities | Out-String).Trim() | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0 -or $capabilitiesOutput.ok -ne $true -or $capabilitiesOutput.command -ne "capabilities") {
+            throw "Packaged CLI failed its launch-capability smoke test"
+        }
+        if (@($capabilitiesOutput.data.raw_stream_commands) -cnotcontains "exec") {
+            throw "Packaged CLI does not declare exec as its raw-stream launch route"
+        }
+        if (@($capabilitiesOutput.data.commands) -cnotcontains "launch.show") {
+            throw "Packaged CLI does not declare durable launch-session readback"
+        }
+        if (@($capabilitiesOutput.data.commands) -cnotcontains "launch.recover") {
+            throw "Packaged CLI does not declare durable launch-session recovery"
+        }
 
-    $doctorOutput = (& $executable --library $library --json doctor | Out-String).Trim() | ConvertFrom-Json
-    if ($LASTEXITCODE -ne 0 -or $doctorOutput.ok -ne $true -or $doctorOutput.command -ne "doctor") {
-        throw "Packaged CLI failed its isolated-library doctor smoke test"
-    }
-    Write-Output "Packaged CLI smoke test passed: $PlatformLabel; $versionOutput; $identity; spaces/Unicode executable and explicit library paths; exec plus launch.show and launch.recover"
+        $doctorOutput = (& $executable --library $library --json doctor | Out-String).Trim() | ConvertFrom-Json
+        if ($LASTEXITCODE -ne 0 -or $doctorOutput.ok -ne $true -or $doctorOutput.command -ne "doctor") {
+            throw "Packaged CLI failed its isolated-library doctor smoke test"
+        }
+        Write-Output "Packaged CLI smoke test passed: $PlatformLabel; $versionOutput; $identity; spaces/Unicode executable and explicit library paths; exec plus launch.show and launch.recover"
+    } -Arguments @($PlatformLabel, $Version)
 }
 finally {
-    $resolvedParent = [System.IO.Path]::GetFullPath($temporaryParent).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
-    $resolvedTemporary = [System.IO.Path]::GetFullPath($temporaryDirectory)
-    if ($resolvedTemporary.StartsWith($resolvedParent, [System.StringComparison]::OrdinalIgnoreCase)) {
-        Remove-Item -LiteralPath $resolvedTemporary -Recurse -Force -ErrorAction SilentlyContinue
+        $resolvedParent = [System.IO.Path]::GetFullPath($temporaryParent).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+        $resolvedTemporary = [System.IO.Path]::GetFullPath($temporaryDirectory)
+        if ($resolvedTemporary.StartsWith($resolvedParent, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $resolvedTemporary -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
-}

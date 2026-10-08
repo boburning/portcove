@@ -1125,6 +1125,28 @@ context containment. See the [Microsoft cancellation contract](https://learn.mic
 
 ### Fixed reviewed hosted validation
 
+Hosted preflight refusal diagnostics identify the rejected condition and retain
+bounded child-result facts before preserving the original failure. New telemetry
+uses an allowlisted projection, at most 64 KiB of final UTF-8 output including its
+prefix and newline. Oversize projections are explicitly omitted; interrupted
+captures are marked incomplete. Unknown strings contribute only type, byte count
+and SHA-256, never raw output, arbitrary error messages, arguments or environment
+values. Diagnostic serialization or logging failure cannot replace the refusal.
+Successful selection, provisioning, commands, profiles and execution limits are
+unchanged; rejection never starts browser acquisition or validation.
+
+Cargo observation failures retain structured spawn/exit/JSON/inventory facts in
+the existing `planning-blocked` report, with no selected plan and exit one. Only
+observation mode uses the existing 15-second, offline, locked metadata call; normal
+metadata selection retains its execution contract. Unrecognized causes remain
+unknown. These diagnostics neither establish a cold-cache cause nor authorize
+dependency acquisition, a retry, protected-controller adoption or acceptance.
+Previously discarded child output cannot be reconstructed by this repair.
+
+These disclosure rules apply to the new telemetry. Existing inherited stderr,
+CLI error printing and parsed `selected-plan.json` retention are separate output
+boundaries; the diagnostic projection does not promise whole-job redaction.
+
 For Cloud hosts lacking native build SDKs, use the separately reviewed manual
 operations in `native-design-compatibility.yml` after exact source-bound admission.
 Keep the existing hosted local-check authority refusal intact. Supply
