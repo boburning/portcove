@@ -112,8 +112,9 @@ The fixed `candidate-consumer` operation permits selected, compiled and history
 execution before controller merge, strictly as execution under test. Its externally
 admitted binding adds `consumer` with exactly `controller_tree`, `source_tree`,
 `product_source` and `product_tree` (full Git tree/commit identities). The controller
-must descend from the actual declared base and stay within the fourteen controller
-paths. The integration must descend from that controller and differ only in all
+must descend from the actual declared base and stay within the fifteen controller
+paths, including the existing Windows CI analyzer acquisition step. The integration
+must descend from that controller and differ only in all
 four reviewed A16 product paths; their regular-file modes and blobs must exactly
 match the separately reviewed product commit. The product commit's own merge-base
 diff must contain exactly those four paths. The complete integration inventory,

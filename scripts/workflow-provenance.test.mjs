@@ -89,6 +89,7 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
   git(source, ["commit", "--quiet", "-m", "trusted base"]);
   const base = git(source, ["rev-parse", "HEAD"]);
   for (const name of [
+    ".github/workflows/ci.yml",
     ".github/workflows/native-design-compatibility.yml",
     "scripts/workflow-provenance.mjs",
     "scripts/native-backup-evidence.mjs",
@@ -165,6 +166,39 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
       }),
     /inventory differs/,
   );
+  write(".github/workflows/unadmitted.yml", "outside scope\n");
+  git(source, ["add", "."]);
+  git(source, ["commit", "--quiet", "-m", "unadmitted workflow"]);
+  const outside = git(source, ["rev-parse", "HEAD"]);
+  git(controller, ["fetch", "--quiet", "origin"]);
+  git(controller, ["checkout", "--quiet", "--detach", outside]);
+  const outsideInventory = git(source, ["diff", "--name-only", "--no-renames", base, outside])
+    .split("\n")
+    .map((name) => ({
+      path: name,
+      base: git(source, ["ls-tree", base, "--", name]),
+      source: git(source, ["ls-tree", outside, "--", name]),
+    }));
+  const outsideRaw = JSON.stringify({
+    ...spec,
+    source: outside,
+    controller: outside,
+    inventory_sha256: bindingDigest(JSON.stringify(outsideInventory)),
+  });
+  await assert.rejects(
+    () =>
+      runHostedValidation("prepare", {
+        ...options,
+        environment: {
+          ...environment,
+          GITHUB_SHA: outside,
+          GITHUB_WORKFLOW_SHA: outside,
+          PORTCOVE_LOCAL_BINDING: outsideRaw,
+          PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(outsideRaw),
+        },
+      }),
+    /exceeds the independently admitted fifteen-path scope/,
+  );
 });
 
 test("candidate consumer binds four original product blobs and retains normal ancestry refusal", async (t) => {
@@ -198,6 +232,7 @@ test("candidate consumer binds four original product blobs and retains normal an
   write("scripts/audit.mjs", "preserved audit\n");
   const base = commit("actual base");
   for (const name of [
+    ".github/workflows/ci.yml",
     ".github/workflows/native-design-compatibility.yml",
     "scripts/workflow-provenance.mjs",
     "scripts/native-backup-evidence.mjs",

@@ -476,9 +476,16 @@ jobs:
       - name: Lint PowerShell scripts
         shell: pwsh
         run: |
-          Install-PSResource -RequiredResourceFile .config/powershell-resources.psd1 -Scope CurrentUser -TrustRepository
+          $resources = Import-PowerShellDataFile -LiteralPath .config/powershell-resources.psd1
+          $requiredVersion = [string]$resources.PSScriptAnalyzer.version
+          if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object Version -EQ $requiredVersion)) {
+            Install-PSResource -RequiredResourceFile .config/powershell-resources.psd1 -Scope CurrentUser -TrustRepository
+          }
+          Import-Module -Name PSScriptAnalyzer -RequiredVersion $requiredVersion -Force
           node scripts/run-powershell-lint.mjs
+          if ($LASTEXITCODE -ne 0) { throw "PSScriptAnalyzer lint failed" }
           node scripts/lint-tools.integration.mjs psscriptanalyzer
+          if ($LASTEXITCODE -ne 0) { throw "PSScriptAnalyzer causal fixture failed" }
 
   native_rust:
     name: native-rust (${{ matrix.platform }}, ${{ matrix.partition }})
