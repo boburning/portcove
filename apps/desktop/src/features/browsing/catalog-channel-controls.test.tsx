@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { readFileSync } from "node:fs";
+import nativeHarnessSource from "../../../scripts/desktop-test.mjs?raw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PortBrowser } from "../../components/PortBrowser";
 import { LibrarySelectionCard, SettingsView } from "../../components/Chrome";
@@ -124,10 +124,9 @@ describe("Catalog channel controls", () => {
     const review = document.querySelector('[aria-labelledby="library-selection-review-title"]')!;
     expect(review.textContent).toContain(target);
     expect(switchLibrary).not.toHaveBeenCalled();
-    const source = readFileSync("scripts/desktop-test.mjs", "utf8");
-    const scenario = source.slice(
-      source.indexOf('await scenario("native-library-browsing-context"'),
-      source.indexOf("await catalogUpdateScenario"),
+    const scenario = nativeHarnessSource.slice(
+      nativeHarnessSource.indexOf('await scenario("native-library-browsing-context"'),
+      nativeHarnessSource.indexOf("await catalogUpdateScenario"),
     );
     const selector = scenario.match(
       /By\.xpath\('(\.\/\/button\[normalize-space\(\.\)="Switch [^"]+"\])'\)/u,
