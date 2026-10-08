@@ -2670,7 +2670,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
       assert.equal(report.observations[1].retry_at, report.observations[0].retry_at);
       assert.equal(
         report.observations[0].retry_at,
-        headers["retry-after"] === "invalid" ? null : new Date(clock + 120_000).toISOString(),
+        new Date(clock + (headers["retry-after"] === "invalid" ? 60_000 : 120_000)).toISOString(),
       );
     }
   });
