@@ -108,6 +108,21 @@ clean integration commit; record parents, executable hash and the four product-f
 hashes. Evidence from this integration tree is not silently credited to the original
 A16 tree. Reconcile/review affected target changes before acceptance or merge.
 
+The fixed `candidate-consumer` operation permits selected, compiled and history
+execution before controller merge, strictly as execution under test. Its externally
+admitted binding adds `consumer` with exactly `controller_tree`, `source_tree`,
+`product_source` and `product_tree` (full Git tree/commit identities). The controller
+must descend from the actual declared base and stay within the fourteen controller
+paths. The integration must descend from that controller and differ only in all
+four reviewed A16 product paths; their regular-file modes and blobs must exactly
+match the separately reviewed product commit. The product commit's own merge-base
+diff must contain exactly those four paths. The complete integration inventory,
+baseline and full selected plan remain independently reviewed and digest-bound.
+This operation cannot execute audit; bootstrap's separate complete audit obligation
+remains. Primary must admit the exact final controller and composition before
+execution. The ordinary operations retain their controller-ancestor-of-base refusal;
+neither candidate PASS nor candidate plans establish trust or merge authority.
+
 These jobs do not upload artifacts or caches. They emit bounded lossless JSON/log/PNG
 records through the existing evidence codec. Direct `gh` artifact/job-log redirects
 were denied on the Cloud host; the supported GitHub connector's decoded job-log

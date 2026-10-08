@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
@@ -40,7 +41,7 @@ import { buildValidationPlan } from "./validation-plan.mjs";
 const allFilesExist = () => true;
 
 test("review inventory keeps command arguments while making candidate-root paths portable", () => {
-  const source = new URL("../", import.meta.url).pathname;
+  const source = fileURLToPath(new URL("../", import.meta.url));
   const entry = {
     id: "owned",
     executable: process.execPath,

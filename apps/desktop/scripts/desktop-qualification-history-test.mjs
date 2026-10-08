@@ -2,7 +2,6 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile, readdir, readlink, realpath } from "node:fs/promises";
 import path from "node:path";
-import { By, Key, until } from "selenium-webdriver";
 
 // Linux history uses the harness's existing detached driver group and SIGTERM.
 // These observations add ownership/exit proof; they never signal a process.
@@ -263,7 +262,7 @@ export async function qualificationHistoryScenario({
       }, fixture);
       assert.equal(installed.ok, true, JSON.stringify(installed));
     }
-    const technicalSummary = By.xpath('//summary[contains(., "Technical details")]');
+    let By, Key, until, technicalSummary;
     const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
     async function openDetails() {
       await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
@@ -422,6 +421,9 @@ export async function qualificationHistoryScenario({
     }
     try {
       await installFixture();
+      // Diagnostics import fixture/process helpers without desktop dependencies.
+      ({ By, Key, until } = await import("selenium-webdriver"));
+      technicalSummary = By.xpath('//summary[contains(., "Technical details")]');
       await browser.wait(
         async () =>
           (await browser.executeScript(() => window.__portcoveHistoryProbe?.reports ?? 0)) > 0,
