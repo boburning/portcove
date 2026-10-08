@@ -1257,13 +1257,13 @@ fn valid_direct_release_url(value: &str) -> bool {
         let Ok(url) = reqwest::Url::parse(value) else {
             return false;
         };
-        return url.scheme() == "http"
+        url.scheme() == "http"
             && url.host_str() == Some("127.0.0.1")
             && url.port().is_some()
             && url.username().is_empty()
             && url.password().is_none()
             && url.query().is_none()
-            && url.fragment().is_none();
+            && url.fragment().is_none()
     }
     #[cfg(not(feature = "qualification-fixtures"))]
     false
