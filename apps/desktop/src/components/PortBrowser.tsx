@@ -33,6 +33,7 @@ import { Button } from "./ui/button";
 import { Menu } from "@base-ui/react/menu";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { SteamBatchEntryDialog } from "./SteamEntry";
+import { evaluateCatalogQuery, type CatalogQuery } from "../features/browsing/catalog-query";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
   { value: "catalog", label: "Catalog order" },
@@ -64,12 +65,12 @@ export function PortBrowser({
   ports: PortDefinition[];
   statuses: Map<string, PortStatus>;
   overview: LibraryOverview;
-  filter: Filter;
+  filter: Filter | CatalogQuery;
   query?: string;
   catalogSort?: CatalogSort;
   setCatalogSort?: Dispatch<SetStateAction<CatalogSort>>;
   recent?: RecentPort;
-  setFilter: Dispatch<SetStateAction<Filter>>;
+  setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onContinue?: (portId: string) => void;
   onBrowseCatalog?: () => void;
@@ -79,13 +80,16 @@ export function PortBrowser({
   loading: boolean;
   nativeSourceDrag?: NativeSourceDragState;
 }) {
+  const unresolvedFilter =
+    typeof filter !== "string" && evaluateCatalogQuery([], filter).state === "unresolved";
+  const constrained = filterConstrained(filter);
   const firstUseEmpty =
     view === "library" &&
     !loading &&
     !recent &&
     overview.installed === 0 &&
     ports.length === 0 &&
-    filter === "all" &&
+    !constrained &&
     query.trim().length === 0;
   return (
     <>
@@ -101,6 +105,11 @@ export function PortBrowser({
       {view === "library" && steamBatch && steamBatch.ports.length >= 2 && (
         <SteamBatchLibraryAction {...steamBatch} />
       )}
+      {unresolvedFilter && (
+        <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
+          These filters are not supported. Reset filters to choose a supported query.
+        </p>
+      )}
       {!firstUseEmpty && (
         <div
           className="filter-row mb-[18px] flex items-center gap-[7px]"
@@ -111,12 +120,17 @@ export function PortBrowser({
           {filterOptions(view).map((item) => (
             <Button
               data-focusable
-              aria-pressed={filter === item}
+              aria-pressed={filterSelected(filter, item)}
               key={item}
-              variant={filter === item ? "selected" : "outline"}
+              variant={filterSelected(filter, item) ? "selected" : "outline"}
               size="sm"
               className="capitalize"
-              onClick={() => setFilter(item)}
+              disabled={unresolvedFilter && item !== "all"}
+              onClick={() =>
+                setFilter((current) =>
+                  view === "catalog" ? toggleCatalogChannel(current, item) : item,
+                )
+              }
             >
               {filterLabel(item)}
             </Button>
@@ -140,7 +154,7 @@ export function PortBrowser({
         view={view}
         ports={ports}
         installedCount={overview.installed}
-        constrained={filter !== "all" || query.trim().length > 0}
+        constrained={constrained || query.trim().length > 0}
         statuses={statuses}
         onSelect={onSelect}
         onLaunch={onContinue}
@@ -152,6 +166,39 @@ export function PortBrowser({
       />
     </>
   );
+}
+
+function filterSelected(filter: Filter | CatalogQuery, item: Filter) {
+  if (typeof filter === "string") return filter === item;
+  if (evaluateCatalogQuery([], filter).state === "unresolved") return false;
+  return item === "all" ? !filter.channels?.length : filter.channels?.includes(item) === true;
+}
+
+function filterConstrained(filter: Filter | CatalogQuery) {
+  if (typeof filter === "string") return filter !== "all";
+  if (evaluateCatalogQuery([], filter).state === "unresolved") return true;
+  return Object.entries(filter).some(
+    ([key, values]) => key !== "version" && Array.isArray(values) && values.length > 0,
+  );
+}
+
+function toggleCatalogChannel(filter: Filter | CatalogQuery, item: Filter): Filter | CatalogQuery {
+  if (typeof filter !== "string" && evaluateCatalogQuery([], filter).state === "unresolved")
+    return item === "all" ? "all" : filter;
+  const current: CatalogQuery =
+    typeof filter === "string"
+      ? { version: 1, channels: ["stable", "beta", "rolling"].includes(filter) ? [filter] : [] }
+      : filter;
+  const channels = current.channels ?? [];
+  return {
+    ...current,
+    channels:
+      item === "all"
+        ? []
+        : channels.includes(item)
+          ? channels.filter((channel) => channel !== item)
+          : [...channels, item],
+  };
 }
 
 function SteamBatchLibraryAction({
