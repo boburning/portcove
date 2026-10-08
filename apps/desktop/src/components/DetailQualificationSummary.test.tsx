@@ -5,6 +5,7 @@ import type { PortDefinition, SourceInspectionReport } from "../types";
 import type { SourceCatalog } from "../transport-types.generated";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
+import { portStatus } from "../test-fixtures";
 
 const sourceCatalog = catalog.source_catalog as unknown as SourceCatalog;
 const snap64 = catalog.ports.find(
@@ -275,4 +276,51 @@ describe("detail qualification history", () => {
     expect(markup).toContain("&lt;script&gt;unsafe&lt;/script&gt;");
     expect(markup).not.toMatch(/<button|<a |<input|tabindex=/);
   });
+
+  it.each(["user-prepared", "external"])(
+    "keeps exact technical scope available for %s runtimes without managed actions",
+    (mode) => {
+      const port = {
+        ...snap64,
+        release: {
+          ...snap64.release,
+          provider: mode === "user-prepared" ? ("user-prepared" as const) : snap64.release.provider,
+        },
+      };
+      const status =
+        mode === "external"
+          ? {
+              ...portStatus(),
+              external_runtime: {
+                id: "owned-external",
+                port_id: port.id,
+                path: "owned-runtime",
+                executable: "owned-runtime/game.exe",
+                version: "1.0.5",
+                platform: "windows-x86-64" as const,
+                archive_sha256: "a".repeat(64),
+                immutable_tree_sha256: "b".repeat(64),
+                registered_at: 1,
+              },
+            }
+          : undefined;
+      const markup = renderToStaticMarkup(
+        <DetailPanel
+          port={port}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+          sourceInspection={report()}
+        />,
+      );
+      const technical = markup.split("Technical details").at(-1)!;
+      expect(technical).toContain("snap64-windows-qualification-v1");
+      expect(technical).toContain("usa-rev0");
+      expect(technical).not.toContain("Commands and maintenance");
+      expect(technical).not.toContain("Saved data patterns");
+      expect(technical).not.toContain("Set up from the command line");
+      expect(technical).not.toContain("Steam shortcut");
+    },
+  );
 });

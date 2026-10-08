@@ -518,7 +518,8 @@ function DetailBody({
       <DetailGroup title="Project and release">
         <ProjectReleaseSummary port={port} />
       </DetailGroup>
-      {port.release.provider !== "user-prepared" && !status?.external_runtime && (
+      {((port.release.provider !== "user-prepared" && !status?.external_runtime) ||
+        hasRecordedChecks(port, sources)) && (
         <TechnicalDetails
           libraryGeneration={libraryGeneration}
           port={port}
@@ -1267,6 +1268,15 @@ function RetiredNotice({ port }: { port: PortDefinition }) {
   );
 }
 
+function hasRecordedChecks(port: PortDefinition, sources: SourceControls) {
+  return [sources.sourceInspection, sources.biosInspection].some((report) =>
+    report?.applications.some(
+      (application) =>
+        application.port_id === port.id && application.qualification.exact_records.length > 0,
+    ),
+  );
+}
+
 function TechnicalDetails({
   libraryGeneration,
   port,
@@ -1286,6 +1296,7 @@ function TechnicalDetails({
   sources: SourceControls;
   actions: DetailActions;
 }) {
+  const includeManagement = port.release.provider !== "user-prepared" && !status?.external_runtime;
   const persistentFiles = [
     ...port.persistent_paths,
     ...(port.persistent_file_patterns ?? []).map(
@@ -1297,33 +1308,37 @@ function TechnicalDetails({
       <summary data-focusable className={`advanced-summary ${disclosureSummaryStyle}`}>
         Technical details{" "}
         <span className={`advanced-summary-meta ${disclosureMetaStyle}`}>
-          Commands and maintenance
+          {includeManagement ? "Commands and maintenance" : "Recorded check identities"}
         </span>
         <Icon glyph={ChevronDown} />
       </summary>
       <div className={`advanced-body ${disclosureBodyStyle}`}>
-        <div className="metadata">
-          <span title={persistentFiles}>
-            <small>Saved data patterns</small>
-            {persistentFiles || "No saved data paths declared"}
-          </span>
-        </div>
+        {includeManagement && (
+          <div className="metadata">
+            <span title={persistentFiles}>
+              <small>Saved data patterns</small>
+              {persistentFiles || "No saved data paths declared"}
+            </span>
+          </div>
+        )}
         <DetailQualificationSummary
           port={port}
           sourceInspection={sources.sourceInspection}
           biosInspection={sources.biosInspection}
           technical
         />
-        <CliContinuity
-          key={`${port.id}:${libraryGeneration}`}
-          generation={libraryGeneration}
-          port={port}
-          status={status}
-          channel={selectedChannel}
-          sourcePath={sources.sourcePath || sources.source?.path || ""}
-          biosPath={sources.biosPath || sources.bios?.path || ""}
-        />
-        {installed && (
+        {includeManagement && (
+          <CliContinuity
+            key={`${port.id}:${libraryGeneration}`}
+            generation={libraryGeneration}
+            port={port}
+            status={status}
+            channel={selectedChannel}
+            sourcePath={sources.sourcePath || sources.source?.path || ""}
+            biosPath={sources.biosPath || sources.bios?.path || ""}
+          />
+        )}
+        {includeManagement && installed && (
           <MaintenanceActions
             port={port}
             libraryGeneration={libraryGeneration}
@@ -1335,15 +1350,17 @@ function TechnicalDetails({
             actions={actions}
           />
         )}
-        <div className="actions maintenance-actions">
-          <SteamEntryControl
-            key={`steam:${port.id}:${libraryGeneration}`}
-            port={port}
-            generation={libraryGeneration}
-            installed={installed}
-            busy={Boolean(busy)}
-          />
-        </div>
+        {includeManagement && (
+          <div className="actions maintenance-actions">
+            <SteamEntryControl
+              key={`steam:${port.id}:${libraryGeneration}`}
+              port={port}
+              generation={libraryGeneration}
+              installed={installed}
+              busy={Boolean(busy)}
+            />
+          </div>
+        )}
       </div>
     </details>
   );
