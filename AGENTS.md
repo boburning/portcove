@@ -183,3 +183,23 @@ Follow `docs/QUALITY.md` for formatter, analyzer, automatic-fix, and aggregate
 command rules. Update the owning contract when observable behavior changes. When
 a mistake recurs with evidence, prefer one focused rule, test, or tool improvement
 over another repeated warning paragraph.
+
+## Agent skills
+
+These configurations adapt the engineering skills to Portcove. The existing
+agent contract and owning repository documents take precedence.
+
+### Issue tracker
+
+GitHub Issues in `boburning/portcove`, with the live Roadmap Project owning
+planning fields. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels as supplementary issue annotations.
+See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` and `docs/adr/`, created when needed.
+See `docs/agents/domain.md`.
