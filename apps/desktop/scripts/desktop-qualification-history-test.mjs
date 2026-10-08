@@ -4,6 +4,9 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
 
+// The repository-level scripts/desktop-scenarios.test.mjs consumes this export.
+// Its test root is outside the frontend Fallow graph.
+// fallow-ignore-next-line unused-export
 export function qualificationHistoryFixture(catalog) {
   const port = catalog.ports.find((entry) => entry.id === "snap64-recomp");
   const source = catalog.source_catalog;
@@ -84,19 +87,7 @@ export async function qualificationHistoryScenario({
         modeSnapshots: {},
       };
       window.__portcoveHistoryProbe = probe;
-      window.fetch = async function (input, ...args) {
-        const url = typeof input === "string" ? input : input.url;
-        if (url === inspectionUrl) {
-          const body = typeof args[0]?.body === "string" ? JSON.parse(args[0].body) : null;
-          if (body?.profileId !== data.profile_id) return original.call(window, input, ...args);
-          probe.reports++;
-          return new Response(JSON.stringify(data.report), {
-            headers: { "Content-Type": "application/json", "Tauri-Response": "ok" },
-          });
-        }
-        const response = await original.call(window, input, ...args);
-        if (url !== snapshotUrl || !response.ok) return response;
-        const snapshot = await response.clone().json();
+      function suppliedSnapshot(snapshot) {
         probe.snapshots++;
         probe.modeSnapshots[probe.mode] = (probe.modeSnapshots[probe.mode] ?? 0) + 1;
         snapshot.sources = [
@@ -129,6 +120,21 @@ export async function qualificationHistoryScenario({
             registered_at: 1,
           };
         }
+        return snapshot;
+      }
+      window.fetch = async function (input, ...args) {
+        const url = typeof input === "string" ? input : input.url;
+        if (url === inspectionUrl) {
+          const body = typeof args[0]?.body === "string" ? JSON.parse(args[0].body) : null;
+          if (body?.profileId !== data.profile_id) return original.call(window, input, ...args);
+          probe.reports++;
+          return new Response(JSON.stringify(data.report), {
+            headers: { "Content-Type": "application/json", "Tauri-Response": "ok" },
+          });
+        }
+        const response = await original.call(window, input, ...args);
+        if (url !== snapshotUrl || !response.ok) return response;
+        const snapshot = suppliedSnapshot(await response.clone().json());
         return new Response(JSON.stringify(snapshot), {
           status: response.status,
           statusText: response.statusText,
@@ -164,18 +170,7 @@ export async function qualificationHistoryScenario({
         "Populated production history did not settle; A16 component composition is required",
       );
     }
-    async function checkView(name) {
-      const panel = await browser.findElement(By.css(".detail-panel"));
-      const text = await panel.getText();
-      for (const expected of [
-        "Recorded history",
-        "Structural check",
-        "Automated lifecycle",
-        "Known failure",
-        "165 Hz host",
-      ])
-        assert.ok(text.includes(expected), expected);
-      const summary = await browser.findElement(technicalSummary);
+    async function expandTechnical(summary, name) {
       let tabSteps = null;
       if (name === "default-dark" || ["user-prepared", "external"].includes(name)) {
         for (tabSteps = 0; tabSteps < 80; tabSteps++) {
@@ -189,6 +184,56 @@ export async function qualificationHistoryScenario({
         );
         await browser.actions().sendKeys(Key.ENTER).perform();
       } else await summary.click();
+      return tabSteps;
+    }
+    async function captureRecords(details, name) {
+      // Capture each maintained record at readable viewport scale rather than
+      // accepting a single screenshot of a disclosure taller than the window.
+      const records = await details.findElements(
+        By.css('section[aria-label="Recorded game-file checks"] li'),
+      );
+      assert.equal(
+        records.length,
+        fixture.report.applications[0].qualification.exact_records.length,
+      );
+      for (const [index, record] of records.entries()) {
+        const frame = await browser.executeScript((element) => {
+          element.scrollIntoView({ block: "start" });
+          const bounds = element.getBoundingClientRect();
+          return {
+            height: bounds.height,
+            viewport: innerHeight,
+            horizontal_overflow: element.scrollWidth > element.clientWidth + 1,
+          };
+        }, record);
+        assert.equal(frame.horizontal_overflow, false);
+        assert.ok(
+          frame.height <= frame.viewport * 2,
+          "A maintained record requires more than two readable frames",
+        );
+        await captureScreenshot(`qualification-history-${name}-record-${index}-top`, true);
+        if (frame.height > frame.viewport) {
+          await browser.executeScript(
+            (element) => element.scrollIntoView({ block: "end" }),
+            record,
+          );
+          await captureScreenshot(`qualification-history-${name}-record-${index}-bottom`, true);
+        }
+      }
+    }
+    async function checkView(name) {
+      const panel = await browser.findElement(By.css(".detail-panel"));
+      const text = await panel.getText();
+      for (const expected of [
+        "Recorded history",
+        "Structural check",
+        "Automated lifecycle",
+        "Known failure",
+        "165 Hz host",
+      ])
+        assert.ok(text.includes(expected), expected);
+      const summary = await browser.findElement(technicalSummary);
+      const tabSteps = await expandTechnical(summary, name);
       const details = await summary.findElement(By.xpath(".."));
       assert.equal(await details.getAttribute("open"), "true");
       assert.ok((await details.getText()).includes("snap64-windows-qualification-v1"));
@@ -225,39 +270,7 @@ export async function qualificationHistoryScenario({
         ...layout,
       });
       await captureScreenshot(`qualification-history-${name}-technical`, true);
-      // Capture each maintained record at readable viewport scale rather than
-      // accepting a single screenshot of a disclosure taller than the window.
-      const records = await details.findElements(
-        By.css('section[aria-label="Recorded game-file checks"] li'),
-      );
-      assert.equal(
-        records.length,
-        fixture.report.applications[0].qualification.exact_records.length,
-      );
-      for (const [index, record] of records.entries()) {
-        const frame = await browser.executeScript((element) => {
-          element.scrollIntoView({ block: "start" });
-          const bounds = element.getBoundingClientRect();
-          return {
-            height: bounds.height,
-            viewport: innerHeight,
-            horizontal_overflow: element.scrollWidth > element.clientWidth + 1,
-          };
-        }, record);
-        assert.equal(frame.horizontal_overflow, false);
-        assert.ok(
-          frame.height <= frame.viewport * 2,
-          "A maintained record requires more than two readable frames",
-        );
-        await captureScreenshot(`qualification-history-${name}-record-${index}-top`, true);
-        if (frame.height > frame.viewport) {
-          await browser.executeScript(
-            (element) => element.scrollIntoView({ block: "end" }),
-            record,
-          );
-          await captureScreenshot(`qualification-history-${name}-record-${index}-bottom`, true);
-        }
-      }
+      await captureRecords(details, name);
       await summary.sendKeys(Key.ENTER);
       assert.equal(await details.getAttribute("open"), null);
       await summary.sendKeys(Key.SPACE);
