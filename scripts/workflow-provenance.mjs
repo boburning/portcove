@@ -306,13 +306,144 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
   return { profile: "cargo-dependency", ...spec, manifests: manifestBindings };
 }
 
-function hostedBrowserSelection(stdout, identities, exitStatus) {
-  const invalid = () => new Error("Invalid complete local-check preflight for provisioning");
+// This projection is diagnostic only: it never supplies input to an acceptance predicate.
+function emitPreflightRefusal(log, reason, result, identities, report, elapsedMs) {
+  try {
+    const describe = (value) => {
+      if (typeof value === "string") {
+        const bytes = Buffer.from(value);
+        return { type: "string", bytes: bytes.length, sha256: sha256(bytes) };
+      }
+      if (Array.isArray(value)) return { type: "array", count: value.length };
+      return { type: value === null ? "null" : typeof value };
+    };
+    const code = result.error?.code;
+    const diagnostic = {
+      format_version: 1,
+      reason,
+      expected: {
+        source: exactSha(identities.source) ? identities.source : null,
+        base: exactSha(identities.base) ? identities.base : null,
+        merge_base: exactSha(identities.mergeBase ?? identities.merge_base)
+          ? (identities.mergeBase ?? identities.merge_base)
+          : null,
+      },
+      result: {
+        status: Number.isInteger(result.status) ? result.status : null,
+        signal: ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"].includes(result.signal)
+          ? result.signal
+          : result.signal == null
+            ? null
+            : "UNKNOWN",
+        code: ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].includes(code)
+          ? code
+          : code === undefined
+            ? null
+            : "UNKNOWN",
+        code_observation: describe(code),
+        signal_observation: describe(result.signal),
+      },
+      elapsed_ms: Math.max(0, Math.round(elapsedMs)),
+      capture_complete: !result.error && Number.isInteger(result.status) && result.signal == null,
+      stdout: describe(result.stdout),
+      stderr: describe(result.stderr),
+      omitted: false,
+    };
+    if (report !== undefined) {
+      diagnostic.report = {
+        format_version:
+          typeof report?.format_version === "number"
+            ? report.format_version
+            : describe(report?.format_version),
+        source: exactSha(report?.source) ? report.source : describe(report?.source),
+        base: exactSha(report?.base) ? report.base : describe(report?.base),
+        merge_base: exactSha(report?.merge_base) ? report.merge_base : describe(report?.merge_base),
+        plan_digest: /^[a-f0-9]{64}$/u.test(report?.plan_digest ?? "")
+          ? report.plan_digest
+          : describe(report?.plan_digest),
+        status:
+          report?.status === "planning-blocked" ? "planning-blocked" : describe(report?.status),
+        obligations: Array.isArray(report?.obligations)
+          ? report.obligations.map((entry) => ({
+              id: describe(entry?.id),
+              route: ["local", "blocked", "hosted-local-check"].includes(entry?.route)
+                ? entry.route
+                : describe(entry?.route),
+              missing: describe(entry?.missing),
+            }))
+          : describe(report?.obligations),
+        audit: {
+          route:
+            report?.pre_change_audit?.route === "local-prerequisites-unverified"
+              ? "local-prerequisites-unverified"
+              : describe(report?.pre_change_audit?.route),
+          profile: ["complete", "transition"].includes(report?.pre_change_audit?.profile)
+            ? report.pre_change_audit.profile
+            : describe(report?.pre_change_audit?.profile),
+          command_matches:
+            report?.pre_change_audit?.command === "just audit --profile transition --fresh",
+          command_observation: describe(report?.pre_change_audit?.command),
+        },
+      };
+      const observation = report?.blocker?.observation;
+      if (report?.blocker?.id === "cargo-metadata" && observation)
+        diagnostic.report.cargo = {
+          reason: [
+            "spawn-error",
+            "cargo-exit",
+            "metadata-json",
+            "package-inventory",
+            "UNKNOWN",
+          ].includes(observation.reason)
+            ? observation.reason
+            : "UNKNOWN",
+          status: Number.isInteger(observation.status) ? observation.status : null,
+          code: ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].includes(
+            observation.code,
+          )
+            ? observation.code
+            : "UNKNOWN",
+        };
+    }
+    const prefix = "Hosted preflight refusal: ";
+    let text = prefix + JSON.stringify(diagnostic);
+    if (Buffer.byteLength(text + "\n") > 64 * 1024) {
+      delete diagnostic.report;
+      diagnostic.omitted = true;
+      text = prefix + JSON.stringify(diagnostic);
+    }
+    if (Buffer.byteLength(text + "\n") <= 64 * 1024) log(text);
+  } catch {
+    // Reporting/serialization failure must never mask the existing refusal.
+  }
+}
+
+function preflightReportReason(report, identities) {
+  if (report?.format_version !== 1) return "format-version";
+  if (report.source !== identities.source) return "source";
+  if (report.base !== identities.base) return "base";
+  if (report.merge_base !== (identities.mergeBase ?? identities.merge_base)) return "merge-base";
+  if (!/^[a-f0-9]{64}$/u.test(report.plan_digest ?? "")) return "plan-digest";
+  if (report.status !== undefined) return "status";
+  if (!Array.isArray(report.obligations)) return "obligations";
+  if (report.obligations.length === 0) return "obligations-empty";
+  if (report.obligations.some((entry) => typeof entry?.id !== "string" || entry.id.length === 0))
+    return "obligation-id";
+  if (new Set(report.obligations.map((entry) => entry.id)).size !== report.obligations.length)
+    return "obligation-duplicate";
+  return "prerequisites";
+}
+
+function hostedBrowserSelection(stdout, identities, exitStatus, reject = () => {}) {
+  const invalid = (reason, report) => {
+    reject(reason, report);
+    return new Error("Invalid complete local-check preflight for provisioning");
+  };
   let report;
   try {
     report = JSON.parse(stdout);
   } catch {
-    throw invalid();
+    throw invalid("json");
   }
   if (
     report?.format_version !== 1 ||
@@ -326,14 +457,14 @@ function hostedBrowserSelection(stdout, identities, exitStatus) {
     report.obligations.some((entry) => typeof entry?.id !== "string" || entry.id.length === 0) ||
     new Set(report.obligations.map((entry) => entry.id)).size !== report.obligations.length
   )
-    throw invalid();
+    throw invalid(preflightReportReason(report, identities), report);
   if (
     report.obligations.some(
       (entry) =>
         entry.route !== "local" || !Array.isArray(entry.missing) || entry.missing.length !== 0,
     )
   )
-    throw invalid();
+    throw invalid("prerequisites", report);
   // A policy preflight reports selection and the separate audit obligation together.
   // Acquisition cannot satisfy that audit, but its named routing disposition is
   // not a failure of the complete selected browser prerequisite observation.
@@ -345,7 +476,7 @@ function hostedBrowserSelection(stdout, identities, exitStatus) {
       !["complete", "transition"].includes(audit.profile) ||
       audit.command !== "just audit --profile transition --fresh")
   )
-    throw invalid();
+    throw invalid("audit-exit", report);
   return {
     plan_digest: report.plan_digest,
     browser: report.obligations.some((entry) => entry.id === "ui-browser-tests"),
@@ -485,6 +616,7 @@ export async function runHostedLocalCheck(phase, options = {}) {
     throw new Error("Observed local-check tools differ from repository pins");
   const execute = options.spawn ?? spawnSync;
   if (phase === "provision") {
+    const started = performance.now();
     const preflight = execute(
       process.execPath,
       ["scripts/local-validation.mjs", "check", "--preflight", "--json"],
@@ -497,9 +629,22 @@ export async function runHostedLocalCheck(phase, options = {}) {
         maxBuffer: 8 * 1024 * 1024,
       },
     );
-    if (preflight.error) throw preflight.error;
-    if (![0, 1].includes(preflight.status)) return preflight.status ?? 1;
-    const selection = hostedBrowserSelection(preflight.stdout, identities, preflight.status);
+    const refusal = (reason, report) =>
+      emitPreflightRefusal(log, reason, preflight, identities, report, performance.now() - started);
+    if (preflight.error) {
+      refusal("child-error");
+      throw preflight.error;
+    }
+    if (![0, 1].includes(preflight.status)) {
+      refusal("child-status");
+      return preflight.status ?? 1;
+    }
+    const selection = hostedBrowserSelection(
+      preflight.stdout,
+      identities,
+      preflight.status,
+      refusal,
+    );
     const recheck = async () => {
       clean(controllerRoot, identities.controller);
       clean(sourceRoot, identities.source);
@@ -710,6 +855,7 @@ export function assertRetainedSelectedPlan(baseline, selected) {
 // Explicit execution-under-test admission. This never changes the old route's refusal
 // or establishes that an unmerged controller is a trusted qualification authority.
 export async function runHostedValidation(phase, options = {}) {
+  const log = options.log ?? console.log;
   if (
     !["controller", "prepare", "provision", "selected", "audit", "compiled", "native"].includes(
       phase,
@@ -941,29 +1087,65 @@ export async function runHostedValidation(phase, options = {}) {
     throw new Error("Observed execution tools differ from preserved pins");
   const execute = options.spawn ?? spawnSync;
   if (["provision", "selected"].includes(phase)) {
+    const started = performance.now();
     const planned = execute(
       process.execPath,
       ["scripts/local-validation.mjs", "check", "--preflight", "--json"],
       { cwd: source, env: child, encoding: "utf8", timeout: 60_000, maxBuffer: 16 * 1024 * 1024 },
     );
-    if (planned.error) throw planned.error;
-    if (![0, 1].includes(planned.status))
+    const refusal = (reason, report) =>
+      emitPreflightRefusal(log, reason, planned, binding, report, performance.now() - started);
+    if (planned.error) {
+      refusal("child-error");
+      throw planned.error;
+    }
+    if (![0, 1].includes(planned.status)) {
+      refusal("child-status");
       throw new Error("Complete candidate-root planning failed");
-    const report = JSON.parse(planned.stdout);
+    }
+    let report;
+    try {
+      report = JSON.parse(planned.stdout);
+    } catch (error) {
+      refusal("json");
+      throw error;
+    }
     await writeFile(
       path.join(evidence, "selected-plan.json"),
       JSON.stringify(report, null, 2) + "\n",
     );
-    if (
-      report.source !== binding.source ||
-      report.base !== binding.base ||
-      report.merge_base !== binding.merge_base ||
-      report.plan_digest !== binding.plan_digest ||
-      JSON.stringify(report.selected_plan) !== JSON.stringify(binding.selected_plan) ||
-      !Array.isArray(report.obligations) ||
-      report.obligations.some((entry) => entry.missing.length)
-    )
+    let mismatch;
+    try {
+      mismatch =
+        report.source !== binding.source ||
+        report.base !== binding.base ||
+        report.merge_base !== binding.merge_base ||
+        report.plan_digest !== binding.plan_digest ||
+        JSON.stringify(report.selected_plan) !== JSON.stringify(binding.selected_plan) ||
+        !Array.isArray(report.obligations) ||
+        report.obligations.some((entry) => entry.missing.length);
+    } catch (error) {
+      refusal("report-evaluation", report);
+      throw error;
+    }
+    if (mismatch) {
+      const reason =
+        report.source !== binding.source
+          ? "source"
+          : report.base !== binding.base
+            ? "base"
+            : report.merge_base !== binding.merge_base
+              ? "merge-base"
+              : report.plan_digest !== binding.plan_digest
+                ? "plan-digest"
+                : JSON.stringify(report.selected_plan) !== JSON.stringify(binding.selected_plan)
+                  ? "selected-plan"
+                  : !Array.isArray(report.obligations)
+                    ? "obligations"
+                    : "prerequisites";
+      refusal(reason, report);
       throw new Error("Full reviewed selected plan or prerequisites differ");
+    }
     clean();
     if (phase === "provision") {
       if (!report.obligations.some((entry) => entry.id === "ui-browser-tests")) return 0;

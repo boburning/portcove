@@ -208,6 +208,43 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
       assert.equal(commands.length, 1, "No browser or selected command may run during refusal");
       assert.throws(() => readFileSync(path.join(evidence, "execution.json")), /ENOENT/);
     }
+    const command = (name, args, cwd) =>
+      name === "git"
+        ? git(cwd, args)
+        : {
+            just: "just 1.58.0",
+            pnpm: "12.8.1",
+            rustc: "rustc 1.98.1 (fixture)",
+            cargo: "cargo 1.98.1 (fixture)",
+          }[name];
+    for (const [reason, response] of [
+      ["json", { status: 0, stdout: "private invalid JSON" }],
+      ["report-evaluation", { status: 0, stdout: "null" }],
+      [
+        "child-error",
+        { status: null, error: Object.assign(Error("private timeout"), { code: "ETIMEDOUT" }) },
+      ],
+      ["child-status", { status: 7, stdout: "{}" }],
+    ]) {
+      const logs = [];
+      let calls = 0;
+      await assert.rejects(
+        runHostedValidation("provision", {
+          ...options,
+          command,
+          log: (line) => logs.push(line),
+          spawn: (_name, _args, settings) => {
+            calls++;
+            assert.equal(settings.timeout, 60_000);
+            assert.equal(settings.maxBuffer, 16 * 1024 * 1024);
+            return response;
+          },
+        }),
+      );
+      assert.equal(calls, 1);
+      assert.ok(logs.some((line) => line.includes(`"reason":"${reason}"`)));
+      assert.ok(logs.every((line) => !line.includes("private")));
+    }
   });
   await assert.rejects(() => runHostedValidation("audit", options), /phase\/job/);
   await assert.rejects(() => runHostedValidation("compiled", options), /Phase differs/);
@@ -519,6 +556,113 @@ function browserProvisioningReport(f, browser = true) {
     obligations: [{ id: browser ? "ui-browser-tests" : "diff-check", route: "local", missing: [] }],
   };
 }
+
+test("preflight refusal retains bounded safe branch and transport facts", async (t) => {
+  const f = hostedFixture(t);
+  const valid = browserProvisioningReport(f);
+  const secret = "secret-canary Ω https://signed.invalid/?token=secret-cookie";
+  const cases = [
+    ["json", secret],
+    ["format-version", { ...valid, format_version: 2 }],
+    ["source", { ...valid, source: secret }],
+    ["base", { ...valid, base: f.head }],
+    ["merge-base", { ...valid, merge_base: f.head }],
+    ["plan-digest", { ...valid, plan_digest: secret }],
+    ["status", { ...valid, status: "planning-blocked" }],
+    ["obligations", { ...valid, obligations: null }],
+    ["obligations-empty", { ...valid, obligations: [] }],
+    ["obligation-id", { ...valid, obligations: [{ id: "" }] }],
+    [
+      "obligation-duplicate",
+      { ...valid, obligations: [valid.obligations[0], valid.obligations[0]] },
+    ],
+    [
+      "prerequisites",
+      { ...valid, obligations: [{ id: secret, route: "blocked", missing: [secret] }] },
+    ],
+    ["audit-exit", valid, 1],
+    [
+      "obligation-duplicate",
+      { ...valid, obligations: Array.from({ length: 1500 }, () => ({ id: secret })) },
+    ],
+  ];
+  for (const [reason, report, status = 0] of cases) {
+    f.logs.length = 0;
+    let calls = 0;
+    const stdout =
+      typeof report === "string" ? report : JSON.stringify({ ...report, private: secret });
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (_name, _args, settings) => {
+          calls++;
+          assert.equal(settings.timeout, 60_000);
+          assert.equal(settings.maxBuffer, 8 * 1024 * 1024);
+          return { status, stdout, stderr: secret };
+        },
+      }),
+      /Invalid complete local-check preflight/,
+    );
+    assert.equal(calls, 1);
+    const line = f.logs.find((value) => value.startsWith("Hosted preflight refusal: "));
+    assert.ok(line, "Original refusal must retain a diagnostic");
+    assert.ok(Buffer.byteLength(line) <= 64 * 1024);
+    assert.ok(!line.includes("secret-canary") && !line.includes("signed.invalid"));
+    const diagnostic = JSON.parse(line.slice("Hosted preflight refusal: ".length));
+    assert.equal(diagnostic.reason, reason);
+    assert.equal(diagnostic.result.status, status);
+    assert.equal(diagnostic.stdout.bytes, Buffer.byteLength(stdout));
+    assert.equal(diagnostic.stdout.sha256, bindingDigest(stdout));
+    assert.equal(diagnostic.capture_complete, true);
+    if (Array.isArray(report.obligations) && report.obligations.length === 1500)
+      assert.equal(diagnostic.omitted, true);
+  }
+  for (const code of ["ENOENT", "ETIMEDOUT", "ENOBUFS", "private-code"]) {
+    f.logs.length = 0;
+    const error = Object.assign(new Error(secret), { code });
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: () => ({
+          error,
+          status: null,
+          signal: "SIGTERM",
+          stdout: "partial Ω",
+          stderr: secret,
+        }),
+      }),
+      (actual) => actual === error,
+    );
+    const line = f.logs.find((value) => value.startsWith("Hosted preflight refusal: "));
+    const diagnostic = JSON.parse(line.slice("Hosted preflight refusal: ".length));
+    assert.equal(diagnostic.reason, "child-error");
+    assert.equal(diagnostic.capture_complete, false);
+    assert.equal(diagnostic.result.code, code === "private-code" ? "UNKNOWN" : code);
+    assert.equal(diagnostic.result.signal, "SIGTERM");
+    assert.ok(!line.includes("secret-canary") && !line.includes("private-code"));
+  }
+  for (const status of [2, 7, null]) {
+    f.logs.length = 0;
+    assert.equal(
+      await runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: () => ({ status, stdout: "{}" }),
+      }),
+      status ?? 1,
+    );
+    assert.ok(f.logs.some((line) => line.includes('"reason":"child-status"')));
+  }
+  await assert.rejects(
+    runHostedLocalCheck("provision", {
+      ...f.options,
+      log: (line) => {
+        if (line.startsWith("Hosted preflight refusal: ")) throw Error(secret);
+      },
+      spawn: () => ({ status: 0, stdout: "invalid" }),
+    }),
+    /Invalid complete local-check preflight/,
+  );
+});
 
 test("complete policy preflight exit one preserves audit and provisions selected browser", async (t) => {
   const f = hostedFixture(t);
