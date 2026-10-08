@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PortBrowser } from "../../components/PortBrowser";
 import { portDefinition, portStatus } from "../../test-fixtures";
-import type { PortStatus } from "../../types";
+import type { PortDefinition, PortStatus } from "../../types";
 import { filterPorts, summarizeLibrary } from "../../view-model";
 import { useAppShellState } from "../app-shell/use-app-shell-state";
 import type { BrowsingInputs } from "../app-shell/use-app-shell-state";
@@ -13,7 +13,7 @@ import type { CatalogQuery } from "./catalog-query";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 import { invoke } from "@tauri-apps/api/core";
 
-const ports = [
+const ports: PortDefinition[] = [
   { ...portDefinition(), id: "stable", name: "Stable port", channels: ["stable"] },
   { ...portDefinition(), id: "beta", name: "Beta port", channels: ["beta"] },
   { ...portDefinition(), id: "rolling", name: "Rolling port", channels: ["rolling"] },
