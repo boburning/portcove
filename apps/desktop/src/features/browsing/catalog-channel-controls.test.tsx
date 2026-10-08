@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PortBrowser } from "../../components/PortBrowser";
+import { SettingsView } from "../../components/Chrome";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type { PortDefinition, PortStatus } from "../../types";
 import { filterPorts, summarizeLibrary } from "../../view-model";
@@ -103,6 +105,21 @@ afterEach(async () => {
 });
 
 describe("Catalog channel controls", () => {
+  it("binds the existing native library-switch lease observer to the rendered GitHub connection", () => {
+    const settings = new DOMParser().parseFromString(
+      renderToStaticMarkup(<SettingsView />),
+      "text/html",
+    );
+    expect(settings.querySelector(".github-auth")).toBeNull();
+    const connection = settings.evaluate(
+      '//article[.//h2[normalize-space(.)="GitHub connection"]]',
+      settings,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null,
+    ).singleNodeValue;
+    expect(connection?.textContent).toContain("Connection status unavailable");
+  });
   it("keeps Stable and Beta selected and displays their union once", async () => {
     await act(async () => channelButton("stable").click());
     expect(visibleIds()).toEqual(["stable", "both"]);

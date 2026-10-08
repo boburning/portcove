@@ -1965,7 +1965,9 @@ try {
       );
       await browser.wait(
         async () => {
-          const connection = await browser.findElement(By.css(".github-auth"));
+          const connection = await browser.findElement(
+            By.xpath('//article[.//h2[normalize-space(.)="GitHub connection"]]'),
+          );
           const text = await connection.getText();
           return (
             !text.includes("Connection status unavailable") ||
