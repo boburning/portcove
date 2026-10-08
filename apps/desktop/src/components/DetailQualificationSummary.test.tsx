@@ -285,6 +285,7 @@ describe("detail qualification history", () => {
         release: {
           ...snap64.release,
           provider: mode === "user-prepared" ? ("user-prepared" as const) : snap64.release.provider,
+          user_prepared: {},
         },
       };
       const status =
