@@ -240,7 +240,7 @@ describe("detail qualification history", () => {
     value.applications[0].qualification.exact_records = [record];
     const markup = details(value);
     expect(markup).toContain(record.method);
-    expect(markup.match(/Not recorded — scope unknown/g)).toHaveLength(4);
+    expect(markup.match(/Not recorded — scope unknown/g)).toHaveLength(2);
     expect(markup).toContain("Current applicability is unknown");
     expect(markup).toContain("not a fresh check");
   });
@@ -252,7 +252,18 @@ describe("detail qualification history", () => {
     expect(markup).toContain("Structural check · Passed");
     expect(markup).toContain("Known failure · Failed");
     expect(markup).toContain("2026-09-13");
-    expect(markup).toContain("snap64-windows-qualification-v1");
+    expect(markup).not.toContain("snap64-windows-qualification-v1");
+    expect(markup).not.toContain("usa-rev0");
+    expect(markup).toContain("Pokemon Snap · USA · Rev 0");
+    const technical = renderToStaticMarkup(
+      <DetailQualificationSummary port={snap64} sourceInspection={report()} technical />,
+    );
+    expect(technical).toContain("snap64-windows-qualification-v1");
+    expect(technical).toContain("usa-rev0");
+    expect(technical).toContain(
+      sourceCatalog.qualification.find((record) => record.scope.port_id === snap64.id)!.scope
+        .artifact_sha256!,
+    );
   });
 
   it("escapes recorded methods and renders no new interactive control", () => {

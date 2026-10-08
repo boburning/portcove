@@ -1,5 +1,5 @@
 import type { PortDefinition, SourceInspectionReport } from "../types";
-import type { SourceEvidence } from "../transport-types.generated";
+import type { SourceEvidence, SourceVariant } from "../transport-types.generated";
 import { platformLabel } from "../view-model";
 
 const kindLabels = {
@@ -19,28 +19,34 @@ export function DetailQualificationSummary({
   port,
   sourceInspection,
   biosInspection,
+  technical = false,
 }: {
   port: PortDefinition;
   sourceInspection?: SourceInspectionReport;
   biosInspection?: SourceInspectionReport;
+  technical?: boolean;
 }) {
   return (
     <>
-      <div className="metadata">
-        <span>
-          <small>Legacy port-wide automated tests</small>
-          {legacyCoverage(port.platforms, port.automated_tested_platforms)}
-        </span>
-        <span>
-          <small>Legacy port-wide hands-on tests</small>
-          {legacyCoverage(port.platforms, port.manually_validated_platforms)}
-        </span>
-      </div>
-      <p className="text-sm text-pc-muted-foreground">
-        Recorded history, not a fresh check of your current files, release or device. Structural and
-        lifecycle passes do not establish gameplay or permission to launch. Legacy platform coverage
-        does not identify an exact artifact, edition or file format.
-      </p>
+      {!technical && (
+        <div className="metadata">
+          <span>
+            <small>Legacy port-wide automated tests</small>
+            {legacyCoverage(port.platforms, port.automated_tested_platforms)}
+          </span>
+          <span>
+            <small>Legacy port-wide hands-on tests</small>
+            {legacyCoverage(port.platforms, port.manually_validated_platforms)}
+          </span>
+        </div>
+      )}
+      {!technical && (
+        <p className="text-sm text-pc-muted-foreground">
+          Recorded history, not a fresh check of your current files, release or device. Structural
+          and lifecycle passes do not establish gameplay or permission to launch. Legacy platform
+          coverage does not identify an exact artifact, edition or file format.
+        </p>
+      )}
       {(["game", "bios"] as const).map((role) => {
         const profile = role === "game" ? port.source_profile : port.bios_source_profile;
         if (!profile) return null;
@@ -98,7 +104,11 @@ export function DetailQualificationSummary({
                   <ul className="grid gap-3">
                     {records.map((record, index) => (
                       <li key={index}>
-                        <RecordedObservation record={record} />
+                        <RecordedObservation
+                          record={record}
+                          technical={technical}
+                          variants={report?.expected_identity?.variants ?? []}
+                        />
                       </li>
                     ))}
                   </ul>
@@ -121,9 +131,32 @@ export function DetailQualificationSummary({
   );
 }
 
-function RecordedObservation({ record }: { record: SourceEvidence }) {
+function RecordedObservation({
+  record,
+  technical,
+  variants,
+}: {
+  record: SourceEvidence;
+  technical: boolean;
+  variants: SourceVariant[];
+}) {
   const identity =
     record.scope.variant.state === "exact" ? record.scope.variant.identity : undefined;
+  const variant = variants.find((candidate) => candidate.id === identity?.variant_id);
+  const representation = variant?.representations.find(
+    (candidate) => candidate.id === identity?.representation_id,
+  );
+  const edition =
+    variant && representation
+      ? [
+          variant.title,
+          variant.region,
+          variant.revision,
+          representation.extensions.map((extension) => `.${extension}`).join(", "),
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "Not recorded — scope unknown";
   const observedAt = new Date(record.observed_at * 1000);
   return (
     <div className="grid gap-1 text-sm break-words">
@@ -148,28 +181,45 @@ function RecordedObservation({ record }: { record: SourceEvidence }) {
         <div>
           <dt>Recorded edition and format</dt>
           <dd>
-            {identity
-              ? `${identity.variant_id} · ${identity.representation_id}`
-              : "Not recorded — scope unknown"}
+            {technical && identity
+              ? `${identity.game_id} · ${identity.variant_id} · ${identity.representation_id}`
+              : edition}
           </dd>
         </div>
         <div>
           <dt>Recorded release</dt>
           <dd>{record.scope.upstream_ref || "Not recorded — scope unknown"}</dd>
         </div>
-        <div>
-          <dt>Recorded check version</dt>
-          <dd>{record.scope.check_version || "Not recorded — scope unknown"}</dd>
-        </div>
-        <div>
-          <dt>Recorded artifact SHA-256</dt>
-          <dd>
-            <code className="break-all">
-              {record.scope.artifact_sha256 || "Not recorded — scope unknown"}
-            </code>
-          </dd>
-        </div>
+        {technical && (
+          <div>
+            <dt>Recorded contract</dt>
+            <dd>{record.scope.contract_id || "Not recorded — scope unknown"}</dd>
+          </div>
+        )}
+        {technical && (
+          <div>
+            <dt>Recorded check version</dt>
+            <dd>{record.scope.check_version || "Not recorded — scope unknown"}</dd>
+          </div>
+        )}
+        {technical && (
+          <div>
+            <dt>Recorded artifact SHA-256</dt>
+            <dd>
+              <code className="break-all">
+                {record.scope.artifact_sha256 || "Not recorded — scope unknown"}
+              </code>
+            </dd>
+          </div>
+        )}
       </dl>
+      {!technical && (
+        <p>
+          {record.scope.check_version && record.scope.artifact_sha256
+            ? "Artifact and check identities recorded in Technical details."
+            : "Artifact or check identity not recorded — scope unknown."}
+        </p>
+      )}
     </div>
   );
 }

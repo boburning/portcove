@@ -1308,6 +1308,12 @@ function TechnicalDetails({
             {persistentFiles || "No saved data paths declared"}
           </span>
         </div>
+        <DetailQualificationSummary
+          port={port}
+          sourceInspection={sources.sourceInspection}
+          biosInspection={sources.biosInspection}
+          technical
+        />
         <CliContinuity
           key={`${port.id}:${libraryGeneration}`}
           generation={libraryGeneration}
