@@ -742,6 +742,13 @@ provider starts anonymous without loading ambient credentials. Default builds re
 these flags and hidden update commands. This route does not alter publisher policy,
 trust roots, grant checks, serialization or production provider selection.
 
+Explicit qualification-provider invocations also refuse nonempty `HTTP_PROXY`,
+`HTTPS_PROXY` or `ALL_PROXY` environment variables, case-insensitively, before
+preferences, library opening, provider construction or requests. `NO_PROXY` does
+not waive this conservative refusal. Values are neither printed nor changed;
+ordinary invocations preserve their existing proxy behavior. This keeps the
+synthetic fixture CLI route isolated without changing production networking.
+
 Stale plans, digest mismatch and redirects outside the bound origin must refuse
 without changing selected definitions or retained installation bytes and records.
 Authenticated authorization narrowing and restoration cannot revive retained Launch

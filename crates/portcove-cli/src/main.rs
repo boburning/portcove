@@ -1154,9 +1154,52 @@ fn require_qualification_update_binding(cli: &Cli) -> Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "qualification-fixtures")]
+fn require_qualification_proxy_free_environment(
+    cli: &Cli,
+    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) -> Result<()> {
+    if cli.qualification_provider_origin.is_none() && cli.qualification_provider_library.is_none() {
+        return Ok(());
+    }
+    if environment.into_iter().any(|(name, value)| {
+        !value.is_empty()
+            && name.to_str().is_some_and(|name| {
+                ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"]
+                    .iter()
+                    .any(|proxy| name.eq_ignore_ascii_case(proxy))
+            })
+    }) {
+        return Err(PortcoveError::usage(
+            "qualification provider refuses proxy environment",
+        ));
+    }
+    Ok(())
+}
+
 async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     #[cfg(feature = "qualification-fixtures")]
+    {
+        execute_with_qualification_environment(cli, mode, std::env::vars_os()).await
+    }
+    #[cfg(not(feature = "qualification-fixtures"))]
+    {
+        execute_after_qualification_preflight(cli, mode).await
+    }
+}
+
+#[cfg(feature = "qualification-fixtures")]
+async fn execute_with_qualification_environment(
+    cli: Cli,
+    mode: OutputMode,
+    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) -> Result<ExitCode> {
     require_qualification_update_binding(&cli)?;
+    require_qualification_proxy_free_environment(&cli, environment)?;
+    execute_after_qualification_preflight(cli, mode).await
+}
+
+async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     if let Commands::Catalog {
         command: CatalogCommand::InspectProposal { file },
     } = &cli.command
@@ -3167,6 +3210,137 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "qualification-fixtures")]
+    fn qualification_proxy_cli() -> Cli {
+        Cli::try_parse_from([
+            "portcove",
+            "--library",
+            "owned-library",
+            "--qualification-provider-library",
+            "owned-library",
+            "--qualification-provider-origin",
+            "http://127.0.0.1:8123",
+            "status",
+        ])
+        .unwrap()
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn qualification_proxy_environment_is_fail_closed_and_redacted() {
+        let cli = qualification_proxy_cli();
+        for name in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
+            for spelling in [
+                name.to_owned(),
+                name.to_ascii_lowercase(),
+                name.to_ascii_lowercase().replacen('p', "P", 1),
+            ] {
+                let environment = [
+                    (
+                        std::ffi::OsString::from(spelling),
+                        std::ffi::OsString::from("inert-private-proxy-value"),
+                    ),
+                    ("NO_PROXY".into(), "*".into()),
+                ];
+                let error =
+                    super::require_qualification_proxy_free_environment(&cli, environment.clone())
+                        .unwrap_err();
+                assert_eq!(error.code, portcove_core::ErrorCode::Usage);
+                assert_eq!(
+                    error.message,
+                    "qualification provider refuses proxy environment"
+                );
+                assert!(error.details.is_empty());
+                assert!(!error.to_string().contains("inert-private-proxy-value"));
+                assert_eq!(environment[0].1, "inert-private-proxy-value");
+            }
+        }
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn qualification_proxy_environment_allows_unset_empty_and_ordinary_invocations() {
+        let cli = qualification_proxy_cli();
+        super::require_qualification_proxy_free_environment(&cli, []).unwrap();
+        super::require_qualification_proxy_free_environment(
+            &cli,
+            [
+                ("HTTP_PROXY".into(), "".into()),
+                ("https_proxy".into(), "".into()),
+                ("ALL_PROXY".into(), "".into()),
+                ("NO_PROXY".into(), "*".into()),
+            ],
+        )
+        .unwrap();
+        let ordinary = Cli::try_parse_from(["portcove", "status"]).unwrap();
+        super::require_qualification_proxy_free_environment(
+            &ordinary,
+            [("HTTP_PROXY".into(), "inert-private-proxy-value".into())],
+        )
+        .unwrap();
+    }
+
+    #[cfg(all(feature = "qualification-fixtures", any(unix, windows)))]
+    #[test]
+    fn qualification_proxy_environment_refuses_non_unicode_nonempty_values() {
+        #[cfg(unix)]
+        let value = {
+            use std::os::unix::ffi::OsStringExt;
+            std::ffi::OsString::from_vec(vec![0xff])
+        };
+        #[cfg(windows)]
+        let value = {
+            use std::os::windows::ffi::OsStringExt;
+            std::ffi::OsString::from_wide(&[0xd800])
+        };
+        assert!(value.to_str().is_none());
+        let error = super::require_qualification_proxy_free_environment(
+            &qualification_proxy_cli(),
+            [("ALL_PROXY".into(), value)],
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.message,
+            "qualification provider refuses proxy environment"
+        );
+        assert!(error.details.is_empty());
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[tokio::test]
+    async fn qualification_proxy_refusal_precedes_library_open() {
+        let directory = tempfile::tempdir().unwrap();
+        let library = directory.path().join("library");
+        let cli = Cli::try_parse_from([
+            "portcove",
+            "--library",
+            library.to_str().unwrap(),
+            "--qualification-provider-library",
+            library.to_str().unwrap(),
+            "--qualification-provider-origin",
+            "http://127.0.0.1:8123",
+            "status",
+        ])
+        .unwrap();
+        let result = super::execute_with_qualification_environment(
+            cli,
+            super::OutputMode::Json,
+            [("HTTP_PROXY".into(), "inert-private-proxy-value".into())],
+        )
+        .await;
+        assert!(
+            !library.exists(),
+            "proxy refusal must precede library opening"
+        );
+        let error = result.expect_err("qualification proxy environment must refuse");
+        assert_eq!(error.code, portcove_core::ErrorCode::Usage);
+        assert_eq!(
+            error.message,
+            "qualification provider refuses proxy environment"
+        );
+        assert!(error.details.is_empty());
+    }
+
     #[cfg(not(feature = "qualification-fixtures"))]
     #[test]
     fn ordinary_cli_rejects_qualification_provider_and_update_commands() {
