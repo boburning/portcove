@@ -88,8 +88,12 @@ export async function encodeHostedEvidence(root) {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const file = path.join(directory, entry.name);
       assert.ok(!entry.isSymbolicLink(), "Evidence cannot contain links");
-      if (entry.isDirectory()) await visit(file, depth + 1);
-      else {
+      if (entry.isDirectory()) {
+        // Runtime SQLite/library and WebView profiles are not evidence artifacts.
+        if (depth === 1 && ["library", "webview"].includes(entry.name)) continue;
+        assert.ok(depth === 0 && entry.name === "native", "Unsupported artifact directory");
+        await visit(file, depth + 1);
+      } else {
         assert.ok(
           entry.isFile() && /\.(?:png|json|jsonl|log)$/u.test(entry.name),
           "Unsupported evidence file",
@@ -107,16 +111,39 @@ export async function encodeHostedEvidence(root) {
 export async function recoverHostedEvidence(log, destination, expected) {
   const names = await recoverBackupEvidence(log, destination);
   const binding = JSON.parse(await readFile(path.join(destination, "binding.json"), "utf8"));
-  for (const key of ["source", "controller", "base", "run", "attempt", "binding_sha256"])
+  for (const key of [
+    "source",
+    "controller",
+    "base",
+    "run",
+    "attempt",
+    "job",
+    "phase",
+    "binding_sha256",
+  ])
     assert.ok(
       expected[key] !== undefined && binding[key] === expected[key],
       `Recovered ${key} differs`,
     );
   assert.ok(names.includes("execution.json"), "No terminal command evidence");
   const execution = JSON.parse(await readFile(path.join(destination, "execution.json"), "utf8"));
-  for (const key of ["source", "controller", "base", "run", "attempt", "binding_sha256"])
+  for (const key of [
+    "source",
+    "controller",
+    "base",
+    "run",
+    "attempt",
+    "job",
+    "phase",
+    "binding_sha256",
+  ])
     assert.equal(execution[key], expected[key], `Terminal ${key} differs`);
   assert.ok(Number.isInteger(execution.exit_code), "Missing terminal exit status");
+  if (execution.phase === "audit" && execution.exit_code === 0)
+    assert.ok(
+      names.includes("complete-audit-receipt.json"),
+      "Audit success requires its maintained raw receipt",
+    );
   if (execution.phase === "native" && execution.exit_code === 0)
     assert.ok(
       names.some((name) => name.endsWith(".png")),

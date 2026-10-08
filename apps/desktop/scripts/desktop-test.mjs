@@ -39,7 +39,12 @@ import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
-import { qualificationHistoryScenario } from "./desktop-qualification-history-test.mjs";
+import {
+  qualificationHistoryScenario,
+  captureHistorySession,
+  historyDriverStillOwned,
+  waitHistorySessionExit,
+} from "./desktop-qualification-history-test.mjs";
 import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
 import {
@@ -308,6 +313,8 @@ let driver;
 let browser;
 let driverLog = "";
 let startupAttempt = 0;
+const historySession = selection.selected_scenarios.includes("native-qualification-history");
+let historyInventory;
 const backupFocusSession = selection.selected_scenarios.includes("native-backup-delete-focus");
 const hostInterruptionSession = selection.selected_scenarios.includes(
   "native-host-interrupted-preparation",
@@ -1193,6 +1200,7 @@ async function interruptApplication(name, preparationExecutable, assertStillPrep
   driver = undefined;
   await startDriver();
   await connect();
+
   observation.reconnected_at = new Date().toISOString();
   const evidence = path.join(output, `${name}-restart.json`);
   await writeFile(evidence, JSON.stringify(observation, null, 2), { flag: "wx" });
@@ -1591,6 +1599,12 @@ try {
   await requireUnusedPort(port + 1);
   await startDriver();
   await connect();
+  if (historySession) {
+    historyInventory = await captureHistorySession(driver.pid, values.driver, values.app);
+    const record = path.join(output, "qualification-history-process-identities.json");
+    await writeFile(record, JSON.stringify(historyInventory, null, 2), { flag: "wx" });
+    artifacts.push(record);
+  }
   await scenario("native-external-runtime-review", async () => {
     const pickerContext = {
       application: values.app,
@@ -3039,6 +3053,47 @@ try {
         });
         process.exitCode = 1;
         // No PID-only fallback when identity or positive exit could not be proved.
+      }
+    } else if (historySession) {
+      let quitError;
+      try {
+        assert.ok(historyInventory, "History requires captured identities before interaction");
+        const finalInventory = await captureHistorySession(driver.pid, values.driver, values.app);
+        assert.equal(finalInventory.driver.start_ticks, historyInventory.driver.start_ticks);
+        const identities = new Map(
+          [...historyInventory.processes, ...finalInventory.processes].map((entry) => [
+            `${entry.pid}:${entry.start_ticks}`,
+            entry,
+          ]),
+        );
+        historyInventory.processes = [...identities.values()];
+        if (browser)
+          await browser.quit().catch((error) => {
+            quitError = error;
+          });
+        browser = undefined;
+        if (await historyDriverStillOwned(historyInventory)) stopDriver();
+        const exited = await waitHistorySessionExit(historyInventory);
+        const report = path.join(output, "qualification-history-cleanup.json");
+        await writeFile(
+          report,
+          JSON.stringify({ ...exited, session_quit_error: quitError?.message ?? null }, null, 2),
+          { flag: "wx" },
+        );
+        artifacts.push(report);
+        assert.equal(
+          quitError,
+          undefined,
+          "History session deletion failed; preserve its cleanup receipt",
+        );
+      } catch (error) {
+        checks.push({
+          scenario: "native-history-owned-cleanup",
+          outcome: "failed",
+          message: error.message,
+        });
+        process.exitCode = 1;
+        // No PID-only fallback after missing or changed identity.
       }
     } else {
       if (browser) await browser.quit().catch(() => {});

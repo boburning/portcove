@@ -1,13 +1,61 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { copyFile, mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
+import {
+  copyFile,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readlink,
+  writeFile,
+  rm,
+  stat,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
 import { createInstallFixture } from "../apps/desktop/scripts/desktop-install-fixture.mjs";
 import { fileIdentity } from "./development-evidence.mjs";
 import { toolCachePaths } from "./tool-cache.mjs";
+import {
+  captureHistorySession,
+  historyDriverStillOwned,
+  waitHistorySessionExit,
+} from "../apps/desktop/scripts/desktop-qualification-history-test.mjs";
+
+test(
+  "history ownership rejects an unrelated PID and changed creation identity without signaling",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const raw = await readFile(`/proc/${process.pid}/stat`, "utf8");
+    const fields = raw.slice(raw.lastIndexOf(")") + 2).split(" ");
+    const driver = {
+      pid: process.pid,
+      parent: Number(fields[1]),
+      group: Number(fields[2]),
+      start_ticks: fields[19],
+      executable: await readlink(`/proc/${process.pid}/exe`),
+    };
+    assert.equal(await historyDriverStillOwned({ driver }), true);
+    await assert.rejects(
+      () => historyDriverStillOwned({ driver: { ...driver, start_ticks: "0" } }),
+      /start_ticks changed/,
+    );
+    await assert.rejects(
+      () => captureHistorySession(process.pid, process.execPath, process.execPath),
+      /Expected values to be strictly equal/,
+    );
+    const oldIdentity = await waitHistorySessionExit({
+      processes: [{ ...driver, start_ticks: "0" }],
+    });
+    assert.equal(oldIdentity.all_exited, true);
+    assert.equal(
+      await historyDriverStillOwned({ driver }),
+      true,
+      "An unrelated current process must be retained",
+    );
+  },
+);
 import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,

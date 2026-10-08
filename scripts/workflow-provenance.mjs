@@ -620,6 +620,12 @@ const bootstrapPaths = new Set([
 ]);
 const hostedOperations = new Set(["bootstrap", "selected", "compiled", "qualification-history"]);
 const fixedWorkflow = ".github/workflows/native-design-compatibility.yml";
+const fixedPhaseJobs = {
+  selected: "hosted_selected",
+  audit: "hosted_audit",
+  compiled: "hosted_compiled",
+  native: "hosted_history",
+};
 
 export function parseHostedValidationBinding(raw, digest) {
   if (typeof raw !== "string" || Buffer.byteLength(raw) > 60_000 || sha256(raw) !== digest)
@@ -698,6 +704,14 @@ export async function runHostedValidation(phase, options = {}) {
   };
   if (phase !== "controller" && !permitted[binding.operation].includes(phase))
     throw new Error("Phase differs from admitted operation");
+  const admittedJobs = permitted[binding.operation]
+    .map((entry) => fixedPhaseJobs[entry])
+    .filter(Boolean);
+  if (
+    !admittedJobs.includes(env.GITHUB_JOB) ||
+    (fixedPhaseJobs[phase] && fixedPhaseJobs[phase] !== env.GITHUB_JOB)
+  )
+    throw new Error("Fixed phase/job identity differs");
   if (
     env.GITHUB_REPOSITORY !== "boburning/portcove" ||
     env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
@@ -844,6 +858,7 @@ export async function runHostedValidation(phase, options = {}) {
     binding_sha256: env.PORTCOVE_LOCAL_BINDING_SHA256,
     run: env.GITHUB_RUN_ID,
     attempt: env.GITHUB_RUN_ATTEMPT,
+    job: env.GITHUB_JOB,
     phase,
     source_tree: git(source, ["rev-parse", `${binding.source}^{tree}`]),
     controller_tree: git(controller, ["rev-parse", `${binding.controller}^{tree}`]),
@@ -955,6 +970,18 @@ export async function runHostedValidation(phase, options = {}) {
   clean();
   if (git(source, ["rev-parse", "origin/main"]) !== binding.base)
     throw new Error("Comparison target changed");
+  if (phase === "audit") {
+    const auditReceipt = await readFile(
+      path.join(source, "work", "validation-receipts", "audits", `${binding.source}.json`),
+    ).catch((error) => {
+      if (error.code === "ENOENT" && result.status !== 0) return null;
+      throw error;
+    });
+    if (auditReceipt)
+      await writeFile(path.join(evidence, "complete-audit-receipt.json"), auditReceipt, {
+        flag: "wx",
+      });
+  }
   await writeFile(
     path.join(evidence, "execution.json"),
     JSON.stringify(

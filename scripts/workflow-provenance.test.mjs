@@ -122,6 +122,7 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
       "boburning/portcove/.github/workflows/native-design-compatibility.yml@refs/heads/fixture",
     GITHUB_RUN_ID: "42",
     GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_JOB: "hosted_selected",
     RUNNER_OS: "Linux",
     RUNNER_ARCH: "X64",
     PORTCOVE_LOCAL_OPERATION: "bootstrap",
@@ -138,6 +139,7 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
   };
   assert.equal(await runHostedValidation("controller", options), 0);
   assert.equal(await runHostedValidation("prepare", options), 0);
+  await assert.rejects(() => runHostedValidation("audit", options), /phase\/job/);
   await assert.rejects(() => runHostedValidation("compiled", options), /Phase differs/);
   await assert.rejects(
     () =>

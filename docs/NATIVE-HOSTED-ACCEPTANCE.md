@@ -118,10 +118,12 @@ job through that reader and materialize its complete decoded text, then run:
 node scripts/native-backup-evidence.mjs recover-hosted job.log new-evidence expected-binding.json
 ```
 
-The expected binding supplies source/controller/base/run/attempt and binding SHA-256
-from the admitted inputs and actual run readback. Recovery checks complete ordered
+The expected binding supplies source/controller/base/run/attempt, fixed job name,
+execution phase and binding SHA-256 from the admitted inputs and actual run/job
+readback. Recovery checks complete ordered
 records, compressed and per-file digests, byte/path limits and terminal identity.
-A passing native phase must include actual PNG bytes; inspect recovered images
+A passing audit retains its maintained raw complete-audit receipt separately from
+selected execution evidence. A passing native phase must include actual PNG bytes; inspect recovered images
 before a visual claim. Codec unit PNGs, a file reference, truncated tool text or
 unreadable logs never establish native acceptance. Failure or an exceeded retention
 bound remains visible and incomplete. The proven reader route is not a promise that
