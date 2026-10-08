@@ -2014,6 +2014,39 @@ try {
         15_000,
         "Owned library switch did not advance bootstrap generation",
       );
+      if (outcome !== "switched") {
+        const diagnostic = { outcome };
+        try {
+          diagnostic.technical_text = await browser.executeScript(() => {
+            const article = [...document.querySelectorAll("article")].find((element) =>
+              [...element.querySelectorAll("h2")].some(
+                (heading) => heading.textContent.trim() === "Library at startup",
+              ),
+            );
+            return (
+              article?.querySelector('[role="alert"] .failure-details pre')?.textContent ?? null
+            );
+          });
+          if (diagnostic.technical_text) {
+            try {
+              diagnostic.technical_projection = JSON.parse(diagnostic.technical_text);
+            } catch (error) {
+              diagnostic.parse_error = String(error);
+            }
+          } else {
+            diagnostic.capture_error = "Library switch technical projection is absent";
+          }
+        } catch (error) {
+          diagnostic.capture_error = String(error);
+        }
+        const report = path.join(output, `${artifactName}-switch-failure.json`);
+        try {
+          await writeFile(report, JSON.stringify(diagnostic, null, 2), { flag: "wx" });
+          artifacts.push(report);
+        } catch (error) {
+          console.error("Library switch diagnostic write failed", String(error), diagnostic);
+        }
+      }
       assert.equal(outcome, "switched", `Library switch failed: ${JSON.stringify(outcome)}`);
       await browser.wait(
         until.elementLocated(By.xpath('//button[normalize-space(.)="Choose another library"]')),

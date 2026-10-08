@@ -105,6 +105,51 @@ afterEach(async () => {
 });
 
 describe("Catalog channel controls", () => {
+  it("retains a rejected switch's technical projection without opening details or retrying", async () => {
+    const target = "E:/qualification/alternate-library";
+    const switchLibrary = vi.fn().mockRejectedValue({
+      code: "conflict",
+      message: "outgoing library lease is held",
+      details: { library_root: "E:/qualification/original-library" },
+      presentation: {
+        summary: "The selection changed or another operation is using it.",
+        technical_message: "outgoing library lease is held",
+        technical_context: { library_root: "E:/qualification/original-library" },
+        mutation_state: "unknown",
+        phase: null,
+        recovery_actions: [],
+      },
+    });
+    await act(async () =>
+      root.render(
+        <LibrarySelectionCard
+          choose={vi.fn().mockResolvedValue(target)}
+          switchLibrary={switchLibrary}
+        />,
+      ),
+    );
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[data-library-selection-trigger="switch"]')!.click(),
+    );
+    const confirmation = [
+      ...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button'),
+    ].find((button) => button.textContent === "Switch library")!;
+    await act(async () => confirmation.click());
+    const alert = host.querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain("The selection changed");
+    expect(alert.querySelector("details")!.open).toBe(false);
+    const projection = JSON.parse(alert.querySelector(".failure-details pre")!.textContent!);
+    expect(projection).toEqual({
+      mutation_state: "unknown",
+      phase: null,
+      message: "outgoing library lease is held",
+      context: { library_root: "E:/qualification/original-library" },
+    });
+    expect(projection).not.toHaveProperty("code");
+    expect(alert.querySelector("details")!.open).toBe(false);
+    expect(switchLibrary).toHaveBeenCalledExactlyOnceWith(target);
+    expect(invoke).not.toHaveBeenCalled();
+  });
   it("binds the native switch confirmation selector to the rendered reviewed action", async () => {
     const { default: nativeHarnessSource } = await import("../../../scripts/desktop-test.mjs?raw");
     const target = "E:/qualification/alternate-library";
