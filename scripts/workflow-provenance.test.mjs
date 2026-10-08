@@ -85,6 +85,12 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
   git(source, ["config", "user.email", "fixture@invalid"]);
   write("rust-toolchain.toml", 'channel = "1.98.1"\n');
   write("scripts/audit.mjs", "preserved audit\n");
+  write(".node-version", process.versions.node + "\n");
+  write("package.json", JSON.stringify({ packageManager: "pnpm@12.8.1" }));
+  write(
+    ".github/quality-tools.json",
+    JSON.stringify({ tools: [{ id: "just", version: "1.58.0" }] }),
+  );
   git(source, ["add", "."]);
   git(source, ["commit", "--quiet", "-m", "trusted base"]);
   const base = git(source, ["rev-parse", "HEAD"]);
@@ -140,6 +146,69 @@ test("bootstrap binds actual clean Git inventories and refuses out-of-scope or d
   };
   assert.equal(await runHostedValidation("controller", options), 0);
   assert.equal(await runHostedValidation("prepare", options), 0);
+  await t.test("failed preflight retains its report before refusing provisioning", async () => {
+    const plan = [
+      { id: "ui-build", executable: "corepack", args: ["pnpm", "run", "build"], cwd: "$SOURCE/" },
+    ];
+    const bound = { ...spec, baseline_plan: plan, selected_plan: plan };
+    const boundRaw = JSON.stringify(bound);
+    const matching = {
+      source: head,
+      base,
+      merge_base: base,
+      plan_digest: bound.plan_digest,
+      selected_plan: plan,
+      obligations: [{ id: "ui-build", missing: [] }],
+      pre_change_audit: { missing_local_prerequisites: ["complete-audit-prerequisites"] },
+    };
+    const evidence = path.join(directory, "hosted-evidence");
+    for (const report of [
+      { ...matching, obligations: [{ id: "ui-build", missing: ["pnpm"] }] },
+      { ...matching, selected_plan: [{ ...plan[0], args: ["pnpm", "run", "other"] }] },
+      matching,
+    ]) {
+      const commands = [];
+      const result = runHostedValidation("provision", {
+        ...options,
+        environment: {
+          ...environment,
+          PORTCOVE_LOCAL_BINDING: boundRaw,
+          PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(boundRaw),
+        },
+        command: (name, args, cwd) => {
+          if (name === "git") return git(cwd, args);
+          assert.equal(cwd, source);
+          return {
+            just: "just 1.58.0",
+            pnpm: "12.8.1",
+            rustc: "rustc 1.98.1 (fixture)",
+            cargo: "cargo 1.98.1 (fixture)",
+          }[name];
+        },
+        spawn: (name, args, settings) => {
+          commands.push({ name, args, cwd: settings.cwd });
+          assert.equal(name, process.execPath);
+          assert.deepEqual(args, [
+            "scripts/local-validation.mjs",
+            "check",
+            "--preflight",
+            "--json",
+          ]);
+          assert.equal(settings.cwd, source);
+          return { status: 1, stdout: JSON.stringify(report) };
+        },
+      });
+      if (report === matching) assert.equal(await result, 0);
+      else
+        await assert.rejects(() => result, /Full reviewed selected plan or prerequisites differ/);
+      assert.deepEqual(
+        JSON.parse(readFileSync(path.join(evidence, "selected-plan.json"), "utf8")),
+        report,
+      );
+      assert.equal(commands.length, 1, "No browser or selected command may run during refusal");
+      assert.throws(() => readFileSync(path.join(evidence, "execution.json")), /ENOENT/);
+    }
+  });
   await assert.rejects(() => runHostedValidation("audit", options), /phase\/job/);
   await assert.rejects(() => runHostedValidation("compiled", options), /Phase differs/);
   await assert.rejects(
