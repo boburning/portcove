@@ -872,3 +872,98 @@ test("known artifact, authority and distribution failures retain exact reported 
     assert.equal(report.port_health[1].qualification.inherited, false);
   }
 });
+
+test("repository identity baseline survives replacement, outage and aged snapshots", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  const collect = (id, previousReport, time = healthTime) =>
+    collectRepositoryHealth(input, {
+      now: () => time,
+      previousReport,
+      fetch: async () =>
+        id === null
+          ? new Response(null, { status: 404 })
+          : new Response(JSON.stringify({ id, full_name: "owner/tracked", archived: false }), {
+              headers: { "content-type": "application/json" },
+            }),
+    });
+  const original = await collect(1);
+  for (const intervening of [await collect(2, original), await collect(null, original), original]) {
+    const report = await collect(2, intervening, healthTime + 25 * 3600_000);
+    assert.equal(report.observations[0].baseline_repository_id, 1);
+    assert.equal(report.observations[0].observed_repository_id, 2);
+    assert.equal(report.observations[0].reason, "identity-mismatch");
+    assert.equal(report.outcome, "incomplete");
+    assert.deepEqual(report.resolved_incidents, []);
+  }
+  const replacement = await collect(2, original);
+  const repeated = await collect(2, replacement);
+  assert.equal(repeated.observations[0].reason, "identity-mismatch");
+  assert.equal(repeated.material_changes.length, 0);
+});
+
+test("changed material retains condition history and provider-specific recovery", async () => {
+  const input = {
+    ports: [
+      {
+        id: "tracked",
+        project_url: "https://github.com/owner/tracked",
+        release: { provider: "gitlab", repository: "owner/tracked" },
+      },
+    ],
+  };
+  const collect = (status, previousReport, time) =>
+    collectRepositoryHealth(input, {
+      now: () => time,
+      previousReport,
+      fetch: async (url) =>
+        url.includes("api.github.com")
+          ? new Response(null, { status })
+          : new Response(
+              JSON.stringify({ id: 2, path_with_namespace: "owner/tracked", archived: false }),
+              {
+                headers: { "content-type": "application/json" },
+              },
+            ),
+    });
+  const first = await collect(503, null, healthTime);
+  const changed = await collect(502, first, healthTime + 1000);
+  const before = first.port_health[0].canonical_incidents[0];
+  const after = changed.port_health[0].canonical_incidents[0];
+  assert.equal(after.first_seen, before.first_seen);
+  assert.equal(after.occurrences, 2);
+  assert.equal(after.notify, true);
+  assert.equal(after.provider, "github");
+  assert.deepEqual(changed.resolved_incidents, []);
+  const missing = await collect(404, null, healthTime);
+  const repeated = await collect(404, missing, healthTime + 1000);
+  assert.deepEqual(repeated.resolved_incidents, []);
+  assert.equal(repeated.material_changes.length, 0);
+});
+
+test("rate-limit fallback defers repeated runs while preserving comparison and incident history", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  for (const headers of [{}, { "retry-after": "120" }]) {
+    const first = await collectRepositoryHealth(input, {
+      now: () => healthTime,
+      fetch: async () => new Response(null, { status: 429, headers }),
+    });
+    let prior = first;
+    for (const elapsed of [1000, 2000]) {
+      const report = await collectRepositoryHealth(input, {
+        now: () => healthTime + elapsed,
+        previousReport: prior,
+        fetch: async () => assert.fail("backoff must not request"),
+      });
+      assert.equal(report.observations[0].attempted, false);
+      assert.equal(report.observations[0].http_status, null);
+      assert.equal(report.observations[0].comparison_http_status, 429);
+      assert.equal(report.material_changes.length, 0);
+      const incident = report.port_health[0].canonical_incidents[0];
+      assert.equal(incident.first_seen, first.port_health[0].canonical_incidents[0].first_seen);
+      assert.equal(incident.occurrences, elapsed / 1000 + 1);
+      assert.equal(incident.notify, false);
+      prior = report;
+    }
+    assert.ok(Date.parse(first.observations[0].retry_at) >= healthTime + 60_000);
+  }
+});

@@ -785,10 +785,16 @@ reported at their original scope without creating or clearing a publisher hold.
 An optional `--previous-report=PATH` consumes a bounded prior format-2 report as
 comparison evidence. It writes no state, issue comment or status ledger. Only a
 matching canonical catalog hash and a nonfuture report no older than 24 hours
-can provide comparison/backoff; stale or malformed scope is labeled unused.
+can provide notification comparison/backoff; stale or malformed scope is labeled unused.
+A structurally valid matching older snapshot retains only its repository-ID
+baseline so an outage or repeated replacement cannot silently establish a new
+identity. Current availability is always observed afresh.
 Repeated identical conditions keep their first-seen time, bounded occurrence
 count and `notify: false`; changed HTTP/identity/digest/size/classification facts
-request an update. Fresh recovery is reported separately. Unclassified failures
+request an update while retaining the condition’s first-seen time and count.
+Deferred attempts report no fresh HTTP response and identify prior comparison
+evidence separately. Rate limits without a usable retry clock use a one-minute
+fallback. Fresh recovery is reported separately. Unclassified failures
 remain prominent and keep their failure exit even when notification is
 unchanged. Ordinary unchanged success with a matching prior report is quiet;
 `--json` always emits the complete evidence record. The report never authenticates

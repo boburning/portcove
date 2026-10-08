@@ -274,7 +274,7 @@ function retryAt(headers, now) {
   const candidates = [delay, resetTime].filter(
     (value) => Number.isFinite(value) && value <= 8.64e15,
   );
-  return candidates.length ? new Date(Math.max(now + 60_000, ...candidates)).toISOString() : null;
+  return new Date(Math.max(now + 60_000, ...candidates)).toISOString();
 }
 
 function statusReason(response) {
@@ -332,7 +332,7 @@ export async function collectRepositoryHealth(
   const { records, directPorts } = inventory(catalog);
   const catalogHash = observationHash(catalog);
   const started = now();
-  const previousUsable =
+  const previousScopeValid =
     previousReport?.format_version === 2 &&
     previousReport.catalog_sha256 === catalogHash &&
     Array.isArray(previousReport.observations) &&
@@ -350,9 +350,10 @@ export async function collectRepositoryHealth(
         port.canonical_incidents.every((value) => value && typeof value.key === "string"),
     ) &&
     Number.isFinite(Date.parse(previousReport.completed_at)) &&
-    Date.parse(previousReport.completed_at) <= started &&
-    started - Date.parse(previousReport.completed_at) <= 24 * 60 * 60 * 1000;
-  const priorObservations = previousUsable ? previousReport.observations : [];
+    Date.parse(previousReport.completed_at) <= started;
+  const previousUsable =
+    previousScopeValid && started - Date.parse(previousReport.completed_at) <= 24 * 60 * 60 * 1000;
+  const priorObservations = previousScopeValid ? previousReport.observations : [];
   const priorIncidents = new Map(
     previousUsable
       ? previousReport.port_health
@@ -368,6 +369,12 @@ export async function collectRepositoryHealth(
     const budgetProvider = ["direct-manifest", "project-page"].includes(record.provider)
       ? new URL(record.repository).origin
       : record.provider;
+    const priorLocation = priorObservations.find(
+      (value) =>
+        value.provider === record.provider &&
+        value.repository === record.repository &&
+        value.release_ref === record.release_ref,
+    );
     const result = {
       ...record,
       attempted: false,
@@ -376,6 +383,14 @@ export async function collectRepositoryHealth(
       http_status: null,
       archived: null,
       observed_repository_id: null,
+      baseline_repository_id:
+        Number.isSafeInteger(
+          priorLocation?.baseline_repository_id ?? priorLocation?.observed_repository_id,
+        ) && (priorLocation.baseline_repository_id ?? priorLocation.observed_repository_id) > 0
+          ? (priorLocation.baseline_repository_id ?? priorLocation.observed_repository_id)
+          : null,
+      comparison_http_status: null,
+      comparison_observed_at: null,
       retry_at: null,
       resume_condition: null,
     };
@@ -387,6 +402,14 @@ export async function collectRepositoryHealth(
     if (deferred.has(budgetProvider)) {
       fail("rate-limit");
       result.retry_at = deferred.get(budgetProvider);
+      if (previousUsable && priorLocation?.reason === "rate-limit") {
+        result.comparison_http_status =
+          priorLocation.http_status ?? priorLocation.comparison_http_status;
+        result.comparison_observed_at =
+          priorLocation.observed_at ??
+          priorLocation.comparison_observed_at ??
+          previousReport.completed_at;
+      }
       continue;
     }
     const remaining = deadline - now();
@@ -398,19 +421,18 @@ export async function collectRepositoryHealth(
       fail("budget");
       continue;
     }
-    const priorLocation = priorObservations.find(
-      (value) =>
-        value.provider === record.provider &&
-        value.repository === record.repository &&
-        value.release_ref === record.release_ref,
-    );
     if (
+      previousUsable &&
       priorLocation?.reason === "rate-limit" &&
       Number.isFinite(Date.parse(priorLocation.retry_at)) &&
       Date.parse(priorLocation.retry_at) > started
     ) {
       fail("rate-limit");
       result.retry_at = priorLocation.retry_at;
+      result.comparison_http_status =
+        priorLocation.http_status ?? priorLocation.comparison_http_status;
+      result.comparison_observed_at =
+        priorLocation.comparison_observed_at ?? previousReport.completed_at;
       continue;
     }
     if (record.provider === "unlocated-historical") {
@@ -550,8 +572,8 @@ export async function collectRepositoryHealth(
         fail("identity-mismatch");
         continue;
       }
-      const prior = priorLocation;
-      if (prior?.observed_repository_id && prior.observed_repository_id !== facts.id) {
+      result.baseline_repository_id ??= facts.id;
+      if (result.baseline_repository_id !== facts.id) {
         result.observed_repository_id = facts.id;
         fail("identity-mismatch");
         continue;
@@ -663,7 +685,7 @@ export async function collectRepositoryHealth(
           const prior = priorIncidents.get(key);
           const material = observationHash({
             key,
-            http_status: record.http_status,
+            http_status: record.http_status ?? record.comparison_http_status,
             repository_id: record.observed_repository_id,
             release_id: record.observed_release_id ?? null,
             asset_digests: (record.observed_asset_digests ?? []).toSorted(),
@@ -673,7 +695,6 @@ export async function collectRepositoryHealth(
           const priorValid =
             prior &&
             prior.key === key &&
-            prior.material_sha256 === material &&
             Number.isSafeInteger(prior.occurrences) &&
             prior.occurrences > 0 &&
             Number.isFinite(Date.parse(prior.first_seen)) &&
@@ -681,7 +702,7 @@ export async function collectRepositoryHealth(
           return {
             key,
             material_sha256: material,
-            notify: !priorValid,
+            notify: !priorValid || prior.material_sha256 !== material,
             first_seen: priorValid ? prior.first_seen : new Date(started).toISOString(),
             occurrences: priorValid ? Math.min(prior.occurrences + 1, Number.MAX_SAFE_INTEGER) : 1,
             accounted_for: record.accounted_for,
@@ -689,8 +710,11 @@ export async function collectRepositoryHealth(
             port_id: port.id,
             operation: "observe-availability",
             rule: record.reason,
+            provider: record.provider,
             location: record.repository,
             release_ref: record.release_ref ?? null,
+            comparison_http_status: record.comparison_http_status,
+            comparison_observed_at: record.comparison_observed_at,
             http_status: record.http_status,
             observed_at: new Date(now()).toISOString(),
             retry_at: record.retry_at,
@@ -705,6 +729,7 @@ export async function collectRepositoryHealth(
         (record) =>
           record.status === "reachable" &&
           record.port_ids.includes(incident.port_id) &&
+          record.provider === incident.provider &&
           record.repository === incident.location &&
           (record.release_ref ?? null) === incident.release_ref,
       ),
