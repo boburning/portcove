@@ -60,6 +60,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
+import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
 import { portActionPresentation } from "../features/port-actions/port-action-presentation";
 
@@ -508,6 +509,11 @@ function DetailBody({
       )}
       <DetailGroup title="Compatibility and testing">
         <CompatibilitySummary port={port} />
+        <DetailQualificationSummary
+          port={port}
+          sourceInspection={sources.sourceInspection}
+          biosInspection={sources.biosInspection}
+        />
       </DetailGroup>
       <DetailGroup title="Project and release">
         <ProjectReleaseSummary port={port} />
@@ -1011,39 +1017,8 @@ function CompatibilitySummary({ port }: { port: PortDefinition }) {
         <small>Installation method</small>
         {installationMethodLabel(port)}
       </span>
-      <span>
-        <small>Recorded automated tests</small>
-        {testingCoverageLabel(
-          port.platforms,
-          port.automated_tested_platforms,
-          "No automated test recorded",
-        )}
-      </span>
-      <span>
-        <small>Recorded hands-on tests</small>
-        {testingCoverageLabel(
-          port.platforms,
-          port.manually_validated_platforms,
-          "No hands-on test recorded",
-        )}
-      </span>
     </div>
   );
-}
-
-function testingCoverageLabel(
-  supported: PortDefinition["platforms"],
-  completed: PortDefinition["platforms"],
-  emptyLabel: string,
-) {
-  const completedSet = new Set(completed);
-  const recorded = supported.filter((platform) => completedSet.has(platform));
-  if (recorded.length === 0) return emptyLabel;
-  const unrecorded = supported.filter((platform) => !completedSet.has(platform));
-  const completedLabel = recorded.map((platform) => platformLabel(platform)).join(" · ");
-  return unrecorded.length === 0
-    ? completedLabel
-    : `${completedLabel} · Not recorded: ${unrecorded.map((platform) => platformLabel(platform)).join(" · ")}`;
 }
 
 function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
