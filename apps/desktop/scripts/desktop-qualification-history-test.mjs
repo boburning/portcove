@@ -13,12 +13,12 @@ async function historyProcess(pid) {
   });
   if (!raw) return null;
   const fields = raw.slice(raw.lastIndexOf(")") + 2).split(" ");
-  if (fields[0] === "Z") return null;
   const executable = await readlink(`/proc/${pid}/exe`).catch((error) => {
     if (["ENOENT", "EACCES", "EPERM"].includes(error.code)) return null;
     throw error;
   });
   return {
+    state: fields[0],
     pid: Number(pid),
     parent: Number(fields[1]),
     group: Number(fields[2]),
@@ -33,7 +33,7 @@ function sameHistoryIdentity(expected, actual) {
     assert.equal(actual[key], expected[key], `Captured native ${key} changed`);
 }
 
-export async function captureHistorySession(driverPid, driverPath, applicationPath) {
+export async function captureHistoryDriver(driverPid, driverPath) {
   assert.equal(process.platform, "linux");
   const owner = await historyProcess(process.pid);
   const driver = await historyProcess(driverPid);
@@ -42,6 +42,17 @@ export async function captureHistorySession(driverPid, driverPath, applicationPa
   assert.equal(driver.group, driver.pid, "History driver must retain its owned detached group");
   assert.equal(driver.executable, await realpath(driverPath));
   assert.ok(BigInt(driver.start_ticks) >= BigInt(owner.start_ticks));
+  return { owner, driver, processes: [driver] };
+}
+
+export async function captureHistorySession(
+  driverPid,
+  driverPath,
+  applicationPath,
+  phase = "interaction",
+) {
+  assert.ok(["interaction", "cleanup"].includes(phase));
+  const { owner, driver } = await captureHistoryDriver(driverPid, driverPath);
   const all = (
     await Promise.all(
       (await readdir("/proc")).filter((name) => /^\d+$/.test(name)).map(historyProcess),
@@ -62,20 +73,26 @@ export async function captureHistorySession(driverPid, driverPath, applicationPa
   }
   const appExecutable = await realpath(applicationPath);
   const application = processes.find((entry) => entry.executable === appExecutable);
-  assert.ok(application, "Exact history application is not an observed driver descendant");
+  const webviews = processes.filter(
+    (entry) => path.basename(entry.executable) === "WebKitWebProcess",
+  );
+  if (phase === "interaction") {
+    assert.ok(application, "Exact history application is not an observed driver descendant");
+    assert.ok(webviews.length, "Actual WebKit WebProcess identity is required before interaction");
+  }
   for (const entry of processes) sameHistoryIdentity(entry, await historyProcess(entry.pid));
-  return { owner, driver, application, processes, captured_at: new Date().toISOString() };
+  return { owner, driver, application, webviews, processes, captured_at: new Date().toISOString() };
 }
 
 export async function historyDriverStillOwned(inventory) {
   const current = await historyProcess(inventory.driver.pid);
-  if (!current) return false;
+  if (!current || current.state === "Z") return false;
   sameHistoryIdentity(inventory.driver, current);
   return true;
 }
 
 export async function waitHistorySessionExit(inventory) {
-  const deadline = Date.now() + 15_000;
+  const deadline = Date.now() + 5_000;
   let remaining;
   do {
     remaining = [];
@@ -88,7 +105,7 @@ export async function waitHistorySessionExit(inventory) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   } while (Date.now() < deadline);
   throw new Error(
-    `Captured history processes did not exit within 15 seconds: ${remaining.join(", ")}`,
+    `Captured history processes did not disappear within 5 seconds: ${remaining.join(", ")}`,
   );
 }
 
@@ -470,28 +487,45 @@ export async function qualificationHistoryScenario({
       observation.failure = { message: error.message };
       throw error;
     } finally {
-      observation.restoration = await browser.executeAsyncScript((font, done) => {
-        const probe = window.__portcoveHistoryProbe;
-        if (!probe) return done({ restored: true, installed: false, snapshots: 0, reports: 0 });
-        window.fetch = probe.original;
-        document.documentElement.style.fontSize = font;
-        const result = {
-          restored: window.fetch === probe.original,
-          snapshots: probe.snapshots,
-          reports: probe.reports,
-        };
-        delete window.__portcoveHistoryProbe;
-        window.__TAURI_INTERNALS__
-          .invoke("plugin:event|emit", {
-            event: "portcove://library-changed",
-            payload: "history-restored",
-          })
-          .then(
-            () => done(result),
-            (error) => done({ ...result, error: String(error) }),
-          );
-      }, originalFont);
-      await browser.manage().window().setRect(originalWindow);
+      observation.restoration = await browser
+        .executeAsyncScript((font, done) => {
+          const probe = window.__portcoveHistoryProbe;
+          if (!probe) return done({ restored: true, installed: false, snapshots: 0, reports: 0 });
+          window.fetch = probe.original;
+          document.documentElement.style.fontSize = font;
+          const result = {
+            restored: window.fetch === probe.original,
+            snapshots: probe.snapshots,
+            reports: probe.reports,
+          };
+          delete window.__portcoveHistoryProbe;
+          window.__TAURI_INTERNALS__
+            .invoke("plugin:event|emit", {
+              event: "portcove://library-changed",
+              payload: "history-restored",
+            })
+            .then(
+              () => done(result),
+              (error) => done({ ...result, error: String(error) }),
+            );
+        }, originalFont)
+        .catch((error) => ({ restored: false, error: error.message }));
+      await browser
+        .manage()
+        .window()
+        .setRect(originalWindow)
+        .catch((error) => {
+          observation.restoration.window_error = error.message;
+        });
+      const nativeSources = await invoke("get_sources").catch((error) => ({
+        ok: false,
+        error: error.message,
+      }));
+      observation.native_source_restoration = {
+        ok: nativeSources.ok,
+        count: nativeSources.value?.length,
+        error: nativeSources.error,
+      };
       const report = path.join(output, "qualification-history.json");
       await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
       artifacts.push(report);
@@ -499,7 +533,7 @@ export async function qualificationHistoryScenario({
       if (!observation.failure && observation.restoration.installed !== false)
         assert.ok(observation.restoration.snapshots > 0 && observation.restoration.reports > 0);
       assert.equal(observation.restoration.error, undefined);
-      const nativeSources = await invoke("get_sources");
+      assert.equal(observation.restoration.window_error, undefined);
       assert.equal(nativeSources.ok, true);
       assert.equal(
         nativeSources.value.length,

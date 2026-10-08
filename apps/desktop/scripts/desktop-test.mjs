@@ -42,6 +42,7 @@ import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
 import {
   qualificationHistoryScenario,
   captureHistorySession,
+  captureHistoryDriver,
   historyDriverStillOwned,
   waitHistorySessionExit,
 } from "./desktop-qualification-history-test.mjs";
@@ -402,12 +403,16 @@ const nativeLock = await acquireNativeSessionLock({
   scenarios: selection.selected_scenarios,
 });
 const harnessStarted = new Date();
-function stopDriver() {
+async function stopDriver() {
   if (identityBoundSession) {
     stopBackupFocusDriver();
     return;
   }
   if (!driver?.pid || driver.exitCode !== null) return;
+  if (historySession) {
+    assert.ok(historyInventory, "History cleanup cannot signal without captured driver identity");
+    if (!(await historyDriverStillOwned(historyInventory))) return;
+  }
   if (process.platform === "win32") {
     spawnCommand("taskkill.exe", ["/PID", String(driver.pid), "/T", "/F"], {
       windowsHide: true,
@@ -793,9 +798,9 @@ async function refreshSettings() {
 
 // Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
-const deadline = setTimeout(() => {
+const deadline = setTimeout(async () => {
   try {
-    stopDriver();
+    await stopDriver();
   } catch (error) {
     checks.push({
       scenario: "native-backup-watchdog-cleanup",
@@ -1368,6 +1373,7 @@ async function startDriver(childEnvironment = {}) {
       driverLog = (driverLog + chunk).slice(-1024 * 1024);
     });
   await captureSelectedDriverLaunch(launchStarted);
+  if (historySession) historyInventory = await captureHistoryDriver(driver.pid, values.driver);
   for (let attempt = 0; attempt < 40; attempt++) {
     if (spawnError) throw spawnError;
     if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
@@ -3024,7 +3030,7 @@ try {
             quitError = error;
           });
         browser = undefined;
-        stopDriver();
+        await stopDriver();
         ownedSession.requireQuiescence();
         const report = path.join(output, `${cleanupName}-cleanup.json`);
         await writeFile(
@@ -3058,7 +3064,9 @@ try {
       let quitError;
       try {
         assert.ok(historyInventory, "History requires captured identities before interaction");
-        const finalInventory = await captureHistorySession(driver.pid, values.driver, values.app);
+        const finalInventory = (await historyDriverStillOwned(historyInventory))
+          ? await captureHistorySession(driver.pid, values.driver, values.app, "cleanup")
+          : historyInventory;
         assert.equal(finalInventory.driver.start_ticks, historyInventory.driver.start_ticks);
         const identities = new Map(
           [...historyInventory.processes, ...finalInventory.processes].map((entry) => [
@@ -3072,7 +3080,7 @@ try {
             quitError = error;
           });
         browser = undefined;
-        if (await historyDriverStillOwned(historyInventory)) stopDriver();
+        await stopDriver();
         const exited = await waitHistorySessionExit(historyInventory);
         const report = path.join(output, "qualification-history-cleanup.json");
         await writeFile(
@@ -3097,7 +3105,7 @@ try {
       }
     } else {
       if (browser) await browser.quit().catch(() => {});
-      stopDriver();
+      await stopDriver();
     }
     clearTimeout(deadline);
     try {

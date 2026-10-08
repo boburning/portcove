@@ -21,7 +21,58 @@ import {
   captureHistorySession,
   historyDriverStillOwned,
   waitHistorySessionExit,
+  qualificationHistoryScenario,
 } from "../apps/desktop/scripts/desktop-qualification-history-test.mjs";
+
+test(
+  "history installation and lost-window failures retain original and restoration evidence",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-restoration-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    for (const lostWindow of [false, true]) {
+      const output = path.join(root, String(lostWindow));
+      await mkdir(output);
+      let calls = 0;
+      const browser = {
+        manage: () => ({
+          window: () => ({
+            getRect: async () => ({ width: 800, height: 600 }),
+            setRect: async () => {
+              if (lostWindow) throw new Error("owned window unavailable");
+            },
+          }),
+        }),
+        executeScript: async () => "",
+        executeAsyncScript: async () => {
+          if (++calls === 1) return { error: "owned installation emit rejected" };
+          if (lostWindow) throw new Error("owned restoration unavailable");
+          return { restored: true, snapshots: 0, reports: 0 };
+        },
+      };
+      await assert.rejects(() =>
+        qualificationHistoryScenario({
+          browser,
+          scenario: async (_name, body) => body(),
+          output,
+          artifacts: [],
+          invoke: async () => ({ ok: true, value: [] }),
+        }),
+      );
+      const report = JSON.parse(
+        await readFile(path.join(output, "qualification-history.json"), "utf8"),
+      );
+      assert.match(report.failure.message, /owned installation emit rejected/);
+      assert.equal(calls, 2, "Installation rejection still attempts restoration exactly once");
+      assert.equal(report.restoration.restored, !lostWindow);
+      assert.equal(report.native_source_restoration.count, 0);
+      if (lostWindow) {
+        assert.equal(report.restoration.error, "owned restoration unavailable");
+        assert.equal(report.restoration.window_error, "owned window unavailable");
+      }
+    }
+  },
+);
 
 test(
   "history ownership rejects an unrelated PID and changed creation identity without signaling",
