@@ -389,6 +389,16 @@
         "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Armored Core (Europe PAL, SCES-00842); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/80060c45a009ed8963e83fbb742eb3ef956cc9fc/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-blood-omen-legacy-of-kain-recomp-v0-3-6-source-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+        "authority_ref": "b289b9c2d7163968aa679dcc0cb40b2ccf7bb053",
+        "reviewed_at": "2026-10-09",
+        "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Blood Omen: Legacy of Kain (USA, SLUS-00027); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/b289b9c2d7163968aa679dcc0cb40b2ccf7bb053/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/main/game.toml"
       }
     ],
     "identities": [
@@ -4877,6 +4887,51 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "blood-omen-psx",
+        "label": "Blood Omen: Legacy of Kain (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Blood Omen: Legacy of Kain",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00027"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "774ff732cecd0937d052ffcdfb225a7d71d163aa",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-blood-omen-legacy-of-kain-recomp-v0-3-6-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-blood-omen-legacy-of-kain-recomp-v0-3-6-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6880,6 +6935,33 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-blood-omen-legacy-of-kain-recomp-game-source",
+        "port_id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+        "role": "game",
+        "profile_id": "blood-omen-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-blood-omen-legacy-of-kain-recomp-v0-3-6-source-contract"
+        ],
+        "authority_ref": "b289b9c2d7163968aa679dcc0cb40b2ccf7bb053",
+        "reviewed_at": "2026-10-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/b289b9c2d7163968aa679dcc0cb40b2ccf7bb053/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759"
           }
         ],
         "aliases": [],
@@ -14107,6 +14189,87 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+      }
+    },
+    {
+      "id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+      "name": "Blood Omen: Legacy of Kain / Alexbeav PSXRecomp",
+      "summary": "Native Blood Omen: Legacy of Kain recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.6",
+            "url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+            "size": 30156064,
+            "sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+            "published_at": "2026-09-04T14:48:30Z"
+          }
+        }
+      },
+      "source_profile": "blood-omen-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Blood_Omen__Legacy_of_Kain_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "blood-omen-psx",
+            "label": "Blood Omen: Legacy of Kain (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
       }
     }
   ]

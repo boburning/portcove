@@ -14,7 +14,8 @@
     "dkc3-na-en-fr",
     "road-rash-64",
     "alundra-psx",
-    "armored-core-psx"
+    "armored-core-psx",
+    "blood-omen-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -32,6 +33,7 @@
     "road-rash-64-recompiled",
     "alexbeav-ape-escape-recomp",
     "alexbeav-alundra-recomp",
-    "alexbeav-armored-core-recomp"
+    "alexbeav-armored-core-recomp",
+    "alexbeav-blood-omen-legacy-of-kain-recomp"
   ]
 }

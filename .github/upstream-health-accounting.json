@@ -70,6 +70,23 @@
       "asset_id": 544444321,
       "release_facts_sha256": "6cb4488d0aff73120ef3c70c85ff553d820034a58e2481e84fb66016ceec22ed",
       "asset_facts_sha256": "964c6808dbdcd0e1a318ac93858ab1a6e535143487c160fbb5fbd812cca022e2"
+    },
+    {
+      "port_id": "alexbeav-blood-omen-legacy-of-kain-recomp",
+      "port_contract_sha256": "3c4f4c88da455e47e1ed91b2bb8c8e6c2c0c0832b4dc8ee9b49a8f265c38dd8b",
+      "platform": "windows-x86-64",
+      "repository": "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+      "tag": "v0.3.6",
+      "name": "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+      "url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+      "size": 30156064,
+      "sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+      "repository_id": 1352791125,
+      "archived": false,
+      "release_id": 382786113,
+      "asset_id": 544444399,
+      "release_facts_sha256": "76122b05c7866de4a5b2550ed38b0bcdcdb4c22562374dd68fd41541d863ac72",
+      "asset_facts_sha256": "9d0c9721bbf6def25e643808f062437f435279f9b21b4988e2dcf887e0e80175"
     }
   ],
   "original_conditions": [

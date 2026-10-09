@@ -1389,6 +1389,114 @@ pinMetadata.push({
     },
   ],
 });
+// Independently retained Blood Omen v0.3.6 provider metadata; no accepted-byte claim.
+pinMetadata.push({
+  repository: {
+    id: 1352791125,
+    full_name: "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+    archived: false,
+  },
+  release: {
+    id: 382786113,
+    tag_name: "v0.3.6",
+    draft: false,
+    prerelease: false,
+    created_at: "2026-09-04T11:49:26Z",
+    published_at: "2026-09-04T14:48:30Z",
+    assets: [
+      {
+        id: 544444045,
+        name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+        size: 28049902,
+        state: "uploaded",
+        digest: "sha256:7cbef94c5fc72a1dd1ecaad2afe48a40faf2381e3bb579b2f7bbdfb3a74f80fc",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+        created_at: "2026-09-04T14:19:51Z",
+        updated_at: "2026-09-04T14:19:53Z",
+      },
+      {
+        id: 544444163,
+        name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip",
+        size: 25793743,
+        state: "uploaded",
+        digest: "sha256:2554274350a93468cc7e120cfafb64553bc266d661aca56118989310898b369a",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip",
+        created_at: "2026-09-04T14:19:56Z",
+        updated_at: "2026-09-04T14:19:58Z",
+      },
+      {
+        id: 544444256,
+        name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip",
+        size: 26139194,
+        state: "uploaded",
+        digest: "sha256:e126de5019ba1937a166912bde5f577be256429d8cabb219910f87e6d5c1887c",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip",
+        created_at: "2026-09-04T14:20:01Z",
+        updated_at: "2026-09-04T14:20:02Z",
+      },
+      {
+        id: 544444399,
+        name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+        size: 30156064,
+        state: "uploaded",
+        digest: "sha256:8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+        created_at: "2026-09-04T14:20:06Z",
+        updated_at: "2026-09-04T14:20:07Z",
+      },
+    ],
+  },
+  assets: [
+    {
+      id: 544444045,
+      name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+      size: 28049902,
+      state: "uploaded",
+      digest: "sha256:7cbef94c5fc72a1dd1ecaad2afe48a40faf2381e3bb579b2f7bbdfb3a74f80fc",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+      created_at: "2026-09-04T14:19:51Z",
+      updated_at: "2026-09-04T14:19:53Z",
+    },
+    {
+      id: 544444163,
+      name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip",
+      size: 25793743,
+      state: "uploaded",
+      digest: "sha256:2554274350a93468cc7e120cfafb64553bc266d661aca56118989310898b369a",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip",
+      created_at: "2026-09-04T14:19:56Z",
+      updated_at: "2026-09-04T14:19:58Z",
+    },
+    {
+      id: 544444256,
+      name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip",
+      size: 26139194,
+      state: "uploaded",
+      digest: "sha256:e126de5019ba1937a166912bde5f577be256429d8cabb219910f87e6d5c1887c",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip",
+      created_at: "2026-09-04T14:20:01Z",
+      updated_at: "2026-09-04T14:20:02Z",
+    },
+    {
+      id: 544444399,
+      name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+      size: 30156064,
+      state: "uploaded",
+      digest: "sha256:8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+      created_at: "2026-09-04T14:20:06Z",
+      updated_at: "2026-09-04T14:20:07Z",
+    },
+  ],
+});
 const currentHealthCatalog = JSON.parse(
   await readFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
 );
@@ -1457,12 +1565,12 @@ test("reviewed exact metadata and original conditions remain degraded without gr
   });
   assert.equal(report.outcome, "complete");
   assert.equal(report.degradation, true);
-  assert.equal(report.coverage.repositories, 10);
-  assert.equal(report.coverage.attempted_repositories, 10);
-  assert.equal(report.coverage.reachable_repositories, 2);
-  assert.equal(report.coverage.unknown_repositories, 8);
-  assert.equal(report.consumed.requests, 22);
-  assert.equal(calls.length, 22);
+  assert.equal(report.coverage.repositories, 12);
+  assert.equal(report.coverage.attempted_repositories, 12);
+  assert.equal(report.coverage.reachable_repositories, 3);
+  assert.equal(report.coverage.unknown_repositories, 9);
+  assert.equal(report.consumed.requests, 27);
+  assert.equal(calls.length, 27);
   for (const call of calls) {
     assert.equal(call.options.redirect, "manual");
     if (call.url.startsWith("https://api.github.com/"))
