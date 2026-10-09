@@ -3672,6 +3672,22 @@ mod tests {
             download_started.elapsed()
         );
         let partial_body_sent = server.finish();
+        if !partial_body_sent {
+            // A single failure-only request exposes reqwest's underlying cause.
+            // Its result never substitutes for the failed original download.
+            let diagnostic_server = StalledDownloadServer::start();
+            let diagnostic_started = std::time::Instant::now();
+            let diagnostic = installer
+                .client
+                .get(format!("http://{}/diagnostic", diagnostic_server.address))
+                .send()
+                .await;
+            eprintln!(
+                "failure-only request probe after {:?}: {diagnostic:?}",
+                diagnostic_started.elapsed()
+            );
+            diagnostic_server.finish();
+        }
         assert_eq!(error.code, crate::ErrorCode::Network);
         assert!(
             partial_body_sent,
