@@ -48,6 +48,17 @@ repeat only invalidated obligations rather than restarting every passed stage.
 Equivalent evidence must satisfy the receipt rules below. A passing rerun alone
 does not repair a flaky check.
 
+The hosted deep audit retains an attempt-bound evidence artifact for seven days.
+It contains the original normalized production fingerprint inputs, the complete
+audit report, successful deterministic stage receipts and workflow/run binding.
+Receipt format 1 and originating-head identity remain unchanged. Failed audits
+produce diagnostic-only bundles. Export failure is reported independently and
+does not replace the original audit status. No logs, source contents or additional
+environment variables are exported. The bundle is limited to 64 files, 32 MiB of
+expanded data and an 8 MiB compressed-artifact admission limit; the exporter
+checks compressed size with overhead allowance before the pinned level-6 upload.
+This export alone grants no reuse, required CI, local-check or native acceptance.
+
 ## Setup
 
 Portcove uses one local quality interface for humans, CI, and coding agents. The bootstrap requires Cargo/Rust, Node 24, and PowerShell 7 on Windows or Bash on Linux/macOS. Install the pinned tools with:
