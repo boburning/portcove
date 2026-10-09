@@ -1865,7 +1865,7 @@ test("release and deep preflights require a fresh audit", async () => {
   assert.match(localPreflight, /just audit --fresh/);
 });
 
-test("manual deep workflow retains only the deterministic fresh audit", async () => {
+test("manual deep workflow preserves fresh default with explicit bounded audit reuse", async () => {
   const deep = await readFile(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
@@ -1873,6 +1873,13 @@ test("manual deep workflow retains only the deterministic fresh audit", async ()
   assert.match(deep, /^name: Deep audit$/m);
   assert.match(deep, /^ {2}audit:\r?$/m);
   assert.match(deep, /just audit --fresh/);
+  assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check\]/);
+  assert.match(
+    deep,
+    /GH_TOKEN: \$\{\{ inputs.operation == 'audit-reuse' && github.token \|\| '' \}\}/,
+  );
+  assert.match(deep, /if: always\(\) && inputs.operation != 'audit-reuse'/);
+  assert.doesNotMatch(deep, /actions: read|actions: write|contents: write/);
   assert.doesNotMatch(deep, /^ {2}(?:hawk|duplicates):/m);
   assert.doesNotMatch(deep, /semdup|cargo-hawk|run-hawk|run-semdup|dead-public/i);
 });
@@ -2488,13 +2495,16 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   assert.match(workflow, /CARGO_PROFILE_DEV_DEBUG: line-tables-only/);
 });
 
-test("deep audit summary retains audit status without artifacts or privilege changes", async () => {
+test("deep audit evidence retains audit status without privilege changes", async () => {
   const deep = await readFile(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
   );
   assert.match(deep, /id: fresh-audit/);
-  assert.match(deep, /just audit --fresh\r?\n {10}audit_status=\$\?/);
+  assert.match(
+    deep,
+    /if \[\[ "\$AUDIT_OPERATION" == "audit-reuse" \]\]; then\r?\n {12}just audit\r?\n {10}else\r?\n {12}just audit --fresh\r?\n {10}fi\r?\n {10}audit_status=\$\?/,
+  );
   assert.match(deep, /exit "\$audit_status"/);
   assert.match(deep, /node scripts\/deep-audit-summary\.mjs --start/);
   assert.match(deep, /node scripts\/deep-audit-summary\.mjs --finish "\$audit_status"/);

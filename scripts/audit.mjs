@@ -977,7 +977,7 @@ function parseArguments(argv) {
   return { help: false, fresh, planOnly, profile };
 }
 
-export function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2)) {
   const options = parseArguments(argv);
   if (options.help) {
     console.log("usage: audit.mjs [--plan|--fresh] [--profile complete|release|transition]");
@@ -1029,14 +1029,25 @@ export function main(argv = process.argv.slice(2)) {
     selection = selectTransitionAudit({ inventory, validationPlan, changes, workingTreeStatus });
     console.log(`Transition selection: ${selection.reason}`);
   } else selection = { profile: options.profile, stages: auditStagesForProfile(options.profile) };
-  const plan = planAudit({
+  let plan = planAudit({
     fresh: options.profile === "transition" || options.fresh,
     stages: selection.stages,
     profile: selection.profile,
     ...(inventory ? { inventory } : {}),
   });
+  if (options.planOnly) {
+    displayPlan(plan);
+    return;
+  }
+  if (!options.fresh && options.profile !== "transition") {
+    const { discoverAuditReceipts } = await import("./audit-reuse.mjs");
+    const reuse = discoverAuditReceipts(plan);
+    console.log(
+      `[audit-reuse] ${reuse.status}: ${reuse.reason}; imported ${reuse.imported.length}; examined ${reuse.examinedRuns ?? 0} main runs; downloaded ${reuse.downloads ?? 0} artifacts`,
+    );
+    plan = planAudit({ stages: selection.stages, profile: selection.profile });
+  }
   displayPlan(plan);
-  if (options.planOnly) return;
   const result = executeAudit(plan, { captureHosted: process.env.PORTCOVE_AUDIT_CAPTURE === "1" });
   if (process.env.PORTCOVE_AUDIT_CAPTURE === "1" && process.env.GITHUB_OUTPUT) {
     try {
@@ -1062,7 +1073,7 @@ export function main(argv = process.argv.slice(2)) {
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   try {
-    main();
+    await main();
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
