@@ -3553,7 +3553,11 @@ mod tests {
             let address = listener.local_addr().unwrap();
             let stop = Arc::new(AtomicBool::new(false));
             let worker_stop = Arc::clone(&stop);
+            let (ready_sender, ready_receiver) = std::sync::mpsc::channel();
             let worker = thread::spawn(move || {
+                if ready_sender.send(()).is_err() {
+                    return false;
+                }
                 let Some(mut stream) = crate::test_fixture::phase("stalled-server accept", || {
                     while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
                         match listener.accept() {
@@ -3610,11 +3614,16 @@ mod tests {
                 }
                 true
             });
-            Self {
+            let server = Self {
                 address,
                 stop,
                 worker: Some(worker),
-            }
+            };
+            crate::test_fixture::phase("stalled-server ready", || {
+                ready_receiver.recv_timeout(Duration::from_secs(2))
+            })
+            .expect("the owned fixture server did not become ready");
+            server
         }
 
         fn finish(mut self) -> bool {
@@ -3635,7 +3644,6 @@ mod tests {
 
     #[tokio::test]
     async fn streaming_download_fails_after_a_read_idle_stall() {
-        let server = StalledDownloadServer::start();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let installer = Installer::with_network_bounds(
@@ -3644,6 +3652,7 @@ mod tests {
             Duration::from_millis(50),
         )
         .unwrap();
+        let server = StalledDownloadServer::start();
         let asset = ReleaseAsset {
             name: "stalled.zip".into(),
             url: format!("http://{}/stalled.zip", server.address),
@@ -3653,10 +3662,15 @@ mod tests {
         let operation = OperationCoordinator::new("download", None);
         let mut emit = |_| {};
         let destination = temporary.path().join("stalled.download");
+        let download_started = std::time::Instant::now();
         let error = installer
             .download(&asset, &destination, &operation, &mut emit)
             .await
             .unwrap_err();
+        eprintln!(
+            "fixture download error after {:?}: {error:?}",
+            download_started.elapsed()
+        );
         let partial_body_sent = server.finish();
         assert_eq!(error.code, crate::ErrorCode::Network);
         assert!(
@@ -3672,7 +3686,6 @@ mod tests {
 
     #[tokio::test]
     async fn streaming_download_client_error_before_connection_quiesces_the_fixture() {
-        let server = StalledDownloadServer::start();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let installer = Installer::with_network_bounds(
@@ -3681,6 +3694,7 @@ mod tests {
             Duration::from_millis(50),
         )
         .unwrap();
+        let server = StalledDownloadServer::start();
         let asset = ReleaseAsset {
             name: "invalid-url.zip".into(),
             url: "http://[invalid".into(),
