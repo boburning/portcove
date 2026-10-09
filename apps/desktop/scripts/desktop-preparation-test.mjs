@@ -584,6 +584,21 @@ async function assertReviewedUpdateOutcomes({
   }
 }
 
+export function assertPreparedLibrarySummary(text, statuses, preparedPortId) {
+  const installed = statuses.filter((item) => item.active || item.external_runtime);
+  assert.ok(installed.some((item) => item.port_id === preparedPortId));
+  for (const item of installed) {
+    assert.equal(item.readiness?.launchable, true, `${item.port_id} must be ready`);
+    assert.equal(item.readiness.pending_setup, false);
+    assert.deepEqual(item.readiness.blockers, []);
+    assert.ok(!item.staged, `${item.port_id} must have no downloaded update`);
+  }
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} in library All ready to play`,
+  );
+}
+
 export async function preparationScenarios({
   browser,
   invoke,
@@ -827,7 +842,9 @@ export async function preparationScenarios({
       15_000,
     );
     const readinessText = await readinessSummary.getText();
-    assert.match(readinessText, /^1 in library\s+All ready to play$/iu);
+    const libraryStatuses = await invoke("get_statuses");
+    assert.equal(libraryStatuses.ok, true);
+    assertPreparedLibrarySummary(readinessText, libraryStatuses.value, port.id);
     assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
     const card = await browser.wait(
       until.elementLocated(
