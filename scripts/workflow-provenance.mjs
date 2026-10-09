@@ -63,6 +63,8 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/validation-plan.mjs",
   "scripts/audit.mjs",
   "scripts/audit-evidence.mjs",
+  "scripts/audit-archive.mjs",
+  "scripts/audit-reuse.mjs",
   "scripts/dev-storage.mjs",
   "scripts/tool-cache.mjs",
   "scripts/select-ci-plan.mjs",
