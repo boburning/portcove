@@ -1,59 +1,89 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
-
+import path from "node:path";
 import { evaluateFallowReport } from "./check-fallow-report.mjs";
-import { renderBoundedSummary } from "./report-summary.mjs";
+import { commandFailure, renderBoundedSummary, retainCommandEvidence } from "./report-summary.mjs";
 
-const desktopRoot = fileURLToPath(new URL("../apps/desktop/", import.meta.url));
-const fallowBin = fileURLToPath(new URL("../node_modules/fallow/bin/fallow", import.meta.url));
-const result = spawnSync(
-  process.execPath,
-  [fallowBin, "--format", "json", "--quiet", "--explain"],
-  {
-    cwd: desktopRoot,
-    encoding: "utf8",
-    maxBuffer: 16 * 1024 * 1024,
-    env: { ...process.env, FALLOW_AGENT_SOURCE: "codex" },
-  },
-);
-
-const evidenceDirectory = fileURLToPath(new URL("../work/fallow-reports/", import.meta.url));
-mkdirSync(evidenceDirectory, { recursive: true });
-const evidencePath = `${evidenceDirectory}${randomUUID()}.json`;
-writeFileSync(evidencePath, result.stdout ?? "", { flag: "wx" });
-
-if (result.status !== 0 && result.status !== 1) {
-  process.stderr.write(result.stderr ?? "");
-  if (result.error) console.error(result.error.message);
-  throw new Error(`Fallow could not analyze the frontend (exit ${result.status ?? "unknown"}).`);
-}
-
-let report;
-try {
-  report = JSON.parse(result.stdout);
-} catch (error) {
-  process.stderr.write(result.stderr ?? "");
-  throw new Error(`Fallow returned an invalid JSON report: ${error.message}`);
-}
-
-const assessment = evaluateFallowReport(report);
-if (assessment.failures.length > 0) {
-  const findings = report.health.findings
-    .filter((entry) => entry.severity === "critical")
-    .map(
-      (entry) =>
-        `${entry.path}:${entry.line}: ${entry.name}; cyclomatic ${entry.cyclomatic}; cognitive ${entry.cognitive}`,
+export function runFallow({
+  spawn = spawnSync,
+  evidenceDirectory = fileURLToPath(new URL("../work/fallow-reports/", import.meta.url)),
+} = {}) {
+  const result = spawn(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../node_modules/fallow/bin/fallow", import.meta.url)),
+      "--format",
+      "json",
+      "--quiet",
+      "--explain",
+    ],
+    {
+      cwd: fileURLToPath(new URL("../apps/desktop/", import.meta.url)),
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+      env: { ...process.env, FALLOW_AGENT_SOURCE: "codex" },
+    },
+  );
+  if (result.error || (result.status !== 0 && result.status !== 1))
+    throw commandFailure(
+      `Fallow could not analyze the frontend (exit ${result.status ?? "unknown"})`,
+      result,
+      evidenceDirectory,
     );
-  console.error(
-    renderBoundedSummary("Fallow quality gate failed", [...assessment.failures, ...findings], {
-      reference: evidencePath,
-    }).text,
-  );
-  process.exitCode = 1;
-} else {
-  console.log(
-    `Fallow gate passed: maintainability ${assessment.maintainability}, duplication ${assessment.duplicationPercentage}%.`,
-  );
+  let report;
+  try {
+    report = JSON.parse(result.stdout);
+  } catch (error) {
+    throw commandFailure(
+      "Fallow returned an invalid JSON report",
+      result,
+      evidenceDirectory,
+      error,
+    );
+  }
+  const evidence = retainCommandEvidence(evidenceDirectory, result);
+  let assessment;
+  try {
+    assessment = evaluateFallowReport(report);
+  } catch (error) {
+    throw commandFailure(
+      "Fallow returned an invalid report shape",
+      result,
+      evidenceDirectory,
+      error,
+    );
+  }
+  if (evidence.failure)
+    throw commandFailure("Fallow evidence could not be retained", result, evidenceDirectory);
+  if (assessment.failures.length) {
+    const findings = report.health.findings
+      .filter((entry) => entry.severity === "critical")
+      .map(
+        (entry) =>
+          `${entry.path}:${entry.line}: ${entry.name}; cyclomatic ${entry.cyclomatic}; cognitive ${entry.cognitive}`,
+      );
+    return {
+      exitCode: 1,
+      text: renderBoundedSummary(
+        "Fallow quality gate failed",
+        [...assessment.failures, ...findings],
+        { reference: Object.values(evidence).join("; ") },
+      ).text,
+    };
+  }
+  return {
+    exitCode: 0,
+    text: `Fallow gate passed: maintainability ${assessment.maintainability}, duplication ${assessment.duplicationPercentage}%.`,
+  };
+}
+
+if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+  try {
+    const result = runFallow();
+    (result.exitCode ? console.error : console.log)(result.text);
+    process.exitCode = result.exitCode;
+  } catch (error) {
+    console.error(renderBoundedSummary("Fallow failed", [error.message]).text);
+    process.exitCode = 1;
+  }
 }

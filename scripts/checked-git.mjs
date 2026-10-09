@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { commandFailure } from "./report-summary.mjs";
 
 export function runCheckedGit(args, options = {}) {
   if (
@@ -22,12 +23,12 @@ export function runCheckedGit(args, options = {}) {
     maxBuffer: 1024 * 1024,
   });
   if (result.error || result.status !== 0) {
-    const error = new Error(
-      `Git command failed (${result.error?.code ?? `exit ${result.status ?? "unknown"}`}): ${String(result.stderr ?? "").slice(0, 16_000)}`,
-      { cause: result.error },
+    const error = commandFailure(
+      `Git command failed (${result.error?.code ?? `exit ${result.status ?? "unknown"}`})`,
+      result,
+      path.join(cwd, "work", "checked-git"),
     );
     error.code = result.error?.code ?? "GIT_EXIT";
-    error.exitCode = result.status;
     throw error;
   }
   return result.stdout;

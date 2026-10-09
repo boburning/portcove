@@ -1,6 +1,38 @@
-import { readFileSync, statSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+export function retainCommandEvidence(directory, result) {
+  const id = randomUUID();
+  const evidence = {};
+  try {
+    mkdirSync(directory, { recursive: true });
+    for (const stream of ["stdout", "stderr"]) {
+      const file = path.join(directory, `${id}.${stream}.log`);
+      writeFileSync(file, result[stream] ?? "", { flag: "wx" });
+      evidence[stream] = file;
+    }
+  } catch (error) {
+    evidence.failure = `Evidence retention failed (${error.code ?? "unknown"})`;
+  }
+  return evidence;
+}
+
+export function commandFailure(message, result, directory, cause = result.error) {
+  const evidence = retainCommandEvidence(directory, result);
+  const error = new Error(
+    renderBoundedSummary(
+      message,
+      [String(result.stderr ?? ""), evidence.failure ?? ""].filter(Boolean),
+      { reference: Object.values(evidence).join("; ") },
+    ).text,
+    { cause },
+  );
+  error.evidence = evidence;
+  error.exitCode = result.status;
+  return error;
+}
 
 export function renderBoundedSummary(
   title,
