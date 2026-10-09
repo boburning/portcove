@@ -939,7 +939,12 @@ RetComM upstream comparisons run separately in `upstream-health.yml` when catalo
 data, the mapping, either checker, the Node version, or that workflow changes.
 The same workflow runs daily and can be dispatched manually. Its path-filtered
 status must not be configured as an always-required branch check, because an
-unrelated PR does not create that status. Scheduled failures remain visible in
+unrelated PR does not create that status. Pull-request live scope derives from
+exact base/head semantic catalog inputs: summary-only changes have an explicit
+empty scope, while affected unknowns fail. Root/history, checker, workflow, policy
+and uncertain changes retain full scope; incomplete identity/diff discovery
+refuses narrow selection. Main, scheduled and manual checks retain the full
+inventory. Scheduled failures remain visible in
 Actions and require investigation as upstream drift, not a local code failure.
 Release workflow and local release preflight retain their live upstream checks.
 

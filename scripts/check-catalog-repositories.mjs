@@ -27,6 +27,8 @@ const resume = {
   "rate-limit":
     "Wait until the provider retry time, or at least one minute if unknown, before rechecking.",
   "provider-error": "Recheck after the provider recovers; artifact health is unassessed.",
+  "provider-redirect":
+    "Review the original location and redirect identity separately; no redirect was followed and destination availability or continuity is unassessed.",
   transport: "Recheck provider transport; this attempt did not establish reachability.",
   timeout: "Recheck within the fixed time budget; this attempt did not establish reachability.",
   "invalid-metadata":
@@ -278,6 +280,7 @@ function retryAt(headers, now) {
 }
 
 function statusReason(response) {
+  if ([301, 302, 303, 307, 308].includes(response.status)) return "provider-redirect";
   if (
     response.status === 429 ||
     (response.status === 403 &&
@@ -327,9 +330,34 @@ async function metadata(response, budget, now, deadline) {
 // pinned repository identity, complete release/asset pages or Core projection.
 export async function collectRepositoryHealth(
   catalog,
-  { fetch: fetcher = fetch, now = Date.now, githubToken, gitlabToken, previousReport = null } = {},
+  {
+    fetch: fetcher = fetch,
+    now = Date.now,
+    githubToken,
+    gitlabToken,
+    previousReport = null,
+    portIds = null,
+  } = {},
 ) {
-  const { records, directPorts } = inventory(catalog);
+  const completeInventory = inventory(catalog);
+  if (
+    portIds !== null &&
+    (!Array.isArray(portIds) ||
+      new Set(portIds).size !== portIds.length ||
+      portIds.some((id) => !catalog.ports.some((port) => port.id === id)))
+  )
+    throw new Error("Scoped health requires unique existing port IDs");
+  const selectedPorts = catalog.ports.filter(
+    (port) => portIds === null || portIds.includes(port.id),
+  );
+  // Keep all shared-location identities and maintenance declarations in a probe.
+  // Selecting one port must not erase another port's unaccounted condition.
+  const records = completeInventory.records.filter(
+    (record) => portIds === null || record.port_ids.some((id) => portIds.includes(id)),
+  );
+  const directPorts = completeInventory.directPorts.filter(
+    (id) => portIds === null || portIds.includes(id),
+  );
   const catalogHash = observationHash(catalog);
   const started = now();
   const previousScopeValid =
@@ -478,7 +506,9 @@ export async function collectRepositoryHealth(
     try {
       response = await fetcher(requestUrl, {
         headers,
-        redirect: "error",
+        // Observe a redirect as an HTTP fact rather than losing it in a fetch
+        // exception. Never follow it or retain a potentially signed Location.
+        redirect: "manual",
         signal,
         ...(plain ? { method: "HEAD" } : {}),
       });
@@ -605,7 +635,7 @@ export async function collectRepositoryHealth(
         ? "location-reachable; exact-bytes-unverified"
         : "unclassified-or-actionable";
   }
-  const portHealth = catalog.ports.map((port) => {
+  const portHealth = selectedPorts.map((port) => {
     const locations = observations.filter((record) => record.port_ids.includes(port.id));
     const original = locations.filter((record) =>
       record.original_upstream_port_ids?.includes(port.id),
@@ -740,6 +770,15 @@ export async function collectRepositoryHealth(
     authority:
       "read-only-location-observation; no lineage, artifact, hold or qualification authority",
     catalog_sha256: catalogHash,
+    scope: {
+      mode: portIds === null ? "full" : portIds.length ? "affected" : "none",
+      selected_port_ids: selectedPorts.map((port) => port.id),
+      unassessed_port_ids: catalog.ports
+        .filter((port) => !selectedPorts.includes(port))
+        .map((port) => port.id),
+      global_health:
+        portIds === null ? "collection attempted; not an installability claim" : "not assessed",
+    },
     port_health: portHealth,
     started_at: new Date(started).toISOString(),
     completed_at: new Date(now()).toISOString(),
@@ -750,7 +789,11 @@ export async function collectRepositoryHealth(
       .flatMap((port) => port.canonical_incidents)
       .filter((incident) => incident.notify)
       .map((incident) => incident.key),
-    outcome: observations.every((record) => record.accounted_for) ? "complete" : "incomplete",
+    outcome: !selectedPorts.length
+      ? "not-applicable"
+      : observations.every((record) => record.accounted_for)
+        ? "complete"
+        : "incomplete",
     degradation: observations.some((record) => record.status !== "reachable"),
     previous_report:
       previousReport === null
@@ -760,9 +803,9 @@ export async function collectRepositoryHealth(
           : "stale, mismatched or incomplete; not reused",
     coverage: {
       ports: catalog.ports.length,
-      hosted_ports: catalog.ports.length - directPorts.length,
+      hosted_ports: selectedPorts.length - directPorts.length,
       direct_manifest_port_ids: directPorts,
-      monitored_ports: catalog.ports.length,
+      monitored_ports: selectedPorts.length,
       repositories: records.length,
       attempted_repositories: consumed.requests,
       reachable_repositories: reachable,
@@ -784,6 +827,9 @@ export async function collectRepositoryHealth(
 export function renderRepositoryHealth(report) {
   const { coverage } = report;
   const lines = [
+    ...(report.scope?.mode === "none"
+      ? ["No selected upstream health inputs; no live requests. Global health is not assessed."]
+      : []),
     `Repository reachability: ${coverage.reachable_repositories}/${coverage.repositories} reachable; ${coverage.unknown_repositories} unknown; ${coverage.attempted_repositories} attempted.`,
     `Coverage: ${coverage.monitored_ports}/${coverage.ports} ports; ${coverage.direct_manifest_port_ids.length} direct-manifest ports included. Accepted bytes remain unverified.`,
     `Observed ${report.started_at} through ${report.completed_at}.`,
@@ -817,10 +863,21 @@ export function renderRepositoryHealth(report) {
 async function main() {
   const args = process.argv.slice(2);
   if (
-    args.some((arg) => arg !== "--json" && !arg.startsWith("--previous-report=")) ||
-    args.filter((arg) => arg.startsWith("--previous-report=")).length > 1
+    args.some(
+      (arg) =>
+        arg !== "--json" && !arg.startsWith("--previous-report=") && !arg.startsWith("--port-ids="),
+    ) ||
+    args.filter((arg) => arg.startsWith("--previous-report=")).length > 1 ||
+    args.filter((arg) => arg.startsWith("--port-ids=")).length > 1
   )
-    throw new Error("Usage: check-catalog-repositories.mjs [--json] [--previous-report=PATH]");
+    throw new Error(
+      "Usage: check-catalog-repositories.mjs [--json] [--previous-report=PATH] [--port-ids=IDS]",
+    );
+  const portArgument = args
+    .find((arg) => arg.startsWith("--port-ids="))
+    ?.slice("--port-ids=".length);
+  const portIds =
+    portArgument === undefined ? null : portArgument === "" ? [] : portArgument.split(",");
   const previousPath = args
     .find((arg) => arg.startsWith("--previous-report="))
     ?.slice("--previous-report=".length);
@@ -853,6 +910,7 @@ async function main() {
     githubToken: process.env.GITHUB_TOKEN,
     gitlabToken: process.env.GITLAB_TOKEN,
     previousReport,
+    portIds,
   });
   if (
     process.argv.includes("--json") ||
@@ -867,7 +925,7 @@ async function main() {
         ? JSON.stringify(report, null, 2)
         : renderRepositoryHealth(report),
     );
-  process.exitCode = report.outcome === "complete" ? 0 : 1;
+  process.exitCode = ["complete", "not-applicable"].includes(report.outcome) ? 0 : 1;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {

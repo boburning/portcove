@@ -12,6 +12,7 @@ import {
 } from "./upstream-observer.mjs";
 import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mjs";
 import { collectRepositoryHealth, renderRepositoryHealth } from "./check-catalog-repositories.mjs";
+import { discoverUpstreamHealthScope, selectUpstreamHealthScope } from "./upstream-health-plan.mjs";
 
 const config = JSON.parse(
   await readFile(new URL("../release/upstream-observer.json", import.meta.url), "utf8"),
@@ -490,7 +491,7 @@ test("direct provider preserves original upstream and scopes HEAD separately fro
         assert.equal(options.method, "HEAD");
         assert.equal(options.headers.Authorization, undefined);
         assert.equal(options.headers["PRIVATE-TOKEN"], undefined);
-        assert.equal(options.redirect, "error");
+        assert.equal(options.redirect, "manual");
       }
       return healthFetch(url, options);
     },
@@ -529,7 +530,84 @@ test("direct endpoint corruption, unavailable headers and redirects remain unkno
     fetch: async (url, options) =>
       url === healthPin.url ? new Response(null, { status: 302 }) : healthFetch(url, options),
   });
-  assert.equal(report.observations[0].reason, "provider-status");
+  assert.equal(report.observations[0].reason, "provider-redirect");
+});
+
+test("redirects remain distinct unknown HTTP facts without following or retaining their destinations", async () => {
+  for (const status of [301, 302, 303, 307, 308]) {
+    const calls = [];
+    let cancelled = 0;
+    const secret = "private-signed-location-and-response";
+    const report = await collectRepositoryHealth(healthCatalog(), {
+      now: () => healthTime,
+      githubToken: "private-token",
+      fetch: async (url, options) => {
+        calls.push({ url, options });
+        assert.equal(options.redirect, "manual");
+        const body = new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(secret));
+          },
+          cancel() {
+            cancelled++;
+          },
+        });
+        return new Response(body, {
+          status,
+          headers: { location: `https://untrusted.example/asset?token=${secret}` },
+        });
+      },
+    });
+    assert.equal(calls.length, 3);
+    assert.equal(cancelled, 3);
+    assert.ok(calls.every(({ url }) => !url.startsWith("https://untrusted.example/")));
+    const direct = calls.find(({ url }) => url === healthPin.url);
+    assert.equal(direct.options.method, "HEAD");
+    assert.equal(direct.options.headers.Authorization, undefined);
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.degradation, true);
+    assert.equal(report.coverage.reachable_repositories, 0);
+    for (const observation of report.observations) {
+      assert.equal(observation.status, "unknown");
+      assert.equal(observation.reason, "provider-redirect");
+      assert.equal(observation.http_status, status);
+      assert.equal(observation.accounted_for, false);
+      assert.match(observation.resume_condition, /no redirect was followed/);
+    }
+    assert.ok(
+      report.port_health[0].canonical_incidents.every(
+        (incident) => incident.rule === "provider-redirect" && !incident.accounted_for,
+      ),
+    );
+    assert.match(renderRepositoryHealth(report), new RegExp(`provider-redirect; HTTP ${status}`));
+    assert.ok(!JSON.stringify(report).includes(secret));
+    assert.ok(!JSON.stringify(report).includes("private-token"));
+  }
+});
+
+test("transport failures and nonredirect provider statuses do not become redirect observations", async () => {
+  const input = { ports: [{ id: "original", release: { repository: "owner/original" } }] };
+  for (const [status, reason] of [
+    [404, "inaccessible-or-missing"],
+    [503, "provider-error"],
+    [304, "provider-status"],
+  ]) {
+    const report = await collectRepositoryHealth(input, {
+      fetch: async () => new Response(null, { status }),
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.observations[0].reason, reason);
+    assert.equal(report.observations[0].http_status, status);
+  }
+  const transport = await collectRepositoryHealth(input, {
+    fetch: async () => {
+      throw new Error("private-network-details");
+    },
+  });
+  assert.equal(transport.outcome, "incomplete");
+  assert.equal(transport.observations[0].reason, "transport");
+  assert.equal(transport.observations[0].http_status, null);
+  assert.ok(!JSON.stringify(transport).includes("private-network-details"));
 });
 
 test("partial direct inventory never becomes an empty or healthy collection", async () => {
@@ -966,4 +1044,227 @@ test("rate-limit fallback defers repeated runs while preserving comparison and i
     }
     assert.ok(Date.parse(first.observations[0].retry_at) >= healthTime + 60_000);
   }
+});
+
+const healthScopePort = (id, repository = `owner/${id}`) => ({
+  id,
+  summary: "A native port.",
+  platforms: ["windows-x86-64"],
+  release: { repository },
+  adapter: "owned",
+});
+const healthScopeCatalog = (...ports) => ({ schema_version: 2, ports });
+const change = (file = "crates/portcove-core/catalog/catalog.json", extra = {}) => ({
+  oldPath: file,
+  newPath: file,
+  status: "M",
+  oldMode: "100644",
+  newMode: "100644",
+  ...extra,
+});
+const copy = (value) => structuredClone(value);
+
+test("summary-only selection makes no requests and does not claim global health", async () => {
+  const base = healthScopeCatalog(healthScopePort("game"), healthScopePort("unavailable"));
+  const head = copy(base);
+  head.ports[0].summary = "Shorter title description.";
+  const scope = await selectUpstreamHealthScope(base, head, [change()]);
+  assert.equal(scope.mode, "none");
+  assert.deepEqual(scope.port_ids, []);
+  const report = await collectRepositoryHealth(head, {
+    portIds: scope.port_ids,
+    fetch: () => assert.fail("Summary changes cannot request any upstream"),
+  });
+  assert.equal(report.outcome, "not-applicable");
+  assert.equal(report.scope.global_health, "not assessed");
+  assert.deepEqual(report.scope.unassessed_port_ids, ["game", "unavailable"]);
+  assert.equal(report.coverage.monitored_ports, 0);
+  assert.equal(report.coverage.attempted_repositories, 0);
+});
+
+test("semantic port contracts select affected obligations and their unknowns still block", async () => {
+  const base = healthScopeCatalog(healthScopePort("game"), healthScopePort("unavailable"));
+  for (const update of [
+    (p) => {
+      p.release.repository = "owner/new-location";
+    },
+    (p) => {
+      p.release.sha256 = "a".repeat(64);
+    },
+    (p) => {
+      p.upstream_status = "retired";
+    },
+    (p) => {
+      p.platforms.push("linux-x86-64");
+    },
+    (p) => {
+      p.source_profile = "changed-source";
+    },
+    (p) => {
+      p.adapter = "psx-recomp-managed";
+    },
+  ]) {
+    const head = copy(base);
+    update(head.ports[0]);
+    const scope = await selectUpstreamHealthScope(base, head, [change()]);
+    assert.equal(scope.mode, "affected");
+    assert.deepEqual(scope.port_ids, ["game"]);
+    const calls = [];
+    const report = await collectRepositoryHealth(head, {
+      portIds: scope.port_ids,
+      fetch: async (url) => {
+        calls.push(url);
+        return new Response(null, { status: 503 });
+      },
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.observations[0].reason, "provider-error");
+    assert.ok(calls.every((url) => !url.endsWith("/unavailable")));
+    assert.deepEqual(report.scope.unassessed_port_ids, ["unavailable"]);
+    assert.deepEqual(
+      scope.retcomm_port_ids,
+      head.ports[0].adapter === "psx-recomp-managed" ? ["game"] : [],
+    );
+  }
+});
+
+test("shared endpoints retain unselected maintenance and identity obligations", async () => {
+  const input = healthScopeCatalog(
+    {
+      ...healthScopePort("retired", "owner/shared"),
+      upstream_status: "retired",
+      project_url: "https://github.com/owner/shared",
+    },
+    {
+      ...healthScopePort("active", "owner/shared"),
+      project_url: "https://github.com/owner/shared",
+    },
+  );
+  const report = await collectRepositoryHealth(input, {
+    portIds: ["retired"],
+    fetch: async () => new Response(null, { status: 404 }),
+  });
+  assert.equal(report.coverage.repositories, 1);
+  assert.deepEqual(report.observations[0].port_ids, ["retired", "active"]);
+  assert.equal(report.observations[0].accounted_for, false);
+  assert.equal(report.outcome, "incomplete");
+});
+
+test("additions select the new port; removals and root/history changes retain full scope", async () => {
+  const base = healthScopeCatalog(healthScopePort("old"));
+  const head = healthScopeCatalog(healthScopePort("old"), healthScopePort("new"));
+  assert.deepEqual((await selectUpstreamHealthScope(base, head, [change()])).port_ids, ["new"]);
+  assert.equal((await selectUpstreamHealthScope(head, base, [change()])).mode, "full");
+  for (const update of [
+    (c) => {
+      c.schema_version++;
+    },
+    (c) => {
+      c.source_catalog = {
+        qualification: [
+          { scope: { port_id: "old", artifact_sha256: "a".repeat(64), upstream_ref: "v1" } },
+        ],
+      };
+    },
+  ]) {
+    const changed = copy(base);
+    update(changed);
+    assert.equal((await selectUpstreamHealthScope(base, changed, [change()])).mode, "full");
+  }
+});
+
+test("tools, workflows, policy, mixed changes and uncertain inventories cannot narrow monitoring", async () => {
+  const input = healthScopeCatalog(healthScopePort("old"));
+  for (const changes of [
+    [],
+    [change("scripts/check-catalog-repositories.mjs")],
+    [change("scripts/upstream-health-plan.mjs")],
+    [change(".github/workflows/upstream-health.yml")],
+    [change("AGENTS.md")],
+    [change(), change("README.md")],
+    [change(undefined, { newMode: "120000" })],
+    [change(undefined, { status: "R" })],
+  ])
+    assert.equal((await selectUpstreamHealthScope(input, input, changes)).mode, "full");
+  await assert.rejects(
+    selectUpstreamHealthScope(
+      { ports: [healthScopePort("duplicate"), healthScopePort("duplicate")] },
+      input,
+      [change()],
+    ),
+    /unique stable/,
+  );
+  await assert.rejects(
+    collectRepositoryHealth(input, { portIds: ["missing"] }),
+    /existing port IDs/,
+  );
+  await assert.rejects(
+    collectRepositoryHealth(input, { portIds: ["old", "old"] }),
+    /unique existing/,
+  );
+});
+
+test("exact Git discovery binds base, merge base, head and checkout; drift and missing refs fail closed", async () => {
+  const baseSha = "a".repeat(40),
+    headSha = "b".repeat(40),
+    checkoutSha = "c".repeat(40);
+  const base = healthScopeCatalog(healthScopePort("old"));
+  const head = copy(base);
+  head.ports[0].summary = "New copy.";
+  const tree = "d".repeat(40);
+  let drift = false;
+  const git = (args) => {
+    if (args[0] === "rev-parse") {
+      const value = args.at(-1).split("^")[0];
+      return Buffer.from(
+        args.at(-1).endsWith("^{commit}")
+          ? value
+          : drift && value === checkoutSha
+            ? "e".repeat(40)
+            : tree,
+      );
+    }
+    if (args[0] === "merge-base") return Buffer.from(baseSha);
+    if (args[0] === "diff")
+      return Buffer.from(
+        `:100644 100644 ${baseSha} ${headSha} M\0crates/portcove-core/catalog/catalog.json\0`,
+      );
+    if (args[0] === "show")
+      return Buffer.from(JSON.stringify(args[1].startsWith(baseSha) ? base : head));
+    assert.fail(args);
+  };
+  const context = { event: "pull_request", baseSha, headSha, checkoutSha };
+  const discover = () => discoverUpstreamHealthScope(context, git, () => JSON.stringify(head));
+  const scope = await discover();
+  assert.equal(scope.mode, "none");
+  assert.equal(scope.identities.head, headSha);
+  assert.equal(scope.identities.merge_base, baseSha);
+  assert.equal(scope.identities.checkout_tree, tree);
+  drift = true;
+  assert.equal((await discover()).mode, "full");
+  await assert.rejects(
+    discoverUpstreamHealthScope({ ...context, baseSha: "main" }, git, () => JSON.stringify(head)),
+    /exact base/,
+  );
+  await assert.rejects(
+    discoverUpstreamHealthScope(
+      context,
+      () => {
+        throw new Error("missing ref");
+      },
+      () => JSON.stringify(head),
+    ),
+    /missing ref/,
+  );
+  for (const event of ["push", "schedule", "workflow_dispatch", "unknown"])
+    assert.equal(
+      (
+        await discoverUpstreamHealthScope(
+          { event },
+          () => assert.fail("Full monitoring does not need PR Git refs"),
+          () => JSON.stringify(head),
+        )
+      ).mode,
+      "full",
+    );
 });

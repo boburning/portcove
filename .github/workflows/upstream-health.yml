@@ -7,6 +7,7 @@ on:
       - "scripts/retcomm-psx-upstreams.json"
       - "scripts/check-catalog-repositories.mjs"
       - "scripts/check-retcomm-upstreams.mjs"
+      - "scripts/upstream-health-plan.mjs"
       - ".node-version"
       - ".github/workflows/upstream-health.yml"
   push:
@@ -16,6 +17,7 @@ on:
       - "scripts/retcomm-psx-upstreams.json"
       - "scripts/check-catalog-repositories.mjs"
       - "scripts/check-retcomm-upstreams.mjs"
+      - "scripts/upstream-health-plan.mjs"
       - ".node-version"
       - ".github/workflows/upstream-health.yml"
   schedule:
@@ -35,13 +37,43 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - name: Check hosted catalog repositories
-        run: node scripts/check-catalog-repositories.mjs
+      - name: Select exact upstream health obligations
+        id: scope
+        run: node scripts/upstream-health-plan.mjs
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      - name: Check catalog locations within the selected scope
+        run: |
+          case "$HEALTH_MODE" in
+            full) node scripts/check-catalog-repositories.mjs ;;
+            affected)
+              test -n "$HEALTH_PORT_IDS"
+              node scripts/check-catalog-repositories.mjs --port-ids="$HEALTH_PORT_IDS" ;;
+            none)
+              test -z "$HEALTH_PORT_IDS"
+              node scripts/check-catalog-repositories.mjs --port-ids= ;;
+            *) echo 'Missing or invalid upstream health scope' >&2; exit 1 ;;
+          esac
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEALTH_MODE: ${{ steps.scope.outputs.mode }}
+          HEALTH_PORT_IDS: ${{ steps.scope.outputs.port_ids }}
       - name: Check RetComM upstream identity
-        if: ${{ !cancelled() }}
-        run: node scripts/check-retcomm-upstreams.mjs
+        if: ${{ !cancelled() && steps.scope.outcome == 'success' && steps.scope.outputs.retcomm == 'true' }}
+        run: |
+          case "$HEALTH_MODE" in
+            full) node scripts/check-retcomm-upstreams.mjs ;;
+            affected)
+              test -n "$RETCOMM_PORT_IDS"
+              node scripts/check-retcomm-upstreams.mjs --port-ids="$RETCOMM_PORT_IDS" ;;
+            *) echo 'Missing or invalid RetComM health scope' >&2; exit 1 ;;
+          esac
+        env:
+          HEALTH_MODE: ${{ steps.scope.outputs.mode }}
+          RETCOMM_PORT_IDS: ${{ steps.scope.outputs.retcomm_port_ids }}
