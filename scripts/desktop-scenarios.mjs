@@ -17,6 +17,15 @@ function scenario(id, description, options = {}) {
 
 export const DESKTOP_SCENARIOS = Object.freeze([
   scenario(
+    "native-qualification-history",
+    "Recorded history and technical disclosure remain scoped and usable in the normal Linux WebView.",
+    {
+      source: "desktop-qualification-history-test.mjs",
+      qualification_only: true,
+      platforms: ["linux"],
+    },
+  ),
+  scenario(
     "native-selected-setup-completion",
     "Discovered synthetic inputs continue through ordinary installation, cancellation, retry and isolated preparation.",
     {

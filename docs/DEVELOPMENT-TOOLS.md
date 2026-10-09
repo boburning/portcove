@@ -1122,3 +1122,54 @@ request and requires the popup destination to receive none; it does not promise
 network silence for cancelled navigation. Native refusal, the preserved main
 URL/assets, absent remote fixture execution marker and returned-main IPC establish
 context containment. See the [Microsoft cancellation contract](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/win32/icorewebview2navigationstartingeventargs?view=webview2-1.0.4129.50).
+
+### Fixed reviewed hosted validation
+
+Hosted preflight refusal diagnostics identify the rejected condition and retain
+bounded child-result facts before preserving the original failure. New telemetry
+uses an allowlisted projection, at most 64 KiB of final UTF-8 output including its
+prefix and newline. Oversize projections are explicitly omitted; interrupted
+captures are marked incomplete. Unknown strings contribute only type, byte count
+and SHA-256, never raw output, arbitrary error messages, arguments or environment
+values. Diagnostic serialization or logging failure cannot replace the refusal.
+Successful selection, provisioning, commands, profiles and execution limits are
+unchanged; rejection never starts browser acquisition or validation.
+
+Cargo observation failures retain structured spawn/exit/JSON/inventory facts in
+the existing `planning-blocked` report, with no selected plan and exit one. Only
+observation mode uses the existing 15-second, offline, locked metadata call; normal
+metadata selection retains its execution contract. Unrecognized causes remain
+unknown. These diagnostics neither establish a cold-cache cause nor authorize
+dependency acquisition, a retry, protected-controller adoption or acceptance.
+Previously discarded child output cannot be reconstructed by this repair.
+
+These disclosure rules apply to the new telemetry. Existing inherited stderr,
+CLI error printing and parsed `selected-plan.json` retention are separate output
+boundaries; the diagnostic projection does not promise whole-job redaction.
+
+For Cloud hosts lacking native build SDKs, use the separately reviewed manual
+operations in `native-design-compatibility.yml` after exact source-bound admission.
+Keep the existing hosted local-check authority refusal intact. Supply
+`operation`, `execution_binding` and `execution_binding_sha256`; no shell command
+is a workflow input. Binding format1 names source/controller/base/merge-base/authority,
+complete inventory SHA-256, hosted-plan digest, and complete baseline/selected
+obligation inventories. Generate the candidate-root structured inventory with
+`just local-check --preflight --json`; prerequisite observations are not execution.
+Review the baseline obligations independently under the preserved pre-change policy.
+
+`bootstrap` runs `just local-check --fresh` and `just audit --fresh` in separate jobs;
+`selected` runs fresh selected validation, `compiled` runs the complete maintained
+`pnpm --dir apps/desktop test:adapter-conformance` command, and
+`qualification-history` runs the one explicit Linux normal-app native scenario.
+`candidate-consumer` runs the existing selected, compiled and history jobs on an
+independently admitted exact composition of the reviewed controller and four
+unchanged A16 product paths, before controller merge. It remains execution under
+test; it supplies neither controller trust nor bootstrap's separate complete audit.
+The separately reviewed adapter harness is bound through the exact source and full
+inventory; unrelated executable changes remain refused. A controller candidate's
+bootstrap result is validation evidence, not a self-issued trust or merge grant.
+
+Use the supported decoded GitHub job-log connector to retrieve retained byte records;
+verify run/attempt/job/source, recover with the existing codec and inspect real PNGs.
+See [hosted acceptance](NATIVE-HOSTED-ACCEPTANCE.md) for allocations, identity and
+composition requirements, honest platform/fixture limits and recovery commands.

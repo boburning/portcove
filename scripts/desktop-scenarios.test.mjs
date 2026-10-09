@@ -1,13 +1,216 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { copyFile, mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
+import {
+  copyFile,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readlink,
+  writeFile,
+  rm,
+  stat,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
 import { createInstallFixture } from "../apps/desktop/scripts/desktop-install-fixture.mjs";
 import { fileIdentity } from "./development-evidence.mjs";
 import { toolCachePaths } from "./tool-cache.mjs";
+import { pathToFileURL } from "node:url";
+import {
+  captureHistorySession,
+  historyDriverStillOwned,
+  waitHistorySessionExit,
+  qualificationHistoryScenario,
+} from "../apps/desktop/scripts/desktop-qualification-history-test.mjs";
+
+test("history opens populated details before waiting for requested inspections", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("      await installFixture();");
+  const end = source.indexOf("      for (const [name, theme, width, height, font]", start);
+  assert.ok(start >= 0 && end > start);
+  const startup = source
+    .slice(start, end)
+    .replace('({ By, Key, until } = await import("selenium-webdriver"));', "");
+  const window = { __portcoveHistoryProbe: { snapshots: 0, reports: 0 } };
+  const calls = [];
+  await runInNewContext(`(async () => { let technicalSummary; ${startup} })()`, {
+    window,
+    By: { xpath: () => ({}) },
+    installFixture: async () => {
+      window.__portcoveHistoryProbe.snapshots++;
+      calls.push("fixture");
+    },
+    openDetails: async () => {
+      assert.equal(window.__portcoveHistoryProbe.snapshots, 1);
+      assert.equal(window.__portcoveHistoryProbe.reports, 0);
+      calls.push("details");
+      window.__portcoveHistoryProbe.reports++;
+    },
+    browser: {
+      executeScript: async (callback) => callback(),
+      wait: async (predicate, timeout) => {
+        assert.equal(timeout, 15_000);
+        assert.equal(await predicate(), true, "Reports require an ordinary detail selection");
+        calls.push("settled");
+      },
+    },
+  });
+  assert.deepEqual(calls, ["fixture", "settled", "details", "settled"]);
+});
+
+test("history procfs disappearance retains narrow errors and live identities", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function historyProcess(pid)");
+  const end = source.indexOf("function sameHistoryIdentity", start);
+  assert.ok(start >= 0 && end > start);
+  for (const code of ["ENOENT", "ESRCH", "EACCES", "EIO"]) {
+    const error = Object.assign(new Error(code), { code });
+    const action = runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+      readFile: async () => {
+        throw error;
+      },
+      readlink: async () => {
+        assert.fail("Disappeared stat must not read executable");
+      },
+    });
+    if (["ENOENT", "ESRCH"].includes(code)) assert.equal(await action, null);
+    else await assert.rejects(action, (actual) => actual === error);
+  }
+  const fields = ["S", "10", "123", ...Array(16).fill("0"), "456"];
+  const live = await runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+    readFile: async () => `123 (owned child) ${fields.join(" ")}`,
+    readlink: async () => "/owned/driver",
+  });
+  assert.deepEqual(
+    { ...live },
+    {
+      state: "S",
+      pid: 123,
+      parent: 10,
+      group: 123,
+      start_ticks: "456",
+      executable: "/owned/driver",
+    },
+  );
+  const error = Object.assign(new Error("exe disappearance"), { code: "ESRCH" });
+  await assert.rejects(
+    runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+      readFile: async () => `123 (owned child) ${fields.join(" ")}`,
+      readlink: async () => {
+        throw error;
+      },
+    }),
+    (actual) => actual === error,
+  );
+});
+
+test("history fixture helpers import without installed desktop packages", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-import-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const module = path.join(root, "history.mjs");
+  await copyFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mjs", import.meta.url),
+    module,
+  );
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "-e", `await import(${JSON.stringify(pathToFileURL(module).href)})`],
+    { cwd: root, encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test(
+  "history installation and lost-window failures retain original and restoration evidence",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-restoration-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    for (const lostWindow of [false, true]) {
+      const output = path.join(root, String(lostWindow));
+      await mkdir(output);
+      let calls = 0;
+      const browser = {
+        manage: () => ({
+          window: () => ({
+            getRect: async () => ({ width: 800, height: 600 }),
+            setRect: async () => {
+              if (lostWindow) throw new Error("owned window unavailable");
+            },
+          }),
+        }),
+        executeScript: async () => "",
+        executeAsyncScript: async () => {
+          if (++calls === 1) return { error: "owned installation emit rejected" };
+          if (lostWindow) throw new Error("owned restoration unavailable");
+          return { restored: true, snapshots: 0, reports: 0 };
+        },
+      };
+      await assert.rejects(() =>
+        qualificationHistoryScenario({
+          browser,
+          scenario: async (_name, body) => body(),
+          output,
+          artifacts: [],
+          invoke: async () => ({ ok: true, value: [] }),
+        }),
+      );
+      const report = JSON.parse(
+        await readFile(path.join(output, "qualification-history.json"), "utf8"),
+      );
+      assert.match(report.failure.message, /owned installation emit rejected/);
+      assert.equal(calls, 2, "Installation rejection still attempts restoration exactly once");
+      assert.equal(report.restoration.restored, !lostWindow);
+      assert.equal(report.native_source_restoration.count, 0);
+      if (lostWindow) {
+        assert.equal(report.restoration.error, "owned restoration unavailable");
+        assert.equal(report.restoration.window_error, "owned window unavailable");
+      }
+    }
+  },
+);
+
+test(
+  "history ownership rejects an unrelated PID and changed creation identity without signaling",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const raw = await readFile(`/proc/${process.pid}/stat`, "utf8");
+    const fields = raw.slice(raw.lastIndexOf(")") + 2).split(" ");
+    const driver = {
+      pid: process.pid,
+      parent: Number(fields[1]),
+      group: Number(fields[2]),
+      start_ticks: fields[19],
+      executable: await readlink(`/proc/${process.pid}/exe`),
+    };
+    assert.equal(await historyDriverStillOwned({ driver }), true);
+    await assert.rejects(
+      () => historyDriverStillOwned({ driver: { ...driver, start_ticks: "0" } }),
+      /start_ticks changed/,
+    );
+    await assert.rejects(
+      () => captureHistorySession(process.pid, process.execPath, process.execPath),
+      /Expected values to be strictly equal/,
+    );
+    const oldIdentity = await waitHistorySessionExit({
+      processes: [{ ...driver, start_ticks: "0" }],
+    });
+    assert.equal(oldIdentity.all_exited, true);
+    assert.equal(
+      await historyDriverStillOwned({ driver }),
+      true,
+      "An unrelated current process must be retained",
+    );
+  },
+);
 import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,
@@ -43,6 +246,44 @@ import {
   DESKTOP_SCENARIOS,
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
+
+test("qualification history is one opt-in Linux normal-app scenario without lifecycle setup", () => {
+  const selected = resolveDesktopSelection({
+    scenarios: ["native-qualification-history"],
+    platform: "linux",
+  });
+  assert.deepEqual(selected.selected_scenarios, ["native-qualification-history"]);
+  assert.deepEqual(selected.setup_scenarios, []);
+  assert.deepEqual(selected.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selected), 180_000);
+  assert.equal(
+    Object.values(DESKTOP_PROFILES).some((ids) => ids.includes("native-qualification-history")),
+    false,
+  );
+});
+
+test("native history fixture reuses exact maintained catalog records without inventing current applicability", async () => {
+  const { qualificationHistoryFixture } =
+    await import("../apps/desktop/scripts/desktop-qualification-history-test.mjs");
+  const catalog = JSON.parse(
+    await readFile(
+      new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const fixture = qualificationHistoryFixture(catalog);
+  assert.equal(fixture.profile_id, fixture.report.expected_identity.id);
+  assert.equal(fixture.report.applications[0].contract.profile_id, fixture.profile_id);
+  assert.deepEqual(
+    fixture.report.applications[0].qualification.exact_records,
+    catalog.source_catalog.qualification.filter(
+      (record) => record.scope.port_id === fixture.port_id,
+    ),
+  );
+  assert.equal(fixture.report.state_code, "not_inspected");
+  assert.equal(fixture.report.applications[0].release_applicability.state_code, "not_rebound");
+  assert.throws(() => qualificationHistoryFixture({ ports: [], source_catalog: {} }));
+});
 
 test("external fixture contracts execute without installed native-driver dependencies", async (t) => {
   // Storage guards can put os.tmpdir() inside an installed workspace. Keep this
