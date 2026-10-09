@@ -1381,6 +1381,11 @@ export function executePlan(plan, options = {}) {
 
 function localStageDomains(entry) {
   if (entry.id === "diff-check") return [];
+  // These stages read live native exposure, frontend consumers, and the
+  // validator/runner implementation in addition to Rust schema exports.
+  if (["rust-workspace-tests", "ui-ipc-exposure"].includes(entry.id))
+    return ["rust", "ui", "format", "development"];
+  if (entry.id === "ui-transport-types") return ["ui", "format"];
   if (["oxfmt", "toml-format"].includes(entry.id)) return ["format"];
   if (entry.id === "rustfmt" || entry.id === "dependency-policy" || entry.id.startsWith("rust-"))
     return ["rust"];

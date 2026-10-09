@@ -1568,3 +1568,48 @@ test("Rust receipts bind narrower or broader selection even when source inventor
     /exact selected coverage/,
   );
 });
+
+test("live transport stages invalidate receipts when comparator and consumer inputs change", async () => {
+  const { domainsForPath } = await import("./audit.mjs");
+  const stage = planFor(["crates/portcove-core/src/types.rs"]).plan.find(
+    (e) => e.id === "rust-workspace-tests",
+  );
+  for (const input of [
+    "scripts/check-transport-contract.mjs",
+    "scripts/rust-test-impact.mjs",
+    "apps/desktop/src/App.tsx",
+    "apps/desktop/src/transport-host-output.generated.json",
+  ]) {
+    const inventory = receiptInventory();
+    inventory.files.push({
+      path: input,
+      kind: "file",
+      headBlob: "a",
+      indexBlob: "a",
+      gitBlob: "a",
+      sha256: "a",
+      headMode: "100644",
+      indexMode: "100644",
+      worktreeMode: "100644",
+      domains: [...domainsForPath(input).domains],
+      ambiguous: false,
+    });
+    const changed = structuredClone(inventory);
+    Object.assign(changed.files.at(-1), {
+      headBlob: "b",
+      indexBlob: "b",
+      gitBlob: "b",
+      sha256: "b",
+    });
+    assert.notEqual(
+      fingerprintLocalStage(stage, inventory, receiptRuntime),
+      fingerprintLocalStage(stage, changed, receiptRuntime),
+      input,
+    );
+    assert.notEqual(
+      fingerprintLocalStage({ ...stage, id: "ui-ipc-exposure" }, inventory, receiptRuntime),
+      fingerprintLocalStage({ ...stage, id: "ui-ipc-exposure" }, changed, receiptRuntime),
+      input,
+    );
+  }
+});
