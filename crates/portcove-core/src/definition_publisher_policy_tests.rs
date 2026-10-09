@@ -1406,10 +1406,12 @@ async fn managed_ordinary_lifecycle(mut observer: ManagedStageObserver<'_>) {
 
     phase("retained-trees:complete");
 
+    let corrected = compatible_correction_catalog(&catalog);
+    let correction = crate::test_fixture::IndexedCatalogFixture::new(&corrected, ID);
     for definition_revision in [8, 9] {
         phase(&format!("revision-{definition_revision}:acquire:start"));
         let (candidate, admission) =
-            acquire_compatible_correction(&fixture, &key, &root, &catalog, definition_revision)
+            acquire_compatible_correction(&fixture, &key, &root, &correction, definition_revision)
                 .await;
         phase(&format!("revision-{definition_revision}:acquire:complete"));
         phase(&format!("revision-{definition_revision}:select:start"));
@@ -1482,7 +1484,12 @@ async fn managed_ordinary_lifecycle(mut observer: ManagedStageObserver<'_>) {
         // then restoration. Neither may revive the old installed authorization.
         for (revision, redirects) in [(10, Some(4)), (11, None)] {
             let (candidate, admission) = acquire_compatible_correction_with_redirects(
-                &fixture, &key, &root, &catalog, revision, redirects,
+                &fixture,
+                &key,
+                &root,
+                &correction,
+                revision,
+                redirects,
             )
             .await;
             library
@@ -1548,7 +1555,7 @@ async fn acquire_compatible_correction(
     fixture: &RepositoryFixture,
     key: &Key,
     root: &[u8],
-    catalog: &Catalog,
+    correction: &crate::test_fixture::IndexedCatalogFixture<'_>,
     definition_revision: u64,
 ) -> (
     crate::AuthenticatedDefinitionCandidate,
@@ -1558,7 +1565,7 @@ async fn acquire_compatible_correction(
         fixture,
         key,
         root,
-        catalog,
+        correction,
         definition_revision,
         None,
     )
@@ -1569,7 +1576,7 @@ async fn acquire_compatible_correction_with_redirects(
     fixture: &RepositoryFixture,
     key: &Key,
     root: &[u8],
-    catalog: &Catalog,
+    correction: &crate::test_fixture::IndexedCatalogFixture<'_>,
     definition_revision: u64,
     max_redirects: Option<u8>,
 ) -> (
@@ -1577,24 +1584,13 @@ async fn acquire_compatible_correction_with_redirects(
     crate::AuthenticatedDefinitionPublisherPolicy,
 ) {
     let policy_revision = definition_revision - 6;
-    let mut corrected = catalog.authoritative_document();
-    corrected
-        .ports
-        .iter_mut()
-        .find(|port| port.id == ID)
-        .unwrap()
-        .summary = "Reviewed presentation correction".into();
-    let corrected = Catalog::from_json(&serde_json::to_string(&corrected).unwrap()).unwrap();
-    let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
-        &corrected,
-        ID,
-        definition_revision,
-    );
+    let bundle = correction.at_revision(definition_revision);
     let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
     targets.extend(bundle.contents);
     let mut document = availability_for(&targets, ID, policy_revision);
     document["policy_schema"] = serde_json::json!(2);
     document["grant_id"] = serde_json::json!("managed-github-v1-fixture");
+    let managed = managed_github(2);
     for field in [
         "status",
         "repository_id",
@@ -1602,7 +1598,7 @@ async fn acquire_compatible_correction_with_redirects(
         "max_redirects",
         "operations",
     ] {
-        document["decision"][field] = managed_github(2)["decision"][field].clone();
+        document["decision"][field] = managed["decision"][field].clone();
     }
     if let Some(max_redirects) = max_redirects {
         document["decision"]["max_redirects"] = max_redirects.into();
@@ -1624,6 +1620,17 @@ async fn acquire_compatible_correction_with_redirects(
     let candidate = acquire(fixture, root).await.unwrap();
     let admission = acquire_policy(fixture, root, ID).await.unwrap();
     (candidate, admission)
+}
+
+fn compatible_correction_catalog(catalog: &Catalog) -> Catalog {
+    let mut corrected = catalog.authoritative_document();
+    corrected
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ID)
+        .unwrap()
+        .summary = "Reviewed presentation correction".into();
+    Catalog::from_json(&serde_json::to_string(&corrected).unwrap()).unwrap()
 }
 
 #[tokio::test]
@@ -1660,9 +1667,11 @@ async fn managed_compatible_corrections_refuse_old_acquisition_and_changed_retai
         assert_eq!(floor, 1);
     };
     require_retained_launch();
+    let corrected = compatible_correction_catalog(&catalog);
+    let correction = crate::test_fixture::IndexedCatalogFixture::new(&corrected, ID);
     for definition_revision in [8, 9] {
         let (candidate, admission) =
-            acquire_compatible_correction(&fixture, &key, &root, &catalog, definition_revision)
+            acquire_compatible_correction(&fixture, &key, &root, &correction, definition_revision)
                 .await;
         library
             .apply_definition_publisher_policy(&admission, Some(&candidate))
