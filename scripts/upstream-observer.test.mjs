@@ -1281,6 +1281,114 @@ const reviewedAccounting = JSON.parse(
 const pinMetadata = JSON.parse(
   await readFile(new URL("./fixtures/upstream-health-pins.json", import.meta.url), "utf8"),
 ).pins;
+// Independently retained complete public provider metadata; no accepted-byte claim.
+pinMetadata.push({
+  repository: {
+    id: 1352788804,
+    full_name: "alexbeavs-ps1-ports/armored-core-recomp",
+    archived: false,
+  },
+  release: {
+    id: 382786096,
+    tag_name: "v0.3.6",
+    draft: false,
+    prerelease: false,
+    created_at: "2026-09-04T11:49:26Z",
+    published_at: "2026-09-04T14:48:29Z",
+    assets: [
+      {
+        id: 544444024,
+        name: "Armored-Core-Recomp-0.3.6-linux-x64.zip",
+        size: 28046282,
+        state: "uploaded",
+        digest: "sha256:a8bb86eb739f10653c39f8cb3c83b59d4d8a7b3b837ea7b580667868c6698e6a",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-linux-x64.zip",
+        created_at: "2026-09-04T14:19:50Z",
+        updated_at: "2026-09-04T14:19:52Z",
+      },
+      {
+        id: 544444106,
+        name: "Armored-Core-Recomp-0.3.6-macos-arm64.zip",
+        size: 25791499,
+        state: "uploaded",
+        digest: "sha256:83f4f37a9d35119d00eb8f015f29fb25f2d628977835e4ab04545a8271b45740",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-arm64.zip",
+        created_at: "2026-09-04T14:19:54Z",
+        updated_at: "2026-09-04T14:19:56Z",
+      },
+      {
+        id: 544444221,
+        name: "Armored-Core-Recomp-0.3.6-macos-x64.zip",
+        size: 26135526,
+        state: "uploaded",
+        digest: "sha256:99fe56d964b52d3d5c7fbd17cb8a5c655f76fef30fd4214d87ee212517fb5963",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-x64.zip",
+        created_at: "2026-09-04T14:19:59Z",
+        updated_at: "2026-09-04T14:20:00Z",
+      },
+      {
+        id: 544444321,
+        name: "Armored-Core-Recomp-0.3.6-windows-x64.zip",
+        size: 30152526,
+        state: "uploaded",
+        digest: "sha256:43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
+        created_at: "2026-09-04T14:20:03Z",
+        updated_at: "2026-09-04T14:20:05Z",
+      },
+    ],
+  },
+  assets: [
+    {
+      id: 544444024,
+      name: "Armored-Core-Recomp-0.3.6-linux-x64.zip",
+      size: 28046282,
+      state: "uploaded",
+      digest: "sha256:a8bb86eb739f10653c39f8cb3c83b59d4d8a7b3b837ea7b580667868c6698e6a",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-linux-x64.zip",
+      created_at: "2026-09-04T14:19:50Z",
+      updated_at: "2026-09-04T14:19:52Z",
+    },
+    {
+      id: 544444106,
+      name: "Armored-Core-Recomp-0.3.6-macos-arm64.zip",
+      size: 25791499,
+      state: "uploaded",
+      digest: "sha256:83f4f37a9d35119d00eb8f015f29fb25f2d628977835e4ab04545a8271b45740",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-arm64.zip",
+      created_at: "2026-09-04T14:19:54Z",
+      updated_at: "2026-09-04T14:19:56Z",
+    },
+    {
+      id: 544444221,
+      name: "Armored-Core-Recomp-0.3.6-macos-x64.zip",
+      size: 26135526,
+      state: "uploaded",
+      digest: "sha256:99fe56d964b52d3d5c7fbd17cb8a5c655f76fef30fd4214d87ee212517fb5963",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-x64.zip",
+      created_at: "2026-09-04T14:19:59Z",
+      updated_at: "2026-09-04T14:20:00Z",
+    },
+    {
+      id: 544444321,
+      name: "Armored-Core-Recomp-0.3.6-windows-x64.zip",
+      size: 30152526,
+      state: "uploaded",
+      digest: "sha256:43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
+      created_at: "2026-09-04T14:20:03Z",
+      updated_at: "2026-09-04T14:20:05Z",
+    },
+  ],
+});
 const currentHealthCatalog = JSON.parse(
   await readFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
 );
@@ -1349,12 +1457,12 @@ test("reviewed exact metadata and original conditions remain degraded without gr
   });
   assert.equal(report.outcome, "complete");
   assert.equal(report.degradation, true);
-  assert.equal(report.coverage.repositories, 8);
-  assert.equal(report.coverage.attempted_repositories, 8);
-  assert.equal(report.coverage.reachable_repositories, 1);
-  assert.equal(report.coverage.unknown_repositories, 7);
-  assert.equal(report.consumed.requests, 17);
-  assert.equal(calls.length, 17);
+  assert.equal(report.coverage.repositories, 10);
+  assert.equal(report.coverage.attempted_repositories, 10);
+  assert.equal(report.coverage.reachable_repositories, 2);
+  assert.equal(report.coverage.unknown_repositories, 8);
+  assert.equal(report.consumed.requests, 22);
+  assert.equal(calls.length, 22);
   for (const call of calls) {
     assert.equal(call.options.redirect, "manual");
     if (call.url.startsWith("https://api.github.com/"))
