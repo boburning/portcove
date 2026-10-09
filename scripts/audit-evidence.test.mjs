@@ -75,6 +75,38 @@ test("reviewed pre-change fingerprints and serialized input semantics are preser
   }
 });
 
+test("capture failure does not replace audit execution or its primary failure", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "audit-capture-failure-"));
+  try {
+    const entry = structuredClone(baseline.cases[0]);
+    const plan = planAudit({
+      inventory: entry.inventory,
+      runtime: entry.runtime,
+      stages: AUDIT_STAGES.slice(0, 2),
+      fresh: true,
+      receiptRoot: path.join(root, "receipts"),
+    });
+    const calls = [];
+    const result = executeAudit(plan, {
+      captureHosted: true,
+      captureInputs: () => {
+        throw Object.assign(new Error("full disk"), { code: "ENOSPC" });
+      },
+      execute: (stage) => {
+        calls.push(stage.id);
+        return { status: stage.id === "format" ? 7 : 0 };
+      },
+    });
+    assert.deepEqual(calls, ["format", "rust"]);
+    assert.equal(result.captureAvailable, false);
+    assert.equal(result.success, false);
+    assert.equal(result.results[0].exitCode, 7);
+    assert.equal(result.results[1].status, "passed");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 function fixture() {
   const source = "a".repeat(40);
   const identity = {

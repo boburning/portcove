@@ -121,7 +121,7 @@ jobs:
         run: node scripts/deep-audit-summary.mjs || echo "Structured audit evidence unavailable"
       - name: Export attempt-bound audit evidence
         id: audit-evidence
-        if: always()
+        if: always() && steps.fresh-audit.outputs.capture_available == 'true'
         run: |
           if node scripts/audit-evidence.mjs; then
             echo "available=true" >> "$GITHUB_OUTPUT"

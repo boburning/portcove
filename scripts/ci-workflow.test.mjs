@@ -2513,6 +2513,7 @@ test("deep audit summary retains audit status without artifacts or privilege cha
     /name: Export attempt-bound audit evidence\r?\n {8}id: audit-evidence\r?\n {8}if: always\(\)/,
   );
   assert.match(deep, /node scripts\/audit-evidence.mjs/);
+  assert.match(deep, /if: always\(\) && steps.fresh-audit.outputs.capture_available == 'true'/);
   assert.match(deep, /if: always\(\) && steps.audit-evidence.outputs.available == 'true'/);
   assert.match(deep, /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/);
   assert.match(

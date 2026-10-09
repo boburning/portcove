@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  appendFileSync,
   lstatSync,
   mkdirSync,
   readFileSync,
@@ -805,26 +806,16 @@ function displayPlan(plan) {
 }
 
 export function executeAudit(plan, options = {}) {
+  let captureAvailable = false;
   if (options.captureHosted) {
-    const identity = hostedAuditIdentity(options.root ?? projectRoot);
-    if (identity.source !== plan.head) throw new Error("Audit input capture source mismatch");
-    writeJsonAtomic(
-      path.join(process.env.RUNNER_TEMP, `audit-inputs-${identity.run}-${identity.attempt}.json`),
-      receiptEnvelope({
-        format: 1,
-        kind: "audit-inputs",
-        head: plan.head,
-        profile: plan.profile,
-        identity,
-        capturedAt: new Date().toISOString(),
-        stageInputs: Object.fromEntries(
-          plan.stages.map((stage) => [
-            stage.id,
-            fingerprintInputs(stage, plan.inventory, plan.runtime),
-          ]),
-        ),
-      }),
-    );
+    try {
+      (options.captureInputs ?? captureHostedAuditInputs)(plan, options.root ?? projectRoot);
+      captureAvailable = true;
+    } catch (error) {
+      console.warn(
+        `[audit] Original input capture unavailable (${/^[A-Z0-9_]+$/.test(error.code) ? error.code : "capture-failed"}); audit stages still execute`,
+      );
+    }
   }
   const execute =
     options.execute ??
@@ -913,7 +904,34 @@ export function executeAudit(plan, options = {}) {
     ),
     receiptEnvelope(reportPayload),
   );
-  return { success, results, report: reportPayload };
+  return { success, results, report: reportPayload, captureAvailable };
+}
+
+export function captureHostedAuditInputs(plan, root = projectRoot) {
+  const identity = hostedAuditIdentity(root);
+  if (identity.source !== plan.head) throw new Error("Audit input capture source mismatch");
+  const captureFile = path.join(
+    process.env.RUNNER_TEMP,
+    `audit-inputs-${identity.run}-${identity.attempt}.json`,
+  );
+  rmSync(captureFile, { force: true });
+  writeJsonAtomic(
+    captureFile,
+    receiptEnvelope({
+      format: 1,
+      kind: "audit-inputs",
+      head: plan.head,
+      profile: plan.profile,
+      identity,
+      capturedAt: new Date().toISOString(),
+      stageInputs: Object.fromEntries(
+        plan.stages.map((stage) => [
+          stage.id,
+          fingerprintInputs(stage, plan.inventory, plan.runtime),
+        ]),
+      ),
+    }),
+  );
 }
 
 export function hostedAuditIdentity(root = projectRoot) {
@@ -1020,6 +1038,15 @@ export function main(argv = process.argv.slice(2)) {
   displayPlan(plan);
   if (options.planOnly) return;
   const result = executeAudit(plan, { captureHosted: process.env.PORTCOVE_AUDIT_CAPTURE === "1" });
+  if (process.env.PORTCOVE_AUDIT_CAPTURE === "1" && process.env.GITHUB_OUTPUT) {
+    try {
+      appendFileSync(process.env.GITHUB_OUTPUT, `capture_available=${result.captureAvailable}\n`);
+    } catch {
+      console.warn(
+        "[audit] Input capture step output unavailable; artifact export remains disabled",
+      );
+    }
+  }
   if (!result.success) {
     const failed = result.results
       .filter((entry) => entry.status === "failed")
