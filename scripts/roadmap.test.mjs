@@ -6,6 +6,7 @@ import { createGitHubRunner } from "./github-api.mjs";
 
 import {
   RoadmapClient,
+  deliveryMode,
   analyzeReleaseReadiness,
   catalogQualificationSummary,
   completionEvidenceLinks,
@@ -123,6 +124,7 @@ function operationalFixture() {
   const lanes = ["cloud-a", "cloud-b", "local"];
   const configured = {
     ...config,
+    delivery_mode: "coordinated",
     runner_coordination: {
       schema_version: 1,
       board_issue: 1800,
@@ -5007,4 +5009,55 @@ test("queue displays incomplete dependency coverage instead of an empty prerequi
     content: { number: 1, state: "OPEN", blockedBy: { totalCount: 11, nodes: [] } },
   };
   assert.match(renderExecutionQueue([record]), /prerequisite coverage incomplete/);
+});
+
+test("single-local pickup avoids obsolete board reads without claiming writer release", () => {
+  const single = { ...config, delivery_mode: "single-local-runner", runner_coordination: null };
+  const snapshot = readOperationalBoard(single, {
+    request: () => assert.fail("retired board must not be read"),
+  });
+  assert.equal(snapshot.status, "retired");
+  assert.equal(snapshot.active_writer_overlap, "not assessed");
+  assert.equal(bindOperationalAssignment(snapshot, "Local", 244), null);
+  const envelope = operationalEnvelope(snapshot, { status: "observed" });
+  assert.equal(envelope.operational_baseline, null);
+  assert.equal(envelope.operational_binding, undefined);
+  assert.match(
+    envelope.operational_snapshot.authority_limit,
+    /does not prove release or inactivity/,
+  );
+  assert.throws(() => bindOperationalAssignment(snapshot, "", 244), /identity/);
+  assert.throws(() => bindOperationalAssignment(snapshot, "Local", 0), /positive/);
+});
+
+test("retired coordinator planners cannot revive historical grants or writes", () => {
+  const single = { ...config, delivery_mode: "single-local-runner" };
+  for (const apply of [false, true]) {
+    for (const plan of [
+      prepareOperationalConsumption,
+      prepareOperationalOffer,
+      prepareOperationalReturn,
+      prepareOperationalReturnAcceptance,
+      prepareOperationalReleaseEvidence,
+    ])
+      assert.throws(() => plan({ config: single, apply }), /coordination is retired/);
+  }
+  assert.throws(() => prepareOperationalCheckpoint(single), /coordination is retired/);
+  assert.equal(deliveryMode({}), "coordinated");
+  assert.throws(() => validateConfig({ ...config, delivery_mode: "local-ish" }), /delivery_mode/);
+});
+
+test("explicit pickup references do not revive coordinator authority in single mode", () => {
+  const reservation = { url: "https://github.com/boburning/portcove/issues/244#issuecomment-1" };
+  const options = { runner: "Local", comments: [], coverage: { complete: false }, reservation };
+  const context = deriveExecutionContext(config, pickupIssue(244), pickupRelations(), options);
+  assert.match(context.reservation.assessment, /actual writer activity, source-owner release/);
+  assert.equal(context.reservation.url, reservation.url);
+  const historical = deriveExecutionContext(
+    { ...config, delivery_mode: "coordinated" },
+    pickupIssue(244),
+    pickupRelations(),
+    options,
+  );
+  assert.match(historical.reservation.assessment, /accepted grant.*coordinator/);
 });

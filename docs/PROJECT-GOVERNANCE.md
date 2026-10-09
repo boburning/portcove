@@ -311,22 +311,19 @@ runners are expected to execute by Priority, Horizon, readiness and Project orde
 Use `roadmap.mjs next` as the common execution queue; a Required-only readiness
 view is never the universal task selector. Deferred work remains inactive.
 
-At a clean handoff, preserve healthy reservations and select useful disjoint work
-across two cloud implementation lanes and the local runner, with independent
-non-writing review. The objective is finishing the agreed beta: favor an accepted
-beta outcome's exact remaining acceptance, a demonstrated prerequisite for several
-beta outcomes or fitting frozen-cohort routes, or an actual implementation, review,
-validation, integration or release bottleneck. Immediate safety/data-loss problems
-and broken required validation retain precedence. This replaces rotation or
-acceleration-first interpretations that indefinitely favor unrelated useful work.
-
-Required alone is not a scheduling algorithm. A Planned task may be the best beta
-accelerator; compare relevance, real dependencies, capable routes, accepted
-ownership and expected benefit. Use existing Priority, Horizon and Project order,
-not a new score or queue. Productive unrelated work remains eligible when no
-available higher-value beta work can use that capacity. No fixed machine roles,
-quotas, universal local-integration bottleneck or permission to leave a capable
-lane idle is introduced. Apply reordered work only at safe boundaries.
+One local runner owns implementation and delivery. At clean handoffs favor
+finishing accepted beta outcomes, exact remaining acceptance, demonstrated
+prerequisites for several beta outcomes or fitting frozen-cohort routes, and
+actual delivery bottlenecks. Immediate safety/data-loss problems and broken
+required validation retain precedence. Required alone is not a scheduling
+algorithm; Planned work may be the best accelerator.
+Use existing Priority, Horizon and Project order with relevance, dependencies,
+capability and current ownership. Preserve old workers' work and verify actual
+writer release before overlapping edits. Missing coordinator paperwork does
+not block unrelated work. Keep one actively edited candidate; a clean candidate
+waiting for CI, independent review or an external prerequisite permits another
+independent task. Do not create new cloud implementation sessions, a dispatcher,
+lease system or reporting framework. Short-lived non-writing reviewers are allowed.
 
 For each selected outcome credit delivered acceptance, name the exact remaining
 gap and select one bounded implementation or proof advancing closure. Identify
@@ -334,7 +331,7 @@ the applicable validation route and missing native/package scenario before
 implementation where practical; arrange proof alongside the implementation.
 Reuse adequate evidence at its actual inputs and scope across consuming owners,
 without copying receipts or repeating qualification solely for multiple parents.
-Small coherent PRs may advance an outcome in parallel through disjoint ownership.
+Small coherent PRs may advance an outcome while clean independent candidates wait.
 Architecture inventory rows end in implemented, replaced/removed, or an
 evidence-backed satisfactory/compatibility-retained disposition; file size alone
 does not justify another required refactor. Design-system closure uses accepted
@@ -350,11 +347,12 @@ Being Planned is never a reason. For comparably valuable executable candidates, 
 waiting work over repeatedly selecting new small tasks; use existing comments
 and queue order to record repeated deferrals, without a new scheduler or ledger.
 
-Preserve actual host/resource guards; do not serialize disjoint cloud work, make
-every delivery wait for local integration, preempt healthy work, switch the
-existing worker/reviewer models, add paid capacity, or require #284. Acceleration
-issues identify a demonstrated delay, bounded repair and completion/no-change
-decision. New tiny improvements cannot keep one outcome open indefinitely.
+Preserve actual host/resource guards, independent review, acceptance and current
+model/cost boundaries. Use GPT-6.1-Sol where available, normally Medium for
+implementation and High for scoped review, or cheaper suitable models; never
+Astra. Add no paid capacity. Acceleration issues identify a demonstrated delay,
+bounded repair and completion/no-change decision. Tiny new improvements cannot
+keep one outcome open indefinitely.
 
 The existing nightly development report leads with accepted beta outcomes advanced,
 frozen-cohort useful-route/final-disposition progress, and actual blockers or
@@ -367,218 +365,89 @@ service or recurring automation. Instructions alone do not prove adoption.
 
 ## Pickup, consumption and execution upkeep
 
-The useful pickup guarantee is **the next real invocation or clean handoff**,
-not continuous monitoring. The existing coordinator uses its connected runner
-continuation route; verify the actual connection and worker response before
-claiming dispatch or consumption. Instructions, Project changes and sent messages
-do not wake a runner by themselves. No recurring trigger or new service is added.
+The owner ended the two-cloud/one-local arrangement on October 9, 2026.
+One local runner now owns routine selection, implementation, review fixes,
+validation, CI, guarded merge and roadmap reconciliation. Dot is no longer a
+coordinator, dispatcher, approval gate or intermediary. This decision changes
+execution ownership; release commitments, acceptance, trust, signing/provenance,
+branch protection, data protection and resource guards remain in force.
 
-At startup/resume, before selection, at clean handoffs, before review and before
-final acceptance, refresh the relevant owner instructions, current specification,
-planning fields, typed relationships, accepted reservation and source candidate.
-Share reads within an unchanged stage; do not poll or repeat a complete inventory.
-Use `just roadmap-next --json` for recommendations, then
-`just roadmap-context --issue <number> --runner <identity> --json` for the selected
-issue's full current specification and a compact requirements snapshot. Its scope,
-planning, genuine prerequisites and completion organization are separate facets.
-An optional `--consumed-file <path>` compares a disposable checkpoint; an exact
-`--consumed-comment <exact-comment-url>` can recover an older consumption record.
-`--reservation-comment <exact-comment-url>` supplies a raw reference, never a grant.
-The stable `runner_coordination` object in `.github/roadmap.json` points to
-[the operational issue](https://github.com/boburning/portcove/issues/1583) and
-exactly three fixed lane comments. Dot alone edits these records until actual
-lane edit permission and write identity are proven. Read the issue body and those
-three stored IDs directly; never enumerate comments or use task history as an
-ordinary context fallback. `--runner` names the actual visible instance bound to
-the owning task's accepted assignment. GitHub actor identity, a declared snapshot
-and a caller-reported identity do not prove native invocation, ACK or activity.
-An explicit `--coordination-pr <number>` binds an owning evidence PR, not authority.
+At startup/resume, selection, clean handoffs, review and final acceptance, refresh
+the relevant owner instructions, issue specification, live Project fields, typed
+relationships, actual writers and exact source. Share reads within an unchanged
+stage; compare material deltas and repeat only affected obligations.
+Use `roadmap.mjs next` for the common Required/Planned queue and
+`roadmap.mjs context --issue <number> --runner <reported-instance> --json`
+for full current task requirements. The configured `delivery_mode` is
+`single-local-runner`. Context skips the retired operational board and does not
+require an accepted coordinator assignment. Its retirement is not proof of
+writer inactivity or release. Check current handoffs, branch heads, local
+processes and source-owner release before taking conflicting work; unresolved
+writer overlap blocks only overlapping work. Caller identity is reported, not
+native authentication. Missing task/Project API coverage remains a limitation.
 
-The body records accepted assignment IDs/generations, actual instances, reserved
-scopes, pauses, pending transfers and fixed checkpoint pointers. Each checkpoint
-keeps current task/source, phase, meaningful progress, next action, outstanding
-request IDs/recipients/ACK states and necessary evidence only. Use direct connected
-runner messages for attention; bind actual responses to the request ID, board and
-checkpoint pointers, instance and assignment generation. Sent messages are not ACKs.
-Exactly one primary coordinator serializes grants; GitHub edits, timestamps and
-local locks are not cross-machine exclusivity. Preserve unresolved requests and
-pauses. Staged state does not establish active cutover or adoption.
+`runner_coordination` retains the old operational issue and three fixed comment
+IDs as discovery pointers. Preserve their history and unresolved evidence;
+ordinary pickup does not read or rewrite them. Legacy coordinated configurations
+remain readable for historical protocol tests; coordinator planners refuse in
+single-runner mode rather than issue new grants, ACKs or transfer records.
+The [prior fixed-board contract](https://github.com/boburning/portcove/blob/7805cebfde4a6f751b06c7ae1c6706d14a753c1f/docs/PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)
+is historical. Explicit owning comment/PR references and optional consumed-file
+baselines remain evidence, never grants. Do not scan enormous coordination
+archives or build a replacement ledger.
 
-After an accepted assignment is delivered and its scope explicitly released, use
-`execution_slot: "completed"`, `reserved_scope: null`, `intentional_pause: false`
-and `released_reference` pointing to that owning issue's exact verified release
-comment or an explicitly verified owning PR body pinned as
-`https://github.com/<owner>/<repo>/pull/<number>#body-sha256-<64hex>`.
-The PR must bind the owning issue, exact source and truthful merge state; preserve
-its raw body hash and edited timestamp. A bare PR URL or GitHub authorship cannot
-release scope. Open-PR transfers retain all remaining gates. Dot verifies the
-actual source-owner release response against the accepted instance,
-assignment and generation before editing. Retain the last accepted identity and
-ACK; the fixed checkpoint binds that same tuple, uses phase `completed` or
-`delivered`, and retains the release reference in its necessary evidence pointers.
-This completes the assignment, not necessarily its broader owning issue. It grants
-no active scope or new execution. Do not combine a completed and active assignment
-for the same lane, drop unresolved requests, or infer a successor grant from age,
-release, recommendation or an unacknowledged offer. Retain separately accepted
-reviewed-waiting scope. Replace the completed current assignment only after an
-explicit successor grant and actual ACK; its owning evidence preserves history.
+Keep one actively edited candidate at a time. Freeze clean heads while final
+checks run; revisit waiting candidates at natural checkpoints or new evidence.
+A waiting candidate does not stop useful independent delivery. Prefer completing
+existing work over recreating it. Do not reset, delete, force-push shared work or
+terminate another writer for convenience.
 
-Collection is bounded to four calls, at most15 seconds per request clipped to the
-remaining monotonic60-second total,64KiB per response,8KiB board and4KiB per
-checkpoint. The final coordination envelope, including carried baseline and
-measurement metadata, has a12KiB ceiling and a6KiB design target. Report actual
-UTF-8 bytes and bytes/4 token estimates, never billed tokens or claimed savings.
-These limits do not truncate the complete relevant task specification or required
-evidence. Missing, stale, malformed, oversized or unavailable state is UNKNOWN;
-preserve existing grants and stop conflicting new grants rather than falling back.
-Retain collected originals and hashes outside model context before interpretation.
+Investigate failures with the smallest discriminating reproduction while new
+evidence narrows a locally fixable cause. Do not repeat unchanged installation,
+network, permission, timeout or artifact-download attempts. When blocked,
+preserve meaningful changes in commits, push when available, and open/update a
+draft PR. Leave branch, exact source, checks/evidence, precise blocker, remaining
+acceptance and concrete resume condition on the owning issue/PR. Do not create
+empty PRs or claim an unavailable upload succeeded. Then select the highest-value
+independent eligible work in the same active session. An owner-only action is
+reported once with its effect; it does not suspend safe independent work.
 
-Fresh pickup reads the complete current task acceptance and typed relationships.
-Continuation validates the versioned baseline, exact four scopes, raw hashes,
-edited timestamps and coordinator/assignment binding before suppressing unchanged
-operational state. Timestamp-only edits are changes. Invalid baselines return the
-full current state. Explicit `node scripts/roadmap.mjs history --issue <number>
-[--coordination-pr <number>] --json` reads only that task's bounded recent50-record
-window; uncovered absence/latest remains unknown. Exact legacy #793 links are
-read-only evidence; no archive scans, writes or duplicate coordination issue.
+Preserve actual separate non-writing review and diff-selected local validation,
+exact-head CI and distinct acceptance. Reuse evidence only at permitted matching
+inputs and scope. A bounded reviewer receives the exact diff/head, relevant
+acceptance/contracts, risks and existing evidence; implementers handle findings
+directly. Missing independent review leaves a candidate awaiting review, never
+self-approved. Existing narrow dependency exceptions remain unchanged.
 
-Prepare a bounded task using approved acceptance: credit delivered components,
-name the missing outcome, actual prerequisites, smallest implementation, capable
-execution/validation route and reserved scope. Routine decomposition needs no
-new owner prompt. Unresolved product choices remain proposals; issue prose,
-Ready, a child or a fingerprint cannot approve expanded scope. Keep Required and
-Planned executable, the frozen rollout and all existing release/safety boundaries.
+Use existing canonical owners for discoveries and narrow blockers. Record fact
+versus hypothesis, affected acceptance, evidence, disposition and resume action.
+Create separate issues only for independently owned, scheduled and verifiable
+work through supported intake. Optional discoveries do not become release gates.
+Execute finite development improvements when necessary repairs, safe bounded
+parts of approved work, or demonstrated recurring bottlenecks likely to repay
+their cost during remaining beta delivery. Speculative tooling work remains later.
 
-Compare actual changes before invalidating work. Priority/order changes affect
-the next safe selection; preserve healthy execution. Material acceptance changes
-require an updated plan and only affected implementation, review and validation.
-A trusted withdrawal or applicable safety stop prevents further unauthorized
-execution/acceptance at the safest boundary while preserving work and evidence.
-Editorial changes and ordinary progress do not restart an attempt. The hash
-normalizes formatting/check marks and bare links in named evidence sections;
-other prose may still flag comparison. It is not a semantic diff. A separate raw
-observation hash guards receipt freshness, including literal content the comparison
-hint may normalize. A raw-only difference does not establish a substantive change;
-compare it, refresh the disposable context, and skip acknowledgment for routine
-evidence/editorial changes. Neither hash causes dispatch, invalidation or a comment.
-Read the complete relevant specification on fresh pickup; a validated continuation
-may suppress unchanged text before output while retaining its raw observation
-binding. Applicable owner direction and actual source/target drift still require
-comparison through the existing delivery guards; no acceptance exemption is created.
-
-After actual material consumption, retain the disposable context and plan
-`just roadmap-acknowledge --context-file <path> --runner <actual-instance>
---action <actual-action-or-wait-reason> --evidence <exact-owning-evidence-reference>
---json`. This refreshes the four fixed records and task requirements, binds the
-instance/task/generation and preserves existing request IDs/recipients and progress.
-Send the planned response through the connected native route. Dot verifies the
-actual response and alone edits the assigned fixed checkpoint in place after fresh
-preimage/generation checks and unresolved-request preservation. Runner `--apply`
-refuses under this coordinator-only contract; ordinary consumption adds no comment.
-Duplicate current consumption requests are quiet. Routine reads never advance
-meaningful progress. A stale baseline requires a fresh comparison. A changed
-revision remains pending comparison until the actual worker response resolves it.
-Keep attempted writes, transport response and exact readback distinct; after an
-ambiguous write retain the intent and read back without automatic retry.
-
-At a genuine safe checkpoint, `node scripts/roadmap.mjs handoff-offer --spec-file
-<path> --json` plans a bounded offer without replacing the accepted assignment.
-The spec binds request ID, actual instance, assignment/generation, owning issue,
-exact source, bounded outcome/scope and evidence. Supporting tests, fixtures and
-necessary inventory companions may belong to that finite outcome; a new product,
-security, native or resource boundary requires an explicit amendment.
-`handoff-return --offer-file <path> --runner <actual-instance> --disposition
-accepted|declined|pending --evidence <exact-reference> --json` prepares a reported
-response from the current source and reads only its exact owning issue comment or
-bound PR evidence (at most two additional calls, 30 seconds and 64KiB per response).
-Prefer the available connected route. An existing owning evidence surface may
-carry the response when that route is unavailable, without a progress stream.
-These commands cannot authenticate origin or wake a session. Dot must independently
-establish actual delivery/invocation and freshly read the exact raw evidence and
-edited timestamp before preserving an ACK through the existing checkpoint intent.
-Caller fields, a receipt or GitHub authorship cannot supply that verification.
-Missing transport/readback stays UNKNOWN and pending; duplicate exact returns
-are quiet. Wrong or superseded tuples, changed evidence, unresolved requests,
-pauses and completed releases remain preserved. Preimage checks and ambiguous
-write/readback rules still apply; no automatic retry or global lock is added.
-
-Prefer healthy cloud owners completing their delivery. A genuine cloud-to-Local
-transfer requires the source owner’s explicit release and Local’s actual instance,
-generation and remaining-scope ACK, serialized by Dot. Local then owns remaining
-validation, repairs, independent review, evidence reconciliation and normal guarded
-merge; do not bounce merge back to Cloud. Preserve Local’s existing work and guards.
-Capability assistance alone transfers no ownership, and CI cannot prove native
-Windows acceptance.
-
-Exactly one implementation owner may hold conflicting scope. Preserve accepted
-reservations and use direct existing runner messages for steers, grants and
-observed acknowledgments, with compact durable state in the three fixed lane
-checkpoints; owning issues/PRs retain only necessary task evidence. Retain exact comment links for later reads. Neither a
-sent message nor a checkpoint establishes a grant, consumption or worker activity
-without the corresponding actual response. Legacy #793 links remain read-only;
-use only the configured operational issue; do not create another tracker or scan
-that archive. Verify that this
-common coordinator actually serializes grants across machines before claiming
-cross-runner exclusivity. If that support is unverified, preserve reservations
-and use only explicitly accepted assignments for conflicting work; report the
-limitation. Independent read-then-post claims and a checkout-local process lock
-are not cross-machine grants. Never reclaim a task solely because its timestamp
-is old: confirm stop or explicit handoff. Disjoint work and existing machine
-resource limits continue; recommendations do not create active reservations.
-
-Every attempt maintains its canonical roadmap owner before switching, handing off
-or ending. Search existing open/closed work; consolidate findings with their owner.
-Record observation versus hypothesis, significance, affected acceptance, evidence,
-next action and disposition: resolved here, actionable within authority, blocked
-with resume condition, awaiting product decision, or deferred with revisit reason.
-Use existing fields, not another status system. Create a separate issue through
-supported intake only for independent ownership/scheduling/acceptance. Optional
-discoveries do not become blocking children or release gates. A small repair may
-join an owned branch only within its approved scope and proportionate review.
-Execute an improvement before beta when it is a necessary repair, a safe bounded
-part of current approved work, or a demonstrated recurring bottleneck likely to
-repay implementation and qualification cost during remaining beta work. Favor
-repairs unlocking several tasks or batches and record a brief qualitative reason;
-do not invent savings or require formal estimates for small fixes. Capture does
-not approve execution or expanded scope. Schedule speculative optimization, broad
-fixture campaigns and optional refactoring later unless this test justifies them,
-preserving approved status and discoverability. Keep acceleration finite rather
-than turning a product repair into an environment program.
-
-Distinguish product prerequisites from a runner's missing route, permission or
-resource. Record the exact affected obligation, attempted remedies or why none
-fits, alternative authorized routes and resumption condition. Continue unrelated
-work. Recheck when the condition changes; remove resolved blockers from current
-prose/fields, preserve historical evidence and reassess directly affected owners.
-Refresh immediately before guarded writes and verify saved state, preserving
-concurrent edits. If a write is unavailable, retain the exact unapplied update in
-a durable handoff artifact and reconcile live state before any later retry.
-
-After independently verified delivery, record exact evidence on the task,
-reconcile its delivered scope and Project state, reassess the finite parent,
-direct prerequisites and affected dependents (the inverse blocking consumers),
-release/hand off the reservation, and select the next eligible
-Required or Planned task within the authorized run. A closed child does not prove
-parent completion; a later sibling does not keep a satisfied parent open. Include
-a short discovery/update section in the ordinary handoff and nightly report:
-canonical links, material changes/dispositions, actual owner decisions, consumed
-versus pending requirements, accepted assignments/activity and concrete blockers.
-Repeated unchanged reads create no dispatch or comment noise. This uses the
-existing reporting flow, not another automation or ledger.
+After verified delivery reconcile the task, its finite parent and directly
+changed prerequisites/blocking consumers. A closed child alone does not prove
+parent completion. Select the next useful Required or Planned outcome. Report
+material shipped outcomes, next work and genuine owner actions; preserve durable
+resume evidence before switching or ending, with no heartbeat commentary or
+second status database. Work while the session is active; do not claim autonomous
+restart after it stops.
 
 ## Views and prioritization
 
 The saved views are entry points into one Project, not independent authorities:
 
-| View                                     | Question answered                                                                                                                          |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                                                                     |
-| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                                                                     |
-| In Progress                              | Which issues are marked In progress or Validating? Confirm accepted reservations and observed runner acknowledgments on owning issues/PRs. |
-| Next Queue                               | Which unfinished Now/Next work follows, including Required and Planned?                                                                    |
-| Planned Additions                        | Which approved non-gating additions remain, across releases?                                                                               |
-| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?                                                                |
-| Blocked & Deferred / Inbox & Triage      | What has a resume condition, and what still needs triage?                                                                                  |
+| View                                     | Question answered                                                                                                             |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                                                        |
+| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                                                        |
+| In Progress                              | Which issues are marked In progress or Validating? Confirm current ownership and actual writer activity on owning issues/PRs. |
+| Next Queue                               | Which unfinished Now/Next work follows, including Required and Planned?                                                       |
+| Planned Additions                        | Which approved non-gating additions remain, across releases?                                                                  |
+| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?                                                   |
+| Blocked & Deferred / Inbox & Triage      | What has a resume condition, and what still needs triage?                                                                     |
 
 `roadmap-outcome` is a presentation-only label on canonical finite product and
 engineering outcomes, including completed outcomes. It does not classify every

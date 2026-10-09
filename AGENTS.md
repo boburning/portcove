@@ -42,16 +42,16 @@ or approve their own trusted gates.
 
 ## Execution loop
 
-Follow one loop: understand the owned outcome and active reservations; implement
-one coherent change with focused tests; review that candidate and repair
-substantive findings; finish applicable local validation; push and freeze the
-candidate; complete required exact-head CI and distinct acceptance; guarded merge;
-concise handoff. Prefer healthy cloud owners finishing their delivery. A genuine
-cloud-to-Local transfer requires source-owner release and Local’s actual instance,
-generation and scope ACK; Local then owns remaining validation, fixes, independent
-review, evidence and normal guarded merge while preserving its other reservations.
-Use the task map below for details instead of loading every
-specialist contract.
+One local implementation runner owns the complete delivery loop: select approved
+work, implement one coherent candidate, obtain separate non-writing review,
+repair findings, finish diff-selected local validation and exact-head CI, satisfy
+distinct acceptance, guarded merge, reconcile the roadmap and select next work.
+Keep one actively edited candidate at a time. A clean candidate waiting for CI,
+review or an external prerequisite permits another independent candidate.
+Do not launch persistent cloud implementers or a replacement coordinator.
+Short-lived read-only reviewers are allowed. Existing writers and resource use
+must be verified before taking overlapping work; missing Dot grants or old
+handoff paperwork do not block unrelated delivery.
 
 Preserve other workers' changes, processes, evidence and reservations. A worktree
 does not confer ownership of shared host resources. If no durable issue owns
@@ -63,25 +63,22 @@ head.
 
 Use the live Project's common `roadmap.mjs next` queue for Required and Planned
 work. Commitment controls release readiness, never blanket execution eligibility.
-At clean handoffs, preserve healthy accepted reservations and favor completion of
-accepted beta outcomes, exact remaining acceptance, demonstrated prerequisites
-for several beta outcomes or fitting frozen-cohort routes, and actual delivery
+At clean handoffs favor completion of accepted beta outcomes, exact remaining
+acceptance, prerequisites for several beta outcomes and demonstrated delivery
 bottlenecks. Immediate safety/data-loss problems and broken required validation
-come first. A Planned task can be the best beta accelerator; commitment alone is
-not a scheduling algorithm. Use relevance, dependencies, capability and ownership
-across two cloud lanes plus local; no fixed roles or idle quota. Unrelated approved
-work remains eligible when no higher-value available beta work can use that lane.
-Each actionable Now/Next item has an accepted assignment or an ordered position
-behind named work. Scheduling predecessors are not blockers; recommendations
-are not reservations. Record concrete pass-over reasons and resume conditions in
-the owning issue/PR, prefer older comparable executable work, and report repeated
-deferrals in the existing nightly report. Being Planned is never a pass-over reason.
-Execute acceleration before beta when it is a necessary repair, a safe bounded
-part of approved work, or an evidenced recurring bottleneck likely to repay its
-implementation and qualification cost during remaining beta delivery. Capture
-speculative improvements with their canonical owner and later disposition.
-Preserve real resource guards, independent review and current model/cost choices.
-Do not serialize disjoint lanes or preempt healthy work.
+come first. A Planned task can be the best beta accelerator. Use relevance,
+dependencies, capability and current ownership with existing Priority, Horizon
+and Project order. Scheduling predecessors are not blockers. Prefer older
+comparable executable work and record concrete pass-over reasons and resume
+conditions on its owner. Being Planned is never a pass-over reason.
+Execute acceleration when it is a necessary repair, a safe bounded part of
+approved work, or an evidenced recurring bottleneck likely to repay its cost
+during remaining beta delivery. Preserve resource guards, independent review,
+release commitments and cost boundaries. Use GPT-6.1-Sol where available,
+normally Medium for implementation and High for bounded independent review,
+or cheaper suitable models; never Astra. Capture speculative improvements with
+their existing owner rather than expanding the active outcome.
+
 See `docs/PROJECT-GOVERNANCE.md` for the complete selection/reporting rule.
 
 ## Maintaining the roadmap
@@ -97,22 +94,19 @@ and directly affected relationships on completion or material scope change.
 Prefer existing owners and targeted checks; a complete roadmap inventory is
 needed for migrations and release claims, not every ordinary change.
 
-At invocation/resume, selection, clean handoff, review and final acceptance, consume
-the relevant live requirements and accepted reservation. Use `roadmap-context`
-and the pickup/upkeep contract in `docs/PROJECT-GOVERNANCE.md`; compare actual
-deltas before repeating affected work. Queue recommendations, sent steers and
-consumption records do not prove assignment or worker activity. Use the operational issue and three fixed checkpoint IDs in
-`.github/roadmap.json:runner_coordination`, direct connected runner messages and
-actual pointer/instance/assignment-generation ACKs. Dot alone edits durable state
-and serializes grants; missing or invalid state is UNKNOWN, never unowned.
-At a genuine safe checkpoint, preserve a bounded offer and exact return evidence;
-only independently established delivery plus fresh readback permits Dot to ACK.
-An offer never replaces an accepted assignment or wakes an idle session.
-Use existing accepted grants; a checkout lock is not cross-machine exclusivity. Capture
-discoveries and narrow blockers with their canonical owner before ending or
-switching. After verified delivery reconcile the task, finite parent and affected
-prerequisites and blocking consumers, then release/hand off and select eligible
-Required or Planned work.
+At invocation/resume, selection, clean handoff, review and final acceptance,
+refresh the relevant live requirements, actual writers and source candidate.
+Use roadmap-context and the single-runner pickup contract in
+`docs/PROJECT-GOVERNANCE.md`; compare actual deltas before repeating work.
+The retired operational board and fixed checkpoint IDs in
+`.github/roadmap.json:runner_coordination` are historical discovery pointers,
+not grants, approval gates or proof that a writer has stopped.
+Preserve unfinished work, commits and evidence. When blocked, leave the exact
+branch/head, checks, blocker, remaining acceptance and concrete resume condition
+on the owning issue/PR; commit and push meaningful work and use a draft PR when
+available. Continue the highest-value independent task during the same session.
+After verified delivery reconcile the task, finite parent and directly affected
+prerequisites/consumers, then select eligible Required or Planned work.
 
 ## Validation and failures
 
