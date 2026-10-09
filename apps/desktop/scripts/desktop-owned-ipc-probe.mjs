@@ -233,72 +233,86 @@ function installProbe(key, mode, options) {
     response_cleanup: responses.map(({ resolve: _resolve, ids: _ids, ...r }) => ({ ...r })),
   });
 
+  function decode(request) {
+    const payload = JSON.parse(
+      typeof request?.body === "string" ? request.body : new TextDecoder().decode(request?.body),
+    );
+    return payload !== null && typeof payload === "object" && !Array.isArray(payload)
+      ? payload
+      : null;
+  }
+
+  function scanResponse(payload, response) {
+    counts.injected++;
+    const channel = channelFor(payload, response);
+    try {
+      if (!active || !payload || !channel.owned)
+        throw new Error("Controlled scan request mismatch");
+      const event = {
+        schema_version: 3,
+        operation_id: "owned-progressive-navigation-probe",
+        parent_operation_id: null,
+        target: null,
+        operation: "discover_sources",
+        timestamp_ms: Date.now(),
+      };
+      for (const message of [
+        { ...event, type: "started", sequence: 1 },
+        {
+          ...event,
+          type: "source_candidate",
+          sequence: 2,
+          profile_id: options.source.profile_id,
+          path: options.source.path,
+          sha256: options.source.sha256,
+          size: options.source.size,
+        },
+      ])
+        emit(channel, message);
+      return new Promise((resolve) => {
+        response.resolve = resolve;
+      });
+    } catch (error) {
+      close(channel);
+      throw error;
+    }
+  }
+
+  function updateResponse(url, payload) {
+    const matches =
+      active &&
+      payload !== null &&
+      payload.portId === options.portId &&
+      payload.activate === false &&
+      payload.generation === options.generation;
+    if (!matches) throw new Error("Controlled port, activation, or generation mismatch");
+    if (url === targets[0]) {
+      counts.plans++;
+      return reply(options.plan, "ok");
+    }
+    if (payload.expectedPlan !== options.plan.plan_sha256)
+      mismatches.push("Controlled review identity mismatch");
+    return reply(failure, "error");
+  }
+
   const replacement = function (input, ...args) {
     const url = typeof input === "string" ? input : input.url;
     if (!targets.includes(url)) return original.call(window, input, ...args);
-    const request = args[0];
     let response;
-    let channel;
     try {
-      response = responseFor(request);
+      response = responseFor(args[0]);
       // Decode failures become Tauri application errors, never rejected fetches.
-      const payload = JSON.parse(
-        typeof request?.body === "string" ? request.body : new TextDecoder().decode(request?.body),
-      );
-      const object = payload !== null && typeof payload === "object" && !Array.isArray(payload);
-      if (mode === "scan") {
-        counts.injected++;
-        channel = channelFor(object ? payload : null, response);
-        if (!active || !object || !channel.owned)
-          throw new Error("Controlled scan request mismatch");
-        const event = {
-          schema_version: 3,
-          operation_id: "owned-progressive-navigation-probe",
-          parent_operation_id: null,
-          target: null,
-          operation: "discover_sources",
-          timestamp_ms: Date.now(),
-        };
-        for (const message of [
-          { ...event, type: "started", sequence: 1 },
-          {
-            ...event,
-            type: "source_candidate",
-            sequence: 2,
-            profile_id: options.source.profile_id,
-            path: options.source.path,
-            sha256: options.source.sha256,
-            size: options.source.size,
-          },
-        ]) {
-          emit(channel, message);
-        }
-        return new Promise((resolve) => {
-          response.resolve = resolve;
-        });
-      }
+      const payload = decode(args[0]);
+      if (mode === "scan") return scanResponse(payload, response);
       if (url === targets[1]) {
         counts.applies++;
-        channel = channelFor(object ? payload : null, response);
-        close(channel);
+        close(channelFor(payload, response));
       }
-      const matches =
-        active &&
-        object &&
-        payload.portId === options.portId &&
-        payload.activate === false &&
-        payload.generation === options.generation;
-      if (!matches) throw new Error("Controlled port, activation, or generation mismatch");
-      if (url === targets[0]) {
-        counts.plans++;
-        response.attempted = true;
-        return Promise.resolve(reply(options.plan, "ok"));
-      }
-      if (payload.expectedPlan !== options.plan.plan_sha256)
-        mismatches.push("Controlled review identity mismatch");
+      const result = updateResponse(url, payload);
+      response.attempted = true;
+      return Promise.resolve(result);
     } catch (error) {
       mismatches.push(errorText(error));
-      if (channel) close(channel);
     }
     if (response) response.attempted = true;
     // All intercepted applies/scans, including malformed inputs, resolve a controlled error.
