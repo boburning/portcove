@@ -3205,3 +3205,13 @@ test("export refuses links and oversized evidence instead of silently dropping r
     }
   });
 }
+
+test("native repository contracts provision pinned Rust before metadata or containment execution", () => {
+  for (const section of [fastCatalog, catalog]) {
+    assert.ok(section.indexOf("./.github/actions/setup-rust") >= 0);
+    const contract = section.includes("scripts/ci-baseline.mjs contracts")
+      ? section.indexOf("scripts/ci-baseline.mjs contracts")
+      : section.indexOf("Verify repository and release contracts");
+    assert.ok(contract > section.indexOf("./.github/actions/setup-rust"));
+  }
+});
