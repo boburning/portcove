@@ -186,12 +186,43 @@ improperly authenticated private resources can return 404:
 
 Requests observe redirects manually without following them. HTTP 301, 302, 303,
 307 and 308 produce `provider-redirect`, retaining the original response status
-and an identity-review resume condition. Redirects remain unknown, unaccounted
-and incomplete; destination reachability or continuity is not inferred. No
+and an identity-review resume condition. Redirects remain unknown; destination
+reachability or continuity is not inferred. Unclassified redirects remain
+unaccounted and incomplete. No
 Location header, potentially signed redirect URL, raw response prose, credentials
 or transport-error details enter the report, and credentials are never forwarded.
 A redirect is therefore distinguishable from a failed transport without trusting
 another location or changing the catalog.
+
+The protected `.github/upstream-health-accounting.json` binds the owner-reviewed
+monitoring dispositions proposed in #247 comment 6082358982. It grants no catalog,
+lineage, artifact, hold or publication authority. Its original-location conditions
+bind exact port contracts (excluding summary), original location, operation,
+HTTP status and rule. A repository 301 additionally requires the exact documented
+numeric redirect identity in bounded JSON metadata; that endpoint is never followed.
+The Starfox 404 remains inaccessible-or-missing with unresolved continuity, not
+retirement. Every shared port must have the matching reviewed scope. Changed,
+missing, malformed or unclassified conditions retain a nonzero outcome.
+
+For the three reviewed GitHub direct pins, a HEAD 302 may trigger three bounded
+fixed API metadata reads derived from the declared repository/tag/filename. These
+validate the reviewed repository, release and asset IDs, complete uncapped asset
+collections, exact uploaded asset URL/name/size/provider digest and retained asset
+facts. They reuse the configured observer's strict metadata normalization through
+a narrow helper; unrelated release enumeration and redirects remain prohibited.
+Missing or changed facts, API redirects, partial/capped/ambiguous collections,
+rate limits and access failures remain unknown and unaccounted.
+
+An exact match is `provider-reported-pin-present; destination-unknown;
+bytes-unverified`. It accounts for this reviewed metadata monitoring obligation,
+never the downstream download or accepted bytes. The original HEAD 302 remains
+visible and unknown, contributes no reachable endpoint, and keeps degraded output.
+Original-location accounting likewise retains unknown availability and lineage.
+The report digests its accounting policy and material condition facts; changed
+conditions produce a new material incident requiring review. Collection counts
+distinguish attempted locations from additional metadata requests. All existing
+request/time/body bounds, credential routing and source/installation safeguards
+remain in force. A passing monitor means accounted conditions, not installability.
 
 An optional bounded `--previous-report=PATH` supplies comparison evidence. A
 matching canonical catalog hash and nonfuture report no older than 24 hours may

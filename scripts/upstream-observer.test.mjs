@@ -9,9 +9,15 @@ import {
   observationHash,
   observeUpstream,
   validateObserverConfig,
+  githubDirectPin,
+  validateGithubPinMetadata,
 } from "./upstream-observer.mjs";
 import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mjs";
-import { collectRepositoryHealth, renderRepositoryHealth } from "./check-catalog-repositories.mjs";
+import {
+  collectRepositoryHealth,
+  renderRepositoryHealth,
+  validateHealthAccountingPolicy,
+} from "./check-catalog-repositories.mjs";
 import { discoverUpstreamHealthScope, selectUpstreamHealthScope } from "./upstream-health-plan.mjs";
 
 const config = JSON.parse(
@@ -1267,4 +1273,378 @@ test("exact Git discovery binds base, merge base, head and checkout; drift and m
       ).mode,
       "full",
     );
+});
+
+const reviewedAccounting = JSON.parse(
+  await readFile(new URL("../.github/upstream-health-accounting.json", import.meta.url), "utf8"),
+);
+const pinMetadata = JSON.parse(
+  await readFile(new URL("./fixtures/upstream-health-pins.json", import.meta.url), "utf8"),
+).pins;
+const currentHealthCatalog = JSON.parse(
+  await readFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
+);
+const accountingCatalog = () => ({
+  ports: structuredClone(
+    currentHealthCatalog.ports.filter((port) =>
+      [...reviewedAccounting.pins, ...reviewedAccounting.original_conditions].some(
+        (rule) => rule.port_id === port.id,
+      ),
+    ),
+  ),
+});
+
+function accountingFetch(calls, mutate = (_url, response) => response) {
+  return async (url, options) => {
+    calls.push({ url, options });
+    let response;
+    const pin = reviewedAccounting.pins.find((rule) => rule.url === url);
+    const condition = reviewedAccounting.original_conditions.find(
+      (rule) => url === `https://api.github.com/repos/${rule.repository}`,
+    );
+    if (pin)
+      response = {
+        status: 302,
+        data: null,
+        headers: { location: "https://example.invalid/signed?secret=synthetic-private-value" },
+      };
+    else if (condition)
+      response = {
+        status: condition.http_status,
+        data:
+          condition.http_status === 301
+            ? {
+                message: "Moved Permanently",
+                url: `https://api.github.com/repositories/${condition.redirect_repository_id}`,
+              }
+            : { message: "Not Found" },
+      };
+    else {
+      for (let i = 0; i < reviewedAccounting.pins.length; i++) {
+        const rule = reviewedAccounting.pins[i],
+          fixture = pinMetadata[i],
+          prefix = `https://api.github.com/repos/${rule.repository}`;
+        if (url === prefix) response = { data: structuredClone(fixture.repository) };
+        else if (url === `${prefix}/releases/tags/${encodeURIComponent(rule.tag)}`)
+          response = { data: structuredClone(fixture.release) };
+        else if (url === `${prefix}/releases/${rule.release_id}/assets?per_page=100`)
+          response = { data: structuredClone(fixture.assets) };
+      }
+    }
+    assert.ok(response, `unexpected fixed request ${url}`);
+    response = mutate(url, response);
+    return new Response(response.data === null ? null : JSON.stringify(response.data), {
+      status: response.status ?? 200,
+      headers: { "content-type": "application/json", ...response.headers },
+    });
+  };
+}
+
+test("reviewed exact metadata and original conditions remain degraded without granting bytes or lineage", async () => {
+  const calls = [],
+    catalog = accountingCatalog();
+  const report = await collectRepositoryHealth(catalog, {
+    fetch: accountingFetch(calls),
+    githubToken: "synthetic-token",
+  });
+  assert.equal(report.outcome, "complete");
+  assert.equal(report.degradation, true);
+  assert.equal(report.coverage.repositories, 8);
+  assert.equal(report.coverage.attempted_repositories, 8);
+  assert.equal(report.coverage.reachable_repositories, 1);
+  assert.equal(report.coverage.unknown_repositories, 7);
+  assert.equal(report.consumed.requests, 17);
+  assert.equal(calls.length, 17);
+  for (const call of calls) {
+    assert.equal(call.options.redirect, "manual");
+    if (call.url.startsWith("https://api.github.com/"))
+      assert.equal(call.options.headers.Authorization, "Bearer synthetic-token");
+    else {
+      assert.equal(call.options.method, "HEAD");
+      assert.equal(call.options.headers.Authorization, undefined);
+    }
+  }
+  for (const record of report.observations.filter((record) => record.pin_assessment)) {
+    assert.equal(record.http_status, 302);
+    assert.equal(record.status, "unknown");
+    assert.equal(record.reason, "provider-redirect");
+    assert.equal(record.pin_assessment.status, "provider-reported-pin-present");
+    assert.equal(record.pin_assessment.destination_availability, "unknown");
+    assert.equal(record.pin_assessment.accepted_bytes, "unverified");
+  }
+  for (const port of report.port_health) {
+    assert.equal(port.lineage.status, "unresolved");
+    assert.equal(port.accepted_artifact_obtainability.status, "unknown");
+  }
+  assert.ok(report.port_health.every((port) => port.lineage.catalog_upstream_status === "active"));
+  assert.ok(!JSON.stringify(report).includes("synthetic-private-value"));
+  assert.match(renderRepositoryHealth(report), /provider-reported-pin-present/);
+  assert.match(renderRepositoryHealth(report), /reviewed-original-condition/);
+  const original = JSON.stringify(catalog);
+  const comparison = await collectRepositoryHealth(catalog, {
+    fetch: accountingFetch([]),
+    previousReport: report,
+  });
+  assert.equal(comparison.outcome, "complete");
+  assert.equal(comparison.material_changes.length, 0);
+  assert.equal(original, JSON.stringify(catalog));
+});
+
+test("shared metadata validators require exact declared provider facts and complete collections", () => {
+  for (let i = 0; i < reviewedAccounting.pins.length; i++) {
+    const pin = reviewedAccounting.pins[i],
+      fixture = pinMetadata[i];
+    assert.deepEqual(githubDirectPin(pin.url), {
+      repository: pin.repository,
+      tag: pin.tag,
+      name: pin.name,
+    });
+    assert.equal(
+      validateGithubPinMetadata(fixture.repository, fixture.release, fixture.assets, pin).asset.id,
+      pin.asset_id,
+    );
+  }
+  for (const url of [
+    "https://example.org/a/b/releases/download/v1/a.zip",
+    "https://github.com/a/b/releases/download/v1/a.zip?token=x",
+    "https://github.com/a/b/releases/download/v1/a%2fzip",
+  ]) {
+    assert.throws(() => githubDirectPin(url));
+  }
+});
+
+test("missing or changed pin metadata remains unaccounted while retaining the original302", async () => {
+  const first = reviewedAccounting.pins[0];
+  const prefix = `https://api.github.com/repos/${first.repository}`;
+  const changes = [
+    [prefix, (response) => ({ ...response, data: { ...response.data, id: 1 } })],
+    [
+      prefix,
+      (response) => ({ ...response, data: { ...response.data, full_name: "other/reused" } }),
+    ],
+    [prefix, (response) => ({ ...response, data: { ...response.data, archived: true } })],
+    [
+      `${prefix}/releases/tags/${first.tag}`,
+      (response) => ({ ...response, status: 302, data: null }),
+    ],
+    [
+      `${prefix}/releases/tags/${first.tag}`,
+      (response) => ({ ...response, data: { ...response.data, id: 1 } }),
+    ],
+    [
+      `${prefix}/releases/tags/${first.tag}`,
+      (response) => ({ ...response, data: { ...response.data, draft: true } }),
+    ],
+    [
+      `${prefix}/releases/${first.release_id}/assets?per_page=100`,
+      (response) => ({ ...response, data: [] }),
+    ],
+    [
+      `${prefix}/releases/${first.release_id}/assets?per_page=100`,
+      (response) => ({
+        ...response,
+        headers: { link: '<https://example.invalid/next>; rel="next"' },
+      }),
+    ],
+  ];
+  for (const field of ["id", "size", "digest", "browser_download_url", "updated_at"])
+    changes.push([
+      `${prefix}/releases/${first.release_id}/assets?per_page=100`,
+      (response) => ({
+        ...response,
+        data: response.data.map((asset) =>
+          asset.id === first.asset_id
+            ? {
+                ...asset,
+                [field]:
+                  field === "id" || field === "size"
+                    ? 1
+                    : field === "digest"
+                      ? null
+                      : field === "updated_at"
+                        ? "2026-10-09T12:00:00Z"
+                        : "https://example.invalid/asset",
+              }
+            : asset,
+        ),
+      }),
+    ]);
+  for (const [endpoint, mutate] of changes) {
+    const calls = [];
+    const report = await collectRepositoryHealth(accountingCatalog(), {
+      fetch: accountingFetch(calls, (url, response) =>
+        url === endpoint ? mutate(response) : response,
+      ),
+    });
+    const record = report.observations.find((record) => record.repository === first.url);
+    assert.equal(report.outcome, "incomplete", endpoint);
+    assert.equal(record.http_status, 302);
+    assert.equal(record.pin_assessment.status, "unknown");
+    assert.equal(record.accounted_for, false);
+    assert.ok(calls.every((call) => !call.url.includes("example.invalid")));
+  }
+});
+
+test("reviewed original conditions cannot hide changed status, redirect identity or port contracts", async () => {
+  const original = reviewedAccounting.original_conditions[0];
+  const endpoint = `https://api.github.com/repos/${original.repository}`;
+  for (const change of [
+    (response) => ({ ...response, status: 302 }),
+    (response) => ({ ...response, status: 401 }),
+    (response) => ({ ...response, status: 503 }),
+    (response) => ({
+      ...response,
+      data: { message: "Moved Permanently", url: "https://api.github.com/repositories/1" },
+    }),
+    (response) => ({
+      ...response,
+      data: { message: "Moved Permanently", url: "https://example.invalid/redirect" },
+    }),
+  ]) {
+    const report = await collectRepositoryHealth(accountingCatalog(), {
+      fetch: accountingFetch([], (url, response) =>
+        url === endpoint ? change(response) : response,
+      ),
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(
+      report.observations.find((record) => record.repository === original.repository).accounted_for,
+      false,
+    );
+  }
+  const changed = accountingCatalog();
+  changed.ports.find((port) => port.id === original.port_id).name += " changed";
+  assert.equal(
+    (await collectRepositoryHealth(changed, { fetch: accountingFetch([]) })).outcome,
+    "incomplete",
+  );
+  const summary = accountingCatalog();
+  summary.ports.forEach((port) => (port.summary += " clarified"));
+  assert.equal(
+    (await collectRepositoryHealth(summary, { fetch: accountingFetch([]) })).outcome,
+    "complete",
+  );
+  const shared = accountingCatalog();
+  const extra = structuredClone(shared.ports.find((port) => port.id === original.port_id));
+  extra.id = "unreviewed-shared-port";
+  shared.ports.push(extra);
+  assert.equal(
+    (
+      await collectRepositoryHealth(shared, {
+        fetch: accountingFetch([]),
+        portIds: [original.port_id],
+      })
+    ).outcome,
+    "incomplete",
+  );
+});
+
+test("missing pin scopes, malformed accounting rules and unclassified failures cannot authorize a pass", async () => {
+  const missing = structuredClone(reviewedAccounting);
+  missing.pins = [];
+  assert.equal(
+    (
+      await collectRepositoryHealth(accountingCatalog(), {
+        fetch: accountingFetch([]),
+        reviewedAccounting: missing,
+      })
+    ).outcome,
+    "incomplete",
+  );
+  const missingOriginal = structuredClone(reviewedAccounting);
+  missingOriginal.original_conditions = [];
+  assert.equal(
+    (
+      await collectRepositoryHealth(accountingCatalog(), {
+        fetch: accountingFetch([]),
+        reviewedAccounting: missingOriginal,
+      })
+    ).outcome,
+    "incomplete",
+  );
+  for (const mutate of [
+    (policy) => (policy.extra = true),
+    (policy) => (policy.pins[0].repository_id = 0),
+    (policy) => (policy.original_conditions[0].http_status = 302),
+    (policy) => policy.original_conditions.push(policy.original_conditions[0]),
+  ]) {
+    const invalid = structuredClone(reviewedAccounting);
+    mutate(invalid);
+    assert.throws(() => validateHealthAccountingPolicy(invalid));
+    let calls = 0;
+    await assert.rejects(
+      collectRepositoryHealth(accountingCatalog(), {
+        reviewedAccounting: invalid,
+        fetch: () => {
+          calls++;
+          throw Error("must not request");
+        },
+      }),
+    );
+    assert.equal(calls, 0);
+  }
+  const catalog = accountingCatalog();
+  const extra = structuredClone(catalog.ports[0]);
+  extra.id = "new-unclassified-port";
+  extra.project_url = "https://github.com/unclassified/project";
+  extra.release = { provider: "github", repository: "unclassified/project" };
+  catalog.ports.push(extra);
+  const ordinary = accountingFetch([]);
+  assert.equal(
+    (
+      await collectRepositoryHealth(catalog, {
+        fetch: (url, options) =>
+          url.includes("unclassified/project")
+            ? Promise.resolve(new Response(null, { status: 404 }))
+            : ordinary(url, options),
+      })
+    ).outcome,
+    "incomplete",
+  );
+});
+
+test("same-ID contradictory release and asset collections never account an exact pin", () => {
+  const pin = reviewedAccounting.pins[0],
+    fixture = pinMetadata[0];
+  for (const field of ["digest", "size", "browser_download_url", "state", "updated_at"]) {
+    const release = structuredClone(fixture.release);
+    const asset = release.assets.find((asset) => asset.id === pin.asset_id);
+    asset[field] =
+      field === "digest"
+        ? "sha256:" + "0".repeat(64)
+        : field === "size"
+          ? 1
+          : field === "state"
+            ? "new"
+            : field === "updated_at"
+              ? "2026-10-09T12:00:00Z"
+              : "https://github.com/" +
+                pin.repository +
+                "/releases/download/" +
+                pin.tag +
+                "/different.zip";
+    assert.throws(
+      () => validateGithubPinMetadata(fixture.repository, release, fixture.assets, pin),
+      field,
+    );
+  }
+});
+
+test("changed release classification or publication facts cannot inherit reviewed pin accounting", () => {
+  const pin = reviewedAccounting.pins[0],
+    fixture = pinMetadata[0];
+  for (const patch of [
+    { prerelease: !fixture.release.prerelease },
+    { published_at: "2026-10-09T12:00:00Z" },
+    { created_at: "2026-10-09T12:00:00Z" },
+  ]) {
+    assert.throws(() =>
+      validateGithubPinMetadata(
+        fixture.repository,
+        { ...fixture.release, ...patch },
+        fixture.assets,
+        pin,
+      ),
+    );
+  }
 });

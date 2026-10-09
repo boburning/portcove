@@ -2128,3 +2128,15 @@ test("containment selector changes retain their dependent audit and hosted contr
     }
   }
 });
+
+test("reviewed upstream accounting has an exact health-test owner without admitting other configuration", () => {
+  const owned = planFor([".github/upstream-health-accounting.json"]);
+  assert.equal(owned.selection.unknown.size, 0);
+  assert.ok(owned.selection.nodeTests.has("scripts/upstream-observer.test.mjs"));
+  assert.ok(ids(owned.plan).includes("node-tests"));
+  const other = classifyChanges(
+    [{ status: "M", path: ".github/unreviewed-health-accounting.json" }],
+    { fileExists: allFilesExist },
+  );
+  assert.ok(other.unknown.has(".github/unreviewed-health-accounting.json"));
+});

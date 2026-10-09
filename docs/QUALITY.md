@@ -432,6 +432,16 @@ not grant those privileges.
 
 ## Staged audit receipts
 
+Upstream health's protected accounting policy is
+`.github/upstream-health-accounting.json`. Its reviewed original-location
+conditions and exact provider-reported pin assessments retain degraded/unknown
+availability and unverified bytes. They are monitoring dispositions, never
+catalog maintenance, successor, installation or artifact authority. Changes to
+this policy or its metadata helpers select full monitoring and the applicable
+pre-change protected transition; the candidate cannot authorize its own accounting
+or waive a failed run. New, changed or insufficient facts fail closed under
+[UPSTREAM-OBSERVATIONS.md](UPSTREAM-OBSERVATIONS.md).
+
 Local validation selects resource preflight from its actual command plan before
 execution: tooling/frontend scopes do not resolve Cargo or native outputs,
 Rust resolves actual Cargo storage, and mixed/unknown commands keep the complete

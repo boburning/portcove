@@ -8,6 +8,8 @@ on:
       - "scripts/check-catalog-repositories.mjs"
       - "scripts/check-retcomm-upstreams.mjs"
       - "scripts/upstream-health-plan.mjs"
+      - "scripts/upstream-observer.mjs"
+      - ".github/upstream-health-accounting.json"
       - ".node-version"
       - ".github/workflows/upstream-health.yml"
   push:
@@ -18,6 +20,8 @@ on:
       - "scripts/check-catalog-repositories.mjs"
       - "scripts/check-retcomm-upstreams.mjs"
       - "scripts/upstream-health-plan.mjs"
+      - "scripts/upstream-observer.mjs"
+      - ".github/upstream-health-accounting.json"
       - ".node-version"
       - ".github/workflows/upstream-health.yml"
   schedule:
