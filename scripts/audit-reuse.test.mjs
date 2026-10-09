@@ -11,6 +11,7 @@ import {
   importAuditReceipts,
   validateAuditProducer,
   discoverAuditReceipts,
+  describeAuditReuse,
 } from "./audit-reuse.mjs";
 
 function fixture() {
@@ -275,6 +276,19 @@ test("unavailable discovery and budget exhaustion are cache misses without dispa
   });
   assert.equal(expired.status, "cache-miss");
   assert.equal(expired.reason, "collection-deadline");
+});
+
+test("reuse diagnostics name fingerprint misses within the shared output byte bound", () => {
+  const text = describeAuditReuse({
+    status: "cache-miss",
+    reason: "no-compatible-main-evidence",
+    imported: [],
+    examinedRuns: 20,
+    downloads: 3,
+    misses: Array.from({ length: 180 }, () => ({ reason: "fingerprint-mismatch" })),
+  });
+  assert.match(text, /fingerprint-mismatch: 180/);
+  assert.ok(Buffer.byteLength(`${text}\n`) <= 16 * 1024);
 });
 
 function transportFixture({ count = 1, mutate, invalidDigest = false } = {}) {

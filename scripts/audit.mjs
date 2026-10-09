@@ -1040,11 +1040,9 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
   if (!options.fresh && options.profile !== "transition") {
-    const { discoverAuditReceipts } = await import("./audit-reuse.mjs");
+    const { discoverAuditReceipts, describeAuditReuse } = await import("./audit-reuse.mjs");
     const reuse = discoverAuditReceipts(plan);
-    console.log(
-      `[audit-reuse] ${reuse.status}: ${reuse.reason}; imported ${reuse.imported.length}; examined ${reuse.examinedRuns ?? 0} main runs; downloaded ${reuse.downloads ?? 0} artifacts`,
-    );
+    console.log(describeAuditReuse(reuse));
     plan = planAudit({ stages: selection.stages, profile: selection.profile });
   }
   displayPlan(plan);

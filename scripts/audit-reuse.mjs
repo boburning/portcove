@@ -15,6 +15,7 @@ import { AUDIT_STAGES, fingerprintStage } from "./audit.mjs";
 import { AUDIT_BUNDLE_LIMITS, buildAuditBundle } from "./audit-evidence.mjs";
 import { parseAuditArchive } from "./audit-archive.mjs";
 import { createGitHubRunner } from "./github-api.mjs";
+import { renderBoundedSummary } from "./report-summary.mjs";
 
 const repositoryName = "boburning/portcove",
   route = `repos/${repositoryName}`;
@@ -22,6 +23,15 @@ const workflowPath = ".github/workflows/deep-quality.yml";
 const workflowRef = `${repositoryName}/${workflowPath}@refs/heads/main`;
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const sha = /^[a-f0-9]{40}$/;
+export function describeAuditReuse(result) {
+  const reasons = new Map();
+  for (const miss of result.misses ?? [])
+    reasons.set(miss.reason, (reasons.get(miss.reason) ?? 0) + 1);
+  return renderBoundedSummary(`[audit-reuse] ${result.status}: ${result.reason}`, [
+    `Imported ${result.imported.length}; examined ${result.examinedRuns ?? 0} main runs; downloaded ${result.downloads ?? 0} artifacts`,
+    ...[...reasons].map(([reason, count]) => `${reason}: ${count}`),
+  ]).text;
+}
 function reject(reason) {
   throw Object.assign(new Error(`Audit reuse miss: ${reason}`), { code: reason });
 }
