@@ -71,6 +71,83 @@ fn setup_output_root_uses_only_a_declared_upstream_runtime_subdirectory() {
     );
 }
 
+// Copying declared outputs is generic; real upstream layout checks above keep
+// their embedded catalog. Revalidate each small graph after its path changes.
+fn setup_output_catalog(paths: &[&str]) -> Catalog {
+    let catalog = generic_preparation_catalog(None);
+    let mut port = catalog.port(PORT).unwrap().clone();
+    port.setup_output_paths = paths.iter().map(|path| (*path).to_owned()).collect();
+    port.setup_marker = Some(paths[0].to_owned());
+    port.runtime_mutable_paths.clear();
+    generic_preparation_catalog(Some(&port))
+}
+
+#[test]
+fn setup_output_fixture_preserves_valid_source_graph_and_rejects_invalid_inputs() {
+    let catalog = setup_output_catalog(&["data/out", "data/log"]);
+    let document = catalog.authoritative_document();
+    assert_eq!(document.ports.len(), 1);
+    let source = document.source_catalog.as_ref().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.contracts.len(), 1);
+    assert_eq!(source.validators.len(), 1);
+    assert_eq!(source.evidence.len(), 1);
+    assert_eq!(source.contracts[0].port_id, PORT);
+    assert_eq!(source.contracts[0].profile_id, source.identities[0].id);
+    assert_eq!(
+        source.contracts[0].validator_contract_id.as_ref().unwrap(),
+        &source.validators[0].id
+    );
+    assert_eq!(
+        catalog.port(PORT).unwrap().setup_output_paths,
+        ["data/out", "data/log"]
+    );
+
+    let mut invalid = serde_json::to_value(&document).unwrap();
+    invalid["source_catalog"]["contracts"][0]["profile_id"] = "missing-source".into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+    let mut invalid = serde_json::to_value(&document).unwrap();
+    invalid["source_catalog"]["identities"][0]["unknown_fixture_field"] = true.into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+}
+
+#[test]
+fn unrelated_catalog_port_does_not_change_setup_output_copying() {
+    let catalog = setup_output_catalog(&["generated"]);
+    let mut extended = catalog.authoritative_document();
+    let mut unrelated = extended.ports[0].clone();
+    unrelated.id = "unrelated-setup-fixture".into();
+    unrelated.name = "Unrelated setup fixture".into();
+    extended.ports.push(unrelated);
+    let contracts = &mut extended.source_catalog.as_mut().unwrap().contracts;
+    let mut unrelated_contract = contracts[0].clone();
+    unrelated_contract.id = "unrelated-setup-game".into();
+    unrelated_contract.port_id = "unrelated-setup-fixture".into();
+    contracts.push(unrelated_contract);
+    let extended = Catalog::from_json(&serde_json::to_string(&extended).unwrap()).unwrap();
+    assert_eq!(extended.ports().len(), 2);
+    assert_eq!(
+        serde_json::to_value(catalog.port(PORT).unwrap()).unwrap(),
+        serde_json::to_value(extended.port(PORT).unwrap()).unwrap()
+    );
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("setup-runtime");
+    fs::create_dir_all(source.join("generated/コピー")).unwrap();
+    fs::write(source.join("generated/コピー/output.bin"), b"owned output").unwrap();
+    fs::write(source.join("private.cfg"), b"not declared").unwrap();
+    for (index, graph) in [&catalog, &extended].into_iter().enumerate() {
+        let payload = temporary.path().join(format!("payload-{index}"));
+        fs::create_dir_all(&payload).unwrap();
+        super::super::execution::copy_setup_outputs(graph.port(PORT).unwrap(), &source, &payload)
+            .unwrap();
+        assert_eq!(
+            fs::read(payload.join("generated/コピー/output.bin")).unwrap(),
+            b"owned output"
+        );
+        assert!(!payload.join("private.cfg").exists());
+    }
+}
+
 #[test]
 fn isolated_setup_copies_only_declared_generated_outputs() {
     let temporary = tempfile::tempdir().unwrap();
@@ -87,14 +164,10 @@ fn isolated_setup_copies_only_declared_generated_outputs() {
     )
     .unwrap();
     fs::write(source.join("paperboat.cfg.json"), b"setup-only defaults").unwrap();
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
-        .port("paperboat")
-        .unwrap()
-        .clone();
-    port.setup_output_paths = vec!["pm64.o2r".into(), "generated".into(), "optional".into()];
+    let catalog = setup_output_catalog(&["pm64.o2r", "generated", "optional"]);
+    let port = catalog.port(PORT).unwrap();
 
-    super::super::execution::copy_setup_outputs(&port, &source, &payload).unwrap();
+    super::super::execution::copy_setup_outputs(port, &source, &payload).unwrap();
 
     assert_eq!(
         fs::read(payload.join("pm64.o2r")).unwrap(),
@@ -128,15 +201,11 @@ fn isolated_setup_copies_nested_declared_directories_with_missing_parent() {
     .unwrap();
     fs::write(source.join("data/log/setup.log"), b"owned diagnostic").unwrap();
     fs::write(source.join("data/private.cfg"), b"not declared").unwrap();
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
-        .port("paperboat")
-        .unwrap()
-        .clone();
-    port.setup_output_paths = vec!["data/out".into(), "data/log".into()];
+    let catalog = setup_output_catalog(&["data/out", "data/log"]);
+    let port = catalog.port(PORT).unwrap();
     assert!(!payload.join("data").exists());
 
-    super::super::execution::copy_setup_outputs(&port, &source, &payload).unwrap();
+    super::super::execution::copy_setup_outputs(port, &source, &payload).unwrap();
 
     assert_eq!(
         fs::read(payload.join("data/out/jak1/iso/0COMMON.TXT")).unwrap(),
@@ -162,14 +231,10 @@ fn isolated_setup_retains_conflicting_nested_output_parent_file() {
     fs::create_dir_all(&payload).unwrap();
     fs::write(source.join("data/out/owned.bin"), b"owned output").unwrap();
     fs::write(payload.join("data"), b"retained prior file").unwrap();
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
-        .port("paperboat")
-        .unwrap()
-        .clone();
-    port.setup_output_paths = vec!["data/out".into()];
+    let catalog = setup_output_catalog(&["data/out"]);
+    let port = catalog.port(PORT).unwrap();
 
-    assert!(super::super::execution::copy_setup_outputs(&port, &source, &payload).is_err());
+    assert!(super::super::execution::copy_setup_outputs(port, &source, &payload).is_err());
 
     assert_eq!(
         fs::read(payload.join("data")).unwrap(),
