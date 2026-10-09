@@ -14,6 +14,120 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { runInNewContext } from "node:vm";
+import {
+  isUntrustworthyProbeError,
+  requireTrustedProbeCleanup,
+} from "../apps/desktop/scripts/desktop-owned-ipc-probe.mjs";
+
+test("untrustworthy probe cleanup retains the primary error and reaches outer teardown", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function scenario(name, action)");
+  const end = source.indexOf("async function connectObservedDriver()", start);
+  assert(start >= 0 && end > start);
+  const records = [];
+  const primary = Object.freeze(new Error("Original owned scenario failure"));
+  requireTrustedProbeCleanup({ trustworthy: false }, primary);
+  const invokeAttempt = runInNewContext(`${source.slice(start, end)}\nscenario`, {
+    scenarioTarget: () => ({ setup: false }),
+    failedScenarioDependency: () => null,
+    recordScenario: (_target, name, outcome, details) => records.push({ name, outcome, details }),
+    captureScenarioDiagnostics: async () => {},
+    captureScenarioScreenshot: () => assert.fail("Untrustworthy session must enter outer teardown"),
+    isUntrustworthyProbeError,
+    process: { exitCode: 0 },
+  });
+  await assert.rejects(
+    invokeAttempt("owned-probe", async () => {
+      throw primary;
+    }),
+    (error) => error === primary,
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(records)), [
+    { name: "owned-probe", outcome: "failed", details: { message: primary.message } },
+  ]);
+});
+
+test("scan cleanup attempts every owned action and retains the primary scenario failure", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-source-dialog-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function progressiveScanNavigation(");
+  const end = source.indexOf("export async function sourceDialogScenario(", start);
+  assert(start >= 0 && end > start);
+  const primary = new Error("Original scan navigation failure");
+  const reads = new Map();
+  const actions = [];
+  let report;
+  const fixture = {
+    profile_id: "owned-profile",
+    path: "owned-source",
+    sha256: "owned-sha",
+    size: 1,
+  };
+  const command = (args) => {
+    const action = args.join(" ");
+    const count = reads.get(action) ?? 0;
+    reads.set(action, count + 1);
+    if (action === "source roots add owned-root") return { id: "owned-root-id" };
+    if (action === "catalog list")
+      return [{ id: "owned-port", name: "Owned", source_profile: fixture.profile_id }];
+    if (action === "source roots remove owned-root-id") {
+      actions.push("remove-owned-root");
+      throw new Error("Owned root removal failed");
+    }
+    if (count) {
+      actions.push(action);
+      return "Incorrect cleanup readback";
+    }
+    if (action === "source list") return [fixture];
+    if (action === "source roots list") return [];
+    if (action === "status owned-port") return { owned: true };
+    assert.fail(action);
+  };
+  const navigate = runInNewContext(`${source.slice(start, end)}\nprogressiveScanNavigation`, {
+    assert,
+    path,
+    requireTrustedProbeCleanup,
+    reviewControls: () => ({
+      button: (name) => name,
+      click: async () => {
+        throw primary;
+      },
+    }),
+    writeFile: async (_path, bytes) => {
+      report = JSON.parse(bytes);
+    },
+    console: { error() {} },
+  });
+  await assert.rejects(
+    navigate({
+      browser: {
+        executeScript: async () => {
+          throw new Error("Owned capture unavailable");
+        },
+      },
+      output: "owned-output",
+      artifacts: [],
+      command,
+      port: { id: "owned-port", source_profile: fixture.profile_id },
+      searchRoot: "owned-root",
+    }),
+    (error) => error === primary,
+  );
+  assert.deepEqual(actions, [
+    "remove-owned-root",
+    "source roots list",
+    "source list",
+    "status owned-port",
+  ]);
+  assert.equal(report.failure, primary.message);
+  assert.equal(report.owned_cleanup.length, 4);
+  assert(report.owned_cleanup.every((outcome) => outcome.attempted && outcome.completed === false));
+});
 import { createInstallFixture } from "../apps/desktop/scripts/desktop-install-fixture.mjs";
 import { fileIdentity } from "./development-evidence.mjs";
 import { toolCachePaths } from "./tool-cache.mjs";
