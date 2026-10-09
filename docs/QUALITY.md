@@ -432,6 +432,16 @@ not grant those privileges.
 
 ## Staged audit receipts
 
+Upstream health's protected accounting policy is
+`.github/upstream-health-accounting.json`. Its reviewed original-location
+conditions and exact provider-reported pin assessments retain degraded/unknown
+availability and unverified bytes. They are monitoring dispositions, never
+catalog maintenance, successor, installation or artifact authority. Changes to
+this policy or its metadata helpers select full monitoring and the applicable
+pre-change protected transition; the candidate cannot authorize its own accounting
+or waive a failed run. New, changed or insufficient facts fail closed under
+[UPSTREAM-OBSERVATIONS.md](UPSTREAM-OBSERVATIONS.md).
+
 Local validation selects resource preflight from its actual command plan before
 execution: tooling/frontend scopes do not resolve Cargo or native outputs,
 Rust resolves actual Cargo storage, and mixed/unknown commands keep the complete
@@ -939,7 +949,12 @@ RetComM upstream comparisons run separately in `upstream-health.yml` when catalo
 data, the mapping, either checker, the Node version, or that workflow changes.
 The same workflow runs daily and can be dispatched manually. Its path-filtered
 status must not be configured as an always-required branch check, because an
-unrelated PR does not create that status. Scheduled failures remain visible in
+unrelated PR does not create that status. Pull-request live scope derives from
+exact base/head semantic catalog inputs: summary-only changes have an explicit
+empty scope, while affected unknowns fail. Root/history, checker, workflow, policy
+and uncertain changes retain full scope; incomplete identity/diff discovery
+refuses narrow selection. Main, scheduled and manual checks retain the full
+inventory. Scheduled failures remain visible in
 Actions and require investigation as upstream drift, not a local code failure.
 Release workflow and local release preflight retain their live upstream checks.
 

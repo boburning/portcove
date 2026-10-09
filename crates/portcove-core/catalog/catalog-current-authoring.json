@@ -13016,7 +13016,7 @@
     {
       "id": "diddy-kong-racing-golden-balloon",
       "name": "Golden Balloon",
-      "summary": "Native Diddy Kong Racing recompilation with strict Rev 1 source validation.",
+      "summary": "Native Diddy Kong Racing recompilation.",
       "project_url": "https://github.com/akratch/goldenballoon",
       "support_tier": "beta",
       "channels": [
@@ -13406,7 +13406,7 @@
     {
       "id": "open-nectar-pikmin",
       "name": "Open Nectar (Pikmin)",
-      "summary": "A native Pikmin port that prepares your disc locally with Open Nectar; gameplay has not been tested by Portcove.",
+      "summary": "Native Pikmin port from Open Nectar; gameplay has not been tested by Portcove.",
       "project_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port",
       "support_tier": "beta",
       "channels": [
@@ -13482,7 +13482,7 @@
     {
       "id": "wave-race-64-recomp",
       "name": "Wave Race 64: Recompiled",
-      "summary": "Play Wave Race 64 using a runtime you prepare from the official Windows package.",
+      "summary": "Native Wave Race 64 recompilation.",
       "project_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
       "support_tier": "beta",
       "channels": [
@@ -13560,7 +13560,7 @@
     {
       "id": "f-zero-snes-recomp",
       "name": "F-Zero SNES Recomp",
-      "summary": "Play F-Zero using a runtime you prepare from the official Windows package.",
+      "summary": "Native F-Zero recompilation.",
       "project_url": "https://github.com/mstan/FZeroSNESRecomp",
       "support_tier": "beta",
       "channels": [
@@ -13717,7 +13717,7 @@
     {
       "id": "dkc3-recomp",
       "name": "DKC3Recomp",
-      "summary": "Play Donkey Kong Country 3 using a runtime you prepare from the official Windows package.",
+      "summary": "Native Donkey Kong Country 3 recompilation.",
       "project_url": "https://github.com/elliotttate/DKC3Recomp",
       "support_tier": "beta",
       "channels": [

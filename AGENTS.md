@@ -183,6 +183,10 @@ over another repeated warning paragraph.
 These configurations adapt the engineering skills to Portcove. The existing
 agent contract and owning repository documents take precedence.
 
+For behavior changes, failure diagnosis, interface decisions, agent documentation
+or independent review, use the task-based selection and adaptations in
+[Engineering techniques](docs/agents/engineering-techniques.md).
+
 ### Issue tracker
 
 GitHub Issues in `boburning/portcove`, with the live Roadmap Project owning

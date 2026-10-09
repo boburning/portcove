@@ -1,0 +1,108 @@
+{
+  "format_version": 1,
+  "authority": "reviewed monitoring conditions only; no catalog, lineage, artifact, hold or publication authority",
+  "decision": "Owner approved the narrow extension proposed in #247 comment6082358982 on2026-10-09; no failed-run exception.",
+  "pins": [
+    {
+      "port_id": "road-rash-64-recompiled",
+      "port_contract_sha256": "b0b07a7aca24de9abea04c44454121c482c4d06a44f9a8c1043b52f27617057a",
+      "platform": "windows-x86-64",
+      "repository": "linkssy2/RoadRash64Recompiled",
+      "tag": "v1.4.3",
+      "name": "RoadRash64Recompiled-v1.4.3-Win64.zip",
+      "url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip",
+      "size": 47276827,
+      "sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f",
+      "repository_id": 1359870979,
+      "archived": false,
+      "release_id": 401568775,
+      "asset_id": 604911121,
+      "asset_facts_sha256": "0253ba1f92dff25fdb17cc44cd046e036d9d8d1550ad3510f3aa925cc9162c9e",
+      "release_facts_sha256": "1a8da04d11379b864bf3716f288c825b3cdfcfcc7969ea2a1ca97e93b0da0685"
+    },
+    {
+      "port_id": "alexbeav-ape-escape-recomp",
+      "port_contract_sha256": "dbd4cbb161caf4bbce61ddc5006c7d8810d0ff2fd72391fdfb83a98b3ade91ab",
+      "platform": "windows-x86-64",
+      "repository": "alexbeavs-ps1-ports/ape-escape-recomp",
+      "tag": "v0.3.6",
+      "name": "Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+      "url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+      "size": 30155637,
+      "sha256": "0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
+      "repository_id": 1352790768,
+      "archived": false,
+      "release_id": 382786091,
+      "asset_id": 544444303,
+      "asset_facts_sha256": "3bb6be9c130f68f52dc62ce7088481609a44ee4c8a3f63d9cc0bb8bc75ad97b9",
+      "release_facts_sha256": "44e72542d6e0ca4dde9c59502e6d631d8dac16b89698736eb8683783518fa95f"
+    },
+    {
+      "port_id": "alexbeav-alundra-recomp",
+      "port_contract_sha256": "d4646af7f0c8e3580852ec1b1d577710dfb041685d0c9e76f9448ffc688843b0",
+      "platform": "windows-x86-64",
+      "repository": "alexbeavs-ps1-ports/alundra-recomp",
+      "tag": "v0.3.6",
+      "name": "Alundra-Recomp-0.3.6-windows-x64.zip",
+      "url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
+      "size": 30152761,
+      "sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
+      "repository_id": 1352789184,
+      "archived": false,
+      "release_id": 382786092,
+      "asset_id": 544444294,
+      "asset_facts_sha256": "9476acdf7734b387e54d7c75196d3836d353158e18fac4e43644b5abfb9f6619",
+      "release_facts_sha256": "5067e2a20258422ab979e81eda381341c8bb50970157df908019edc2b6597bdf"
+    }
+  ],
+  "original_conditions": [
+    {
+      "port_id": "mortal-kombat-4-recompiled",
+      "port_contract_sha256": "b516f9d6ff5af77edadf296fda14f6194195e3d7544b7721c4709f4eef642b8e",
+      "provider": "github",
+      "repository": "Alexbeav/mortal-kombat-4-recomp",
+      "operation": "observe-availability",
+      "http_status": 301,
+      "reason": "provider-redirect",
+      "redirect_repository_id": 1352192597,
+      "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
+      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review."
+    },
+    {
+      "port_id": "alexbeav-ape-escape-recomp",
+      "port_contract_sha256": "dbd4cbb161caf4bbce61ddc5006c7d8810d0ff2fd72391fdfb83a98b3ade91ab",
+      "provider": "github",
+      "repository": "Alexbeav/ape-escape-recomp",
+      "operation": "observe-availability",
+      "http_status": 301,
+      "reason": "provider-redirect",
+      "redirect_repository_id": 1352790768,
+      "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
+      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review."
+    },
+    {
+      "port_id": "alexbeav-alundra-recomp",
+      "port_contract_sha256": "d4646af7f0c8e3580852ec1b1d577710dfb041685d0c9e76f9448ffc688843b0",
+      "provider": "github",
+      "repository": "Alexbeav/alundra-recomp",
+      "operation": "observe-availability",
+      "http_status": 301,
+      "reason": "provider-redirect",
+      "redirect_repository_id": 1352789184,
+      "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
+      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review."
+    },
+    {
+      "port_id": "star-fox-enhanced",
+      "port_contract_sha256": "75294598b6a0d8680aa55294c65335184da86c9663d1f33e9387a0e0d1214c81",
+      "provider": "github",
+      "repository": "kandowontu/starfox-enhanced",
+      "operation": "observe-availability",
+      "http_status": 404,
+      "reason": "inaccessible-or-missing",
+      "redirect_repository_id": null,
+      "evidence": "https://github.com/boburning/portcove/issues/247#issuecomment-6082358982",
+      "resume_condition": "Reconsider exact original-location evidence under #247/#139. Lineage, destination availability and accepted bytes remain unassessed; any changed condition requires review."
+    }
+  ]
+}

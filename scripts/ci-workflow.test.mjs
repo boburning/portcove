@@ -1896,6 +1896,7 @@ test("live upstream health has bounded independent triggers while catalog stays 
       "scripts/retcomm-psx-upstreams.json",
       "scripts/check-catalog-repositories.mjs",
       "scripts/check-retcomm-upstreams.mjs",
+      "scripts/upstream-health-plan.mjs",
       ".node-version",
       ".github/workflows/upstream-health.yml",
     ]) {
@@ -1905,8 +1906,26 @@ test("live upstream health has bounded independent triggers while catalog stays 
       );
     }
   }
-  assert.match(health, /run: node scripts\/check-catalog-repositories\.mjs/);
-  assert.match(health, /run: node scripts\/check-retcomm-upstreams\.mjs\r?$/m);
+  assert.match(health, /run: node scripts\/upstream-health-plan\.mjs/);
+  assert.match(health, /PR_BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
+  assert.match(health, /PR_HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
+  assert.match(health, /fetch-depth: 0/);
+  assert.match(health, /full\) node scripts\/check-catalog-repositories\.mjs ;;/);
+  assert.match(
+    health,
+    /node scripts\/check-catalog-repositories\.mjs --port-ids="\$HEALTH_PORT_IDS"/,
+  );
+  assert.match(health, /node scripts\/check-catalog-repositories\.mjs --port-ids= ;;/);
+  assert.match(health, /Missing or invalid upstream health scope/);
+  assert.match(
+    health,
+    /steps\.scope\.outcome == 'success' && steps\.scope\.outputs\.retcomm == 'true'/,
+  );
+  assert.match(health, /full\) node scripts\/check-retcomm-upstreams\.mjs ;;/);
+  assert.match(
+    health,
+    /node scripts\/check-retcomm-upstreams\.mjs --port-ids="\$RETCOMM_PORT_IDS"/,
+  );
   const release = await readFile(
     new URL("../.github/workflows/release.yml", import.meta.url),
     "utf8",
@@ -2247,6 +2266,63 @@ globalThis.fetch = async (url, options) => {
         assert.equal(result.stdout.match(/upstream health NOT_CHECKED/gu).length, 2);
       }
     }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("RetComM scoped live reads exclude unrelated manifests without narrowing offline validation", async () => {
+  const { copyFile } = await import("node:fs/promises");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-scoped-"));
+  try {
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+    const checker = path.join(root, "scripts/check-retcomm-upstreams.mjs");
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    await writeFile(
+      path.join(root, "crates/portcove-core/catalog/catalog.json"),
+      JSON.stringify({
+        ports: ["selected", "unselected"].map((id) => ({
+          id,
+          adapter: "psx-recomp-managed",
+          release: { repository: `owner/${id}` },
+        })),
+      }),
+    );
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify({ selected: "selected-title", unselected: "unselected-title" }),
+    );
+    const upstream = path.join(root, "upstream");
+    await mkdir(path.join(upstream, "titles/psx"), { recursive: true });
+    await writeFile(
+      path.join(upstream, "titles/psx/selected-title.json"),
+      JSON.stringify({ release: { github: "owner/selected" } }),
+    );
+    const preload = path.join(root, "deny-network.mjs");
+    await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
+    const run = (...args) =>
+      spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, checker, ...args], {
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, RETCOMM_CATALOG_DIR: upstream },
+      });
+    const scoped = run("--port-ids=selected");
+    assert.equal(scoped.status, 0, scoped.stderr);
+    assert.match(scoped.stdout, /Verified 1 direct PS1 game upstreams/);
+    assert.match(scoped.stdout, /Unselected live identities remain unassessed/);
+    const full = run();
+    assert.equal(full.status, 1);
+    assert.match(full.stderr, /unselected/);
+    assert.equal(run("--offline").status, 0);
+    for (const args of [
+      ["--offline", "--port-ids=selected"],
+      ["--port-ids=missing"],
+      ["--port-ids=selected,,unselected"],
+      ["--port-ids=selected,selected"],
+    ])
+      assert.equal(run(...args).status, 1, JSON.stringify(args));
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -2771,7 +2847,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
     const calls = [];
     const fetcher = async (url, options) => {
       calls.push({ url, options });
-      assert.equal(options.redirect, "error");
+      assert.equal(options.redirect, "manual");
       assert.ok(options.signal instanceof AbortSignal);
       assert.equal(
         new URL(url).host === "api.github.com",
@@ -2868,7 +2944,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
       [401, "authentication"],
       [403, "forbidden"],
       [503, "provider-error"],
-      [302, "provider-status"],
+      [302, "provider-redirect"],
     ]) {
       const report = await collect(catalog(port("failure")), async () => response({}, status));
       assert.equal(report.observations[0].reason, reason);
