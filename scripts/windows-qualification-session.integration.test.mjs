@@ -31,6 +31,11 @@ const installerLifecycleTool = fileURLToPath(
 const csc = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe";
 const sha256 = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 
+function unverifiedChildCaptureFailed(evidence) {
+  const value = evidence.unverified_child_capture_failed;
+  return typeof value === "boolean" ? value : null;
+}
+
 function unverifiedChildProjection(evidence) {
   const records = evidence.unverified_child_observations;
   if (!Array.isArray(records)) return [];
@@ -85,6 +90,13 @@ test("unverified child failure projection bounds and sanitizes diagnostic scalar
     },
   ]);
   assert.deepEqual(unverifiedChildProjection({}), []);
+  assert.equal(unverifiedChildCaptureFailed({ unverified_child_capture_failed: true }), true);
+  assert.equal(unverifiedChildCaptureFailed({ unverified_child_capture_failed: false }), false);
+  assert.equal(
+    unverifiedChildCaptureFailed({ unverified_child_capture_failed: "private text" }),
+    null,
+  );
+  assert.equal(unverifiedChildCaptureFailed({}), null);
 });
 
 function runPowerShell(args, options = {}) {
@@ -543,7 +555,10 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
       } else {
         if (result.status !== 0) {
           t.diagnostic(
-            JSON.stringify({ unverified_child_observations: unverifiedChildProjection(evidence) }),
+            JSON.stringify({
+              unverified_child_observations: unverifiedChildProjection(evidence),
+              unverified_child_capture_failed: unverifiedChildCaptureFailed(evidence),
+            }),
           );
         }
         assert.equal(result.status, 0, result.stderr);

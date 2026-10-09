@@ -308,6 +308,7 @@ $evidence = if ($EvidencePath) {
         phase = "initialized"
         process_runs = @()
         unverified_child_observations = @()
+        unverified_child_capture_failed = $false
         owned_paths = [ordered]@{
             run_root_relative = [System.IO.Path]::GetRelativePath($base, $runRoot).Replace('\', '/')
             install_relative = [System.IO.Path]::GetRelativePath($base, $installRoot).Replace('\', '/')
@@ -593,6 +594,7 @@ function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [Dat
                         }
                     } catch {
                         # Diagnostic failure must not replace the existing refusal.
+                        $evidence.unverified_child_capture_failed = $true
                     }
                 }
                 throw "Uninstaller child executable image path could not be observed"
