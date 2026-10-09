@@ -3646,12 +3646,13 @@ mod tests {
     async fn streaming_download_fails_after_a_read_idle_stall() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        let installer = Installer::with_network_bounds(
-            library,
-            Duration::from_millis(50),
-            Duration::from_millis(50),
-        )
-        .unwrap();
+        // Reqwest's read timer also covers connection/header admission. Keep
+        // the connect bound, allow measured loopback admission margin, and
+        // prove the body received a byte before the full idle interval elapsed.
+        let read_idle_timeout = Duration::from_millis(250);
+        let installer =
+            Installer::with_network_bounds(library, Duration::from_millis(50), read_idle_timeout)
+                .unwrap();
         let server = StalledDownloadServer::start();
         let asset = ReleaseAsset {
             name: "stalled.zip".into(),
@@ -3667,28 +3668,14 @@ mod tests {
             .download(&asset, &destination, &operation, &mut emit)
             .await
             .unwrap_err();
-        eprintln!(
-            "fixture download error after {:?}: {error:?}",
-            download_started.elapsed()
-        );
+        let download_elapsed = download_started.elapsed();
+        eprintln!("fixture download error after {download_elapsed:?}: {error:?}");
         let partial_body_sent = server.finish();
-        if !partial_body_sent {
-            // A single failure-only request exposes reqwest's underlying cause.
-            // Its result never substitutes for the failed original download.
-            let diagnostic_server = StalledDownloadServer::start();
-            let diagnostic_started = std::time::Instant::now();
-            let diagnostic = installer
-                .client
-                .get(format!("http://{}/diagnostic", diagnostic_server.address))
-                .send()
-                .await;
-            eprintln!(
-                "failure-only request probe after {:?}: {diagnostic:?}",
-                diagnostic_started.elapsed()
-            );
-            diagnostic_server.finish();
-        }
         assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(
+            download_elapsed >= read_idle_timeout,
+            "the received partial body must reach the full read-idle interval"
+        );
         assert!(
             partial_body_sent,
             "the fixture never reached a partial-body read-idle stall"
