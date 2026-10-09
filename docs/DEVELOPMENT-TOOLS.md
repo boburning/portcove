@@ -14,6 +14,15 @@ settlement; lost fetch ownership never overwrites the foreign replacement.
 Reports distinguish attempted actions from observed callback/invoke completion.
 They extend these internal observation reports, not the verifier/evidence format.
 
+Channel admission relies on the reviewed first-party action creating its token
+after probe installation. This bounded window is specific to these two callers;
+it does not establish general ownership of arbitrary fresh callbacks. Admission
+excludes pre-existing, reused, and invocation callback/error IDs. Each admitted
+Channel is bound to its original callback function before emission or closure.
+Only the intercepted invocation's fresh response callbacks receive observers,
+which forward the original callback and record completion after it returns.
+Missing or replaced callbacks remain unowned; absence alone never proves cleanup.
+
 Both maintained frontend lanes run the existing context preflight, which also
 checks these probes through pinned Tauri 2.11.6 runtime fixtures and the installed
 API 2.11.1 `invoke` and `Channel`. Fallback and native forwarding are inert/spied;

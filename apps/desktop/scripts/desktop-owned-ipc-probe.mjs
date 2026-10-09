@@ -64,6 +64,11 @@ function installProbe(key, mode, options) {
   const mismatches = [];
   const channels = [];
   const responses = [];
+  // These fixed first-party actions allocate their Channel after installation.
+  // Freshness is admission evidence for that bounded action window, not general ownership.
+  const initialCallbacks = new Set(native.callbacks.keys());
+  const channelBindings = new Map();
+  const responseBindings = new Map();
   let restoration;
   let active = true;
   const failure =
@@ -85,7 +90,7 @@ function installProbe(key, mode, options) {
     }
   };
 
-  function channelFor(payload) {
+  function channelFor(payload, response) {
     const token = payload?.onEvent;
     const id =
       typeof token === "string" && /^__CHANNEL__:\d+$/.test(token)
@@ -95,11 +100,25 @@ function installProbe(key, mode, options) {
       Number.isSafeInteger(id) &&
       id >= 0 &&
       callbackPresent(id) === true &&
+      !initialCallbacks.has(id) &&
+      !responses.some((r) => r.ids.includes(id)) &&
       !channels.some((c) => c.id === id);
     const channel = { id, owned, index: 0, attempted: false, completed: null };
     channels.push(channel);
-    if (!owned) mismatches.push("Controlled Channel identity unavailable or reused");
+    if (owned && response.owned) channelBindings.set(channel, native.callbacks.get(id));
+    else channel.owned = false;
+    if (!channel.owned) mismatches.push("Controlled Channel identity unavailable or reused");
     return channel;
+  }
+
+  function ownsChannel(channel) {
+    return channel.owned && native.callbacks.get(channel.id) === channelBindings.get(channel);
+  }
+
+  function emit(channel, message) {
+    if (!ownsChannel(channel)) throw new Error("Controlled Channel ownership lost");
+    native.runCallback(channel.id, { index: channel.index, message });
+    channel.index++;
   }
 
   function close(channel) {
@@ -108,9 +127,9 @@ function installProbe(key, mode, options) {
       channel.reason = "No admitted owned Channel";
       return;
     }
-    if (callbackPresent(channel.id) === false) {
-      channel.completed = true;
-      channel.reason = "Callback already observed absent";
+    if (!ownsChannel(channel)) {
+      channel.completed = null;
+      channel.reason = "Channel ownership lost before close";
       return;
     }
     channel.attempted = true;
@@ -132,17 +151,58 @@ function installProbe(key, mode, options) {
     );
     const response = {
       ids,
-      owned: ids.every((id) => Number.isSafeInteger(id) && callbackPresent(id) === true),
+      owned:
+        ids[0] !== ids[1] &&
+        ids.every(
+          (id) =>
+            Number.isSafeInteger(id) &&
+            !initialCallbacks.has(id) &&
+            callbackPresent(id) === true &&
+            !responses.some((r) => r.ids.includes(id)) &&
+            !channels.some((c) => c.id === id),
+        ),
       attempted: false,
       completed: null,
       resolve: null,
     };
     responses.push(response);
+    if (response.owned) {
+      const bindings = ids.map((id) => {
+        const originalCallback = native.callbacks.get(id);
+        const observer = (value) => {
+          if (response.completed === true || !ownsResponse(response)) return;
+          try {
+            originalCallback(value);
+            response.completed = true;
+          } catch (error) {
+            response.completed = false;
+            response.error = errorText(error);
+            throw error;
+          }
+        };
+        native.callbacks.set(id, observer);
+        return observer;
+      });
+      responseBindings.set(response, bindings);
+    }
     return response;
+  }
+
+  function ownsResponse(response) {
+    return (
+      response.owned &&
+      response.ids.every(
+        (id, index) => native.callbacks.get(id) === responseBindings.get(response)?.[index],
+      )
+    );
   }
 
   function settle(response) {
     if (!response.resolve || response.attempted) return;
+    if (!ownsResponse(response)) {
+      response.reason = "Invoke callback ownership lost before settlement";
+      return;
+    }
     response.attempted = true;
     try {
       response.resolve(reply(failure, "error"));
@@ -156,11 +216,6 @@ function installProbe(key, mode, options) {
     // Returning a Response proves delivery only; observe invoke callbacks separately.
     const deadline = Date.now() + 250;
     do {
-      for (const response of responses)
-        if (response.attempted && response.completed !== false && response.owned)
-          response.completed = response.ids.every((id) => callbackPresent(id) === false)
-            ? true
-            : null;
       if (responses.every((response) => response.completed === true)) break;
       await new Promise((resolve) => setTimeout(resolve, 0));
     } while (Date.now() < deadline);
@@ -193,7 +248,7 @@ function installProbe(key, mode, options) {
       const object = payload !== null && typeof payload === "object" && !Array.isArray(payload);
       if (mode === "scan") {
         counts.injected++;
-        channel = channelFor(object ? payload : null);
+        channel = channelFor(object ? payload : null, response);
         if (!active || !object || !channel.owned)
           throw new Error("Controlled scan request mismatch");
         const event = {
@@ -216,8 +271,7 @@ function installProbe(key, mode, options) {
             size: options.source.size,
           },
         ]) {
-          native.runCallback(channel.id, { index: channel.index, message });
-          channel.index++;
+          emit(channel, message);
         }
         return new Promise((resolve) => {
           response.resolve = resolve;
@@ -225,7 +279,7 @@ function installProbe(key, mode, options) {
       }
       if (url === targets[1]) {
         counts.applies++;
-        channel = channelFor(object ? payload : null);
+        channel = channelFor(object ? payload : null, response);
         close(channel);
       }
       const matches =

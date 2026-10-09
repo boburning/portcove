@@ -200,10 +200,6 @@ export async function verifyOwnedProbeTransport() {
   for (const fault of ["none", "channel-close", "foreign-fetch", "event-handler"]) {
     await runCase(async ({ context, browser, client }) => {
       const events = [];
-      const channel = new client.Channel((message) => {
-        if (fault === "event-handler") throw new Error("Owned event handler failed");
-        events.push(message);
-      });
       if (fault === "channel-close") {
         const native = context.__TAURI_INTERNALS__;
         const facade = Object.create(native);
@@ -217,6 +213,10 @@ export async function verifyOwnedProbeTransport() {
       }
       const original = context.fetch;
       const probe = await beginProgressiveScanProbe(browser, { source });
+      const channel = new client.Channel((message) => {
+        if (fault === "event-handler") throw new Error("Owned event handler failed");
+        events.push(message);
+      });
       const invocation = client.invoke("scan_game_file_roots", { onEvent: channel });
       const rejected = assert.rejects(invocation, /Controlled scan/);
       assert.deepEqual(
@@ -276,6 +276,87 @@ export async function verifyOwnedProbeTransport() {
       assert.strictEqual(await probe.restore(), report);
     });
   }
+  await runCase(async ({ context, browser, client }) => {
+    const foreignEvents = [];
+    const foreign = new client.Channel((event) => foreignEvents.push(event));
+    const probe = await beginProgressiveScanProbe(browser, { source });
+    const rejected = assert.rejects(
+      client.invoke("scan_game_file_roots", { onEvent: `__CHANNEL__:${foreign.id}` }),
+      /Controlled scan/,
+    );
+    const report = await probe.restore();
+    await rejected;
+    assert.deepEqual(foreignEvents, []);
+    assert.equal(context.__TAURI_INTERNALS__.callbacks.has(foreign.id), true);
+    assert.equal(report.trustworthy, false);
+    assert.equal(report.channel_cleanup[0].owned, false);
+    foreign.cleanupCallback();
+  });
+  for (const fault of ["removed", "replaced"]) {
+    await runCase(async ({ context, browser, client }) => {
+      const probe = await beginProgressiveScanProbe(browser, { source });
+      const channel = new client.Channel();
+      const rejected = assert.rejects(
+        client.invoke("scan_game_file_roots", { onEvent: channel }),
+        /Controlled scan/,
+      );
+      const foreign = () => assert.fail("Foreign Channel callback must remain untouched");
+      const callbacks = context.__TAURI_INTERNALS__.callbacks;
+      if (fault === "removed") callbacks.delete(channel.id);
+      else callbacks.set(channel.id, foreign);
+      const report = await probe.restore();
+      await rejected;
+      assert.equal(report.trustworthy, false);
+      assert.equal(report.channel_cleanup[0].attempted, false);
+      assert.equal(report.channel_cleanup[0].completed, null);
+      assert.equal(report.response_cleanup[0].completed, true);
+      assert.strictEqual(callbacks.get(channel.id), fault === "removed" ? undefined : foreign);
+      callbacks.delete(channel.id); // Fixture alone owns its injected replacement.
+    });
+    await runCase(async ({ context, browser, client }) => {
+      const probe = await beginProgressiveScanProbe(browser, { source });
+      const channel = new client.Channel();
+      const invocation = client.invoke("scan_game_file_roots", { onEvent: channel });
+      const callbacks = context.__TAURI_INTERNALS__.callbacks;
+      const bindings = [...callbacks].filter(([id]) => id !== channel.id);
+      let settled = false;
+      const rejected = assert.rejects(invocation, /Fixture settlement/).then(() => {
+        settled = true;
+      });
+      const foreign = () => assert.fail("Foreign invoke callback must remain untouched");
+      for (const [id] of bindings)
+        if (fault === "removed") callbacks.delete(id);
+        else callbacks.set(id, foreign);
+      const report = await probe.restore();
+      assert.equal(settled, false, "Callback absence does not establish invoke completion");
+      assert.equal(report.trustworthy, false);
+      assert.equal(report.channel_cleanup[0].completed, true);
+      assert.equal(report.response_cleanup[0].attempted, false);
+      assert.equal(report.response_cleanup[0].completed, null);
+      for (const [id] of bindings)
+        assert.strictEqual(callbacks.get(id), fault === "removed" ? undefined : foreign);
+      // Re-admit only the fixture's original observers, then reap its pending invocation.
+      for (const [id, callback] of bindings) callbacks.set(id, callback);
+      bindings[1][1]("Fixture settlement");
+      await rejected;
+    });
+  }
+  await runCase(async ({ context, browser, client }) => {
+    const probe = await beginProgressiveScanProbe(browser, { source });
+    await assert.rejects(
+      client.invoke("scan_game_file_roots", {
+        toJSON() {
+          const ids = [...context.__TAURI_INTERNALS__.callbacks.keys()];
+          return { onEvent: `__CHANNEL__:${ids[0]}` };
+        },
+      }),
+      /Controlled scan/,
+    );
+    const report = await probe.restore();
+    assert.equal(report.channel_cleanup[0].owned, false);
+    assert.equal(report.response_cleanup[0].completed, true);
+    assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 0);
+  });
 }
 
 if (process.argv[2] === "--transport-preflight") {
