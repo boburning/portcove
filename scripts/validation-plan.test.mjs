@@ -81,6 +81,7 @@ test("frontend and primary Rust paths receive focused fast plans", () => {
 
 test("maintained native scenario consumers retain contracts without unrelated Rust tests", () => {
   const files = [
+    "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
     "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
     "apps/desktop/scripts/desktop-default-cover-test.mjs",
     "apps/desktop/scripts/desktop-install-fixture.test.mjs",
@@ -91,6 +92,9 @@ test("maintained native scenario consumers retain contracts without unrelated Ru
     "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",
     "scripts/desktop-scenarios.mjs",
     "scripts/desktop-scenarios.test.mjs",
+    "scripts/desktop-execution-plan.mjs",
+    "scripts/desktop-execution-plan.test.mjs",
+    "scripts/testdata/desktop-execution-baseline.json",
   ];
   const result = plan(files.map((file) => change(file)));
   assert.equal(result.mode, "fast");

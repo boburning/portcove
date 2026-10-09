@@ -189,6 +189,24 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map([
+  [
+    "scripts/desktop-execution-plan.test.mjs",
+    ["scripts/desktop-scenarios.test.mjs", "scripts/desktop-verify.test.mjs"],
+  ],
+  ...[
+    "scripts/desktop-execution-plan.mjs",
+    "scripts/desktop-scenarios.mjs",
+    "scripts/desktop-verify.mjs",
+    "scripts/testdata/desktop-execution-baseline.json",
+    "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+  ].map((file) => [
+    file,
+    [
+      "scripts/desktop-execution-plan.test.mjs",
+      "scripts/desktop-scenarios.test.mjs",
+      "scripts/desktop-verify.test.mjs",
+    ],
+  ]),
   ...[
     "scripts/validation-plan.mjs",
     "scripts/validation-plan.test.mjs",
@@ -247,6 +265,7 @@ const explicitNodeTests = new Map([
   [
     "apps/desktop/scripts/desktop-test.mjs",
     [
+      "scripts/desktop-execution-plan.test.mjs",
       "scripts/desktop-scenarios.test.mjs",
       "scripts/development-evidence.test.mjs",
       "scripts/native-session-lock.test.mjs",

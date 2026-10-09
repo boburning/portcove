@@ -434,11 +434,24 @@ just desktop-verify --profile presentation
 ```
 
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
-flags are repeatable and mutually exclusive with `--profile`; execution follows
-catalog order so fixture transitions stay deterministic. Use `--list-scenarios`
+flags are repeatable and mutually exclusive with `--profile`; selection is normalized
+in catalog order. The pure `scripts/desktop-execution-plan.mjs` supplies fixture
+requirements, build features, initial receipt sources and ordered family entries.
+The harness consumes that order after workspace refresh/history and before reload;
+its existing scenario attempt remains responsible for dependency gating and
+selected/setup attribution. Preparation retains its nested traversal and browser
+reassignment. The coordinator obtains the current browser at each family call.
+Use `--list-scenarios`
 to see stable IDs, descriptions, profile membership, prerequisites and host-impact
 metadata. `--plan --json` and `--list-scenarios --json` provide machine-readable
-output without building or launching.
+output without building or launching. Their serialized format remains unchanged.
+The independently reviewed pre-change oracle in
+`scripts/testdata/desktop-execution-baseline.json` is pinned to main
+`a9e3db4e6cd9fd41111b58705e4fa54790eb57d7`; its 222 cases cover selection,
+admission, receipt source order and verifier serialization with inert adapters.
+It is not native acceptance. Preserve its provenance rather than deriving expected
+results from the planner. Runtime receipt inputs remain with their existing owners;
+the harness hashes current bytes, including the planner and coordinator helpers.
 
 `just desktop-verify --scenario native-startup-library-recovery --require-clean`
 selects one Windows-only initial-startup recovery journey, outside every routine
