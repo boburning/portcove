@@ -17,15 +17,26 @@ impl Consumer {
         }
     }
 
+    fn verify_hash(&self, phase: &str) {
+        let started = Instant::now();
+        let bytes = fs::read(&self.path).unwrap();
+        let read_elapsed = started.elapsed();
+        let hash_started = Instant::now();
+        assert_eq!(hex::encode(Sha256::digest(&bytes)), self.sha256);
+        println!(
+            "compiled consumer {phase}: bytes={}, read_ms={}, hash_ms={}",
+            bytes.len(),
+            read_elapsed.as_millis(),
+            hash_started.elapsed().as_millis()
+        );
+    }
+
     fn invoke(&self, library: &Library, args: &[&str]) -> Value {
         self.invoke_result(library, args, true)
     }
 
     fn invoke_result(&self, library: &Library, args: &[&str], success: bool) -> Value {
-        assert_eq!(
-            hex::encode(Sha256::digest(fs::read(&self.path).unwrap())),
-            self.sha256
-        );
+        self.verify_hash("before invocation");
         let output = tempfile::tempdir_in(library.root()).unwrap();
         let stdout = output.path().join("stdout.json");
         let stderr = output.path().join("stderr.log");
@@ -63,6 +74,10 @@ impl Consumer {
         // Positive reap precedes output/fixture cleanup, including timeout/error.
         // The containing existing Heavy Rust supervisor owns any failed reap.
         let status = child.wait().unwrap();
+        println!(
+            "compiled consumer child: elapsed_ms={}",
+            start.elapsed().as_millis()
+        );
         assert!(
             observation.is_ok(),
             "{observation:?}; {}",
@@ -76,10 +91,7 @@ impl Consumer {
             result["error"],
             fs::read_to_string(&stderr).unwrap()
         );
-        assert_eq!(
-            hex::encode(Sha256::digest(fs::read(&self.path).unwrap())),
-            self.sha256
-        );
+        self.verify_hash("after invocation");
         result
     }
 }
