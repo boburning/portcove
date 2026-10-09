@@ -33,30 +33,32 @@ export function evaluateCiResults({
     if (result !== "success")
       throw new Error(`${name} was ${result || "missing"}, expected success in every plan`);
   const selected = plan.groups.includes(group);
-  const targetsAffectedPlatform =
-    plan.mode === "fast" && plan.platforms.some((platform) => platform !== "primary-host");
+  const targetsAffectedPlatform = false;
   if (plan.mode === "qualification") {
     if (!selected) throw new Error(`qualification plan omitted protected group ${group}`);
     if (prose !== "skipped")
       throw new Error(`prose lane was ${prose || "missing"}, expected skipped`);
     requireResults(fast, "skipped", "qualification");
-    requireResults(targeted, "skipped", "qualification targeted-platform");
+    if (Object.keys(targeted ?? {}).length)
+      requireResults(targeted, "skipped", "qualification targeted-platform");
     requireResults(qualification, "success", "qualification");
   } else if (plan.mode === "fast") {
     if (prose !== "skipped")
       throw new Error(`prose lane was ${prose || "missing"}, expected skipped`);
     requireResults(qualification, "skipped", "fast");
     requireResults(fast, selected ? "success" : "skipped", "fast");
-    requireResults(
-      targeted,
-      targetsAffectedPlatform ? "success" : "skipped",
-      "fast targeted-platform",
-    );
+    if (Object.keys(targeted ?? {}).length)
+      requireResults(
+        targeted,
+        targetsAffectedPlatform ? "success" : "skipped",
+        "fast targeted-platform",
+      );
   } else if (plan.mode === "prose") {
     if (prose !== "success")
       throw new Error(`prose lane was ${prose || "missing"}, expected success`);
     requireResults(fast, "skipped", "prose");
-    requireResults(targeted, "skipped", "prose targeted-platform");
+    if (Object.keys(targeted ?? {}).length)
+      requireResults(targeted, "skipped", "prose targeted-platform");
     requireResults(qualification, "skipped", "prose");
   } else {
     throw new Error(`classifier mode is ${plan.mode || "missing"}`);

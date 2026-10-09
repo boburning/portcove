@@ -10,21 +10,8 @@
 
 Use these exact strings when an engineering skill names a triage role.
 
-These labels supplement the live Project. They do not replace Project
-Status, readiness, reservations, qualification, review, or acceptance
-and merge authority. Read the current issue and Project state before
-recommending or applying a transition.
-
-During triage discovery, missing triage labels mean missing annotations,
-not proof that an issue is untriaged or unfinished. Read existing Project
-classification and issue evidence before placing it in an intake bucket;
-preserve completed work and active reservations.
-
-`ready-for-agent` describes specification completeness. Execution
-eligibility still depends on live Project fields, blockers, reservations,
-and the repository's validation and delivery requirements.
-
-For an authorized outcome that changes issue disposition, reconcile and
-verify the corresponding Project state through `portcove-roadmap`.
-Read back any automatic closure transition. A `wontfix` label alone does
-not establish completion evidence or change Port stage or catalog support.
+Labels are supplementary annotations. Missing labels do not establish missing
+triage or unfinished work. `ready-for-agent` describes specification completeness;
+execution still follows the live Project and [pickup contract](../PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
+Use `portcove-roadmap` for authorized disposition changes and readback. A `wontfix`
+label alone does not establish completion or alter catalog support.

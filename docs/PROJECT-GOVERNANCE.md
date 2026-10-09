@@ -372,10 +372,11 @@ coordinator, dispatcher, approval gate or intermediary. This decision changes
 execution ownership; release commitments, acceptance, trust, signing/provenance,
 branch protection, data protection and resource guards remain in force.
 
-At startup/resume, selection, clean handoffs, review and final acceptance, refresh
-the relevant owner instructions, issue specification, live Project fields, typed
-relationships, actual writers and exact source. Share reads within an unchanged
-stage; compare material deltas and repeat only affected obligations.
+At pickup/resume, read the relevant owner instructions, issue specification,
+live Project fields, typed relationships, actual writers and exact source once.
+Reuse that context until material requirements or source changes; refresh the
+relevant authority before final merge or a remote write. Compare actual deltas
+and repeat only affected obligations, without ceremonial stage-by-stage reads.
 Use `roadmap.mjs next` for the common Required/Planned queue and
 `roadmap.mjs context --issue <number> --runner <reported-instance> --json`
 for full current task requirements. The configured `delivery_mode` is
@@ -412,8 +413,9 @@ empty PRs or claim an unavailable upload succeeded. Then select the highest-valu
 independent eligible work in the same active session. An owner-only action is
 reported once with its effect; it does not suspend safe independent work.
 
-Preserve actual separate non-writing review and diff-selected local validation,
-exact-head CI and distinct acceptance. Reuse evidence only at permitted matching
+Preserve actual separate non-writing review, required exact-head hosted CI and
+explicit acceptance. Local validation is optional under
+[QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
 inputs and scope. A bounded reviewer receives the exact diff/head, relevant
 acceptance/contracts, risks and existing evidence; implementers handle findings
 directly. Missing independent review leaves a candidate awaiting review, never

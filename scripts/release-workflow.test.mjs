@@ -133,10 +133,10 @@ test("cheap identity unlocks qualification and builds before the explicit result
     /workflow-provenance-release-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/,
   );
   assert.match(validateSection, /retention-days: 7/);
-  assert.match(buildSection, /^ {4}needs: identity$/m);
-  assert.match(intelBuildSection, /^ {4}needs: identity$/m);
-  assert.doesNotMatch(buildSection, /needs: validate/);
-  assert.doesNotMatch(intelBuildSection, /needs: validate/);
+  assert.match(buildSection, /^ {4}needs: \[identity, validate\]$/m);
+  assert.match(intelBuildSection, /^ {4}needs: \[identity, validate\]$/m);
+  assert.match(buildSection, /needs: \[identity, validate\]/);
+  assert.match(intelBuildSection, /needs: \[identity, validate\]/);
   assert.match(gateSection, /^ {4}if: always\(\)$/m);
   assert.match(
     gateSection,

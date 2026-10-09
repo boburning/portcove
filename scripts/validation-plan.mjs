@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
-export const validationPlanVersion = 2;
+export const validationPlanVersion = 3;
 
 export const fastGroups = Object.freeze([
   "catalog",
@@ -198,6 +198,185 @@ function classifyPath(file) {
 
   const platformMatches = explicitPlatformOwnership(file);
   const hasPlatformSignal = platformMatches.length > 0;
+  const inertGithubFile =
+    file.startsWith(".github/ISSUE_TEMPLATE/") ||
+    file === ".github/PULL_REQUEST_TEMPLATE.md" ||
+    file === ".github/CODEOWNERS";
+  const protectedGithubAutomation =
+    file.startsWith(".github/workflows/") || file.startsWith(".github/actions/");
+  const protectedPolicy =
+    protectedPolicyDocuments.has(file) ||
+    protectedPolicyFiles.has(file) ||
+    protectedGithubAutomation ||
+    (file.startsWith(".github/") &&
+      !inertGithubFile &&
+      !ordinaryGithubFiles.has(file) &&
+      !releaseSecurityFiles.has(file));
+  const releaseSecurity =
+    file.startsWith("release/") ||
+    file.startsWith("release-metadata/") ||
+    releaseSecurityFiles.has(file) ||
+    file.startsWith("crates/portcove-release-tools/") ||
+    file.startsWith("apps/desktop/src-tauri/src/application_update_");
+  // Documentation captures are not consumed by the catalog or application.
+  // Keep their documentation checks without interpreting a pictured topic as
+  // executable catalog/source authority. Other formats and locations retain
+  // their existing routes; file modes and rename sides are checked separately.
+
+  const match = (condition, area, selectedGroups, reason) => {
+    if (!condition) return;
+    areas.add(area);
+    add(groups, ...selectedGroups);
+    reasons.push(reason);
+  };
+  const documentation = file.endsWith(".md") || file.startsWith("docs/") || inertGithubFile;
+  const rust = file.startsWith("crates/") || file.startsWith("apps/desktop/src-tauri/");
+  const rootRust = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    "deny.toml",
+    ".config/nextest.toml",
+    ".config/rust-test-impact.json",
+  ].includes(file);
+  match(documentation, "documentation", ["catalog", "rust-quality"], "documentation-contract");
+  // Prose and captures are inert even when their topic names a platform or schema.
+  if (!documentation) {
+    match(
+      file.startsWith("apps/desktop/src/") ||
+        file.startsWith("apps/desktop/public/") ||
+        nativeScenarioFiles.has(file) ||
+        /^apps\/desktop\/(?:index\.html|package\.json|tsconfig.*\.json|vite\.config\.[cm]?ts|stylelint\.config\.mjs)$/u.test(
+          file,
+        ),
+      "frontend",
+      ["frontend", "rust-quality"],
+      "frontend-input",
+    );
+    match(rust || rootRust, "rust", ["rust", "rust-quality"], "rust-workspace-input");
+    match(
+      /^apps\/desktop\/src\/transport-[^/]+\.generated\.(?:json|d\.ts)$/u.test(file) ||
+        [
+          "scripts/check-transport-contract.mjs",
+          "scripts/transport-schemas.mjs",
+          "apps/desktop/scripts/generate-transport-types.mjs",
+        ].includes(file),
+      "native-ipc",
+      ["catalog", "frontend", "rust", "rust-quality"],
+      "generated-transport-input",
+    );
+    match(
+      file.startsWith("apps/desktop/src-tauri/") ||
+        (!/catalog/iu.test(file) &&
+          /(?:transport|schema|ipc)/iu.test(file) &&
+          (rust || file.startsWith("scripts/"))),
+      "native-ipc",
+      ["catalog", "frontend", "rust-quality", ...(rust ? ["rust"] : [])],
+      "native-or-ipc-contract",
+    );
+    match(
+      file.startsWith("crates/portcove-core/catalog/"),
+      "catalog",
+      ["catalog", "rust", "rust-quality"],
+      "catalog-contract",
+    );
+    match(
+      /(?:^|\/)(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml)$/u.test(file),
+      "dependency",
+      ["dependency-review", "frontend", "rust-quality"],
+      "frontend-dependency-input",
+    );
+    match(
+      /(?:^|\/)(?:Cargo\.toml|Cargo\.lock)$/u.test(file),
+      "dependency",
+      ["dependency-review", "rust", "rust-quality"],
+      "rust-dependency-input",
+    );
+    match(
+      [
+        ".node-version",
+        ".aqua-version",
+        "aqua.yaml",
+        "aqua-checksums.json",
+        "renovate.json",
+        ".github/quality-tools.json",
+        ".config/tool-bootstrap.json",
+        ".config/powershell-resources.psd1",
+      ].includes(file),
+      "dependency",
+      fastGroups,
+      "shared-toolchain-or-dependency-policy",
+    );
+    match(
+      releaseSecurity,
+      "release-security",
+      ["catalog", "rust-quality", ...(rust ? ["rust"] : [])],
+      "release-or-security-contract",
+    );
+    match(
+      hasPlatformSignal && !nativeScenarioFiles.has(file),
+      "platform",
+      ["catalog", "rust-quality", ...(rust ? ["rust"] : [])],
+      "platform-contract",
+    );
+    match(
+      file.startsWith("scripts/") ||
+        file.startsWith("integrations/") ||
+        ordinaryGithubFiles.has(file) ||
+        file.startsWith(".vscode/"),
+      "policy",
+      ["catalog", "rust-quality"],
+      "tooling-contract",
+    );
+    match(
+      protectedPolicy ||
+        [
+          ".editorconfig",
+          ".gitattributes",
+          ".gitignore",
+          ".oxfmtrc.json",
+          ".oxlintrc.json",
+          ".prettierignore",
+          ".rscheck.toml",
+          "eslint.config.mjs",
+          "prettier.config.mjs",
+          "pyproject.toml",
+          "taplo.toml",
+          "justfile",
+        ].includes(file),
+      "policy",
+      ["catalog", "rust-quality"],
+      "policy-contract",
+    );
+  }
+  if (areas.size === 0) {
+    add(groups, ...fastGroups);
+    reasons.push("recognized-unknown-path-all-fast-fallback");
+  }
+  platforms.add("primary-host");
+
+  return {
+    path: file,
+    areas: [...areas].sort(),
+    groups: [...groups].sort(),
+    platforms: [...platforms].sort(),
+    qualificationRequired,
+    reasons: [...new Set(reasons)].sort(),
+    unknown: areas.size === 0,
+  };
+}
+
+// Audit receipt domains retain their conservative input ownership independently
+// of ordinary CI scheduling. Changing the PR budget must not admit stale audit receipts.
+function classifyAuditPath(file) {
+  const areas = new Set();
+  const groups = new Set();
+  const platforms = new Set();
+  const reasons = [];
+  let qualificationRequired = false;
+
+  const platformMatches = explicitPlatformOwnership(file);
+  const hasPlatformSignal = platformMatches.length > 0;
   const affectedPlatforms = platformMatches.length > 0 ? platformMatches : qualificationPlatforms;
   const inertGithubFile =
     file.startsWith(".github/ISSUE_TEMPLATE/") ||
@@ -382,7 +561,7 @@ function classifyPath(file) {
 }
 
 export function validationOwnershipForPath(input) {
-  return classifyPath(normalizedPath(input));
+  return classifyAuditPath(normalizedPath(input));
 }
 
 function stableJson(value) {
@@ -428,6 +607,7 @@ export function buildValidationPlan({
       discovery,
       reason: blockedReason ?? "unexplained-empty-change-set",
       changed_files: [],
+      changes: [],
       areas: [],
       groups: [],
       platforms: [],
@@ -439,13 +619,14 @@ export function buildValidationPlan({
     return { ...plan, digest: digestValidationPlan(plan) };
   }
 
-  if (eventName !== "pull_request") {
+  if (changes.length === 0) {
     const plan = {
       format_version: validationPlanVersion,
       mode: "fast",
       discovery,
       reason: "main-or-explicit-event-all-fast-groups",
       changed_files: [],
+      changes: [],
       areas: validationAreas,
       groups: fastGroups,
       platforms: ["primary-host"],
@@ -469,15 +650,27 @@ export function buildValidationPlan({
     .map(classifyPath);
   const changedFiles = paths.map((entry) => entry.path);
   const allProse = changedFiles.every((file) => proseOnlyAllowlist.includes(file));
-  const regular = normalizedChanges.every(
-    (change) =>
-      ["A", "D", "M", "R", "?"].includes(String(change.status).charAt(0)) &&
-      (!change.oldMode ||
-        !change.newMode ||
-        ((change.oldMode === "000000" || change.oldMode === "100644") &&
-          (change.newMode === "000000" || change.newMode === "100644"))),
-  );
+  const regular = normalizedChanges.every((change) => {
+    const status = String(change.status).charAt(0);
+    if (["A", "?"].includes(status))
+      return change.oldMode === "000000" && change.newMode === "100644";
+    if (status === "D") return change.oldMode === "100644" && change.newMode === "000000";
+    return (
+      ["M", "R"].includes(status) && change.oldMode === "100644" && change.newMode === "100644"
+    );
+  });
 
+  if (!regular)
+    return buildValidationPlan({
+      changes: [],
+      eventName,
+      checkout,
+      base,
+      mergeBase,
+      head,
+      discovery: "failed",
+      blockedReason: "unsafe-file-type-or-change-status",
+    });
   const areas = [
     ...new Set([...paths.flatMap((entry) => entry.areas), ...(!regular ? ["policy"] : [])]),
   ].sort();
@@ -508,6 +701,13 @@ export function buildValidationPlan({
             ? "high-risk-area-requires-qualification"
             : "area-routed-fast-validation",
     changed_files: changedFiles,
+    changes: normalizedChanges.map(({ status, oldMode, newMode, oldPath, newPath }) => ({
+      status,
+      oldMode: oldMode ?? null,
+      newMode: newMode ?? null,
+      oldPath,
+      newPath,
+    })),
     areas,
     groups,
     platforms,
@@ -533,7 +733,7 @@ export function validateValidationPlan(plan) {
     throw new Error("validation plan reason is missing");
   if (typeof plan.qualification_required !== "boolean")
     throw new Error("validation qualification authority is invalid");
-  for (const field of ["changed_files", "areas", "groups", "platforms", "paths"])
+  for (const field of ["changed_files", "changes", "areas", "groups", "platforms", "paths"])
     if (!Array.isArray(plan[field])) throw new Error(`validation plan ${field} must be an array`);
 
   const assertUniqueSorted = (values, label) => {
@@ -554,6 +754,17 @@ export function validateValidationPlan(plan) {
       throw new Error(`unknown validation platform: ${platform}`);
   assertUniqueSorted(plan.platforms, "platform");
 
+  const changePaths = [];
+  for (const change of plan.changes) {
+    if (!change || !["A", "D", "M", "R", "?"].includes(String(change.status).charAt(0)))
+      throw new Error("invalid validation change status");
+    changePaths.push(normalizedPath(change.oldPath), normalizedPath(change.newPath));
+    for (const mode of [change.oldMode, change.newMode])
+      if (!["000000", "100644"].includes(mode))
+        throw new Error("unsafe or missing validation file mode");
+  }
+  if (JSON.stringify([...new Set(changePaths)].sort()) !== JSON.stringify(plan.changed_files))
+    throw new Error("validation changes do not match changed files");
   const pathNames = [];
   for (const entry of plan.paths) {
     if (!entry || typeof entry !== "object" || Array.isArray(entry))
@@ -627,6 +838,7 @@ export function validateValidationPlan(plan) {
   if (plan.mode === "blocked") {
     if (
       plan.changed_files.length ||
+      plan.changes.length ||
       plan.areas.length ||
       plan.groups.length ||
       plan.platforms.length ||

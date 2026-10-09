@@ -259,21 +259,13 @@ test("Windows updater rehearsal adopts manifest-pinned prebuilt tools before Des
   assert.match(bootstrap, /run: \.\/scripts\/bootstrap-quality-tools\.ps1 -Desktop/);
 });
 
-test("native scenario consumers keep Node and context contracts in both frontend lanes", () => {
-  for (const section of [
-    jobSection("fast_frontend", "fast_catalog"),
-    jobSection("frontend_full", "frontend"),
-  ]) {
-    assert.match(
-      section,
-      /scripts\/desktop-scenarios\.test\.mjs scripts\/desktop-execution-plan\.test\.mjs scripts\/desktop-verify\.test\.mjs scripts\/development-evidence\.test\.mjs scripts\/native-session-lock\.test\.mjs/,
-    );
-    assert.match(
-      section,
-      /node apps\/desktop\/scripts\/desktop-preparation-test\.mjs --context-preflight/,
-    );
-    assert.match(section, /pnpm install --frozen-lockfile/);
-  }
+test("full frontend qualification retains native scenario contracts; ordinary CI uses selected units", () => {
+  const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
+  const fast = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
+  assert.match(full, /desktop-scenarios\.test\.mjs/);
+  assert.match(full, /--context-preflight/);
+  assert.match(fast, /ci-baseline\.mjs frontend/);
+  assert.doesNotMatch(fast, /desktop-preparation-test|test:browser|run-fallow/);
 });
 
 test("EdgeDriver trust proof is manual, isolated, and does not launch the application", () => {
@@ -340,7 +332,7 @@ test("native design compatibility remains explicit, isolated, and non-publishing
 const classify = jobSection("classify", "provenance");
 const provenance = jobSection("provenance", "prose_checks");
 const proseChecks = jobSection("prose_checks", "fast_rust");
-const fastRust = jobSection("fast_rust", "fast_platform");
+const fastRust = jobSection("fast_rust", "fast_rust_quality");
 const fastPlatform = jobSection("fast_platform", "fast_rust_quality");
 const fastRustQuality = jobSection("fast_rust_quality", "fast_frontend");
 const fastFrontend = jobSection("fast_frontend", "fast_catalog");
@@ -431,7 +423,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(provenance, /retention-days: 7/);
   assert.match(
     rustQualityGate,
-    /\[classify, provenance, prose_checks, fast_rust_quality, fast_platform, rust_quality_full\]/,
+    /\[classify, provenance, prose_checks, fast_rust_quality, rust_quality_full\]/,
   );
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
@@ -448,42 +440,31 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
     assert.match(gate, /PORTCOVE_TARGETED_RESULTS/);
     assert.match(gate, /PORTCOVE_QUALIFICATION_RESULTS/);
   }
-  for (const fast of [fastRust, fastRustQuality, fastFrontend, fastCatalog]) {
+  for (const fast of [fastRustQuality, fastFrontend, fastCatalog]) {
     assert.match(fast, /mode == 'fast'/);
     assert.match(fast, /runs-on: ubuntu-22\.04/);
   }
-  assert.match(fastPlatform, /mode == 'fast'/);
-  assert.match(fastPlatform, /platform_matrix_json/);
-  assert.match(fastPlatform, /runs-on: \$\{\{ matrix\.runner \}\}/);
-  assert.match(fastPlatform, /cargo nextest run --locked --workspace/);
+  assert.match(fastRust, /runs-on: windows-latest/);
+  assert.match(fastRust, /rust-test-impact\.mjs --workspace-run/);
+  assert.equal(fastPlatform, "");
   assert.match(fastRustQuality, /actions\/setup-node@/);
   assert.match(fastRustQuality, /pnpm install --frozen-lockfile/);
-  assert.match(fastRustQuality, /run-oxfmt\.mjs --check/);
-  assert.match(fastRustQuality, /lint:oxlint/);
+  assert.match(desktopPackage.scripts["format:oxfmt:check"], /run-oxfmt\.mjs --check/);
+  assert.match(fastRustQuality, /format:check/);
   assert.match(fastRust, /key: fast-rust-tests-/);
-  assert.match(fastRustQuality, /key: fast-rust-quality-/);
+  assert.doesNotMatch(fastRustQuality, /cargo clippy|rust-cache/);
   assert.match(fastDependencyReview, /actions\/dependency-review-action@/);
   assert.match(fastDependencyReview, /base-ref:/);
   assert.match(fastDependencyReview, /head-ref:/);
 });
 
-test("fast plans give Oxfmt and Oxlint one job owner", () => {
-  const repositoryLintStep = fastRustQuality.match(
-    /- name: Check repository formatting and JavaScript lint\r?\n([\s\S]*?)(?=^ {6}- name:)/m,
-  )?.[1];
-  assert.ok(repositoryLintStep, "fast Rust quality must retain repository formatting and lint");
-  assert.match(
-    repositoryLintStep,
-    /if: \$\{\{ !contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'frontend'\) \}\}/,
-  );
-  assert.match(repositoryLintStep, /run-oxfmt\.mjs --check/);
-  assert.match(repositoryLintStep, /pnpm --dir apps\/desktop lint:oxlint/);
-  assert.equal(fastRustQuality.match(/run-oxfmt\.mjs --check/gu)?.length, 1);
-  assert.equal(fastRustQuality.match(/lint:oxlint/gu)?.length, 1);
-  assert.equal(fastFrontend.match(/pnpm format:check/gu)?.length, 1);
-  assert.equal(fastFrontend.match(/pnpm lint/gu)?.length, 1);
-  assert.equal(fastFrontend.match(/run-fallow\.mjs/gu)?.length, 1);
-  assert.ok(fastFrontend.indexOf("run-fallow.mjs") < fastFrontend.indexOf("pnpm build"));
+test("ordinary formatting has one owner and analyzers stay in qualification", () => {
+  const formatting = workflow.split("  fast_rust_quality:")[1].split("  fast_frontend:")[0];
+  assert.match(formatting, /format:check/);
+  assert.match(formatting, /cargo fmt/);
+  assert.doesNotMatch(formatting, /cargo clippy|lint:oxlint|run-fallow/);
+  const frontend = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
+  assert.doesNotMatch(frontend, /format:check|pnpm lint/);
 });
 
 test("reusable qualification is read-only, daily, and coalesces without cancelling", () => {
@@ -527,7 +508,7 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
   const invocation =
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/g;
 
-  assert.equal((workflow.match(invocation) ?? []).length, 6);
+  assert.equal((workflow.match(invocation) ?? []).length, 3);
   assert.equal((deepQuality.match(invocation) ?? []).length, 1);
   assert.equal((release.match(invocation) ?? []).length, 2);
   assert.match(
@@ -1467,7 +1448,7 @@ test("native Rust runs the full workspace on every supported Unix architecture",
   assert.doesNotMatch(nativeRust, /continue-on-error/);
 });
 
-test("Intel tests build once and retries preserve their attempt-scoped producer chain", () => {
+test("Intel tests build once and retries preserve their attempt-scoped producer chain", async () => {
   assert.match(intelBuild, /runs-on: macos-15$/m);
   assert.match(intelBuild, /targets: x86_64-apple-darwin/);
   assert.match(
@@ -1487,12 +1468,17 @@ test("Intel tests build once and retries preserve their attempt-scoped producer 
     assert.match(section, /name: intel-rust-tests-\$\{\{ github\.run_attempt \}\}/);
     assert.doesNotMatch(section, /continue-on-error/);
   }
+  const transferGuide = await readFile(
+    new URL("../docs/reference/quality-operations.md", import.meta.url),
+    "utf8",
+  );
+  assert.match(qualityGuide, /reference\/quality-operations\.md#consumed-intel-test-transfers/);
   assert.match(
-    qualityGuide,
+    transferGuide,
     /gh run rerun <run-id> --job <build-intel-tests-job-id> --repo boburning\/portcove/,
   );
-  assert.match(qualityGuide, /Do not use .*--failed.*Intel consumer/u);
-  assert.match(qualityGuide, /never reuse an\s+artifact from an earlier attempt/u);
+  assert.match(transferGuide, /Do not use .*--failed.*Intel consumer/u);
+  assert.match(transferGuide, /never reuse an\s+artifact from an earlier attempt/u);
   for (const job of ["intel_build", "intel_tests"])
     assert.ok(rust.includes(`"${job}":"` + "${{ needs." + job + '.result }}"'));
 });
@@ -1558,20 +1544,14 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /fail-on-severity: high/);
 });
 
-test("both frontend lanes provision browser artifacts before running the bounded composition", () => {
-  for (const [name, job] of [
-    ["fast", fastFrontend],
-    ["full", frontend],
-  ]) {
-    const install = job.indexOf("pnpm install --frozen-lockfile");
-    const bootstrap = job.indexOf("pnpm browser:bootstrap");
-    const browserTest = job.indexOf("pnpm test:browser");
-    assert.ok(install >= 0 && bootstrap > install && browserTest > bootstrap, name);
-    assert.match(job, new RegExp(`browser-traces-${name}-`));
-    assert.match(job, /work\/browser-traces/);
-    assert.match(job, /apps\/desktop\/\.vitest\/attachments/);
-    assert.doesNotMatch(job, /pnpm test:browser:trace-probe/);
-  }
+test("full frontend qualification provisions browser artifacts before composition", () => {
+  const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
+  const provision = full.indexOf("pnpm browser:bootstrap"),
+    run = full.indexOf("pnpm test:browser");
+  assert.ok(provision >= 0 && run > provision);
+  assert.match(full, /browser-traces-full/);
+  const fast = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
+  assert.doesNotMatch(fast, /browser:bootstrap|test:browser/);
 });
 
 test("frontend tooling uses the pinned Oxc contracts without legacy quality layers", async () => {
@@ -1759,12 +1739,20 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   }
 });
 
-test("catalog executes the CI workflow contract", () => {
-  assert.match(catalog, /scripts\/ci-workflow\.test\.mjs/);
-  assert.match(fastCatalog, /scripts\/repository-settings\.test\.mjs/);
-  assert.match(fastCatalog, /scripts\/repository-skills\.test\.mjs/);
-  assert.match(fastCatalog, /scripts\/generate-catalog\.test\.mjs/);
-  assert.match(fastCatalog, /scripts\/migrate-catalog-schema2\.test\.mjs/);
+test("ordinary tooling contracts select the workflow contract and full CI retains its inventory", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mjs");
+  const { buildValidationPlan } = await import("./validation-plan.mjs");
+  const file = ".github/workflows/ci.yml";
+  const p = buildValidationPlan({
+    changes: [{ status: "M", oldMode: "100644", newMode: "100644", oldPath: file, newPath: file }],
+    eventName: "pull_request",
+    base: "a".repeat(40),
+    mergeBase: "a".repeat(40),
+    head: "b".repeat(40),
+    checkout: "b".repeat(40),
+  });
+  assert.ok(baselineContractTests(p).includes("scripts/ci-workflow.test.mjs"));
+  assert.match(workflow.split("  catalog_full:")[1], /ci-workflow\.test\.mjs/);
 });
 
 test("routine checks retain architecture enforcement but make cycles optional", async () => {
@@ -3217,3 +3205,13 @@ test("export refuses links and oversized evidence instead of silently dropping r
     }
   });
 }
+
+test("native repository contracts provision pinned Rust before metadata or containment execution", () => {
+  for (const section of [fastCatalog, catalog]) {
+    assert.ok(section.indexOf("./.github/actions/setup-rust") >= 0);
+    const contract = section.includes("scripts/ci-baseline.mjs contracts")
+      ? section.indexOf("scripts/ci-baseline.mjs contracts")
+      : section.indexOf("Verify repository and release contracts");
+    assert.ok(contract > section.indexOf("./.github/actions/setup-rust"));
+  }
+});

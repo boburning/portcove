@@ -28,7 +28,7 @@ import {
 } from "./audit.mjs";
 import { prepareStorageScope, spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
-import { readRustTestImpactMap, selectRustTestImpact } from "./rust-test-impact.mjs";
+import { selectWorkspaceRustImpact } from "./rust-test-impact.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { collectSelectedPrerequisites, selectedPrerequisites } from "./dev-doctor.mjs";
 import { runCheckedGit } from "./checked-git.mjs";
@@ -77,10 +77,6 @@ const metadataErrorCode = (error) => {
     return "UNKNOWN";
   }
 };
-function metadataObservation(error) {
-  return metadataObservations.get(error) ?? { reason: "UNKNOWN", code: metadataErrorCode(error) };
-}
-
 export function readDoctestPackages(options = {}) {
   const started = performance.now();
   const result = (options.spawn ?? spawnSync)(
@@ -240,6 +236,11 @@ const explicitNodeTests = new Map([
     ".config/rust-test-impact.json",
     ["scripts/rust-test-impact.test.mjs", "scripts/local-validation.test.mjs"],
   ],
+  [
+    "scripts/ci-baseline.mjs",
+    ["scripts/ci-baseline.test.mjs", "scripts/local-validation.test.mjs"],
+  ],
+  ["scripts/rust-test-impact.mjs", ["scripts/rust-test-impact.test.mjs"]],
   ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
   ["scripts/pr-delivery.mjs", ["scripts/repository-skills.test.mjs"]],
   ["scripts/package-local.ps1", ["scripts/repository-skills.test.mjs"]],
@@ -407,16 +408,6 @@ export function deduplicateCommands(commands) {
     byId.set(entry.id, { identity, obligation, retained });
   }
   return unique;
-}
-
-function heavyRustCommand(id, reason, executable, args, options = {}) {
-  return command(
-    id,
-    reason,
-    process.execPath,
-    ["scripts/run-rust-tests.mjs", "--guard-command", executable, ...args],
-    options,
-  );
 }
 
 function corepackCommand(id, reason, args, options = {}) {
@@ -871,457 +862,114 @@ function uiRelatedDurationCommand() {
     "ui-related-durations",
     "validate complete timing data for the related UI selection",
     process.execPath,
-    ["scripts/check-vitest-durations.mjs", "work/ui-related-tests.json", "--allow-empty"],
+    ["scripts/check-vitest-durations.mjs", "work/ui-related-tests.json", "--full-suite-on-empty"],
   );
 }
 
 export function buildPlan(selection, context = {}) {
-  if (selection.unknown.size) {
-    const validation = validateValidationPlan(context.validationPlan);
-    const changes = context.changes;
-    if (
-      validation.discovery !== "complete" ||
-      validation.mode === "blocked" ||
-      validation.identities.base !== context.baseSha ||
-      validation.identities.head !== context.headSha ||
-      validation.identities.checkout !== context.headSha ||
-      validation.identities.merge_base !== context.mergeBase ||
-      !Array.isArray(changes) ||
-      changes.length === 0
-    )
-      throw new Error("conservative local fallback requires a complete bound Git comparison");
-    const paths = [
-      ...new Set(
-        changes.flatMap((change) => [
-          normalizePath(change.path),
-          ...(change.previousPath ? [normalizePath(change.previousPath)] : []),
-        ]),
-      ),
-    ].sort();
-    if (
-      JSON.stringify(paths) !== JSON.stringify(validation.changed_files) ||
-      !changes.every((change) => {
-        if (/^[A?]$/u.test(change.status))
-          return change.oldMode === "000000" && change.newMode === "100644";
-        if (change.status === "D")
-          return change.oldMode === "100644" && change.newMode === "000000";
-        return (
-          /^(?:M|R\d*)$/u.test(change.status) &&
-          change.oldMode === "100644" &&
-          change.newMode === "100644"
-        );
-      })
-    )
-      throw new Error("conservative local fallback requires complete regular-file modes and paths");
-    // These are inert inputs to the existing application/tooling, not a newly
-    // executable/configuration authority that the maintained audit cannot own.
-    const inert = new Set([".bin", ".dat", ".txt", ".png", ".jpg", ".jpeg", ".webp"]);
-    for (const file of selection.unknown) {
-      if (
-        !validation.fallback?.paths.includes(file) ||
-        file.split("/").some((part) => part.startsWith(".")) ||
-        !inert.has(path.posix.extname(file).toLowerCase())
-      )
-        throw new Error(
-          `unknown executable or configuration ownership blocks local validation: ${file}; establish its owning validation route`,
-        );
-    }
-    // Retain known consumers, including Playnite/transport/lint fixture checks.
-    // A broad audit is not proof of equivalence for those selected obligations.
-    return [
-      ...buildPlan({ ...selection, unknown: new Set() }, context),
-      command(
-        "conservative-audit",
-        `uncertain inert input impact: ${sorted(selection.unknown).join(", ")}; fresh full-debug repository audit, not cached or focused success`,
-        "just",
-        ["audit", "--fresh"],
-      ),
-    ];
-  }
-  const mergeBase = context.mergeBase ?? "<merge-base>";
+  const validation = context.validationPlan;
+  if (validation) validateValidationPlan(validation);
+  if (validation?.mode === "blocked")
+    throw new Error(`Local plan is blocked: ${validation.reason}`);
+  if (selection.unknown.size && (!validation?.fallback || validation.discovery !== "complete"))
+    throw new Error("Unknown ownership requires a complete bound baseline plan");
+  const broad = selection.unknown.size > 0;
   const commands = [
-    command("diff-check", "reject whitespace errors across the complete local change", "git", [
+    command("diff-check", "complete candidate whitespace", "git", [
       "diff",
       "--check",
-      mergeBase,
+      context.mergeBase ?? "<merge-base>",
     ]),
   ];
-
-  const existingOxfmtFiles = sorted(selection.oxfmtFiles).filter((file) =>
+  const files = sorted(selection.oxfmtFiles).filter((file) =>
     existsSync(path.join(projectRoot, file)),
   );
-  if (existingOxfmtFiles.length) {
-    const targets = existingOxfmtFiles.includes(".oxfmtrc.json")
-      ? []
-      : existingOxfmtFiles.map((file) => path.join(projectRoot, file));
+  if (files.length || broad)
     commands.push(
-      command("oxfmt", "format-check changed supported files only", process.execPath, [
+      command("oxfmt", "supported-file formatting", process.execPath, [
         "scripts/run-oxfmt.mjs",
         "--check",
-        ...targets,
+        ...(broad || files.includes(".oxfmtrc.json")
+          ? []
+          : files.map((file) => path.join(projectRoot, file))),
       ]),
     );
-  }
-  if (selection.toml) {
+  if (selection.toml || broad)
     commands.push(
-      corepackCommand(
-        "toml-format",
-        "verify the repository-owned TOML inventory",
-        ["pnpm", "run", "format:toml:check"],
-        { cwd: desktopRoot },
-      ),
+      corepackCommand("toml-format", "TOML formatting", ["pnpm", "run", "format:toml:check"], {
+        cwd: desktopRoot,
+      }),
     );
-  }
-  if (selection.rustfmt) {
+  if (selection.rustfmt || broad)
     commands.push(
-      command("rustfmt", "Rust formatting is workspace-coherent and inexpensive", "cargo", [
-        "fmt",
-        "--all",
-        "--",
-        "--check",
-      ]),
+      command("rustfmt", "Rust formatting", "cargo", ["fmt", "--all", "--", "--check"]),
     );
-  }
-  for (const file of sorted(selection.nodeSyntax)) {
-    if (existsSync(path.join(projectRoot, file))) {
+  for (const file of sorted(selection.nodeSyntax))
+    if (existsSync(path.join(projectRoot, file)))
       commands.push(
-        command(
-          `node-syntax:${file}`,
-          "syntax-check a changed Node implementation",
-          process.execPath,
-          ["--check", file],
-        ),
+        command(`node-syntax:${file}`, "changed script syntax", process.execPath, [
+          "--check",
+          file,
+        ]),
       );
-    }
-  }
-  if (selection.oxlint) {
-    commands.push(
-      corepackCommand(
-        "oxlint",
-        "lint changed repository JavaScript with the complete Oxc contract",
-        ["pnpm", "run", "lint:oxlint"],
-        { cwd: desktopRoot, obligation: "repository-oxlint" },
-      ),
-    );
-  }
   if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
-
-  if (selection.lintToolFixtures.size)
-    commands.push(
-      command(
-        "lint-tool-fixtures",
-        "prove changed lint tooling accepts and rejects the maintained fixtures",
-        process.execPath,
-        ["scripts/lint-tools.integration.mjs", ...sorted(selection.lintToolFixtures)],
-      ),
-    );
-
-  if (selection.actionsLint)
-    commands.push(
-      command(
-        "actionlint",
-        "lint changed hosted automation with the pinned wrapper",
-        process.execPath,
-        ["scripts/run-actionlint.mjs"],
-      ),
-    );
-  if (selection.powershellLint)
-    commands.push(
-      command(
-        "powershell-lint",
-        "lint PowerShell through the repository wrapper",
-        process.execPath,
-        ["scripts/run-powershell-lint.mjs"],
-      ),
-    );
-  if (selection.shellLint)
-    commands.push(
-      command("shell-lint", "lint the maintained shell scripts", "aqua", [
-        "exec",
-        "--",
-        "shellcheck",
-        "--severity=warning",
-        "scripts/bootstrap-quality-tools.sh",
-        "scripts/install-linux-desktop-prerequisites.sh",
-        "scripts/test-linux-package-ownership.sh",
-      ]),
-    );
-  if (selection.pythonLint)
-    commands.push(
-      command("python-lint", "lint the repository's maintained Python asset tools", "aqua", [
-        "exec",
-        "--",
-        "ruff",
-        "check",
-        "apps/desktop/assets/brand/models/v2",
-      ]),
-    );
-
-  if (selection.workspaceRust) {
-    commands.push(
-      heavyRustCommand(
-        "rust-workspace-clippy",
-        "root dependency or toolchain change compiles and lints every workspace target",
-        "cargo",
-        ["clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings"],
-      ),
-      command(
-        "dependency-policy",
-        "root dependency changes retain license, source, and advisory policy",
-        "cargo",
-        ["deny", "check", "--hide-inclusion-graph", "-W", "unmaintained"],
-      ),
-    );
-  }
-  if (selection.workspaceRustTests) {
-    commands.push(
-      command(
+  if (
+    selection.packages.size ||
+    selection.workspaceRust ||
+    broad ||
+    validation?.groups.includes("rust")
+  ) {
+    if (!validation) throw new Error("Rust feedback requires a complete validation plan");
+    commands.push({
+      rustCoverage: selectWorkspaceRustImpact(validation).map((group) => group.filter),
+      ...command(
         "rust-workspace-tests",
-        "root dependency or toolchain changes use the documented broad workspace fallback",
+        "compile workspace test targets and execute selected maintained families",
         process.execPath,
-        ["scripts/run-rust-tests.mjs", "--locked", "--workspace"],
-      ),
-    );
-  } else {
-    const doctestPackages = context.doctestPackages ?? new Set();
-    let rustTestImpactMap = context.rustTestImpactMap;
-    let rustTestImpactLoadError = context.rustTestImpactLoadError;
-    if (!Object.hasOwn(context, "rustTestImpactMap")) {
-      try {
-        rustTestImpactMap = readRustTestImpactMap();
-      } catch (error) {
-        rustTestImpactMap = null;
-        rustTestImpactLoadError = error.message;
-      }
-    }
-    const catalogArtworkInputs = [
-      "crates/portcove-core/src/artwork.rs",
-      "crates/portcove-core/catalog/catalog-current-authoring.json",
-      "crates/portcove-core/catalog/catalog.json",
-    ];
-    const catalogArtworkChanges = selection.rustChanges.filter(
-      (change) =>
-        catalogArtworkInputs.includes(change.path) ||
-        catalogArtworkInputs.includes(change.previousPath),
-    );
-    const catalogArtworkGroup = rustTestImpactMap?.packages?.["portcove-cli"]?.groups.find(
-      (group) => group.id === "artwork-fixtures",
-    );
-    const catalogArtworkFocused =
-      catalogArtworkGroup &&
-      catalogArtworkChanges.every(
-        (change) => !change.previousPath && ["A", "M"].includes(change.status),
-      );
-    let cliArtworkCovered = false;
-    for (const packageName of sorted(selection.packages)) {
-      const impact = selectRustTestImpact(
-        rustTestImpactMap,
-        packageName,
-        selection.rustChanges.filter((change) => change.packageName === packageName),
-      );
-      if (rustTestImpactLoadError) impact.reason = `${impact.reason}; ${rustTestImpactLoadError}`;
-      if (
-        packageName === "portcove-cli" &&
-        catalogArtworkChanges.length &&
-        !catalogArtworkFocused
-      ) {
-        impact.mode = "broad";
-        impact.reason =
-          "catalog consumer ownership or changed inputs are uncertain; run the complete CLI inventory";
-      }
-      if (
-        packageName === "portcove-cli" &&
-        (impact.mode === "broad" || impact.groups.some((group) => group.id === "artwork-fixtures"))
-      )
-        cliArtworkCovered = true;
-      if (!selection.workspaceRust)
-        commands.push(
-          heavyRustCommand(
-            `rust-clippy:${packageName}`,
-            `compile and lint every target in affected package ${packageName}`,
-            "cargo",
-            ["clippy", "--locked", "-p", packageName, "--all-targets", "--", "-D", "warnings"],
-          ),
-        );
-      if (impact.mode === "broad")
-        commands.push(
-          command(`rust-tests:${packageName}`, impact.reason, process.execPath, [
-            "scripts/run-rust-tests.mjs",
-            "--locked",
-            "-p",
-            packageName,
-          ]),
-        );
-      else if (impact.groups.length > 1)
-        commands.push(
-          command(
-            `rust-tests:${packageName}:union`,
-            impact.groups.map((group) => `${group.id}: ${group.reason}`).join("; "),
-            process.execPath,
-            [
-              "scripts/run-rust-tests.mjs",
-              "--impact-union",
-              packageName,
-              ...impact.groups.map((group) => group.id),
-            ],
-          ),
-        );
-      else
-        for (const group of impact.groups)
-          commands.push(
-            command(
-              `rust-tests:${packageName}:${group.id}`,
-              `${group.reason}; ${impact.reason}`,
-              process.execPath,
-              ["scripts/run-rust-tests.mjs", "--locked", "-p", packageName, "-E", group.filter],
-            ),
-          );
-      if (doctestPackages.has(packageName))
-        commands.push(
-          heavyRustCommand(
-            `rust-docs:${packageName}`,
-            `run documentation tests for affected package ${packageName}`,
-            "cargo",
-            ["test", "--locked", "-p", packageName, "--doc"],
-          ),
-        );
-    }
-    if (catalogArtworkChanges.length && !cliArtworkCovered) {
-      commands.push(
-        command(
-          "rust-tests:portcove-cli:catalog-artwork-consumer",
-          catalogArtworkFocused
-            ? "catalog and artwork resolution must also satisfy their public CLI consumer contract"
-            : "catalog consumer ownership or changed inputs are uncertain; run the complete CLI inventory",
+        [
+          "scripts/run-rust-tests.mjs",
+          "--guard-command",
           process.execPath,
-          [
-            "scripts/run-rust-tests.mjs",
-            "--locked",
-            "-p",
-            "portcove-cli",
-            ...(catalogArtworkFocused ? ["-E", catalogArtworkGroup.filter] : []),
-          ],
-        ),
-      );
-    }
-  }
-
-  if (selection.ui) {
-    commands.push(
-      corepackCommand(
-        "ui-build",
-        "type-check and build the affected frontend",
-        ["pnpm", "run", "build"],
-        { cwd: desktopRoot },
+          "scripts/rust-test-impact.mjs",
+          "--workspace-run",
+          "work/local-validation-plan.json",
+        ],
       ),
-      corepackCommand(
-        "ui-oxlint",
-        "run the repository's typed frontend lint contract",
-        ["pnpm", "run", "lint:oxlint"],
-        { cwd: desktopRoot, obligation: "repository-oxlint" },
-      ),
-    );
-    if (selection.stylelint)
-      commands.push(
-        corepackCommand(
-          "ui-stylelint",
-          "lint the changed stylesheet contract",
-          ["pnpm", "run", "lint:style"],
-          { cwd: desktopRoot },
-        ),
-      );
-    if (selection.uiFullTests)
-      commands.push(
-        corepackCommand(
-          "ui-tests",
-          "frontend configuration changes require the complete small UI suite",
-          ["pnpm", "run", "test"],
-          { cwd: desktopRoot },
-        ),
-      );
-    else if (selection.uiRelatedFiles.size)
-      commands.push(uiRelatedCommand(sorted(selection.uiRelatedFiles)), uiRelatedDurationCommand());
-    if (selection.browser)
-      commands.push(
-        corepackCommand(
-          "ui-browser-tests",
-          "run the reviewed browser composition when its fixture or production seams change",
-          ["pnpm", "run", "test:browser"],
-          { cwd: desktopRoot },
-        ),
-      );
-    if (!selection.uiFullTests)
-      commands.push(
-        corepackCommand(
-          "ui-theme-copy",
-          "retain theme and player-facing copy validation",
-          ["pnpm", "run", "test:theme"],
-          { cwd: desktopRoot },
-        ),
-        command(
-          "ui-copy",
-          "retain player-facing copy validation",
-          process.execPath,
-          ["scripts/check-copy.mjs"],
-          { cwd: desktopRoot },
-        ),
-      );
+    });
   }
-
-  if (selection.fallow)
+  if (selection.ui || broad) {
     commands.push(
       command(
-        "fallow",
-        "run the quality report for changed frontend source or Fallow configuration",
-        process.execPath,
-        ["scripts/run-fallow.mjs"],
-      ),
-    );
-
-  if (selection.transport) {
-    commands.push(
-      command(
-        "transport-export",
-        "compare generated declarations with the live Rust schema export",
+        "ui-transport-types",
+        "generated TypeScript matches schema snapshots",
         process.execPath,
         ["apps/desktop/scripts/generate-transport-types.mjs"],
       ),
       command(
-        "transport-policy",
-        "verify shared child-process and transport policy",
+        "ui-ipc-exposure",
+        "shipped IPC/event consumers match native exposure",
         process.execPath,
-        ["scripts/check-transport-contract.mjs"],
+        ["scripts/check-transport-contract.mjs", "--ipc-only"],
       ),
     );
-  }
-
-  if (selection.playnite)
     commands.push(
-      command(
-        "playnite-contract",
-        "build and test the affected external reference client",
-        "pwsh",
-        ["-NoProfile", "-File", "integrations/playnite/check.ps1"],
-      ),
+      corepackCommand("ui-build", "frontend build and typecheck", ["pnpm", "run", "build"], {
+        cwd: desktopRoot,
+      }),
     );
-
-  const staticGateIds = new Set([
-    "diff-check",
-    "oxfmt",
-    "oxlint",
-    "ui-oxlint",
-    "ui-stylelint",
-    "actionlint",
-    "powershell-lint",
-    "shell-lint",
-    "python-lint",
-    "fallow",
-  ]);
-  const early = (entry) => staticGateIds.has(entry.id) || entry.id.startsWith("node-syntax:");
-  return deduplicateCommands([
-    ...commands.filter(early),
-    ...commands.filter((entry) => !early(entry)),
-  ]);
+    if (selection.uiFullTests || broad || !selection.uiRelatedFiles.size)
+      commands.push(
+        corepackCommand(
+          "ui-tests",
+          "complete unit suite for uncertain/shared frontend impact",
+          ["pnpm", "run", "test"],
+          { cwd: desktopRoot },
+        ),
+      );
+    else
+      commands.push(uiRelatedCommand(sorted(selection.uiRelatedFiles)), uiRelatedDurationCommand());
+  }
+  return deduplicateCommands(commands);
 }
 
 function git(args, options = {}) {
@@ -1733,6 +1381,11 @@ export function executePlan(plan, options = {}) {
 
 function localStageDomains(entry) {
   if (entry.id === "diff-check") return [];
+  // These stages read live native exposure, frontend consumers, and the
+  // validator/runner implementation in addition to Rust schema exports.
+  if (["rust-workspace-tests", "ui-ipc-exposure"].includes(entry.id))
+    return ["rust", "ui", "format", "development"];
+  if (entry.id === "ui-transport-types") return ["ui", "format"];
   if (["oxfmt", "toml-format"].includes(entry.id)) return ["format"];
   if (entry.id === "rustfmt" || entry.id === "dependency-policy" || entry.id.startsWith("rust-"))
     return ["rust"];
@@ -1777,7 +1430,15 @@ function localStageReusable(entry) {
 }
 
 export function fingerprintLocalStage(entry, inventory, runtime) {
+  if (
+    entry.id === "rust-workspace-tests" &&
+    (!Array.isArray(entry.rustCoverage) ||
+      !entry.rustCoverage.length ||
+      entry.rustCoverage.some((filter) => typeof filter !== "string" || !filter))
+  )
+    throw new Error("Rust receipt lacks its exact selected coverage");
   const recipe = JSON.stringify({
+    rustCoverage: entry.rustCoverage,
     obligation: entry.obligation,
     executable: entry.executable === process.execPath ? "<active-node-runtime>" : entry.executable,
     args: entry.args,
@@ -1979,65 +1640,11 @@ export async function main(argv = process.argv.slice(2), options = {}) {
     }),
   );
   const selection = classifyChanges(context.changes);
-  let doctestPackages;
-  if (selection.packages.size > 0 && !selection.workspaceRustTests) {
-    try {
-      doctestPackages = (options.metadataProvider ?? readDoctestPackages)({
-        observeOnly: preflightOnly,
-      });
-    } catch (error) {
-      if (!preflightOnly) throw error;
-      const hosted = (options.hostedInspector ?? inspectHostedLocalRoute)(
-        context,
-        authority,
-        controller,
-        undefined,
-        dispatchRef,
-      );
-      const report = {
-        format_version: 1,
-        source: context.headSha,
-        base: context.baseSha,
-        merge_base: context.mergeBase,
-        plan_digest: validationPlan.digest,
-        selected_plan: null,
-        status: "planning-blocked",
-        blocker: {
-          id: "cargo-metadata",
-          command: "cargo metadata --format-version 1 --no-deps --offline --locked",
-          capability: "pinned Cargo and readable locked workspace metadata",
-          reason: "bounded metadata observation failed; no complete local selection is claimed",
-          observation: metadataObservation(error),
-          next_action:
-            hosted.status === "eligible" && !selection.playnite
-              ? hosted.command
-              : "establish the pinned Rust/Cargo prerequisite, then rerun preflight",
-        },
-        hosted,
-        hosted_ci: {
-          groups: validationPlan.groups,
-          platforms: validationPlan.platforms,
-          role: "mandatory exact-head CI remains separate",
-        },
-      };
-      (options.log ?? console.log)(
-        asJson
-          ? JSON.stringify(report, null, 2)
-          : `${report.status}: ${report.blocker.reason}; next ${report.blocker.next_action}`,
-      );
-      process.exitCode = 1;
-      return;
-    }
-  }
-  const planContext = {
-    ...context,
-    validationPlan,
-    ...(doctestPackages ? { doctestPackages } : {}),
-  };
+  const planContext = { ...context, validationPlan };
   const plan = buildPlan(selection, planContext);
   if (preflightOnly) {
     const hosted = inspectHostedLocalRoute(context, authority, controller, undefined, dispatchRef);
-    const audit = inspectPreChangeAudit(context, validationPlan, authority, controller);
+    const audit = null; // Explicit release/transition audits are a separate operation.
     const report = buildExecutionPreflight({
       context,
       plan,
@@ -2091,6 +1698,11 @@ export async function main(argv = process.argv.slice(2), options = {}) {
   }
   printPlan(context, selection, plan, validationPlan);
   if (planOnly) return;
+  mkdirSync(path.join(projectRoot, "work"), { recursive: true });
+  writeFileSync(
+    path.join(projectRoot, "work/local-validation-plan.json"),
+    JSON.stringify(validationPlan),
+  );
   const env = prepareStorageScope(storageScopeForPlan(plan));
   const result = executePlanWithReceipts(plan, { fresh, env });
   console.log(`\nFocused local validation passed in ${(result.elapsedMs / 1000).toFixed(1)}s.`);

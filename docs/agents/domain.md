@@ -1,20 +1,9 @@
 # Domain docs
 
-Portcove uses a single-context layout:
+Use established vocabulary. Read relevant entries in root `GLOSSARY.md` and
+`docs/adr/` when the task concerns their terms or decisions; if absent, proceed.
+Create them lazily through authorized domain-modeling work. Surface conflicts
+with existing ADRs explicitly.
 
-- `GLOSSARY.md` at the repository root.
-- `docs/adr/` for architecture decisions.
-
-Before exploring, read the glossary and ADRs relevant to the task when
-they exist. If absent, proceed silently. Create them lazily through
-authorized domain-modeling work when terms or decisions are resolved.
-
-Follow the task map in `AGENTS.md` and the owning repository contracts.
-Read `docs/ARCHITECTURE.md` before structural or cross-layer changes.
-
-Use established glossary vocabulary in issues, proposals, tests, and
-implementation. Identify missing concepts when they matter to the task.
-
-Surface conflicts with existing ADRs explicitly. Glossary and ADR
-changes must preserve repository authority boundaries and must not
-create a second planning authority.
+For cross-layer changes, use the [ownership map](../ARCHITECTURE.md#find-the-owning-boundary)
+and affected subsystem. The [agent contract](../../AGENTS.md) owns authority boundaries.
