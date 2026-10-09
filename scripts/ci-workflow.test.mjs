@@ -2894,6 +2894,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
       monitored_ports: 4,
       repositories: 3,
       attempted_repositories: 3,
+      reused_repositories: 0,
       reachable_repositories: 3,
       unknown_repositories: 0,
     });

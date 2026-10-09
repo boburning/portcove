@@ -521,6 +521,10 @@ export async function collectRepositoryHealth(
   );
   const deadline = started + limits.duration_ms;
   const consumed = { requests: 0, response_bytes: 0 };
+  // This collection's complete 200 repository response can serve both the
+  // pin validator and the identical original-location observation. Never
+  // import prior reports or equate old and relocated repository endpoints.
+  const repositoryMetadata = new Map();
   const deferred = new Map();
   const observations = [];
   const contractMatches = (rule, id) =>
@@ -587,7 +591,10 @@ export async function collectRepositoryHealth(
         throw new HealthFailure(reason);
       }
       if (response.headers.has("link")) throw new HealthFailure("invalid-metadata");
-      return await metadata(response, consumed, now, deadline);
+      const facts = await metadata(response, consumed, now, deadline);
+      if (!endpoint.includes("/releases/"))
+        repositoryMetadata.set(`https://api.github.com/repos/${endpoint}`, facts);
+      return facts;
     } catch (error) {
       if (error instanceof HealthFailure) throw error;
       throw new HealthFailure(signal.aborted ? "timeout" : "transport");
@@ -608,6 +615,7 @@ export async function collectRepositoryHealth(
     const result = {
       ...record,
       attempted: false,
+      metadata_reused: false,
       status: "unknown",
       reason: null,
       http_status: null,
@@ -705,18 +713,22 @@ export async function collectRepositoryHealth(
       if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
     } else if (record.provider === "gitlab" && gitlabToken) headers["PRIVATE-TOKEN"] = gitlabToken;
     const signal = AbortSignal.timeout(Math.min(limits.request_ms, remaining));
-    consumed.requests++;
-    result.attempted = true;
+    const reused = github && !record.release_ref && repositoryMetadata.has(requestUrl);
+    if (!reused) consumed.requests++;
+    result.attempted = !reused;
+    result.metadata_reused = Boolean(reused);
     let response;
     try {
-      response = await fetcher(requestUrl, {
-        headers,
-        // Observe a redirect as an HTTP fact rather than losing it in a fetch
-        // exception. Never follow it or retain a potentially signed Location.
-        redirect: "manual",
-        signal,
-        ...(plain ? { method: "HEAD" } : {}),
-      });
+      response = reused
+        ? { status: 200 }
+        : await fetcher(requestUrl, {
+            headers,
+            // Observe a redirect as an HTTP fact rather than losing it in a fetch
+            // exception. Never follow it or retain a potentially signed Location.
+            redirect: "manual",
+            signal,
+            ...(plain ? { method: "HEAD" } : {}),
+          });
       result.http_status = response.status;
       if (response.status !== 200) {
         fail(statusReason(response));
@@ -810,7 +822,9 @@ export async function collectRepositoryHealth(
       }
       let facts;
       try {
-        facts = await metadata(response, consumed, now, deadline);
+        facts = reused
+          ? repositoryMetadata.get(requestUrl)
+          : await metadata(response, consumed, now, deadline);
       } catch (error) {
         fail(
           error instanceof HealthFailure ? error.reason : signal.aborted ? "timeout" : "transport",
@@ -1061,7 +1075,7 @@ export async function collectRepositoryHealth(
     started_at: new Date(started).toISOString(),
     completed_at: new Date(now()).toISOString(),
     collection_method:
-      "one metadata request per hosted location or HEAD per direct location; reviewed GitHub pins may add three fixed metadata requests; no redirects or retries; accepted bytes unverified",
+      "metadata per hosted location or HEAD per direct location; reviewed GitHub pins may add three fixed metadata reads; identical successful repository metadata reused only within this collection; no redirects or retries; accepted bytes unverified",
     resolved_incidents: resolvedIncidents,
     material_changes: portHealth
       .flatMap((port) => port.canonical_incidents)
@@ -1086,6 +1100,7 @@ export async function collectRepositoryHealth(
       monitored_ports: selectedPorts.length,
       repositories: records.length,
       attempted_repositories: observations.filter((record) => record.attempted).length,
+      reused_repositories: observations.filter((record) => record.metadata_reused).length,
       reachable_repositories: reachable,
       unknown_repositories: records.length - reachable,
     },
@@ -1109,6 +1124,7 @@ export function renderRepositoryHealth(report) {
       ? ["No selected upstream health inputs; no live requests. Global health is not assessed."]
       : []),
     `Repository reachability: ${coverage.reachable_repositories}/${coverage.repositories} reachable; ${coverage.unknown_repositories} unknown; ${coverage.attempted_repositories} attempted.`,
+    `Repository metadata reused within this collection: ${coverage.reused_repositories}; network requests: ${report.consumed.requests}/${report.limits.requests}.`,
     `Coverage: ${coverage.monitored_ports}/${coverage.ports} ports; ${coverage.direct_manifest_port_ids.length} direct-manifest ports included. Accepted bytes remain unverified.`,
     `Observed ${report.started_at} through ${report.completed_at}.`,
   ];

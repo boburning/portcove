@@ -220,7 +220,15 @@ visible and unknown, contributes no reachable endpoint, and keeps degraded outpu
 Original-location accounting likewise retains unknown availability and lineage.
 The report digests its accounting policy and material condition facts; changed
 conditions produce a new material incident requiring review. Collection counts
-distinguish attempted locations from additional metadata requests. All existing
+distinguish network-attempted locations, reused repository observations and total
+network requests. A complete bounded HTTP 200 repository response may serve the
+pin check and identical original-location endpoint within the same collection;
+all per-pin and original-location identity checks still run. Failed, redirected,
+partial or malformed reads are not cached. The map is discarded after collection
+and never imports prior-report metadata. Old and relocated endpoints stay distinct.
+Current 88-port fixture coverage retains all 101 locations and nine pin checks
+with 121 requests instead of 128; adding one equivalent pinned title forecasts
+125 requests, two forecast 129 and exceed the unchanged cap. All existing
 request/time/body bounds, credential routing and source/installation safeguards
 remain in force. A passing monitor means accounted conditions, not installability.
 
