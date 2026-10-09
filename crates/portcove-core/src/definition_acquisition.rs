@@ -47,7 +47,7 @@ pub struct DefinitionAcquisitionScope {
     pub(crate) max_redirects: u32,
     pub(crate) grant_id: String,
     pub(crate) policy_revision: u64,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "qualification-fixtures"))]
     pub(crate) fixture_origin: Option<String>,
 }
 
@@ -180,14 +180,20 @@ impl DefinitionAcquisitionScope {
     }
 
     pub(crate) fn require_url(&self, url: &reqwest::Url) -> Result<()> {
-        #[cfg(test)]
-        if self.fixture_origin.as_ref().is_some_and(|origin| {
-            url.origin().ascii_serialization() == *origin
+        #[cfg(any(test, feature = "qualification-fixtures"))]
+        if let Some(origin) = &self.fixture_origin {
+            validate_fixture_origin(origin)?;
+            if url.as_str().len() <= 4096
+                && url.origin().ascii_serialization() == *origin
                 && url.username().is_empty()
                 && url.password().is_none()
                 && url.fragment().is_none()
-        }) {
-            return Ok(());
+            {
+                return Ok(());
+            }
+            return Err(PortcoveError::verification(
+                "artifact URL is outside the bound qualification origin",
+            ));
         }
         if url.as_str().len() > 4096
             || url.scheme() != "https"
@@ -261,3 +267,32 @@ impl ScopedResolvedRelease {
 #[cfg(test)]
 #[path = "definition_acquisition_tests.rs"]
 mod tests;
+
+/// Qualification routes accept a canonical literal loopback HTTP origin only.
+#[cfg(any(test, feature = "qualification-fixtures"))]
+pub(crate) fn validate_fixture_origin(origin: &str) -> Result<()> {
+    let url = reqwest::Url::parse(origin)
+        .map_err(|_| PortcoveError::verification("invalid qualification origin"))?;
+    let loopback = url.host_str().is_some_and(|host| {
+        host.trim_start_matches('[')
+            .trim_end_matches(']')
+            .parse::<std::net::IpAddr>()
+            .is_ok_and(|address| address.is_loopback())
+    });
+    if origin.len() > 256
+        || url.scheme() != "http"
+        || !loopback
+        || url.port().is_none_or(|port| port == 0)
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.path() != "/"
+        || url.query().is_some()
+        || url.fragment().is_some()
+        || url.origin().ascii_serialization() != origin
+    {
+        return Err(PortcoveError::verification(
+            "qualification origin must be a canonical literal loopback HTTP origin",
+        ));
+    }
+    Ok(())
+}
