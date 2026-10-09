@@ -190,9 +190,9 @@ jobs:
       - name: Verify source pinned tools with normal attestation
         working-directory: source
         run: ./scripts/bootstrap-quality-tools.sh
-      - name: Install source frozen dependencies
+      - name: Install source frozen dependencies through the selected Corepack provider
         working-directory: source
-        run: pnpm install --frozen-lockfile
+        run: corepack pnpm install --frozen-lockfile
       - name: Provision selected browser prerequisite from the separate controller
         run: node controller/scripts/workflow-provenance.mjs hosted-local-check provision
       - name: Execute exact fresh local-check from the separate controller
