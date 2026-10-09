@@ -11,10 +11,16 @@ struct Consumer {
 
 impl Consumer {
     fn from_environment(prefix: &str) -> Self {
-        Self {
-            path: PathBuf::from(std::env::var_os(format!("{prefix}_PATH")).unwrap()),
-            sha256: std::env::var(format!("{prefix}_SHA256")).unwrap(),
-        }
+        Self::new(
+            PathBuf::from(std::env::var_os(format!("{prefix}_PATH")).unwrap()),
+            std::env::var(format!("{prefix}_SHA256")).unwrap(),
+        )
+    }
+
+    fn new(path: PathBuf, sha256: String) -> Self {
+        let consumer = Self { path, sha256 };
+        consumer.verify_hash("before qualification");
+        consumer
     }
 
     fn verify_hash(&self, phase: &str) {
@@ -36,7 +42,6 @@ impl Consumer {
     }
 
     fn invoke_result(&self, library: &Library, args: &[&str], success: bool) -> Value {
-        self.verify_hash("before invocation");
         let output = tempfile::tempdir_in(library.root()).unwrap();
         let stdout = output.path().join("stdout.json");
         let stderr = output.path().join("stderr.log");
@@ -91,9 +96,21 @@ impl Consumer {
             result["error"],
             fs::read_to_string(&stderr).unwrap()
         );
-        self.verify_hash("after invocation");
         result
     }
+}
+
+#[test]
+fn compiled_consumer_identity_refuses_before_and_after_mutation() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("owned-consumer");
+    let original = b"owned initial consumer";
+    fs::write(&path, original).unwrap();
+    let digest = hex::encode(Sha256::digest(original));
+    let consumer = Consumer::new(path.clone(), digest.clone());
+    fs::write(&path, b"changed consumer").unwrap();
+    assert!(std::panic::catch_unwind(|| consumer.verify_hash("after qualification")).is_err());
+    assert!(std::panic::catch_unwind(|| Consumer::new(path, digest)).is_err());
 }
 
 #[tokio::test]
@@ -385,7 +402,14 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
         );
         installed
     };
+    // The owned consumers are pinned before publication and rechecked after the
+    // complete sequence, before reporting. Rehashing their full debug images per command does
+    // not add a client observation and dominated the measured qualification cost.
     managed_ordinary_lifecycle(Some(&mut observe), Some(&mut acquire)).await;
+    cli.verify_hash("after qualification");
+    if let Some(desktop) = &desktop {
+        desktop.verify_hash("after qualification");
+    }
 
     assert_eq!(
         stages
