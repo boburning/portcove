@@ -3,15 +3,20 @@ use std::fs;
 
 #[test]
 fn reviewed_preparation_runs_through_jsonl_and_a_fresh_cli_plays_without_setup() {
-    preparation_roundtrip(false);
+    preparation_roundtrip(false, false);
 }
 
 #[test]
 fn reviewed_chd_conversion_retains_both_phases_through_fresh_cli_and_play() {
-    preparation_roundtrip(true);
+    preparation_roundtrip(true, false);
 }
 
-fn preparation_roundtrip(chd: bool) {
+#[test]
+fn lost_preparation_output_is_resolved_by_fresh_public_readback_without_replay() {
+    preparation_roundtrip(false, true);
+}
+
+fn preparation_roundtrip(chd: bool, lose_output: bool) {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
     let original = temporary.path().join("owned-installation");
@@ -112,20 +117,75 @@ fn preparation_roundtrip(chd: bool) {
         );
         assert_eq!(json_stdout(&stale)["error"]["code"], "conflict");
     }
-    let prepared = portcove(
-        &library,
-        &[
-            "--jsonl",
-            "--non-interactive",
-            "preparation",
-            "run",
-            &port.id,
-            "--expected-plan",
-            fingerprint,
-            "--yes",
-        ],
-    );
+    let preparation_args = [
+        "--jsonl",
+        "--non-interactive",
+        "preparation",
+        "run",
+        &port.id,
+        "--expected-plan",
+        fingerprint,
+        "--yes",
+    ];
+    let prepared = if lose_output {
+        Command::new(cli_binary())
+            .env("PORTCOVE_PREFERENCES", &preferences)
+            .env_remove("PORTCOVE_CHDMAN")
+            .env_remove("PORTCOVE_DOLPHIN_TOOL")
+            .arg("--library")
+            .arg(&library)
+            .args(preparation_args)
+            .stdout(Stdio::null())
+            .output()
+            .expect("Portcove CLI should start")
+    } else {
+        portcove(&library, &preparation_args)
+    };
     assert!(prepared.status.success(), "{prepared:?}");
+    if lose_output {
+        assert!(prepared.stdout.is_empty());
+        let status = json_stdout(&portcove(&library, &["--json", "status", &port.id]));
+        assert_eq!(status["data"]["previous"]["id"], original_id);
+        assert_eq!(status["data"]["readiness"]["launchable"], true);
+        let activity = json_stdout(&portcove(&library, &["--json", "activity"]));
+        let preparation = activity["data"]["records"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|record| record["operation"] == "prepare")
+            .collect::<Vec<_>>();
+        assert_eq!(preparation.len(), 1, "{activity}");
+        let preparation = preparation[0];
+        assert_eq!(preparation["status"], "succeeded");
+        assert_eq!(preparation["target_id"], port.id);
+        let id = preparation["id"].as_str().unwrap();
+        let logs = json_stdout(&portcove(&library, &["--json", "activity", "log", id]));
+        let captures = logs["data"].as_array().unwrap();
+        assert_eq!(captures.len(), 1);
+        assert_eq!(captures[0]["phase"], "preparation.setup");
+        assert_eq!(captures[0]["complete"], true);
+        assert!(
+            captures[0]["stdout"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("owned setup began")
+        );
+        assert!(!logs.to_string().contains("owned-fixture-private-value"));
+        assert_eq!(
+            json_stdout(&portcove(&library, &["--json", "status", &port.id])),
+            status
+        );
+        assert_eq!(
+            json_stdout(&portcove(&library, &["--json", "activity"])),
+            activity
+        );
+        assert_eq!(
+            fs::read(&source).unwrap(),
+            b"owned source awaiting upstream validation"
+        );
+        assert!(original.is_dir());
+        return;
+    }
     let events = String::from_utf8(prepared.stdout)
         .unwrap()
         .lines()
