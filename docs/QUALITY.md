@@ -828,7 +828,8 @@ Start one authorized maintenance cycle with
 `just renovate-check --queue [--json]`. It reads the complete current proposal
 inventory, exact source heads, target interactions, required checks and run
 identities. The selected row is a recommendation: confirm existing ownership and
-reservations and actual coordinator/runner acknowledgments before executing it.
+actual writer activity and source-owner release before overlapping work. No
+coordinator grant or acknowledgment is required for independent delivery.
 The command does not retry, approve, rebase or merge proposals, assign ownership
 or maintain another queue. Refresh
 after every delivered outcome. No unattended execution is implied.

@@ -233,12 +233,13 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
 [Development storage](DEVELOPMENT-STORAGE.md) only for that case.
 
 1. Read the canonical issue's unmet acceptance, current PR and latest relevant
-   bounded operational snapshot and accepted assignment. Resolve `git rev-parse --show-toplevel`, then inspect
+   live requirements and actual writer/handoff evidence. Resolve `git rev-parse --show-toplevel`, then inspect
    `git status --short --branch --untracked-files=all`, `git rev-parse HEAD` and
    `git worktree list --porcelain`. Reconcile them with the recorded owner,
    branch and evidence; process absence alone is not an ownership transfer.
 2. Resume the current branch and failed obligation before selecting another
-   task. Before any branch transition, require a clean checkout, known ownership,
+   task when locally actionable; preserve blockers and select independent work
+   when waiting. Before any branch transition, require a clean checkout, known ownership,
    terminal owned build/native operations, and preserved relevant ignored evidence.
    If any condition is unknown or false, refuse the transition. Do not stash,
    reset, delete or overwrite work to make it possible. After a confirmed merge,
@@ -251,9 +252,9 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
    evidence instead of copying the initiative or creating a local status ledger.
    Include the consumed requirements revision, actual delta disposition, capable
    execution/validation route and discovery/update handoff. Use the derived
-   `roadmap-context` and material `roadmap-acknowledge` path described in
+   `roadmap-context` pickup and owning issue/PR evidence path described in
    [Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
-   It supplements the accepted reservation; it does not grant or dispatch work.
+   Context does not grant or dispatch work; no coordinator acknowledgment is required.
 4. Run the smallest relevant `just test-rust`, `just test-ui-related` or
    `just test-node` loop, then `just local-check` before the coherent push and
    after substantive repair. Integrity-matched deterministic stages may be reused;
@@ -270,12 +271,13 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
    identified need. Respect each machine's existing heavyweight-work admission
    and resource window; separate authorized hosts retain their own guards.
 
-The authorized two-cloud/one-local arrangement keeps one writer per reserved
-scope, disjoint task ownership and the existing local scheduler/integration
-authority. Preserve healthy candidates and compact fixed-lane checkpoints;
-independent review remains required by the applicable delivery contract. This
-does not introduce a new coordinator, duplicate dispatch or a dependency on
-the general autonomous-engineering workstream.
+One local runner owns implementation and delivery, with one actively edited
+candidate at a time. Clean candidates waiting for CI, review or external
+prerequisites permit independent work. Preserve existing writers, candidates,
+evidence and host resource guards. Actual writer overlap blocks conflicting
+work; Dot grants and old coordination paperwork do not gate unrelated delivery.
+Independent non-writing review remains required. Do not create a replacement
+coordinator, persistent cloud implementers or a new dispatch/reporting service.
 
 The reviewer brief supplies **PR when available and owning issue; source head, target tip and
 merge-base; complete changed-file list and relevant surrounding code; acceptance
@@ -314,20 +316,16 @@ Never kill unrelated processes or change global editor, antivirus or storage set
 automatically. Existing [Rust admission](#rust-test-runner) and native-session guards
 remain authoritative; separate worktrees keep separate mutable Cargo targets.
 
-At a genuine safe checkpoint, the roadmap `handoff-offer` and `handoff-return`
-planners preserve a bounded request and exact evidence without new grants or
-autonomous wake. Dot independently verifies actual delivery and fresh raw evidence
-readback; an unavailable native route remains a named limitation. See
-[Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
-Prefer healthy cloud delivery; after a genuine source-owner release and Local’s
-actual instance/generation/scope ACK, Local owns remaining validation, repairs,
-independent review, evidence and normal guarded merge. Preserve Local’s other
-reservations and native/resource guards; assistance alone transfers no ownership.
+The single-local-runner pickup contract uses owning issue/PR evidence and live
+Project requirements. Historical handoff planners are retired; no coordinator
+ACK is needed. Verify actual source-owner release before overlapping work, then
+complete remaining validation, repairs, independent review and guarded merge.
+See [Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
 
 At a handoff, record current head and dirty state, active owned process/session
 identities or confirmed terminal state, evidence locations, unresolved findings or
 external boundaries, and the exact resume command/condition. Put it on the current
-issue/PR and update only the assigned fixed checkpoint; use direct messages for attention. No second ledger, scheduler or daemon is
+issue/PR. Report material changes and genuine owner actions. No second ledger, scheduler or daemon is
 needed. Choose a cohesive independently verifiable outcome, not setup-heavy trivial
 fragments or an unrelated mega-refactor.
 
@@ -844,7 +842,7 @@ Cargo/nextest to evade it.
 
 At a real safe checkpoint before an authorized environment replacement, use the
 existing source and evidence channels to preserve the essential continuation:
-exact commits, branches/refs and uncommitted work; the accepted assignment and
+exact commits, branches/refs and uncommitted work; current ownership and
 current qualification boundary; and the original acceptance/failure evidence
 referenced by that work, including incident identities, locks and receipts.
 Verify newly preserved originals incrementally by identity, checksum and readback;
@@ -852,8 +850,8 @@ retain earlier verified evidence at its original scope instead of bulk-exporting
 everything at every checkpoint. Reproducible dependencies, build outputs and
 caches are distinct from irreplaceable source and evidence. Unreferenced optional
 historical payload can remain on the retained host with its access limitation
-reported. Missing essential evidence remains unknown and must be returned to the
-coordinator under the existing preservation requirement. An authentication/export
+reported. Missing essential evidence remains unknown; record its exact gap and
+resume condition on the owning issue/PR under the preservation requirement. An authentication/export
 failure belongs to the existing platform channel, not a credential workaround or
 a new backup service. Keep the failed host and its originals intact; a fresh
 environment and a repaired supervisor do not turn its old cleanup into success.

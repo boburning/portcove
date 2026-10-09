@@ -2317,7 +2317,7 @@ describe("desktop components", () => {
     expect(installed).toMatch(/<details class="future-setup-disclosure" open="">/u);
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
-    expect(installed).toContain("No hands-on test recorded");
+    expect(installed).toContain("No legacy platform coverage recorded");
     expect(installed).toContain("Launch from another app");
     expect(installed).toContain("Finding the command-line app");
     expect(installed).not.toContain("portcove exec sample --");
@@ -2348,8 +2348,9 @@ describe("desktop components", () => {
     const details = renderToStaticMarkup(
       <DetailPanel port={untestedPort} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
     );
-    expect(details).toContain("No automated test recorded");
-    expect(details).toContain("No hands-on test recorded");
+    expect(details).toContain("Legacy port-wide automated tests");
+    expect(details).toContain("Legacy port-wide hands-on tests");
+    expect(details).toContain("No legacy platform coverage recorded");
   });
 
   it("scopes mixed testing evidence by platform", () => {
@@ -2394,8 +2395,8 @@ describe("desktop components", () => {
     expect(linux).toContain(
       "Linux availability does not show whether this game works on SteamOS or in Gaming Mode.",
     );
-    expect(linux).toContain("<small>Recorded automated tests</small>Windows · Linux");
-    expect(linux).toContain("<small>Recorded hands-on tests</small>Windows · Linux");
+    expect(linux).toContain("<small>Legacy port-wide automated tests</small>Windows · Linux");
+    expect(linux).toContain("<small>Legacy port-wide hands-on tests</small>Windows · Linux");
     const buttons = (html: string) => [...html.matchAll(/<button\b[^>]*>[^]*?<\/button>/gu)];
     expect(buttons(linux).map(([button]) => button)).toEqual(
       buttons(windows).map(([button]) => button),

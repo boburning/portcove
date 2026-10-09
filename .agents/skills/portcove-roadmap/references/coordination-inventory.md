@@ -1,6 +1,10 @@
 # Coordination and inventory checks
 
-## Exact parser and designated writer
+The single-local-runner contract retires ordinary board reads and coordinator
+planners. The parser and designated-writer rules below apply only to historical
+coordinated-mode records, not current task selection or delivery authority.
+
+## Historical exact parser and designated writer
 
 Before a coordination mutation or protocol cutover, read the complete current parser/configuration and designated writer contract. Round-trip the full proposed record through that actual parser, including enums and evidence-reference shapes. Exact PATCH/GET equality establishes transport identity, not schema acceptance or writer authority. Use canonical-owner correction for an invalid record; retain its original rather than inventing states, weakening the parser or creating another record.
 

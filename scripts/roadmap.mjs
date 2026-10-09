@@ -399,6 +399,7 @@ function findVolatileKey(value, prefix = "config") {
 }
 
 export function validateConfig(config, { requireProjectNumber = false } = {}) {
+  deliveryMode(config);
   if (config?.schema_version !== 1) throw new Error("roadmap schema_version must be 1");
   ensureString(config.owner, "roadmap owner");
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(config.repository ?? "")) {
@@ -803,13 +804,54 @@ export function renderPortIssueBody({
   return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Durable port key: ${portKeyLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Initial Port stage: Watchlist. The live Port stage is maintained in the Portcove Roadmap.\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\nNo completion evidence yet.\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}${portKeyMarker}`;
 }
 
+function qualificationScopeKey(port, scope) {
+  const identity = scope?.variant?.identity;
+  if (
+    !port ||
+    scope?.port_id !== port.id ||
+    !(port.platforms ?? []).includes(scope.platform) ||
+    typeof scope.artifact_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/iu.test(scope.artifact_sha256 ?? "") ||
+    scope.variant?.state !== "exact" ||
+    ![
+      scope.upstream_ref,
+      scope.contract_id,
+      scope.check_version,
+      identity?.game_id,
+      identity?.variant_id,
+      identity?.representation_id,
+    ].every((value) => typeof value === "string" && value.length > 0)
+  )
+    return null;
+  return JSON.stringify([
+    scope.port_id,
+    scope.platform,
+    scope.artifact_sha256,
+    scope.upstream_ref,
+    scope.contract_id,
+    identity.game_id,
+    identity.variant_id,
+    identity.representation_id,
+    scope.check_version,
+  ]);
+}
+
+function exactQualificationKeys(port, qualificationRecords, kind) {
+  return new Set(
+    (qualificationRecords ?? [])
+      .filter((record) => record?.kind === kind && record?.outcome === "passed")
+      .map((record) => qualificationScopeKey(port, record.scope))
+      .filter((key) => key !== null),
+  );
+}
+
 function exactQualificationPlatforms(port, qualificationRecords, kind) {
   const declared = new Set(port?.platforms ?? []);
   return new Set(
     (qualificationRecords ?? [])
       .filter(
         (record) =>
-          record?.scope?.port_id === port?.id &&
+          qualificationScopeKey(port, record?.scope) !== null &&
           record?.kind === kind &&
           record?.outcome === "passed" &&
           declared.has(record?.scope?.platform),
@@ -819,10 +861,18 @@ function exactQualificationPlatforms(port, qualificationRecords, kind) {
 }
 
 export function qualifiedPlatforms(port, qualificationRecords = []) {
-  const automated = new Set(automatedPlatforms(port, qualificationRecords));
-  const manual = new Set(manualPlatforms(port, qualificationRecords));
+  const automated = exactQualificationKeys(port, qualificationRecords, "automated_lifecycle");
+  const exact = new Set(
+    (qualificationRecords ?? [])
+      .filter((record) => record?.kind === "hands_on" && record?.outcome === "passed")
+      .filter((record) => automated.has(qualificationScopeKey(port, record.scope)))
+      .map((record) => record.scope.platform),
+  );
+  const legacyAutomated = new Set(port?.automated_tested_platforms ?? []);
+  const legacyManual = new Set(port?.manually_validated_platforms ?? []);
   return (port?.platforms ?? []).filter(
-    (platform) => automated.has(platform) && manual.has(platform),
+    (platform) =>
+      exact.has(platform) || (legacyAutomated.has(platform) && legacyManual.has(platform)),
   );
 }
 
@@ -836,14 +886,6 @@ function automatedPlatforms(port, qualificationRecords = []) {
     automated.add(platform);
   }
   return (port?.platforms ?? []).filter((platform) => automated.has(platform));
-}
-
-function manualPlatforms(port, qualificationRecords = []) {
-  const manual = new Set(port?.manually_validated_platforms ?? []);
-  for (const platform of exactQualificationPlatforms(port, qualificationRecords, "hands_on")) {
-    manual.add(platform);
-  }
-  return (port?.platforms ?? []).filter((platform) => manual.has(platform));
 }
 
 function issueSection(body, heading) {
@@ -876,9 +918,12 @@ export function validatePortStageSemantics(catalog, items) {
   const qualificationRecords = catalog?.source_catalog?.qualification ?? [];
 
   for (const port of portsById.values()) {
-    const automated = new Set(automatedPlatforms(port, qualificationRecords));
-    const manualEvidence = new Set([
-      ...(port.manually_validated_platforms ?? []),
+    const automated = exactQualificationKeys(port, qualificationRecords, "automated_lifecycle");
+    const manualEvidence = [
+      ...(port.manually_validated_platforms ?? []).map((platform) => ({
+        platform,
+        matching: (port.automated_tested_platforms ?? []).includes(platform),
+      })),
       ...qualificationRecords
         .filter(
           (record) =>
@@ -886,10 +931,13 @@ export function validatePortStageSemantics(catalog, items) {
             record?.kind === "hands_on" &&
             record?.outcome === "passed",
         )
-        .map((record) => record.scope.platform),
-    ]);
-    for (const platform of manualEvidence) {
-      if (!(port.platforms ?? []).includes(platform) || !automated.has(platform)) {
+        .map((record) => ({
+          platform: record.scope.platform,
+          matching: automated.has(qualificationScopeKey(port, record.scope)),
+        })),
+    ];
+    for (const { platform, matching } of manualEvidence) {
+      if (!(port.platforms ?? []).includes(platform) || !matching) {
         errors.push(
           `Catalog port ${port.id} has manual evidence without matching declared automated qualification for ${platform}`,
         );
@@ -1362,6 +1410,20 @@ function latestOperationalConsumption(requests) {
   return latest;
 }
 
+export function deliveryMode(config) {
+  const mode = config?.delivery_mode ?? "coordinated";
+  if (!["coordinated", "single-local-runner"].includes(mode))
+    throw new Error("delivery_mode must be coordinated or single-local-runner");
+  return mode;
+}
+
+function requireCoordinatedDelivery(config) {
+  if (deliveryMode(config) === "single-local-runner")
+    throw new Error(
+      "coordination is retired; preserve history and use the owning issue/PR for delivery evidence",
+    );
+}
+
 export function validateOperationalConfig(config) {
   const board = config.runner_coordination;
   const positive = (value) => Number.isSafeInteger(value) && value > 0;
@@ -1611,6 +1673,14 @@ export function coordinationSnapshotMetrics(snapshot) {
 }
 
 export function readOperationalBoard(config, api, { now = () => performance.now() } = {}) {
+  if (deliveryMode(config) === "single-local-runner")
+    return {
+      status: "retired",
+      delivery_mode: "single-local-runner",
+      active_writer_overlap: "not assessed",
+      authority_limit:
+        "Owner-authorized local delivery needs no coordinator grant. Verify actual writers before overlapping work; retirement does not prove release or inactivity.",
+    };
   const started = now();
   const sourcePointers = [];
   let originalDirectory = null;
@@ -1855,6 +1925,8 @@ function renderOperationalState(delta) {
 }
 
 export function operationalEnvelope(current, baseline = null, binding = null) {
+  if (current.status === "retired")
+    return { operational_snapshot: current, operational_baseline: null };
   const envelope = {
     operational_snapshot: renderOperationalState(operationalChanges(current, baseline)),
     operational_baseline: operationalBaseline(current),
@@ -1898,6 +1970,11 @@ export function operationalEnvelope(current, baseline = null, binding = null) {
 }
 
 export function bindOperationalAssignment(snapshot, runner, issue) {
+  if (snapshot.status === "retired") {
+    if (!publicIdentity(runner) || !Number.isSafeInteger(issue) || issue < 1)
+      throw new Error("pickup requires a reported runner identity and positive owning issue");
+    return null;
+  }
   if (!["observed", "staged"].includes(snapshot.status))
     throw new Error("assignment snapshot is unavailable; preserve existing ownership");
   const matching = snapshot.board.assignments.filter(
@@ -1983,6 +2060,7 @@ export function prepareOperationalCheckpoint(
   expectedObservation,
   resolutions = [],
 ) {
+  requireCoordinatedDelivery(config);
   validateOperationalConfig(config);
   if (!["observed", "staged"].includes(snapshot.status) || !runnerLanes.includes(lane))
     throw new Error("fixed checkpoint state is unavailable");
@@ -2020,6 +2098,7 @@ export function prepareOperationalConsumption({
   evidence,
   apply = false,
 }) {
+  requireCoordinatedDelivery(config);
   if (apply)
     throw new Error(
       "durable operational writes are coordinator-only; send the planned pointer-bound request to the verified primary coordinator",
@@ -2239,6 +2318,7 @@ function verifyCurrentOperationalOffer(config, snapshot, offer) {
 }
 
 export function prepareOperationalOffer({ config, snapshot, spec, apply = false }) {
+  requireCoordinatedDelivery(config);
   if (apply) throw new Error("offer writes are coordinator-only");
   const offer = operationalOfferPacket(config, snapshot, spec);
   const lane = offer.current.lane;
@@ -2324,6 +2404,7 @@ export function prepareOperationalReturn({
   evidenceObservation = null,
   apply = false,
 }) {
+  requireCoordinatedDelivery(config);
   if (apply) throw new Error("return writes are coordinator-only");
   verifyCurrentOperationalOffer(config, snapshot, offer);
   if (runner !== offer.proposed.runner_instance_id)
@@ -2349,6 +2430,7 @@ export function prepareOperationalReturnAcceptance({
   readEvidence,
   apply = false,
 }) {
+  requireCoordinatedDelivery(config);
   if (apply) throw new Error("return acceptance writes are coordinator-only");
   const request = verifyCurrentOperationalOffer(config, snapshot, offer);
   const expected = operationalReturnRecord(
@@ -2585,6 +2667,7 @@ export function prepareOperationalReleaseEvidence({
   expectedReference,
   apply = false,
 }) {
+  requireCoordinatedDelivery(config);
   if (apply) throw new Error("release writes are coordinator-only");
   const binding = operationalOfferBinding(snapshot, runner);
   const pr = pullRequest;
@@ -3031,7 +3114,10 @@ export function deriveExecutionContext(
     },
     reservation: reservation
       ? {
-          assessment: "reference only; verify accepted grant and current scope with coordinator",
+          assessment:
+            deliveryMode(config) === "single-local-runner"
+              ? "reference only; verify actual writer activity, source-owner release and current scope"
+              : "reference only; verify accepted grant and current scope with coordinator",
           ...reservation,
         }
       : {
@@ -5413,7 +5499,10 @@ async function main(argv) {
         comments: [],
         coverage: {
           complete: false,
-          kind: "fixed operational snapshot; historical consumption absence remains unknown",
+          kind:
+            deliveryMode(config) === "single-local-runner"
+              ? "live task requirements; historical consumption absence remains unknown"
+              : "fixed operational snapshot; historical consumption absence remains unknown",
         },
         consumed,
         reservation,
