@@ -1,5 +1,9 @@
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
+import {
+  beginReviewedUpdateProbe,
+  requireTrustedProbeCleanup,
+} from "./desktop-owned-ipc-probe.mjs";
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -368,6 +372,8 @@ async function assertReviewedUpdateOutcomes({
     activities_before: (await invoke("get_activities")).value,
     cases: [],
   };
+  let primaryError;
+  let reportError;
   try {
     for (const mutation of ["committed", "unknown", "no_changes"]) {
       const cancelled = mutation === "no_changes";
@@ -387,84 +393,13 @@ async function assertReviewedUpdateOutcomes({
         restored: false,
       };
       observations.cases.push(observation);
-      await browser.executeScript(
-        (portId, generation, plan, failure) => {
-          const native = window.__TAURI_INTERNALS__;
-          const probe = {
-            original: window.fetch,
-            plans: 0,
-            applies: 0,
-            mismatches: [],
-            channels: 0,
-          };
-          window.__portcoveReviewedUpdateProbe = probe;
-          const planTarget = native.convertFileSrc("plan_game_update", "ipc");
-          const applyTarget = native.convertFileSrc("apply_game_update", "ipc");
-          function readPayload(options) {
-            try {
-              const body = options.body;
-              return JSON.parse(typeof body === "string" ? body : new TextDecoder().decode(body));
-            } catch {
-              probe.mismatches.push("Unreadable controlled IPC payload");
-              return null;
-            }
-          }
-          function closeChannel(payload) {
-            try {
-              if (!/^__CHANNEL__:\d+$/.test(payload.onEvent)) throw new Error("Channel mismatch");
-              native.runCallback(Number(payload.onEvent.slice("__CHANNEL__:".length)), {
-                index: 0,
-                end: true,
-              });
-              probe.channels++;
-            } catch {
-              probe.mismatches.push("Controlled Channel did not close");
-            }
-          }
-          function matchesTarget(payload) {
-            return (
-              payload &&
-              typeof payload === "object" &&
-              payload.portId === portId &&
-              payload.activate === false &&
-              payload.generation === generation
-            );
-          }
-          window.fetch = function (input, ...args) {
-            const url = typeof input === "string" ? input : input.url;
-            if (url !== planTarget && url !== applyTarget)
-              return probe.original.call(window, input, ...args);
-            const reply = (value, outcome) =>
-              Promise.resolve(
-                new Response(JSON.stringify(value), {
-                  headers: { "Content-Type": "application/json", "Tauri-Response": outcome },
-                }),
-              );
-            // Never forward an application, even for malformed or unexpected tuples.
-            // Throwing from fetch could activate Tauri's real-IPC fallback.
-            const payload = readPayload(args[0]);
-            if (url === applyTarget) {
-              probe.applies++;
-              closeChannel(payload);
-            }
-            if (!matchesTarget(payload)) {
-              probe.mismatches.push("Controlled port, activation, or generation mismatch");
-              return reply(failure, "error");
-            }
-            if (url === planTarget) {
-              probe.plans++;
-              return reply(plan, "ok");
-            }
-            if (payload.expectedPlan !== plan.plan_sha256)
-              probe.mismatches.push("Controlled review identity mismatch");
-            return reply(failure, "error");
-          };
-        },
-        port.id,
+      const probe = await beginReviewedUpdateProbe(browser, {
+        portId: port.id,
         generation,
-        suppliedPlan,
+        plan: suppliedPlan,
         failure,
-      );
+      });
+      let scenarioError;
       try {
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
@@ -474,10 +409,7 @@ async function assertReviewedUpdateOutcomes({
           candidate.plan.release.version,
           observation,
         );
-        const admitted = await browser.executeScript(() => ({
-          plans: window.__portcoveReviewedUpdateProbe.plans,
-          mismatches: window.__portcoveReviewedUpdateProbe.mismatches,
-        }));
+        const admitted = await probe.capture();
         assert.equal(admitted.plans, 1, "The supplied review must be intercepted before Apply");
         assert.deepEqual(admitted.mismatches, []);
         assert.equal(/^[a-f0-9]{64}$/.test(suppliedPlan.plan_sha256), false);
@@ -529,6 +461,7 @@ async function assertReviewedUpdateOutcomes({
         await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
         observation.review_cancelled_without_reapply = true;
       } catch (error) {
+        scenarioError = error;
         observation.failure = error.message;
         try {
           const image = path.join(
@@ -545,20 +478,8 @@ async function assertReviewedUpdateOutcomes({
         }
         throw error;
       } finally {
-        Object.assign(
-          observation,
-          await browser.executeScript(() => {
-            const probe = window.__portcoveReviewedUpdateProbe;
-            window.fetch = probe.original;
-            return {
-              plans: probe.plans,
-              applies: probe.applies,
-              mismatches: probe.mismatches,
-              channels: probe.channels,
-              restored: window.fetch === probe.original,
-            };
-          }),
-        );
+        Object.assign(observation, await probe.restore());
+        requireTrustedProbeCleanup(observation, scenarioError);
       }
       assert.deepEqual(observation.mismatches, []);
       assert.equal(observation.plans, 2);
@@ -577,11 +498,20 @@ async function assertReviewedUpdateOutcomes({
     assert.deepEqual(observations.after, observations.before);
     assert.deepEqual(observations.sources_after, observations.sources_before);
     assert.deepEqual(observations.activities_after, observations.activities_before);
+  } catch (error) {
+    primaryError = error;
   } finally {
     const report = path.join(output, "reviewed-update-outcome-observations.json");
-    await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
-    artifacts.push(report);
+    try {
+      await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
+      artifacts.push(report);
+    } catch (error) {
+      reportError = error;
+      console.error("Owned update observation report failed:", error.message);
+    }
   }
+  if (primaryError) throw primaryError;
+  if (reportError) throw reportError;
 }
 
 export function assertPreparedLibrarySummary(text, statuses, preparedPortId) {
@@ -2086,5 +2016,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   assert(attempts.includes("native-preparation-review-and-play"));
   for (const family of plan.fixtureFamilies.filter((entry) => entry.family))
     for (const member of family.members) assert(attempts.includes(member.id), member.id);
-  console.log("Native scenario context preflight passed.");
+  const { verifyOwnedProbeTransport } = await import("./desktop-owned-ipc-probe-check.mjs");
+  await verifyOwnedProbeTransport();
+  console.log("Native scenario context preflight and pinned probe transport passed.");
 }
