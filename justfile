@@ -117,7 +117,7 @@ ui-test:
     {{storage}} corepack pnpm test
 
 fallow:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs
     {{storage}} node scripts/run-fallow.mjs
 
 oxlint:
