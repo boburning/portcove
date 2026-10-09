@@ -3114,6 +3114,25 @@ test("Port stage validation is evidence-based and platform-scoped", () => {
   );
 });
 
+function qualificationScope(portId, platform = "windows") {
+  return {
+    port_id: portId,
+    platform,
+    artifact_sha256: "a".repeat(64),
+    upstream_ref: "v1",
+    contract_id: "fixture-contract",
+    variant: {
+      state: "exact",
+      identity: {
+        game_id: "fixture-game",
+        variant_id: "retail",
+        representation_id: "canonical",
+      },
+    },
+    check_version: "fixture-v1",
+  };
+}
+
 test("Port stage validation consumes only passed exact qualification records", () => {
   const port = {
     id: "exact",
@@ -3122,7 +3141,7 @@ test("Port stage validation consumes only passed exact qualification records", (
     manually_validated_platforms: [],
   };
   const record = (kind, outcome, platform = "windows") => ({
-    scope: { port_id: port.id, platform },
+    scope: qualificationScope(port.id, platform),
     kind,
     outcome,
   });
@@ -3199,6 +3218,117 @@ test("Port stage validation consumes only passed exact qualification records", (
         value.includes("steam-deck"),
     ),
   );
+});
+
+test("Supported requires complete matching exact scopes and separate legacy intersections", () => {
+  const port = {
+    id: "scoped",
+    platforms: ["windows"],
+    automated_tested_platforms: [],
+    manually_validated_platforms: [],
+  };
+  const auto = {
+    scope: qualificationScope(port.id),
+    kind: "automated_lifecycle",
+    outcome: "passed",
+  };
+  const hands = { ...structuredClone(auto), kind: "hands_on" };
+  const item = {
+    id: "scoped",
+    title: "[Port] Scoped",
+    "port stage": "Supported",
+    content: {
+      type: "Issue",
+      number: 1,
+      url: "https://github.com/boburning/portcove/issues/1",
+      body: renderPortIssueBody({
+        title: "Scoped",
+        upstream: "https://example.test/scoped",
+        catalogId: port.id,
+      }),
+    },
+  };
+  assert.deepEqual(qualifiedPlatforms(port, [auto, hands]), ["windows"]);
+  for (const path of [
+    ["port_id"],
+    ["platform"],
+    ["artifact_sha256"],
+    ["upstream_ref"],
+    ["contract_id"],
+    ["variant", "identity", "game_id"],
+    ["variant", "identity", "variant_id"],
+    ["variant", "identity", "representation_id"],
+    ["check_version"],
+  ]) {
+    const changed = structuredClone(hands);
+    const parent = path.slice(0, -1).reduce((value, key) => value[key], changed.scope);
+    const key = path.at(-1);
+    parent[key] = key === "artifact_sha256" ? "b".repeat(64) : `${parent[key]}-different`;
+    const records = [auto, changed];
+    assert.deepEqual(qualifiedPlatforms(port, records), [], path.join("."));
+    const result = validatePortStageSemantics(
+      { ports: [port], source_catalog: { qualification: records } },
+      [item],
+    );
+    assert.ok(
+      result.errors.some((error) => error.includes("no platform with matching")),
+      path.join("."),
+    );
+    assert.deepEqual(
+      planPortStageReconciliation({ ports: [port], source_catalog: { qualification: records } }, [
+        item,
+      ]).map((change) => change.to),
+      ["Automated qualification"],
+    );
+  }
+  for (const path of [
+    ["artifact_sha256"],
+    ["upstream_ref"],
+    ["contract_id"],
+    ["check_version"],
+    ["variant"],
+    ["variant", "identity", "game_id"],
+    ["variant", "identity", "variant_id"],
+    ["variant", "identity", "representation_id"],
+  ]) {
+    const incomplete = structuredClone(hands);
+    const parent = path.slice(0, -1).reduce((value, key) => value[key], incomplete.scope);
+    delete parent[path.at(-1)];
+    assert.deepEqual(qualifiedPlatforms(port, [auto, incomplete]), [], path.join("."));
+    const incompleteAuto = { ...incomplete, kind: "automated_lifecycle" };
+    assert.deepEqual(qualifiedPlatforms(port, [incompleteAuto, incomplete]), [], path.join("."));
+  }
+  const unknown = structuredClone(hands);
+  unknown.scope.variant = { state: "unknown" };
+  assert.deepEqual(qualifiedPlatforms(port, [auto, unknown]), []);
+  for (const digest of [["a".repeat(64)], 42, {}]) {
+    const malformedAuto = structuredClone(auto);
+    malformedAuto.scope.artifact_sha256 = digest;
+    const malformedHands = { ...structuredClone(malformedAuto), kind: "hands_on" };
+    assert.deepEqual(qualifiedPlatforms(port, [malformedAuto, malformedHands]), []);
+    const malformedCatalog = {
+      ports: [port],
+      source_catalog: {
+        qualification: [malformedAuto, malformedHands],
+      },
+    };
+    assert.ok(
+      validatePortStageSemantics(malformedCatalog, [
+        { ...item, "port stage": "Automated qualification" },
+      ]).errors.some((error) => error.includes("no automated evidence")),
+    );
+  }
+  const failed = { ...hands, outcome: "failed" };
+  assert.deepEqual(qualifiedPlatforms(port, [auto, failed]), []);
+  const legacyAuto = { ...port, automated_tested_platforms: ["windows"] };
+  const legacyHands = { ...port, manually_validated_platforms: ["windows"] };
+  assert.deepEqual(qualifiedPlatforms(legacyAuto, [hands]), []);
+  assert.deepEqual(qualifiedPlatforms(legacyHands, [auto]), []);
+  assert.deepEqual(
+    qualifiedPlatforms({ ...legacyAuto, manually_validated_platforms: ["windows"] }, []),
+    ["windows"],
+  );
+  assert.deepEqual(qualifiedPlatforms(port, [hands, auto, hands]), ["windows"]);
 });
 
 test("Port stage validation rejects broken manual evidence non-catalog overclaim and unsupported rejection", () => {
@@ -3338,17 +3468,17 @@ test("Supported reconciliation planning uses exact automated and hands-on record
   }));
   const qualification = [
     {
-      scope: { port_id: "auto", platform: "windows" },
+      scope: qualificationScope("auto"),
       kind: "automated_lifecycle",
       outcome: "passed",
     },
     {
-      scope: { port_id: "qualified", platform: "windows" },
+      scope: qualificationScope("qualified"),
       kind: "automated_lifecycle",
       outcome: "passed",
     },
     {
-      scope: { port_id: "qualified", platform: "windows" },
+      scope: qualificationScope("qualified"),
       kind: "hands_on",
       outcome: "passed",
     },

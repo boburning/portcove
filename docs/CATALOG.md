@@ -726,3 +726,76 @@ whose relevant inputs change; preserve historical and legacy evidence honestly.
 Opt-in reports must exclude game data, secrets and personal paths; untrusted
 reports cannot revoke the whole catalog. Ordinary success needs no owner action;
 exceptions have bounded retries, scope and a reproducible resume condition.
+
+## Read-only disappearance reporting
+
+`scripts/check-catalog-repositories.mjs` reports each catalog port against six
+separate facts: original-upstream reachability, lineage, exact accepted-artifact
+obtainability, preservation, applicable holds, and retained qualification. Its
+format-2 output binds the canonical catalog hash and observation interval. A
+complete location collection means its declared probes completed; it does not
+mean every port is installable or that an artifact was verified.
+
+DirectManifest entries remain in the inventory, with their exact declared
+version/platform/digest/size and acquisition URL. The declared original project
+is also observed after a provider change. Hosted repositories use their existing
+bounded metadata requests. Direct artifact and other project endpoints use HEAD
+without provider credentials or redirects. A matching Content-Length establishes
+endpoint reachability only; the exact accepted bytes remain Unknown until their
+identity is actually verified. Missing, corrupt, inaccessible, contradictory or
+partial inputs remain explicit rather than becoming empty healthy inventories.
+
+Lineage decisions remain owned by #139, preservation by #1306 and artifact or
+operation holds by #315/#246. This collector evaluates or modifies none of those
+authorities. Retained catalog qualification stays attached to its exact original
+artifact/source/platform scope; legacy platform arrays are labeled historical
+and neither is inherited by another release or location. An absent policy or
+preservation observation is Unknown, never permission or a clean hold status.
+
+Each failed availability condition has a deterministic incident key binding
+port, location, operation and failed rule, with HTTP evidence, collection time,
+backoff and a resume condition. Observation time is excluded from that key, so an
+unchanged condition retains its identity. The collector performs no issue writes,
+source transfer, installation, artifact execution or automatic qualification.
+The shared request, duration and byte bounds remain in force; direct-origin rate
+limits leave unrelated locations observable.
+
+The retained Star Fox Enhanced incident in #247 (run 36735216087, job
+109955016518, source `5d6905ea8bf90fb887bb49a6a8524ab2ecc5846b`) reported
+`kandowontu/starfox-enhanced: github returned 404`. It is candidate continuity
+evidence for #124/#139 with authority unresolved. A bare 404 neither establishes
+retirement/deletion nor selects a successor or transfers historical qualification.
+
+Existing reviewed catalog maintenance declarations (`retired`, `superseded`,
+`abandoned`) account for a 404 only at that port's declared original location.
+They produce explicit degraded/unavailable output. They cannot suppress a missing
+artifact, new access/integrity failure, repository-name reuse, or an unclassified
+location shared with another port. An archived flag or a bare 404 creates no such
+declaration. The lineage, byte verification, preservation and distribution
+meaning remains independent, even when the monitoring job succeeds.
+
+Historical qualification identities are also inventoried at their exact refs
+and declared hosted locations, or the matching immutable DirectManifest pin.
+Provider-reported digests remain metadata, never verified bytes. Empty/conflicting
+asset inventories and capped/partial pages stay Unknown; unavailable optional
+provider digests are explicitly unverified. A historical identity without a
+locatable declaration stays visibly unmonitored. Failed qualification records are
+reported at their original scope without creating or clearing a publisher hold.
+
+An optional `--previous-report=PATH` consumes a bounded prior format-2 report as
+comparison evidence. It writes no state, issue comment or status ledger. Only a
+matching canonical catalog hash and a nonfuture report no older than 24 hours
+can provide notification comparison/backoff; stale or malformed scope is labeled unused.
+A structurally valid matching older snapshot retains only its repository-ID
+baseline so an outage or repeated replacement cannot silently establish a new
+identity. Current availability is always observed afresh.
+Repeated identical conditions keep their first-seen time, bounded occurrence
+count and `notify: false`; changed HTTP/identity/digest/size/classification facts
+request an update while retaining the condition’s first-seen time and count.
+Deferred attempts report no fresh HTTP response and identify prior comparison
+evidence separately. Rate limits without a usable retry clock use a one-minute
+fallback. Fresh recovery is reported separately. Unclassified failures
+remain prominent and keep their failure exit even when notification is
+unchanged. Ordinary unchanged success with a matching prior report is quiet;
+`--json` always emits the complete evidence record. The report never authenticates
+a prior snapshot as lineage, publication or distribution authority.

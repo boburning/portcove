@@ -78,6 +78,126 @@ function fixture(t) {
   return root;
 }
 
+test(
+  "CLI smoke binds every executable observation inside its isolated scope",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const root = fixture(t);
+    const script = path.join(root, "smoke-arguments.ps1");
+    const source = path.join(projectRoot, "scripts/smoke-test-cli-archive.ps1");
+    writeFileSync(
+      script,
+      `
+$ErrorActionPreference = 'Stop'
+$ast = [Management.Automation.Language.Parser]::ParseFile('${source.replaceAll("'", "''")}', [ref]$null, [ref]$null)
+$calls = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.CommandAst] -and $node.CommandElements[0].Extent.Text -ceq '$executable' }, $true))
+if ($calls.Count -ne 4) { throw 'Unexpected smoke executable inventory' }
+foreach ($call in $calls) {
+    if ($call.CommandElements[1].Extent.Text -cne '--library' -or $call.CommandElements[2].Extent.Text -cne '$library') { throw 'Smoke child lost its owned library argument' }
+    $parent = $call.Parent
+    while ($null -ne $parent -and $parent -isnot [Management.Automation.Language.ScriptBlockExpressionAst]) { $parent = $parent.Parent }
+    if ($null -eq $parent -or $parent.Parent -isnot [Management.Automation.Language.CommandAst] -or $parent.Parent.GetCommandName() -cne 'Invoke-IsolatedCliSmoke') { throw 'Smoke child escaped its isolated environment scope' }
+    if ($parent.Parent.Extent.Text -notmatch '-LibraryPath \\$library -PreferencePath \\(Join-Path \\$temporaryDirectory "preferences.json"\\) -Operation') { throw 'Scope paths escaped the private smoke run' }
+}
+'smoke-arguments-isolated'
+`,
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /smoke-arguments-isolated/u);
+  },
+);
+
+test(
+  "CLI smoke restores absent empty and conflicting bindings after success and failure",
+  { skip: process.platform !== "win32" },
+  (t) => {
+    const root = fixture(t);
+    const script = path.join(root, "smoke-environment.ps1");
+    const source = path.join(projectRoot, "scripts/smoke-test-cli-archive.ps1");
+    writeFileSync(
+      script,
+      `
+$ErrorActionPreference = 'Stop'
+$ast = [Management.Automation.Language.Parser]::ParseFile('${source.replaceAll("'", "''")}', [ref]$null, [ref]$null)
+$helper = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Invoke-IsolatedCliSmoke' }, $false)
+if ($null -eq $helper) { throw 'Actual isolated smoke helper missing' }
+. ([scriptblock]::Create($helper.Extent.Text))
+$ownedLibrary = Join-Path $PSScriptRoot 'Library Ω space'
+$ownedPreferences = Join-Path $PSScriptRoot 'preferences.json'
+$names = @('PORTCOVE_LIBRARY', 'PORTCOVE_PREFERENCES')
+$checks = 0
+foreach ($state in @('absent', 'empty', 'conflicting')) {
+    foreach ($name in $names) {
+        if ($state -eq 'absent') { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+        elseif ($state -eq 'empty') { [Environment]::SetEnvironmentVariable($name, '', 'Process') }
+        else { [Environment]::SetEnvironmentVariable($name, (Join-Path $PSScriptRoot "caller-$name"), 'Process') }
+    }
+    $before = @{}
+    foreach ($name in $names) { $before[$name] = @{ present = Test-Path -LiteralPath "Env:$name"; value = [Environment]::GetEnvironmentVariable($name, 'Process') } }
+    if ($state -eq 'empty' -and @($names | Where-Object { -not $before[$_].present }).Count -ne 0) { throw 'Runtime did not establish the empty-variable case' }
+    foreach ($fail in @($false, $true)) {
+        $observedFailure = $null
+        try {
+            Invoke-IsolatedCliSmoke -LibraryPath $ownedLibrary -PreferencePath $ownedPreferences -Operation {
+                if ($env:PORTCOVE_LIBRARY -cne $ownedLibrary -or $env:PORTCOVE_PREFERENCES -cne $ownedPreferences) { throw 'Parent bindings not isolated' }
+                $child = (& pwsh -NoProfile -NonInteractive -Command '[pscustomobject]@{library=$env:PORTCOVE_LIBRARY;preferences=$env:PORTCOVE_PREFERENCES}|ConvertTo-Json -Compress' | Out-String).Trim()
+                if ($LASTEXITCODE -ne 0) { throw 'Child environment observation failed' }
+                $child = $child | ConvertFrom-Json
+                if ($child.library -cne $ownedLibrary -or $child.preferences -cne $ownedPreferences) { throw 'Child did not inherit isolated bindings' }
+                if ($fail) { throw 'intentional-smoke-failure' }
+            }
+        } catch { $observedFailure = $_.Exception.Message }
+        if ($fail -and $observedFailure -cne 'intentional-smoke-failure') { throw 'Original smoke error was masked' }
+        if (-not $fail -and $null -ne $observedFailure) { throw $observedFailure }
+        foreach ($name in $names) {
+            $present = Test-Path -LiteralPath "Env:$name"
+            if ($present -ne $before[$name].present -or ($present -and [Environment]::GetEnvironmentVariable($name, 'Process') -cne $before[$name].value)) { throw "Caller binding not restored: $state/$name" }
+        }
+        $checks++
+    }
+}
+if ($checks -ne 6) { throw 'Incomplete success/failure restoration matrix' }
+foreach ($name in $names) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+function Remove-Item {
+    [CmdletBinding()]
+    param([string]$LiteralPath)
+    if ($LiteralPath.StartsWith('Env:')) { throw 'intentional-restoration-failure' }
+    Microsoft.PowerShell.Management\\Remove-Item @PSBoundParameters
+}
+$WarningPreference = 'Stop'
+$observedFailure = $null
+try {
+    Invoke-IsolatedCliSmoke -LibraryPath $ownedLibrary -PreferencePath $ownedPreferences -Operation { throw 'original-command-failure' }
+} catch { $observedFailure = $_.Exception.Message }
+finally {
+    $WarningPreference = 'Continue'
+    Microsoft.PowerShell.Management\\Remove-Item -LiteralPath Function:Remove-Item
+    foreach ($name in $names) { Microsoft.PowerShell.Management\\Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
+}
+if ($observedFailure -cne 'original-command-failure') { throw "Restoration warning masked command failure: $observedFailure" }
+'smoke-environment-restored-six-cases'
+`,
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+      env: {
+        ...process.env,
+        PORTCOVE_LIBRARY: path.join(root, "caller-library"),
+        PORTCOVE_PREFERENCES: path.join(root, "caller-preferences.json"),
+      },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /smoke-environment-restored-six-cases/u);
+  },
+);
+
 function workspace(t) {
   const root = fixture(t);
   mkdirSync(path.join(root, "scripts"));

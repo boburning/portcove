@@ -8,7 +8,7 @@ paths below. Read [development tooling](../../../docs/DEVELOPMENT-TOOLS.md) and 
 
 Use a fresh library/configuration scope. Never point fixture tests at the user's normal library. Keep real lifecycle behavior in core and distinguish mocked renderer cases from actual Tauri IPC/native runs.
 
-For native harness coverage, dependency-free fixture consumers, source/runtime representation, retained-profile schema compatibility, Windows environment aliases, replacement-host proof, identity-sensitive callbacks or WebView containment, read the relevant checks in [qualification boundaries](references/qualification-boundaries.md).
+For native harness coverage, dependency-free fixture consumers, source/runtime representation, retained-profile schema compatibility, Windows environment aliases, replacement-host proof, identity-sensitive callbacks, WebView containment, inherited input preflights, shipping refusals or failure-detail custody, read the relevant checks in [qualification boundaries](references/qualification-boundaries.md).
 
 Treat the interactive desktop, keyboard/pointer input, browser profile, installer registrations, Registry state, and native qualification runners as host-wide resources. Separate worktrees and libraries do not isolate them. Before input-driving or Registry-touching scenarios, including audits that launch them indirectly, establish a window without competing user input or another Portcove qualification runner. Preserve contention-affected evidence as inconclusive, do not present a later serialized pass as a code fix, continue noninteractive work where possible, and never capture the user's typed text.
 
