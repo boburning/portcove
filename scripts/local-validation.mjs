@@ -31,6 +31,8 @@ import { parseRawDiff } from "./select-ci-plan.mjs";
 import { readRustTestImpactMap, selectRustTestImpact } from "./rust-test-impact.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { collectSelectedPrerequisites, selectedPrerequisites } from "./dev-doctor.mjs";
+import { runCheckedGit } from "./checked-git.mjs";
+import { collectResourceStatus } from "./resource-status.mjs";
 import {
   hostedLocalCheckAuthorityPaths,
   isHostedLocalCheckScriptAuthority,
@@ -1303,19 +1305,27 @@ export function buildPlan(selection, context = {}) {
       ),
     );
 
-  return deduplicateCommands(commands);
+  const staticGateIds = new Set([
+    "diff-check",
+    "oxfmt",
+    "oxlint",
+    "ui-oxlint",
+    "ui-stylelint",
+    "actionlint",
+    "powershell-lint",
+    "shell-lint",
+    "python-lint",
+    "fallow",
+  ]);
+  const early = (entry) => staticGateIds.has(entry.id) || entry.id.startsWith("node-syntax:");
+  return deduplicateCommands([
+    ...commands.filter(early),
+    ...commands.filter((entry) => !early(entry)),
+  ]);
 }
 
 function git(args, options = {}) {
-  const result = spawnSync("git", args, {
-    cwd: projectRoot,
-    encoding: options.encoding === "buffer" ? null : (options.encoding ?? "utf8"),
-    windowsHide: true,
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0)
-    throw new Error(`git ${args.join(" ")} failed: ${String(result.stderr ?? "").trim()}`);
-  return result.stdout;
+  return runCheckedGit(args, { cwd: projectRoot, encoding: options.encoding });
 }
 
 export function parseNameStatus(buffer) {
@@ -2046,6 +2056,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
       hosted,
       audit,
     });
+    report.resources = await collectResourceStatus();
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else {
       printPlan(context, selection, plan, validationPlan);
@@ -2066,6 +2077,10 @@ export async function main(argv = process.argv.slice(2), options = {}) {
           );
       }
       console.log(report.limits);
+      for (const resource of report.resources.resources)
+        console.log(
+          `Resource ${resource.resource}: ${resource.observation}; ${resource.verification}; existing admission guard remains authoritative`,
+        );
     }
     if (
       report.obligations.some((entry) => entry.route === "blocked") ||
