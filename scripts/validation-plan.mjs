@@ -255,6 +255,17 @@ function classifyPath(file) {
     );
     match(rust || rootRust, "rust", ["rust", "rust-quality"], "rust-workspace-input");
     match(
+      /^apps\/desktop\/src\/transport-[^/]+\.generated\.(?:json|d\.ts)$/u.test(file) ||
+        [
+          "scripts/check-transport-contract.mjs",
+          "scripts/transport-schemas.mjs",
+          "apps/desktop/scripts/generate-transport-types.mjs",
+        ].includes(file),
+      "native-ipc",
+      ["catalog", "frontend", "rust", "rust-quality"],
+      "generated-transport-input",
+    );
+    match(
       file.startsWith("apps/desktop/src-tauri/") ||
         (!/catalog/iu.test(file) &&
           /(?:transport|schema|ipc)/iu.test(file) &&

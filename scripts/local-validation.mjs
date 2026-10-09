@@ -28,6 +28,7 @@ import {
 } from "./audit.mjs";
 import { prepareStorageScope, spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
+import { selectWorkspaceRustImpact } from "./rust-test-impact.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { collectSelectedPrerequisites, selectedPrerequisites } from "./dev-doctor.mjs";
 import { runCheckedGit } from "./checked-git.mjs";
@@ -861,7 +862,7 @@ function uiRelatedDurationCommand() {
     "ui-related-durations",
     "validate complete timing data for the related UI selection",
     process.execPath,
-    ["scripts/check-vitest-durations.mjs", "work/ui-related-tests.json", "--allow-empty"],
+    ["scripts/check-vitest-durations.mjs", "work/ui-related-tests.json", "--full-suite-on-empty"],
   );
 }
 
@@ -912,9 +913,16 @@ export function buildPlan(selection, context = {}) {
         ]),
       );
   if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
-  if (selection.packages.size || selection.workspaceRust || broad)
-    commands.push(
-      command(
+  if (
+    selection.packages.size ||
+    selection.workspaceRust ||
+    broad ||
+    validation?.groups.includes("rust")
+  ) {
+    if (!validation) throw new Error("Rust feedback requires a complete validation plan");
+    commands.push({
+      rustCoverage: selectWorkspaceRustImpact(validation).map((group) => group.filter),
+      ...command(
         "rust-workspace-tests",
         "compile workspace test targets and execute selected maintained families",
         process.execPath,
@@ -927,8 +935,23 @@ export function buildPlan(selection, context = {}) {
           "work/local-validation-plan.json",
         ],
       ),
-    );
+    });
+  }
   if (selection.ui || broad) {
+    commands.push(
+      command(
+        "ui-transport-types",
+        "generated TypeScript matches schema snapshots",
+        process.execPath,
+        ["apps/desktop/scripts/generate-transport-types.mjs"],
+      ),
+      command(
+        "ui-ipc-exposure",
+        "shipped IPC/event consumers match native exposure",
+        process.execPath,
+        ["scripts/check-transport-contract.mjs", "--ipc-only"],
+      ),
+    );
     commands.push(
       corepackCommand("ui-build", "frontend build and typecheck", ["pnpm", "run", "build"], {
         cwd: desktopRoot,
@@ -1402,7 +1425,15 @@ function localStageReusable(entry) {
 }
 
 export function fingerprintLocalStage(entry, inventory, runtime) {
+  if (
+    entry.id === "rust-workspace-tests" &&
+    (!Array.isArray(entry.rustCoverage) ||
+      !entry.rustCoverage.length ||
+      entry.rustCoverage.some((filter) => typeof filter !== "string" || !filter))
+  )
+    throw new Error("Rust receipt lacks its exact selected coverage");
   const recipe = JSON.stringify({
+    rustCoverage: entry.rustCoverage,
     obligation: entry.obligation,
     executable: entry.executable === process.execPath ? "<active-node-runtime>" : entry.executable,
     args: entry.args,

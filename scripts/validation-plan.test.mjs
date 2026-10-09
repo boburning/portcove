@@ -147,3 +147,18 @@ test("digest and structural tampering cannot authorize missing or stale lanes", 
   q.fallback = null;
   assert.throws(() => validateValidationPlan(redigest(q)));
 });
+
+test("generated transport snapshots and declaration inputs retain real Rust drift validation", () => {
+  for (const file of [
+    "apps/desktop/src/transport-host-output.generated.json",
+    "apps/desktop/src/transport-types.generated.d.ts",
+    "scripts/check-transport-contract.mjs",
+    "apps/desktop/scripts/generate-transport-types.mjs",
+  ]) {
+    const selected = plan([change(file)]);
+    validateValidationPlan(selected);
+    assert.ok(selected.groups.includes("rust"), file);
+    assert.ok(selected.groups.includes("frontend"), file);
+    assert.ok(selected.groups.includes("catalog"), file);
+  }
+});

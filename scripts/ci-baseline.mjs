@@ -1,5 +1,4 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -56,6 +55,22 @@ export function baselineContractTests(plan, options) {
   return [...tests].sort();
 }
 
+// Run the cheap production checkers against the actual checkout when their
+// contracts are selected. Fixture-based unit tests alone cannot prove integrity.
+export function baselineIntegrityCommands(plan, options) {
+  const tests = new Set(baselineContractTests(plan, options));
+  const checks = [
+    ["scripts/qualification-coverage.test.mjs", ["scripts/qualification-coverage.mjs"]],
+    ["scripts/quality-tools.test.mjs", ["scripts/quality-tools.mjs", "--validate"]],
+    ["scripts/repository-settings.test.mjs", ["scripts/repository-settings.mjs", "--validate"]],
+    ["scripts/roadmap.test.mjs", ["scripts/roadmap.mjs", "check"]],
+    ["scripts/check-release-metadata.test.mjs", ["scripts/check-release-metadata.mjs"]],
+    ["scripts/generate-catalog.test.mjs", ["scripts/generate-catalog.mjs", "--check"]],
+    ["scripts/generate-catalog.test.mjs", ["scripts/check-retcomm-upstreams.mjs", "--offline"]],
+  ];
+  return checks.filter(([test]) => tests.has(test)).map(([, args]) => args);
+}
+
 export function baselineFrontendPlan(plan, options) {
   const selection = baselineSelection(plan, options);
   if (!plan.groups.includes("frontend")) throw new Error("Plan omitted frontend execution");
@@ -63,7 +78,14 @@ export function baselineFrontendPlan(plan, options) {
   selection.ui = true;
   selection.uiFullTests ||= Boolean(plan.fallback) || !selection.uiRelatedFiles.size;
   return buildPlan(selection, { validationPlan: plan }).filter((entry) =>
-    ["ui-build", "ui-tests", "ui-related-tests", "ui-related-durations"].includes(entry.id),
+    [
+      "ui-transport-types",
+      "ui-ipc-exposure",
+      "ui-build",
+      "ui-tests",
+      "ui-related-tests",
+      "ui-related-durations",
+    ].includes(entry.id),
   );
 }
 
@@ -83,35 +105,32 @@ function main() {
       [
         "--test",
         "--test-timeout=30000",
+        "--test-skip-pattern=pnpm uses|direct just recipes",
         "--test-reporter=./scripts/test-duration-reporter.mjs",
         ...tests,
       ],
       { cwd: root, stdio: "inherit", windowsHide: true },
     );
     if (result.error) throw result.error;
-    process.exitCode = result.status ?? 1;
+    if (result.status !== 0) {
+      process.exitCode = result.status ?? 1;
+      return;
+    }
+    for (const args of baselineIntegrityCommands(plan)) {
+      const check = spawnSync(process.execPath, args, {
+        cwd: root,
+        stdio: "inherit",
+        windowsHide: true,
+      });
+      if (check.error) throw check.error;
+      if (check.status !== 0) {
+        process.exitCode = check.status ?? 1;
+        return;
+      }
+    }
   } else if (process.argv[2] === "frontend") {
     const commands = baselineFrontendPlan(plan);
     executePlan(commands, { spawn: spawnCommand });
-    if (commands.some((entry) => entry.id === "ui-related-tests")) {
-      const report = JSON.parse(
-        readFileSync(path.join(root, "work/ui-related-tests.json"), "utf8"),
-      );
-      if (!Number.isSafeInteger(report.numTotalTests))
-        throw new Error("Incomplete frontend test report");
-      if (report.numTotalTests === 0) {
-        console.log(
-          "[ci-baseline] No graph tests matched; running the complete frontend unit suite",
-        );
-        const result = spawnCommand("corepack", ["pnpm", "test"], {
-          cwd: path.join(root, "apps/desktop"),
-          stdio: "inherit",
-          windowsHide: true,
-        });
-        if (result.error) throw result.error;
-        process.exitCode = result.status ?? 1;
-      }
-    }
   } else throw new Error("Expected frontend or contracts");
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

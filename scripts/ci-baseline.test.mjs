@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildValidationPlan } from "./validation-plan.mjs";
-import { baselineContractTests, baselineFrontendPlan } from "./ci-baseline.mjs";
+import {
+  baselineContractTests,
+  baselineFrontendPlan,
+  baselineIntegrityCommands,
+} from "./ci-baseline.mjs";
 const make = (files) =>
   buildValidationPlan({
     changes: files.map((file) => ({
@@ -34,7 +38,7 @@ test("shared and unknown frontend inputs use full units; sources use the related
   assert.deepEqual(related.find((entry) => entry.id === "ui-related-durations").args, [
     "scripts/check-vitest-durations.mjs",
     "work/ui-related-tests.json",
-    "--allow-empty",
+    "--full-suite-on-empty",
   ]);
   for (const p of [make(["apps/desktop/tsconfig.json"]), make(["unknown/new-input.bin"])]) {
     const full = baselineFrontendPlan(p);
@@ -42,4 +46,21 @@ test("shared and unknown frontend inputs use full units; sources use the related
     assert.ok(!full.some((entry) => entry.id === "ui-related-tests"));
   }
   assert.throws(() => baselineFrontendPlan(make(["docs/QUALITY.md"])));
+});
+
+test("selected contract tests retain cheap actual-checkout integrity", () => {
+  const catalog = baselineIntegrityCommands(make(["crates/portcove-core/catalog/catalog.json"]));
+  assert.ok(
+    catalog.some((args) => args[0] === "scripts/generate-catalog.mjs" && args[1] === "--check"),
+  );
+  assert.ok(
+    catalog.some(
+      (args) => args[0] === "scripts/check-retcomm-upstreams.mjs" && args[1] === "--offline",
+    ),
+  );
+  const docs = baselineIntegrityCommands(make(["docs/QUALITY.md"]));
+  assert.ok(
+    docs.some((args) => args[0] === "scripts/repository-settings.mjs" && args[1] === "--validate"),
+  );
+  assert.ok(!docs.some((args) => args[0] === "scripts/generate-catalog.mjs"));
 });

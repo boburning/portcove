@@ -563,3 +563,19 @@ test("missing package ownership and malformed maps fail closed", () => {
     /duplicate Rust test-impact path/u,
   );
 });
+
+test("the guarded Rust baseline compares live schemas only after selected tests pass", () => {
+  const calls = [];
+  const status = runWorkspaceRustImpact(workspacePlan(["Cargo.lock"]), {
+    map,
+    report() {},
+    spawnSync(command, args) {
+      calls.push([command, args]);
+      return args[1] === "list"
+        ? { status: 0, stdout: JSON.stringify(inventory(["one"])) }
+        : { status: args[0] === "scripts/check-transport-contract.mjs" ? 8 : 0 };
+    },
+  });
+  assert.equal(status, 8);
+  assert.deepEqual(calls.at(-1), [process.execPath, ["scripts/check-transport-contract.mjs"]]);
+});

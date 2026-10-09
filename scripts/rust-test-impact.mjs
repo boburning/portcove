@@ -406,7 +406,16 @@ export function runWorkspaceRustImpact(plan, dependencies = {}) {
     windowsHide: true,
   });
   if (result.error) throw result.error;
-  return result.status ?? 1;
+  if (result.status !== 0) return result.status ?? 1;
+  // This stays inside the caller's heavyweight reservation. Cargo reuses the
+  // workspace build; compare live Rust serialization with committed snapshots.
+  const contract = run(process.execPath, ["scripts/check-transport-contract.mjs"], {
+    cwd: projectRoot,
+    stdio: "inherit",
+    windowsHide: true,
+  });
+  if (contract.error) throw contract.error;
+  return contract.status ?? 1;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

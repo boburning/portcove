@@ -448,14 +448,26 @@ const change = (path, options = {}) => ({ status: "M", path, ...options });
 const ids = (plan) => plan.map((entry) => entry.id);
 
 function planFor(paths) {
-  const selection = classifyChanges(
-    paths.map((path) => (typeof path === "string" ? change(path) : path)),
-    { fileExists: allFilesExist },
-  );
+  const changes = paths.map((path) => (typeof path === "string" ? change(path) : path));
+  const selection = classifyChanges(changes, { fileExists: allFilesExist });
   return {
     selection,
     plan: buildPlan(selection, {
       mergeBase: "base-sha",
+      validationPlan: buildValidationPlan({
+        changes: changes.map((entry) => ({
+          status: entry.status,
+          oldPath: entry.previousPath ?? entry.path,
+          newPath: entry.path,
+          oldMode: entry.status === "A" ? "000000" : "100644",
+          newMode: entry.status === "D" ? "000000" : "100644",
+        })),
+        eventName: "pull_request",
+        base: "b".repeat(40),
+        mergeBase: "b".repeat(40),
+        head: "a".repeat(40),
+        checkout: "a".repeat(40),
+      }),
       doctestPackages: new Set(["portcove-core", "portcove-release-tools", "portcove-desktop"]),
     }),
   };
@@ -712,6 +724,8 @@ test("UI sources build and run import-related units in optional feedback", () =>
   assert.deepEqual(ids(plan), [
     "diff-check",
     "oxfmt",
+    "ui-transport-types",
+    "ui-ipc-exposure",
     "ui-build",
     "ui-related-tests",
     "ui-related-durations",
@@ -1516,7 +1530,7 @@ test("optional local baseline compiles workspace tests once without duplicate li
     "Cargo.lock",
     "crates/portcove-cli/src/main.rs",
   ]) {
-    const p = buildPlan(classifyChanges([{ status: "M", path: file }]));
+    const p = planFor([file]).plan;
     assert.equal(p.filter((entry) => entry.id === "rust-workspace-tests").length, 1);
     assert.ok(
       p.find((entry) => entry.id === "rust-workspace-tests").args.includes("--guard-command"),
@@ -1529,4 +1543,28 @@ test("optional frontend baseline retains build and related units without browser
   assert.ok(p.some((entry) => entry.id === "ui-build"));
   assert.ok(p.some((entry) => entry.id === "ui-related-tests"));
   assert.ok(!p.some((entry) => /browser|lint|fallow|theme|copy/.test(entry.id)));
+});
+
+test("Rust receipts bind narrower or broader selection even when source inventory is identical", () => {
+  const narrow = planFor(["crates/portcove-core/src/source_report.rs"]).plan.find(
+    (e) => e.id === "rust-workspace-tests",
+  );
+  const broad = planFor([
+    "crates/portcove-core/src/source_report.rs",
+    "crates/portcove-core/src/types.rs",
+  ]).plan.find((e) => e.id === "rust-workspace-tests");
+  assert.deepEqual(narrow.args, broad.args);
+  assert.notEqual(
+    fingerprintLocalStage(narrow, receiptInventory(), receiptRuntime),
+    fingerprintLocalStage(broad, receiptInventory(), receiptRuntime),
+  );
+  assert.throws(
+    () =>
+      fingerprintLocalStage(
+        { ...narrow, rustCoverage: undefined },
+        receiptInventory(),
+        receiptRuntime,
+      ),
+    /exact selected coverage/,
+  );
 });
