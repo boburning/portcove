@@ -14,7 +14,12 @@
     "dkc3-na-en-fr",
     "road-rash-64",
     "alundra-psx",
-    "armored-core-psx"
+    "armored-core-psx",
+    "blood-omen-psx",
+    "digimon-world-2003-psx",
+    "duke-nukem-land-of-the-babes-psx",
+    "driver-psx",
+    "duke-nukem-time-to-kill-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -32,6 +37,11 @@
     "road-rash-64-recompiled",
     "alexbeav-ape-escape-recomp",
     "alexbeav-alundra-recomp",
-    "alexbeav-armored-core-recomp"
+    "alexbeav-armored-core-recomp",
+    "alexbeav-blood-omen-legacy-of-kain-recomp",
+    "alexbeav-digimon-world-2003-recomp",
+    "alexbeav-duke-nukem-land-of-the-babes-recomp",
+    "alexbeav-driver-recomp",
+    "alexbeav-duke-nukem-time-to-kill-recomp"
   ]
 }
