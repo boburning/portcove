@@ -3834,6 +3834,73 @@ fn publish_saved_batch(
 }
 
 #[test]
+fn saved_scan_resumes_with_saturated_issues_and_an_existing_owned_omission() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let library = crate::Library::open(root.join("owned-library")).unwrap();
+    let owned_file = library.root().join("original.z64");
+    let payload = b"supported resumable source";
+    fs::write(&owned_file, payload).unwrap();
+    for index in 0..96 {
+        fs::write(root.join(format!("invalid-{index:03}.zip")), b"invalid zip").unwrap();
+    }
+    library.add_game_file_root(&root).unwrap();
+    let catalog = catalog(payload);
+    let limits = SourceDiscoveryLimits {
+        max_entries: 20,
+        ..Default::default()
+    };
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    for _ in 0..8 {
+        if snapshot.report.issues.len() == 64 {
+            break;
+        }
+        assert!(snapshot.coverage.as_ref().unwrap().can_resume);
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    }
+    assert_eq!(snapshot.report.issues.len(), 64);
+    assert!(snapshot.coverage.as_ref().unwrap().can_resume);
+    let entries = snapshot.report.entries_examined;
+    let resumed = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(resumed.report.entries_examined > entries);
+    assert_eq!(resumed.report.issues.len(), 64);
+    assert_eq!(
+        resumed
+            .report
+            .issues
+            .iter()
+            .filter(|issue| issue.path.as_deref() == Some(library.root()))
+            .count(),
+        1
+    );
+    assert!(resumed.report.candidates.is_empty());
+    assert_eq!(fs::read(owned_file).unwrap(), payload);
+}
+
+#[test]
+fn new_owned_omissions_still_refuse_beyond_the_issue_limit() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(temporary.path()).unwrap();
+    let exclusions = (0..65)
+        .map(|index| DiscoveryExclusion {
+            path: root.join(format!("owned-{index}")),
+            kind: DiscoveryExclusionKind::ManagedOutput,
+        })
+        .collect();
+    let error = super::scan(
+        &catalog(b"supported source"),
+        &request(&root),
+        &crate::OperationCoordinator::new("owned-omission-limit", None),
+        exclusions,
+        None,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Usage);
+    assert!(error.message.contains("too many owned paths"));
+}
+
+#[test]
 fn entry_limited_saved_scans_resume_after_restart_without_rehashing_the_prefix() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");

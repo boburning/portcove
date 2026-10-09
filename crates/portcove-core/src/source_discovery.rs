@@ -1108,12 +1108,7 @@ fn scan_with_continuation<'a>(
         .map(|item| (item.path.clone(), item.kind.omission()))
         .collect::<Vec<_>>();
     for (path, message) in omitted_owned_paths {
-        if discovery.report.issues.len() >= 64 {
-            return Err(PortcoveError::usage(
-                "too many owned paths to report in one game-file scan; select a narrower root",
-            ));
-        }
-        discovery.issue(Some(path), None, message.into());
+        discovery.owned_path_issue(path, message)?;
     }
     for id in request.profile_ids.iter().collect::<BTreeSet<_>>() {
         let profile = catalog.source_profile(id)?;
@@ -1231,16 +1226,10 @@ impl Discovery<'_> {
                 .iter()
                 .any(|root| path_within(&current_path, root))
             {
-                if self.report.issues.len() >= 64 {
-                    return Err(PortcoveError::usage(
-                        "too many owned paths to report in one game-file scan; select a narrower root",
-                    ));
-                }
-                self.issue(
-                    Some(current_path.clone()),
-                    None,
-                    DiscoveryExclusionKind::ManagedOutput.omission().into(),
-                );
+                self.owned_path_issue(
+                    current_path.clone(),
+                    DiscoveryExclusionKind::ManagedOutput.omission(),
+                )?;
             }
             self.exclusions.push(DiscoveryExclusion {
                 path: current_path,
@@ -1976,6 +1965,25 @@ impl Discovery<'_> {
                 }
             }
         }
+        Ok(())
+    }
+
+    fn owned_path_issue(&mut self, path: PathBuf, message: &str) -> Result<()> {
+        if self.continuation.is_some()
+            && self.report.issues.iter().any(|issue| {
+                issue.path.as_ref() == Some(&path)
+                    && issue.profile_id.is_none()
+                    && issue.message == message
+            })
+        {
+            return Ok(());
+        }
+        if self.report.issues.len() >= 64 {
+            return Err(PortcoveError::usage(
+                "too many owned paths to report in one game-file scan; select a narrower root",
+            ));
+        }
+        self.issue(Some(path), None, message.into());
         Ok(())
     }
 
