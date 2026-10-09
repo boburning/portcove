@@ -399,6 +399,7 @@ function findVolatileKey(value, prefix = "config") {
 }
 
 export function validateConfig(config, { requireProjectNumber = false } = {}) {
+  deliveryMode(config);
   if (config?.schema_version !== 1) throw new Error("roadmap schema_version must be 1");
   ensureString(config.owner, "roadmap owner");
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(config.repository ?? "")) {
@@ -1409,6 +1410,20 @@ function latestOperationalConsumption(requests) {
   return latest;
 }
 
+export function deliveryMode(config) {
+  const mode = config?.delivery_mode ?? "coordinated";
+  if (!["coordinated", "single-local-runner"].includes(mode))
+    throw new Error("delivery_mode must be coordinated or single-local-runner");
+  return mode;
+}
+
+function requireCoordinatedDelivery(config) {
+  if (deliveryMode(config) === "single-local-runner")
+    throw new Error(
+      "coordination is retired; preserve history and use the owning issue/PR for delivery evidence",
+    );
+}
+
 export function validateOperationalConfig(config) {
   const board = config.runner_coordination;
   const positive = (value) => Number.isSafeInteger(value) && value > 0;
@@ -1658,6 +1673,14 @@ export function coordinationSnapshotMetrics(snapshot) {
 }
 
 export function readOperationalBoard(config, api, { now = () => performance.now() } = {}) {
+  if (deliveryMode(config) === "single-local-runner")
+    return {
+      status: "retired",
+      delivery_mode: "single-local-runner",
+      active_writer_overlap: "not assessed",
+      authority_limit:
+        "Owner-authorized local delivery needs no coordinator grant. Verify actual writers before overlapping work; retirement does not prove release or inactivity.",
+    };
   const started = now();
   const sourcePointers = [];
   let originalDirectory = null;
@@ -1902,6 +1925,8 @@ function renderOperationalState(delta) {
 }
 
 export function operationalEnvelope(current, baseline = null, binding = null) {
+  if (current.status === "retired")
+    return { operational_snapshot: current, operational_baseline: null };
   const envelope = {
     operational_snapshot: renderOperationalState(operationalChanges(current, baseline)),
     operational_baseline: operationalBaseline(current),
@@ -1945,6 +1970,11 @@ export function operationalEnvelope(current, baseline = null, binding = null) {
 }
 
 export function bindOperationalAssignment(snapshot, runner, issue) {
+  if (snapshot.status === "retired") {
+    if (!publicIdentity(runner) || !Number.isSafeInteger(issue) || issue < 1)
+      throw new Error("pickup requires a reported runner identity and positive owning issue");
+    return null;
+  }
   if (!["observed", "staged"].includes(snapshot.status))
     throw new Error("assignment snapshot is unavailable; preserve existing ownership");
   const matching = snapshot.board.assignments.filter(
@@ -2030,6 +2060,7 @@ export function prepareOperationalCheckpoint(
   expectedObservation,
   resolutions = [],
 ) {
+  requireCoordinatedDelivery(config);
   validateOperationalConfig(config);
   if (!["observed", "staged"].includes(snapshot.status) || !runnerLanes.includes(lane))
     throw new Error("fixed checkpoint state is unavailable");
@@ -2067,6 +2098,7 @@ export function prepareOperationalConsumption({
   evidence,
   apply = false,
 }) {
+  requireCoordinatedDelivery(config);
   if (apply)
     throw new Error(
       "durable operational writes are coordinator-only; send the planned pointer-bound request to the verified primary coordinator",
@@ -2286,6 +2318,7 @@ function verifyCurrentOperationalOffer(config, snapshot, offer) {
 }
 
 export function prepareOperationalOffer({ config, snapshot, spec, apply = false }) {
+  requireCoordinatedDelivery(config);
   if (apply) throw new Error("offer writes are coordinator-only");
   const offer = operationalOfferPacket(config, snapshot, spec);
   const lane = offer.current.lane;
@@ -2371,6 +2404,7 @@ export function prepareOperationalReturn({
   evidenceObservation = null,
   apply = false,
 }) {
+  requireCoordinatedDelivery(config);
   if (apply) throw new Error("return writes are coordinator-only");
   verifyCurrentOperationalOffer(config, snapshot, offer);
   if (runner !== offer.proposed.runner_instance_id)
@@ -2396,6 +2430,7 @@ export function prepareOperationalReturnAcceptance({
   readEvidence,
   apply = false,
 }) {
+  requireCoordinatedDelivery(config);
   if (apply) throw new Error("return acceptance writes are coordinator-only");
   const request = verifyCurrentOperationalOffer(config, snapshot, offer);
   const expected = operationalReturnRecord(
@@ -2632,6 +2667,7 @@ export function prepareOperationalReleaseEvidence({
   expectedReference,
   apply = false,
 }) {
+  requireCoordinatedDelivery(config);
   if (apply) throw new Error("release writes are coordinator-only");
   const binding = operationalOfferBinding(snapshot, runner);
   const pr = pullRequest;

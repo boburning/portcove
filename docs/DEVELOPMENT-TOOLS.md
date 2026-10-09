@@ -270,12 +270,13 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
    identified need. Respect each machine's existing heavyweight-work admission
    and resource window; separate authorized hosts retain their own guards.
 
-The authorized two-cloud/one-local arrangement keeps one writer per reserved
-scope, disjoint task ownership and the existing local scheduler/integration
-authority. Preserve healthy candidates and compact fixed-lane checkpoints;
-independent review remains required by the applicable delivery contract. This
-does not introduce a new coordinator, duplicate dispatch or a dependency on
-the general autonomous-engineering workstream.
+One local runner owns implementation and delivery, with one actively edited
+candidate at a time. Clean candidates waiting for CI, review or external
+prerequisites permit independent work. Preserve existing writers, candidates,
+evidence and host resource guards. Actual writer overlap blocks conflicting
+work; Dot grants and old coordination paperwork do not gate unrelated delivery.
+Independent non-writing review remains required. Do not create a replacement
+coordinator, persistent cloud implementers or a new dispatch/reporting service.
 
 The reviewer brief supplies **PR when available and owning issue; source head, target tip and
 merge-base; complete changed-file list and relevant surrounding code; acceptance
@@ -314,20 +315,16 @@ Never kill unrelated processes or change global editor, antivirus or storage set
 automatically. Existing [Rust admission](#rust-test-runner) and native-session guards
 remain authoritative; separate worktrees keep separate mutable Cargo targets.
 
-At a genuine safe checkpoint, the roadmap `handoff-offer` and `handoff-return`
-planners preserve a bounded request and exact evidence without new grants or
-autonomous wake. Dot independently verifies actual delivery and fresh raw evidence
-readback; an unavailable native route remains a named limitation. See
-[Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
-Prefer healthy cloud delivery; after a genuine source-owner release and Local’s
-actual instance/generation/scope ACK, Local owns remaining validation, repairs,
-independent review, evidence and normal guarded merge. Preserve Local’s other
-reservations and native/resource guards; assistance alone transfers no ownership.
+The single-local-runner pickup contract uses owning issue/PR evidence and live
+Project requirements. Historical handoff planners are retired; no coordinator
+ACK is needed. Verify actual source-owner release before overlapping work, then
+complete remaining validation, repairs, independent review and guarded merge.
+See [Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
 
 At a handoff, record current head and dirty state, active owned process/session
 identities or confirmed terminal state, evidence locations, unresolved findings or
 external boundaries, and the exact resume command/condition. Put it on the current
-issue/PR and update only the assigned fixed checkpoint; use direct messages for attention. No second ledger, scheduler or daemon is
+issue/PR. Report material changes and genuine owner actions. No second ledger, scheduler or daemon is
 needed. Choose a cohesive independently verifiable outcome, not setup-heavy trivial
 fragments or an unrelated mega-refactor.
 
