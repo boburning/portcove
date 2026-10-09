@@ -3568,13 +3568,46 @@ mod tests {
                 }) else {
                     return false;
                 };
+                stream.set_nonblocking(true).unwrap();
                 let mut request = [0_u8; 1024];
-                let _ = stream.read(&mut request).unwrap();
+                let request_received = crate::test_fixture::phase("stalled-server request", || {
+                    while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                        match stream.read(&mut request) {
+                            Ok(0) => return false,
+                            Ok(_) => return true,
+                            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                                thread::sleep(Duration::from_millis(5));
+                            }
+                            Err(error) => panic!("stalled fixture request failed: {error}"),
+                        }
+                    }
+                    false
+                });
+                if !request_received {
+                    return false;
+                }
+                stream.set_nonblocking(false).unwrap();
                 stream
-                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
+                    .set_write_timeout(Some(Duration::from_secs(2)))
                     .unwrap();
-                stream.flush().unwrap();
+                if stream
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
+                    .and_then(|()| stream.flush())
+                    .is_err()
+                {
+                    return false;
+                }
+                // Retain the original deliberate gap, then keep the connection
+                // open until the client finishes. A fixture-imposed EOF cannot
+                // silently substitute for the client's read-idle timeout.
                 thread::sleep(Duration::from_millis(180));
+                let deadline = std::time::Instant::now() + Duration::from_secs(2);
+                while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                    if std::time::Instant::now() >= deadline {
+                        return false;
+                    }
+                    thread::sleep(Duration::from_millis(5));
+                }
                 true
             });
             Self {
@@ -3619,13 +3652,9 @@ mod tests {
         };
         let operation = OperationCoordinator::new("download", None);
         let mut emit = |_| {};
+        let destination = temporary.path().join("stalled.download");
         let error = installer
-            .download(
-                &asset,
-                &temporary.path().join("stalled.download"),
-                &operation,
-                &mut emit,
-            )
+            .download(&asset, &destination, &operation, &mut emit)
             .await
             .unwrap_err();
         let partial_body_sent = server.finish();
@@ -3633,6 +3662,11 @@ mod tests {
         assert!(
             partial_body_sent,
             "the fixture never reached a partial-body read-idle stall"
+        );
+        assert_eq!(
+            fs::read(destination).unwrap(),
+            b"x",
+            "the client must have received the partial body"
         );
     }
 
