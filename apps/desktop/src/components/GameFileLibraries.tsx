@@ -84,7 +84,7 @@ function CatalogPortAssociations({
   ports: PortDefinition[];
 }) {
   return (
-    <span>
+    <span className="block">
       Catalog ports using this profile:{" "}
       {ports
         .filter(
