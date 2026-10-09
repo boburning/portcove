@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mjs";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mjs";
+import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mjs";
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -172,6 +173,7 @@ const inputs = await Promise.all(
 for (const name of [
   "scripts/desktop-execution-plan.mjs",
   "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+  "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
 ])
   inputs.push(await fileIdentity(path.join(root, name)));
 let runnerMetadata = {};
@@ -886,6 +888,7 @@ async function scenario(name, action) {
     recordScenario(target, name, "failed", { message: error.message });
     await captureScenarioDiagnostics(name, target.setup);
     process.exitCode = 1;
+    if (isUntrustworthyProbeError(error)) throw error;
   }
   if (!target.setup) await captureScenarioScreenshot(name);
 }

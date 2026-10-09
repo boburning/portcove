@@ -212,7 +212,7 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
   const golden = baseline.rows.find(
     (row) => row.platform === process.platform && row.options.profile === "smoke",
   );
-  assert.equal(inputs.length, golden.initial_receipt_inputs.length + 2);
+  assert.equal(inputs.length, golden.initial_receipt_inputs.length + 3);
   for (let i = 0; i < golden.initial_receipt_inputs.length; i++) {
     const name = golden.initial_receipt_inputs[i];
     const expected = await fileIdentity(
@@ -223,6 +223,7 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
   for (const [index, name] of [
     "scripts/desktop-execution-plan.mjs",
     "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+    "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
   ].entries())
     assert.deepEqual(
       inputs[golden.initial_receipt_inputs.length + index],
