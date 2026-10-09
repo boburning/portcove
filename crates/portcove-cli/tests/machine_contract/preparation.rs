@@ -128,16 +128,20 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
         "--yes",
     ];
     let prepared = if lose_output {
-        Command::new(cli_binary())
-            .env("PORTCOVE_PREFERENCES", &preferences)
-            .env_remove("PORTCOVE_CHDMAN")
-            .env_remove("PORTCOVE_DOLPHIN_TOOL")
-            .arg("--library")
-            .arg(&library)
-            .args(preparation_args)
-            .stdout(Stdio::null())
-            .output()
-            .expect("Portcove CLI should start")
+        portcove_core::ChildProcessPolicy::native_command(
+            portcove_core::ChildProcessClass::HostIntegration,
+            cli_binary(),
+        )
+        .unwrap()
+        .env("PORTCOVE_PREFERENCES", &preferences)
+        .env_remove("PORTCOVE_CHDMAN")
+        .env_remove("PORTCOVE_DOLPHIN_TOOL")
+        .arg("--library")
+        .arg(&library)
+        .args(preparation_args)
+        .stdout(Stdio::null())
+        .output()
+        .expect("Portcove CLI should start")
     } else {
         portcove(&library, &preparation_args)
     };

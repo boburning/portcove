@@ -596,6 +596,32 @@ function planFor(paths) {
   };
 }
 
+test("execution planning helper and baseline changes select their preservation contracts", () => {
+  const files = [
+    "scripts/desktop-execution-plan.mjs",
+    "scripts/desktop-execution-plan.test.mjs",
+    "scripts/testdata/desktop-execution-baseline.json",
+    "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+  ];
+  for (const file of files) {
+    for (const status of ["A", "M", "D"]) {
+      const { selection, plan } = planFor([{ status, path: file }]);
+      assert.deepEqual([...selection.unknown], []);
+      assert(
+        selection.nodeTests.has(
+          file.endsWith(".test.mjs") && status === "D"
+            ? "scripts/desktop-scenarios.test.mjs"
+            : "scripts/desktop-execution-plan.test.mjs",
+        ),
+      );
+      assert(ids(plan).includes("node-tests"));
+      assert(!ids(plan).some((id) => id.startsWith("rust-tests")));
+    }
+  }
+  const mixed = planFor([files[0], "crates/portcove-core/src/artwork.rs"]);
+  assert(ids(mixed.plan).some((id) => id.startsWith("rust-tests")));
+});
+
 test("the maintained default-cover harness selects native scenario contracts without Rust execution", () => {
   const cover = "apps/desktop/scripts/desktop-default-cover-test.mjs";
   for (const status of ["A", "M", "D"]) {

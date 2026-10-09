@@ -165,7 +165,13 @@ test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or 
       ),
     /terminal/,
   );
-  await symlink(path.join(input, "fixture.png"), path.join(input, "linked.png"));
+  // Reject Windows directory junctions without requiring symlink privileges.
+  // Unix retains the file-symlink rejection fixture.
+  await symlink(
+    process.platform === "win32" ? input : path.join(input, "fixture.png"),
+    path.join(input, "linked.png"),
+    process.platform === "win32" ? "junction" : "file",
+  );
   await assert.rejects(() => encodeHostedEvidence(input), /links/);
 });
 
@@ -260,7 +266,7 @@ test("native scenario consumers keep Node and context contracts in both frontend
   ]) {
     assert.match(
       section,
-      /scripts\/desktop-scenarios\.test\.mjs scripts\/desktop-verify\.test\.mjs scripts\/development-evidence\.test\.mjs scripts\/native-session-lock\.test\.mjs/,
+      /scripts\/desktop-scenarios\.test\.mjs scripts\/desktop-execution-plan\.test\.mjs scripts\/desktop-verify\.test\.mjs scripts\/development-evidence\.test\.mjs scripts\/native-session-lock\.test\.mjs/,
     );
     assert.match(
       section,

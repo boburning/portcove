@@ -86,6 +86,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
 // is separate. A reviewed test path does not grant ownership to its implementation.
 // New or renamed harness files stay unknown until their ownership is reviewed.
 const nativeScenarioFiles = new Set([
+  "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
   "apps/desktop/scripts/desktop-artwork-correction-test.mjs",
   "apps/desktop/scripts/desktop-default-cover-test.mjs",
   "apps/desktop/scripts/desktop-install-fixture.test.mjs",
@@ -96,6 +97,9 @@ const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",
   "scripts/desktop-scenarios.mjs",
   "scripts/desktop-scenarios.test.mjs",
+  "scripts/desktop-execution-plan.mjs",
+  "scripts/desktop-execution-plan.test.mjs",
+  "scripts/testdata/desktop-execution-baseline.json",
 ]);
 
 // This is the maintained inventory of executable release, packaging, signing,
