@@ -103,6 +103,8 @@ jobs:
       - name: Run deterministic gates and structural audit
         id: fresh-audit
         shell: bash
+        env:
+          PORTCOVE_AUDIT_CAPTURE: "1"
         run: |
           node scripts/deep-audit-summary.mjs --start || echo "Audit summary initialization unavailable"
           set +e
@@ -117,6 +119,24 @@ jobs:
           AUDIT_OUTCOME: ${{ steps.fresh-audit.outcome }}
           AUDIT_EXIT_CODE: ${{ steps.fresh-audit.outputs.exit_code }}
         run: node scripts/deep-audit-summary.mjs || echo "Structured audit evidence unavailable"
+      - name: Export attempt-bound audit evidence
+        id: audit-evidence
+        if: always() && steps.fresh-audit.outputs.capture_available == 'true'
+        run: |
+          if node scripts/audit-evidence.mjs; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Audit evidence unavailable; original audit outcome retained"
+          fi
+      - name: Retain bounded audit evidence
+        if: always() && steps.audit-evidence.outputs.available == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: audit-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/audit-bundles/${{ github.run_id }}-${{ github.run_attempt }}/
+          retention-days: 7
+          compression-level: 6
+          if-no-files-found: error
 
   local_check:
     if: inputs.operation == 'local-check'
