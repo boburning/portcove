@@ -584,6 +584,21 @@ async function assertReviewedUpdateOutcomes({
   }
 }
 
+export function assertPreparedLibrarySummary(text, statuses, preparedPortId) {
+  const installed = statuses.filter((item) => item.active || item.external_runtime);
+  assert.ok(installed.some((item) => item.port_id === preparedPortId));
+  for (const item of installed) {
+    assert.equal(item.readiness?.launchable, true, `${item.port_id} must be ready`);
+    assert.equal(item.readiness.pending_setup, false);
+    assert.deepEqual(item.readiness.blockers, []);
+    assert.ok(!item.staged, `${item.port_id} must have no downloaded update`);
+  }
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} in library All ready to play`,
+  );
+}
+
 export async function preparationScenarios({
   browser,
   invoke,
@@ -827,7 +842,9 @@ export async function preparationScenarios({
       15_000,
     );
     const readinessText = await readinessSummary.getText();
-    assert.match(readinessText, /^1 in library\s+All ready to play$/iu);
+    const libraryStatuses = await invoke("get_statuses");
+    assert.equal(libraryStatuses.ok, true);
+    assertPreparedLibrarySummary(readinessText, libraryStatuses.value, port.id);
     assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
     const card = await browser.wait(
       until.elementLocated(
@@ -2021,20 +2038,53 @@ export async function preparationScenarios({
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] !== "--context-preflight")
     throw new Error("Usage: node desktop-preparation-test.mjs --context-preflight");
-  // Register actual callers without executing their browser or CLI callbacks.
-  await preparationScenarios({
+  // Both frontend lanes run this installed-dependency preflight.
+  // Register actual callers without executing browser, CLI, or consent callbacks.
+  const { planDesktopExecution } = await import("../../../scripts/desktop-execution-plan.mjs");
+  const { resolveDesktopSelection } = await import("../../../scripts/desktop-scenarios.mjs");
+  const { runOwnedFixtureJourneys } = await import("./desktop-owned-fixture-journeys.mjs");
+  const { installScenarios } = await import("./desktop-install-test.mjs");
+  const { selectedSetupScenario } = await import("./desktop-source-dialog-test.mjs");
+  const { selectedSetupCompletionScenario } =
+    await import("./desktop-selected-setup-completion-test.mjs");
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({ profile: "full", platform: "win32" }),
+  );
+  const attempts = [];
+  const context = {
     browser: {},
-    invoke: async () => {},
-    scenario: async () => {},
+    invoke: async () => assert.fail("Context preflight must not invoke IPC"),
+    scenario: async (id) => attempts.push(id),
     library: "<preflight-library>",
     output: "<preflight-output>",
     artifacts: [],
     cli: "<preflight-cli>",
     tool: "<preflight-tool>",
-    confirmNative: async () => {},
-    restartApplication: async () => {},
-    interruptApplication: async () => {},
-    captureLivePreparation: () => {},
-  });
+    inputs: [],
+    restartApplication: async () => assert.fail("Context preflight must not restart"),
+    interruptApplication: async () => assert.fail("Context preflight must not interrupt"),
+    closeApplication: async () => assert.fail("Context preflight must not close"),
+    captureLivePreparation: () => assert.fail("Context preflight must not capture"),
+  };
+  await runOwnedFixtureJourneys(
+    {
+      plan,
+      runtime: {
+        context: () => context,
+        confirmNative: () => async () => assert.fail("Context preflight must not consent"),
+        recordKnownGap: () => {},
+      },
+    },
+    {
+      install: installScenarios,
+      selectedSetup: selectedSetupScenario,
+      selectedSetupCompletion: selectedSetupCompletionScenario,
+      preparation: preparationScenarios,
+    },
+  );
+  assert(attempts.includes("install-progress-cancellation"));
+  assert(attempts.includes("native-preparation-review-and-play"));
+  for (const family of plan.fixtureFamilies.filter((entry) => entry.family))
+    for (const member of family.members) assert(attempts.includes(member.id), member.id);
   console.log("Native scenario context preflight passed.");
 }
