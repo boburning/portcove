@@ -77,13 +77,19 @@ export function runFallow({
   };
 }
 
+export function formatFallowFailure(error) {
+  return error.evidence && Buffer.byteLength(error.message) <= 16 * 1024 - 1
+    ? error.message
+    : renderBoundedSummary("Fallow failed", [String(error.message)]).text;
+}
+
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   try {
     const result = runFallow();
     (result.exitCode ? console.error : console.log)(result.text);
     process.exitCode = result.exitCode;
   } catch (error) {
-    console.error(renderBoundedSummary("Fallow failed", [error.message]).text);
+    console.error(formatFallowFailure(error));
     process.exitCode = 1;
   }
 }
