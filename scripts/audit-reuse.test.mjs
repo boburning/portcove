@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mjs";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import os from "node:os";
@@ -289,6 +291,36 @@ test("reuse diagnostics name fingerprint misses within the shared output byte bo
   });
   assert.match(text, /fingerprint-mismatch: 180/);
   assert.ok(Buffer.byteLength(`${text}\n`) <= 16 * 1024);
+});
+
+test("direct CLI completes the real reuse module import and catches asynchronous failures", () => {
+  const auditUrl = new URL("./audit.mjs", import.meta.url).href;
+  for (const failure of [false, true]) {
+    // Replace only the orchestration body in memory; retain production imports,
+    // the real reuse module cycle, and the actual direct-entry/error boundary.
+    // No audit stages, network, receipts or fixture files are created.
+    const hook = `import { registerHooks } from "node:module";
+      registerHooks({ load(url, context, next) {
+        const loaded = next(url, context);
+        if (url !== ${JSON.stringify(auditUrl)}) return loaded;
+        const source = String(loaded.source);
+        const start = source.indexOf("export async function main(");
+        const end = source.lastIndexOf("if (path.resolve(process.argv[1]");
+        if (start < 0 || end < start) throw Error("CLI seam missing");
+        const body = 'export async function main() { console.log("BEFORE"); await import("./audit-reuse.mjs"); console.log("AFTER"); ${failure ? 'throw Error("inert CLI failure");' : ""} }\\n';
+        return { ...loaded, source: source.slice(0, start) + body + source.slice(end) };
+      } });`;
+    const result = spawnSync(
+      process.execPath,
+      ["--import", `data:text/javascript,${encodeURIComponent(hook)}`, fileURLToPath(auditUrl)],
+      { encoding: "utf8", timeout: 10000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, failure ? 1 : 0, result.stderr);
+    assert.match(result.stdout, /BEFORE\r?\nAFTER/);
+    assert.doesNotMatch(result.stderr, /unsettled top-level await/);
+    if (failure) assert.match(result.stderr, /inert CLI failure/);
+  }
 });
 
 function transportFixture({ count = 1, mutate, invalidDigest = false } = {}) {
