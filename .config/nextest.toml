@@ -14,6 +14,9 @@ final-status-level = "slow"
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'
 success-output = "immediate"
+# Temporary exact-case diagnostic: measure complete Intel phases under the
+# owning QUALITY.md heavyweight calibration procedure. Not a final budget.
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
