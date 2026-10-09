@@ -1,7 +1,7 @@
 //! Host-owned preferences. No operation opens, initializes, or moves a library.
 
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     fs,
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard, OnceLock, Weak},
@@ -16,6 +16,7 @@ use crate::{PortcoveError, Result};
 const FORMAT_VERSION: u32 = 1;
 const MAX_BYTES: u64 = 64 * 1024;
 const INVALID_DOCUMENT_DETAIL: &str = "invalid_host_preference_document";
+const FAVORITES_KEY: &str = "favorites_by_library";
 
 fn invalid_document(error: PortcoveError) -> PortcoveError {
     error.detail(INVALID_DOCUMENT_DETAIL, "true")
@@ -255,6 +256,45 @@ impl HostPreferenceStore {
         self.publish(&preferences)
     }
 
+    /// Private independent port IDs for the selected library's canonical UUID.
+    /// Reading favorites never opens a library or discards IDs absent from a catalog.
+    pub fn favorite_ports(&self, library_id: &str) -> Result<BTreeSet<String>> {
+        validate_favorite_library_id(library_id)?;
+        Ok(favorite_libraries(&self.load()?)?
+            .get(library_id)
+            .cloned()
+            .unwrap_or_default())
+    }
+
+    /// Change one choice under the existing preference lock and atomic publication.
+    /// Callers obtain the library ID from Core, rather than its path or display name.
+    pub fn set_favorite(&self, library_id: &str, port_id: &str, favorite: bool) -> Result<()> {
+        validate_favorite_library_id(library_id)?;
+        validate_favorite_port_id(port_id)?;
+        let _lock = self.lock()?;
+        let mut preferences = self.load()?;
+        let mut favorites = favorite_libraries(&preferences)?;
+        if favorite {
+            favorites
+                .entry(library_id.to_owned())
+                .or_default()
+                .insert(port_id.to_owned());
+        } else if let Some(ports) = favorites.get_mut(library_id) {
+            ports.remove(port_id);
+            if ports.is_empty() {
+                favorites.remove(library_id);
+            }
+        }
+        if favorites.is_empty() {
+            preferences.extensions.remove(FAVORITES_KEY);
+        } else {
+            preferences
+                .extensions
+                .insert(FAVORITES_KEY.to_owned(), serde_json::to_value(favorites)?);
+        }
+        self.publish(&preferences)
+    }
+
     pub fn host_tool_path(&self, id: &str) -> Result<Option<PathBuf>> {
         crate::host_tools::definition(id)?;
         Ok(self
@@ -424,6 +464,51 @@ fn validate_locale_preference(locale: &str) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+fn favorite_libraries(preferences: &HostPreferences) -> Result<BTreeMap<String, BTreeSet<String>>> {
+    let Some(value) = preferences.extensions.get(FAVORITES_KEY) else {
+        return Ok(BTreeMap::new());
+    };
+    let favorites: BTreeMap<String, BTreeSet<String>> = serde_json::from_value(value.clone())
+        .map_err(|_| {
+            PortcoveError::state("saved favorites are malformed; repair or reset preferences")
+        })?;
+    for (library_id, ports) in &favorites {
+        validate_favorite_library_id(library_id).map_err(|_| {
+            PortcoveError::state("saved favorites contain an invalid library identity")
+        })?;
+        for port_id in ports {
+            validate_favorite_port_id(port_id).map_err(|_| {
+                PortcoveError::state("saved favorites contain an invalid independent port identity")
+            })?;
+        }
+    }
+    Ok(favorites)
+}
+
+fn validate_favorite_library_id(id: &str) -> Result<()> {
+    if uuid::Uuid::parse_str(id).is_ok_and(|parsed| parsed.to_string() == id) {
+        Ok(())
+    } else {
+        Err(PortcoveError::usage(
+            "favorites require the selected library's canonical UUID",
+        ))
+    }
+}
+
+fn validate_favorite_port_id(id: &str) -> Result<()> {
+    if !id.is_empty()
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+    {
+        Ok(())
+    } else {
+        Err(PortcoveError::usage(
+            "favorites require a canonical independent port ID",
+        ))
+    }
 }
 
 #[cfg(test)]

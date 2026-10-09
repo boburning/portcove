@@ -1,6 +1,254 @@
 use super::*;
 
 #[test]
+fn favorites_follow_library_identity_across_restart_and_root_rename() {
+    let temp = tempfile::tempdir().unwrap();
+    let first_root = temp.path().join("first-library");
+    let second_root = temp.path().join("second-library");
+    let first_id = crate::Library::open(first_root.clone())
+        .unwrap()
+        .identity_record()
+        .unwrap()
+        .id;
+    let second_id = crate::Library::open(second_root.clone())
+        .unwrap()
+        .identity_record()
+        .unwrap()
+        .id;
+    let first_database = fs::read(first_root.join("portcove.sqlite3")).unwrap();
+    let second_database = fs::read(second_root.join("portcove.sqlite3")).unwrap();
+    let path = temp.path().join("config/preferences.json");
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    assert!(store.favorite_ports(&first_id).unwrap().is_empty());
+    assert!(!path.parent().unwrap().exists());
+    store
+        .set_favorite(&first_id, "opengoal-jak1", true)
+        .unwrap();
+    // A nonmember or temporarily retired port remains a private stable ID.
+    store
+        .set_favorite(&first_id, "temporarily-absent-port", true)
+        .unwrap();
+    store.set_library(&second_root).unwrap();
+    assert!(store.favorite_ports(&second_id).unwrap().is_empty());
+    store
+        .set_favorite(&second_id, "opengoal-jak1", true)
+        .unwrap();
+    store.set_library(&first_root).unwrap();
+    assert_eq!(
+        fs::read(first_root.join("portcove.sqlite3")).unwrap(),
+        first_database
+    );
+    assert_eq!(
+        fs::read(second_root.join("portcove.sqlite3")).unwrap(),
+        second_database
+    );
+    let renamed = temp.path().join("renamed-library");
+    fs::rename(&first_root, &renamed).unwrap();
+    assert_eq!(
+        crate::Library::open(renamed)
+            .unwrap()
+            .identity_record()
+            .unwrap()
+            .id,
+        first_id
+    );
+    let restarted = HostPreferenceStore::new(path).unwrap();
+    assert_eq!(
+        restarted.favorite_ports(&first_id).unwrap(),
+        BTreeSet::from([
+            "opengoal-jak1".to_owned(),
+            "temporarily-absent-port".to_owned()
+        ])
+    );
+    restarted
+        .set_favorite(&first_id, "opengoal-jak1", false)
+        .unwrap();
+    assert_eq!(
+        restarted.favorite_ports(&first_id).unwrap(),
+        BTreeSet::from(["temporarily-absent-port".to_owned()])
+    );
+    assert_eq!(
+        restarted.favorite_ports(&second_id).unwrap(),
+        BTreeSet::from(["opengoal-jak1".to_owned()])
+    );
+}
+
+#[test]
+fn favorite_updates_preserve_compatible_preferences_and_clear_only_the_choice() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    fs::write(
+        &path,
+        br#"{"format_version":1,"library_root":null,"locale":"en","future_setting":{"enabled":true}}"#,
+    )
+    .unwrap();
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    store.set_favorite(&id, "independent-port", true).unwrap();
+    store.set_favorite(&id, "independent-port", true).unwrap();
+    store.set_locale_preference(Some("fr")).unwrap();
+    store.clear_library().unwrap();
+    assert_eq!(store.favorite_ports(&id).unwrap().len(), 1);
+    let value: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(value["format_version"], 1);
+    assert_eq!(value["future_setting"]["enabled"], true);
+    assert_eq!(value["locale"], "fr");
+    store.set_favorite(&id, "independent-port", false).unwrap();
+    store.set_favorite(&id, "independent-port", false).unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert!(value.get(FAVORITES_KEY).is_none());
+    assert_eq!(value["future_setting"]["enabled"], true);
+    store.set_favorite(&id, "independent-port", true).unwrap();
+    store.reset().unwrap();
+    assert!(store.favorite_ports(&id).unwrap().is_empty());
+}
+
+#[test]
+fn malformed_favorites_do_not_block_unrelated_preferences_or_get_silently_erased() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    let selected = temp.path().join("selected");
+    fs::create_dir(&selected).unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    for favorites in [
+        serde_json::json!("invalid"),
+        serde_json::json!({"not-a-library-uuid": ["independent-port"]}),
+        serde_json::json!({id.clone(): ["Port Display Name"]}),
+        serde_json::json!({id.clone(): [7]}),
+    ] {
+        let bytes = serde_json::to_vec(&serde_json::json!({
+            "format_version": 1, "library_root": selected, "locale": "en",
+            FAVORITES_KEY: favorites
+        }))
+        .unwrap();
+        fs::write(&path, &bytes).unwrap();
+        assert!(store.load().is_ok());
+        assert_eq!(
+            store.resolve(None, &selected).unwrap().source,
+            LibrarySelectionSource::Saved
+        );
+        assert_eq!(store.locale_preference().unwrap().as_deref(), Some("en"));
+        assert_eq!(
+            store.favorite_ports(&id).unwrap_err().code,
+            crate::ErrorCode::State
+        );
+        assert!(store.set_favorite(&id, "independent-port", true).is_err());
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+        store.set_locale_preference(Some("fr")).unwrap();
+        store.clear_library_or_reset_invalid().unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(value[FAVORITES_KEY], favorites);
+        assert_eq!(value["locale"], "fr");
+    }
+}
+
+#[test]
+fn invalid_favorite_identities_fail_before_creating_preference_storage() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("config/preferences.json");
+    let store = HostPreferenceStore::new(path).unwrap();
+    let id = "12345678-9abc-4def-8123-456789abcdef".to_owned();
+    for invalid in [
+        "".to_owned(),
+        "library-name".to_owned(),
+        id.to_uppercase(),
+        id.replace('-', ""),
+    ] {
+        assert_eq!(
+            store.favorite_ports(&invalid).unwrap_err().code,
+            crate::ErrorCode::Usage
+        );
+        assert!(
+            store
+                .set_favorite(&invalid, "independent-port", true)
+                .is_err()
+        );
+    }
+    for invalid in ["", "Port Title", "../port", "other/port"] {
+        assert_eq!(
+            store.set_favorite(&id, invalid, true).unwrap_err().code,
+            crate::ErrorCode::Usage
+        );
+    }
+    assert!(!temp.path().join("config").exists());
+}
+
+#[test]
+fn concurrent_favorite_changes_preserve_other_libraries_and_unrelated_writes() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    let other_id = uuid::Uuid::new_v4().to_string();
+    store.set_favorite(&other_id, "other-port", true).unwrap();
+    for worker in 0..8 {
+        store
+            .set_favorite(&id, &format!("old-{worker}"), true)
+            .unwrap();
+    }
+    let barrier = std::sync::Barrier::new(9);
+    std::thread::scope(|scope| {
+        for worker in 0..8 {
+            let writer = HostPreferenceStore::new(path.clone()).unwrap();
+            let barrier = &barrier;
+            let id = &id;
+            scope.spawn(move || {
+                barrier.wait();
+                writer
+                    .set_favorite(id, &format!("old-{worker}"), false)
+                    .unwrap();
+                writer
+                    .set_favorite(id, &format!("new-{worker}"), true)
+                    .unwrap();
+            });
+        }
+        let writer = HostPreferenceStore::new(path.clone()).unwrap();
+        let barrier = &barrier;
+        scope.spawn(move || {
+            barrier.wait();
+            writer.set_locale_preference(Some("fr")).unwrap();
+        });
+    });
+    assert_eq!(
+        store.favorite_ports(&id).unwrap(),
+        (0..8).map(|worker| format!("new-{worker}")).collect()
+    );
+    assert_eq!(
+        store.favorite_ports(&other_id).unwrap(),
+        BTreeSet::from(["other-port".to_owned()])
+    );
+    assert_eq!(store.locale_preference().unwrap().as_deref(), Some("fr"));
+}
+
+#[test]
+fn favorite_publication_failure_preserves_the_previous_document() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    let bytes = serde_json::to_vec(&serde_json::json!({
+        "format_version": 1, "library_root": null, "padding": "a".repeat(MAX_BYTES as usize - 80)
+    }))
+    .unwrap();
+    assert!(bytes.len() < MAX_BYTES as usize);
+    fs::write(&path, &bytes).unwrap();
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    let id = uuid::Uuid::new_v4().to_string();
+    assert_eq!(
+        store
+            .set_favorite(&id, "independent-port", true)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::State
+    );
+    assert_eq!(fs::read(&path).unwrap(), bytes);
+    assert!(store.favorite_ports(&id).unwrap().is_empty());
+    assert_eq!(
+        store.resolve(None, temp.path()).unwrap().source,
+        LibrarySelectionSource::PlatformDefault
+    );
+}
+
+#[test]
 fn preference_restart_precedence_and_reset_never_mutate_libraries() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("preferences.json");
