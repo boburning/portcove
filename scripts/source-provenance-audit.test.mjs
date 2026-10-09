@@ -144,6 +144,65 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
   );
 });
 
+test("provenance reports mismatched Supported qualification scopes without promoting historical counts", () => {
+  const input = fixture();
+  const parsed = JSON.parse(input.catalogText);
+  const scope = {
+    port_id: "sample",
+    platform: "windows-x86-64",
+    artifact_sha256: "a".repeat(64),
+    upstream_ref: "v1",
+    contract_id: "sample-contract",
+    check_version: "fixture-v1",
+    variant: {
+      state: "exact",
+      identity: { game_id: "sample-source", variant_id: "retail", representation_id: "canonical" },
+    },
+  };
+  const auto = { scope, kind: "automated_lifecycle", outcome: "passed" };
+  const hands = { ...structuredClone(auto), kind: "hands_on" };
+  input.projectItems[1]["port stage"] = "Supported";
+  const auditFor = (records, legacy = {}) => {
+    parsed.source_catalog.qualification = records;
+    Object.assign(parsed.ports[0], legacy);
+    return buildSourceProvenanceAudit({ ...input, catalogText: JSON.stringify(parsed) });
+  };
+  assert.deepEqual(auditFor([auto, hands]).observations, []);
+  for (const changed of [
+    { ...scope, check_version: "different" },
+    { ...scope, artifact_sha256: "b".repeat(64) },
+    {
+      ...scope,
+      variant: { state: "exact", identity: { ...scope.variant.identity, variant_id: "different" } },
+    },
+  ]) {
+    const audit = auditFor([auto, { ...hands, scope: changed }]);
+    assert.ok(
+      audit.observations.some((value) =>
+        value.includes("no platform with matching automated and hands-on evidence"),
+      ),
+    );
+    assert.equal(audit.counts.qualificationRecords, 2);
+    assert.match(
+      audit.cataloged[0].qualification,
+      /automated_lifecycle:passed=1, hands_on:passed=1/,
+    );
+    assert.match(
+      renderSourceProvenanceAudit(audit),
+      /no platform with matching automated and hands-on evidence/,
+    );
+  }
+  assert.ok(
+    auditFor([hands], { automated_tested_platforms: ["windows-x86-64"] }).observations.some(
+      (value) => value.includes("no platform with matching"),
+    ),
+  );
+  assert.deepEqual(
+    auditFor([], { manually_validated_platforms: ["windows-x86-64"] }).observations,
+    [],
+  );
+});
+
 test("Project context never joins a foreign same-number issue to a local Port", () => {
   const baseline = buildSourceProvenanceAudit(fixture());
   for (const reverse of [false, true]) {
