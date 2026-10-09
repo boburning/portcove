@@ -5046,3 +5046,18 @@ test("retired coordinator planners cannot revive historical grants or writes", (
   assert.equal(deliveryMode({}), "coordinated");
   assert.throws(() => validateConfig({ ...config, delivery_mode: "local-ish" }), /delivery_mode/);
 });
+
+test("explicit pickup references do not revive coordinator authority in single mode", () => {
+  const reservation = { url: "https://github.com/boburning/portcove/issues/244#issuecomment-1" };
+  const options = { runner: "Local", comments: [], coverage: { complete: false }, reservation };
+  const context = deriveExecutionContext(config, pickupIssue(244), pickupRelations(), options);
+  assert.match(context.reservation.assessment, /actual writer activity, source-owner release/);
+  assert.equal(context.reservation.url, reservation.url);
+  const historical = deriveExecutionContext(
+    { ...config, delivery_mode: "coordinated" },
+    pickupIssue(244),
+    pickupRelations(),
+    options,
+  );
+  assert.match(historical.reservation.assessment, /accepted grant.*coordinator/);
+});

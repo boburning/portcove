@@ -3114,7 +3114,10 @@ export function deriveExecutionContext(
     },
     reservation: reservation
       ? {
-          assessment: "reference only; verify accepted grant and current scope with coordinator",
+          assessment:
+            deliveryMode(config) === "single-local-runner"
+              ? "reference only; verify actual writer activity, source-owner release and current scope"
+              : "reference only; verify accepted grant and current scope with coordinator",
           ...reservation,
         }
       : {
@@ -5496,7 +5499,10 @@ async function main(argv) {
         comments: [],
         coverage: {
           complete: false,
-          kind: "fixed operational snapshot; historical consumption absence remains unknown",
+          kind:
+            deliveryMode(config) === "single-local-runner"
+              ? "live task requirements; historical consumption absence remains unknown"
+              : "fixed operational snapshot; historical consumption absence remains unknown",
         },
         consumed,
         reservation,
