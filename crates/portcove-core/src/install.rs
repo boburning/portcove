@@ -3543,18 +3543,31 @@ mod tests {
     impl StalledDownloadServer {
         fn start() -> Self {
             use std::{
-                io::{Read, Write},
+                io::{ErrorKind, Read, Write},
                 net::TcpListener,
                 sync::{Arc, atomic::AtomicBool},
                 thread,
             };
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
             let address = listener.local_addr().unwrap();
             let stop = Arc::new(AtomicBool::new(false));
+            let worker_stop = Arc::clone(&stop);
             let worker = thread::spawn(move || {
-                let (mut stream, _) =
-                    crate::test_fixture::phase("stalled-server accept", || listener.accept())
-                        .unwrap();
+                let Some(mut stream) = crate::test_fixture::phase("stalled-server accept", || {
+                    while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                        match listener.accept() {
+                            Ok((stream, _)) => return Some(stream),
+                            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                                thread::sleep(Duration::from_millis(5));
+                            }
+                            Err(error) => panic!("stalled fixture accept failed: {error}"),
+                        }
+                    }
+                    None
+                }) else {
+                    return false;
+                };
                 let mut request = [0_u8; 1024];
                 let _ = stream.read(&mut request).unwrap();
                 stream
