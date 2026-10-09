@@ -1768,6 +1768,7 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
     std::fs::remove_dir(&unavailable).unwrap();
     std::fs::write(available.join("first.fixture"), b"first original").unwrap();
     std::fs::write(available.join("second.fixture"), b"second original").unwrap();
+    std::fs::write(available.join("third.fixture"), b"third original").unwrap();
     let immediate = portcove(&library, &["source", "roots", "scan", "--max-entries", "1"]);
     assert!(immediate.status.success(), "{immediate:?}");
     let immediate = String::from_utf8(immediate.stdout).unwrap();
@@ -1783,6 +1784,13 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
         json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
         serde_json::json!([])
     );
+    let first_batch = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "snapshot"],
+    ));
+    assert_eq!(first_batch["data"]["report"]["entries_examined"], 1);
+    assert_eq!(first_batch["data"]["coverage"]["batches"], 1);
+    assert_eq!(first_batch["data"]["coverage"]["can_resume"], true);
     let scan = json_stdout(&portcove(
         &library,
         &["--json", "source", "roots", "scan", "--max-entries", "1"],
@@ -1793,6 +1801,9 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
             .unwrap()
             .contains(&serde_json::json!("entries"))
     );
+    assert_eq!(scan["data"]["report"]["entries_examined"], 2);
+    assert_eq!(scan["data"]["coverage"]["batches"], 2);
+    assert_eq!(scan["data"]["coverage"]["can_resume"], true);
     let issues = scan["data"]["report"]["issues"].as_array().unwrap().len();
     assert!(issues > 0);
     assert_eq!(scan["data"]["report"]["issues_omitted"], 0);
@@ -1826,6 +1837,10 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
     assert_eq!(
         std::fs::read(available.join("second.fixture")).unwrap(),
         b"second original"
+    );
+    assert_eq!(
+        std::fs::read(available.join("third.fixture")).unwrap(),
+        b"third original"
     );
     let added = temporary.path().join("new-root");
     std::fs::create_dir(&added).unwrap();
