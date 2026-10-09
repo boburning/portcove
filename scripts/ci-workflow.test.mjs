@@ -260,7 +260,7 @@ test("native scenario consumers keep Node and context contracts in both frontend
   ]) {
     assert.match(
       section,
-      /scripts\/desktop-scenarios\.test\.mjs scripts\/desktop-verify\.test\.mjs scripts\/development-evidence\.test\.mjs scripts\/native-session-lock\.test\.mjs/,
+      /scripts\/desktop-scenarios\.test\.mjs scripts\/desktop-execution-plan\.test\.mjs scripts\/desktop-verify\.test\.mjs scripts\/development-evidence\.test\.mjs scripts\/native-session-lock\.test\.mjs/,
     );
     assert.match(
       section,
