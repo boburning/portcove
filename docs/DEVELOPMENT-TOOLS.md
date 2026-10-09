@@ -272,6 +272,24 @@ Windows qualification stages always execute. Use `just audit --fresh` for releas
 preflight, validation-contract changes, and acceptance that explicitly requires a
 single no-reuse run.
 
+Before normal non-fresh execution, the audit automatically looks for compatible
+successful merged-main evidence from the existing Deep audit workflow. Discovery
+examines the newest twenty completed main runs, downloads at most three artifacts
+and spends at most sixty seconds collecting evidence. Every attempt verifies the
+repository, run attempt, successful audit job, workflow contract, main ancestry,
+artifact digest and bounded ZIP inventory before recomputing original and current
+production fingerprints. Matching original audit-stage receipts are published
+atomically alongside retained inputs and provider provenance. Existing local
+receipts are preserved. Audit receipts never become local-check receipts.
+
+The workflow's explicit `audit-reuse` operation uses this same path. Its default
+`audit` operation remains fresh. `--plan`, `--fresh`, transition qualification,
+required exact-head CI and stateful Windows/native observations do not import
+evidence. Missing, expired, unavailable or incompatible evidence is a named cache
+miss followed by normal execution. Different platforms or tool/runtime inputs
+normally produce fingerprint misses. Discovery uses the existing signed-in `gh`
+credentials locally; the explicit hosted operation uses its existing job token.
+
 ### Warm single-session workflow
 
 Start or resume one cohesive outcome in the existing healthy, owned checkout.

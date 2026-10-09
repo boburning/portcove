@@ -59,6 +59,19 @@ expanded data and an 8 MiB compressed-artifact admission limit; the exporter
 checks compressed size with overhead allowance before the pinned level-6 upload.
 This export alone grants no reuse, required CI, local-check or native acceptance.
 
+Normal non-fresh audits may automatically import successful deterministic stages
+from a verified successful merged-main producer with the current workflow and
+fingerprint contract. The explicit hosted `audit-reuse` operation uses the same
+bounded discovery; the default hosted operation remains fresh. Imports retain the
+original receipt kind, payload, originating head, full inputs and provider
+provenance. Required CI, local-check, advisory/dependency and stateful acceptance
+remain distinct. Discovery checks the newest twenty completed main runs, at most
+three artifact downloads and a sixty-second collection budget. ZIP metadata is
+validated before inflation: at most 64 regular allowlisted files, 32 MiB expanded,
+8 MiB compressed, with no traversal, collisions, links, ZIP64 or multipart data.
+Invalid, unavailable, expired or nonmatching evidence falls back to normal
+execution with a named cache miss; it never authorizes a shorter fresh gate.
+
 ## Setup
 
 Portcove uses one local quality interface for humans, CI, and coding agents. The bootstrap requires Cargo/Rust, Node 24, and PowerShell 7 on Windows or Bash on Linux/macOS. Install the pinned tools with:

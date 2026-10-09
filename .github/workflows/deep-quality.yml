@@ -7,7 +7,7 @@ on:
         description: Fixed validation operation
         type: choice
         default: audit
-        options: [audit, local-check]
+        options: [audit, audit-reuse, local-check]
       source_sha:
         description: Reviewed source commit for local-check
         type: string
@@ -105,16 +105,22 @@ jobs:
         shell: bash
         env:
           PORTCOVE_AUDIT_CAPTURE: "1"
+          AUDIT_OPERATION: ${{ inputs.operation }}
+          GH_TOKEN: ${{ inputs.operation == 'audit-reuse' && github.token || '' }}
         run: |
           node scripts/deep-audit-summary.mjs --start || echo "Audit summary initialization unavailable"
           set +e
-          just audit --fresh
+          if [[ "$AUDIT_OPERATION" == "audit-reuse" ]]; then
+            just audit
+          else
+            just audit --fresh
+          fi
           audit_status=$?
           echo "exit_code=$audit_status" >> "$GITHUB_OUTPUT"
           node scripts/deep-audit-summary.mjs --finish "$audit_status"
           exit "$audit_status"
       - name: Summarize structured audit evidence
-        if: always()
+        if: always() && inputs.operation != 'audit-reuse'
         env:
           AUDIT_OUTCOME: ${{ steps.fresh-audit.outcome }}
           AUDIT_EXIT_CODE: ${{ steps.fresh-audit.outputs.exit_code }}

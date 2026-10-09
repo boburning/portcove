@@ -68,6 +68,8 @@ const protectedPolicyFiles = withNodeTestCompanions([
   ".github/repository-security.json",
   "scripts/audit.mjs",
   "scripts/audit-evidence.mjs",
+  "scripts/audit-archive.mjs",
+  "scripts/audit-reuse.mjs",
   "scripts/check-child-process-policy.mjs",
   "scripts/check-ci-prose.mjs",
   "scripts/ci-result-gate.mjs",
