@@ -13,7 +13,8 @@
     "f-zero-snes-usa",
     "dkc3-na-en-fr",
     "road-rash-64",
-    "alundra-psx"
+    "alundra-psx",
+    "armored-core-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -30,6 +31,7 @@
     "dkc3-recomp",
     "road-rash-64-recompiled",
     "alexbeav-ape-escape-recomp",
-    "alexbeav-alundra-recomp"
+    "alexbeav-alundra-recomp",
+    "alexbeav-armored-core-recomp"
   ]
 }
