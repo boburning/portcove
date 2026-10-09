@@ -9,13 +9,13 @@ presentation role.
 
 ## Select by the current task
 
-| Task | Technique |
-| --- | --- |
-| Behavior change or reproducible bug fix | `tdd`: one failing behavior test through an appropriate existing public interface, minimal implementation, then the next slice. |
-| Nontrivial or recurring local/CI failure, timeout or performance problem | `diagnosing-bugs`: preserve the failure, build a discriminating reproduction, test predictions and measure before repairing. |
-| Current outcome requires interface or responsibility decisions | `codebase-design`: consult the relevant interface/design principles. |
-| Change agent-facing documentation | `writing-for-agents`: short conditional pointers and targeted detail with checkable completion. |
-| Existing independent-review stage | `code-review` principles: cover both canonical specification and repository standards in the same review. |
+| Task                                                                     | Technique                                                                                                                       |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Behavior change or reproducible bug fix                                  | `tdd`: one failing behavior test through an appropriate existing public interface, minimal implementation, then the next slice. |
+| Nontrivial or recurring local/CI failure, timeout or performance problem | `diagnosing-bugs`: preserve the failure, build a discriminating reproduction, test predictions and measure before repairing.    |
+| Current outcome requires interface or responsibility decisions           | `codebase-design`: consult the relevant interface/design principles.                                                            |
+| Change agent-facing documentation                                        | `writing-for-agents`: short conditional pointers and targeted detail with checkable completion.                                 |
+| Existing independent-review stage                                        | `code-review` principles: cover both canonical specification and repository standards in the same review.                       |
 
 Load only the relevant installed definition and necessary references. Respect
 installed invocation controls; explicitly invoke when implicit invocation is
