@@ -1998,11 +1998,12 @@ test("reviewed exact metadata and original conditions remain degraded without gr
   assert.equal(report.outcome, "complete");
   assert.equal(report.degradation, true);
   assert.equal(report.coverage.repositories, 20);
-  assert.equal(report.coverage.attempted_repositories, 20);
+  assert.equal(report.coverage.attempted_repositories, 13);
+  assert.equal(report.coverage.reused_repositories, 7);
   assert.equal(report.coverage.reachable_repositories, 7);
   assert.equal(report.coverage.unknown_repositories, 13);
-  assert.equal(report.consumed.requests, 47);
-  assert.equal(calls.length, 47);
+  assert.equal(report.consumed.requests, 40);
+  assert.equal(calls.length, 40);
   for (const call of calls) {
     assert.equal(call.options.redirect, "manual");
     if (call.url.startsWith("https://api.github.com/"))
@@ -2036,6 +2037,224 @@ test("reviewed exact metadata and original conditions remain degraded without gr
   assert.equal(comparison.outcome, "complete");
   assert.equal(comparison.material_changes.length, 0);
   assert.equal(original, JSON.stringify(catalog));
+});
+
+test("full catalog retains every location and pin check with seven fewer actual requests", async () => {
+  const calls = [];
+  const inventory = await collectRepositoryHealth(currentHealthCatalog, {
+    fetch: async () => {
+      throw new Error("offline inventory only");
+    },
+    now: () => 0,
+  });
+  const fixed = accountingFetch(calls);
+  const fixedPrefixes = reviewedAccounting.pins.map(
+    (pin) => `https://api.github.com/repos/${pin.repository}`,
+  );
+  const fixedUrls = new Set([
+    ...reviewedAccounting.pins.map((pin) => pin.url),
+    ...reviewedAccounting.original_conditions.map(
+      (rule) => `https://api.github.com/repos/${rule.repository}`,
+    ),
+  ]);
+  const report = await collectRepositoryHealth(currentHealthCatalog, {
+    fetch: async (url, options) => {
+      if (
+        fixedUrls.has(url) ||
+        fixedPrefixes.some((prefix) => url === prefix || url.startsWith(`${prefix}/`))
+      )
+        return fixed(url, options);
+      calls.push({ url, options });
+      if (options.method === "HEAD") {
+        const artifact = currentHealthCatalog.ports
+          .flatMap((port) => Object.values(port.release?.direct ?? {}))
+          .find((artifact) => artifact.url === url);
+        return new Response(null, { headers: { "content-length": String(artifact?.size ?? 0) } });
+      }
+      const record = inventory.observations.find((record) => {
+        const base =
+          record.provider === "github"
+            ? `https://api.github.com/repos/${record.repository}`
+            : `https://gitlab.com/api/v4/projects/${encodeURIComponent(record.repository)}`;
+        return (
+          url ===
+          (record.release_ref
+            ? `${base}/releases/${record.provider === "github" ? "tags/" : ""}${encodeURIComponent(record.release_ref)}`
+            : base)
+        );
+      });
+      assert.ok(record, url);
+      const assets = (record.historical_artifact_identities ?? []).map((identity) => ({
+        digest: `sha256:${identity.artifact_sha256}`,
+      }));
+      const facts = record.release_ref
+        ? {
+            id: 1,
+            tag_name: record.release_ref,
+            assets: record.provider === "github" ? assets : { links: assets },
+          }
+        : {
+            id: 1,
+            full_name: record.repository,
+            path_with_namespace: record.repository,
+            archived: false,
+          };
+      return new Response(JSON.stringify(facts), {
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+  assert.equal(
+    report.outcome,
+    "complete",
+    JSON.stringify(report.observations.filter((r) => !r.accounted_for)),
+  );
+  assert.equal(report.coverage.monitored_ports, 88);
+  assert.equal(report.coverage.repositories, 101);
+  assert.equal(report.coverage.attempted_repositories, 94);
+  assert.equal(report.coverage.reused_repositories, 7);
+  assert.equal(report.consumed.requests, 121);
+  assert.equal(calls.length, 121);
+  assert.equal(report.limits.requests, 128);
+  assert.equal(report.observations.filter((record) => record.pin_assessment).length, 9);
+  for (const pin of reviewedAccounting.pins) {
+    const prefix = `https://api.github.com/repos/${pin.repository}`;
+    assert.equal(calls.filter((call) => call.url === prefix).length, 1);
+    for (const endpoint of [
+      `${prefix}/releases/tags/${encodeURIComponent(pin.tag)}`,
+      `${prefix}/releases/${pin.release_id}/assets?per_page=100`,
+    ])
+      assert.equal(calls.filter((call) => call.url === endpoint).length, 1);
+  }
+  for (const original of reviewedAccounting.original_conditions)
+    assert.equal(
+      calls.filter((call) => call.url === `https://api.github.com/repos/${original.repository}`)
+        .length,
+      1,
+    );
+});
+
+test("repository reuse stays in one collection and failed or partial reads are never cached", async () => {
+  const catalog = accountingCatalog();
+  const first = await collectRepositoryHealth(catalog, { fetch: accountingFetch([]) });
+  const prefix = `https://api.github.com/repos/${reviewedAccounting.pins[0].repository}`;
+  for (const status of [301, 401, 404, 503]) {
+    const calls = [];
+    const report = await collectRepositoryHealth(catalog, {
+      previousReport: first,
+      fetch: accountingFetch(calls, (url, response) =>
+        url === prefix ? { ...response, status } : response,
+      ),
+    });
+    assert.equal(report.outcome, "incomplete", String(status));
+    assert.equal(calls.filter((call) => call.url === prefix).length, 2);
+    assert.equal(
+      report.observations.find(
+        (record) => record.repository === prefix.replace("https://api.github.com/repos/", ""),
+      ).metadata_reused,
+      false,
+    );
+    assert.equal(
+      report.observations.find((record) => record.repository === reviewedAccounting.pins[0].url)
+        .pin_assessment.status,
+      "unknown",
+    );
+  }
+  for (const invalid of [
+    () => new Response("{", { headers: { "content-type": "application/json" } }),
+    () => new Response("{}", { headers: { "content-type": "text/html" } }),
+    () =>
+      new Response("{}", {
+        headers: {
+          "content-type": "application/json",
+          link: '<https://example.invalid>; rel="next"',
+        },
+      }),
+  ]) {
+    const calls = [],
+      ordinary = accountingFetch(calls);
+    const report = await collectRepositoryHealth(catalog, {
+      fetch: (url, options) => {
+        if (url !== prefix) return ordinary(url, options);
+        calls.push({ url, options });
+        return invalid();
+      },
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(calls.filter((call) => call.url === prefix).length, 2);
+    assert.equal(
+      report.observations.find((record) => record.repository === reviewedAccounting.pins[0].url)
+        .pin_assessment.status,
+      "unknown",
+    );
+  }
+  const calls = [];
+  const fresh = await collectRepositoryHealth(catalog, {
+    previousReport: first,
+    fetch: accountingFetch(calls),
+  });
+  assert.equal(fresh.outcome, "complete");
+  assert.equal(calls.length, 40);
+});
+
+test("reused repository facts still fail pin and original-location identity checks", async () => {
+  const pin = reviewedAccounting.pins[0],
+    prefix = `https://api.github.com/repos/${pin.repository}`;
+  const calls = [];
+  const report = await collectRepositoryHealth(accountingCatalog(), {
+    fetch: accountingFetch(calls, (url, response) =>
+      url === prefix
+        ? { ...response, data: { ...response.data, full_name: "wrong/repository" } }
+        : response,
+    ),
+  });
+  assert.equal(calls.filter((call) => call.url === prefix).length, 1);
+  assert.equal(report.outcome, "incomplete");
+  const original = report.observations.find((record) => record.repository === pin.repository);
+  assert.equal(original.metadata_reused, true);
+  assert.equal(original.reason, "identity-mismatch");
+  assert.equal(original.accounted_for, false);
+  assert.equal(
+    report.observations.find((record) => record.repository === pin.url).pin_assessment.status,
+    "unknown",
+  );
+});
+
+test("captured repository metadata cannot bypass deadline or historical numeric identity", async () => {
+  const pin = reviewedAccounting.pins[0];
+  const catalog = { ports: accountingCatalog().ports.filter((port) => port.id === pin.port_id) };
+  const original = await collectRepositoryHealth(catalog, { fetch: accountingFetch([]) });
+  const baseline = structuredClone(original);
+  baseline.observations.find(
+    (record) => record.repository === pin.repository,
+  ).baseline_repository_id = 1;
+  const mismatch = await collectRepositoryHealth(catalog, {
+    previousReport: baseline,
+    fetch: accountingFetch([]),
+  });
+  const record = mismatch.observations.find((record) => record.repository === pin.repository);
+  assert.equal(record.metadata_reused, true);
+  assert.equal(record.reason, "identity-mismatch");
+  assert.equal(record.accounted_for, false);
+  assert.equal(mismatch.outcome, "incomplete");
+
+  let clock = 0;
+  const calls = [],
+    fixed = accountingFetch(calls);
+  const expired = await collectRepositoryHealth(catalog, {
+    now: () => clock,
+    fetch: async (url, options) => {
+      const response = await fixed(url, options);
+      if (url.endsWith("/assets?per_page=100")) clock = 180_001;
+      return response;
+    },
+  });
+  const unattempted = expired.observations.find((record) => record.repository === pin.repository);
+  assert.equal(unattempted.reason, "budget");
+  assert.equal(unattempted.attempted, false);
+  assert.equal(unattempted.metadata_reused, false);
+  assert.equal(expired.outcome, "incomplete");
+  assert.equal(calls.length, 4);
 });
 
 test("shared metadata validators require exact declared provider facts and complete collections", () => {
