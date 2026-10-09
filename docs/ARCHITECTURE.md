@@ -1522,7 +1522,7 @@ Preference writers serialize through a process lock keyed by the exact preferenc
 Favorites use the compatible `favorites_by_library` extension in that same
 format-1 host preference document. `HostPreferenceStore::favorite_ports` and
 `set_favorite` read or change independent canonical port IDs under a selected
-library's canonical UUID obtained from `Library::identity_record`. Display-name
+library's canonical 32-character lowercase hexadecimal ID obtained from `Library::identity_record`. Display-name
 corrections and managed library moves preserve that identity; importing into a
 different library does not inherit its favorites. Temporarily absent or retired
 catalog IDs remain stored until explicitly unset. The existing locks, atomic

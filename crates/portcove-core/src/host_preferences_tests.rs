@@ -83,7 +83,7 @@ fn favorite_updates_preserve_compatible_preferences_and_clear_only_the_choice() 
     )
     .unwrap();
     let store = HostPreferenceStore::new(path.clone()).unwrap();
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = uuid::Uuid::new_v4().simple().to_string();
     store.set_favorite(&id, "independent-port", true).unwrap();
     store.set_favorite(&id, "independent-port", true).unwrap();
     store.set_locale_preference(Some("fr")).unwrap();
@@ -109,7 +109,7 @@ fn malformed_favorites_do_not_block_unrelated_preferences_or_get_silently_erased
     let path = temp.path().join("preferences.json");
     let selected = temp.path().join("selected");
     fs::create_dir(&selected).unwrap();
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = uuid::Uuid::new_v4().simple().to_string();
     let store = HostPreferenceStore::new(path.clone()).unwrap();
     for favorites in [
         serde_json::json!("invalid"),
@@ -148,12 +148,12 @@ fn invalid_favorite_identities_fail_before_creating_preference_storage() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("config/preferences.json");
     let store = HostPreferenceStore::new(path).unwrap();
-    let id = "12345678-9abc-4def-8123-456789abcdef".to_owned();
+    let id = "123456789abc4def8123456789abcdef".to_owned();
     for invalid in [
         "".to_owned(),
         "library-name".to_owned(),
         id.to_uppercase(),
-        id.replace('-', ""),
+        uuid::Uuid::parse_str(&id).unwrap().to_string(),
     ] {
         assert_eq!(
             store.favorite_ports(&invalid).unwrap_err().code,
@@ -179,8 +179,8 @@ fn concurrent_favorite_changes_preserve_other_libraries_and_unrelated_writes() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("preferences.json");
     let store = HostPreferenceStore::new(path.clone()).unwrap();
-    let id = uuid::Uuid::new_v4().to_string();
-    let other_id = uuid::Uuid::new_v4().to_string();
+    let id = uuid::Uuid::new_v4().simple().to_string();
+    let other_id = uuid::Uuid::new_v4().simple().to_string();
     store.set_favorite(&other_id, "other-port", true).unwrap();
     for worker in 0..8 {
         store
@@ -232,7 +232,7 @@ fn favorite_publication_failure_preserves_the_previous_document() {
     assert!(bytes.len() < MAX_BYTES as usize);
     fs::write(&path, &bytes).unwrap();
     let store = HostPreferenceStore::new(path.clone()).unwrap();
-    let id = uuid::Uuid::new_v4().to_string();
+    let id = uuid::Uuid::new_v4().simple().to_string();
     assert_eq!(
         store
             .set_favorite(&id, "independent-port", true)

@@ -256,7 +256,7 @@ impl HostPreferenceStore {
         self.publish(&preferences)
     }
 
-    /// Private independent port IDs for the selected library's canonical UUID.
+    /// Private independent port IDs for the selected library's canonical identity.
     /// Reading favorites never opens a library or discards IDs absent from a catalog.
     pub fn favorite_ports(&self, library_id: &str) -> Result<BTreeSet<String>> {
         validate_favorite_library_id(library_id)?;
@@ -488,11 +488,15 @@ fn favorite_libraries(preferences: &HostPreferences) -> Result<BTreeMap<String, 
 }
 
 fn validate_favorite_library_id(id: &str) -> Result<()> {
-    if uuid::Uuid::parse_str(id).is_ok_and(|parsed| parsed.to_string() == id) {
+    if id.len() == 32
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    {
         Ok(())
     } else {
         Err(PortcoveError::usage(
-            "favorites require the selected library's canonical UUID",
+            "favorites require the selected library's canonical identity",
         ))
     }
 }
