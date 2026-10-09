@@ -62,7 +62,25 @@ export function packagesWithDoctests(metadata) {
   );
 }
 
+const metadataObservations = new WeakMap();
+const metadataErrorCode = (error) => {
+  try {
+    const code = error?.code;
+    return ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].includes(code)
+      ? code
+      : code === undefined
+        ? null
+        : "UNKNOWN";
+  } catch {
+    return "UNKNOWN";
+  }
+};
+function metadataObservation(error) {
+  return metadataObservations.get(error) ?? { reason: "UNKNOWN", code: metadataErrorCode(error) };
+}
+
 export function readDoctestPackages(options = {}) {
+  const started = performance.now();
   const result = (options.spawn ?? spawnSync)(
     "cargo",
     [
@@ -82,9 +100,55 @@ export function readDoctestPackages(options = {}) {
         : process.env,
     },
   );
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`cargo metadata failed: ${result.stderr.trim()}`);
-  return packagesWithDoctests(JSON.parse(result.stdout));
+  const refuse = (reason, error) => {
+    try {
+      if (options.observeOnly) {
+        const fingerprint = (value) =>
+          typeof value === "string"
+            ? {
+                bytes: Buffer.byteLength(value),
+                sha256: createHash("sha256").update(value).digest("hex"),
+              }
+            : null;
+        metadataObservations.set(error, {
+          reason,
+          code: metadataErrorCode(error),
+          status: Number.isInteger(result.status) ? result.status : null,
+          signal: ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"].includes(result.signal)
+            ? result.signal
+            : result.signal == null
+              ? null
+              : "UNKNOWN",
+          elapsed_ms: Math.max(0, Math.round(performance.now() - started)),
+          observe_only: true,
+          offline: true,
+          locked: true,
+          timeout_ms: 15_000,
+          capture_complete:
+            !result.error && Number.isInteger(result.status) && result.signal == null,
+          stdout: fingerprint(result.stdout),
+          stderr: fingerprint(result.stderr),
+        });
+      }
+    } catch {
+      /* Diagnostic failure must preserve the original planning error. */
+    }
+    throw error;
+  };
+  if (result.error) refuse("spawn-error", result.error);
+  if (result.status !== 0)
+    refuse("cargo-exit", new Error(`cargo metadata failed: ${result.stderr.trim()}`));
+  let metadata;
+  try {
+    metadata = JSON.parse(result.stdout);
+  } catch (error) {
+    refuse("metadata-json", error);
+  }
+  try {
+    return packagesWithDoctests(metadata);
+  } catch (error) {
+    refuse("package-inventory", error);
+  }
 }
 
 const oxfmtExtensions = new Set([
@@ -1316,6 +1380,20 @@ export function formatCommand(entry) {
   return [entry.executable, ...entry.args].map(quote).join(" ");
 }
 
+// Portable review inventory only; these records are never accepted as shell input.
+export function selectedPlanInventory(plan) {
+  const relative = (value) =>
+    typeof value === "string" && value.startsWith(projectRoot)
+      ? `$SOURCE/${value.slice(projectRoot.length).replaceAll("\\", "/")}`
+      : value;
+  return plan.map(({ id, executable, args, cwd }) => ({
+    id,
+    executable: executable === process.execPath ? "$NODE" : relative(executable),
+    args: args.map(relative),
+    cwd: relative(cwd),
+  }));
+}
+
 function printPlan(context, selection, plan, validationPlan) {
   console.log("# Focused local validation");
   console.log(`Base: ${context.base} (${context.baseSha})`);
@@ -1396,6 +1474,7 @@ export function buildExecutionPreflight({
     base: context.baseSha,
     merge_base: context.mergeBase,
     plan_digest: validationPlan.digest,
+    selected_plan: selectedPlanInventory(plan),
     local_profile: "default full-debug; selected command arguments and features are authoritative",
     prerequisites,
     hosted,
@@ -1898,6 +1977,7 @@ export async function main(argv = process.argv.slice(2), options = {}) {
           command: "cargo metadata --format-version 1 --no-deps --offline --locked",
           capability: "pinned Cargo and readable locked workspace metadata",
           reason: "bounded metadata observation failed; no complete local selection is claimed",
+          observation: metadataObservation(error),
           next_action:
             hosted.status === "eligible" && !selection.playnite
               ? hosted.command

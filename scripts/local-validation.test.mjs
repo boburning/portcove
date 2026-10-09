@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import {
@@ -28,6 +29,7 @@ import {
   storageScopeForPlan,
   untrackedFileMode,
   buildExecutionPreflight,
+  selectedPlanInventory,
   inspectHostedLocalRoute,
   inspectPreChangeAudit,
   readDoctestPackages,
@@ -37,6 +39,26 @@ import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
 
 const allFilesExist = () => true;
+
+test("review inventory keeps command arguments while making candidate-root paths portable", () => {
+  const source = fileURLToPath(new URL("../", import.meta.url));
+  const entry = {
+    id: "owned",
+    executable: process.execPath,
+    args: [source + "scripts/check.mjs", "--all", "/other/input"],
+    cwd: source + "apps/desktop",
+  };
+  assert.deepEqual(selectedPlanInventory([entry]), [
+    {
+      id: "owned",
+      executable: "$NODE",
+      args: ["$SOURCE/scripts/check.mjs", "--all", "/other/input"],
+      cwd: "$SOURCE/apps/desktop",
+    },
+  ]);
+  assert.equal(entry.executable, process.execPath);
+  assert.equal(entry.args[0], source + "scripts/check.mjs");
+});
 
 function preflightFixture() {
   const context = { headSha: "a".repeat(40), baseSha: "b".repeat(40), mergeBase: "b".repeat(40) };
@@ -401,6 +423,76 @@ test("missing Cargo in a mixed Playnite change does not recommend an incapable U
   assert.equal(report.selected_plan, null);
   assert.ok(!report.blocker.next_action.includes("Ubuntu dispatch"));
   assert.equal(report.status, "planning-blocked");
+});
+
+test("Cargo planning refusal preserves safe observed failure facts without acquiring dependencies", async (t) => {
+  const previous = process.exitCode;
+  t.after(() => {
+    process.exitCode = previous;
+  });
+  const secret = "private-error Ω https://signed.invalid/?token=cookie-secret";
+  const cases = [
+    ["spawn-error", { error: Object.assign(new Error(secret), { code: "ENOENT" }), status: null }],
+    [
+      "spawn-error",
+      {
+        error: Object.assign(new Error(secret), { code: "ETIMEDOUT" }),
+        status: null,
+        signal: "SIGTERM",
+      },
+    ],
+    ["spawn-error", { error: Object.assign(new Error(secret), { code: "ENOBUFS" }), status: null }],
+    ["cargo-exit", { status: 101, stdout: "", stderr: secret }],
+    ["metadata-json", { status: 0, stdout: secret }],
+    ["package-inventory", { status: 0, stdout: JSON.stringify({ packages: secret }) }],
+  ];
+  for (const [reason, result] of cases) {
+    const logs = [];
+    await main(["check", "--preflight", "--json"], {
+      readContext: () => ({
+        base: "origin/main",
+        baseSha: "b".repeat(40),
+        mergeBase: "b".repeat(40),
+        headSha: "a".repeat(40),
+        changes: [
+          {
+            status: "M",
+            path: "crates/portcove-core/src/lib.rs",
+            oldMode: "100644",
+            newMode: "100644",
+          },
+        ],
+      }),
+      metadataProvider: (options) =>
+        readDoctestPackages({
+          ...options,
+          spawn: (name, args, settings) => {
+            assert.equal(name, "cargo");
+            assert.deepEqual(args, [
+              "metadata",
+              "--format-version",
+              "1",
+              "--no-deps",
+              "--offline",
+              "--locked",
+            ]);
+            assert.equal(settings.timeout, 15_000);
+            assert.equal(settings.env.CARGO_NET_OFFLINE, "true");
+            return result;
+          },
+        }),
+      hostedInspector: () => ({ status: "blocked" }),
+      log: (line) => logs.push(line),
+    });
+    const report = JSON.parse(logs[0]);
+    assert.equal(report.status, "planning-blocked");
+    assert.equal(report.selected_plan, null);
+    assert.equal(process.exitCode, 1);
+    assert.equal(report.blocker.observation.reason, reason);
+    assert.equal(report.blocker.observation.status, result.status);
+    assert.ok(!logs[0].includes("private-error") && !logs[0].includes("signed.invalid"));
+    assert.ok(Buffer.byteLength(JSON.stringify(report.blocker.observation)) <= 64 * 1024);
+  }
 });
 
 test("normal metadata selection keeps its existing execution contract", () => {

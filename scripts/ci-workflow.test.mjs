@@ -6,7 +6,12 @@ import { EventEmitter } from "node:events";
 import { collectRepositoryHealth, renderRepositoryHealth } from "./check-catalog-repositories.mjs";
 import os from "node:os";
 import path from "node:path";
-import { encodeBackupEvidence, recoverBackupEvidence } from "./native-backup-evidence.mjs";
+import {
+  encodeBackupEvidence,
+  recoverBackupEvidence,
+  encodeHostedEvidence,
+  recoverHostedEvidence,
+} from "./native-backup-evidence.mjs";
 import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
 import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
@@ -23,6 +28,26 @@ const nativeCompatibilityRunner = await readFile(
   new URL("../apps/desktop/test/native-compatibility.mjs", import.meta.url),
   "utf8",
 );
+
+test("candidate consumer selects only existing selected, compiled and history jobs", () => {
+  const jobs = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
+  const consumers = jobs.filter((job) => /^hosted_.*\n    if:.*candidate-consumer/mu.test(job));
+  assert.deepEqual(
+    consumers.map((job) => job.match(/^hosted_[a-z]+/u)[0]),
+    ["hosted_selected", "hosted_compiled", "hosted_history"],
+  );
+  for (const [job, minutes, phase] of [
+    [consumers[0], 60, "selected"],
+    [consumers[1], 120, "compiled"],
+    [consumers[2], 45, "native"],
+  ]) {
+    assert.match(job, new RegExp(`timeout-minutes: ${minutes}\\n`));
+    assert.match(job, /runs-on: ubuntu-24\.04/u);
+    assert.match(job, /persist-credentials: false/u);
+    assert.match(job, new RegExp(`hosted-validation ${phase}\\n`));
+    assert.doesNotMatch(job, /upload-artifact|actions\/cache|cache: pnpm/u);
+  }
+});
 const desktopPackage = JSON.parse(
   await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
 );
@@ -32,6 +57,117 @@ const windowsQualificationRunner = await readFile(
   "utf8",
 );
 const requiredCiSurface = `${workflow}\n${windowsQualificationRunner}`;
+
+test("reviewed hosted phases retain independent allocations, fixed commands and read-only isolation", () => {
+  const source = nativeDesignCompatibilityWorkflow;
+  for (const [name, limit, phase] of [
+    ["hosted_selected", 60, "selected"],
+    ["hosted_audit", 30, "audit"],
+    ["hosted_compiled", 120, "compiled"],
+    ["hosted_history", 45, "native"],
+  ]) {
+    const section = source.split(`\n  ${name}:`)[1]?.split(/\n  [a-z_]+:\n/)[0];
+    assert.ok(section);
+    assert.match(section, new RegExp(`timeout-minutes: ${limit}`));
+    assert.match(section, /runs-on: ubuntu-24\.04/);
+    assert.match(section, /persist-credentials: false/);
+    assert.match(section, new RegExp(`hosted-validation ${phase}`));
+    assert.match(section, /emit-hosted hosted-evidence/);
+    assert.doesNotMatch(
+      section,
+      /upload-artifact|actions\/cache|rust-cache|secrets\.|VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE/,
+    );
+  }
+  assert.match(source, /^permissions:\n {2}contents: read$/m);
+  assert.doesNotMatch(source, /checks: write|contents: write|pull_request_target/);
+});
+
+test("hosted selected setup prepares the provider observed by preflight and used by selected recipes", () => {
+  const selected = nativeDesignCompatibilityWorkflow
+    .split("\n  hosted_selected:")[1]
+    .split("\n  hosted_audit:")[0];
+  const install = selected.indexOf("run: corepack pnpm install --frozen-lockfile");
+  const preflight = selected.indexOf("hosted-validation provision");
+  assert.ok(install >= 0 && install < preflight);
+  assert.match(
+    selected,
+    /working-directory: source\n        run: corepack pnpm install --frozen-lockfile/u,
+  );
+  assert.doesNotMatch(
+    selected,
+    /COREPACK_ENABLE_PROJECT_SPEC: ["']?0|COREPACK_ENABLE_NETWORK: ["']?0/u,
+  );
+});
+
+test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or missing terminal data", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-hosted-evidence-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const expected = {
+    source: "a".repeat(40),
+    controller: "b".repeat(40),
+    base: "c".repeat(40),
+    run: "42",
+    attempt: "1",
+    job: "hosted_history",
+    phase: "native",
+    binding_sha256: "d".repeat(64),
+  };
+  const input = path.join(root, "input");
+  await mkdir(input);
+  await writeFile(path.join(input, "binding.json"), JSON.stringify(expected));
+  await writeFile(
+    path.join(input, "execution.json"),
+    JSON.stringify({ ...expected, phase: "native", exit_code: 0 }),
+  );
+  // Codec unit fixture, never native acceptance evidence.
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aTfcAAAAASUVORK5CYII=",
+    "base64",
+  );
+  await writeFile(path.join(input, "fixture.png"), png);
+  await mkdir(path.join(input, "native", "library"), { recursive: true });
+  await writeFile(
+    path.join(input, "native", "library", "portcove.sqlite3"),
+    "runtime state, not evidence",
+  );
+  await mkdir(path.join(input, "native", "webview"));
+  await writeFile(path.join(input, "native", "webview", "Cache"), "runtime state, not evidence");
+  const encoded = await encodeHostedEvidence(input);
+  const decodedLog = encoded
+    .split("\n")
+    .map((line) => `2026-10-08T00:00:00Z ${line}`)
+    .join("\n");
+  const output = path.join(root, "decoded");
+  assert.equal((await recoverHostedEvidence(decodedLog, output, expected)).exit_code, 0);
+  assert.deepEqual(await readFile(path.join(output, "fixture.png")), png);
+  assert.equal((await readdir(output)).includes("native"), false);
+  for (const patch of [{ phase: "audit" }, { job: "hosted_audit" }])
+    await assert.rejects(
+      () =>
+        recoverHostedEvidence(decodedLog, path.join(root, Object.keys(patch)[0]), {
+          ...expected,
+          ...patch,
+        }),
+      /differs/,
+    );
+  await assert.rejects(
+    () =>
+      recoverHostedEvidence(decodedLog, path.join(root, "wrong-run"), { ...expected, run: "43" }),
+    /run differs/,
+  );
+  await rm(path.join(input, "execution.json"));
+  await assert.rejects(
+    async () =>
+      recoverHostedEvidence(
+        await encodeHostedEvidence(input),
+        path.join(root, "partial"),
+        expected,
+      ),
+    /terminal/,
+  );
+  await symlink(path.join(input, "fixture.png"), path.join(input, "linked.png"));
+  await assert.rejects(() => encodeHostedEvidence(input), /links/);
+});
 
 test("hosted backup focus is manual-only, pinned, isolated and retains real evidence without billed storage", async () => {
   const source = await readFile(
@@ -56,11 +192,11 @@ test("hosted backup focus is manual-only, pinned, isolated and retains real evid
   );
   assert.match(
     source,
-    /qualify:\n {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
+    /qualify:\n {4}if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
   );
   assert.match(
     windows,
-    /^ {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
+    /^ {4}if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
   );
   assert.match(windows, /PORTCOVE_TEMP_DIR: \$\{\{ github.workspace \}\}/);
   assert.doesNotMatch(windows.split("    steps:")[0], /\$\{\{ runner\./);
@@ -135,9 +271,14 @@ test("native scenario consumers keep Node and context contracts in both frontend
 });
 
 test("EdgeDriver trust proof is manual, isolated, and does not launch the application", () => {
-  const job = nativeDesignCompatibilityWorkflow.split("\n  edge_driver_proof:")[1];
+  const job = nativeDesignCompatibilityWorkflow
+    .split("\n  edge_driver_proof:")[1]
+    ?.split("\n  hosted_selected:")[0];
   assert.ok(job);
-  assert.match(job, /if: inputs\.edge_driver_proof/u);
+  assert.match(
+    job,
+    /if: \$\{\{ inputs\.operation == 'compatibility' && inputs\.edge_driver_proof \}\}/u,
+  );
   assert.match(job, /runs-on: windows-2022/u);
   assert.match(job, /persist-credentials: false/u);
   assert.doesNotMatch(
@@ -152,7 +293,7 @@ test("EdgeDriver trust proof is manual, isolated, and does not launch the applic
   assert.match(job, /driver_sha256/u);
   assert.match(
     nativeDesignCompatibilityWorkflow,
-    /if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/u,
+    /if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/u,
   );
 });
 
@@ -1096,6 +1237,102 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   ])
     assert.ok(rust.includes(`"${dependency}":"` + "${{ needs." + dependency + '.result }}"'));
   assert.doesNotMatch(rust, /continue-on-error/);
+});
+
+test("Windows analyzer acquisition retains the exact pin and both mandatory gates", (t) => {
+  const body = windowsStorage.match(
+    /- name: Lint PowerShell scripts\r?\n {8}shell: pwsh\r?\n {8}run: \|\r?\n([\s\S]*)/,
+  )?.[1];
+  assert.ok(body);
+  const script = body.replace(/^ {10}/gm, "");
+  assert.match(
+    script,
+    /Import-PowerShellDataFile -LiteralPath \.config\/powershell-resources\.psd1/,
+  );
+  assert.match(
+    script,
+    /Get-Module -ListAvailable -Name PSScriptAnalyzer \| Where-Object Version -EQ \$requiredVersion/,
+  );
+  assert.match(
+    script,
+    /Import-Module -Name PSScriptAnalyzer -RequiredVersion \$requiredVersion -Force/,
+  );
+  assert.doesNotMatch(script, /PSModulePath|ModuleBase|continue-on-error|SilentlyContinue/);
+  const available = spawnSync(
+    "pwsh",
+    ["-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()"],
+    { encoding: "utf8", timeout: 10_000 },
+  );
+  if (available.error?.code === "ENOENT" && process.platform !== "win32") {
+    t.skip("PowerShell unavailable; required Windows job executes this contract");
+    return;
+  }
+  assert.ifError(available.error);
+  assert.equal(available.status, 0, available.stdout + available.stderr);
+  const mocks = `
+$ErrorActionPreference = 'Stop'
+$script:pin = [string](Import-PowerShellDataFile -LiteralPath .config/powershell-resources.psd1).PSScriptAnalyzer.version
+$script:available = @($env:PORTCOVE_ANALYZER_VERSIONS | ConvertFrom-Json)
+function Get-Module {
+  param([switch]$ListAvailable, [string]$Name)
+  if (-not $ListAvailable -or $Name -ne 'PSScriptAnalyzer') { throw 'unexpected module lookup' }
+  $script:available | ForEach-Object { [pscustomobject]@{ Version = [version]$_ } }
+}
+function Install-PSResource {
+  param([string]$RequiredResourceFile, [string]$Scope, [switch]$TrustRepository)
+  if ($RequiredResourceFile -ne '.config/powershell-resources.psd1' -or $Scope -ne 'CurrentUser' -or -not $TrustRepository) { throw 'changed acquisition contract' }
+  Write-Output 'acquire-exact-pin'
+  if ($env:PORTCOVE_ANALYZER_FAILURE -eq 'acquisition') { throw 'acquisition failed' }
+  $script:available = @($script:pin)
+}
+function Import-Module {
+  param([string]$Name, [string]$RequiredVersion, [switch]$Force)
+  if ($Name -ne 'PSScriptAnalyzer' -or $RequiredVersion -ne $script:pin -or -not $Force) { throw 'changed import contract' }
+  Write-Output 'import-exact-pin'
+  if ($script:available -notcontains $RequiredVersion -or $env:PORTCOVE_ANALYZER_FAILURE -eq 'import') { throw 'exact import failed' }
+}
+function node {
+  param([string]$Script, [string]$Fixture)
+  Write-Output "gate:$Script"
+  if ($Script -eq 'scripts/run-powershell-lint.mjs' -and -not $Fixture) {
+    $global:LASTEXITCODE = [int]($env:PORTCOVE_ANALYZER_FAILURE -eq 'lint')
+  } elseif ($Script -eq 'scripts/lint-tools.integration.mjs' -and $Fixture -eq 'psscriptanalyzer') {
+    $global:LASTEXITCODE = [int]($env:PORTCOVE_ANALYZER_FAILURE -eq 'fixture')
+  } else { throw 'changed mandatory gate' }
+}
+`;
+  for (const [versions, failure, acquisition, gates, success] of [
+    [["1.25.0"], "", false, 2, true],
+    [["1.24.0", "1.25.0", "1.26.0"], "", false, 2, true],
+    [[], "", true, 2, true],
+    [["1.24.0", "1.26.0"], "", true, 2, true],
+    [[], "acquisition", true, 0, false],
+    [["1.25.0"], "import", false, 0, false],
+    [["1.25.0"], "lint", false, 1, false],
+    [["1.25.0"], "fixture", false, 2, false],
+  ]) {
+    const result = spawnSync(
+      "pwsh",
+      ["-NoProfile", "-NonInteractive", "-Command", mocks + script],
+      {
+        cwd: new URL("..", import.meta.url),
+        env: {
+          ...process.env,
+          PORTCOVE_ANALYZER_VERSIONS: JSON.stringify(versions),
+          PORTCOVE_ANALYZER_FAILURE: failure,
+        },
+        encoding: "utf8",
+        timeout: 10_000,
+        windowsHide: true,
+      },
+    );
+    assert.ifError(result.error);
+    const context = JSON.stringify({ versions, failure }) + result.stdout + result.stderr;
+    assert.equal(result.status === 0, success, context);
+    assert.equal(result.stdout.includes("acquire-exact-pin"), acquisition, context);
+    assert.equal((result.stdout.match(/gate:/g) ?? []).length, gates, context);
+    assert.equal(result.stdout.includes("import-exact-pin"), failure !== "acquisition", context);
+  }
 });
 
 test("Windows fixture setup selects runner-owned temporary storage before compilation", async () => {
