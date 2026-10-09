@@ -107,6 +107,12 @@ use the guarded command below. A changed source head requires applicable
 current-head validation and review; administrator bypass remains outside the
 routine path.
 
+For sequential stacked delivery, finish the parent independently, compare its
+delivered tree with the reviewed parent, then reconcile and review the child's
+actual final head before expensive final qualification. Preserve exploratory
+checks with their original head; equivalent trees do not replace current-head CI
+or explicitly fresh/stateful acceptance.
+
 Keep the reviewed source head frozen while checks complete. Use
 `just pr-watch --pr <number-or-url> --head <reviewed-head> --run <id> --attempt <number> --deadline <UTC-time>`
 for one identified source-head workflow and the five checked-in required contexts.

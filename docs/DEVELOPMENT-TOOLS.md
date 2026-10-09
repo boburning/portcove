@@ -1,5 +1,26 @@
 # Development tools
 
+Before overlapping local Rust or native commands, use `just resource-status` for
+a passive snapshot of existing guard records. It reports recorded identities and
+unknown coverage; the guards still own admission. Sequence conflicting owned
+commands, including focused Rust tests and `local-check`; independent work may
+continue. Missing records do not prove the machine is idle.
+
+Use `node scripts/checked-git.mjs -- <git arguments>` for a checked call, or
+`node scripts/checked-git.mjs --sequence <owned-json-file>` for dependent calls.
+The JSON is an ordered array of argument arrays, for example
+`[["rev-parse", "--verify", "HEAD^{tree}"], ["diff", "--check"]]`.
+Git receives literal arguments and the first failed exit, timeout or spawn stops
+the sequence. Resolve source/target/tree identities before mutation; conflicts
+stay visible for explicit resolution. Other PowerShell callers still check each
+native exit immediately.
+
+Retain raw JSON, then use `node scripts/report-summary.mjs ci|roadmap|fallow FILE`
+to inspect decision-relevant fields within 16 KiB, with omission counts and raw
+evidence references. CI summaries never claim complete pagination. Fallow retains
+original analyzer bytes below `work/fallow-reports`. Selected static gates run
+before compilation and tests; complete selected and hosted obligations remain.
+
 The native update and progressive-scan journeys share owned IPC interception
 custody through `desktop-owned-ipc-probe.mjs`. Its two fixed handles own payload
 decoding, the no-forwarding boundary, fetch identity, Channel closure, pending

@@ -40,6 +40,25 @@ import { buildValidationPlan } from "./validation-plan.mjs";
 
 const allFilesExist = () => true;
 
+test("selected static gates including Fallow precede compilation and tests", () => {
+  const selection = classifyChanges(
+    [
+      { status: "M", path: "apps/desktop/src/App.tsx" },
+      { status: "M", path: "crates/portcove-core/src/lib.rs" },
+    ],
+    { fileExists: allFilesExist },
+  );
+  const plan = buildPlan(selection, { mergeBase: "HEAD", platform: "win32" });
+  const firstHeavy = plan.findIndex(
+    (entry) =>
+      entry.id.startsWith("rust-clippy") || entry.id === "ui-build" || entry.id === "node-tests",
+  );
+  assert.ok(firstHeavy >= 0);
+  assert.ok(plan.findIndex((entry) => entry.id === "fallow") < firstHeavy);
+  const lint = plan.findIndex((entry) => entry.id === "ui-oxlint");
+  assert.ok(lint >= 0 && lint < firstHeavy);
+});
+
 test("review inventory keeps command arguments while making candidate-root paths portable", () => {
   const source = fileURLToPath(new URL("../", import.meta.url));
   const entry = {
@@ -1134,14 +1153,14 @@ test("UI sources build, lint, and run import-related tests", () => {
   assert.deepEqual(ids(plan), [
     "diff-check",
     "oxfmt",
-    "ui-build",
     "ui-oxlint",
+    "fallow",
+    "ui-build",
     "ui-related-tests",
     "ui-related-durations",
     "ui-browser-tests",
     "ui-theme-copy",
     "ui-copy",
-    "fallow",
   ]);
   const uiBuild = plan.find((entry) => entry.id === "ui-build");
   assert.equal(uiBuild.executable, "corepack");

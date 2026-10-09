@@ -399,6 +399,46 @@
         "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Blood Omen: Legacy of Kain (USA, SLUS-00027); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/b289b9c2d7163968aa679dcc0cb40b2ccf7bb053/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-digimon-world-2003-recomp-v0-3-6-source-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/digimon-world-2003-recomp",
+        "authority_ref": "cebada963263459d292da7e3dee07b0fbc9f01e9",
+        "reviewed_at": "2026-10-09",
+        "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Digimon World 2003 (Europe PAL, SLES-03936); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/blob/cebada963263459d292da7e3dee07b0fbc9f01e9/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-duke-nukem-land-of-the-babes-recomp-v0-3-6-source-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+        "authority_ref": "bc7f7e4e15f024bf821d58b4216673b3dd47036b",
+        "reviewed_at": "2026-10-09",
+        "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Duke Nukem: Land of the Babes (USA NTSC-U, SLUS-01002); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/blob/bc7f7e4e15f024bf821d58b4216673b3dd47036b/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-driver-recomp-v0-3-6-source-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/driver-recomp",
+        "authority_ref": "8dd843a427386d8d44aeaab4aca783774df95cd8",
+        "reviewed_at": "2026-10-09",
+        "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Driver (USA NTSC-U, SLUS-00842); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/blob/8dd843a427386d8d44aeaab4aca783774df95cd8/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-duke-nukem-time-to-kill-recomp-v0-3-6-source-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+        "authority_ref": "62f7313c39e96a1146967df3beecae06a81df18b",
+        "reviewed_at": "2026-10-09",
+        "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Duke Nukem: Time to Kill (USA NTSC-U, SLUS-00583); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/62f7313c39e96a1146967df3beecae06a81df18b/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/main/game.toml"
       }
     ],
     "identities": [
@@ -4932,6 +4972,186 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "digimon-world-2003-psx",
+        "label": "Digimon World 2003 (Europe PAL) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe-pal",
+            "title": "Digimon World 2003",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-03936"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "457cb233349ba841e03b33d8060f8fbcadd45cb3",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-digimon-world-2003-recomp-v0-3-6-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-digimon-world-2003-recomp-v0-3-6-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "duke-nukem-land-of-the-babes-psx",
+        "label": "Duke Nukem: Land of the Babes (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Duke Nukem: Land of the Babes",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-01002"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "f57c49eac288225fe3602e279bc1379f72f7eea6",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-duke-nukem-land-of-the-babes-recomp-v0-3-6-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-duke-nukem-land-of-the-babes-recomp-v0-3-6-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "driver-psx",
+        "label": "Driver (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Driver",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00842"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "3df45bb77b9189258dc513d8b161b73bc0b06d6e",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-driver-recomp-v0-3-6-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-driver-recomp-v0-3-6-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "duke-nukem-time-to-kill-psx",
+        "label": "Duke Nukem: Time to Kill (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Duke Nukem: Time to Kill",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00583"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "a782825520939da0560ef031daa78db8ef720957",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-duke-nukem-time-to-kill-recomp-v0-3-6-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-duke-nukem-time-to-kill-recomp-v0-3-6-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6962,6 +7182,114 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-digimon-world-2003-recomp-game-source",
+        "port_id": "alexbeav-digimon-world-2003-recomp",
+        "role": "game",
+        "profile_id": "digimon-world-2003-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-pal"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-digimon-world-2003-recomp-v0-3-6-source-contract"
+        ],
+        "authority_ref": "cebada963263459d292da7e3dee07b0fbc9f01e9",
+        "reviewed_at": "2026-10-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/blob/cebada963263459d292da7e3dee07b0fbc9f01e9/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-duke-nukem-land-of-the-babes-recomp-game-source",
+        "port_id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+        "role": "game",
+        "profile_id": "duke-nukem-land-of-the-babes-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-duke-nukem-land-of-the-babes-recomp-v0-3-6-source-contract"
+        ],
+        "authority_ref": "bc7f7e4e15f024bf821d58b4216673b3dd47036b",
+        "reviewed_at": "2026-10-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/blob/bc7f7e4e15f024bf821d58b4216673b3dd47036b/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-driver-recomp-game-source",
+        "port_id": "alexbeav-driver-recomp",
+        "role": "game",
+        "profile_id": "driver-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-driver-recomp-v0-3-6-source-contract"
+        ],
+        "authority_ref": "8dd843a427386d8d44aeaab4aca783774df95cd8",
+        "reviewed_at": "2026-10-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/blob/8dd843a427386d8d44aeaab4aca783774df95cd8/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-duke-nukem-time-to-kill-recomp-game-source",
+        "port_id": "alexbeav-duke-nukem-time-to-kill-recomp",
+        "role": "game",
+        "profile_id": "duke-nukem-time-to-kill-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-duke-nukem-time-to-kill-recomp-v0-3-6-source-contract"
+        ],
+        "authority_ref": "62f7313c39e96a1146967df3beecae06a81df18b",
+        "reviewed_at": "2026-10-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/62f7313c39e96a1146967df3beecae06a81df18b/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662"
           }
         ],
         "aliases": [],
@@ -14270,6 +14598,330 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching single-track CHD for SLUS-00027. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+      }
+    },
+    {
+      "id": "alexbeav-digimon-world-2003-recomp",
+      "name": "Digimon World 2003 / Alexbeav PSXRecomp",
+      "summary": "Native Digimon World 2003 recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.6",
+            "url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152631,
+            "sha256": "71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b",
+            "published_at": "2026-09-04T14:48:39Z"
+          }
+        }
+      },
+      "source_profile": "digimon-world-2003-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Digimon_World_2003_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "digimon-world-2003-psx",
+            "label": "Digimon World 2003 (Europe PAL) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLES-03936. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+      }
+    },
+    {
+      "id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
+      "name": "Duke Nukem: Land of the Babes / Alexbeav PSXRecomp",
+      "summary": "Native Duke Nukem: Land of the Babes recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.6",
+            "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+            "size": 30154371,
+            "sha256": "33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
+            "published_at": "2026-09-04T14:48:44Z"
+          }
+        }
+      },
+      "source_profile": "duke-nukem-land-of-the-babes-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Duke_Nukem__Land_of_the_Babes_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "duke-nukem-land-of-the-babes-psx",
+            "label": "Duke Nukem: Land of the Babes (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-01002. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+      }
+    },
+    {
+      "id": "alexbeav-driver-recomp",
+      "name": "Driver / Alexbeav PSXRecomp",
+      "summary": "Native Driver recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.6",
+            "url": "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip",
+            "size": 30154093,
+            "sha256": "57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
+            "published_at": "2026-09-04T14:48:39Z"
+          }
+        }
+      },
+      "source_profile": "driver-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Driver_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "driver-psx",
+            "label": "Driver (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+      }
+    },
+    {
+      "id": "alexbeav-duke-nukem-time-to-kill-recomp",
+      "name": "Duke Nukem: Time to Kill / Alexbeav PSXRecomp",
+      "summary": "Native Duke Nukem: Time to Kill recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.6",
+            "url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+            "size": 30158026,
+            "sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
+            "published_at": "2026-09-04T14:48:44Z"
+          }
+        }
+      },
+      "source_profile": "duke-nukem-time-to-kill-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Duke_Nukem__Time_to_Kill_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "duke-nukem-time-to-kill-psx",
+            "label": "Duke Nukem: Time to Kill (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00583. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
       }
     }
   ]

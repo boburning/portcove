@@ -192,7 +192,7 @@ test("unreviewed proposal identities report required fixture review without edit
   assert.equal(review.status, "requires-review");
   assert.deepEqual(review.collections.port_ids.unreviewed_ids, ["unreviewed-proposal-port"]);
   assert.deepEqual(review.collections.source_profile_ids.missing_expected_ids, ["dkc3-na-en-fr"]);
-  assert.equal(review.collections.port_ids.expected_count, 84);
+  assert.equal(review.collections.port_ids.expected_count, 88);
   const before = readFileSync(join(catalogRoot, "catalog-legacy-additions-fixture.json"));
   assert.deepEqual(
     readFileSync(join(fixture.catalogs, "catalog-legacy-additions-fixture.json")),
