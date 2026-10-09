@@ -8,6 +8,25 @@ const mappings = JSON.parse(await readFile(mappingPath, "utf8"));
 const psxPorts = catalog.ports.filter((port) => port.adapter === "psx-recomp-managed");
 const failures = [];
 const offline = process.argv.includes("--offline");
+const scopeArguments = process.argv.slice(2).filter((arg) => arg.startsWith("--port-ids="));
+if (
+  scopeArguments.length > 1 ||
+  process.argv.slice(2).some((arg) => arg !== "--offline" && !arg.startsWith("--port-ids=")) ||
+  (offline && scopeArguments.length)
+)
+  throw new Error("Invalid RetComM scope; offline validation always covers the complete catalog");
+const scopeValue = scopeArguments[0]?.slice("--port-ids=".length);
+const selectedIds =
+  scopeValue === undefined ? null : scopeValue === "" ? [] : scopeValue.split(",");
+if (
+  selectedIds &&
+  (new Set(selectedIds).size !== selectedIds.length ||
+    selectedIds.some(
+      (id) =>
+        !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id) || !catalog.ports.some((port) => port.id === id),
+    ))
+)
+  throw new Error("RetComM scope requires unique existing port IDs");
 
 const mappedPortIds = new Set(Object.keys(mappings));
 const outsideRetcomm = [];
@@ -146,6 +165,7 @@ async function loadRetcommTitle(titleId) {
 if (!offline) {
   await Promise.all(
     Object.entries(mappings).map(async ([portId, titleId]) => {
+      if (selectedIds !== null && !selectedIds.includes(portId)) return;
       const port = psxPorts.find((candidate) => candidate.id === portId);
       if (!port) return;
 
@@ -175,6 +195,7 @@ if (!offline) {
 }
 
 for (const identity of outsideRetcomm) {
+  if (selectedIds !== null && !selectedIds.includes(identity.port_id)) continue;
   console.log(
     `RetComM audit NOT_APPLICABLE: ${JSON.stringify(identity)}; independent pinned artifacts, upstream health NOT_CHECKED. Catalog identity and exact-artifact acceptance own this route; this audit performs neither.`,
   );
@@ -192,6 +213,6 @@ if (offline) {
 } else {
   const source = localCatalogDir ? localCatalogDir : `TechnicallyComputers/retcomm-catalog@${ref}`;
   console.log(
-    `Verified ${psxPorts.length - outsideRetcomm.length} direct PS1 game upstreams against ${source}; RetComM-Launcher is not a runtime source.`,
+    `Verified ${psxPorts.filter((port) => mappedPortIds.has(port.id) && (selectedIds === null || selectedIds.includes(port.id))).length} direct PS1 game upstreams against ${source}; RetComM-Launcher is not a runtime source.${selectedIds === null ? "" : " Unselected live identities remain unassessed."}`,
   );
 }

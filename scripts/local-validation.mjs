@@ -309,6 +309,7 @@ const explicitNodeTests = new Map([
   ],
   [".github/roadmap.json", ["scripts/roadmap.test.mjs"]],
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mjs"]],
+  [".github/upstream-health-accounting.json", ["scripts/upstream-observer.test.mjs"]],
   [
     ".github/qualification-coverage.json",
     ["scripts/qualification-coverage.test.mjs", "scripts/ci-workflow.test.mjs"],
