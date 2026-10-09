@@ -255,6 +255,16 @@ function useContinuationSource(
     : ([localSource, setLocalSource] as const);
 }
 
+function savedScanAction(
+  snapshot: GameFileScanSnapshot | null | undefined,
+  readConfirmed: boolean,
+) {
+  if (!readConfirmed || snapshot?.freshness !== "inputs_match") return "Scan saved folders";
+  if (snapshot.coverage?.restart_required) return "Start new scan";
+  if (snapshot.coverage?.can_resume) return "Continue scan";
+  return "Scan saved folders";
+}
+
 function CompletedScan({
   snapshot,
   readConfirmed,
@@ -284,6 +294,8 @@ function CompletedScan({
 }) {
   const report = snapshot?.report;
   if (!snapshot || !report) return null;
+  const coverage = snapshot.coverage;
+  const canContinue = savedScanAction(snapshot, readConfirmed) === "Continue scan";
   return (
     <section className="source-discovery-results" aria-label="Saved folder scan results">
       <h3>Last completed scan</h3>
@@ -294,6 +306,30 @@ function CompletedScan({
             ? "Saved roots and catalog match this snapshot. Files may have changed since the scan."
             : "Saved roots, availability, catalog, or search rules changed. Scan again before using these results."}
       </p>
+      {coverage && (
+        <p>
+          {formatCountMessage(coverage.batches, {
+            zero: "No scan batches were recorded.",
+            one: "These totals cover 1 scan batch.",
+            other: "These totals cover {count} scan batches.",
+            unknown: "The number of scan batches is unavailable.",
+          })}{" "}
+          {coverage.restart_required
+            ? "The saved scan cannot continue. Start a new scan to check the current folders."
+            : coverage.frontier_exhausted
+              ? "No more entries remain in this scan's folder list. Skipped files and search limits still apply."
+              : coverage.remaining_entries === null
+                ? "The number of remaining entries is unknown."
+                : formatCountMessage(coverage.remaining_entries, {
+                    zero: "No remaining entries were reported.",
+                    one: "1 entry remains to be checked.",
+                    other: "{count} entries remain to be checked.",
+                    unknown: "The number of remaining entries is unknown.",
+                  })}{" "}
+          {canContinue &&
+            "Continue the scan to check another bounded batch without moving your files."}
+        </p>
+      )}
       <p>
         Checked {report.entries_examined} entries in {report.searched_roots.length} available
         folders.{" "}
@@ -312,7 +348,10 @@ function CompletedScan({
         <ul>
           {report.limits_reached.map((limit) => (
             <li key={limit}>
-              {sourceDiscoveryLimitLabel(limit)}: {savedRootLimitGuidance(limit)}
+              {sourceDiscoveryLimitLabel(limit)}:{" "}
+              {limit === "entries" && canContinue
+                ? "Continue the scan to check the next batch. Earlier matches were kept."
+                : savedRootLimitGuidance(limit)}
             </li>
           ))}
         </ul>
@@ -865,7 +904,7 @@ export function GameFileLibraries({
           }
           onClick={() => void scan()}
         >
-          Scan saved folders
+          {savedScanAction(snapshot, readConfirmed)}
         </Button>
       </div>
       {busy && <p role="status">{busy}</p>}
