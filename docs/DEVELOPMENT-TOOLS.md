@@ -233,12 +233,13 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
 [Development storage](DEVELOPMENT-STORAGE.md) only for that case.
 
 1. Read the canonical issue's unmet acceptance, current PR and latest relevant
-   bounded operational snapshot and accepted assignment. Resolve `git rev-parse --show-toplevel`, then inspect
+   live requirements and actual writer/handoff evidence. Resolve `git rev-parse --show-toplevel`, then inspect
    `git status --short --branch --untracked-files=all`, `git rev-parse HEAD` and
    `git worktree list --porcelain`. Reconcile them with the recorded owner,
    branch and evidence; process absence alone is not an ownership transfer.
 2. Resume the current branch and failed obligation before selecting another
-   task. Before any branch transition, require a clean checkout, known ownership,
+   task when locally actionable; preserve blockers and select independent work
+   when waiting. Before any branch transition, require a clean checkout, known ownership,
    terminal owned build/native operations, and preserved relevant ignored evidence.
    If any condition is unknown or false, refuse the transition. Do not stash,
    reset, delete or overwrite work to make it possible. After a confirmed merge,
@@ -251,9 +252,9 @@ an unsafe preserved checkout, or a measured isolation requirement; follow
    evidence instead of copying the initiative or creating a local status ledger.
    Include the consumed requirements revision, actual delta disposition, capable
    execution/validation route and discovery/update handoff. Use the derived
-   `roadmap-context` and material `roadmap-acknowledge` path described in
+   `roadmap-context` pickup and owning issue/PR evidence path described in
    [Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
-   It supplements the accepted reservation; it does not grant or dispatch work.
+   Context does not grant or dispatch work; no coordinator acknowledgment is required.
 4. Run the smallest relevant `just test-rust`, `just test-ui-related` or
    `just test-node` loop, then `just local-check` before the coherent push and
    after substantive repair. Integrity-matched deterministic stages may be reused;
@@ -841,7 +842,7 @@ Cargo/nextest to evade it.
 
 At a real safe checkpoint before an authorized environment replacement, use the
 existing source and evidence channels to preserve the essential continuation:
-exact commits, branches/refs and uncommitted work; the accepted assignment and
+exact commits, branches/refs and uncommitted work; current ownership and
 current qualification boundary; and the original acceptance/failure evidence
 referenced by that work, including incident identities, locks and receipts.
 Verify newly preserved originals incrementally by identity, checksum and readback;
@@ -849,8 +850,8 @@ retain earlier verified evidence at its original scope instead of bulk-exporting
 everything at every checkpoint. Reproducible dependencies, build outputs and
 caches are distinct from irreplaceable source and evidence. Unreferenced optional
 historical payload can remain on the retained host with its access limitation
-reported. Missing essential evidence remains unknown and must be returned to the
-coordinator under the existing preservation requirement. An authentication/export
+reported. Missing essential evidence remains unknown; record its exact gap and
+resume condition on the owning issue/PR under the preservation requirement. An authentication/export
 failure belongs to the existing platform channel, not a credential workaround or
 a new backup service. Keep the failed host and its originals intact; a fresh
 environment and a repaired supervisor do not turn its old cleanup into success.
