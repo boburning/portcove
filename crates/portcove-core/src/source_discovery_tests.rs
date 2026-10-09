@@ -3839,6 +3839,7 @@ fn saved_scan_resumes_with_saturated_issues_and_an_existing_owned_omission() {
     let root = temporary.path().join("selected");
     fs::create_dir(&root).unwrap();
     let library = crate::Library::open(root.join("owned-library")).unwrap();
+    let canonical_library = fs::canonicalize(library.root()).unwrap();
     let owned_file = library.root().join("original.z64");
     let payload = b"supported resumable source";
     fs::write(&owned_file, payload).unwrap();
@@ -3870,7 +3871,7 @@ fn saved_scan_resumes_with_saturated_issues_and_an_existing_owned_omission() {
             .report
             .issues
             .iter()
-            .filter(|issue| issue.path.as_deref() == Some(library.root()))
+            .filter(|issue| issue.path.as_deref() == Some(canonical_library.as_path()))
             .count(),
         1
     );
