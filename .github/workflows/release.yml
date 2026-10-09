@@ -112,7 +112,7 @@ jobs:
         run: node scripts/check-retcomm-upstreams.mjs
 
   build:
-    needs: identity
+    needs: [identity, validate]
     permissions:
       contents: read
     strategy:
@@ -206,7 +206,7 @@ jobs:
           overwrite: true
 
   build_intel:
-    needs: identity
+    needs: [identity, validate]
     runs-on: macos-15
     permissions:
       contents: read

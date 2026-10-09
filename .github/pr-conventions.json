@@ -21,13 +21,7 @@
     "bot_prefixes": ["dependabot/"]
   },
   "body": {
-    "headings": [
-      "Linked issue",
-      "Outcome and scope",
-      "Verification",
-      "Review and risk",
-      "Readiness and follow-ups"
-    ],
+    "headings": ["Linked issue", "Outcome and scope", "Verification", "Review and risk"],
     "issue_keywords": ["Closes", "Fixes", "Resolves", "Refs", "Related to"]
   },
   "bot_actors": ["dependabot[bot]"]

@@ -8,10 +8,126 @@ import {
   validateRustTestImpactMap,
   runnableImpactTests,
   runRustImpactUnion,
+  selectWorkspaceRustImpact,
+  runnableWorkspaceImpactTests,
+  runWorkspaceRustImpact,
 } from "./rust-test-impact.mjs";
+import { buildValidationPlan } from "./validation-plan.mjs";
 
 const map = readRustTestImpactMap();
 const modified = (path) => ({ status: "M", path });
+
+const workspacePlan = (files) =>
+  buildValidationPlan({
+    changes: files.map((file) => ({
+      status: "M",
+      oldMode: "100644",
+      newMode: "100644",
+      oldPath: file,
+      newPath: file,
+    })),
+    eventName: "pull_request",
+    base: "a".repeat(40),
+    mergeBase: "a".repeat(40),
+    head: "b".repeat(40),
+    checkout: "b".repeat(40),
+  });
+test("workspace impact preserves package qualification and broad fallback boundaries", () => {
+  const narrow = selectWorkspaceRustImpact(
+    workspacePlan(["crates/portcove-core/src/source_report.rs"]),
+  );
+  assert.equal(narrow.length, 1);
+  assert.match(narrow[0].filter, /package\(=portcove-core\)/u);
+  assert.deepEqual(
+    selectWorkspaceRustImpact(workspacePlan(["crates/portcove-core/src/types.rs"])).map(
+      (g) => g.filter,
+    ),
+    ["package(=portcove-core)"],
+  );
+  for (const file of ["Cargo.lock", "unknown/input.bin", "crates/future-crate/src/lib.rs"])
+    assert.deepEqual(
+      selectWorkspaceRustImpact(workspacePlan([file])).map((g) => g.filter),
+      ["all()"],
+    );
+  const missing = selectWorkspaceRustImpact(
+    workspacePlan(["crates/portcove-core/src/source_report.rs"]),
+    null,
+  );
+  assert.deepEqual(
+    missing.map((g) => g.filter),
+    ["package(=portcove-core)"],
+  );
+  const artwork = selectWorkspaceRustImpact(workspacePlan(["crates/portcove-core/src/artwork.rs"]));
+  assert.ok(artwork.some((g) => g.packageName === "portcove-cli"));
+});
+test("workspace inventory permits multiple packages but rejects incomplete identity/count records", () => {
+  const complete = inventory(["core"]);
+  complete["rust-suites"]["portcove-cli"] = {
+    ...complete["rust-suites"]["portcove-core"],
+    "package-name": "portcove-cli",
+    "binary-id": "portcove-cli",
+  };
+  complete["test-count"] = 2;
+  assert.equal(runnableWorkspaceImpactTests(complete).size, 2);
+  const filtered = structuredClone(complete);
+  filtered["rust-suites"]["portcove-cli"].status = "skipped";
+  filtered["rust-suites"]["portcove-cli"].testcases = {};
+  filtered["test-count"] = 1;
+  assert.throws(() => runnableWorkspaceImpactTests(filtered));
+  assert.equal(runnableWorkspaceImpactTests(filtered, { allowSkipped: true }).size, 1);
+  filtered["rust-suites"]["portcove-cli"].testcases =
+    complete["rust-suites"]["portcove-cli"].testcases;
+  assert.throws(() => runnableWorkspaceImpactTests(filtered, { allowSkipped: true }));
+  assert.throws(() => runnableWorkspaceImpactTests({ ...complete, "test-count": 3 }));
+  complete["rust-suites"]["portcove-cli"]["binary-id"] = "wrong";
+  assert.throws(() => runnableWorkspaceImpactTests(complete));
+});
+test("workspace groups and their exact union use identical all-target build scope before guarded execution", () => {
+  const calls = [];
+  const responses = [
+    inventory(["a", "shared", "b"]),
+    inventory(["a", "shared"]),
+    inventory(["shared", "b"]),
+    inventory(["a", "shared", "b"]),
+  ];
+  const p = workspacePlan([
+    "crates/portcove-core/src/source_report.rs",
+    "crates/portcove-core/src/release/observation.rs",
+  ]);
+  const status = runWorkspaceRustImpact(p, {
+    map,
+    report() {},
+    spawnSync(_command, args) {
+      calls.push(args);
+      return args[1] === "list"
+        ? { status: 0, stdout: JSON.stringify(responses.shift()) }
+        : { status: 9 };
+    },
+  });
+  assert.equal(status, 9);
+  for (const args of calls)
+    assert.deepEqual(args.slice(2, 5), ["--locked", "--workspace", "--all-targets"]);
+  assert.deepEqual(
+    calls.map((args) => args[1]),
+    ["list", "list", "list", "list", "run"],
+  );
+  for (const data of [
+    [inventory(["a"]), inventory([])],
+    [inventory(["a", "b"]), inventory(["a"]), inventory(["b"]), inventory(["a"])],
+    [inventory(["a"]), inventory(["unexpected"])],
+  ]) {
+    assert.throws(() =>
+      runWorkspaceRustImpact(p, {
+        map,
+        report() {},
+        spawnSync(_command, args) {
+          assert.equal(args[1], "list");
+          return { status: 0, stdout: JSON.stringify(data.shift()) };
+        },
+      }),
+    );
+  }
+});
 
 function inventory(names) {
   return {
