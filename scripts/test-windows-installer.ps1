@@ -307,6 +307,7 @@ $evidence = if ($EvidencePath) {
         format = 1
         phase = "initialized"
         process_runs = @()
+        unverified_child_observations = @()
         owned_paths = [ordered]@{
             run_root_relative = [System.IO.Path]::GetRelativePath($base, $runRoot).Replace('\', '/')
             install_relative = [System.IO.Path]::GetRelativePath($base, $installRoot).Replace('\', '/')
@@ -560,7 +561,8 @@ function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [Dat
         $verified = $false
         try {
             $null = $process.Handle
-            if ($process.HasExited) { continue }
+            $initialHasExited = $process.HasExited
+            if ($initialHasExited) { continue }
             $started = $process.StartTime.ToUniversalTime()
             try {
                 $observedPath = $process.Path
@@ -572,7 +574,27 @@ function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [Dat
                 # A short-lived cleanup child can exit between the HasExited
                 # observation above and reading its executable image. Treat it
                 # like a child that was already gone when this scan began.
-                if ($process.HasExited) { continue }
+                $refusalHasExited = $process.HasExited
+                if ($refusalHasExited) { continue }
+                # The refusal is fixed above. These scalars are unverified
+                # diagnostics, never ownership or positive exit evidence.
+                if ($evidence) {
+                    try {
+                        $evidence.unverified_child_observations += [ordered]@{
+                            cim_pid = [int]$child.ProcessId
+                            cim_parent_pid = [int]$child.ParentProcessId
+                            cim_creation_time = $child.CreationDate.ToUniversalTime().ToString("o")
+                            retained_pid = $process.Id
+                            retained_start_time = $started.ToString("o")
+                            initial_has_exited = $initialHasExited
+                            refusal_has_exited = $refusalHasExited
+                            image_read_state = $(if ($null -eq $observedPath) { "null" } else { "blank" })
+                            cim_path_present = -not [string]::IsNullOrWhiteSpace([string]$child.ExecutablePath)
+                        }
+                    } catch {
+                        # Diagnostic failure must not replace the existing refusal.
+                    }
+                }
                 throw "Uninstaller child executable image path could not be observed"
             }
             $exact = [System.IO.Path]::GetFullPath($observedPath)
