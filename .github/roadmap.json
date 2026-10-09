@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "delivery_mode": "single-local-runner",
   "owner": "boburning",
   "repository": "boburning/portcove",
   "runner_coordination": {
