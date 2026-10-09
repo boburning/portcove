@@ -165,7 +165,13 @@ test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or 
       ),
     /terminal/,
   );
-  await symlink(path.join(input, "fixture.png"), path.join(input, "linked.png"));
+  // Reject Windows directory junctions without requiring symlink privileges.
+  // Unix retains the file-symlink rejection fixture.
+  await symlink(
+    process.platform === "win32" ? input : path.join(input, "fixture.png"),
+    path.join(input, "linked.png"),
+    process.platform === "win32" ? "junction" : "file",
+  );
   await assert.rejects(() => encodeHostedEvidence(input), /links/);
 });
 

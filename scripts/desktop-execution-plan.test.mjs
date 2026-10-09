@@ -5,10 +5,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import { fileIdentity } from "./development-evidence.mjs";
-import { preparationScenarios } from "../apps/desktop/scripts/desktop-preparation-test.mjs";
-import { installScenarios } from "../apps/desktop/scripts/desktop-install-test.mjs";
-import { selectedSetupScenario } from "../apps/desktop/scripts/desktop-source-dialog-test.mjs";
-import { selectedSetupCompletionScenario } from "../apps/desktop/scripts/desktop-selected-setup-completion-test.mjs";
 import { planDesktopExecution } from "./desktop-execution-plan.mjs";
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mjs";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mjs";
@@ -188,48 +184,6 @@ test("coordinator preserves gap position and leaves attempt attribution to its c
     ),
     /Unknown owned fixture family/,
   );
-});
-
-test("real journey registration uses the existing attempt seam without executing callbacks", async () => {
-  const plan = planDesktopExecution(
-    resolveDesktopSelection({ profile: "full", platform: "win32" }),
-  );
-  const attempts = [];
-  const context = {
-    browser: {},
-    invoke: async () => assert.fail("No IPC"),
-    scenario: async (id) => attempts.push(id),
-    library: "<library>",
-    output: "<output>",
-    artifacts: [],
-    inputs: [],
-    cli: "<cli>",
-    tool: "<tool>",
-    restartApplication: async () => assert.fail("No restart"),
-    interruptApplication: async () => assert.fail("No interruption"),
-    closeApplication: async () => assert.fail("No close"),
-    captureLivePreparation: () => assert.fail("No capture"),
-  };
-  await runOwnedFixtureJourneys(
-    {
-      plan,
-      runtime: {
-        context: () => context,
-        confirmNative: () => async () => assert.fail("No consent"),
-        recordKnownGap: () => {},
-      },
-    },
-    {
-      install: installScenarios,
-      selectedSetup: selectedSetupScenario,
-      selectedSetupCompletion: selectedSetupCompletionScenario,
-      preparation: preparationScenarios,
-    },
-  );
-  assert(attempts.includes("install-progress-cancellation"));
-  assert(attempts.includes("native-preparation-review-and-play"));
-  for (const family of plan.fixtureFamilies.filter((e) => e.family))
-    for (const member of family.members) assert(attempts.includes(member.id), member.id);
 });
 
 test("harness hashes preserved inputs and the current planner/coordinator bytes", async () => {

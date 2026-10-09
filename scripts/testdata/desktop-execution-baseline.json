@@ -14960,8 +14960,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -15176,8 +15176,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -15368,8 +15368,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -15578,9 +15578,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -15839,9 +15839,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -16142,9 +16142,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -16340,8 +16340,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -16548,8 +16548,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -16732,8 +16732,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -16926,8 +16926,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -17114,8 +17114,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -17301,8 +17301,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -17495,8 +17495,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -17689,8 +17689,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -17890,8 +17890,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -18084,8 +18084,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -18278,8 +18278,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -18472,8 +18472,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -18666,8 +18666,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -18860,8 +18860,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -19054,8 +19054,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -19248,8 +19248,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -19442,8 +19442,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -19636,8 +19636,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -19830,8 +19830,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -20040,9 +20040,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -20239,8 +20239,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -20435,8 +20435,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -20629,8 +20629,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -20839,9 +20839,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -21050,9 +21050,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -21261,9 +21261,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -21474,9 +21474,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -21685,9 +21685,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -21896,9 +21896,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -22109,9 +22109,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -22320,9 +22320,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -22523,9 +22523,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -22726,9 +22726,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -22929,9 +22929,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -23140,9 +23140,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -23355,9 +23355,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -23558,9 +23558,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -23771,9 +23771,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -23984,9 +23984,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -24197,9 +24197,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -24408,9 +24408,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -24621,9 +24621,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -24836,9 +24836,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -25047,9 +25047,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -25258,9 +25258,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -25473,9 +25473,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -25688,9 +25688,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -25901,9 +25901,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -26099,8 +26099,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -26314,9 +26314,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -26511,8 +26511,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -26705,8 +26705,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -26931,8 +26931,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -27231,9 +27231,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -27465,8 +27465,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -27659,8 +27659,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -27851,8 +27851,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -28043,8 +28043,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -28265,9 +28265,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -28489,9 +28489,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -28750,8 +28750,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -28966,8 +28966,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -29158,8 +29158,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -29368,9 +29368,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -29629,9 +29629,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -29932,9 +29932,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -30130,8 +30130,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -30338,8 +30338,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -30522,8 +30522,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -30716,8 +30716,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -30904,8 +30904,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -31091,8 +31091,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -31285,8 +31285,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -31479,8 +31479,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -31680,8 +31680,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -31874,8 +31874,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -32068,8 +32068,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -32262,8 +32262,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -32456,8 +32456,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -32650,8 +32650,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -32844,8 +32844,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -33038,8 +33038,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -33232,8 +33232,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -33426,8 +33426,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -33620,8 +33620,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -33830,9 +33830,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -34029,8 +34029,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -34225,8 +34225,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -34419,8 +34419,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -34629,9 +34629,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -34840,9 +34840,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -35051,9 +35051,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -35264,9 +35264,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -35475,9 +35475,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -35686,9 +35686,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -35899,9 +35899,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -36110,9 +36110,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -36313,9 +36313,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -36516,9 +36516,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -36719,9 +36719,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -36930,9 +36930,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -37145,9 +37145,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -37348,9 +37348,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -37561,9 +37561,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -37774,9 +37774,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -37987,9 +37987,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -38198,9 +38198,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -38411,9 +38411,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -38626,9 +38626,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -38837,9 +38837,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -39048,9 +39048,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -39263,9 +39263,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -39478,9 +39478,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -39691,9 +39691,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -39889,8 +39889,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -40104,9 +40104,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -40301,8 +40301,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -40495,8 +40495,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -40721,8 +40721,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -41021,9 +41021,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -41255,8 +41255,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -41449,8 +41449,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -41641,8 +41641,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -41833,8 +41833,8 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
           "cli": null,
           "owned_probe": null
         },
@@ -42055,9 +42055,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
@@ -42279,9 +42279,9 @@
           "remediation": "./scripts/bootstrap-quality-tools.sh --desktop"
         },
         "paths": {
-          "output_parent": "<output>\\desktop-verify",
-          "application": "<target>\\debug\\portcove-desktop",
-          "cli": "<target>\\debug\\portcove",
+          "output_parent": "<output>/desktop-verify",
+          "application": "<target>/debug/portcove-desktop",
+          "cli": "<target>/debug/portcove",
           "owned_probe": "<run-directory>/portcove-host-tool-fixture"
         },
         "phases": [
