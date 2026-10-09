@@ -3534,26 +3534,62 @@ mod tests {
         server.join().unwrap();
     }
 
+    struct StalledDownloadServer {
+        address: std::net::SocketAddr,
+        stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        worker: Option<std::thread::JoinHandle<bool>>,
+    }
+
+    impl StalledDownloadServer {
+        fn start() -> Self {
+            use std::{
+                io::{Read, Write},
+                net::TcpListener,
+                sync::{Arc, atomic::AtomicBool},
+                thread,
+            };
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let stop = Arc::new(AtomicBool::new(false));
+            let worker = thread::spawn(move || {
+                let (mut stream, _) =
+                    crate::test_fixture::phase("stalled-server accept", || listener.accept())
+                        .unwrap();
+                let mut request = [0_u8; 1024];
+                let _ = stream.read(&mut request).unwrap();
+                stream
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
+                    .unwrap();
+                stream.flush().unwrap();
+                thread::sleep(Duration::from_millis(180));
+                true
+            });
+            Self {
+                address,
+                stop,
+                worker: Some(worker),
+            }
+        }
+
+        fn finish(mut self) -> bool {
+            self.stop.store(true, std::sync::atomic::Ordering::Release);
+            crate::test_fixture::phase("stalled-server join", || self.worker.take().unwrap().join())
+                .unwrap()
+        }
+    }
+
+    impl Drop for StalledDownloadServer {
+        fn drop(&mut self) {
+            self.stop.store(true, std::sync::atomic::Ordering::Release);
+            if let Some(worker) = self.worker.take() {
+                let _ = worker.join();
+            }
+        }
+    }
+
     #[tokio::test]
     async fn streaming_download_fails_after_a_read_idle_stall() {
-        use std::{
-            io::{Read, Write},
-            net::TcpListener,
-            thread,
-        };
-
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut request = [0_u8; 1024];
-            let _ = stream.read(&mut request).unwrap();
-            stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
-                .unwrap();
-            stream.flush().unwrap();
-            thread::sleep(Duration::from_millis(180));
-        });
+        let server = StalledDownloadServer::start();
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let installer = Installer::with_network_bounds(
@@ -3564,7 +3600,7 @@ mod tests {
         .unwrap();
         let asset = ReleaseAsset {
             name: "stalled.zip".into(),
-            url: format!("http://{address}/stalled.zip"),
+            url: format!("http://{}/stalled.zip", server.address),
             size: 2,
             sha256: "a".repeat(64),
         };
@@ -3579,8 +3615,49 @@ mod tests {
             )
             .await
             .unwrap_err();
+        let partial_body_sent = server.finish();
         assert_eq!(error.code, crate::ErrorCode::Network);
-        server.join().unwrap();
+        assert!(
+            partial_body_sent,
+            "the fixture never reached a partial-body read-idle stall"
+        );
+    }
+
+    #[tokio::test]
+    async fn streaming_download_client_error_before_connection_quiesces_the_fixture() {
+        let server = StalledDownloadServer::start();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let installer = Installer::with_network_bounds(
+            library,
+            Duration::from_millis(50),
+            Duration::from_millis(50),
+        )
+        .unwrap();
+        let asset = ReleaseAsset {
+            name: "invalid-url.zip".into(),
+            url: "http://[invalid".into(),
+            size: 2,
+            sha256: "a".repeat(64),
+        };
+        let operation = OperationCoordinator::new("download", None);
+        let mut emit = |_| {};
+        let error = installer
+            .download(
+                &asset,
+                &temporary.path().join("invalid.download"),
+                &operation,
+                &mut emit,
+            )
+            .await
+            .unwrap_err();
+        eprintln!("synthetic client error before connection: {:?}", error.code);
+        let partial_body_sent = server.finish();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(
+            !partial_body_sent,
+            "invalid URL must not reach the fixture listener"
+        );
     }
 
     #[tokio::test]
