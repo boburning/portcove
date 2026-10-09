@@ -645,7 +645,7 @@ function digest(value) {
     .digest("hex");
 }
 
-export function fingerprintStage(stage, inventory, runtime) {
+export function fingerprintInputs(stage, inventory, runtime) {
   const inputs = inventory.files
     .filter((file) => file.domains.includes(stage.domain))
     .map((file) => ({
@@ -684,13 +684,17 @@ export function fingerprintStage(stage, inventory, runtime) {
         }
       : {}),
   };
-  return digest({
+  return {
     contract: receiptFormat,
     gitObjectFormat: inventory.objectFormat ?? "sha1",
     stage: { id: stage.id, recipe: stage.recipe, domain: stage.domain },
     inputs,
     runtime: applicableRuntime,
-  });
+  };
+}
+
+export function fingerprintStage(stage, inventory, runtime) {
+  return digest(fingerprintInputs(stage, inventory, runtime));
 }
 
 export function receiptEnvelope(payload) {
@@ -801,6 +805,27 @@ function displayPlan(plan) {
 }
 
 export function executeAudit(plan, options = {}) {
+  if (options.captureHosted) {
+    const identity = hostedAuditIdentity(options.root ?? projectRoot);
+    if (identity.source !== plan.head) throw new Error("Audit input capture source mismatch");
+    writeJsonAtomic(
+      path.join(process.env.RUNNER_TEMP, `audit-inputs-${identity.run}-${identity.attempt}.json`),
+      receiptEnvelope({
+        format: 1,
+        kind: "audit-inputs",
+        head: plan.head,
+        profile: plan.profile,
+        identity,
+        capturedAt: new Date().toISOString(),
+        stageInputs: Object.fromEntries(
+          plan.stages.map((stage) => [
+            stage.id,
+            fingerprintInputs(stage, plan.inventory, plan.runtime),
+          ]),
+        ),
+      }),
+    );
+  }
   const execute =
     options.execute ??
     ((stage) =>
@@ -891,6 +916,29 @@ export function executeAudit(plan, options = {}) {
   return { success, results, report: reportPayload };
 }
 
+export function hostedAuditIdentity(root = projectRoot) {
+  const identity = {
+    repository: process.env.GITHUB_REPOSITORY,
+    source: process.env.GITHUB_SHA,
+    workflowSha: process.env.GITHUB_WORKFLOW_SHA,
+    workflowRef: process.env.GITHUB_WORKFLOW_REF,
+    run: process.env.GITHUB_RUN_ID,
+    attempt: process.env.GITHUB_RUN_ATTEMPT,
+    workflowDigest: createHash("sha256")
+      .update(readFileSync(path.join(root, ".github/workflows/deep-quality.yml")))
+      .digest("hex"),
+  };
+  if (
+    identity.repository !== "boburning/portcove" ||
+    !/^[a-f0-9]{40}$/.test(identity.source) ||
+    !/^[a-f0-9]{40}$/.test(identity.workflowSha) ||
+    !/^[1-9][0-9]{0,12}$/.test(identity.run) ||
+    !/^[1-9][0-9]{0,12}$/.test(identity.attempt)
+  )
+    throw new Error("Invalid hosted audit identity");
+  return identity;
+}
+
 function parseArguments(argv) {
   let fresh = false;
   let planOnly = false;
@@ -971,7 +1019,7 @@ export function main(argv = process.argv.slice(2)) {
   });
   displayPlan(plan);
   if (options.planOnly) return;
-  const result = executeAudit(plan);
+  const result = executeAudit(plan, { captureHosted: process.env.PORTCOVE_AUDIT_CAPTURE === "1" });
   if (!result.success) {
     const failed = result.results
       .filter((entry) => entry.status === "failed")
