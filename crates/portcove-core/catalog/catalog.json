@@ -379,6 +379,16 @@
         "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Alundra (Europe PAL) disc; retained Windows package and fixed CLI fit the existing managed route with bundled OpenBIOS. Static source/package evidence only; generation, native operation, lifecycle and gameplay not run. Title GPL-3.0-only, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS MIT notices retain their own scope; retail/generated-retail content is not licensed by those notices.",
         "immutable_url": "https://github.com/Alexbeav/alundra-recomp/blob/afb9151fd48ae90ca5979dcd4ad53ee1c0f16329/game.toml",
         "live_url": "https://github.com/Alexbeav/alundra-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-armored-core-recomp-v0-3-6-source-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/armored-core-recomp",
+        "authority_ref": "80060c45a009ed8963e83fbb742eb3ef956cc9fc",
+        "reviewed_at": "2026-10-09",
+        "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Armored Core (Europe PAL, SCES-00842); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/80060c45a009ed8963e83fbb742eb3ef956cc9fc/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/main/game.toml"
       }
     ],
     "identities": [
@@ -4822,6 +4832,51 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "armored-core-psx",
+        "label": "Armored Core (Europe PAL) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe-pal",
+            "title": "Armored Core",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SCES-00842"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "20ad05be52317bce58b251be103f9add03c92609",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-armored-core-recomp-v0-3-6-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-armored-core-recomp-v0-3-6-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -6798,6 +6853,33 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-armored-core-recomp-game-source",
+        "port_id": "alexbeav-armored-core-recomp",
+        "role": "game",
+        "profile_id": "armored-core-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-pal"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-armored-core-recomp-v0-3-6-source-contract"
+        ],
+        "authority_ref": "80060c45a009ed8963e83fbb742eb3ef956cc9fc",
+        "reviewed_at": "2026-10-09",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/80060c45a009ed8963e83fbb742eb3ef956cc9fc/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e"
           }
         ],
         "aliases": [],
@@ -13944,6 +14026,87 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching single-disc CHD. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content."
+      }
+    },
+    {
+      "id": "alexbeav-armored-core-recomp",
+      "name": "Armored Core / Alexbeav PSXRecomp",
+      "summary": "Native Armored Core recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.6",
+            "url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152526,
+            "sha256": "43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+            "published_at": "2026-09-04T14:48:29Z"
+          }
+        }
+      },
+      "source_profile": "armored-core-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Armored_Core_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "armored-core-psx",
+            "label": "Armored Core (Europe PAL) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SCES-00842. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
       }
     }
   ]
