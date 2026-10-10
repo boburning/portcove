@@ -31,6 +31,27 @@ test("text guard preserves Markdown, Unicode and CRLF but rejects malformed text
   assert.throws(() => readGitHubBody(file));
 });
 
+test("text guard preserves every C0 and DEL boundary and the first UTF-16 offset", () => {
+  const prefix = "Résumé 🎮\r\n";
+  for (const code of [...Array.from({ length: 32 }, (_, index) => index), 127]) {
+    const body = `${prefix}${String.fromCharCode(code)}tail`;
+    if (code === 9 || code === 10) {
+      assert.equal(validateGitHubBody(body), body);
+    } else {
+      assert.throws(() => validateGitHubBody(body), {
+        message: `Unexpected control character at text offset ${prefix.length}`,
+      });
+    }
+  }
+  assert.equal(validateGitHubBody("before\r\nafter"), "before\r\nafter");
+  assert.throws(() => validateGitHubBody("before\r"), {
+    message: "Unexpected control character at text offset 6",
+  });
+  assert.throws(() => validateGitHubBody(`${prefix}${String.fromCharCode(0, 27)}`), {
+    message: `Unexpected control character at text offset ${prefix.length}`,
+  });
+});
+
 test("edits compare fresh preimages and verify exact validated content", () => {
   const calls = [];
   const body = "new `body`\r\n🎮";
