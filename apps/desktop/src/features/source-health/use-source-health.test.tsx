@@ -376,7 +376,7 @@ it.each(["failed", "cancelled"])(
       await pending;
     });
     expect(state.outcomes).toEqual([]);
-    expect(operation.error).toBe(kind === "cancelled" ? undefined : failure);
+    expect(operation.error).toBe(failure);
     expect(state.inspections.get("game")).toBe(inspected);
     expect(state.inspectionReads.get("game")?.status).toBe("current");
 

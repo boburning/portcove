@@ -185,6 +185,12 @@ port, a successful last check with no update, an available update, an update
 saved for later whose activation still needs core checks, and a failed or
 unavailable check result.
 Checking for updates does not install them.
+An operation's cancellation code or neutral tone does not prove a safe outcome.
+The operation notice retains Core's committed, recovery-required or unknown
+consequence, including unfamiliar or missing outcome values, through subsequent
+readback failures. Only an explicitly not-started or no-change cancellation stays
+quiet after successful readback. Dismissing a consequence repeats no operation
+and grants no cleanup, restart or resume authority.
 Use sentence case and neutral task names beside authoritative status. Complete
 localized messages use named interpolation and correct plurals; human formatting
 may follow locale while machine contracts remain stable. Keep technical detail

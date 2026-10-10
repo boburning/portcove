@@ -293,14 +293,128 @@ describe("core-owned failure presentation", () => {
       expect(state.error).toBe(error);
       expect(state.busy).toBeUndefined();
       refresh.mockResolvedValue(undefined);
+      const cancelled = { ...error, code: "cancelled" };
+      cancelled.presentation = { ...error.presentation, mutation_state: "no_changes" };
       await act(async () => {
-        await state.perform("prepare", () => Promise.reject({ ...error, code: "cancelled" }));
+        await state.perform("prepare", () => Promise.reject(cancelled));
       });
       expect(state.error).toBeUndefined();
     } finally {
       await act(async () => root.unmount());
     }
   });
+
+  it.each(["committed", "recovery_required", "unknown", "future_outcome"])(
+    "preserves a cancelled %s result through failed readback and dismissal",
+    async (outcome) => {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      let state!: ReturnType<typeof useOperationState>;
+      const refresh = vi.fn().mockRejectedValue(new Error("later readback failure"));
+      function Fixture() {
+        state = useOperationState({ refresh });
+        return <StatusLayer error={state.error} clearError={() => state.setError(undefined)} />;
+      }
+      const host = document.createElement("div");
+      const root = createRoot(host);
+      const error = failureReport();
+      error.code = "cancelled";
+      error.presentation.tone = "neutral";
+      error.presentation.summary = "The operation was cancelled.";
+      error.presentation.mutation_state = outcome as typeof error.presentation.mutation_state;
+      error.presentation.technical_context = { operation_id: "retained-operation" };
+      const original = JSON.stringify(error);
+      const task = vi.fn().mockRejectedValue(error);
+      try {
+        await act(async () => root.render(<Fixture />));
+        await act(async () => state.perform("prepare", task));
+        expect(state.error).toBe(error);
+        expect(state.busy).toBeUndefined();
+        expect(state.pendingOperations.size).toBe(0);
+        expect(host.querySelector('[role="alert"]')).not.toBeNull();
+        expect(host.querySelector("strong")?.textContent).toBe(
+          outcome === "committed"
+            ? "Change saved; review the current state"
+            : outcome === "recovery_required"
+              ? "Cancelled operation needs recovery review"
+              : "Cancellation outcome needs review",
+        );
+        expect(host.textContent).not.toContain("No files were changed");
+        expect(host.textContent).not.toContain("later readback failure");
+        expect(host.querySelector("pre")?.textContent).toContain(outcome);
+        expect(host.querySelector("pre")?.textContent).toContain("retained-operation");
+        expect(JSON.stringify(error)).toBe(original);
+        await act(async () =>
+          host.querySelector<HTMLButtonElement>('button[aria-label="Dismiss error"]')!.click(),
+        );
+        expect(state.error).toBeUndefined();
+        expect(task).toHaveBeenCalledOnce();
+        expect(refresh).toHaveBeenCalledOnce();
+      } finally {
+        await act(async () => root.unmount());
+      }
+    },
+  );
+
+  it.each(["not_started", "no_changes"] as const)(
+    "keeps proven %s cancellation quiet after successful readback",
+    async (outcome) => {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      let state!: ReturnType<typeof useOperationState>;
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      function Fixture() {
+        state = useOperationState({ refresh });
+        return null;
+      }
+      const root = createRoot(document.createElement("div"));
+      const error = failureReport();
+      error.code = "cancelled";
+      error.presentation.mutation_state = outcome;
+      try {
+        await act(async () => root.render(<Fixture />));
+        await act(async () => state.perform("prepare", () => Promise.reject(error)));
+        expect(state.error).toBeUndefined();
+        expect(state.pendingOperations.size).toBe(0);
+        expect(refresh).toHaveBeenCalledOnce();
+      } finally {
+        await act(async () => root.unmount());
+      }
+    },
+  );
+
+  it.each(["missing", "malformed"])(
+    "discloses %s cancellation outcomes instead of assuming no changes",
+    async (shape) => {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      let state!: ReturnType<typeof useOperationState>;
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      function Fixture() {
+        state = useOperationState({ refresh });
+        return <StatusLayer error={state.error} clearError={() => state.setError(undefined)} />;
+      }
+      const report = failureReport();
+      const error = {
+        code: "cancelled",
+        message: "Cancellation received; outcome unavailable.",
+        ...(shape === "malformed"
+          ? { presentation: { ...report.presentation, technical_context: null } }
+          : {}),
+      };
+      const host = document.createElement("div");
+      const root = createRoot(host);
+      try {
+        await act(async () => root.render(<Fixture />));
+        await act(async () => state.perform("prepare", () => Promise.reject(error)));
+        expect(state.error).toBe(error);
+        expect(host.querySelector('[role="alert"]')).not.toBeNull();
+        expect(host.querySelector("strong")?.textContent).toBe("Cancellation outcome needs review");
+        expect(host.textContent).not.toContain("No files were changed");
+        expect(state.pendingOperations.size).toBe(0);
+        expect(refresh).toHaveBeenCalledOnce();
+      } finally {
+        await act(async () => root.unmount());
+      }
+    },
+  );
 
   it("shows persisted recovery on remount and opens review without restarting or removing work", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
