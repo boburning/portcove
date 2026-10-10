@@ -78,6 +78,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     .mockResolvedValue({
       ...status,
       highest_sequence: 1,
+      can_rollback: true,
       updates_enabled: true,
       provenance: {
         ...status.provenance,
@@ -175,8 +176,47 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     await click("Review update");
     await click("Apply catalog update");
     expect(refresh).toHaveBeenCalledOnce();
+    expect(document.body.textContent).toContain("Catalog update applied.");
     expect(document.body.textContent).toContain("Signed catalog · version 1");
     expect(button("Use built-in catalog").disabled).toBe(false);
+    const restored = { ...status, can_use_cached: true };
+    const rollback = vi.spyOn(desktopApi, "rollbackCatalog").mockResolvedValue(restored);
+    await click("Restore previous catalog");
+    expect(rollback).toHaveBeenCalledWith(status.state_sha256);
+    expect(document.body.textContent).toContain("Previous catalog restored.");
+    const cached = vi
+      .spyOn(desktopApi, "useCachedCatalog")
+      .mockResolvedValue({ ...restored, updates_enabled: true });
+    await click("Use cached signed catalog");
+    expect(cached).toHaveBeenCalledWith(status.state_sha256);
+    expect(document.body.textContent).toContain("Cached signed catalog selected.");
+    const embedded = vi.spyOn(desktopApi, "useEmbeddedCatalog").mockResolvedValue(restored);
+    await click("Use built-in catalog");
+    expect(embedded).toHaveBeenCalledWith(status.state_sha256);
+    expect(document.body.textContent).toContain("Built-in catalog selected.");
+    const revoke = vi
+      .spyOn(desktopApi, "revokeCatalogKey")
+      .mockRejectedValueOnce({ code: "cancelled", message: "Consent cancelled" })
+      .mockResolvedValue({ ...restored, trusted_keys: [] });
+    await click("Stop trusting");
+    expect(document.body.textContent).toContain("Catalog action cancelled.");
+    expect(document.body.textContent).not.toContain("Publisher trust removed.");
+    expect(document.body.textContent).not.toContain("Catalog settings saved.");
+    await click("Stop trusting");
+    expect(revoke).toHaveBeenLastCalledWith(status.trusted_keys[0].key_id, status.state_sha256);
+    expect(document.body.textContent).toContain("Publisher trust removed.");
+    const trust = vi.spyOn(desktopApi, "trustCatalogKey").mockResolvedValue(restored);
+    const key = document.body.querySelector<HTMLInputElement>("#catalog-public-key")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+        key,
+        status.trusted_keys[0].public_key,
+      );
+      key.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click("Trust publisher");
+    expect(trust).toHaveBeenCalledWith(status.trusted_keys[0].public_key);
+    expect(document.body.textContent).toContain("Publisher trusted.");
     await click("Close");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   } finally {

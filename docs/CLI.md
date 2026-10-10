@@ -295,7 +295,9 @@ consumers must use the envelope version when interpreting this change.
 The command does not load logs in the normal activity list. Each capture's
 `phase` distinguishes source conversion and game setup. `complete` records observed stream closure;
 each stream separately reports truncation and observed input bytes. An interrupted
-capture stays incomplete. The first 2 MiB per stream are retained within a shared
+capture stays incomplete. Human output explains whether both streams ended or whether later output may be
+missing, with a separate warning for omitted output; log availability does
+not establish the operation outcome. The first 2 MiB per stream are retained within a shared
 64 MiB library budget; older terminal activities' captures may expire together
 while their activity outcomes remain. The per-stream limit applies to each phase.
 

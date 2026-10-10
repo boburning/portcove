@@ -246,7 +246,7 @@ fn preparation_roundtrip(chd: bool, lose_output: bool) {
     if !chd {
         let human_log = portcove(&library, &["activity", "log", id]);
         let human_log = String::from_utf8(human_log.stdout).unwrap();
-        assert!(human_log.contains("Capture reached the end of both streams."));
+        assert!(human_log.contains("Both output streams ended. Saved output is shown below."));
         assert!(!human_log.contains("owned-fixture-private-value"));
     }
     assert_eq!(events.last().unwrap()["command"], "preparation.run");

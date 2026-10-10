@@ -103,8 +103,7 @@ export function progressPresentation(
   if (operation?.type !== "progress") return unknown;
   const { completed, total } = operation;
   if (!Number.isSafeInteger(completed) || completed < 0) return unknown;
-  if (completed === 0 && total === 0)
-    return { label: presentation.label, detail: emptyProgressDetail(presentation.unit) };
+  if (completed === 0 && total === 0) return { label: presentation.label, detail: "" };
   if (total === null || !Number.isSafeInteger(total) || total <= 0) return unknown;
   const current = Math.min(completed, total);
   return {
@@ -164,12 +163,6 @@ function operationPresentation(value: string): OperationPresentation {
           ? "Port total not yet known."
           : "Progress total not yet known.",
   };
-}
-
-function emptyProgressDetail(unit: ProgressUnit | undefined) {
-  if (unit === "bytes") return "No bytes reported yet.";
-  if (unit === "ports") return "No ports reported yet.";
-  return "";
 }
 
 function progressDetail(completed: number, total: number, unit: ProgressUnit | undefined) {
