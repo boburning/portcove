@@ -1796,6 +1796,7 @@ impl PortcoveService {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<crate::ScopedResolvedRelease> {
+        crate::curated_acquisition::require_runtime_authority(port)?;
         let scope = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &self.catalog,
@@ -5524,6 +5525,35 @@ mod tests {
                 },
             })
         }
+    }
+
+    #[tokio::test]
+    async fn curated_declaration_refuses_custom_provider_before_resolution() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::with_provider(
+            library,
+            Arc::new(StaticReleaseProvider {
+                version: "provider-would-succeed".into(),
+            }),
+        )
+        .unwrap();
+        let mut port = service.catalog.port("dkr-r").unwrap().clone();
+        assert!(
+            service
+                .resolve_release(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .is_ok()
+        );
+        port.release.curated.insert(
+            Platform::WindowsX86_64,
+            crate::curated_acquisition::fixture_record(),
+        );
+        let error = service
+            .resolve_release(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
     }
 
     #[derive(Clone)]

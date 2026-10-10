@@ -138,6 +138,7 @@ impl DefinitionAcquisitionScope {
     }
 
     pub(crate) fn validate_port(port: &PortDefinition) -> Result<()> {
+        crate::curated_acquisition::require_runtime_authority(port)?;
         let segments = port.release.repository.split('/').collect::<Vec<_>>();
         let repository_valid = segments.len() == 2
             && port.release.repository.len() <= 255
