@@ -1,6 +1,41 @@
 //! Isolated, fixed historical bootstrap. All durable execution uses the service.
 use super::*;
 
+#[cfg(feature = "qualification-fixtures")]
+fn owned_producer_command(
+    program: &Path,
+    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) -> Result<std::process::Command> {
+    // These are first-party host configuration, never upstream-child inheritance.
+    // Preserve absent/empty semantics; native admission separately binds private paths.
+    const BINDINGS: [&str; 4] = [
+        "PORTCOVE_CHDMAN",
+        "PORTCOVE_TEMP_DIR",
+        "PORTCOVE_PREFERENCES",
+        "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+    ];
+    let mut bindings = std::collections::BTreeMap::new();
+    for (name, value) in environment {
+        let name = name.to_string_lossy();
+        if name.eq_ignore_ascii_case("PORTCOVE_QUALIFICATION_CATALOG") {
+            return Err(PortcoveError::unsupported(
+                "historical producer refuses catalog overrides before spawn",
+            ));
+        }
+        if let Some(canonical) = BINDINGS.iter().find(|key| name.eq_ignore_ascii_case(key)) {
+            if bindings.insert(*canonical, value).is_some() {
+                return Err(PortcoveError::usage(
+                    "historical producer configuration has ambiguous case aliases",
+                ));
+            }
+        }
+    }
+    let mut command =
+        crate::ChildProcessPolicy::native_command(crate::ChildProcessClass::HostTool, program)?;
+    command.envs(bindings);
+    Ok(command)
+}
+
 fn require_immutable_catalog(current: &Catalog, immutable: &Catalog) -> Result<()> {
     if current
         .definition_selection("yu-gi-oh-forbidden-memories-recompiled")
@@ -104,7 +139,7 @@ impl PortcoveService {
             return Err(PortcoveError::verification("producer executable changed"));
         }
         let started = std::time::Instant::now();
-        let mut command = std::process::Command::new(program);
+        let mut command = owned_producer_command(program, std::env::vars_os())?;
         command.arg("--owned-child").arg(root).arg(source);
         let mut quiesced = false;
         let mut final_diagnostic = None;
@@ -263,6 +298,98 @@ mod tests {
 
     #[cfg(all(windows, feature = "qualification-fixtures"))]
     #[test]
+    fn historical_producer_child_preserves_only_reviewed_first_party_bindings() {
+        let fixture = tempfile::tempdir().unwrap();
+        let values = [
+            ("portcove_chdman", fixture.path().join("chdman.exe")),
+            ("PORTCOVE_TEMP_DIR", fixture.path().join("temp")),
+            (
+                "PORTCOVE_PREFERENCES",
+                fixture.path().join("preferences.json"),
+            ),
+            (
+                "PORTCOVE_APPLICATION_RUNTIME_LOCK",
+                fixture.path().join("runtime.lock"),
+            ),
+        ];
+        let environment = values
+            .iter()
+            .map(|(name, path)| (std::ffi::OsString::from(name), path.as_os_str().to_owned()))
+            .chain([
+                ("PORTCOVE_GITHUB_TOKEN".into(), "fixture-secret".into()),
+                ("PORTCOVE_UNREVIEWED".into(), "fixture-secret".into()),
+            ]);
+        let output = owned_producer_command(Path::new("cmd.exe"), environment)
+            .unwrap()
+            .args(["/d", "/u", "/c", "set PORTCOVE_"])
+            .output()
+            .unwrap();
+        assert!(output.status.success());
+        assert_eq!(output.stdout.len() % 2, 0);
+        let observed = String::from_utf16(
+            &output
+                .stdout
+                .chunks_exact(2)
+                .map(|bytes| u16::from_le_bytes([bytes[0], bytes[1]]))
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        for (name, path) in values {
+            assert!(observed.contains(&format!(
+                "{}={}",
+                name.to_ascii_uppercase(),
+                path.display()
+            )));
+        }
+        assert_eq!(observed.lines().count(), 4);
+        assert!(!observed.contains("fixture-secret"));
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn historical_producer_child_refuses_overrides_and_ambiguous_bindings_before_spawn() {
+        let fixture = tempfile::tempdir().unwrap();
+        let absent_program = fixture.path().join("never-spawned.exe");
+        for value in ["", "override.json"] {
+            assert_eq!(
+                owned_producer_command(
+                    &absent_program,
+                    [("portcove_qualification_catalog".into(), value.into())]
+                )
+                .unwrap_err()
+                .code,
+                crate::ErrorCode::Unsupported
+            );
+        }
+        assert_eq!(
+            owned_producer_command(
+                &absent_program,
+                [
+                    ("PORTCOVE_PREFERENCES".into(), "first.json".into()),
+                    ("portcove_preferences".into(), "second.json".into()),
+                ]
+            )
+            .unwrap_err()
+            .code,
+            crate::ErrorCode::Usage
+        );
+        let command = owned_producer_command(
+            &absent_program,
+            [("PORTCOVE_PREFERENCES".into(), "".into())],
+        )
+        .unwrap();
+        assert!(
+            command
+                .get_envs()
+                .any(|(name, value)| name == "PORTCOVE_PREFERENCES"
+                    && value == Some(std::ffi::OsStr::new("")))
+        );
+        assert!(!absent_program.exists());
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 0);
+    }
+
+    #[cfg(all(windows, feature = "qualification-fixtures"))]
+    #[test]
     fn historical_producer_supervisor_refuses_unbound_or_retained_inputs_before_spawn() {
         let parent = tempfile::tempdir().unwrap();
         let root = parent.path().join("producer");
@@ -394,12 +521,16 @@ mod tests {
         let link = parent.path().join("junction");
         fs::create_dir(&target).unwrap();
         fs::write(target.join("evidence"), b"preserve").unwrap();
-        let output = std::process::Command::new("cmd.exe")
-            .args(["/c", "mklink", "/J"])
-            .arg(&link)
-            .arg(&target)
-            .output()
-            .unwrap();
+        let output = crate::ChildProcessPolicy::native_command(
+            crate::ChildProcessClass::HostTool,
+            "cmd.exe",
+        )
+        .unwrap()
+        .args(["/c", "mklink", "/J"])
+        .arg(&link)
+        .arg(&target)
+        .output()
+        .unwrap();
         assert!(
             output.status.success(),
             "owned junction fixture could not be created"
