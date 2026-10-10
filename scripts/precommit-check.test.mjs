@@ -65,7 +65,7 @@ function write(cwd, file, content) {
   mkdirSync(path.dirname(path.join(cwd, file)), { recursive: true });
   writeFileSync(path.join(cwd, file), content);
 }
-function fixture(initial = false, install = true, dependencies = true) {
+function fixture(initial = false, install = true, dependencies = true, desktopDependencies = true) {
   const cwd = mkdtempSync(path.join(base, "space ü "));
   for (const file of files) {
     mkdirSync(path.dirname(path.join(cwd, file)), { recursive: true });
@@ -78,11 +78,12 @@ function fixture(initial = false, install = true, dependencies = true) {
       path.join(cwd, "node_modules"),
       process.platform === "win32" ? "junction" : "dir",
     );
-  symlinkSync(
-    path.join(root, "apps/desktop/node_modules"),
-    path.join(cwd, "apps/desktop/node_modules"),
-    process.platform === "win32" ? "junction" : "dir",
-  );
+  if (desktopDependencies)
+    symlinkSync(
+      path.join(root, "apps/desktop/node_modules"),
+      path.join(cwd, "apps/desktop/node_modules"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
   git(cwd, "init", "-q");
   git(cwd, "config", "user.email", "fixture@example.invalid");
   git(cwd, "config", "user.name", "Fixture");
@@ -113,17 +114,6 @@ test("real manual path and Git commits use staged content and preserve unrelated
   const before = state(cwd);
   assert.equal(check(cwd).status, 0);
   assert.deepEqual(state(cwd), before);
-  const corepack = path.join(
-    path.dirname(process.execPath),
-    "node_modules/corepack/dist/corepack.js",
-  );
-  if (existsSync(corepack)) {
-    const manual = command(cwd, process.execPath, [corepack, "pnpm", "run", "precommit:check"], {
-      env: { ...process.env, COREPACK_ENABLE_NETWORK: "0", HUSKY: "1" },
-    });
-    assert.equal(manual.status, 0, manual.stdout + manual.stderr);
-    assert.deepEqual(state(cwd), before);
-  }
   const committed = command(cwd, "git", ["commit", "-qm", "docs: staged fixture"], {
     env: { ...process.env, HUSKY: "1", CI: "true" },
   });
@@ -197,6 +187,56 @@ test("unstaged checker/config inputs refuse before temporary changes", () => {
     assert.match(result.stderr, /Stage or restore consumed/);
     assert.deepEqual(state(cwd), before);
   }
+});
+
+test("formatter ignores and nested configuration cannot qualify different staged content", () => {
+  for (const [filename, content, ignored] of [
+    [".prettierignore", "bad.mjs\n", false],
+    [".prettierignore", "bad.mjs\n", true],
+    ["nested/.oxfmtrc.jsonc", '{"semi": false}\n', false],
+    ["nested/oxfmt.config.ts", "export default {};\n", false],
+  ]) {
+    const cwd = fixture();
+    write(cwd, "nested/bad.mjs", "const x=1;\n");
+    git(cwd, "add", "--", "nested/bad.mjs");
+    if (ignored) {
+      writeFileSync(
+        path.join(cwd, ".gitignore"),
+        readFileSync(path.join(cwd, ".gitignore"), "utf8") + ".prettierignore\n",
+      );
+      git(cwd, "add", "--", ".gitignore");
+    }
+    write(cwd, filename, content);
+    const before = state(cwd);
+    const failed = check(cwd);
+    assert.notEqual(failed.status, 0);
+    assert.match(failed.stderr, /prettierignore|oxfmtrc|formatter configuration/);
+    assert.doesNotMatch(failed.stdout, /Backing up|Hiding unstaged/);
+    assert.deepEqual(state(cwd), before);
+  }
+});
+
+test("copy parser native readiness is checked before lint-staged changes state", () => {
+  const cwd = fixture(false, true, true, false);
+  write(
+    cwd,
+    "apps/desktop/node_modules/oxc-parser/package.json",
+    '{"type":"module","exports":"./index.js"}\n',
+  );
+  write(
+    cwd,
+    "apps/desktop/node_modules/oxc-parser/index.js",
+    'throw new Error("optional native binding unavailable");\n',
+  );
+  write(cwd, "apps/desktop/src/Copy.tsx", 'const label = "Game files";\n');
+  git(cwd, "add", "--", "apps/desktop/src/Copy.tsx");
+  write(cwd, "apps/desktop/src/Copy.tsx", 'const label = "Source profile";\n');
+  const before = state(cwd);
+  const failed = check(cwd);
+  assert.notEqual(failed.status, 0);
+  assert.match(failed.stderr, /oxc-parser\/native binding unavailable/);
+  assert.doesNotMatch(failed.stdout, /Backing up|Hiding unstaged/);
+  assert.deepEqual(state(cwd), before);
 });
 
 test("initial commit, renames, deletions, modes and unusual literal paths", () => {

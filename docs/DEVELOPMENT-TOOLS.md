@@ -35,7 +35,10 @@ hook configuration local to that worktree, and refuses an existing unrelated
 hook manager. It does not overwrite global Git settings. Source archives and
 actual GitHub Actions setup skip installation; `CI=true` alone does not.
 
-`pnpm run precommit:check` executes the same path as `.husky/pre-commit`.
+`node scripts/precommit-check.mjs` is the non-installing manual command and executes
+the same path as `.husky/pre-commit`. The package alias `precommit:check` is also
+available after setup; pnpm's default dependency verification can install stale
+dependencies before running an alias, so use Node for installation-free feedback.
 It checks the staged diff for whitespace/conflict markers, explicitly selected
 Oxfmt-owned files, JavaScript/Node syntax (not TypeScript checking), and static
 player-facing copy in staged production sources. Tasks are serial and check-only;

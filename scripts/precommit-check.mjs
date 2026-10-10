@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { runCheckedGit } from "./checked-git.mjs";
 import { isExcludedOxfmtPath, isOwnedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { isProductionCopyPath as copyPath } from "../apps/desktop/scripts/copy-source-ownership.mjs";
@@ -27,6 +27,7 @@ const inputs = [
   ".editorconfig",
   ".gitattributes",
   ".gitignore",
+  ".prettierignore",
 ];
 const syntaxPath = (file) => /\.(?:mjs|cjs|js)$/u.test(file) && !isExcludedOxfmtPath(file);
 const git = (args) => runCheckedGit(args, { cwd: root });
@@ -61,15 +62,33 @@ export function preflight() {
   const files = nul(git(["diff", "--cached", "--name-only", "--diff-filter=ACMRT", "-z"]));
   if (!files.length) return [];
   const consumed = [...inputs];
-  const configuration = nul(git(["ls-files", "--cached", "--others", "--exclude-standard", "-z"]));
-  consumed.push(
-    ...configuration.filter(
-      (file) =>
-        /(?:^|\/)(?:\.editorconfig|\.gitignore|\.gitattributes|\.oxfmtrc\.json|\.oxfmtignore)$/u.test(
-          file,
-        ) && files.some((target) => target.startsWith(file.slice(0, file.lastIndexOf("/") + 1))),
-    ),
-  );
+  // Inspect ancestor directories directly: ignored/untracked configuration can
+  // still affect Oxfmt and must not disappear from Git's ordinary inventory.
+  for (const target of files.filter(isOwnedOxfmtPath)) {
+    let directory = path.posix.dirname(target);
+    while (true) {
+      for (const name of [
+        ".editorconfig",
+        ".gitignore",
+        ".gitattributes",
+        ".prettierignore",
+        ".oxfmtrc.json",
+        ".oxfmtrc.jsonc",
+        "oxfmt.config.ts",
+        "oxfmt.config.mts",
+      ]) {
+        const file = directory === "." ? name : `${directory}/${name}`;
+        if (!existsSync(path.join(root, file))) continue;
+        if (/oxfmt\.config\.(?:ts|mts)$/u.test(name))
+          throw new Error(
+            `Executable formatter configuration needs independently checked transitive inputs; use selected validation: ${file}`,
+          );
+        consumed.push(file);
+      }
+      if (directory === ".") break;
+      directory = path.posix.dirname(directory);
+    }
+  }
   if (files.some(copyPath))
     consumed.push("apps/desktop/scripts/check-copy.mjs", "apps/desktop/package.json");
   const unstaged = nul(git(["diff", "--name-only", "-z", "--", ...consumed]));
@@ -101,9 +120,22 @@ export function preflight() {
   }
   if (files.some(copyPath)) {
     try {
-      createRequire(path.join(root, "apps/desktop/package.json")).resolve("oxc-parser");
+      const parser = createRequire(path.join(root, "apps/desktop/package.json")).resolve(
+        "oxc-parser",
+      );
+      const ready = spawnSync(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          "const {parseSync}=await import(process.argv[1]); parseSync('ready.ts', 'const ready = true;');",
+          pathToFileURL(parser).href,
+        ],
+        { cwd: root, encoding: "utf8", windowsHide: true },
+      );
+      if (ready.error || ready.status !== 0) throw new Error("Parser native binding unavailable");
     } catch {
-      throw new Error(`Missing installed desktop oxc-parser. ${setup}`);
+      throw new Error(`Installed desktop oxc-parser/native binding unavailable. ${setup}`);
     }
   }
   // Reject indexed links before any checker or lint-staged can follow their target.
