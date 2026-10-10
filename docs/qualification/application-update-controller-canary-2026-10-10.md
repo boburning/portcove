@@ -143,9 +143,14 @@ update failed`: creation-policy denial remains unproven. No release tag changed.
 The existing zero-dollar Actions budget with stop-usage enabled was preserved.
 Included artifact headroom was unconfirmed; the owner authorized one bounded
 attempt, whose artifact upload succeeded. No paid capacity, budget change, evidence
-deletion or further attempt was admitted. The allocation is exhausted. Disposable
-material/configuration and two probe refs remain retained for canonical owner
-teardown disposition.
+deletion or further attempt was admitted. The allocation is exhausted.
+
+After retained proof, the owner approved minimal material teardown in
+[#534 comment6099889030](https://github.com/boburning/portcove/issues/534#issuecomment-6099889030).
+Only the disposable environment secret and its two variables were deleted;
+scope readback found zero secrets and zero variables. The protected tag/ruleset,
+typed environment policy, both probe refs, artifact and all evidence were preserved.
+No additional dispatch or replacement material was admitted.
 
 PR/fork/reusable-caller cases and a safe attributable creation-denial probe require
 separately reviewed nonsecret source. Production request lineage, custody, signing,
