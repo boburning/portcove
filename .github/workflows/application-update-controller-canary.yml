@@ -1,4 +1,4 @@
-# INERT TEMPLATE. #534 owner authorization is required before activation.
+# ACTIVATION CANDIDATE. Hold merge until canonical #534 owner authorization.
 # No production environment, signing key, write token or candidate checkout.
 name: Application update controller disposable canary
 

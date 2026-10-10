@@ -62,6 +62,17 @@ establish these code refusals, not GitHub enforcement or actual zero approvals.
 
 ## Required platform proof before production adoption
 
+The activation candidate adds a mutually exclusive `environment-negative`
+dispatch option. It skips admission and the canary job, and requests the same
+environment directly in a one-minute, token-permission-free job. It checks out
+no source, uses no Action, references no secret or protected variable, and reads
+no canary material. If a runner starts, it records only run/ref and fails. For
+an ineligible ref, job startup is therefore an adverse platform-policy result,
+not a passing source-code rejection. This route permits actual environment
+denial checks after authorization without disabling the positive controller's
+source guards. Normal two-job execution and this one-job probe are mutually
+exclusive; existing concurrency and capacity admission still apply.
+
 After exact owner authorization, retain actual activation source/tree/digests,
 typed environment policy, Active ruleset and full bypass/admin inventory. Prove
 the directly dispatched eligible tag can reach only disposable material with
