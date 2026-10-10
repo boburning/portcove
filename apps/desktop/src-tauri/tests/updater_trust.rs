@@ -3,6 +3,9 @@
 
 mod updater_trust_support;
 
+#[path = "updater_trust_support/offline_online_qualification.rs"]
+mod offline_online_qualification;
+
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;

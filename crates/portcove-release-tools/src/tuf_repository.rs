@@ -66,6 +66,8 @@ struct RepositoryConfig {
     payload_key_registry: String,
     output: String,
     keys: SigningKeys,
+    #[serde(default)]
+    offline_targets: Option<String>,
     versions: RoleVersions,
     expires: RoleExpirations,
 }
@@ -73,7 +75,7 @@ struct RepositoryConfig {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SigningKeys {
-    targets: String,
+    targets: Option<String>,
     snapshot: String,
     timestamp: String,
     releases: String,
@@ -170,6 +172,22 @@ enum DelegatedRole {
 }
 
 impl DelegatedRole {
+    fn namespace_patterns(self) -> [&'static str; 2] {
+        match self {
+            Self::Releases => [
+                "releases/*/windows-x86_64/nsis.json",
+                "releases/*/linux-x86_64/appimage.json",
+            ],
+            Self::Preview => [
+                "channels/preview/windows-x86_64/nsis/*.json",
+                "channels/preview/linux-x86_64/appimage/*.json",
+            ],
+            Self::Stable => [
+                "channels/stable/windows-x86_64/nsis/*.json",
+                "channels/stable/linux-x86_64/appimage/*.json",
+            ],
+        }
+    }
     fn name(self) -> &'static str {
         match self {
             Self::Releases => "releases",
@@ -187,6 +205,7 @@ impl DelegatedRole {
     }
 }
 
+mod online;
 mod validation;
 
 use validation::*;
@@ -231,7 +250,12 @@ pub async fn build_tuf_repository(
 ) -> Result<TufRepositoryReport, TufRepositoryError> {
     let config_bytes = read_regular_bounded(config_path, MAX_CONFIG_BYTES, "repository config")?;
     let config: RepositoryConfig = serde_json::from_slice(&config_bytes)?;
-    if config.schema_version != 1 {
+    if !matches!(config.schema_version, 1 | 2)
+        || (config.schema_version == 1
+            && (config.offline_targets.is_some() || config.keys.targets.is_none()))
+        || (config.schema_version == 2
+            && config.offline_targets.is_some() == config.keys.targets.is_some())
+    {
         return Err(TufRepositoryError::Invalid(
             "repository config schema is unsupported".into(),
         ));
@@ -242,35 +266,44 @@ pub async fn build_tuf_repository(
     let registry_path = resolve(base, &config.payload_key_registry, "payload-key registry")?;
     let output = resolve(base, &config.output, "repository output")?;
     let source_keys = [
-        resolve(base, &config.keys.targets, "targets key")?,
-        resolve(base, &config.keys.snapshot, "snapshot key")?,
-        resolve(base, &config.keys.timestamp, "timestamp key")?,
-        resolve(base, &config.keys.releases, "releases key")?,
-        resolve(base, &config.keys.preview, "Preview key")?,
-        resolve(base, &config.keys.stable, "Stable key")?,
+        config
+            .keys
+            .targets
+            .as_ref()
+            .map(|value| resolve(base, value, "targets key"))
+            .transpose()?,
+        Some(resolve(base, &config.keys.snapshot, "snapshot key")?),
+        Some(resolve(base, &config.keys.timestamp, "timestamp key")?),
+        Some(resolve(base, &config.keys.releases, "releases key")?),
+        Some(resolve(base, &config.keys.preview, "Preview key")?),
+        Some(resolve(base, &config.keys.stable, "Stable key")?),
     ];
     let trusted_root = read_regular_bounded(&root_path, MAX_MANIFEST_BYTES, "trusted root")?;
     let signing_key_bytes = source_keys
         .iter()
         .enumerate()
         .map(|(index, path)| {
-            read_regular_bounded(path, MAX_CONFIG_BYTES, &format!("signing key {index}"))
+            path.as_ref()
+                .map(|path| {
+                    read_regular_bounded(path, MAX_CONFIG_BYTES, &format!("signing key {index}"))
+                })
+                .transpose()
+                .map(|bytes| bytes.unwrap_or_default())
         })
         .collect::<Result<Vec<_>, _>>()?;
-    ensure_no_overlap(
-        &output,
-        &[
-            root_path.as_path(),
-            records_root.as_path(),
-            registry_path.as_path(),
-            source_keys[0].as_path(),
-            source_keys[1].as_path(),
-            source_keys[2].as_path(),
-            source_keys[3].as_path(),
-            source_keys[4].as_path(),
-            source_keys[5].as_path(),
-        ],
-    )?;
+    let offline_path = config
+        .offline_targets
+        .as_ref()
+        .map(|value| resolve(base, value, "offline targets"))
+        .transpose()?;
+    let mut input_paths = vec![
+        root_path.as_path(),
+        records_root.as_path(),
+        registry_path.as_path(),
+    ];
+    input_paths.extend(source_keys.iter().filter_map(|path| path.as_deref()));
+    input_paths.extend(offline_path.as_deref());
+    ensure_no_overlap(&output, &input_paths)?;
     let output_parent = output.parent().ok_or_else(|| {
         TufRepositoryError::Invalid("repository output needs a parent directory".into())
     })?;
@@ -301,6 +334,16 @@ pub async fn build_tuf_repository(
     let mut total_bytes = 0u64;
     for record in manifest.records {
         let role = validate_record(&record)?;
+        if config.schema_version == 2
+            && !matches!(
+                (record.target.as_str(), record.package.as_str()),
+                ("windows-x86_64", "nsis") | ("linux-x86_64", "appimage")
+            )
+        {
+            return Err(TufRepositoryError::Invalid(
+                "record is outside the offline bootstrap namespaces".into(),
+            ));
+        }
         if !seen.insert(record.path.clone()) {
             return Err(TufRepositoryError::Invalid(format!(
                 "duplicate reconstructed target: {}",
@@ -355,7 +398,7 @@ pub async fn build_tuf_repository(
     let signed_root: Signed<Root> = serde_json::from_slice(&trusted_root)?;
     signed_root.signed.verify_role(&signed_root)?;
     let root_version = signed_root.signed.version;
-    let signing_key_ids = validate_distinct_signing_keys(&keys).await?;
+    let signing_key_ids = validate_distinct_signing_keys(&keys, &signed_root.signed).await?;
 
     let versions = [
         nonzero(config.versions.targets, "targets")?,
@@ -395,6 +438,19 @@ pub async fn build_tuf_repository(
         expiry_window(generated_at, now, expires, maximum, label)?;
     }
     validate_root_contract(&signed_root.signed, generated_at, now, &signing_key_ids)?;
+    let offline_targets = offline_path
+        .as_ref()
+        .map(|path| {
+            online::load_offline_targets(
+                path,
+                &signed_root,
+                &signing_key_ids,
+                &versions,
+                &expirations,
+                &registry_bytes,
+            )
+        })
+        .transpose()?;
 
     let mut expected_targets = BTreeMap::new();
     expected_targets.insert("keys/payload.json".into(), registry_bytes.clone());
@@ -412,6 +468,8 @@ pub async fn build_tuf_repository(
                 record_count: records.len(),
                 root_version,
                 signing_key_ids: &signing_key_ids,
+                namespace_delegations: config.schema_version == 2,
+                offline_targets: offline_targets.as_ref().map(|(bytes, _)| bytes.as_slice()),
             },
         )
         .await?;
@@ -444,89 +502,110 @@ pub async fn build_tuf_repository(
         fs::write(destination, bytes)?;
     }
 
-    let mut editor = RepositoryEditor::new(&editor_root).await?;
-    editor
-        .targets_version(versions[0])?
-        .targets_expires(expirations[0])?;
-    editor
-        .snapshot_version(versions[1])
-        .snapshot_expires(expirations[1])
-        .timestamp_version(versions[2])
-        .timestamp_expires(expirations[2]);
-    for (role, key_index, version_index, expiration_index) in [
-        (DelegatedRole::Releases, 3usize, 3usize, 3usize),
-        (DelegatedRole::Preview, 4usize, 4usize, 4usize),
-        (DelegatedRole::Stable, 5usize, 5usize, 5usize),
-    ] {
-        let patterns: Vec<_> = {
-            let exact: Vec<_> = role_records(&records, role)
-                .map(|record| PathPattern::new(record.path.clone()))
-                .collect::<Result<_, _>>()?;
-            if exact.is_empty() {
-                vec![PathPattern::new(role.placeholder_pattern())?]
-            } else {
-                exact
-            }
-        };
+    if let Some(offline_targets) = offline_targets.as_ref() {
+        online::write_online_repository(
+            offline_targets,
+            &signed_root,
+            &keys,
+            &versions,
+            &expirations,
+            &records,
+            &staged_targets,
+            &staged_metadata,
+        )
+        .await?;
+    } else {
+        let mut editor = RepositoryEditor::new(&editor_root).await?;
         editor
-            .delegate_role(
-                role.name(),
-                &[key(keys[key_index].clone())],
-                PathSet::Paths(patterns),
-                true,
-                versions[version_index],
-                expirations[expiration_index],
-                NonZeroU64::MIN,
-            )
+            .targets_version(versions[0])?
+            .targets_expires(expirations[0])?;
+        editor
+            .snapshot_version(versions[1])
+            .snapshot_expires(expirations[1])
+            .timestamp_version(versions[2])
+            .timestamp_expires(expirations[2]);
+        for (role, key_index, version_index, expiration_index) in [
+            (DelegatedRole::Releases, 3usize, 3usize, 3usize),
+            (DelegatedRole::Preview, 4usize, 4usize, 4usize),
+            (DelegatedRole::Stable, 5usize, 5usize, 5usize),
+        ] {
+            let patterns: Vec<_> = {
+                let exact: Vec<_> = if config.schema_version == 2 {
+                    role.namespace_patterns()
+                        .into_iter()
+                        .map(|path| PathPattern::new(path.to_owned()))
+                        .collect::<Result<_, _>>()?
+                } else {
+                    role_records(&records, role)
+                        .map(|record| PathPattern::new(record.path.clone()))
+                        .collect::<Result<_, _>>()?
+                };
+                if exact.is_empty() {
+                    vec![PathPattern::new(role.placeholder_pattern())?]
+                } else {
+                    exact
+                }
+            };
+            editor
+                .delegate_role(
+                    role.name(),
+                    &[key(keys[key_index].clone())],
+                    PathSet::Paths(patterns),
+                    true,
+                    versions[version_index],
+                    expirations[expiration_index],
+                    NonZeroU64::MIN,
+                )
+                .await?;
+        }
+        let (_, registry_target) =
+            RepositoryEditor::build_target(staged_targets.join("keys/payload.json")).await?;
+        editor.add_target("keys/payload.json", registry_target)?;
+        editor.sign_targets_editor(&[key(keys[0].clone())]).await?;
+        add_delegated_role(
+            &mut editor,
+            DelegatedRole::Releases,
+            &records,
+            &keys[3],
+            versions[3],
+            expirations[3],
+            &staged_targets,
+        )
+        .await?;
+        add_delegated_role(
+            &mut editor,
+            DelegatedRole::Preview,
+            &records,
+            &keys[4],
+            versions[4],
+            expirations[4],
+            &staged_targets,
+        )
+        .await?;
+        add_delegated_role(
+            &mut editor,
+            DelegatedRole::Stable,
+            &records,
+            &keys[5],
+            versions[5],
+            expirations[5],
+            &staged_targets,
+        )
+        .await?;
+        editor
+            .change_delegated_targets("targets")?
+            .targets_version(versions[0])?
+            .targets_expires(expirations[0])?;
+        editor
+            .sign(&[
+                key(keys[0].clone()),
+                key(keys[1].clone()),
+                key(keys[2].clone()),
+            ])
+            .await?
+            .write(&staged_metadata)
             .await?;
     }
-    let (_, registry_target) =
-        RepositoryEditor::build_target(staged_targets.join("keys/payload.json")).await?;
-    editor.add_target("keys/payload.json", registry_target)?;
-    editor.sign_targets_editor(&[key(keys[0].clone())]).await?;
-    add_delegated_role(
-        &mut editor,
-        DelegatedRole::Releases,
-        &records,
-        &keys[3],
-        versions[3],
-        expirations[3],
-        &staged_targets,
-    )
-    .await?;
-    add_delegated_role(
-        &mut editor,
-        DelegatedRole::Preview,
-        &records,
-        &keys[4],
-        versions[4],
-        expirations[4],
-        &staged_targets,
-    )
-    .await?;
-    add_delegated_role(
-        &mut editor,
-        DelegatedRole::Stable,
-        &records,
-        &keys[5],
-        versions[5],
-        expirations[5],
-        &staged_targets,
-    )
-    .await?;
-    editor
-        .change_delegated_targets("targets")?
-        .targets_version(versions[0])?
-        .targets_expires(expirations[0])?;
-    editor
-        .sign(&[
-            key(keys[0].clone()),
-            key(keys[1].clone()),
-            key(keys[2].clone()),
-        ])
-        .await?
-        .write(&staged_metadata)
-        .await?;
     fs::write(
         staged_metadata.join(format!("{root_version}.root.json")),
         &trusted_root,
@@ -562,6 +641,8 @@ pub async fn build_tuf_repository(
             record_count: records.len(),
             root_version,
             signing_key_ids: &signing_key_ids,
+            namespace_delegations: config.schema_version == 2,
+            offline_targets: offline_targets.as_ref().map(|(bytes, _)| bytes.as_slice()),
         },
     )
     .await?;

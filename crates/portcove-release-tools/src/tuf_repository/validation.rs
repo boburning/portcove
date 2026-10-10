@@ -226,10 +226,35 @@ pub(super) fn validate_payload_registry(bytes: &[u8]) -> Result<(), TufRepositor
 
 pub(super) async fn validate_distinct_signing_keys(
     keys: &[Arc<[u8]>; 6],
+    root: &Root,
 ) -> Result<[Vec<u8>; 6], TufRepositoryError> {
     let mut identities = BTreeSet::new();
     let mut ordered = Vec::with_capacity(keys.len());
-    for key_bytes in keys {
+    for (index, key_bytes) in keys.iter().enumerate() {
+        if index == 0 && key_bytes.is_empty() {
+            let role = root.roles.get(&RoleType::Targets).ok_or_else(|| {
+                TufRepositoryError::Invalid("trusted root omits targets role".into())
+            })?;
+            if role.keyids.len() != 1 || role.threshold != NonZeroU64::MIN {
+                return Err(TufRepositoryError::Invalid(
+                    "offline targets requires one distinct key".into(),
+                ));
+            }
+            let public = root.keys.get(&role.keyids[0]).ok_or_else(|| {
+                TufRepositoryError::Invalid("offline targets public key is absent".into())
+            })?;
+            if !matches!(public, tough::schema::key::Key::Ed25519 { .. })
+                || public.key_id()? != role.keyids[0]
+            {
+                return Err(TufRepositoryError::Invalid(
+                    "offline targets must use an identity-bound Ed25519 key".into(),
+                ));
+            }
+            let identity = role.keyids[0].to_vec();
+            identities.insert(identity.clone());
+            ordered.push(identity);
+            continue;
+        }
         let public = key(key_bytes.clone())
             .as_sign()
             .await
@@ -436,6 +461,8 @@ pub(super) struct ExpectedRepository<'a> {
     pub(super) record_count: usize,
     pub(super) root_version: NonZeroU64,
     pub(super) signing_key_ids: &'a [Vec<u8>; 6],
+    pub(super) namespace_delegations: bool,
+    pub(super) offline_targets: Option<&'a [u8]>,
 }
 
 fn validate_delegations(
@@ -444,6 +471,7 @@ fn validate_delegations(
     versions: &[NonZeroU64; 6],
     expirations: &[Timestamp; 6],
     signing_key_ids: &[Vec<u8>; 6],
+    namespace_delegations: bool,
 ) -> Result<(), TufRepositoryError> {
     let delegations = targets.delegations.as_ref().ok_or_else(|| {
         TufRepositoryError::Invalid("existing repository has no delegated roles".into())
@@ -491,7 +519,12 @@ fn validate_delegations(
                     role.name()
                 ))
             })?;
-        let expected_patterns: BTreeSet<_> = {
+        let expected_patterns: BTreeSet<_> = if namespace_delegations {
+            role.namespace_patterns()
+                .into_iter()
+                .map(str::to_owned)
+                .collect()
+        } else {
             let exact: BTreeSet<_> = expected_targets
                 .keys()
                 .filter(|path| match role {
@@ -575,6 +608,8 @@ pub(super) async fn validate_existing_repository(
         record_count,
         root_version,
         signing_key_ids,
+        namespace_delegations,
+        offline_targets,
     } = expected;
     if !fs::symlink_metadata(output)?.is_dir() {
         return Err(TufRepositoryError::Invalid(
@@ -623,6 +658,15 @@ pub(super) async fn validate_existing_repository(
     if metadata_files.keys().cloned().collect::<BTreeSet<_>>() != expected_metadata_files {
         return Err(TufRepositoryError::Invalid(
             "existing repository metadata inventory differs".into(),
+        ));
+    }
+    if offline_targets.is_some_and(|bytes| {
+        metadata_files
+            .get(&format!("{}.targets.json", versions[0]))
+            .is_none_or(|actual| actual.as_slice() != bytes)
+    }) {
+        return Err(TufRepositoryError::Invalid(
+            "existing offline targets bytes differ".into(),
         ));
     }
     let mut target_files = BTreeMap::new();
@@ -691,6 +735,7 @@ pub(super) async fn validate_existing_repository(
         versions,
         expirations,
         signing_key_ids,
+        namespace_delegations,
     )?;
     Ok(())
 }

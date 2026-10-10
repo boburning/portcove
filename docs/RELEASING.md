@@ -262,7 +262,7 @@ The strict configuration resolves paths relative to its own directory:
 }
 ```
 
-All six role keys must be distinct PKCS#8 Ed25519 private keys. The signed root
+In schema 1, all six role keys must be distinct PKCS#8 Ed25519 private keys. The signed root
 must already authorize the supplied targets, snapshot, and timestamp keys; release,
 Preview, and Stable become direct delegated roles. The root must require consistent
 snapshots, retain at least three offline keys with a two-signature quorum, and keep
@@ -280,6 +280,33 @@ changed target bytes, role versions, expiry values, signatures, or manifest cont
 fail closed. The tool reads each bounded private-key input once and gives `tough`
 only that immutable in-memory snapshot; private keys are never copied into repository
 output or another file.
+
+Schema 2 separates offline bootstrap from routine role signing. For bootstrap,
+use the same fields with `schema_version: 2`, include `keys.targets`, and omit
+`offline_targets`. The signed top-level targets fixes the payload-key registry,
+three distinct delegated keys, and Windows NSIS/Linux AppImage namespaces:
+`releases/*/windows-x86_64/nsis.json`, `releases/*/linux-x86_64/appimage.json`,
+and the corresponding versioned `channels/preview` and `channels/stable` paths.
+Bootstrap is an offline custody operation; this tooling does not grant production
+custody or signing authority.
+
+For a routine schema-2 build, omit `keys.targets` and provide `offline_targets`
+as the exact signed `<version>.targets.json` produced by bootstrap. Supply only
+the five snapshot, timestamp, releases, Preview and Stable private keys. The
+targets version and expiration must match bootstrap. The tool authenticates the
+offline metadata against the configured root before every build, including an
+exact retry, and preserves its bytes unchanged. It refuses changed payload
+registry bytes, delegation keys/policy, unsupported target/package namespaces,
+and ambiguous bootstrap/online configurations. Routine signing can allocate a
+new version within those namespaces without loading the targets private key.
+Renewing targets, changing delegation keys, or changing the payload registry
+requires a new independently authorized offline bootstrap.
+
+The unchanged reconstruction step still requires the complete retained inventory
+history and protects existing immutable releases. Schema 2 changes local signing
+custody, not allocation, qualification, controller, publication or platform
+acceptance. The same file/byte/record, expiry, distinct-key and atomic-output guards
+apply. Schema 1 remains available for existing explicit all-key fixtures.
 
 Production credential provisioning, GitHub Pages publication, endpoints, updater
 activation, and publication permission remain with their protected owners. A build
