@@ -202,17 +202,27 @@ impl HostPreferenceStore {
     }
 
     pub fn set_library(&self, root: &Path) -> Result<()> {
-        let root = crate::Library::validate_selection_target(root)?;
-        let preference_path = crate::path::resolve_existing_ancestor(&self.path)?;
+        let root = crate::Library::validate_selection_target(root)
+            .map_err(|error| selection_phase(error, "selected-target-validation"))?;
+        let process_guard = self
+            .process_guard()
+            .map_err(|error| selection_phase(error, "process-lock"))?;
+        let preference_path = crate::path::resolve_existing_ancestor(&self.path)
+            .map_err(|error| selection_phase(error, "preference-path-resolution"))?;
         if preference_path.starts_with(&root) {
             return Err(PortcoveError::conflict(
                 "host preferences must remain outside the selected library",
             ));
         }
-        let _lock = self.lock()?;
-        let mut preferences = self.load()?;
+        let _lock = self
+            .lock_with_process_guard(process_guard)
+            .map_err(|error| selection_phase(error, "sibling-file-lock"))?;
+        let mut preferences = self
+            .load()
+            .map_err(|error| selection_phase(error, "load"))?;
         preferences.library_root = Some(root);
         self.publish(&preferences)
+            .map_err(|error| selection_phase(error, "publication"))
     }
 
     /// Clear only the library choice while retaining other compatible settings.
@@ -378,11 +388,20 @@ impl HostPreferenceStore {
         self.publish(&HostPreferences::default())
     }
 
-    fn lock(&self) -> Result<HostPreferenceLock<'_>> {
-        let process_guard = self
-            .process_lock
+    fn process_guard(&self) -> Result<MutexGuard<'_, ()>> {
+        self.process_lock
             .lock()
-            .map_err(|_| PortcoveError::state("host preference process lock poisoned"))?;
+            .map_err(|_| PortcoveError::state("host preference process lock poisoned"))
+    }
+
+    fn lock(&self) -> Result<HostPreferenceLock<'_>> {
+        self.lock_with_process_guard(self.process_guard()?)
+    }
+
+    fn lock_with_process_guard<'a>(
+        &'a self,
+        process_guard: MutexGuard<'a, ()>,
+    ) -> Result<HostPreferenceLock<'a>> {
         crate::path::refuse_symlink_ancestors(&self.path)?;
         let parent = self
             .path
@@ -421,6 +440,12 @@ impl HostPreferenceStore {
         }
         crate::durability::write_bytes_atomically(&self.path, &bytes, true)
     }
+}
+
+fn selection_phase(error: PortcoveError, phase: &'static str) -> PortcoveError {
+    error
+        .detail("host_preference_operation", "set_library")
+        .detail("host_preference_phase", phase)
 }
 
 fn process_preference_lock(path: &Path) -> Result<ProcessPreferenceLock> {
