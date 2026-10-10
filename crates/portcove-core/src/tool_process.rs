@@ -16,6 +16,27 @@ use crate::{ActivityDiagnostic, ChildProcessClass, ChildProcessPolicy, PortcoveE
 
 const SETUP_OUTPUT_LIMIT: usize = 64 * 1024;
 
+pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, String> {
+    const KEYS: [&str; 8] = [
+        "process_tree_first_failure",
+        "process_tree_api_error",
+        "process_tree_retained_members",
+        "process_tree_membership_complete",
+        "process_tree_deadline_exhausted",
+        "process_tree_active",
+        "process_tree_total",
+        "process_tree_wait_result",
+    ];
+    KEYS.into_iter()
+        .filter_map(|key| {
+            error
+                .details
+                .get(key)
+                .map(|value| (key.to_owned(), value.clone()))
+        })
+        .collect()
+}
+
 pub(crate) struct SetupOutput {
     pub status: ExitStatus,
     pub output: String,
@@ -182,6 +203,12 @@ pub(crate) fn run_tool(
                 );
             }
         }
+    };
+    #[cfg(windows)]
+    let result = if process_quiesced {
+        result
+    } else {
+        result.map_err(|error| group.with_proof_details(error))
     };
     // Windows closes this exact job's descendants. Unix poll_setup stops the
     // group before reaping its leader, while its PID still cannot be reused;
@@ -383,6 +410,9 @@ pub(crate) struct ToolProcessGroup {
     members: std::cell::RefCell<BTreeMap<u32, std::os::windows::io::OwnedHandle>>,
     complete: std::cell::Cell<bool>,
     termination_deadline: std::cell::Cell<Option<Instant>>,
+    proof_failure: std::cell::RefCell<Option<(&'static str, Option<u32>)>>,
+    accounting: std::cell::Cell<Option<(u32, u32)>>,
+    wait_result: std::cell::Cell<Option<u32>>,
 }
 
 #[cfg(windows)]
@@ -447,6 +477,9 @@ impl ToolProcessGroup {
                 members: std::cell::RefCell::new(BTreeMap::from([(child.id(), leader)])),
                 complete: std::cell::Cell::new(true),
                 termination_deadline: std::cell::Cell::new(None),
+                proof_failure: Default::default(),
+                accounting: Default::default(),
+                wait_result: Default::default(),
             };
             if let Err(error) = resume_primary_thread(child.id()) {
                 // Closing this configured job terminates the still-suspended
@@ -479,6 +512,10 @@ impl ToolProcessGroup {
             )
         };
         if queried == 0 {
+            self.record_proof_failure(
+                "membership_query",
+                Some(unsafe { windows_sys::Win32::Foundation::GetLastError() }),
+            );
             self.complete.set(false);
             return;
         }
@@ -486,6 +523,7 @@ impl ToolProcessGroup {
         if list.NumberOfAssignedProcesses != list.NumberOfProcessIdsInList
             || list.NumberOfProcessIdsInList > 512
         {
+            self.record_proof_failure("membership_capacity", None);
             self.complete.set(false);
             return;
         }
@@ -498,6 +536,7 @@ impl ToolProcessGroup {
         let mut members = self.members.borrow_mut();
         for &pid in ids {
             let Ok(pid) = u32::try_from(pid) else {
+                self.record_proof_failure("member_id_range", None);
                 self.complete.set(false);
                 return;
             };
@@ -505,6 +544,7 @@ impl ToolProcessGroup {
                 continue;
             }
             if members.len() >= 512 {
+                self.record_proof_failure("retained_handle_capacity", None);
                 self.complete.set(false);
                 return;
             }
@@ -516,17 +556,68 @@ impl ToolProcessGroup {
                 )
             };
             if raw.is_null() {
+                self.record_proof_failure(
+                    "member_open",
+                    Some(unsafe { windows_sys::Win32::Foundation::GetLastError() }),
+                );
                 self.complete.set(false);
                 return;
             }
             let handle = unsafe { OwnedHandle::from_raw_handle(raw) };
             let mut in_job = 0;
-            if unsafe { IsProcessInJob(raw, self.job, &raw mut in_job) } == 0 || in_job == 0 {
+            let queried = unsafe { IsProcessInJob(raw, self.job, &raw mut in_job) };
+            if queried == 0 || in_job == 0 {
+                self.record_proof_failure(
+                    "member_job_identity",
+                    (queried == 0)
+                        .then(|| unsafe { windows_sys::Win32::Foundation::GetLastError() }),
+                );
                 self.complete.set(false);
                 return;
             }
             members.insert(pid, handle);
         }
+    }
+
+    fn record_proof_failure(&self, reason: &'static str, api_error: Option<u32>) {
+        // A later termination/accounting failure must not erase the first gap.
+        self.proof_failure
+            .borrow_mut()
+            .get_or_insert((reason, api_error));
+    }
+
+    fn with_proof_details(&self, mut error: PortcoveError) -> PortcoveError {
+        if let Some((reason, api_error)) = *self.proof_failure.borrow() {
+            error = error.detail("process_tree_first_failure", reason);
+            if let Some(code) = api_error {
+                error = error.detail("process_tree_api_error", code.to_string());
+            }
+        }
+        error = error
+            .detail(
+                "process_tree_retained_members",
+                self.members.borrow().len().to_string(),
+            )
+            .detail(
+                "process_tree_membership_complete",
+                self.complete.get().to_string(),
+            )
+            .detail(
+                "process_tree_deadline_exhausted",
+                self.termination_deadline
+                    .get()
+                    .is_some_and(|deadline| Instant::now() >= deadline)
+                    .to_string(),
+            );
+        if let Some((active, total)) = self.accounting.get() {
+            error = error
+                .detail("process_tree_active", active.to_string())
+                .detail("process_tree_total", total.to_string());
+        }
+        if let Some(waited) = self.wait_result.get() {
+            error = error.detail("process_tree_wait_result", waited.to_string());
+        }
+        error
     }
 
     fn deadline(&self) -> Instant {
@@ -545,12 +636,17 @@ impl ToolProcessGroup {
             QueryInformationJobObject, TerminateJobObject,
         };
         use windows_sys::Win32::{
-            Foundation::WAIT_OBJECT_0, System::Threading::WaitForSingleObject,
+            Foundation::{WAIT_FAILED, WAIT_OBJECT_0},
+            System::Threading::WaitForSingleObject,
         };
         self.observe_members();
         let deadline = self.deadline();
         // Retain handles across the job's asynchronous termination accounting.
         if unsafe { TerminateJobObject(self.job, 1) } == 0 {
+            self.record_proof_failure(
+                "job_termination",
+                Some(unsafe { windows_sys::Win32::Foundation::GetLastError() }),
+            );
             return false;
         }
         let members = self.members.borrow();
@@ -559,11 +655,35 @@ impl ToolProcessGroup {
                 .saturating_duration_since(Instant::now())
                 .as_millis()
                 .min(u32::MAX as u128) as u32;
-            if unsafe { WaitForSingleObject(handle.as_raw_handle(), remaining) } != WAIT_OBJECT_0 {
+            let waited = unsafe { WaitForSingleObject(handle.as_raw_handle(), remaining) };
+            if waited != WAIT_OBJECT_0 {
+                self.wait_result.set(Some(waited));
+                self.record_proof_failure(
+                    "member_wait",
+                    (waited == WAIT_FAILED)
+                        .then(|| unsafe { windows_sys::Win32::Foundation::GetLastError() }),
+                );
                 return false;
             }
         }
         if !self.complete.get() {
+            // Diagnostic-only accounting cannot repair failed membership coverage.
+            let mut accounting = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+            if unsafe {
+                QueryInformationJobObject(
+                    self.job,
+                    JobObjectBasicAccountingInformation,
+                    (&raw mut accounting).cast(),
+                    std::mem::size_of_val(&accounting) as u32,
+                    std::ptr::null_mut(),
+                )
+            } != 0
+            {
+                self.accounting.set(Some((
+                    accounting.ActiveProcesses,
+                    accounting.TotalProcesses,
+                )));
+            }
             return false;
         }
         loop {
@@ -578,12 +698,25 @@ impl ToolProcessGroup {
                 )
             };
             if queried == 0 {
+                self.record_proof_failure(
+                    "accounting_query",
+                    Some(unsafe { windows_sys::Win32::Foundation::GetLastError() }),
+                );
                 return false;
             }
+            self.accounting.set(Some((
+                accounting.ActiveProcesses,
+                accounting.TotalProcesses,
+            )));
             if accounting.ActiveProcesses == 0 {
-                return accounting.TotalProcesses as usize == members.len();
+                let complete = accounting.TotalProcesses as usize == members.len();
+                if !complete {
+                    self.record_proof_failure("lifetime_count_gap", None);
+                }
+                return complete;
             }
             if Instant::now() >= deadline {
+                self.record_proof_failure("accounting_deadline", None);
                 return false;
             }
             std::thread::sleep(Duration::from_millis(10));
@@ -611,6 +744,7 @@ impl ToolProcessGroup {
                 return Ok(status);
             }
             if Instant::now() >= self.deadline() {
+                self.record_proof_failure("leader_deadline", None);
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::TimedOut,
                     "native tool leader did not exit within the owned-tree bound",

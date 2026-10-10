@@ -1214,6 +1214,18 @@ fn materialize_managed_disc(
     result
 }
 
+fn builder_supervision_error(error: PortcoveError) -> PortcoveError {
+    if error.code == crate::ErrorCode::Launch {
+        let mut mapped = PortcoveError::install(format!("could not run PS1 builder: {error}"));
+        mapped
+            .details
+            .extend(crate::tool_process::copy_proof_details(&error));
+        mapped
+    } else {
+        error
+    }
+}
+
 fn run_cli(
     python: &Path,
     cli: &Path,
@@ -1254,13 +1266,7 @@ fn run_cli(
         },
     );
     *quiesced = previous_quiescence && command_quiesced;
-    let output = output.map_err(|error| {
-        if error.code == crate::ErrorCode::Launch {
-            PortcoveError::install(format!("could not run PS1 builder: {error}"))
-        } else {
-            error
-        }
-    })?;
+    let output = output.map_err(builder_supervision_error)?;
     if output.status.success() {
         return Ok(());
     }
@@ -1521,6 +1527,30 @@ pub(crate) fn bios_launch_fixture(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn builder_error_mapping_preserves_bounded_proof_without_other_details() {
+        let error = super::builder_supervision_error(
+            crate::PortcoveError::launch("completion observation failed")
+                .detail("process_tree_first_failure", "member_wait")
+                .detail("process_tree_api_error", "6")
+                .detail("process_tree_wait_result", "4294967295")
+                .detail("unrelated_private_detail", "must not propagate"),
+        );
+        assert_eq!(error.code, crate::ErrorCode::Install);
+        assert!(error.message.contains("could not run PS1 builder"));
+        assert_eq!(error.details["process_tree_first_failure"], "member_wait");
+        assert_eq!(error.details["process_tree_api_error"], "6");
+        assert_eq!(error.details["process_tree_wait_result"], "4294967295");
+        assert!(!error.details.contains_key("process_tree_active"));
+        assert!(!error.details.contains_key("unrelated_private_detail"));
+        let cancelled = super::builder_supervision_error(
+            crate::PortcoveError::new(crate::ErrorCode::Cancelled, "cancelled")
+                .detail("operation_id", "retained-operation"),
+        );
+        assert_eq!(cancelled.code, crate::ErrorCode::Cancelled);
+        assert_eq!(cancelled.details["operation_id"], "retained-operation");
+    }
+
     use super::*;
     use std::{
         thread,
