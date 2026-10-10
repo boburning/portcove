@@ -32,8 +32,11 @@ mod artwork;
 mod backup_review;
 mod catalog;
 mod cli_context;
+#[doc(hidden)]
+pub mod desktop_contract;
 mod diagnostics;
 mod external_runtime_commands;
+mod favorite_commands;
 mod game_updates;
 mod library_selection;
 mod library_transfer;
@@ -2418,6 +2421,8 @@ pub fn run() -> std::process::ExitCode {
         .invoke_handler(main_window_invoke_handler(tauri::generate_handler![
             get_bootstrap_status,
             get_locale_preference,
+            favorite_commands::get_favorite_ports,
+            favorite_commands::set_port_favorite,
             set_locale_preference,
             application_update_commands::check_application_update,
             application_update_commands::download_application_update,

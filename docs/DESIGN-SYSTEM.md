@@ -57,9 +57,11 @@ during beta before 1.0, without holding the initial Windows/Linux foundation.
 
 ## Component rules
 
+Game-port release channels display as **Stable / Preview / Rolling**. The compatible CLI, JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; Preview is the display name for `beta`, not a new value or alias. Changing a label does not select a different release or migrate saved choices. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
-- Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Pills are reserved for compact status badges.
+- Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Shared selects use these as minimum heights: option labels and selected decision text wrap within the available width, including long unbroken values, rather than clipping source requirements or relying on hover. Pills are reserved for compact status badges.
 - Ordinary buttons are neutral by default. Signature-red Play, Install, or Apply emphasis is an explicit variant; destructive actions have distinct semantics, wording, placement, and confirmation behavior. Focus remains gold and visibly distinct from both selection and destructive intent, including the combined selected-and-focused state.
 - Buttons name the action or review: `Review installation`, `Play`, `Check game files`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
 - Setup and launch controls consume the current core action availability and supplied reason. A scoped hold or unoffered managed setup route has a readable explanation instead of an enabled installation review; source and BIOS input keep their existing selection/review flow. Installed launch still requires positive core readiness, and a retained-definition hold explains its exact reason. Missing legacy action projections keep the existing readiness behavior; malformed or incomplete current projections do not enable an action. An existing review can still be dismissed during a hold, and owned-operation cancellation stays reachable. A later allowed snapshot can restore the control, but preview and presentation never authorize execution: core rechecks current inputs under its existing guards.
@@ -124,7 +126,7 @@ The first foundation slice records the actual `components.json` paths, aliases, 
 | Port catalog    | Every reviewed Portcove definition, including ports not installed locally.                             |
 | Source          | A legally obtained original game file or reviewed file set referenced in place.                        |
 | BIOS            | A separately modeled firmware requirement. It is not called a game source in recovery copy.            |
-| Release channel | Stable, beta, or rolling upstream stream selected per port.                                            |
+| Release channel | Stable, Preview (`beta`), or Rolling stream selected per port.                                         |
 | Update policy   | Notify, stage, or automatically install for one installed port.                                        |
 | Staged release  | A verified release retained locally but not yet active.                                                |
 | Active version  | The managed version currently selected for launch.                                                     |
@@ -171,7 +173,17 @@ as that release's existing path. File-health summaries describe the saved files'
 current comparison state in plain language; keep saved checksums in File details
 and do not equate unchanged bytes with a supported edition or launch readiness.
 Game-file inspection reports lead with the identified game, current result, and
-next action. Admission, source authority, and test coverage stay in named
+next action. Source-import reviews show the file requirement matched to the Core plan's profile,
+its actual admission basis and limits, the selected/destination/currently saved
+paths, checked-copy reuse when planned, and additional file-data bytes. Structural,
+informational and upstream-validator admission do not imply an exact edition;
+source admission is not installation or gameplay proof. Use-current-location is
+not Portcove-copy reuse, and move may remove the original after verification and
+registration even when an existing checked copy is reused. Planned bytes are not
+a free-space guarantee. Unknown checks remain explicit and need a new review or
+supported client before confirmation. Core plan binding and native consent remain
+authoritative.
+Admission, source authority, and test coverage stay in named
 disclosures; assistive announcements report the actual result without claiming
 that every check completed.
 When a game-file search reaches a safety limit, name the limit and give a next

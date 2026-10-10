@@ -2142,6 +2142,69 @@ test("full catalog retains every location and pin check with eight fewer actual 
     );
 });
 
+test("cached repository observations survive the live-request cap without admitting another request", async () => {
+  const pin = reviewedAccounting.pins[0];
+  const prefix = `https://api.github.com/repos/${pin.repository}`;
+  const ordinaryPort = (id) => ({
+    id,
+    release: { provider: "github", repository: `fixture/${id}` },
+  });
+  for (const [ordinaryCount, nextLive] of [
+    [123, false],
+    [124, false],
+    [124, true],
+  ]) {
+    const catalog = {
+      ports: [
+        ...Array.from({ length: ordinaryCount }, (_, i) => ordinaryPort(`capacity-${i}`)),
+        currentHealthCatalog.ports.find((port) => port.id === pin.port_id),
+        ...(nextLive ? [ordinaryPort("next-live")] : []),
+      ],
+    };
+    const calls = [];
+    const fixed = accountingFetch(calls);
+    const report = await collectRepositoryHealth(catalog, {
+      now: () => 0,
+      fetch: async (url, options) => {
+        if (!url.startsWith("https://api.github.com/repos/fixture/")) return fixed(url, options);
+        calls.push({ url, options });
+        return new Response(
+          JSON.stringify({
+            id: 42,
+            full_name: url.slice("https://api.github.com/repos/".length),
+            archived: false,
+          }),
+          { headers: { "content-type": "application/json" } },
+        );
+      },
+    });
+    assert.equal(report.limits.requests, 128);
+    assert.equal(report.consumed.requests, ordinaryCount + 4);
+    assert.equal(calls.length, ordinaryCount + 4);
+    assert.equal(calls.filter((call) => call.url === prefix).length, 1);
+    assert.equal(
+      report.observations.find((record) => record.repository === pin.url).pin_assessment.status,
+      "provider-reported-pin-present",
+    );
+    const original = report.observations.find((record) => record.repository === pin.repository);
+    assert.equal(original.attempted, false);
+    assert.equal(original.metadata_reused, true);
+    assert.equal(original.reason, null);
+    assert.equal(original.status, "reachable");
+    assert.equal(original.accounted_for, true);
+    assert.equal(report.outcome, nextLive ? "incomplete" : "complete");
+    if (nextLive) {
+      const refused = report.observations.find(
+        (record) => record.repository === "fixture/next-live",
+      );
+      assert.equal(refused.attempted, false);
+      assert.equal(refused.metadata_reused, false);
+      assert.equal(refused.reason, "budget");
+      assert.equal(refused.accounted_for, false);
+    }
+  }
+});
+
 test("repository reuse stays in one collection and failed or partial reads are never cached", async () => {
   const catalog = accountingCatalog();
   const first = await collectRepositoryHealth(catalog, { fetch: accountingFetch([]) });

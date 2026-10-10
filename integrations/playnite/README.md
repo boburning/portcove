@@ -1,5 +1,7 @@
 # Portcove Playnite reference client
 
+Game-port release channels display as **Stable / Preview / Rolling**. The compatible CLI, JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; Preview is the display name for `beta`, not a new value or alias. Changing a label does not select a different release or migrate saved choices. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
 A small Windows library extension consuming the standalone CLI. It uses the
 public Playnite SDK and Portcove JSON/JSONL commands. Core owns catalog, sources,
 readiness, downloads, trust, installation, persistence and recovery. The client

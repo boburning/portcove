@@ -1,14 +1,14 @@
-use std::path::PathBuf;
+pub(crate) use crate::desktop_contract::{
+    BackupReview, BatchOutcome, BootstrapStatus, CliCommandContext, DesktopLocalePreference,
+    DesktopWorkspaceSnapshot, InstallInput, LaunchResult, SourceBatchOutcome,
+};
 
-use portcove_core::{LibrarySelection, ReleaseChannel, SourceVerification};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tauri::Emitter;
 
-pub(crate) const DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: &str =
-    "portcove://application-update-notice";
-pub(crate) const DESKTOP_EVENT_LIBRARY_CHANGED: &str = "portcove://library-changed";
-pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
+pub(crate) use crate::desktop_contract::{
+    DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, DESKTOP_EVENT_LIBRARY_CHANGED, DESKTOP_EVENT_OPERATION,
+};
 
 pub(crate) fn emit_desktop_event<T: Serialize + Clone>(
     app: &tauri::AppHandle,
@@ -16,14 +16,6 @@ pub(crate) fn emit_desktop_event<T: Serialize + Clone>(
     payload: T,
 ) -> tauri::Result<()> {
     app.emit(event, payload)
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-pub(crate) struct DesktopWorkspaceSnapshot {
-    pub(crate) catalog: portcove_core::CatalogDocument,
-    pub(crate) statuses: Vec<portcove_core::PortStatus>,
-    pub(crate) sources: Vec<portcove_core::SourceRecord>,
-    pub(crate) activities: portcove_core::ActivityFeed,
 }
 
 impl From<portcove_core::WorkspaceSnapshot> for DesktopWorkspaceSnapshot {
@@ -37,68 +29,7 @@ impl From<portcove_core::WorkspaceSnapshot> for DesktopWorkspaceSnapshot {
     }
 }
 
-pub(crate) type DesktopError = portcove_core::FailureReport;
-
-#[derive(Debug, Serialize, JsonSchema)]
-pub(crate) struct BatchOutcome<T> {
-    pub(crate) port_id: String,
-    pub(crate) ok: bool,
-    pub(crate) result: Option<T>,
-    pub(crate) error: Option<DesktopError>,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-pub(crate) struct SourceBatchOutcome {
-    pub(crate) profile_id: String,
-    pub(crate) ok: bool,
-    pub(crate) result: Option<SourceVerification>,
-    pub(crate) error: Option<DesktopError>,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub(crate) struct BootstrapStatus {
-    pub(crate) ready: bool,
-    pub(crate) library_root: Option<PathBuf>,
-    pub(crate) selection: Option<LibrarySelection>,
-    pub(crate) generation: u64,
-    pub(crate) error: Option<DesktopError>,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub(crate) struct DesktopLocalePreference {
-    pub(crate) locale: Option<String>,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-pub(crate) struct BackupReview {
-    pub(crate) preview: portcove_core::BackupActionPreview,
-    pub(crate) port_name: String,
-    pub(crate) persistent_data_path: PathBuf,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-pub(crate) struct CliCommandContext {
-    pub(crate) library_root: PathBuf,
-    pub(crate) executable: Option<PathBuf>,
-    pub(crate) platform: portcove_core::Platform,
-}
-
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct InstallInput {
-    pub(crate) port_id: String,
-    pub(crate) channel: Option<ReleaseChannel>,
-    pub(crate) source: Option<PathBuf>,
-    pub(crate) bios: Option<PathBuf>,
-    pub(crate) stage: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct LaunchResult {
-    pub(crate) process_id: Option<u32>,
-    pub(crate) session_id: String,
-}
+pub(crate) use crate::desktop_contract::DesktopError;
 
 #[cfg(test)]
 mod tests {

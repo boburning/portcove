@@ -16,6 +16,8 @@ test("live Rust schemas and desktop command/event exposure match checked-in cons
   );
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /desktop command\/event exposure match Rust/);
+  if (process.platform === "win32")
+    assert.match(result.stdout, /Headless Desktop contracts match the compiled native host/);
 });
 
 for (const contract of ["core", "desktop", "events"])

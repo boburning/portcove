@@ -1,4 +1,5 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import type { useFavorites } from "../features/favorites/use-favorites";
+import { useState, useRef, useEffect, type Dispatch, type SetStateAction } from "react";
 import {
   ArrowRight,
   Boxes,
@@ -8,6 +9,7 @@ import {
   LoaderCircle,
   MoreHorizontal,
   Settings2,
+  Star,
   Wrench,
 } from "lucide-react";
 import type { PortDefinition, PortStatus } from "../types";
@@ -42,6 +44,7 @@ const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
 ];
 
 export function PortBrowser({
+  favorites,
   view,
   ports,
   statuses,
@@ -61,6 +64,7 @@ export function PortBrowser({
   loading,
   nativeSourceDrag = { active: false, pathCount: 0 },
 }: {
+  favorites?: ReturnType<typeof useFavorites>;
   view: View;
   ports: PortDefinition[];
   statuses: Map<string, PortStatus>;
@@ -80,9 +84,48 @@ export function PortBrowser({
   loading: boolean;
   nativeSourceDrag?: NativeSourceDragState;
 }) {
+  const browserOwner = useRef({ closed: false });
+  const filterButton = useRef<HTMLButtonElement>(null);
+  const browserRoot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const owner = { closed: false };
+    browserOwner.current = owner;
+    return () => {
+      owner.closed = true;
+    };
+  }, []);
+  const restoreAfter = async (button: HTMLButtonElement, action: () => Promise<boolean>) => {
+    const owner = browserOwner.current;
+    const ownedFocus = document.activeElement === button;
+    const accepted = await action();
+    if (
+      accepted &&
+      ownedFocus &&
+      !owner.closed &&
+      !button.isConnected &&
+      document.activeElement === document.body
+    )
+      (
+        filterButton.current ??
+        browserRoot.current?.querySelector<HTMLButtonElement>("[data-focusable]:not([disabled])")
+      )?.focus();
+  };
+  const onFavoriteToggle = (portId: string, button: HTMLButtonElement) => {
+    if (favorites) void restoreAfter(button, () => favorites.toggle(portId));
+  };
   const unresolvedFilter =
     typeof filter !== "string" && evaluateCatalogQuery([], filter).state === "unresolved";
-  const constrained = filterConstrained(filter);
+  const favoriteCount = favorites?.ids
+    ? ports.filter((port) => favorites.ids?.has(port.id)).length
+    : undefined;
+  const visiblePorts = favorites?.only
+    ? ports.filter((port) => favorites.ids?.has(port.id))
+    : ports;
+  const reset = () => {
+    favorites?.setOnly(false);
+    clearFilters?.();
+  };
+  const constrained = filterConstrained(filter) || favorites?.only === true;
   const firstUseEmpty =
     view === "library" &&
     !loading &&
@@ -92,18 +135,42 @@ export function PortBrowser({
     !constrained &&
     query.trim().length === 0;
   return (
-    <>
+    <div ref={browserRoot} className="contents">
       <p className="sr-only" aria-live="polite">
         {nativeSourceDrag.active
           ? `Game file drop targets are available. ${nativeSourceDrag.pathCount === 1 ? "One path" : `${nativeSourceDrag.pathCount} paths`} selected.`
           : ""}
       </p>
-      {view === "library" && recent && onContinue && (
+      {view === "library" && recent && onContinue && !favorites?.only && (
         <ContinueCard recent={recent} launch={onContinue} details={onSelect} />
       )}
       {view === "library" && overview.installed > 0 && <LibrarySummary overview={overview} />}
       {view === "library" && steamBatch && steamBatch.ports.length >= 2 && (
         <SteamBatchLibraryAction {...steamBatch} />
+      )}
+      {favorites?.failure && (
+        <section className="error-banner mb-3" role="alert">
+          <div>
+            <strong>
+              {favorites.failure === "write"
+                ? "Favorite choice could not be confirmed"
+                : "Favorites could not be refreshed"}
+            </strong>
+            <p>
+              Last confirmed choices have been kept; a write may already have applied. You can keep
+              browsing and playing. Retry reading favorites to reconcile them; if the error
+              continues, repair the host preferences file.
+            </p>
+            <Button
+              data-focusable
+              variant="outline"
+              aria-disabled={favorites.busy}
+              onClick={(event) => void restoreAfter(event.currentTarget, favorites.refresh)}
+            >
+              Retry favorites
+            </Button>
+          </div>
+        </section>
       )}
       {unresolvedFilter && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
@@ -135,8 +202,28 @@ export function PortBrowser({
               {filterLabel(item)}
             </Button>
           ))}
+          {favorites && (
+            <Button
+              data-focusable
+              size="sm"
+              variant={favorites.only ? "selected" : "outline"}
+              ref={filterButton}
+              data-favorites-filter
+              aria-pressed={favorites.only}
+              disabled={!favorites.ids}
+              onClick={() => favorites.setOnly(!favorites.only)}
+            >
+              <Icon glyph={Star} size="sm" /> Favorites
+              {favoriteCount === undefined ? " (unavailable)" : ` (${favoriteCount})`}
+            </Button>
+          )}
+          {favorites?.only && (
+            <Button data-focusable size="sm" variant="ghost" onClick={reset}>
+              Clear search and filters
+            </Button>
+          )}
           <span className="ml-auto text-xs text-pc-muted-foreground">
-            {ports.length} {ports.length === 1 ? "port" : "ports"}
+            {visiblePorts.length} {visiblePorts.length === 1 ? "port" : "ports"}
           </span>
         </div>
       )}
@@ -152,7 +239,9 @@ export function PortBrowser({
       )}
       <BrowserResults
         view={view}
-        ports={ports}
+        ports={visiblePorts}
+        favorites={favorites}
+        onFavoriteToggle={onFavoriteToggle}
         installedCount={overview.installed}
         constrained={constrained || query.trim().length > 0}
         statuses={statuses}
@@ -160,11 +249,11 @@ export function PortBrowser({
         onLaunch={onContinue}
         onBrowseCatalog={onBrowseCatalog}
         onConnectGameFiles={onConnectGameFiles}
-        clearFilters={clearFilters}
+        clearFilters={reset}
         loading={loading}
         nativeSourceDrag={nativeSourceDrag}
       />
-    </>
+    </div>
   );
 }
 
@@ -225,6 +314,8 @@ function SteamBatchLibraryAction({
 }
 
 function BrowserResults({
+  favorites,
+  onFavoriteToggle,
   view,
   ports,
   installedCount,
@@ -238,6 +329,8 @@ function BrowserResults({
   loading,
   nativeSourceDrag,
 }: {
+  favorites?: ReturnType<typeof useFavorites>;
+  onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
   view: View;
   ports: PortDefinition[];
   installedCount: number;
@@ -267,6 +360,8 @@ function BrowserResults({
     <section className="port-grid" data-focus-group>
       {ports.map((port) => (
         <PortCard
+          favorites={favorites}
+          onFavoriteToggle={onFavoriteToggle}
           key={port.id}
           port={port}
           status={statuses.get(port.id)}
@@ -467,6 +562,8 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
 }
 
 type PortCardProps = {
+  onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
+  favorites?: ReturnType<typeof useFavorites>;
   port: PortDefinition;
   status?: PortStatus;
   readiness: PortReadiness;
@@ -499,6 +596,8 @@ function hasAvailableUpdate(status: PortStatus | undefined): boolean {
 }
 
 function PortCard({
+  favorites,
+  onFavoriteToggle,
   port,
   status,
   readiness,
@@ -523,6 +622,26 @@ function PortCard({
       view={view}
     />
   );
+  const favoriteToggle = favorites && (
+    <Button
+      data-focusable
+      variant={favorites.ids?.has(port.id) ? "selected" : "outline"}
+      size="icon-sm"
+      className="absolute top-2 left-2 z-10 bg-pc-surface"
+      aria-label={`Favorite ${port.name}`}
+      aria-pressed={favorites.ids?.has(port.id) ?? false}
+      disabled={!favorites.ids}
+      aria-disabled={favorites.busy}
+      onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
+    >
+      <span className={favorites.ids?.has(port.id) ? "[&_.icon]:fill-current" : undefined}>
+        <Icon glyph={Star} size="sm" />
+      </span>
+      <span className="sr-only">
+        {favorites.ids?.has(port.id) ? "Remove favorite" : "Add favorite"}
+      </span>
+    </Button>
+  );
   const accessibleLabel = `${port.name}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
   if (view === "library")
     return (
@@ -533,20 +652,24 @@ function PortCard({
         data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
       >
         {contents}
+        {favoriteToggle}
       </article>
     );
   return (
-    <button
-      data-focusable
-      data-detail-origin={detailOrigin}
-      className={className}
-      aria-label={accessibleLabel}
-      onClick={() => onSelect(port.id, detailOrigin)}
-      data-source-drop-port-id={dropEligible ? port.id : undefined}
-      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
-    >
-      {contents}
-    </button>
+    <div className="relative">
+      <button
+        data-focusable
+        data-detail-origin={detailOrigin}
+        className={`${className} h-full w-full`}
+        aria-label={accessibleLabel}
+        onClick={() => onSelect(port.id, detailOrigin)}
+        data-source-drop-port-id={dropEligible ? port.id : undefined}
+        data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
+      >
+        {contents}
+      </button>
+      {favoriteToggle}
+    </div>
   );
 }
 
@@ -756,7 +879,7 @@ function filterLabel(filter: Filter) {
   if (filter === "all") return "All";
   if (filter === "ready") return "Ready";
   if (filter === "setup") return "Needs attention";
-  return filter;
+  return releaseChannelPresentation(filter).label;
 }
 
 function readinessPresentation(readiness: PortReadiness, view: View, status?: PortStatus) {

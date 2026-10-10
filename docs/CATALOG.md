@@ -243,7 +243,7 @@ introduced by record preparation.
 GitHub Stable selection excludes provider-declared prereleases, existing
 hyphenated development markers, and case-insensitive numbered beta suffixes
 such as `Version1.0.5beta12`, even when upstream leaves its prerelease flag unset.
-Beta selection still requires the catalog to declare that channel; classification
+Preview (`beta`) selection still requires the catalog to declare that channel; classification
 does not grant compatibility or installation authority. No selectable stable
 release produces an unavailable result, rather than falling through to a beta.
 
@@ -360,10 +360,14 @@ blocker.
 
 ## Channels, support, and qualification
 
-Stable, beta, and rolling are user-selected release channels, not qualification
-claims. A catalog entry may be beta, rolling, platform-limited,
-qualification-pending, or blocked while the application continues toward V1,
+Game-port release channels display as **Stable / Preview / Rolling**. The compatible CLI, JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; Preview is the display name for `beta`, not a new value or alias. Changing a label does not select a different release or migrate saved choices. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
+Stable, Preview, and Rolling are user-selected release channels, not qualification
+claims. Preview is the human label for the unchanged `beta` machine value. An entry may offer Preview or Rolling, be platform-limited, lack qualification
+evidence, or have documented blockers while the application continues toward V1,
 provided the UI and documentation represent that state honestly.
+
+Legacy `support_tier` values remain compatibility metadata, separate from release-channel choices. Neither a channel label nor a tier name supplies artifact/platform/operation testing evidence or removes a concrete compatibility limitation.
 
 Schema 2 stores new source qualification in `source_catalog.qualification`.
 Each record binds the port, platform, release artifact SHA-256, upstream ref,

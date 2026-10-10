@@ -177,14 +177,14 @@ export function DesignCompatibilityFixture() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="stable">Stable</SelectItem>
-                  <SelectItem value="preview">Preview</SelectItem>
-                  <SelectItem value="nightly">Nightly</SelectItem>
+                  <SelectItem value="beta">Preview</SelectItem>
+                  <SelectItem value="rolling">Rolling</SelectItem>
                 </SelectContent>
               </Select>
             </label>
 
             <p id="fixture-selection" role="status">
-              {channel === "stable" ? "Stable" : channel === "preview" ? "Preview" : "Nightly"}
+              {channel === "stable" ? "Stable" : channel === "beta" ? "Preview" : "Rolling"}
               {" channel selected"}
             </p>
 

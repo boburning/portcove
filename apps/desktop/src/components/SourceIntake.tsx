@@ -350,6 +350,7 @@ function SourceIntakeSession({
         )}
         <SourceImportReview
           plan={plan}
+          profiles={[request.profile]}
           busy={Boolean(busy)}
           onCancel={() => setPlan(undefined)}
           onApply={apply}

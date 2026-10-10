@@ -2826,7 +2826,7 @@ describe("desktop components", () => {
     expect(html).not.toContain("Compared with reviewed catalog identity");
     expect(html).toContain("Managed by Portcove for backup and restore");
     expect(html).toContain("Active");
-    expect(html).toContain("Stable · Beta");
+    expect(html).toContain("Stable · Preview");
     expect(html).not.toContain("staged-source-portable");
   });
 
@@ -3024,7 +3024,7 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Selected channel");
-    expect(html).toContain("Beta");
+    expect(html).toContain("Preview");
     expect(html).toContain("No current check");
     expect(html).not.toContain("9.9-stale");
   });

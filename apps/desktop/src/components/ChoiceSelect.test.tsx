@@ -87,3 +87,25 @@ it("does not expose an unfamiliar stored value as player-facing copy", async () 
   expect(trigger?.textContent).toContain("Unavailable");
   expect(trigger?.textContent).not.toContain("future-policy");
 });
+
+it("retains a complete long selected label while disabled without changing its value", async () => {
+  const label = "Pikmin USA Rev. 1 or Europe disc; Open Nectar checks it during preparation.";
+  const change = vi.fn();
+  await act(async () =>
+    root.render(
+      <ChoiceSelect
+        label="Required files"
+        value="pikmin"
+        disabled
+        onChange={change}
+        options={[{ value: "pikmin", label }]}
+      />,
+    ),
+  );
+  const trigger = host.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')!;
+  expect(trigger.disabled).toBe(true);
+  expect(trigger.querySelector('[data-slot="select-value"]')?.textContent).toBe(label);
+  await act(async () => trigger.click());
+  expect(document.querySelector('[data-slot="select-content"][data-open]')).toBeNull();
+  expect(change).not.toHaveBeenCalled();
+});

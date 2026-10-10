@@ -4,12 +4,14 @@
 //! cannot provide repository locations, trust roots, installed identity,
 //! signatures, payload keys, or filesystem paths.
 
+pub use crate::desktop_contract::{
+    ApplicationUpdateCheckPhase, ApplicationUpdateCheckResult, ApplicationUpdateCheckResultKind,
+    ApplicationUpdateDownloadRequest, ApplicationUpdateNotice, ApplicationUpdateNoticeSnapshot,
+};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use async_trait::async_trait;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 
@@ -40,61 +42,6 @@ use crate::application_update_staging::{
     ApplicationUpdateStagingError, ApplicationUpdateStagingStore,
 };
 use crate::{DesktopError, DesktopResult};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateCheckPhase {
-    Checking,
-    AcquiringAndVerifying,
-    Staged,
-    Complete,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateCheckResultKind {
-    ConsentRequired,
-    Paused,
-    ManualMode,
-    Offline,
-    Metered,
-    MeteredStateUnknown,
-    StartupDelay,
-    Cadence,
-    Superseded,
-    Current,
-    UpdateAvailable,
-    Held,
-    Incompatible,
-    NoCandidate,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateCheckResult {
-    pub kind: ApplicationUpdateCheckResultKind,
-    pub candidate: Option<ApplicationUpdateCandidateSummary>,
-    pub reasons: Vec<String>,
-    pub staged: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateNotice {
-    pub preference_revision: u64,
-    pub result: ApplicationUpdateCheckResult,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateNoticeSnapshot {
-    pub revision: u64,
-    pub notice: Option<ApplicationUpdateNotice>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateDownloadRequest {
-    pub expected_preference_revision: u64,
-    pub expected_candidate: ApplicationUpdateCandidateSummary,
-}
 
 enum ApplicationUpdateCommandRequest {
     Check(ApplicationUpdateCheckEnvironment),

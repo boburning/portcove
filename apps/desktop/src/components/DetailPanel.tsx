@@ -1956,7 +1956,7 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
         <p className="eyebrow">INSTALL PLAN</p>
         <strong>{plan.release.version}</strong>
         <span>
-          {plan.channel} · {installPlanActionLabel(plan.action)}
+          {releaseChannelPresentation(plan.channel).label} · {installPlanActionLabel(plan.action)}
         </span>
         {plan.bundled_runtime && (
           <span>Required component included · {formatBytes(plan.bundled_runtime.asset.size)}</span>

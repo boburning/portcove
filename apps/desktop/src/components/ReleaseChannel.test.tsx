@@ -55,7 +55,9 @@ it.each(["stable", "beta", "rolling"] as ReleaseChannel[])(
         />,
       ),
     );
-    expect(container.textContent).toContain(`${channel[0].toUpperCase()}${channel.slice(1)} only`);
+    expect(container.textContent).toContain(
+      `${channel === "beta" ? "Preview" : channel[0].toUpperCase() + channel.slice(1)} only`,
+    );
     expect(container.querySelector("button")).toBeNull();
     expect(change).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
@@ -134,7 +136,7 @@ it.each(["rolling", "beta"] as const)(
       ),
     );
     await openChannelSelect();
-    await chooseChannel(next === "rolling" ? "Rolling" : "Beta");
+    await chooseChannel(next === "rolling" ? "Rolling" : "Preview");
     expect(change).toHaveBeenCalledExactlyOnceWith(next);
     expect(calls).toEqual(["save", "check"]);
     expect(container.textContent).toContain("Release information refreshed");
@@ -227,3 +229,48 @@ it("disables choices while saving and ignores completion from an old library", a
   expect(refresh).not.toHaveBeenCalled();
   expect(container.textContent).not.toContain("Rolling selected");
 });
+
+it.each([
+  {
+    channels: [] as ReleaseChannel[],
+    selected: "beta" as ReleaseChannel,
+    label: "Preview",
+    reason: "information is unavailable",
+  },
+  {
+    channels: ["stable"] as ReleaseChannel[],
+    selected: "beta" as ReleaseChannel,
+    label: "Preview",
+    reason: "not offered",
+  },
+  {
+    channels: ["stable"] as ReleaseChannel[],
+    selected: "future-channel" as ReleaseChannel,
+    label: "Unknown channel",
+    reason: "not recognized",
+  },
+])(
+  "retains $selected visibly when choices are unavailable",
+  async ({ channels, selected, label, reason }) => {
+    const change = vi.fn();
+    const refresh = vi.fn();
+    await act(async () =>
+      root.render(
+        <ReleaseChannelControl
+          channels={channels}
+          selected={selected}
+          busy={false}
+          change={change}
+          refresh={refresh}
+        />,
+      ),
+    );
+    expect(container.textContent).toContain(`Selected channel: ${label}`);
+    expect(container.textContent).toContain(reason);
+    expect(container.textContent).toContain("Your saved choice has not changed");
+    expect(container.querySelector("button")).toBeNull();
+    expect(change).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("future-channel");
+  },
+);
