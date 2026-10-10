@@ -228,7 +228,7 @@ export class ArtworkCache {
     if (!stillInterested()) return;
     if (
       committedRevision !== undefined &&
-      this.read(portId, slot).state?.choice.revision !== committedRevision
+      (this.read(portId, slot).state?.choice.revision ?? -1) < committedRevision
     )
       this.publish(portId, slot, { loading: true });
     await this.load(portId, slot, true, stillInterested);
