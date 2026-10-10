@@ -8,6 +8,7 @@ export interface ArtworkDisplay {
   image?: string;
   onImageError?: () => void;
   error?: string;
+  stale?: boolean;
   loading: boolean;
 }
 
@@ -131,9 +132,12 @@ export class ArtworkCache {
         );
         const image = thumbnailUrl(thumbnail, state);
         if (this.read(portId, slot).state !== state) return;
+        const current = this.read(portId, slot);
         this.publish(portId, slot, {
+          ...current,
           state,
           image,
+          error: current.stale ? current.error : undefined,
           onImageError: () => {
             const current = this.read(portId, slot);
             if (current.state !== state || current.image !== image) return;
@@ -152,9 +156,13 @@ export class ArtworkCache {
         });
       } catch (error) {
         if (this.read(portId, slot).state !== state) return;
+        const current = this.read(portId, slot);
         this.publish(portId, slot, {
+          ...current,
           state,
-          error: errorText(error),
+          image: undefined,
+          onImageError: undefined,
+          error: current.stale ? current.error : errorText(error),
           loading: false,
         });
       }
@@ -192,7 +200,13 @@ export class ArtworkCache {
         if (stillInterested() || this.listeners.has(key)) await this.display(portId, slot, state);
         else this.entries.delete(key);
       } catch (error) {
-        this.publish(portId, slot, { error: errorText(error), loading: false });
+        const previous = this.read(portId, slot);
+        this.publish(portId, slot, {
+          ...previous,
+          error: errorText(error),
+          stale: Boolean(previous.state),
+          loading: false,
+        });
       }
     });
     this.pending.set(key, result);
@@ -207,10 +221,17 @@ export class ArtworkCache {
     portId: string,
     slot: ArtworkSlot,
     stillInterested: () => boolean = () => true,
+    committedRevision?: number,
   ): Promise<void> {
     // A replacement cache may already be reading the choice from before the commit.
     await this.pending.get(this.key(portId, slot));
-    if (stillInterested()) await this.load(portId, slot, true, stillInterested);
+    if (!stillInterested()) return;
+    if (
+      committedRevision !== undefined &&
+      this.read(portId, slot).state?.choice.revision !== committedRevision
+    )
+      this.publish(portId, slot, { loading: true });
+    await this.load(portId, slot, true, stillInterested);
   }
 
   change(
@@ -221,7 +242,7 @@ export class ArtworkCache {
     stillCurrent: () => boolean,
   ) {
     return this.enqueue(async () => {
-      if (!stillCurrent()) return undefined;
+      if (!stillCurrent() || this.read(portId, slot).stale) return undefined;
       const state =
         path === null
           ? await desktopApi.resetArtwork(portId, slot, revision, this.generation)
