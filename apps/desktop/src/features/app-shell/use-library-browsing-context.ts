@@ -108,9 +108,14 @@ export function useLibraryBrowsingContext({
   installedCount?: number;
   catalogCount?: number;
 }) {
-  const [restored] = useState(() =>
-    initial ? { inputs: initial.inputs, existed: true } : readBrowsingInputs(root),
-  );
+  const [restored] = useState(() => {
+    const stored = readBrowsingInputs(root);
+    return {
+      ...stored,
+      inputs: initial?.inputs ?? stored.inputs,
+      existed: Boolean(initial) || stored.existed,
+    };
+  });
   const [preferenceFailure, setPreferenceFailure] = useState<PreferenceFailure | undefined>(
     "failure" in restored ? restored.failure : undefined,
   );

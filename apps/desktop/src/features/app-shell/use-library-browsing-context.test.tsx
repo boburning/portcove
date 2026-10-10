@@ -158,6 +158,33 @@ it("keeps in-memory browsing inputs ahead of the persisted copy", async () => {
   expect(browsing.ui).toMatchObject({ filter: "setup", query: "current memory" });
 });
 
+it("keeps an unreadable preference held after switching away and returning with memory inputs", async () => {
+  const key = libraryBrowsingPreferenceKey(libraryRoot);
+  const unreadable = JSON.stringify({ version: 99, retained: "future preferences" });
+  window.localStorage.setItem(key, unreadable);
+  await remount();
+  await act(async () => browsing.ui.setQuery("first library session"));
+  await act(async () => browsing.switchLibraryWithContext("E:/second"));
+  const firstMemory = remember.mock.lastCall![1];
+  libraryRoot = "E:/second";
+  initial = undefined;
+  await remount();
+  await act(async () => browsing.ui.setQuery("second library session"));
+  libraryRoot = "E:/first";
+  initial = firstMemory;
+  await remount();
+  expect(browsing.ui.query).toBe("first library session");
+  expect(browsing.preferenceFailure).toBe("read");
+  expect(window.localStorage.getItem(key)).toBe(unreadable);
+  await act(async () => browsing.ui.setQuery("still held current choices"));
+  expect(window.localStorage.getItem(key)).toBe(unreadable);
+  await act(async () => {
+    expect(browsing.saveBrowsingPreferences()).toBe(true);
+  });
+  expect(browsing.preferenceFailure).toBeUndefined();
+  expect(window.localStorage.getItem(key)).not.toBe(unreadable);
+});
+
 it.each([
   { version: 1, channels: ["retired-channel"] },
   { version: 99, channels: ["stable"] },
