@@ -140,6 +140,14 @@ export function planDesktopExecution(selectionInput) {
     inputs.push(receiptSource(new URL("./desktop-native-confirmation.mjs", harnessUrl)));
     inputs.push(receiptSource(new URL("./native-confirmation.ps1", harnessUrl)));
   }
+  if (selection.selected_scenarios.includes("native-library-browsing-context")) {
+    for (const name of ["desktop-native-confirmation.mjs", "native-confirmation.ps1"]) {
+      const source = receiptSource(new URL(name, harnessUrl));
+      if (!inputs.some((input) => input.path === source.path)) inputs.push(source);
+    }
+  }
+  if (inputs.some((input) => input.path?.endsWith("/native-confirmation.ps1")))
+    inputs.push(receiptSource(new URL("native-window-discovery.ps1", harnessUrl)));
   if (selection.prerequisites.includes("install-fixture")) {
     inputs.push(receiptSource(new URL("./desktop-install-fixture.mjs", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-install-test.mjs", harnessUrl)));
