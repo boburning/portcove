@@ -1343,6 +1343,7 @@ function TechnicalDetails({
             port={port}
             libraryGeneration={libraryGeneration}
             canRollback={Boolean(status?.previous)}
+            status={status}
             verificationPrimary={Boolean(
               status?.readiness?.blockers.includes("invalid_installation"),
             )}
@@ -2038,6 +2039,7 @@ function MaintenanceActions({
   port,
   libraryGeneration,
   canRollback,
+  status,
   verificationPrimary,
   busy,
   actions,
@@ -2045,10 +2047,12 @@ function MaintenanceActions({
   port: PortDefinition;
   libraryGeneration: number;
   canRollback: boolean;
+  status?: PortStatus;
   verificationPrimary: boolean;
   busy?: string;
   actions: DetailActions;
 }) {
+  const rollback = portActionPresentation(status, "rollback");
   return (
     <div className="actions maintenance-actions">
       {!verificationPrimary && (
@@ -2067,7 +2071,7 @@ function MaintenanceActions({
       <Button
         data-focusable
         variant="outline"
-        disabled={!canRollback || Boolean(busy)}
+        disabled={!canRollback || rollback.blocked || Boolean(busy)}
         onClick={() => {
           void actions.rollback();
         }}
@@ -2075,6 +2079,11 @@ function MaintenanceActions({
         <Icon glyph={RotateCcw} />
         Restore previous version
       </Button>
+      {rollback.blocked && (
+        <p role="status" data-rollback-assessment>
+          {rollback.reason}
+        </p>
+      )}
       <RemovalControl
         key={`${port.id}:${libraryGeneration}`}
         port={port}

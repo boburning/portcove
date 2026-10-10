@@ -45,6 +45,11 @@ pub(crate) use removal::{RemovalOperation, RemovalPhase};
 const LAUNCH_MARKER: &str = ".portcove-launched";
 const BULK_PROVIDER_CONCURRENCY: usize = 4;
 
+struct RollbackTargetFailure {
+    reason: PortActionReason,
+    error: PortcoveError,
+}
+
 #[cfg(test)]
 std::thread_local! {
     static ADOPTION_COPY_PLAN_PASSES: std::cell::RefCell<std::collections::BTreeMap<PathBuf, usize>> =
@@ -779,6 +784,13 @@ impl PortcoveService {
     }
 
     pub fn status(&self, port_id: &str) -> Result<PortStatus> {
+        self.status_without_rollback_assessment(port_id)
+            .map(|status| self.with_rollback_assessment(status))
+    }
+
+    // Execution retains the original status checks, then verifies its rollback
+    // target once under the operation lock instead of discarding that assessment.
+    fn status_without_rollback_assessment(&self, port_id: &str) -> Result<PortStatus> {
         let status_catalog = self.catalog_for_installed_fallback(port_id)?;
         let catalog = status_catalog.as_ref();
         let port = catalog.port(port_id)?;
@@ -882,6 +894,7 @@ impl PortcoveService {
                 )?;
                 let status = self.with_definition_operations(catalog, port, status)?;
                 self.with_port_actions(port, status, &registered_sources)
+                    .map(|status| self.with_rollback_assessment(status))
             })
             .collect()
     }
@@ -1750,6 +1763,29 @@ impl PortcoveService {
 
         status.port_actions = vec![install, register_external, launch, removal, remove_external];
         Ok(status)
+    }
+
+    fn with_rollback_assessment(&self, mut status: PortStatus) -> PortStatus {
+        let (availability, reason) = match status.previous.as_ref() {
+            None => (
+                PortActionAvailability::NotOffered,
+                PortActionReason::NotInstalled,
+            ),
+            Some(previous) => match self.rollback_target(&status.port_id, previous) {
+                Ok(_) => (PortActionAvailability::Allowed, PortActionReason::Available),
+                Err(failure) if failure.reason == PortActionReason::RouteNotOffered => {
+                    (PortActionAvailability::NotOffered, failure.reason)
+                }
+                Err(failure) => (PortActionAvailability::Held, failure.reason),
+            },
+        };
+        status.port_actions.push(PortActionAssessment {
+            action: PortAction::Rollback,
+            availability,
+            reason,
+            definition: None,
+        });
+        status
     }
 
     async fn resolve_release(
@@ -2977,20 +3013,61 @@ impl PortcoveService {
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "rollback")?;
-            let previous = self.status(port_id)?.previous.ok_or_else(|| {
-                PortcoveError::not_found(format!("{port_id} has no rollback version"))
-            })?;
-            let port = self.installed_port(&previous)?;
-            let qualification = self.installed_mutability_qualification(&previous)?;
-            crate::runtime::require_ready(&port, Platform::current()?, &previous)?;
-            self.managed_install_root(port_id, &previous.path)?;
-            Installer::new(self.library.clone())?.verify_critical(&previous, &qualification)?;
+            let previous = self
+                .status_without_rollback_assessment(port_id)?
+                .previous
+                .ok_or_else(|| {
+                    PortcoveError::not_found(format!("{port_id} has no rollback version"))
+                })?;
+            let (port, qualification) = self
+                .rollback_target(port_id, &previous)
+                .map_err(|failure| failure.error)?;
             self.collect_active_user_data_if_launched(port_id)?;
             self.restore_user_data_to(&port, &previous.path)?;
             Installer::new(self.library.clone())?.verify_critical(&previous, &qualification)?;
             self.library.rollback(port_id)
         })();
         self.finish_activity(activity, result)
+    }
+
+    /// The same read-only retained-target checks used by status and locked execution.
+    /// Neither a current definition nor the active version's launch readiness
+    /// substitutes for the previous installation's contract and bytes.
+    fn rollback_target(
+        &self,
+        port_id: &str,
+        previous: &InstallRecord,
+    ) -> std::result::Result<(PortDefinition, InstallQualification), RollbackTargetFailure> {
+        // Preview must preserve execution's current-catalog route gate. A
+        // retained contract proves the target's identity, not a newly offered
+        // rollback route after its port has left the current catalog.
+        self.catalog
+            .port(port_id)
+            .map_err(|error| RollbackTargetFailure {
+                reason: PortActionReason::RouteNotOffered,
+                error,
+            })?;
+        let invalid = |error| RollbackTargetFailure {
+            reason: PortActionReason::InvalidInstallation,
+            error,
+        };
+        let port = self.installed_port(previous).map_err(invalid)?;
+        let qualification = self
+            .installed_mutability_qualification(previous)
+            .map_err(invalid)?;
+        let platform = Platform::current().map_err(invalid)?;
+        crate::runtime::require_ready(&port, platform, previous).map_err(|error| {
+            RollbackTargetFailure {
+                reason: PortActionReason::MissingRuntime,
+                error,
+            }
+        })?;
+        self.managed_install_root(port_id, &previous.path)
+            .map_err(invalid)?;
+        Installer::new(self.library.clone())
+            .and_then(|installer| installer.verify_critical(previous, &qualification))
+            .map_err(invalid)?;
+        Ok((port, qualification))
     }
 
     pub fn activate_staged(&self, port_id: &str) -> Result<InstallRecord> {
@@ -4424,7 +4501,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Vec<PathBuf>> {
-        let Some(active) = self.status(port_id)?.active else {
+        let Some(active) = self.status_without_rollback_assessment(port_id)?.active else {
             return Ok(Vec::new());
         };
         if !active.path.join(LAUNCH_MARKER).is_file() {
@@ -5574,31 +5651,6 @@ mod tests {
             Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
         );
         service
-    }
-
-    fn library_file_snapshot(library: &Library) -> Vec<(PathBuf, String)> {
-        fn visit(root: &Path, current: &Path, files: &mut Vec<(PathBuf, String)>) {
-            for entry in fs::read_dir(current).unwrap() {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                let metadata = fs::symlink_metadata(&path).unwrap();
-                if metadata.is_dir() {
-                    visit(root, &path, files);
-                } else if metadata.is_file()
-                    && !path.to_string_lossy().ends_with("portcove.sqlite3-shm")
-                {
-                    files.push((
-                        path.strip_prefix(root).unwrap().to_path_buf(),
-                        sha256_file(&path).unwrap(),
-                    ));
-                }
-            }
-        }
-
-        let mut files = Vec::new();
-        visit(library.root(), library.root(), &mut files);
-        files.sort_by(|left, right| left.0.cmp(&right.0));
-        files
     }
 
     #[tokio::test]
@@ -10177,7 +10229,7 @@ fn main() {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let service = service_with_release(library.clone(), "v1");
 
-        let before = library_file_snapshot(&library);
+        let before = crate::test_fixture::library_file_snapshot(&library);
         let inherited = service
             .preview_output_directory("zelda64-recomp", None)
             .unwrap();
@@ -10185,7 +10237,7 @@ fn main() {
             inherited.ownership,
             crate::OutputDestinationOwnership::LibraryDefault
         );
-        assert_eq!(before, library_file_snapshot(&library));
+        assert_eq!(before, crate::test_fixture::library_file_snapshot(&library));
 
         let default_root = library.versions_dir().join("zelda64-recomp");
         fs::write(&default_root, b"tampered default root").unwrap();
@@ -10204,7 +10256,7 @@ fn main() {
         service
             .set_output_directory("zelda64-recomp", &custom)
             .unwrap();
-        let before = library_file_snapshot(&library);
+        let before = crate::test_fixture::library_file_snapshot(&library);
         let custom_preview = service
             .preview_output_directory("zelda64-recomp", Some(&custom))
             .unwrap();
@@ -10216,10 +10268,10 @@ fn main() {
             custom_preview.ownership,
             crate::OutputDestinationOwnership::Unclaimed
         );
-        assert_eq!(before, library_file_snapshot(&library));
+        assert_eq!(before, crate::test_fixture::library_file_snapshot(&library));
 
         let missing = temporary.path().join("missing-output");
-        let before = library_file_snapshot(&library);
+        let before = crate::test_fixture::library_file_snapshot(&library);
         let missing_preview = service
             .preview_output_directory("zelda64-recomp", Some(&missing))
             .unwrap();
@@ -10228,7 +10280,7 @@ fn main() {
             crate::OutputDestinationOwnership::Unclaimed
         );
         assert!(!missing.exists());
-        assert_eq!(before, library_file_snapshot(&library));
+        assert_eq!(before, crate::test_fixture::library_file_snapshot(&library));
 
         let owned = temporary.path().join("owned-output");
         crate::output_root::prepare_for_install(
@@ -10241,7 +10293,7 @@ fn main() {
         .unwrap();
         let marker = owned.join(".portcove-game-output.json");
         let marker_before = fs::read(&marker).unwrap();
-        let before = library_file_snapshot(&library);
+        let before = crate::test_fixture::library_file_snapshot(&library);
         let owned_preview = service
             .preview_output_directory("zelda64-recomp", Some(&owned))
             .unwrap();
@@ -10250,7 +10302,7 @@ fn main() {
             crate::OutputDestinationOwnership::OwnedByPort
         );
         assert_eq!(marker_before, fs::read(marker).unwrap());
-        assert_eq!(before, library_file_snapshot(&library));
+        assert_eq!(before, crate::test_fixture::library_file_snapshot(&library));
     }
 
     #[test]
@@ -10259,7 +10311,7 @@ fn main() {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let service = service_with_release(library.clone(), "v1");
         let destination = temporary.path().join("future-output");
-        let before = library_file_snapshot(&library);
+        let before = crate::test_fixture::library_file_snapshot(&library);
 
         {
             let _volume = crate::output_root::override_volume_details(
@@ -10280,7 +10332,7 @@ fn main() {
             assert!(!full.validation_errors.is_empty());
         }
         assert!(!destination.exists());
-        assert_eq!(before, library_file_snapshot(&library));
+        assert_eq!(before, crate::test_fixture::library_file_snapshot(&library));
 
         {
             let _volume = crate::output_root::override_volume_details(
@@ -10304,7 +10356,7 @@ fn main() {
             );
         }
         assert!(!destination.exists());
-        assert_eq!(before, library_file_snapshot(&library));
+        assert_eq!(before, crate::test_fixture::library_file_snapshot(&library));
     }
 
     #[test]
@@ -10916,6 +10968,14 @@ fn main() {
         };
 
         let empty = service.status("opengoal-jak1").unwrap();
+        assert_eq!(
+            action(&empty, PortAction::Rollback).availability,
+            PortActionAvailability::NotOffered
+        );
+        assert_eq!(
+            action(&empty, PortAction::Rollback).reason,
+            PortActionReason::NotInstalled
+        );
         assert_eq!(
             action(&empty, PortAction::Install).availability,
             PortActionAvailability::Waiting
@@ -12069,6 +12129,95 @@ fn main() {
     }
 
     #[test]
+    fn rollback_assessment_preserves_removed_catalog_route_refusal() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", true);
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let before = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        let mut document = service.catalog.authoritative_document();
+        document.ports.retain(|port| port.id != "zelda64-recomp");
+        let sources = document.source_catalog.as_mut().unwrap();
+        sources
+            .contracts
+            .retain(|contract| contract.port_id != "zelda64-recomp");
+        sources
+            .qualification
+            .retain(|record| record.scope.port_id != "zelda64-recomp");
+        service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let files = crate::test_fixture::library_file_snapshot(&library);
+
+        let status = service.status("zelda64-recomp").unwrap();
+        let rollback = status
+            .port_actions
+            .iter()
+            .find(|item| item.action == PortAction::Rollback)
+            .unwrap();
+        assert_eq!(rollback.availability, PortActionAvailability::NotOffered);
+        assert_eq!(rollback.reason, PortActionReason::RouteNotOffered);
+        assert_eq!(crate::test_fixture::library_file_snapshot(&library), files);
+        assert_eq!(
+            service.rollback("zelda64-recomp").unwrap_err().code,
+            crate::ErrorCode::NotFound
+        );
+        let after = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(after.active.unwrap().id, before.active.unwrap().id);
+        assert_eq!(after.previous.unwrap().id, before.previous.unwrap().id);
+    }
+
+    #[test]
+    fn rollback_rejects_previous_runtime_identity_mismatch_read_only() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", true);
+        let mut previous = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .previous
+            .unwrap();
+        // A runtime identity that does not match the retained target must not
+        // be interpreted using the active version's runtime or launch readiness.
+        previous.runtime = Some(crate::RuntimeIdentity {
+            origin: crate::RuntimeOrigin::VerifiedDownload,
+            artifact: ArtifactIdentity {
+                asset_name: "unexpected-runtime.zip".into(),
+                sha256: "a".repeat(64),
+                size: 1,
+            },
+            archive_root: "runtime".into(),
+            target_directory: "runtime".into(),
+            executable: "runtime.exe".into(),
+        });
+        library.update_install_manifest(&previous).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let before = crate::test_fixture::library_file_snapshot(&library);
+        let status = service.status("zelda64-recomp").unwrap();
+        let rollback = status
+            .port_actions
+            .iter()
+            .find(|item| item.action == PortAction::Rollback)
+            .unwrap();
+        assert_eq!(rollback.availability, PortActionAvailability::Held);
+        assert_eq!(rollback.reason, PortActionReason::InvalidInstallation);
+        assert_eq!(crate::test_fixture::library_file_snapshot(&library), before);
+        assert_eq!(
+            service.rollback("zelda64-recomp").unwrap_err().code,
+            crate::ErrorCode::Verification
+        );
+        let after = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(after.previous.unwrap().id, previous.id);
+        assert_eq!(after.active.unwrap().version, "v2");
+    }
+
+    #[test]
     fn rollback_preserves_user_data_when_active_version_was_never_launched() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -12374,12 +12523,53 @@ fn main() {
         let rollback_before = library
             .status("zelda64-recomp", ReleaseChannel::Stable)
             .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let assessment = |status: PortStatus| {
+            status
+                .port_actions
+                .into_iter()
+                .find(|item| item.action == PortAction::Rollback)
+                .unwrap()
+        };
+        let original_files = crate::test_fixture::library_file_snapshot(&library);
+        let original_activity = serde_json::to_value(library.activity_feed(200).unwrap()).unwrap();
+        let observed = assessment(service.status("zelda64-recomp").unwrap());
+        assert_eq!(observed.availability, PortActionAvailability::Allowed);
+        assert_eq!(observed.reason, PortActionReason::Available);
+        assert_eq!(
+            crate::test_fixture::library_file_snapshot(&library),
+            original_files
+        );
+        assert_eq!(
+            serde_json::to_value(library.activity_feed(200).unwrap()).unwrap(),
+            original_activity
+        );
         let previous = rollback_before.previous.as_ref().unwrap();
+        let previous_executable = previous.path.join(&previous.selected_executable);
+        let original_executable = fs::read(&previous_executable).unwrap();
         tamper_host_test_executable(
             &previous.path.join(&previous.selected_executable),
             b"changed rollback executable",
         );
-        let service = PortcoveService::new(library.clone()).unwrap();
+        let held_files = crate::test_fixture::library_file_snapshot(&library);
+        let held = assessment(service.status("zelda64-recomp").unwrap());
+        assert_eq!(held.availability, PortActionAvailability::Held);
+        assert_eq!(held.reason, PortActionReason::InvalidInstallation);
+        let batched = service
+            .statuses()
+            .unwrap()
+            .into_iter()
+            .find(|status| status.port_id == "zelda64-recomp")
+            .unwrap();
+        assert_eq!(assessment(batched), held);
+        assert_eq!(
+            crate::test_fixture::library_file_snapshot(&library),
+            held_files
+        );
+        assert_eq!(
+            serde_json::to_value(library.activity_feed(200).unwrap()).unwrap(),
+            original_activity
+        );
 
         let error = service.rollback("zelda64-recomp").unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Verification);
@@ -12394,6 +12584,12 @@ fn main() {
             rollback_after.previous.as_ref().map(|install| &install.id),
             rollback_before.previous.as_ref().map(|install| &install.id)
         );
+        tamper_host_test_executable(&previous_executable, &original_executable);
+        assert_eq!(
+            assessment(service.status("zelda64-recomp").unwrap()),
+            observed
+        );
+        assert_eq!(service.rollback("zelda64-recomp").unwrap().id, previous.id);
     }
 
     struct CancelLaunchAt {

@@ -1271,7 +1271,8 @@
           "register_external",
           "launch",
           "remove_managed",
-          "remove_external"
+          "remove_external",
+          "rollback"
         ],
         "type": "string"
       },
@@ -28931,7 +28932,8 @@
           "register_external",
           "launch",
           "remove_managed",
-          "remove_external"
+          "remove_external",
+          "rollback"
         ],
         "type": "string"
       },

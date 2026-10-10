@@ -357,3 +357,27 @@ pub(crate) fn build_probe(directory: &Path) -> PathBuf {
     crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
     executable
 }
+pub(crate) fn library_file_snapshot(library: &crate::Library) -> Vec<(PathBuf, String)> {
+    fn visit(root: &Path, current: &Path, files: &mut Vec<(PathBuf, String)>) {
+        for entry in fs::read_dir(current).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            let metadata = fs::symlink_metadata(&path).unwrap();
+            if metadata.is_dir() {
+                visit(root, &path, files);
+            } else if metadata.is_file()
+                && !path.to_string_lossy().ends_with("portcove.sqlite3-shm")
+            {
+                files.push((
+                    path.strip_prefix(root).unwrap().to_path_buf(),
+                    crate::service::sha256_file(&path).unwrap(),
+                ));
+            }
+        }
+    }
+
+    let mut files = Vec::new();
+    visit(library.root(), library.root(), &mut files);
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+    files
+}
