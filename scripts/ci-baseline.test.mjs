@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { createCiMetrics } from "./ci-metrics.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
 import {
   baselineContractTests,
   baselineFrontendPlan,
   baselineIntegrityCommands,
   baselineBootstrapTests,
+  baselineTestEnvironment,
 } from "./ci-baseline.mjs";
 const make = (files) =>
   buildValidationPlan({
@@ -83,4 +89,31 @@ test("selected contract tests retain cheap actual-checkout integrity", () => {
     docs.some((args) => args[0] === "scripts/repository-settings.mjs" && args[1] === "--validate"),
   );
   assert.ok(!docs.some((args) => args[0] === "scripts/generate-catalog.mjs"));
+});
+
+test("fixture subprocess timings cannot contaminate the hosted batch report", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-fixture-timing-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const environment = {
+    ...process.env,
+    PORTCOVE_CI_METRICS_DIR: directory,
+    GITHUB_RUN_ID: "actual-run",
+  };
+  const metrics = createCiMetrics({ environment });
+  const isolated = baselineTestEnvironment(environment);
+  assert.equal(isolated.GITHUB_RUN_ID, "actual-run");
+  assert.equal(environment.PORTCOVE_CI_METRICS_DIR, directory);
+  const child = metrics.measure("repository-contract-tests", () =>
+    spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        'import {createCiMetrics} from "./scripts/ci-metrics.mjs"; createCiMetrics().record("synthetic-failed-phase", {outcome:"failed"});',
+      ],
+      { cwd: new URL("..", import.meta.url), env: isolated, encoding: "utf8" },
+    ),
+  );
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(readdirSync(directory).length, 1, "only actual parent batch diagnostics survive");
 });
