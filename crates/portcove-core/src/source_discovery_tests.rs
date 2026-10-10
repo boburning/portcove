@@ -1609,7 +1609,7 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
         &crate::OperationCoordinator::new("saved-root-scan", None),
     )
     .unwrap();
-    assert_eq!(snapshot.format_version, 7);
+    assert_eq!(snapshot.format_version, 8);
     assert_eq!(snapshot.limits.as_ref().unwrap().max_entries, 10_000);
     assert_eq!(snapshot.roots.len(), 1);
     assert_eq!(snapshot.report.files_hashed, 1);
@@ -1655,7 +1655,7 @@ fn exact_candidates_stream_before_the_saved_root_snapshot_is_published() {
     library.add_game_file_root(&root).unwrap();
     let operation = crate::OperationCoordinator::new("saved-root-scan", None);
     let mut events = Vec::new();
-    let (snapshot, _) = super::build_game_file_scan_with_registry_events(
+    let (snapshot, _, _) = super::build_game_file_scan_with_registry_events(
         &catalog,
         &library,
         &SourceDiscoveryLimits::default(),
@@ -2282,6 +2282,11 @@ fn cancellation_before_snapshot_publication_preserves_the_previous_snapshot() {
         &operation,
         &replacement,
         &service.library().output_roots().unwrap(),
+        service
+            .library()
+            .stored_game_file_scan_payload()
+            .unwrap()
+            .as_deref(),
     );
     assert_eq!(result.as_ref().unwrap_err().code, ErrorCode::Cancelled);
     assert_eq!(
@@ -2326,8 +2331,14 @@ fn output_claim_after_traversal_refuses_snapshot_publication() {
     )
     .unwrap();
     snapshot.catalog_sha256 = "replacement".into();
-    let error = super::publish_game_file_scan(&library, &operation, &snapshot, &expected_outputs)
-        .unwrap_err();
+    let error = super::publish_game_file_scan(
+        &library,
+        &operation,
+        &snapshot,
+        &expected_outputs,
+        library.stored_game_file_scan_payload().unwrap().as_deref(),
+    )
+    .unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
     assert!(error.message.contains("ownership changed"));
     assert_eq!(
@@ -2446,7 +2457,7 @@ fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() 
     assert!(error.to_string().contains("invalid scan limits"));
 
     snapshot.limits = Some(SourceDiscoveryLimits::default());
-    snapshot.format_version = 8;
+    snapshot.format_version = 9;
     library.replace_game_file_scan_snapshot(&snapshot).unwrap();
 
     let error = super::current_game_file_scan(&catalog, &library).unwrap_err();
@@ -3803,4 +3814,475 @@ fn one_off_discovery_cancellation_preserves_originals_sources_and_saved_scan() {
     );
     assert_eq!(fs::read(first).unwrap(), payload);
     assert_eq!(fs::read(second).unwrap(), payload);
+}
+
+fn publish_saved_batch(
+    catalog: &Catalog,
+    library: &crate::Library,
+    limits: &SourceDiscoveryLimits,
+) -> Result<GameFileScanSnapshot> {
+    let operation = crate::OperationCoordinator::new("resumable-saved-scan", None);
+    let (snapshot, outputs, payload) = super::build_game_file_scan_with_registry_events(
+        catalog,
+        library,
+        limits,
+        &operation,
+        &mut |_| {},
+    )?;
+    super::publish_game_file_scan(library, &operation, &snapshot, &outputs, payload.as_deref())?;
+    Ok(snapshot)
+}
+
+#[test]
+fn saved_scan_resumes_with_saturated_issues_and_an_existing_owned_omission() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let library = crate::Library::open(root.join("owned-library")).unwrap();
+    let canonical_library = fs::canonicalize(library.root()).unwrap();
+    let owned_file = library.root().join("original.z64");
+    let payload = b"supported resumable source";
+    fs::write(&owned_file, payload).unwrap();
+    for index in 0..96 {
+        fs::write(root.join(format!("invalid-{index:03}.zip")), b"invalid zip").unwrap();
+    }
+    library.add_game_file_root(&root).unwrap();
+    let catalog = catalog(payload);
+    let limits = SourceDiscoveryLimits {
+        max_entries: 20,
+        ..Default::default()
+    };
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    for _ in 0..8 {
+        if snapshot.report.issues.len() == 64 {
+            break;
+        }
+        assert!(snapshot.coverage.as_ref().unwrap().can_resume);
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    }
+    assert_eq!(snapshot.report.issues.len(), 64);
+    assert!(snapshot.coverage.as_ref().unwrap().can_resume);
+    let entries = snapshot.report.entries_examined;
+    let resumed = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(resumed.report.entries_examined > entries);
+    assert_eq!(resumed.report.issues.len(), 64);
+    assert_eq!(
+        resumed
+            .report
+            .issues
+            .iter()
+            .filter(|issue| issue.path.as_deref() == Some(canonical_library.as_path()))
+            .count(),
+        1
+    );
+    assert!(resumed.report.candidates.is_empty());
+    assert_eq!(fs::read(owned_file).unwrap(), payload);
+}
+
+#[test]
+fn new_owned_omissions_still_refuse_beyond_the_issue_limit() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(temporary.path()).unwrap();
+    let exclusions = (0..65)
+        .map(|index| DiscoveryExclusion {
+            path: root.join(format!("owned-{index}")),
+            kind: DiscoveryExclusionKind::ManagedOutput,
+        })
+        .collect();
+    let error = super::scan(
+        &catalog(b"supported source"),
+        &request(&root),
+        &crate::OperationCoordinator::new("owned-omission-limit", None),
+        exclusions,
+        None,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Usage);
+    assert!(error.message.contains("too many owned paths"));
+}
+
+#[test]
+fn entry_limited_saved_scans_resume_after_restart_without_rehashing_the_prefix() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64", "three.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let catalog = catalog(payload);
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(first.report.entries_examined, 1);
+    assert!(first.coverage.as_ref().unwrap().can_resume);
+    assert_eq!(first.coverage.as_ref().unwrap().remaining_entries, None);
+    drop(library);
+    let library = crate::Library::open(&library_path).unwrap();
+    let second = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(second.report.entries_examined, 2);
+    assert_eq!(second.report.hash_bytes, 2 * payload.len() as u64);
+    let final_batch = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(final_batch.report.entries_examined, 3);
+    assert_eq!(final_batch.report.files_hashed, 3);
+    assert_eq!(final_batch.report.hash_bytes, 3 * payload.len() as u64);
+    assert_eq!(final_batch.report.candidates.len(), 6);
+    let coverage = final_batch.coverage.unwrap();
+    assert_eq!(coverage.batches, 3);
+    assert_eq!(coverage.batch_entries_examined, 1);
+    assert!(coverage.frontier_exhausted);
+    assert!(!coverage.can_resume);
+    assert_eq!(coverage.remaining_entries, Some(0));
+    assert!(final_batch.continuation.is_none());
+    assert!(final_batch.report.limits_reached.is_empty());
+}
+
+#[test]
+fn saved_scan_stale_inputs_refuse_once_and_preserve_prior_report_before_restart() {
+    for change in [
+        "bytes",
+        "directory",
+        "limits",
+        "catalog",
+        "roots",
+        "outputs",
+        "cursor",
+        "coverage",
+    ] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("selected");
+        fs::create_dir(&root).unwrap();
+        let payload = b"supported resumable source";
+        for name in ["one.z64", "two.z64"] {
+            fs::write(root.join(name), payload).unwrap();
+        }
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        library.add_game_file_root(&root).unwrap();
+        let mut catalog = catalog(payload);
+        let mut limits = SourceDiscoveryLimits {
+            max_entries: 1,
+            ..Default::default()
+        };
+        let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        let report = serde_json::to_value(&first.report).unwrap();
+        match change {
+            "bytes" => {
+                fs::write(&first.report.candidates[0].path, b"changed source bytes").unwrap();
+            }
+            "directory" => {
+                fs::write(root.join("new.txt"), b"new entry").unwrap();
+            }
+            "limits" => {
+                limits.max_entries = 2;
+            }
+            "catalog" => {
+                let mut document = catalog.document().clone();
+                document.ports[0].summary.push_str(" changed");
+                catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+            }
+            "roots" => {
+                let second = temporary.path().join("second");
+                fs::create_dir(&second).unwrap();
+                library.add_game_file_root(&second).unwrap();
+            }
+            "outputs" => {
+                crate::output_root::prepare_for_install(
+                    &library,
+                    "sample",
+                    &temporary.path().join("output"),
+                    &uuid::Uuid::new_v4().to_string(),
+                    0,
+                )
+                .unwrap();
+            }
+            "cursor" | "coverage" => {
+                let mut value = serde_json::to_value(&first).unwrap();
+                value[change] = serde_json::json!({"malformed": true});
+                if change == "cursor" {
+                    value["continuation"] = value["cursor"].clone();
+                    value.as_object_mut().unwrap().remove("cursor");
+                }
+                library
+                    .connection()
+                    .unwrap()
+                    .execute(
+                        "UPDATE game_file_scan_state SET snapshot_json=?1 WHERE singleton=1",
+                        [value.to_string()],
+                    )
+                    .unwrap();
+            }
+            _ => unreachable!(),
+        }
+        let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict, "{change}");
+        let refused = super::current_game_file_scan(&catalog, &library)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&refused.report).unwrap(),
+            report,
+            "{change}"
+        );
+        assert_eq!(
+            refused.freshness,
+            GameFileScanFreshness::InputsChanged,
+            "{change}"
+        );
+        assert!(refused.coverage.unwrap().restart_required, "{change}");
+        assert!(refused.continuation.is_none());
+        let restarted = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        assert_eq!(restarted.coverage.unwrap().batches, 1, "{change}");
+    }
+}
+
+#[test]
+fn saved_scan_hash_and_candidate_limits_do_not_reset_on_entry_resume() {
+    for hash_limit in [true, false] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("selected");
+        fs::create_dir(&root).unwrap();
+        let payload = b"supported resumable source";
+        for name in ["one.z64", "two.z64", "three.z64"] {
+            fs::write(root.join(name), payload).unwrap();
+        }
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        library.add_game_file_root(&root).unwrap();
+        let limits = SourceDiscoveryLimits {
+            max_entries: 1,
+            max_hash_bytes: if hash_limit {
+                payload.len() as u64
+            } else {
+                4096
+            },
+            max_candidates: if hash_limit { 64 } else { 3 },
+            ..Default::default()
+        };
+        let catalog = catalog(payload);
+        let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        assert!(first.coverage.unwrap().can_resume);
+        let second = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        assert!(second.report.limits_reached.contains(&if hash_limit {
+            SourceDiscoveryLimit::HashBytes
+        } else {
+            SourceDiscoveryLimit::Candidates
+        }));
+        assert!(!second.coverage.unwrap().can_resume);
+        assert!(second.continuation.is_none());
+        assert!(second.report.hash_bytes <= limits.max_hash_bytes);
+        assert!(second.report.candidates.len() <= limits.max_candidates as usize);
+    }
+}
+
+#[test]
+fn split_directory_sets_rehash_prior_batch_members_before_admission() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    for (name, bytes) in &fixtures {
+        fs::write(root.join(name), bytes).unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    for _ in 0..2 {
+        let partial = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        assert!(
+            !partial
+                .report
+                .candidates
+                .iter()
+                .any(|candidate| candidate.profile_id == "g-diffuser-source-set")
+        );
+    }
+    let completed = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(
+        completed
+            .report
+            .candidates
+            .iter()
+            .any(|candidate| candidate.profile_id == "g-diffuser-source-set")
+    );
+    assert!(completed.coverage.unwrap().prior_member_rechecks > 0);
+    assert!(
+        completed.report.hash_bytes
+            >= fixtures
+                .iter()
+                .map(|(_, bytes)| bytes.len() as u64)
+                .sum::<u64>()
+    );
+}
+
+#[test]
+fn saved_scan_publication_refuses_concurrent_checkpoint_and_saved_root_writers() {
+    for change_roots in [false, true] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("selected");
+        fs::create_dir(&root).unwrap();
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        library.add_game_file_root(&root).unwrap();
+        let catalog = catalog(b"unused fixture");
+        let limits = SourceDiscoveryLimits::default();
+        let prior = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        let operation = crate::OperationCoordinator::new("publication-CAS", None);
+        let (snapshot, outputs, payload) = super::build_game_file_scan_with_registry_events(
+            &catalog,
+            &library,
+            &limits,
+            &operation,
+            &mut |_| {},
+        )
+        .unwrap();
+        if change_roots {
+            let second = temporary.path().join("second");
+            fs::create_dir(&second).unwrap();
+            library.add_game_file_root(&second).unwrap();
+        } else {
+            let mut changed = prior.clone();
+            changed.completed_at += 1;
+            library.replace_game_file_scan_snapshot(&changed).unwrap();
+        }
+        let before = library.stored_game_file_scan_payload().unwrap();
+        let error = super::publish_game_file_scan(
+            &library,
+            &operation,
+            &snapshot,
+            &outputs,
+            payload.as_deref(),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict);
+        assert_eq!(library.stored_game_file_scan_payload().unwrap(), before);
+    }
+}
+
+#[test]
+fn cancellation_before_resuming_keeps_the_exact_published_checkpoint() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    for name in ["one.z64", "two.z64"] {
+        fs::write(root.join(name), b"supported").unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let catalog = catalog(b"supported");
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let before = library.stored_game_file_scan_payload().unwrap();
+    let service = PortcoveService::new(library).unwrap();
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::DiscoverSources,
+            ActivityTargetKind::Library,
+            None,
+        )
+        .unwrap();
+    service.request_cancellation(&activity.id).unwrap();
+    let error = super::build_game_file_scan_with_registry_events(
+        &catalog,
+        service.library(),
+        &limits,
+        &operation,
+        &mut |_| {},
+    )
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Cancelled);
+    assert_eq!(
+        service.library().stored_game_file_scan_payload().unwrap(),
+        before
+    );
+}
+
+#[test]
+fn continuation_storage_limit_publishes_terminal_partial_report() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    for name in ["one.z64", "two.z64"] {
+        fs::write(root.join(name), b"supported").unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let catalog = catalog(b"supported");
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let mut first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    first.continuation.as_mut().unwrap()["retained_bytes"] =
+        serde_json::json!(MAX_CONTINUATION_BYTES);
+    library.replace_game_file_scan_snapshot(&first).unwrap();
+    let terminal = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(
+        terminal.report.candidates.len(),
+        first.report.candidates.len()
+    );
+    assert!(
+        terminal
+            .report
+            .issues
+            .iter()
+            .any(|issue| issue.message.contains("bounded storage limit"))
+    );
+    let coverage = terminal.coverage.unwrap();
+    assert!(!coverage.can_resume);
+    assert!(!coverage.frontier_exhausted);
+    assert_eq!(coverage.remaining_entries, None);
+    assert!(terminal.continuation.is_none());
+}
+
+#[test]
+fn fresh_scan_preserves_readable_reports_with_bad_metadata_and_refuses_future_formats() {
+    for corruption in ["roots", "future", "future-unreadable-report"] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("selected");
+        fs::create_dir(&root).unwrap();
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        library.add_game_file_root(&root).unwrap();
+        let catalog = catalog(b"unused fixture");
+        let limits = SourceDiscoveryLimits::default();
+        let snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        let mut value = serde_json::to_value(&snapshot).unwrap();
+        if corruption == "roots" {
+            value["roots"] = serde_json::json!("invalid required metadata");
+        } else {
+            value["format_version"] = serde_json::json!(9);
+            if corruption == "future-unreadable-report" {
+                value["report"] = serde_json::json!("incompatible future report");
+            }
+        }
+        let raw = value.to_string();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE game_file_scan_state SET snapshot_json=?1 WHERE singleton=1",
+                [&raw],
+            )
+            .unwrap();
+        let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
+        assert_eq!(error.code, ErrorCode::State, "{corruption}");
+        assert_eq!(
+            library.stored_game_file_scan_payload().unwrap().as_deref(),
+            Some(raw.as_str()),
+            "{corruption}"
+        );
+        assert!(error.message.contains(if corruption == "roots" {
+            "prior report was preserved"
+        } else {
+            "version is not supported"
+        }));
+    }
 }
