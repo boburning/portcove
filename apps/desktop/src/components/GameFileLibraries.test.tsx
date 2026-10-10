@@ -186,6 +186,15 @@ it("refuses continuation that would widen Desktop's scan resource caps", async (
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+it("keeps Core's bounded fresh-scan recovery available when the prior snapshot cannot be read", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot)
+    .mockResolvedValueOnce(null)
+    .mockRejectedValueOnce(new Error("Unreadable old report"));
+  await click("Scan saved folders");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
 it("keeps stale resumable results from advertising continuation", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
     ...resumableSnapshot(),

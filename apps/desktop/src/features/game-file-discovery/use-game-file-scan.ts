@@ -65,7 +65,8 @@ export function useGameFileScan() {
       } else if (!availableRootCount(roots)) {
         notice = "No saved folder is available. Reconnect or relink one, then scan again.";
       } else {
-        const snapshot = await desktopApi.gameFileScanSnapshot();
+        // A corrupt old observation must not prevent Core's explicit fresh-scan recovery.
+        const snapshot = await desktopApi.gameFileScanSnapshot().catch(() => null);
         if (!accepts()) return;
         const limits =
           snapshot?.freshness === "inputs_match" &&
