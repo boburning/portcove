@@ -50,6 +50,7 @@ const BULK_PROVIDER_CONCURRENCY: usize = 4;
 struct RollbackTargetFailure {
     reason: PortActionReason,
     error: PortcoveError,
+    definition: Option<crate::DefinitionEligibility>,
 }
 
 #[cfg(test)]
@@ -1482,14 +1483,29 @@ impl PortcoveService {
             DefinitionOperation::Install
         };
         if let Some(identity) = current_catalog.definition_selection(&current_port.id) {
+            let mut eligibility = self.library.assess_definition_operation(
+                identity,
+                DefinitionOperationContext::observed(admission_operation, false, true),
+            )?;
+            if eligibility.outcome == DefinitionEligibilityOutcome::Eligible
+                && admission_operation == DefinitionOperation::Install
+                && let Some(record) = current_port.release.curated.get(&Platform::current()?)
+            {
+                let connection = self.library.connection()?;
+                let repository_id = crate::curated_acquisition::repository_for_retained_record(
+                    &connection,
+                    record,
+                )?;
+                eligibility = crate::definition_repository::publisher_policy::assess_curated_artifact_operation(
+                    &connection, repository_id, record,
+                    crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+                )?;
+            }
             status
                 .definition_operations
                 .push(DefinitionOperationAssessment {
                     operation: admission_operation,
-                    eligibility: self.library.assess_definition_operation(
-                        identity,
-                        DefinitionOperationContext::observed(admission_operation, false, true),
-                    )?,
+                    eligibility,
                     retained: false,
                 });
         }
@@ -1534,20 +1550,26 @@ impl PortcoveService {
                 .definition_operations
                 .push(DefinitionOperationAssessment {
                     operation: DefinitionOperation::Prepare,
-                    eligibility: self.library.assess_definition_operation(
-                        identity,
-                        DefinitionOperationContext::observed(
-                            DefinitionOperation::Prepare,
-                            true,
-                            active.verified,
-                        ),
+                    eligibility: self.with_curated_local_assessment(
+                        self.library.assess_definition_operation(
+                            identity,
+                            DefinitionOperationContext::observed(
+                                DefinitionOperation::Prepare,
+                                true,
+                                active.verified,
+                            ),
+                        )?,
+                        active,
                     )?,
                     retained: true,
                 });
         }
-        let launch = self.library.assess_definition_operation(
-            identity,
-            self.managed_launch_context(Some(identity), active)?,
+        let launch = self.with_curated_local_assessment(
+            self.library.assess_definition_operation(
+                identity,
+                self.managed_launch_context(Some(identity), active)?,
+            )?,
+            active,
         )?;
         if launch.outcome != DefinitionEligibilityOutcome::Eligible
             && let Some(readiness) = status.readiness.as_mut()
@@ -1562,6 +1584,20 @@ impl PortcoveService {
                 retained: true,
             });
         Ok(status)
+    }
+
+    fn with_curated_local_assessment(
+        &self,
+        eligibility: crate::DefinitionEligibility,
+        install: &InstallRecord,
+    ) -> Result<crate::DefinitionEligibility> {
+        if eligibility.outcome != DefinitionEligibilityOutcome::Eligible {
+            return Ok(eligibility);
+        }
+        Installer::new(self.library.clone())?.assess_curated_operation(
+            install,
+            crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse,
+        )
     }
 
     fn with_port_actions(
@@ -1768,24 +1804,35 @@ impl PortcoveService {
     }
 
     fn with_rollback_assessment(&self, mut status: PortStatus) -> PortStatus {
-        let (availability, reason) = match status.previous.as_ref() {
+        let (availability, reason, definition) = match status.previous.as_ref() {
             None => (
                 PortActionAvailability::NotOffered,
                 PortActionReason::NotInstalled,
+                None,
             ),
             Some(previous) => match self.rollback_target(&status.port_id, previous) {
-                Ok(_) => (PortActionAvailability::Allowed, PortActionReason::Available),
-                Err(failure) if failure.reason == PortActionReason::RouteNotOffered => {
-                    (PortActionAvailability::NotOffered, failure.reason)
-                }
-                Err(failure) => (PortActionAvailability::Held, failure.reason),
+                Ok(_) => (
+                    PortActionAvailability::Allowed,
+                    PortActionReason::Available,
+                    None,
+                ),
+                Err(failure) if failure.reason == PortActionReason::RouteNotOffered => (
+                    PortActionAvailability::NotOffered,
+                    failure.reason,
+                    failure.definition,
+                ),
+                Err(failure) => (
+                    PortActionAvailability::Held,
+                    failure.reason,
+                    failure.definition,
+                ),
             },
         };
         status.port_actions.push(PortActionAssessment {
             action: PortAction::Rollback,
             availability,
             reason,
-            definition: None,
+            definition,
         });
         status
     }
@@ -1796,12 +1843,12 @@ impl PortcoveService {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<crate::ScopedResolvedRelease> {
-        crate::curated_acquisition::require_runtime_authority(port)?;
         let scope = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &self.catalog,
             &port.id,
         )?;
+        crate::curated_acquisition::require_runtime_scope(port, scope.as_ref())?;
         self.releases
             .resolve_scoped(port, channel, platform, scope.as_ref())
             .await
@@ -3049,10 +3096,12 @@ impl PortcoveService {
             .map_err(|error| RollbackTargetFailure {
                 reason: PortActionReason::RouteNotOffered,
                 error,
+                definition: None,
             })?;
         let invalid = |error| RollbackTargetFailure {
             reason: PortActionReason::InvalidInstallation,
             error,
+            definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
         let qualification = self
@@ -3063,12 +3112,34 @@ impl PortcoveService {
             RollbackTargetFailure {
                 reason: PortActionReason::MissingRuntime,
                 error,
+                definition: None,
             }
         })?;
         self.managed_install_root(port_id, &previous.path)
             .map_err(invalid)?;
-        Installer::new(self.library.clone())
-            .and_then(|installer| installer.verify_critical(previous, &qualification))
+        let installer = Installer::new(self.library.clone()).map_err(invalid)?;
+        let operation =
+            crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse;
+        let assessment = installer
+            .assess_curated_operation(previous, operation)
+            .map_err(invalid)?;
+        if assessment.outcome != DefinitionEligibilityOutcome::Eligible {
+            let error = installer
+                .require_curated_operation(previous, operation)
+                .err()
+                .unwrap_or_else(|| {
+                    PortcoveError::conflict(
+                        "artifact authority changed during rollback assessment; assess it again",
+                    )
+                });
+            return Err(RollbackTargetFailure {
+                reason: PortActionReason::DefinitionIneligible,
+                error,
+                definition: Some(assessment),
+            });
+        }
+        installer
+            .verify_critical(previous, &qualification)
             .map_err(invalid)?;
         Ok((port, qualification))
     }
@@ -3999,6 +4070,10 @@ impl PortcoveService {
             // Release it before publishing subsequent session database writes.
             let mut spawn = || {
                 if let Some(install) = active.as_ref() {
+                    Installer::new(self.library.clone())?.require_curated_operation(
+                        install,
+                        crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse,
+                    )?;
                     let retained_catalog = self.installed_catalog(install)?;
                     let retained_port = retained_catalog.port(&install.port_id)?;
                     self.require_definition_operation(

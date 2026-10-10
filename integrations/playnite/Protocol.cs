@@ -110,6 +110,7 @@ namespace Portcove.ReferenceClient
             if (!new[]
             {
                 "mandatory_checks_passed", "publisher_revoked", "unknown_safety_semantics",
+                "curated_artifact_revoked", "curated_distribution_withdrawn",
                 "publisher_scope_required", "engine_capability_required", "ownership_migration_required",
                 "metadata_replay", "refresh_incomplete", "metadata_stale", "recorded_identity_changed",
                 "authenticated_integrity_required", "local_integrity_failed", "mandatory_check_failed",
@@ -118,6 +119,9 @@ namespace Portcove.ReferenceClient
                 throw new InvalidOperationException("Unknown Portcove definition eligibility reason. Update the client before managing this game.");
             if ((outcome == "eligible") != (reason == "mandatory_checks_passed"))
                 throw new InvalidOperationException("Portcove definition eligibility outcome and reason disagree. Refresh state and use a compatible CLI/client pair.");
+            if ((reason == "curated_artifact_revoked" || reason == "curated_distribution_withdrawn")
+                && (outcome != "hold" || (reason == "curated_distribution_withdrawn" && operation != "install")))
+                throw new InvalidOperationException("Portcove returned an inconsistent curated artifact restriction. Refresh state.");
             return new DefinitionOperationDecision
             {
                 Operation = operation,
@@ -190,13 +194,17 @@ namespace Portcove.ReferenceClient
                 throw new InvalidOperationException("Portcove action availability and reason disagree. Refresh state.");
             object definition;
             Json.TryField(value, "definition", out definition);
-            if (action == "rollback" && (definition != null || !(
+            var curatedRollback = action == "rollback" && availability == "held" && reason == "definition_ineligible" && definition != null
+                && Json.Text(definition, "outcome") == "hold" && Json.Text(definition, "reason") == "curated_artifact_revoked";
+            if (action == "rollback" && !curatedRollback && (definition != null || !(
                 (availability == "allowed" && reason == "available") ||
                 (availability == "not_offered" && (reason == "not_installed" || reason == "route_not_offered")) ||
                 (availability == "held" && (reason == "missing_runtime" || reason == "invalid_installation")))))
                 throw new InvalidOperationException("Portcove returned an inconsistent rollback assessment. Refresh state.");
             string definitionReason = null;
-            if (reason == "definition_ineligible")
+            if (curatedRollback)
+                definitionReason = "curated_artifact_revoked";
+            else if (reason == "definition_ineligible")
             {
                 if (definition == null || action == "remove_managed" || action == "remove_external" || availability != "held")
                     throw new InvalidOperationException("Portcove action lacks a valid definition restriction. Refresh state.");
@@ -243,9 +251,13 @@ namespace Portcove.ReferenceClient
         internal static void ValidateStatus(object status, long schema)
         {
             var decisions = Read(status);
+            var definitions = DefinitionOperations.Read(status);
             var rollbackCount = decisions.Count(value => value.Action == "rollback");
-            if (schema == 60 ? rollbackCount != 1 : rollbackCount != 0)
+            if (schema >= 60 ? rollbackCount != 1 : rollbackCount != 0)
                 throw new InvalidOperationException("Portcove rollback assessment does not match its API schema. Refresh with a compatible CLI.");
+            if (schema < 61 && (decisions.Any(value => value.DefinitionReason == "curated_artifact_revoked" || value.DefinitionReason == "curated_distribution_withdrawn")
+                || definitions.Any(value => value.Reason == "curated_artifact_revoked" || value.Reason == "curated_distribution_withdrawn")))
+                throw new InvalidOperationException("Portcove curated artifact assessment does not match its API schema. Refresh with a compatible CLI.");
         }
     }
 
@@ -601,8 +613,8 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 60;
-        private static bool SupportedSchema(long version) => (version >= 42 && version <= 57) || version == Schema;
+        internal const int Schema = 61;
+        private static bool SupportedSchema(long version) => (version >= 42 && version <= 57) || version == 60 || version == Schema;
         private readonly string command;
         private readonly Action<Dictionary<string, object>> progress;
         private readonly long operationEventSchemaVersion;
@@ -628,7 +640,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57 or 60; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57 or 60 through 61; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -736,7 +748,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57 or 60. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57 or 60 through 61. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();

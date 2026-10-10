@@ -316,7 +316,7 @@ impl Library {
                     PortcoveError::conflict("launch assessment requires its installed grant")
                 })?;
         grant_provenance.require_fresh()?;
-        if grant.policy_schema != 3
+        if !matches!(grant.policy_schema, 3 | 4)
             || !matches!(
                 grant.decision,
                 PolicyDecision::ManagedGithub {
@@ -544,7 +544,7 @@ pub(crate) fn requires_subject(
                         launch_checks: Some(1),
                         ..
                     }
-                ) && grant.policy_schema == 3
+                ) && matches!(grant.policy_schema, 3 | 4)
             },
         ),
     )
@@ -569,12 +569,12 @@ pub(crate) fn checks_passed(
         return Ok(Some(true));
     }
     let established = established_revision(connection, &identity.namespace, &identity.stable_id)?;
-    if grant.policy_schema != 3 && established > 0 {
+    if !matches!(grant.policy_schema, 3 | 4) && established > 0 {
         return Err(PortcoveError::state(
             "accepted launch check format was downgraded",
         ));
     }
-    if grant.policy_schema != 3 {
+    if !matches!(grant.policy_schema, 3 | 4) {
         return Ok(Some(true));
     }
     let Some(subject) = context.launch_subject else {

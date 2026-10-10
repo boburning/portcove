@@ -9,6 +9,24 @@ const withAssessment = (assessment: Assessment): PortStatus => ({
   port_actions: [assessment],
 });
 
+it("explains exact artifact revocation for retained rollback", () => {
+  expect(
+    portActionPresentation(
+      withAssessment({
+        action: "rollback",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "curated_artifact_revoked" },
+      }),
+      "rollback",
+    ),
+  ).toEqual({
+    blocked: true,
+    reason:
+      "Restore previous version is on hold. This exact release file was revoked. Your files and saves are retained.",
+  });
+});
+
 it.each([undefined, { ...portStatus(), port_actions: [] }, portStatus()])(
   "preserves legacy readiness behavior when action projections are absent: %s",
   (status) => {
@@ -108,6 +126,14 @@ it.each(["missing_source", "missing_bios"] as const)(
 
 it.each([
   ["publisher_revoked", "The catalog publisher was revoked."],
+  [
+    "curated_artifact_revoked",
+    "This exact release file was revoked. Your files and saves are retained.",
+  ],
+  [
+    "curated_distribution_withdrawn",
+    "Distribution of this release file was withdrawn. Permitted installed use remains available.",
+  ],
   [
     "unknown_safety_semantics",
     "This definition has safety requirements Portcove cannot interpret.",

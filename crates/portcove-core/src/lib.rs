@@ -15,6 +15,7 @@ mod catalog;
 mod catalog_store;
 mod catalog_update;
 mod curated_acquisition;
+mod curated_cache;
 mod database;
 mod definition_acquisition;
 mod definition_candidate;
@@ -216,7 +217,7 @@ pub use types::*;
 
 // Private parked 58/59 candidates retain their own client/runtime pair.
 // The next public contract is 60; it does not claim those private contracts.
-pub const API_SCHEMA_VERSION: u32 = 60;
+pub const API_SCHEMA_VERSION: u32 = 61;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

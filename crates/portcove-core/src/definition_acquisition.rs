@@ -60,6 +60,7 @@ pub struct DefinitionAcquisitionScope {
     pub(crate) max_redirects: u32,
     pub(crate) grant_id: String,
     pub(crate) policy_revision: u64,
+    pub(crate) curated_checks: Option<u32>,
     #[cfg(any(test, feature = "qualification-fixtures"))]
     pub(crate) fixture_origin: Option<String>,
 }
@@ -104,6 +105,7 @@ impl DefinitionAcquisitionScope {
             && self.max_redirects == other.max_redirects
             && self.grant_id == other.grant_id
             && self.policy_revision == other.policy_revision
+            && self.curated_checks == other.curated_checks
     }
     pub(crate) fn validate_parameters(
         repository_id: u64,
@@ -152,6 +154,10 @@ impl DefinitionAcquisitionScope {
 
     pub(crate) fn validate_port(port: &PortDefinition) -> Result<()> {
         crate::curated_acquisition::require_runtime_authority(port)?;
+        Self::validate_port_contract(port)
+    }
+
+    pub(crate) fn validate_port_contract(port: &PortDefinition) -> Result<()> {
         if port.release.provider != ReleaseSource::Github
             || !valid_github_repository(&port.release.repository)
             || !port.bundled_runtime.is_empty()
@@ -171,7 +177,12 @@ impl DefinitionAcquisitionScope {
     }
 
     pub(crate) fn require_port(&self, port: &PortDefinition) -> Result<()> {
-        Self::validate_port(port)?;
+        Self::validate_port_contract(port)?;
+        if !port.release.curated.is_empty() && self.curated_checks != Some(1) {
+            return Err(PortcoveError::unsupported(
+                "publisher scope does not admit curated acquisition",
+            ));
+        }
         if self.stable_id != port.id
             || self.repository != port.release.repository
             || self.port_sha256 != Self::port_digest(port)?
@@ -179,6 +190,16 @@ impl DefinitionAcquisitionScope {
             return Err(PortcoveError::verification(
                 "acquisition scope belongs to another definition",
             ));
+        }
+        if self.curated_checks == Some(1) {
+            let connection = self.library.connection()?;
+            for record in port.release.curated.values() {
+                crate::curated_acquisition::require_retained_identity(
+                    &connection,
+                    self.repository_id,
+                    record,
+                )?;
+            }
         }
         Ok(())
     }

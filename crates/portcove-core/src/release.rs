@@ -158,12 +158,97 @@ pub(crate) const PROVIDER_NETWORK_BOUNDS: ProviderNetworkBounds = ProviderNetwor
 };
 
 impl GithubReleaseProvider {
+    pub(crate) fn for_acquisition_scope(scope: &crate::DefinitionAcquisitionScope) -> Result<Self> {
+        scope.require_current()?;
+        let origin = "https://api.github.com";
+        #[cfg(any(test, feature = "qualification-fixtures"))]
+        let origin = if let Some(origin) = &scope.fixture_origin {
+            crate::definition_acquisition::validate_fixture_origin(origin)?;
+            origin.as_str()
+        } else {
+            origin
+        };
+        Self::build_with_credential(
+            Some(scope.library.clone()),
+            origin,
+            "https://github.com",
+            PROVIDER_NETWORK_BOUNDS,
+            Some(GithubCredential {
+                token: None,
+                source: GithubAuthSource::Anonymous,
+                intent: 0,
+            }),
+            origin != "https://api.github.com",
+        )
+    }
+
     pub fn for_library(library: &Library) -> Result<Self> {
         Self::build(
             Some(library.clone()),
             "https://api.github.com",
             "https://github.com",
         )
+    }
+
+    async fn curated_tag_commit(
+        &self,
+        port: &PortDefinition,
+        record: &crate::CuratedAcquisitionRecord,
+        scope: &crate::DefinitionAcquisitionScope,
+    ) -> Result<String> {
+        let mut url = reqwest::Url::parse(&format!(
+            "{}/repos/{}",
+            self.api_root, port.release.repository
+        ))
+        .map_err(|_| PortcoveError::verification("invalid curated repository URL"))?;
+        url.path_segments_mut()
+            .map_err(|_| PortcoveError::verification("invalid curated tag URL"))?
+            .extend(["git", "ref", "tags", record.tag.as_str()]);
+        let reference: GithubTagReference = self.scoped_json(url.as_str(), scope).await?;
+        if reference.reference != format!("refs/tags/{}", record.tag) {
+            return Err(PortcoveError::verification("curated tag reference differs"));
+        }
+        let mut object = reference.object;
+        let mut visited = std::collections::BTreeSet::new();
+        for _ in 0..5 {
+            if object.sha.len() != 40
+                || !object
+                    .sha
+                    .bytes()
+                    .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+                || !visited.insert(object.sha.clone())
+            {
+                return Err(PortcoveError::verification(
+                    "invalid or cyclic curated tag object",
+                ));
+            }
+            if object.kind == "commit" {
+                return Ok(object.sha);
+            }
+            if object.kind != "tag" {
+                return Err(PortcoveError::verification(
+                    "curated tag does not identify a commit",
+                ));
+            }
+            let tag: GithubAnnotatedTag = self
+                .scoped_json(
+                    &format!(
+                        "{}/repos/{}/git/tags/{}",
+                        self.api_root, port.release.repository, object.sha
+                    ),
+                    scope,
+                )
+                .await?;
+            if tag.sha != object.sha {
+                return Err(PortcoveError::verification(
+                    "curated annotated tag identity differs",
+                ));
+            }
+            object = tag.object;
+        }
+        Err(PortcoveError::verification(
+            "curated annotated tag exceeds its peel bound",
+        ))
     }
 
     fn build(library: Option<Library>, api_root: &str, web_root: &str) -> Result<Self> {
@@ -985,7 +1070,7 @@ impl GithubReleaseProvider {
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<ResolvedRelease> {
-        crate::curated_acquisition::require_runtime_authority(port)?;
+        crate::curated_acquisition::require_runtime_scope(port, scope)?;
         if let Some(scope) = scope {
             scope.require_current()?;
             scope.require_port(port)?;
@@ -1007,6 +1092,14 @@ impl GithubReleaseProvider {
                 "{} is not available for {platform:?}",
                 port.name
             )));
+        }
+        if let Some(record) = port.release.curated.get(&platform)
+            && let Some(scope) = scope
+        {
+            crate::definition_repository::publisher_policy::require_curated_artifact_operation(
+                &scope.library.connection()?, scope.repository_id, record,
+                crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+            )?;
         }
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
         let repository: GithubRepository = match scope {
@@ -1031,7 +1124,12 @@ impl GithubReleaseProvider {
                 scope.anchor_sha256, scope.policy_sha256, scope.port_sha256
             )
         });
-        if let Some(release) = self.cached_release(&cache_key).await {
+        let curated = port.release.curated.get(&platform);
+        // Curated selection revalidates mutable release, asset and tag identity;
+        // only the separately verified byte cache may be reused.
+        if curated.is_none()
+            && let Some(release) = self.cached_release(&cache_key).await
+        {
             if let Some(scope) = scope {
                 scope.require_current()?;
                 scope.require_asset_url(&release.asset.url)?;
@@ -1061,21 +1159,70 @@ impl GithubReleaseProvider {
             scope.require_current()?;
             scope.require_asset_url(&asset.browser_download_url)?;
         }
-        let sha256 = match asset.digest.as_deref().and_then(parse_digest) {
-            Some(digest) => digest,
-            None => match scope {
-                Some(scope) => {
-                    self.checksum_from_sidecar_scoped(&release.assets, asset, Some(scope))
-                        .await?
-                }
-                None => self.checksum_from_sidecar(&release.assets, asset).await?,
+        let sha256 = if let Some(record) = curated {
+            let scope = scope.ok_or_else(|| PortcoveError::unsupported("curated scope missing"))?;
+            if release.id != Some(record.release_id)
+                || release.tag_name != record.tag
+                || asset.id != Some(record.asset_id)
+            {
+                return Err(PortcoveError::verification(
+                    "curated release or asset identity changed",
+                ));
             }
-            .ok_or_else(|| {
-                PortcoveError::verification(format!(
-                    "{} does not publish a SHA-256 digest for {}",
-                    port.name, asset.name
-                ))
-            })?,
+            let commit = self.curated_tag_commit(port, record, scope).await?;
+            let publisher_digest = asset.digest.as_deref().and_then(parse_digest);
+            if asset.digest.is_some() && publisher_digest.is_none() {
+                return Err(PortcoveError::verification(
+                    "curated publisher digest is malformed",
+                ));
+            }
+            let observed_url = asset.browser_download_url.clone();
+            #[cfg(any(test, feature = "qualification-fixtures"))]
+            let observed_url = if let Some(origin) = &scope.fixture_origin {
+                let actual = reqwest::Url::parse(&observed_url)
+                    .map_err(|_| PortcoveError::verification("invalid fixture asset URL"))?;
+                let expected = reqwest::Url::parse(&record.acquisition_url)
+                    .map_err(|_| PortcoveError::verification("invalid curated asset URL"))?;
+                if actual.origin().ascii_serialization() != *origin
+                    || actual.path() != expected.path()
+                    || actual.query().is_some()
+                    || actual.fragment().is_some()
+                {
+                    return Err(PortcoveError::verification(
+                        "curated fixture location differs",
+                    ));
+                }
+                expected.to_string()
+            } else {
+                observed_url
+            };
+            record.verify_metadata(crate::curated_acquisition::CuratedReleaseMetadata {
+                release_id: release.id,
+                asset_id: asset.id,
+                tag: &release.tag_name,
+                commit_sha1: &commit,
+                filename: &asset.name,
+                url: &observed_url,
+                size: asset.size,
+                publisher_sha256: publisher_digest.as_deref(),
+            })?
+        } else {
+            match asset.digest.as_deref().and_then(parse_digest) {
+                Some(digest) => digest,
+                None => match scope {
+                    Some(scope) => {
+                        self.checksum_from_sidecar_scoped(&release.assets, asset, Some(scope))
+                            .await?
+                    }
+                    None => self.checksum_from_sidecar(&release.assets, asset).await?,
+                }
+                .ok_or_else(|| {
+                    PortcoveError::verification(format!(
+                        "{} does not publish a SHA-256 digest for {}",
+                        port.name, asset.name
+                    ))
+                })?,
+            }
         };
         let version = release_version(&release.tag_name);
         let resolved = ResolvedRelease {
@@ -1263,7 +1410,29 @@ struct GithubRepository {
 }
 
 #[derive(Debug, Deserialize)]
+struct GithubTagObject {
+    #[serde(rename = "type")]
+    kind: String,
+    sha: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubTagReference {
+    #[serde(rename = "ref")]
+    reference: String,
+    object: GithubTagObject,
+}
+
+#[derive(Debug, Deserialize)]
+struct GithubAnnotatedTag {
+    sha: String,
+    object: GithubTagObject,
+}
+
+#[derive(Debug, Deserialize)]
 struct GithubRelease {
+    #[serde(default)]
+    id: Option<u64>,
     tag_name: String,
     draft: bool,
     prerelease: bool,
@@ -1273,6 +1442,8 @@ struct GithubRelease {
 
 #[derive(Debug, Clone, Deserialize)]
 struct GithubAsset {
+    #[serde(default)]
+    id: Option<u64>,
     name: String,
     browser_download_url: String,
     size: u64,
@@ -2245,6 +2416,7 @@ mod tests {
     #[test]
     fn development_tag_is_beta_even_when_github_flag_is_missing() {
         let release = GithubRelease {
+            id: None,
             tag_name: "v0.2.0-dev".into(),
             draft: false,
             prerelease: false,
@@ -2258,6 +2430,7 @@ mod tests {
     #[test]
     fn ordinary_tag_remains_stable() {
         let release = GithubRelease {
+            id: None,
             tag_name: "v1.2.3".into(),
             draft: false,
             prerelease: false,
@@ -2342,6 +2515,7 @@ mod tests {
             ("Paperboat-Mulberry-Alfa-Win64.zip", 'c'),
         ]
         .map(|(name, digest)| GithubAsset {
+            id: None,
             name: name.into(),
             browser_download_url: format!("https://downloads.example.invalid/{name}"),
             size: 1,
@@ -2479,12 +2653,14 @@ mod tests {
 
         let ambiguous = [
             GithubAsset {
+                id: None,
                 name: "nectar-windows-one.zip".into(),
                 browser_download_url: "https://downloads.example.invalid/one.zip".into(),
                 size: 1,
                 digest: Some(format!("sha256:{}", "a".repeat(64))),
             },
             GithubAsset {
+                id: None,
                 name: "nectar-windows-two.zip".into(),
                 browser_download_url: "https://downloads.example.invalid/two.zip".into(),
                 size: 1,
@@ -2528,12 +2704,14 @@ mod tests {
         let port = catalog.port("re-blue").unwrap();
         let assets = [
             GithubAsset {
+                id: None,
                 name: "reblue-1.0.0-win-amd64-symbols.zip".into(),
                 browser_download_url: "https://example.invalid/symbols.zip".into(),
                 size: 1,
                 digest: None,
             },
             GithubAsset {
+                id: None,
                 name: "reblue-1.0.0-win-amd64.zip".into(),
                 browser_download_url: "https://example.invalid/runtime.zip".into(),
                 size: 1,
@@ -2657,6 +2835,7 @@ mod tests {
             let assets = names
                 .into_iter()
                 .map(|name| GithubAsset {
+                    id: None,
                     name: name.into(),
                     browser_download_url: "https://example.invalid/package.zip".into(),
                     size: 1,
@@ -3275,12 +3454,14 @@ mod tests {
         let (download_root, _, server) = serve_http(responses);
         let provider = GithubReleaseProvider::with_api_root("https://api.example.invalid").unwrap();
         let target = GithubAsset {
+            id: None,
             name: "game-windows.zip".into(),
             browser_download_url: "https://downloads.example.invalid/game.zip".into(),
             size: 1,
             digest: None,
         };
         let sidecar = GithubAsset {
+            id: None,
             name: "game-windows.zip.sha256".into(),
             browser_download_url: format!("{download_root}/game.sha256"),
             size: 1,
@@ -3301,12 +3482,14 @@ mod tests {
         let port = catalog.port("re-blue").unwrap();
         let assets = [
             GithubAsset {
+                id: None,
                 name: "reblue-windows-one.zip".into(),
                 browser_download_url: "https://example.invalid/one.zip".into(),
                 size: 1,
                 digest: None,
             },
             GithubAsset {
+                id: None,
                 name: "reblue-windows-two.zip".into(),
                 browser_download_url: "https://example.invalid/two.zip".into(),
                 size: 1,
@@ -3332,12 +3515,14 @@ mod tests {
         let (download_root, _, server) = serve_http(responses);
         let provider = GithubReleaseProvider::with_api_root("https://api.example.invalid").unwrap();
         let target = GithubAsset {
+            id: None,
             name: "game-windows.zip".into(),
             browser_download_url: "https://downloads.example.invalid/game.zip".into(),
             size: 1,
             digest: None,
         };
         let aggregate = GithubAsset {
+            id: None,
             name: "SHA256SUMS.txt".into(),
             browser_download_url: format!("{download_root}/aggregate"),
             size: 1,
@@ -3351,6 +3536,7 @@ mod tests {
                 .is_none()
         );
         let aggregate = GithubAsset {
+            id: None,
             name: "SHA256SUMS.txt".into(),
             browser_download_url: format!("{download_root}/aggregate-named"),
             size: 1,
@@ -3364,6 +3550,7 @@ mod tests {
             Some(digest.clone())
         );
         let exact = GithubAsset {
+            id: None,
             name: "game-windows.zip.sha256".into(),
             browser_download_url: format!("{download_root}/exact"),
             size: 1,
@@ -3577,6 +3764,7 @@ mod tests {
         let (root, requests, server) = serve_http(responses);
         let provider = GithubReleaseProvider::with_api_root("https://api.example.invalid").unwrap();
         let target = GithubAsset {
+            id: None,
             name: "game-windows.zip".into(),
             browser_download_url: "https://example.invalid/game-windows.zip".into(),
             size: 1,
@@ -3586,6 +3774,7 @@ mod tests {
             .iter()
             .enumerate()
             .map(|(index, name)| GithubAsset {
+                id: None,
                 name: (*name).into(),
                 browser_download_url: format!("{root}/{index}"),
                 size: 1,

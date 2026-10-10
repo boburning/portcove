@@ -6,6 +6,10 @@ type Assessment = NonNullable<PortStatus["port_actions"]>[number];
 
 const definitionReasons: Record<string, string> = {
   publisher_revoked: "The catalog publisher was revoked.",
+  curated_artifact_revoked:
+    "This exact release file was revoked. Your files and saves are retained.",
+  curated_distribution_withdrawn:
+    "Distribution of this release file was withdrawn. Permitted installed use remains available.",
   unknown_safety_semantics: "This definition has safety requirements Portcove cannot interpret.",
   publisher_scope_required: "This publisher is not approved for this port.",
   engine_capability_required: "This version of Portcove cannot use this route.",
@@ -55,6 +59,17 @@ function unavailable(action: PresentedAction): ActionPresentation {
 
 function presentRollbackAssessment(assessment: Assessment): ActionPresentation {
   const { availability, reason, definition } = assessment;
+  if (
+    availability === "held" &&
+    reason === "definition_ineligible" &&
+    definition?.outcome === "hold" &&
+    definition.reason === "curated_artifact_revoked"
+  ) {
+    return {
+      blocked: true,
+      reason: `Restore previous version is on hold. ${definitionReasons.curated_artifact_revoked}`,
+    };
+  }
   if (definition != null) return unavailable("rollback");
   if (availability === "allowed" && reason === "available") return { blocked: false };
   if (availability === "not_offered" && reason === "not_installed")
