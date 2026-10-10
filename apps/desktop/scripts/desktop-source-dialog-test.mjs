@@ -845,6 +845,7 @@ async function scanCoveragePresentation({ browser, snapshot, output, artifacts }
     );
     await browser.wait(until.elementLocated(button("Scan saved folders")), 5_000);
     await browser.executeScript(() => {
+      window.__portcoveCoverageProbe.snapshot.freshness = "inputs_changed";
       Object.assign(window.__portcoveCoverageProbe.snapshot.coverage, {
         restart_required: true,
         frontier_exhausted: false,

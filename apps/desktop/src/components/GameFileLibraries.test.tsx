@@ -178,6 +178,7 @@ it("keeps stale resumable results from advertising continuation", async () => {
 
 it("presents a required restart separately from another resumable batch", async () => {
   const restarted = resumableSnapshot();
+  restarted.freshness = "inputs_changed";
   restarted.coverage = { ...restarted.coverage!, can_resume: false, restart_required: true };
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(restarted);
   await click("Refresh folders");

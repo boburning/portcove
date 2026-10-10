@@ -259,8 +259,9 @@ function savedScanAction(
   snapshot: GameFileScanSnapshot | null | undefined,
   readConfirmed: boolean,
 ) {
-  if (!readConfirmed || snapshot?.freshness !== "inputs_match") return "Scan saved folders";
-  if (snapshot.coverage?.restart_required) return "Start new scan";
+  if (!readConfirmed) return "Scan saved folders";
+  if (snapshot?.coverage?.restart_required) return "Start new scan";
+  if (snapshot?.freshness !== "inputs_match") return "Scan saved folders";
   if (snapshot.coverage?.can_resume) return "Continue scan";
   return "Scan saved folders";
 }
