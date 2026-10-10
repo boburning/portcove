@@ -9,6 +9,11 @@ on:
         description: Schema1 probe-only JSON with a fresh 32-character hex nonce
         required: true
         type: string
+      environment-negative:
+        description: Nonsecret environment-policy negative probe; no canary read
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -22,6 +27,7 @@ env:
 
 jobs:
   admission:
+    if: ${{ !inputs.environment-negative }}
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -42,6 +48,7 @@ jobs:
         run: node scripts/controller-canary.mjs admit
 
   canary:
+    if: ${{ !inputs.environment-negative }}
     needs: admission
     runs-on: ubuntu-22.04
     timeout-minutes: 5
@@ -74,3 +81,16 @@ jobs:
           path: ${{ runner.temp }}/controller-canary.json
           if-no-files-found: error
           retention-days: 7
+
+  environment-negative:
+    if: ${{ inputs.environment-negative }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 1
+    environment: portcove-controller-canary
+    permissions: {}
+    steps:
+      - name: Record unexpected platform admission without reading material
+        run: |
+          echo "ENVIRONMENT_POLICY_ADMITTED_RUN=$GITHUB_RUN_ID"
+          echo "ENVIRONMENT_POLICY_ADMITTED_REF=$GITHUB_REF"
+          exit 1
