@@ -19,17 +19,60 @@ export function retainCommandEvidence(directory, result) {
   return evidence;
 }
 
-export function commandFailure(message, result, directory, cause = result.error) {
+const failureLabels = {
+  "source-check": "source/check failure",
+  "missing-prerequisite": "missing prerequisite",
+  "executor-provider": "executor/provider failure",
+  "external-service": "external-service/upstream-health failure",
+  "evidence-collection": "evidence-collection failure",
+  unknown: "unknown/unclassified",
+};
+
+// Structured observations, never a guess from log text or a change to a verdict.
+export function describeFailure(result, kind = "unknown") {
+  if (!Object.hasOwn(failureLabels, kind)) kind = "unknown";
+  try {
+    const error = result.error;
+    if (/^spawn/u.test(error?.syscall ?? "")) {
+      if (error.code === "ENOENT") kind = "missing-prerequisite";
+      else if (["EACCES", "EPERM"].includes(error.code)) kind = "executor-provider";
+    }
+    const facts = [
+      Number.isInteger(result.status) ? `exit ${result.status}` : null,
+      error?.code ? `error ${error.code}` : null,
+      result.signal ? `signal ${result.signal}` : null,
+    ].filter(Boolean);
+    return {
+      kind,
+      label: failureLabels[kind],
+      observation: facts.join("; ") || "cause not established",
+    };
+  } catch {
+    return {
+      kind: "unknown",
+      label: failureLabels.unknown,
+      observation: "diagnostic facts unavailable",
+    };
+  }
+}
+
+export function commandFailure(message, result, directory, cause = result.error, kind = "unknown") {
   const evidence = retainCommandEvidence(directory, result);
+  const failure = describeFailure(result, kind);
   const error = new Error(
     renderBoundedSummary(
       message,
-      [String(result.stderr ?? ""), evidence.failure ?? ""].filter(Boolean),
+      [
+        `${failure.label}: ${failure.observation}`,
+        String(result.stderr ?? ""),
+        evidence.failure ? `evidence-collection failure (secondary): ${evidence.failure}` : "",
+      ].filter(Boolean),
       { reference: Object.values(evidence).join("; ") },
     ).text,
     { cause },
   );
   error.evidence = evidence;
+  error.failure = failure;
   error.exitCode = result.status;
   return error;
 }
@@ -65,12 +108,36 @@ export function renderBoundedSummary(
 export function summarizeReport(kind, report, reference) {
   if (!report || typeof report !== "object") throw new Error("Report must be a JSON object");
   if (kind === "timings" && Array.isArray(report.records)) {
+    const failed = report.records.filter((entry) => entry.outcome === "failed");
+    const observed = new Map();
+    for (const entry of failed) {
+      const key = JSON.stringify(entry.context ?? {});
+      const entries = observed.get(key) ?? [];
+      entries.push(entry);
+      observed.set(key, entries);
+    }
+    const failures = [...observed.values()].flatMap((entries) => {
+      const ordered = entries.every((entry) => Number.isFinite(Date.parse(entry.recorded_at)));
+      const selected = ordered
+        ? [entries.toSorted((a, b) => Date.parse(a.recorded_at) - Date.parse(b.recorded_at))[0]]
+        : entries;
+      return selected.map((entry) => {
+        const failure = entry.failure;
+        const label = Object.hasOwn(failureLabels, failure?.kind)
+          ? failureLabels[failure.kind]
+          : failureLabels.unknown;
+        return `${ordered ? "First recorded" : "Order unavailable for"} failing producer ${entry.context?.job ?? "unknown job"}/${entry.context?.run ?? "unknown run"}/${entry.context?.attempt ?? "unknown attempt"} ${entry.phase}: ${label}; ${failure?.observation ?? "cause not established"}`;
+      });
+    });
     return renderBoundedSummary(
-      "CI diagnostic timings (not acceptance evidence)",
-      report.records.map(
-        (entry) =>
-          `${entry.context?.job ?? "unknown job"}/${entry.context?.run ?? "unknown run"}/${entry.context?.attempt ?? "unknown attempt"} ${entry.phase}: ${entry.elapsed_ms ?? "unmeasured"}ms; ${entry.outcome ?? "observed"}; cache ${entry.cache_outcome ?? "unknown"}${entry.selected_tests === undefined ? "" : `; tests ${entry.selected_tests}/${entry.complete_tests}`}`,
-      ),
+      "CI diagnostic timings (advisory; observed artifact coverage only; not acceptance evidence)",
+      [
+        ...failures,
+        ...report.records.map(
+          (entry) =>
+            `${entry.context?.job ?? "unknown job"}/${entry.context?.run ?? "unknown run"}/${entry.context?.attempt ?? "unknown attempt"} ${entry.phase}: ${entry.elapsed_ms ?? "unmeasured"}ms; ${entry.outcome ?? "observed"}; cache ${entry.cache_outcome ?? "unknown"}${entry.selected_tests === undefined ? "" : `; tests ${entry.selected_tests}/${entry.complete_tests}`}`,
+        ),
+      ],
       { reference },
     );
   }

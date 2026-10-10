@@ -2,7 +2,7 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { summarizeReport } from "./report-summary.mjs";
+import { describeFailure, summarizeReport } from "./report-summary.mjs";
 
 // Diagnostics only: never acquire resources, execute commands or supply acceptance.
 export function createCiMetrics({
@@ -66,10 +66,15 @@ export function createCiMetrics({
       record(phase, {
         elapsed_ms: Math.max(0, Math.round(now() - start)),
         outcome: outcome(result),
+        ...(outcome(result) === "failed" ? { failure: describeFailure(result) } : {}),
       });
       return result;
     } catch (error) {
-      record(phase, { elapsed_ms: Math.max(0, Math.round(now() - start)), outcome: "failed" });
+      record(phase, {
+        elapsed_ms: Math.max(0, Math.round(now() - start)),
+        outcome: "failed",
+        failure: describeFailure({ error }),
+      });
       throw error;
     }
   };
@@ -80,10 +85,15 @@ export function createCiMetrics({
       record(phase, {
         elapsed_ms: Math.max(0, Math.round(now() - start)),
         outcome: outcome(result),
+        ...(outcome(result) === "failed" ? { failure: describeFailure(result) } : {}),
       });
       return result;
     } catch (error) {
-      record(phase, { elapsed_ms: Math.max(0, Math.round(now() - start)), outcome: "failed" });
+      record(phase, {
+        elapsed_ms: Math.max(0, Math.round(now() - start)),
+        outcome: "failed",
+        failure: describeFailure({ error }),
+      });
       throw error;
     }
   };
