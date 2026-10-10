@@ -642,6 +642,21 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   }
 
   if (
+    file.startsWith(".husky/") ||
+    file === "lint-staged.config.mjs" ||
+    [
+      "scripts/hooks-install.mjs",
+      "scripts/precommit-check.mjs",
+      "scripts/oxfmt-ownership.mjs",
+      "scripts/run-oxfmt.mjs",
+    ].includes(file)
+  ) {
+    selection.scopes.add("tooling");
+    addNodeTest(selection, "scripts/precommit-check.test.mjs");
+    recognized = true;
+  }
+
+  if (
     file === "aqua.yaml" ||
     file === "aqua-checksums.json" ||
     file === ".aqua-version" ||
@@ -912,6 +927,12 @@ export function buildPlan(selection, context = {}) {
           file,
         ]),
       );
+  if (selection.ui || broad)
+    commands.push(
+      command("ui-copy", "production source copy before build/tests", process.execPath, [
+        "apps/desktop/scripts/check-copy.mjs",
+      ]),
+    );
   if (selection.nodeTests.size) commands.push(nodeTestCommand(sorted(selection.nodeTests)));
   if (
     selection.packages.size ||
@@ -962,7 +983,7 @@ export function buildPlan(selection, context = {}) {
         corepackCommand(
           "ui-tests",
           "complete unit suite for uncertain/shared frontend impact",
-          ["pnpm", "run", "test"],
+          ["pnpm", "run", "test:after-copy"],
           { cwd: desktopRoot },
         ),
       );
@@ -1381,6 +1402,7 @@ export function executePlan(plan, options = {}) {
 
 function localStageDomains(entry) {
   if (entry.id === "diff-check") return [];
+  if (entry.id === "ui-copy") return ["ui", "development"];
   // These stages read live native exposure, frontend consumers, and the
   // validator/runner implementation in addition to Rust schema exports.
   if (["rust-workspace-tests", "ui-ipc-exposure"].includes(entry.id))

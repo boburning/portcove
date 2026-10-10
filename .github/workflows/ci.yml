@@ -802,6 +802,9 @@ jobs:
           tool: ${{ steps.quality-pins.outputs.just }}
       - run: pnpm install --frozen-lockfile
         working-directory: .
+      - name: Verify staged checks and hook installation
+        working-directory: .
+        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/precommit-check.test.mjs
       - name: Check repository formatting
         working-directory: .
         run: pnpm --dir apps/desktop format:check

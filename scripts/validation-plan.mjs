@@ -321,6 +321,8 @@ function classifyPath(file) {
     );
     match(
       file.startsWith("scripts/") ||
+        file.startsWith(".husky/") ||
+        file === "lint-staged.config.mjs" ||
         file.startsWith("integrations/") ||
         ordinaryGithubFiles.has(file) ||
         file.startsWith(".vscode/"),

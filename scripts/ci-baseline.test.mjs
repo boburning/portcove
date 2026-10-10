@@ -60,6 +60,10 @@ test("hosted contracts retain relevant script/docs/schema tests without stateful
 });
 test("shared and unknown frontend inputs use full units; sources use the related graph", () => {
   const related = baselineFrontendPlan(make(["apps/desktop/src/App.tsx"]));
+  assert.ok(
+    related.findIndex((entry) => entry.id === "ui-copy") <
+      related.findIndex((entry) => entry.id === "ui-build"),
+  );
   assert.ok(related.some((entry) => entry.id === "ui-related-tests"));
   assert.deepEqual(related.find((entry) => entry.id === "ui-related-durations").args, [
     "scripts/check-vitest-durations.mjs",

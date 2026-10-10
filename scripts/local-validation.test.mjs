@@ -40,6 +40,47 @@ import { buildValidationPlan } from "./validation-plan.mjs";
 
 const allFilesExist = () => true;
 
+test("source copy fails before expensive stages while preserving valid selected obligations", () => {
+  const selection = classifyChanges([{ status: "M", path: "apps/desktop/tsconfig.json" }], {
+    fileExists: allFilesExist,
+  });
+  const plan = buildPlan(selection);
+  const ids = plan.map((entry) => entry.id);
+  assert.ok(ids.indexOf("ui-copy") < ids.indexOf("ui-build"));
+  assert.ok(ids.indexOf("ui-copy") < ids.indexOf("ui-tests"));
+  assert.ok(ids.includes("ui-transport-types") && ids.includes("ui-ipc-exposure"));
+  const started = [];
+  assert.throws(
+    () =>
+      executePlan(plan, {
+        spawn: (_executable, args) => {
+          const entry = plan.find((item) => item.args === args);
+          started.push(entry.id);
+          return { status: entry.id === "ui-copy" ? 1 : 0 };
+        },
+      }),
+    /ui-copy failed/,
+  );
+  assert.ok(!started.includes("ui-build") && !started.includes("ui-tests"));
+  const successful = [];
+  executePlan(plan, {
+    spawn: (_executable, args) => {
+      successful.push(plan.find((item) => item.args === args).id);
+      return { status: 0 };
+    },
+  });
+  assert.deepEqual(successful, ids);
+  assert.ok(plan.find((entry) => entry.id === "ui-tests").args.includes("test:after-copy"));
+});
+
+test("hook entrypoints have explicit ownership and executable integration coverage", () => {
+  for (const file of [".husky/pre-commit", "lint-staged.config.mjs", "scripts/hooks-install.mjs"]) {
+    const selection = classifyChanges([{ status: "A", path: file }], { fileExists: allFilesExist });
+    assert.equal(selection.unknown.size, 0);
+    assert.ok(selection.nodeTests.has("scripts/precommit-check.test.mjs"));
+  }
+});
+
 test("review inventory keeps command arguments while making candidate-root paths portable", () => {
   const source = fileURLToPath(new URL("../", import.meta.url));
   const entry = {
@@ -724,6 +765,7 @@ test("UI sources build and run import-related units in optional feedback", () =>
   assert.deepEqual(ids(plan), [
     "diff-check",
     "oxfmt",
+    "ui-copy",
     "ui-transport-types",
     "ui-ipc-exposure",
     "ui-build",
@@ -743,14 +785,14 @@ test("frontend configuration changes use the complete small UI suite", () => {
     assert.ok(!ids(plan).includes("fallow"), path);
     assert.ok(!ids(plan).includes("ui-related-tests"), path);
     assert.ok(!ids(plan).includes("ui-theme-copy"), path);
-    assert.ok(!ids(plan).includes("ui-copy"), path);
+    assert.equal(ids(plan).filter((id) => id === "ui-copy").length, 1, path);
   }
   const { selection } = planFor(["package.json"]);
   assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
   const scripts = JSON.parse(
     readFileSync(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
   ).scripts;
-  const aggregateCommands = scripts.test.split(/\s*&&\s*/u);
+  const aggregateCommands = `${scripts.test} && ${scripts["test:after-copy"]}`.split(/\s*&&\s*/u);
   assert.ok(aggregateCommands.includes("node scripts/check-theme.mjs"));
   assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
 });
@@ -1542,7 +1584,8 @@ test("optional frontend baseline retains build and related units without browser
   const p = buildPlan(classifyChanges([{ status: "M", path: "apps/desktop/src/App.tsx" }]));
   assert.ok(p.some((entry) => entry.id === "ui-build"));
   assert.ok(p.some((entry) => entry.id === "ui-related-tests"));
-  assert.ok(!p.some((entry) => /browser|lint|fallow|theme|copy/.test(entry.id)));
+  assert.ok(!p.some((entry) => /browser|lint|fallow|theme/.test(entry.id)));
+  assert.equal(p.filter((entry) => entry.id === "ui-copy").length, 1);
 });
 
 test("Rust receipts bind narrower or broader selection even when source inventory is identical", () => {
