@@ -13,6 +13,7 @@ import type {
 } from "../types";
 import { errorText, formatBytes, formatCountMessage, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
+import { sourceAdmissionPresentation } from "./SourceIdentity";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
@@ -403,21 +404,31 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
 
 export function SourceImportReview({
   plan,
+  profiles = [],
   busy,
   onCancel,
   onApply,
 }: {
   plan?: SourceImportPlan;
+  profiles?: Pick<SourceProfile, "id" | "label">[];
   busy: boolean;
   onCancel: () => void;
   onApply: () => Promise<void>;
 }) {
   if (!plan) return null;
   const presentation = sourceImportModePresentation(plan.mode);
+  const admission = sourceAdmissionPresentation(plan.admission_mode);
+  const profile = profiles.find((candidate) => candidate.id === plan.profile_id);
   return (
     <section className="source-discovery-results" aria-label="Source import review">
       <h3>{presentation.label}</h3>
       <p>{presentation.explanation}</p>
+      <p>
+        File requirement: <strong>{profile?.label ?? plan.profile_id}</strong>
+      </p>
+      <p role={admission.known ? undefined : "alert"}>
+        <strong>Source check: {admission.label}.</strong> {admission.explanation}
+      </p>
       <p>
         Selected location:{" "}
         <code className="whitespace-normal [overflow-wrap:anywhere]">{plan.source.path}</code>
@@ -426,14 +437,32 @@ export function SourceImportReview({
         {plan.mode === "use_current_location" ? "Saved file location" : "Portcove game-file folder"}
         : <code className="whitespace-normal [overflow-wrap:anywhere]">{plan.destination}</code>
       </p>
+      {presentation.known && (
+        <>
+          {plan.mode !== "use_current_location" && plan.reuse_existing && (
+            <p>
+              An existing Portcove copy will be checked and reused. No new file copy is planned.
+            </p>
+          )}
+          <p>Additional file data planned: {formatBytes(plan.required_bytes)}.</p>
+        </>
+      )}
       {plan.existing_registration && (
-        <p>This updates the saved location after Portcove checks the expected files again.</p>
+        <>
+          <p>
+            Currently saved location:{" "}
+            <code className="whitespace-normal [overflow-wrap:anywhere]">
+              {plan.existing_registration.path}
+            </code>
+          </p>
+          <p>This updates the saved location after Portcove checks the expected files again.</p>
+        </>
       )}
       <div className="actions">
         <Button data-focusable variant="outline" disabled={busy} onClick={onCancel}>
           Cancel review
         </Button>
-        {presentation.known && (
+        {presentation.known && admission.known && (
           <Button
             data-focusable
             variant={plan.mode === "move" ? "destructive" : "primary"}
@@ -626,6 +655,7 @@ function SourceDiscoveryDialog({
         <DiscoveryResults workflow={workflow} />
         <SourceImportReview
           plan={plan}
+          profiles={profiles}
           busy={Boolean(busy)}
           onCancel={workflow.cancelReview}
           onApply={workflow.applyImport}

@@ -71,6 +71,24 @@ it.each(["future_mode", "constructor", "__proto__"])(
   },
 );
 
+it("distinguishes structural admission from an exact identity in the reviewed plan", () => {
+  const structural = renderToStaticMarkup(
+    <SourceImportReview plan={plan("copy")} busy={false} onApply={vi.fn()} onCancel={vi.fn()} />,
+  );
+  const exact = renderToStaticMarkup(
+    <SourceImportReview
+      plan={{ ...plan("copy"), admission_mode: "exact_identity" }}
+      busy={false}
+      onApply={vi.fn()}
+      onCancel={vi.fn()}
+    />,
+  );
+  expect(structural).not.toBe(exact);
+  expect(structural).toContain("Structural checks");
+  expect(structural).toContain("does not establish an exact edition");
+  expect(exact).toContain("Exact identity");
+});
+
 it.each(["copy", "move", "use_current_location"] as const)(
   "keeps the known %s review actionable",
   async (mode) => {
@@ -115,6 +133,91 @@ it("describes a BIOS import without calling it a game file", () => {
   expect(html).not.toContain("Game file:");
   expect(html).not.toContain("expected game files");
 });
+
+it.each([
+  ["exact_identity", "Exact identity", "accepted exact identity"],
+  ["structural_checks", "Structural checks", "does not establish an exact edition"],
+  ["informational_consent", "Informational consent", "does not verify an exact edition"],
+  ["upstream_validator", "Upstream validator", "configured upstream validator accepted"],
+] as const)(
+  "shows the reviewed %s admission basis without changing its plan",
+  (mode, label, limit) => {
+    const review = { ...plan("copy"), admission_mode: mode };
+    const original = JSON.stringify(review);
+    const html = renderToStaticMarkup(
+      <SourceImportReview
+        plan={review}
+        profiles={[
+          { id: "unrelated", label: "Wrong selected profile" },
+          { id: source.profile_id, label: "Reviewed file requirement" },
+        ]}
+        busy={false}
+        onApply={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(html).toContain("Reviewed file requirement");
+    expect(html).not.toContain("Wrong selected profile");
+    expect(html).toContain(label);
+    expect(html).toContain(limit);
+    expect(html).toContain("Additional file data planned: 64 B");
+    expect(html.match(/<button /g)).toHaveLength(2);
+    expect(JSON.stringify(review)).toBe(original);
+  },
+);
+
+it.each(["future_check", "constructor", "__proto__"])(
+  "retains uncertainty and cancel for unknown admission %s",
+  (mode) => {
+    const review = { ...plan("copy"), admission_mode: mode as SourceImportPlan["admission_mode"] };
+    const original = JSON.stringify(review);
+    const html = renderToStaticMarkup(
+      <SourceImportReview plan={review} busy={false} onApply={vi.fn()} onCancel={vi.fn()} />,
+    );
+    expect(html).toContain("Source check unavailable");
+    expect(html).toContain("Cancel this review and check the files again");
+    expect(html).toContain('role="alert"');
+    expect(html.match(/<button /g)).toHaveLength(1);
+    expect(html).not.toContain("exact edition was verified");
+    expect(JSON.stringify(review)).toBe(original);
+  },
+);
+
+it.each(["copy", "move", "use_current_location"] as const)(
+  "distinguishes reuse for %s and names the old saved reference",
+  (mode) => {
+    const review = {
+      ...plan(mode),
+      reuse_existing: true,
+      required_bytes: 0,
+      existing_registration: { ...source, path: "D:/Old saved files/original.iso" },
+    };
+    const html = renderToStaticMarkup(
+      <SourceImportReview
+        plan={review}
+        profiles={[{ id: "unrelated", label: "Wrong selected profile" }]}
+        busy={false}
+        onApply={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(html).toContain("File requirement: <strong>owned</strong>");
+    expect(html).not.toContain("Wrong selected profile");
+    expect(html).toContain("Currently saved location:");
+    expect(html).toContain(review.existing_registration.path);
+    expect(html).toContain("Additional file data planned: 0 B");
+    if (mode === "use_current_location") {
+      expect(html).not.toContain("existing Portcove copy");
+      expect(html).toContain("Keep this location available");
+    } else {
+      expect(html).toContain("existing Portcove copy will be checked and reused");
+      expect(html).toContain("No new file copy is planned");
+      expect(html).toContain(
+        mode === "move" ? "original is deleted only after" : "Keep the original",
+      );
+    }
+  },
+);
 
 it.each([
   ["copied", "Portcove's copy was checked and added; the original was kept."],

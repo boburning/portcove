@@ -173,7 +173,17 @@ as that release's existing path. File-health summaries describe the saved files'
 current comparison state in plain language; keep saved checksums in File details
 and do not equate unchanged bytes with a supported edition or launch readiness.
 Game-file inspection reports lead with the identified game, current result, and
-next action. Admission, source authority, and test coverage stay in named
+next action. Source-import reviews show the file requirement matched to the Core plan's profile,
+its actual admission basis and limits, the selected/destination/currently saved
+paths, checked-copy reuse when planned, and additional file-data bytes. Structural,
+informational and upstream-validator admission do not imply an exact edition;
+source admission is not installation or gameplay proof. Use-current-location is
+not Portcove-copy reuse, and move may remove the original after verification and
+registration even when an existing checked copy is reused. Planned bytes are not
+a free-space guarantee. Unknown checks remain explicit and need a new review or
+supported client before confirmation. Core plan binding and native consent remain
+authoritative.
+Admission, source authority, and test coverage stay in named
 disclosures; assistive announcements report the actual result without claiming
 that every check completed.
 When a game-file search reaches a safety limit, name the limit and give a next

@@ -150,6 +150,9 @@ describe("source intake dialog", () => {
       ),
     );
     await act(async () => button("Copy into Portcove")!.click());
+    const renderedReview = document.body.querySelector('[aria-label="Source import review"]');
+    expect(renderedReview?.textContent).toContain(profile.label);
+    expect(renderedReview?.textContent).toContain("Source check: Exact identity");
   };
 
   it("preserves a committed import when its workspace refresh fails", async () => {

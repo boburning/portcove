@@ -647,21 +647,51 @@ function classificationLabel(report: SourceInspectionReport) {
   return "Not evaluated";
 }
 
+export function sourceAdmissionPresentation(mode: string) {
+  const modes = {
+    exact_identity: {
+      label: "Exact identity",
+      detailLabel: "Admitted · exact identity",
+      explanation:
+        "The source matched an accepted exact identity. This is not installation or gameplay proof.",
+    },
+    structural_checks: {
+      label: "Structural checks",
+      detailLabel: "Admitted · structural checks",
+      explanation:
+        "Required file checks passed. Structural admission alone does not establish an exact edition.",
+    },
+    informational_consent: {
+      label: "Informational consent",
+      detailLabel: "Admitted · informational consent",
+      explanation:
+        "The source was admitted under its informational rules. This does not verify an exact edition.",
+    },
+    upstream_validator: {
+      label: "Upstream validator",
+      detailLabel: "Admitted · upstream validator",
+      explanation:
+        "The configured upstream validator accepted the source. The admission label alone does not establish an exact edition.",
+    },
+  };
+  return Object.hasOwn(modes, mode)
+    ? { ...modes[mode as keyof typeof modes], known: true }
+    : {
+        label: "Source check unavailable",
+        detailLabel: "Admission result unavailable",
+        explanation:
+          "This version cannot explain the reviewed source check. Cancel this review and check the files again, or update Portcove if this continues.",
+        known: false,
+      };
+}
+
 function admissionLabel(report: SourceInspectionReport) {
   const admission = report.inspection?.assessment.admission;
   if (!admission || admission.state === "not_evaluated") return "Not evaluated";
   if (admission.state === "rejected")
     return `File not accepted · ${rejectionReason(admission.reason)}`;
   if (admission.state !== "admitted") return "Not evaluated";
-  const labels = {
-    exact_identity: "Admitted · exact identity",
-    structural_checks: "Admitted · structural checks",
-    informational_consent: "Admitted · informational consent",
-    upstream_validator: "Admitted · upstream validator",
-  };
-  return Object.hasOwn(labels, admission.mode)
-    ? labels[admission.mode]
-    : "Admission result unavailable";
+  return sourceAdmissionPresentation(admission.mode).detailLabel;
 }
 
 function contractLabel(
