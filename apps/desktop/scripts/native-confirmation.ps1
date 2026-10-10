@@ -345,11 +345,17 @@ if ($DirectoryPath) {
     $selected = (Resolve-Path -LiteralPath $DirectoryPath).Path
     if (-not [IO.Directory]::Exists($selected)) { throw 'Owned picker fixture is not a directory.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
-    if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId) {
+    $folderPanes = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Pane -and $_.Current.Name -eq 'Folder:' -and $_.Current.ProcessId -eq $applicationId })
+    if ($fields.Count -eq 0 -and $folderPanes.Count -eq 1) {
+        # This host's UIA provider exposes the native filename Edit as a Pane.
+        # Bind input to the observed common-dialog control, never an arbitrary edit.
+        Set-NativeFolderText $window $selected
+    } elseif ($fields.Count -eq 1 -and $fields[0].Current.ProcessId -eq $applicationId) {
+        $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
+    } else {
         try { $script:pickerFieldEvidence = Get-PickerFieldEvidence $children $fields.Count } catch { $null = $_ }
         throw 'Expected one exact owned folder field in the library picker.'
     }
-    $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
 }
 $selectedWindowHandle = $window.Current.NativeWindowHandle
 if ($Button -ne '__observe__') {

@@ -20,6 +20,30 @@ public static class PortcoveNativeWindows {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr window, StringBuilder name, int capacity);
     [DllImport("user32.dll")] private static extern int GetDlgCtrlID(IntPtr window);
     [DllImport("user32.dll")] private static extern IntPtr GetParent(IntPtr window);
+    [DllImport("user32.dll")] private static extern IntPtr GetDlgItem(IntPtr window, int id);
+    [DllImport("user32.dll")] private static extern bool IsWindowEnabled(IntPtr window);
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongW")] private static extern int GetWindowStyle(IntPtr window, int index);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "SendMessageTimeoutW")] private static extern IntPtr SendText(IntPtr window, uint message, UIntPtr parameter, string text, uint flags, uint timeout, out UIntPtr result);
+    private static bool MatchesFolderEdit(IntPtr window, IntPtr edit, int process) {
+        uint actual;
+        GetWindowThreadProcessId(edit, out actual);
+        return edit != IntPtr.Zero && IsWindow(edit) && actual == process && Class(edit) == "Edit" &&
+            GetParent(edit) == window && GetDlgCtrlID(edit) == 1152 && IsWindowEnabled(edit) &&
+            (GetWindowStyle(edit, -16) & 0x0800) == 0;
+    }
+    public static void SetFolderText(IntPtr window, int process, string title, string value) {
+        if (!Matches(window, process, title) || Class(window) != "#32770" || !IsWindowEnabled(window))
+            throw new InvalidOperationException("Exact owned folder dialog changed.");
+        var edit = GetDlgItem(window, 1152);
+        if (!MatchesFolderEdit(window, edit, process))
+            throw new InvalidOperationException("Exact owned folder textbox absent.");
+        if (!Matches(window, process, title) || Class(window) != "#32770" || !IsWindowEnabled(window) || GetDlgItem(window, 1152) != edit ||
+            !MatchesFolderEdit(window, edit, process))
+            throw new InvalidOperationException("Exact owned folder textbox changed.");
+        UIntPtr result;
+        if (SendText(edit, 0x000C, UIntPtr.Zero, value, 0x0022, 5000, out result) == IntPtr.Zero || result == UIntPtr.Zero)
+            throw new InvalidOperationException("Owned folder text input failed or timed out.");
+    }
     private static string Class(IntPtr window) {
         var name = new StringBuilder(256);
         GetClassName(window, name, name.Capacity);
@@ -92,6 +116,10 @@ public static class PortcoveNativeWindows {
 function Get-NativePickerHandles { [PortcoveNativeWindows]::Find($applicationId, $Title) }
 function Get-NativePickerElement([IntPtr]$Handle) { [System.Windows.Automation.AutomationElement]::FromHandle($Handle) }
 function Test-NativePickerWindow([IntPtr]$Handle) { [PortcoveNativeWindows]::Matches($Handle, $applicationId, $Title) }
+function Set-NativeFolderText($Window, [string]$Value) {
+    Assert-ExactConfirmationWindow $Window
+    [PortcoveNativeWindows]::SetFolderText([IntPtr]$Window.Current.NativeWindowHandle, $applicationId, $Title, $Value)
+}
 function Get-NativePickerEditEvidence($Window) {
     foreach ($edit in [PortcoveNativeWindows]::InspectEdits([IntPtr]$Window.Current.NativeWindowHandle, $applicationId, $Title)) {
         $type = 0; $owned = $null; $available = $null

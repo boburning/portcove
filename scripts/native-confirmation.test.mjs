@@ -47,6 +47,7 @@ function New-FakeControl($name, $type, $process) {
     return $control
 }
 function Get-PickerFieldEvidence { throw 'secondary picker capture failure' }
+function Set-NativeFolderText { param($window, $value) Assert-ExactConfirmationWindow $window; $script:values++; $script:selected = $value }
 function Get-NativePickerElement {
     param($handle)
     $window = [pscustomobject]@{ Current = [pscustomobject]@{ Name = $Title; ControlType = [System.Windows.Automation.ControlType]::Window; ProcessId = 42; NativeWindowHandle = [int]$handle } }
@@ -57,7 +58,7 @@ $applicationId = 42; $DriverProcessId = 43; $Title = 'Choose Portcove library'; 
 $DirectoryPath = '${root.replaceAll("'", "''")}'; $FilePath = $null
 $application = [pscustomobject]@{ ProcessId = 42; CreationDate = 'app-birth'; ExecutablePath = 'owned-app' }
 $tree = [pscustomobject]@{ driver = [pscustomobject]@{ ProcessId = 43; CreationDate = 'driver-birth'; ExecutablePath = 'owned-driver' } }
-foreach ($script:case in @('valid', 'app-birth', 'app-image', 'app-pid', 'driver-birth', 'driver-image', 'driver-pid', 'foreign-field', 'foreign-button', 'replaced-window', 'ambiguous')) {
+foreach ($script:case in @('valid', 'native-pane', 'foreign-pane', 'duplicate-pane', 'app-birth', 'app-image', 'app-pid', 'driver-birth', 'driver-image', 'driver-pid', 'foreign-field', 'foreign-button', 'replaced-window', 'ambiguous')) {
     $script:values = 0; $script:invocations = 0; $script:selected = $null; $script:replaceWindow = $false
     $script:liveApp = [pscustomobject]@{ ProcessId = 42; CreationDate = 'app-birth'; ExecutablePath = 'owned-app' }
     $script:liveDriver = [pscustomobject]@{ ProcessId = 43; CreationDate = 'driver-birth'; ExecutablePath = 'owned-driver' }
@@ -68,6 +69,11 @@ foreach ($script:case in @('valid', 'app-birth', 'app-image', 'app-pid', 'driver
     $fieldProcess = if ($script:case -eq 'foreign-field') { 99 } else { 42 }
     $buttonProcess = if ($script:case -eq 'foreign-button') { 99 } else { 42 }
     $script:controls = @((New-FakeControl 'Folder:' ([System.Windows.Automation.ControlType]::Edit) $fieldProcess), (New-FakeControl 'Select Folder' ([System.Windows.Automation.ControlType]::Button) $buttonProcess))
+    if ($script:case -in @('native-pane', 'foreign-pane', 'duplicate-pane')) {
+        $script:controls[0].Current.ControlType = [System.Windows.Automation.ControlType]::Pane
+        if ($script:case -eq 'foreign-pane') { $script:controls[0].Current.ProcessId = 99 }
+        if ($script:case -eq 'duplicate-pane') { $script:controls += New-FakeControl 'Folder:' ([System.Windows.Automation.ControlType]::Pane) 42 }
+    }
     $window = $null; $children = @(); $deadline = [DateTime]::UtcNow.AddSeconds(1); $rejected = $false
     try {
         . ([scriptblock]::Create($discoveryLoop))
@@ -76,7 +82,7 @@ foreach ($script:case in @('valid', 'app-birth', 'app-image', 'app-pid', 'driver
         . ([scriptblock]::Create($buttonSelection))
         . ([scriptblock]::Create($buttonInput))
     } catch { $rejected = $true; $script:failureReason = $_.Exception.Message }
-    if ($script:case -eq 'valid') {
+    if ($script:case -in @('valid', 'native-pane')) {
         if ($rejected -or $script:values -ne 1 -or $script:invocations -ne 1 -or $script:selected -cne $DirectoryPath) { throw "Valid actual mutation path failed: values=$script:values invocations=$script:invocations reason=$script:failureReason" }
     } else {
         $expectedValues = if ($script:case -in @('foreign-button', 'replaced-window')) { 1 } else { 0 }
@@ -535,10 +541,12 @@ $code = [regex]::Match($source, "(?s)Add-Type -TypeDefinition @'\\r?\\n(.*?)\\r?
 if (-not $code) { throw 'production algorithm absent' }
 # Replace only the five OS boundaries; compile the production Matches/Find bodies.
 $pattern = '(?m)^    \\[DllImport[^\\r\\n]+private static extern[^\\r\\n]+;'
-if ([regex]::Matches($code, $pattern).Count -ne 8) { throw 'OS boundary inventory changed' }
+if ([regex]::Matches($code, $pattern).Count -ne 12) { throw 'OS boundary inventory changed' }
 $code = [regex]::Replace($code, $pattern, '')
 $boundary = @'
     public static bool overflow = false, failed = false, disappeared = false;
+    public static string fieldCase = "valid", sentText = null;
+    public static int sends = 0, itemCalls = 0;
     private static bool EnumWindows(Visitor visit, IntPtr state) {
         if (failed) return false;
         int limit = overflow ? 5000 : 4;
@@ -551,7 +559,7 @@ $boundary = @'
         return true;
     }
     private static uint GetWindowThreadProcessId(IntPtr handle, out uint process) {
-        process = handle.ToInt32() == 3 ? 99u : 42u; return 1;
+        process = handle.ToInt32() == 3 || (handle.ToInt32() == 9 && (fieldCase == "foreign" || (fieldCase == "late-foreign" && itemCalls > 1))) ? 99u : 42u; return 1;
     }
     private static int GetWindowText(IntPtr handle, StringBuilder text, int capacity) {
         string title = handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : "Choose Portcove library";
@@ -559,10 +567,20 @@ $boundary = @'
     }
     private static bool IsWindow(IntPtr handle) { return !disappeared; }
     private static int GetClassName(IntPtr handle, StringBuilder name, int capacity) {
-        name.Append(handle.ToInt32() == 6 ? "ComboBox" : "Edit"); return name.Length;
+        name.Append(handle.ToInt32() == 2 ? (fieldCase == "root-class" ? "other" : "#32770") : handle.ToInt32() == 6 ? "ComboBox" : handle.ToInt32() == 9 && fieldCase == "field-class" ? "other" : "Edit"); return name.Length;
     }
-    private static int GetDlgCtrlID(IntPtr handle) { return handle.ToInt32() == 6 ? 1148 : 1152; }
-    private static IntPtr GetParent(IntPtr handle) { return new IntPtr(6); }
+    private static int GetDlgCtrlID(IntPtr handle) { return handle.ToInt32() == 9 && fieldCase == "field-id" ? 99 : handle.ToInt32() == 6 ? 1148 : 1152; }
+    private static IntPtr GetParent(IntPtr handle) { return new IntPtr(handle.ToInt32() == 9 && fieldCase != "parent" ? 2 : 6); }
+    private static IntPtr GetDlgItem(IntPtr window, int id) { itemCalls++; return new IntPtr(fieldCase == "replacement" && itemCalls > 1 ? 10 : fieldCase == "absent" ? 0 : 9); }
+    private static bool IsWindowEnabled(IntPtr window) { return fieldCase != "disabled" && !(fieldCase == "late-disabled" && itemCalls > 1) && !(window.ToInt32() == 2 && (fieldCase == "root-disabled" || (fieldCase == "late-root-disabled" && itemCalls > 0))); }
+    private static int GetWindowStyle(IntPtr window, int index) {
+        if (index != -16) throw new Exception("wrong style index");
+        return fieldCase == "readonly" || (fieldCase == "late-readonly" && itemCalls > 1) ? 0x0800 : 0;
+    }
+    private static IntPtr SendText(IntPtr window, uint message, UIntPtr parameter, string text, uint flags, uint timeout, out UIntPtr result) {
+        if (window.ToInt32() != 9 || message != 12 || flags != 34 || timeout != 5000) throw new Exception("wrong native text target");
+        sends++; sentText = text; result = new UIntPtr(1); return fieldCase == "timeout" ? IntPtr.Zero : new IntPtr(1);
+    }
 '@
 $insertion = $code.IndexOf('    public static bool Matches')
 $code = $code.Insert($insertion, $boundary + [Environment]::NewLine)
@@ -571,6 +589,15 @@ $handles = @([PortcoveNativeWindows]::Find(42, 'Choose Portcove library') | ForE
 if (($handles -join ',') -cne '2,5') { throw 'PID/title/child filtering or deduplication changed' }
 $edits = @([PortcoveNativeWindows]::InspectEdits([IntPtr]2, 42, 'Choose Portcove library'))
 if ($edits.Count -ne 1 -or $edits[0].handle.ToInt32() -ne 5 -or $edits[0].control_id -ne 1152 -or $edits[0].parent_id -ne 1148 -or $edits[0].parent_class -cne 'ComboBox') { throw 'Owned structural edit inspection changed' }
+foreach ($case in @('valid', 'foreign', 'root-class', 'field-class', 'field-id', 'parent', 'replacement', 'absent', 'disabled', 'readonly', 'root-disabled', 'late-root-disabled', 'late-foreign', 'late-disabled', 'late-readonly', 'timeout')) {
+    [PortcoveNativeWindows]::fieldCase = $case; [PortcoveNativeWindows]::sends = 0; [PortcoveNativeWindows]::itemCalls = 0
+    $rejected = $false
+    try { [PortcoveNativeWindows]::SetFolderText([IntPtr]2, 42, 'Choose Portcove library', 'owned-fixture') } catch { $rejected = $true }
+    $expectedSends = if ($case -in @('valid', 'timeout')) { 1 } else { 0 }
+    if ([PortcoveNativeWindows]::sends -ne $expectedSends -or $rejected -ne ($case -ne 'valid')) { throw "Native text boundary failed $case" }
+    if ($case -eq 'valid' -and [PortcoveNativeWindows]::sentText -cne 'owned-fixture') { throw 'Native text value changed' }
+}
+[PortcoveNativeWindows]::fieldCase = 'valid'
 [PortcoveNativeWindows]::disappeared = $true
 if ([PortcoveNativeWindows]::Matches([IntPtr]2, 42, 'Choose Portcove library')) { throw 'disappeared HWND accepted' }
 [PortcoveNativeWindows]::disappeared = $false
