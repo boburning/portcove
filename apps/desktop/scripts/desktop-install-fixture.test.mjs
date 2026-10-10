@@ -171,6 +171,11 @@ test("completion fixture pins the owned executable, valid synthetic source and i
       Buffer.from([0x80, 0x37, 0x12, 0x40]),
     );
     assert.equal(fixture.sourceJourney.game.length % 4, 0);
+    assert.equal(
+      path.dirname(fixture.sourceJourney.gamePath),
+      path.join(fixture.sourceJourney.directory, "next-batch"),
+    );
+    assert.equal(path.dirname(fixture.sourceJourney.biosPath), fixture.sourceJourney.directory);
     assert.notDeepEqual(fixture.sourceJourney.game, fixture.sourceJourney.replacement);
     assert.deepEqual(
       await readFile(fixture.sourceJourney.gameBefore),

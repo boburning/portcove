@@ -65,9 +65,27 @@ export function useGameFileScan() {
       } else if (!availableRootCount(roots)) {
         notice = "No saved folder is available. Reconnect or relink one, then scan again.";
       } else {
+        const snapshot = await desktopApi.gameFileScanSnapshot();
+        if (!accepts()) return;
+        const limits =
+          snapshot?.freshness === "inputs_match" &&
+          snapshot.coverage?.can_resume &&
+          !snapshot.coverage.restart_required &&
+          snapshot.limits
+            ? snapshot.limits
+            : gameFileScanLimits;
+        if (
+          Object.entries(gameFileScanLimits).some(
+            ([name, cap]) => limits[name as keyof typeof limits] > cap,
+          )
+        ) {
+          throw new Error(
+            "The saved scan exceeds Desktop's scan budgets. Continue it with the CLI or select narrower saved folders.",
+          );
+        }
         let acceptingEvents = true;
         result = await desktopApi
-          .scanGameFileRoots(gameFileScanLimits, (event) => {
+          .scanGameFileRoots(limits, (event) => {
             if (!acceptingEvents || !accepts()) return;
             if (event.type === "started") {
               setState((previous) => ({ ...previous, operationId: event.operation_id }));
@@ -88,7 +106,7 @@ export function useGameFileScan() {
                         sha256: event.sha256,
                         size: event.size,
                       },
-                    ].slice(0, gameFileScanLimits.max_candidates),
+                    ].slice(0, limits.max_candidates),
               }));
             }
           })

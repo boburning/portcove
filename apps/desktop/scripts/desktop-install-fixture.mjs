@@ -228,7 +228,11 @@ async function addSelectedSetupSources({
     : Buffer.from("Portcove inert selected game variant B\n");
   const bios = Buffer.from("Portcove inert selected BIOS fixture\n");
   const gameExtension = completionJourney ? "z64" : "pcgame";
-  const gamePath = path.join(directory, `game.${gameExtension}`);
+  // The root's BIOS and child directory consume one real two-entry batch before
+  // traversal reaches the game. No substituted scan response supplies the result.
+  const gameDirectory = completionJourney ? path.join(directory, "next-batch") : directory;
+  if (completionJourney) await mkdir(gameDirectory);
+  const gamePath = path.join(gameDirectory, `game.${gameExtension}`);
   const biosPath = path.join(directory, "bios.pcbios");
   const gameBefore = path.join(output, "selected-game-before.pcgame");
   const gameReplacement = path.join(output, "selected-game-replacement.pcgame");
