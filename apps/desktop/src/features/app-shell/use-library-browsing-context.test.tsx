@@ -4,9 +4,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   libraryBrowsingKey,
+  libraryBrowsingPreferenceKey,
   useLibraryBrowsingContext,
   type LibraryBrowsingContext,
 } from "./use-library-browsing-context";
+import { evaluateCatalogQuery } from "../browsing/catalog-query";
+import { desktopApi } from "../../api";
 
 it("uses one browsing key for regular and namespaced Windows paths", () => {
   expect(libraryBrowsingKey("E:\\Library")).toBe("E:\\Library");
@@ -75,8 +78,227 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   window.localStorage.clear();
+});
+
+it("restores independent section query/search/sort on restart without transient or backend state", async () => {
+  const backend = vi.spyOn(desktopApi, "workspaceSnapshot");
+  const network = vi.spyOn(globalThis, "fetch");
+  expect(window.localStorage.getItem(libraryBrowsingPreferenceKey(libraryRoot))).toBeNull();
+  await act(async () => {
+    browsing.ui.setQuery("installed search");
+    browsing.ui.setFilter("ready");
+    browsing.ui.setSourcePath("private-game-path");
+    browsing.ui.setBiosPath("private-bios-path");
+    browsing.ui.setAdoptPath("private-adoption-path");
+    browsing.ui.setAdoptOpen(true);
+    browsing.ui.setSelectedId("selected-detail");
+  });
+  await act(async () => browsing.ui.setView("catalog"));
+  const filter = { version: 1, channels: ["stable", "beta"] };
+  await act(async () => {
+    browsing.ui.setFilter(filter);
+    browsing.ui.setQuery("catalog search");
+    browsing.ui.setCatalogSort("name");
+  });
+  const saved = window.localStorage.getItem(libraryBrowsingPreferenceKey(libraryRoot))!;
+  expect(saved).not.toMatch(/private-|selected-detail|scrollTop|focus/);
+  await remount();
+  expect(browsing.ui).toMatchObject({
+    view: "library",
+    filter: "ready",
+    query: "installed search",
+    catalogSort: "name",
+    selectedId: undefined,
+    sourcePath: "",
+    biosPath: "",
+    adoptPath: "",
+    adoptOpen: false,
+  });
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(browsing.ui).toMatchObject({ filter, query: "catalog search", catalogSort: "name" });
+  expect(backend).not.toHaveBeenCalled();
+  expect(network).not.toHaveBeenCalled();
+});
+
+it("isolates persisted inputs between two libraries and existing Windows namespace aliases", async () => {
+  libraryRoot = "E:\\first";
+  await remount();
+  await act(async () => browsing.ui.setQuery("first library"));
+  libraryRoot = "E:\\second";
+  await remount();
+  expect(browsing.ui.query).toBe("");
+  await act(async () => browsing.ui.setQuery("second library"));
+  libraryRoot = "\\\\?\\E:\\first";
+  await remount();
+  expect(browsing.ui.query).toBe("first library");
+  libraryRoot = "E:\\second";
+  await remount();
+  expect(browsing.ui.query).toBe("second library");
+  expect(libraryBrowsingPreferenceKey("\\\\?\\UNC\\server\\share")).toBe(
+    libraryBrowsingPreferenceKey("\\\\server\\share"),
+  );
+});
+
+it("keeps in-memory browsing inputs ahead of the persisted copy", async () => {
+  await act(async () => browsing.ui.setQuery("persisted"));
+  initial = {
+    inputs: {
+      ...browsing.ui.browsingInputs,
+      sections: {
+        ...browsing.ui.browsingInputs.sections,
+        library: { filter: "setup", query: "current memory" },
+      },
+    },
+    positions: {},
+  };
+  await remount();
+  expect(browsing.ui).toMatchObject({ filter: "setup", query: "current memory" });
+});
+
+it("keeps an unreadable preference held after switching away and returning with memory inputs", async () => {
+  const key = libraryBrowsingPreferenceKey(libraryRoot);
+  const unreadable = JSON.stringify({ version: 99, retained: "future preferences" });
+  window.localStorage.setItem(key, unreadable);
+  await remount();
+  await act(async () => browsing.ui.setQuery("first library session"));
+  await act(async () => browsing.switchLibraryWithContext("E:/second"));
+  const firstMemory = remember.mock.lastCall![1];
+  libraryRoot = "E:/second";
+  initial = undefined;
+  await remount();
+  await act(async () => browsing.ui.setQuery("second library session"));
+  libraryRoot = "E:/first";
+  initial = firstMemory;
+  await remount();
+  expect(browsing.ui.query).toBe("first library session");
+  expect(browsing.preferenceFailure).toBe("read");
+  expect(window.localStorage.getItem(key)).toBe(unreadable);
+  await act(async () => browsing.ui.setQuery("still held current choices"));
+  expect(window.localStorage.getItem(key)).toBe(unreadable);
+  await act(async () => {
+    expect(browsing.saveBrowsingPreferences()).toBe(true);
+  });
+  expect(browsing.preferenceFailure).toBeUndefined();
+  expect(window.localStorage.getItem(key)).not.toBe(unreadable);
+});
+
+it.each([
+  { version: 1, channels: ["retired-channel"] },
+  { version: 99, channels: ["stable"] },
+  { version: 1, futurePredicate: ["selected"] },
+])("keeps unsupported restored query %j unresolved until an explicit reset", async (filter) => {
+  await act(async () => browsing.ui.setView("catalog"));
+  await act(async () => browsing.ui.setFilter(filter));
+  await remount();
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(browsing.ui.filter).toEqual(filter);
+  expect(evaluateCatalogQuery([], browsing.ui.filter).state).toBe("unresolved");
+  await act(async () => browsing.ui.setFilter("all"));
+  await remount();
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(browsing.ui.filter).toBe("all");
+});
+
+it("migrates compatible legacy shortcuts and retains an unknown legacy identifier", async () => {
+  await act(async () => browsing.ui.setFilter("ready"));
+  await act(async () => browsing.ui.setView("catalog"));
+  await act(async () => browsing.ui.setFilter("retired-channel" as never));
+  await remount();
+  expect(browsing.ui.filter).toBe("ready");
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(browsing.ui.filter).toEqual({ version: 1, channels: ["retired-channel"] });
+  expect(evaluateCatalogQuery([], browsing.ui.filter).state).toBe("unresolved");
+});
+
+it("does not redirect a restored explicit Library choice on an empty first snapshot", async () => {
+  await act(async () => browsing.ui.setQuery("explicit search"));
+  expect(window.localStorage.getItem("portcove.empty-profile-landing.v1")).toBeNull();
+  await remount();
+  await acceptSnapshot(0, 89);
+  expect(browsing.ui).toMatchObject({ view: "library", query: "explicit search" });
+});
+
+it.each([
+  "{malformed",
+  JSON.stringify({ version: 99 }),
+  JSON.stringify({ version: 1, library: "another-library", inputs: {} }),
+  "x".repeat(64 * 1024 + 1),
+])("retains unreadable saved inputs and requires explicit replacement (%#)", async (serialized) => {
+  const key = libraryBrowsingPreferenceKey(libraryRoot);
+  window.localStorage.setItem(key, serialized);
+  await remount();
+  expect(browsing.preferenceFailure).toBe("read");
+  await act(async () => browsing.ui.setQuery("current session"));
+  expect(window.localStorage.getItem(key)).toBe(serialized);
+  await act(async () => browsing.switchLibraryWithContext("E:/second"));
+  expect(switchLibrary).toHaveBeenCalledWith("E:/second");
+  await act(async () => {
+    expect(browsing.saveBrowsingPreferences()).toBe(true);
+  });
+  expect(browsing.preferenceFailure).toBeUndefined();
+  await remount();
+  expect(browsing.ui.query).toBe("current session");
+});
+
+it("preserves the previous saved choices on quota failure and retries current inputs explicitly", async () => {
+  await act(async () => browsing.ui.setQuery("previous saved"));
+  const key = libraryBrowsingPreferenceKey(libraryRoot);
+  const previous = window.localStorage.getItem(key);
+  const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new DOMException("storage full", "QuotaExceededError");
+  });
+  await act(async () => browsing.ui.setQuery("current unsaved"));
+  expect(browsing.preferenceFailure).toBe("write");
+  expect(window.localStorage.getItem(key)).toBe(previous);
+  await act(async () => {
+    expect(browsing.saveBrowsingPreferences()).toBe(false);
+  });
+  write.mockRestore();
+  await act(async () => {
+    expect(browsing.saveBrowsingPreferences()).toBe(true);
+  });
+  expect(browsing.preferenceFailure).toBeUndefined();
+  await remount();
+  expect(browsing.ui.query).toBe("current unsaved");
+});
+
+it("keeps browsing and library switching available when preference access is denied", async () => {
+  const read = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+    throw new DOMException("denied", "SecurityError");
+  });
+  const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new DOMException("denied", "SecurityError");
+  });
+  await remount();
+  expect(browsing.preferenceFailure).toBe("read");
+  await act(async () => {
+    browsing.ui.setQuery("session only");
+    browsing.ui.setFilter("ready");
+  });
+  await act(async () => browsing.resetLibraryWithContext());
+  expect(resetLibrary).toHaveBeenCalledOnce();
+  expect(browsing.ui).toMatchObject({ query: "session only", filter: "ready" });
+  await act(async () => {
+    expect(browsing.saveBrowsingPreferences()).toBe(false);
+  });
+  read.mockRestore();
+  write.mockRestore();
+  await act(async () => {
+    expect(browsing.saveBrowsingPreferences()).toBe(true);
+  });
+  expect(browsing.preferenceFailure).toBeUndefined();
+});
+
+it("never saves old inputs under a changed root before its workspace is remounted", async () => {
+  await act(async () => browsing.ui.setQuery("first library"));
+  libraryRoot = "E:/second";
+  await act(async () => root.render(createElement(Fixture)));
+  await act(async () => browsing.ui.setQuery("old mounted workspace"));
+  expect(window.localStorage.getItem(libraryBrowsingPreferenceKey(libraryRoot))).toBeNull();
+  expect(browsing.saveBrowsingPreferences()).toBe(false);
 });
 
 async function acceptSnapshot(active: number, available: number) {
