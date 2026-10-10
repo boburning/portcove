@@ -103,6 +103,13 @@ export function baselineFrontendPlan(plan, options) {
   );
 }
 
+// Fixture execution must not publish synthetic timings under the hosted job identity.
+export function baselineTestEnvironment(environment = process.env) {
+  const isolated = { ...environment };
+  delete isolated.PORTCOVE_CI_METRICS_DIR;
+  return isolated;
+}
+
 function main() {
   const metrics = createCiMetrics();
   const plan = validateValidationPlan(JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? ""));
@@ -117,6 +124,7 @@ function main() {
     const result = metrics.measure("bootstrap-regressions", () =>
       spawnSync(process.execPath, ["--test", "--test-timeout=30000", ...tests], {
         cwd: root,
+        env: baselineTestEnvironment(),
         stdio: "inherit",
         windowsHide: true,
       }),
@@ -145,7 +153,7 @@ function main() {
               "--test-reporter=./scripts/test-duration-reporter.mjs",
               ...batch,
             ],
-            { cwd: root, stdio: "inherit", windowsHide: true },
+            { cwd: root, env: baselineTestEnvironment(), stdio: "inherit", windowsHide: true },
           ),
       );
       if (result.error) throw result.error;
