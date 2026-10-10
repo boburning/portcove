@@ -835,6 +835,102 @@ export async function selectedSetupScenario({
       await click(button("Refresh folders"));
       report.observations.initial_scan = await scan();
       assert.deepEqual(command(["source", "list"]), [], "Discovery must never register sources");
+      const sourceRow = await browser.findElement(row(owned.profiles[1]));
+      const associationText = `Catalog ports using this profile: ${command(["catalog", "list"])
+        .filter((port) => port.bios_source_profile === owned.profiles[1])
+        .map((port) => port.name)
+        .join(", ")}`;
+      await browser.executeScript(
+        (element) => element.scrollIntoView({ block: "center", behavior: "instant" }),
+        sourceRow,
+      );
+      report.observations.source_metadata_presentation = await browser.wait(
+        () =>
+          browser.executeScript(
+            (element, expectedAssociation) => {
+              const spans = [...element.querySelectorAll("span")];
+              const size = spans.find((span) => span.textContent.trim() === "37 B");
+              const association = spans.find(
+                (span) => span.textContent.trim() === expectedAssociation,
+              );
+              if (!size || !association) return null;
+              const clipping = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+              for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+                const style = getComputedStyle(ancestor);
+                if (
+                  style.display === "none" ||
+                  style.visibility !== "visible" ||
+                  Number(style.opacity) === 0 ||
+                  ancestor.getAnimations().some((animation) => animation.playState === "running")
+                )
+                  return null;
+                const bounds = ancestor.getBoundingClientRect();
+                if (/^(auto|scroll|hidden|clip)$/.test(style.overflowX)) {
+                  clipping.left = Math.max(clipping.left, bounds.left + ancestor.clientLeft);
+                  clipping.right = Math.min(
+                    clipping.right,
+                    bounds.left + ancestor.clientLeft + ancestor.clientWidth,
+                  );
+                }
+                if (/^(auto|scroll|hidden|clip)$/.test(style.overflowY)) {
+                  clipping.top = Math.max(clipping.top, bounds.top + ancestor.clientTop);
+                  clipping.bottom = Math.min(
+                    clipping.bottom,
+                    bounds.top + ancestor.clientTop + ancestor.clientHeight,
+                  );
+                }
+              }
+              const textRects = (span) => {
+                const range = document.createRange();
+                range.selectNodeContents(span);
+                return [...range.getClientRects()].map((rect) => rect.toJSON());
+              };
+              const sizeRects = textRects(size);
+              const associationRects = textRects(association);
+              const framed = (rect) =>
+                rect.width > 0 &&
+                rect.height > 0 &&
+                rect.left >= clipping.left &&
+                rect.top >= clipping.top &&
+                rect.right <= clipping.right &&
+                rect.bottom <= clipping.bottom;
+              if (
+                !sizeRects.length ||
+                !associationRects.length ||
+                ![...sizeRects, ...associationRects].every(framed) ||
+                Math.min(...associationRects.map((rect) => rect.top)) <
+                  Math.max(...sizeRects.map((rect) => rect.bottom))
+              )
+                return null;
+              return {
+                size: size.textContent.trim(),
+                association: association.textContent.trim(),
+                size_rects: sizeRects,
+                association_rects: associationRects,
+                clipping,
+                viewport: {
+                  width: innerWidth,
+                  height: innerHeight,
+                  device_scale: devicePixelRatio,
+                },
+              };
+            },
+            sourceRow,
+            associationText,
+          ),
+        5_000,
+        "The settled source size and Catalog association must be fully framed on separate lines",
+      );
+      report.observations.source_metadata_presentation.window = await browser
+        .manage()
+        .window()
+        .getRect();
+      const metadataScreenshot = path.join(output, "selected-setup-source-metadata.png");
+      await writeFile(metadataScreenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(metadataScreenshot);
       await reviewCandidate(owned.profiles[0]);
       assertOwnedSelectedSetupPath(
         await browser.findElement(review).findElement(By.css("code")).getText(),
