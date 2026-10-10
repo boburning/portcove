@@ -212,6 +212,17 @@ hours, snapshot/channel at seven days, and targets/release at 90 days. An exact
 retry verifies the existing signatures, versions, expiry values, target inventory,
 and content manifest; changed immutable output is refused.
 
+The schema-2 release-tool path separates offline top-level-targets bootstrap from
+routine online role signing. Bootstrap fixes the payload registry, delegated keys
+and Windows NSIS/Linux AppImage namespaces. A routine build authenticates and
+preserves the exact signed bootstrap targets bytes, and receives only the five
+online role keys. Registry/key/namespace changes and changed offline input on
+retry are refused. Existing host trust, selection and replay checks consume the
+resulting repository without another authority. This is a local signing boundary;
+production custody, enforced-controller principal, signing/publication credentials,
+activation and independent public proof remain owned by #534. Configuration and
+renewal details are in [Releasing](RELEASING.md).
+
 Neither offline operation provisions or retains private keys, authenticates its
 controller inputs, publishes to GitHub Pages, configures an endpoint, downloads,
 or activates the runtime updater. The protected controller must verify inventories

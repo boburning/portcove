@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 async-trait.workspace = true
+aws-lc-rs = "1.18.1"
 base64 = "0.23.1"
 futures-util.workspace = true
 hex.workspace = true
@@ -24,5 +25,4 @@ tough.workspace = true
 url.workspace = true
 
 [dev-dependencies]
-aws-lc-rs = "1.18.1"
 minisign = "0.10.0"
