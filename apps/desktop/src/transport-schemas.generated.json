@@ -2592,6 +2592,114 @@
         ],
         "type": "string"
       },
+      "CuratedAcquisitionRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "acquisition_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "acquisition_host": {
+            "type": "string"
+          },
+          "acquisition_url": {
+            "type": "string"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "commit_sha1": {
+            "type": "string"
+          },
+          "distribution_basis": {
+            "type": "string"
+          },
+          "distribution_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "independent_review": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "protected_acceptance": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "record_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "upstream_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_version",
+          "repository",
+          "upstream_url",
+          "acquisition_host",
+          "acquisition_url",
+          "release_id",
+          "tag",
+          "commit_sha1",
+          "asset_id",
+          "platform",
+          "route",
+          "filename",
+          "size",
+          "sha256",
+          "acquisition_evidence",
+          "distribution_basis",
+          "distribution_evidence",
+          "independent_review",
+          "protected_acceptance"
+        ],
+        "type": "object"
+      },
+      "CuratedEvidenceReference": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "DigestIdentity": {
         "additionalProperties": false,
         "description": "Digests inside one record are conjunctive and describe one exact byte scope.\nSeparate records and representations are alternatives.",
@@ -3361,6 +3469,25 @@
                   "type": "string"
                 },
                 "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "curated": {
+            "additionalProperties": false,
+            "description": "Inert exact-byte proposal records; runtime authority is separately admitted.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
               }
             },
             "type": "object"
@@ -11479,6 +11606,114 @@
         ],
         "type": "object"
       },
+      "CuratedAcquisitionRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "acquisition_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "acquisition_host": {
+            "type": "string"
+          },
+          "acquisition_url": {
+            "type": "string"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "commit_sha1": {
+            "type": "string"
+          },
+          "distribution_basis": {
+            "type": "string"
+          },
+          "distribution_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "independent_review": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "protected_acceptance": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "record_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "upstream_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_version",
+          "repository",
+          "upstream_url",
+          "acquisition_host",
+          "acquisition_url",
+          "release_id",
+          "tag",
+          "commit_sha1",
+          "asset_id",
+          "platform",
+          "route",
+          "filename",
+          "size",
+          "sha256",
+          "acquisition_evidence",
+          "distribution_basis",
+          "distribution_evidence",
+          "independent_review",
+          "protected_acceptance"
+        ],
+        "type": "object"
+      },
+      "CuratedEvidenceReference": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "DirectReleaseSpec": {
         "properties": {
           "published_at": {
@@ -11711,6 +11946,25 @@
                   "type": "string"
                 },
                 "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "curated": {
+            "additionalProperties": false,
+            "description": "Inert exact-byte proposal records; runtime authority is separately admitted.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
               }
             },
             "type": "object"
@@ -15563,6 +15817,114 @@
         ],
         "type": "string"
       },
+      "CuratedAcquisitionRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "acquisition_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "acquisition_host": {
+            "type": "string"
+          },
+          "acquisition_url": {
+            "type": "string"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "commit_sha1": {
+            "type": "string"
+          },
+          "distribution_basis": {
+            "type": "string"
+          },
+          "distribution_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "independent_review": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "protected_acceptance": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "record_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "upstream_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_version",
+          "repository",
+          "upstream_url",
+          "acquisition_host",
+          "acquisition_url",
+          "release_id",
+          "tag",
+          "commit_sha1",
+          "asset_id",
+          "platform",
+          "route",
+          "filename",
+          "size",
+          "sha256",
+          "acquisition_evidence",
+          "distribution_basis",
+          "distribution_evidence",
+          "independent_review",
+          "protected_acceptance"
+        ],
+        "type": "object"
+      },
+      "CuratedEvidenceReference": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "DigestIdentity": {
         "additionalProperties": false,
         "description": "Digests inside one record are conjunctive and describe one exact byte scope.\nSeparate records and representations are alternatives.",
@@ -16332,6 +16694,25 @@
                   "type": "string"
                 },
                 "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "curated": {
+            "additionalProperties": false,
+            "description": "Inert exact-byte proposal records; runtime authority is separately admitted.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
               }
             },
             "type": "object"

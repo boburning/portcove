@@ -27,6 +27,9 @@ pub struct CatalogProposalPortInspection {
     pub port_id: String,
     pub definition_sha256: String,
     pub check: &'static str,
+    /// Hashes declared records; evidence references remain unauthenticated.
+    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub curated_record_sha256: std::collections::BTreeMap<crate::Platform, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,6 +57,17 @@ impl Catalog {
                     port_id: port.id.clone(),
                     definition_sha256: hex::encode(Sha256::digest(serde_json::to_vec(port)?)),
                     check: "catalog-declared-contract-validation",
+                    curated_record_sha256: port
+                        .release
+                        .curated
+                        .iter()
+                        .map(|(platform, record)| {
+                            Ok((
+                                *platform,
+                                hex::encode(Sha256::digest(serde_json::to_vec(record)?)),
+                            ))
+                        })
+                        .collect::<Result<_>>()?,
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -605,6 +619,23 @@ impl Catalog {
             }
             // Maintenance state describes the upstream; exact source and operation
             // contracts decide whether this port can be admitted and used.
+            if !port.release.curated.is_empty() {
+                if self.document.schema_version != 2
+                    || port.release.provider != ReleaseSource::Github
+                {
+                    return Err(PortcoveError::unsupported(
+                        "curated records require a schema-2 GitHub proposal",
+                    ));
+                }
+                for (platform, record) in &port.release.curated {
+                    if !port.platforms.contains(platform) {
+                        return Err(PortcoveError::usage(
+                            "curated record platform is not declared",
+                        ));
+                    }
+                    record.validate(&port.release.repository, *platform)?;
+                }
+            }
             match port.release.provider {
                 ReleaseSource::Github | ReleaseSource::Gitlab => {
                     if !valid_repository_path(&port.release.repository)

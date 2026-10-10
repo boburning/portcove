@@ -212,6 +212,25 @@ shared acquisition, transaction, persistence and lifecycle owners when catalog
 data or a shared adapter cannot express the useful route. A bare upstream link
 or placeholder is not an integration.
 
+Schema-2 GitHub proposals may carry `release.curated`, keyed by declared platform.
+Each version-1 record binds repository/upstream, canonical original GitHub release
+asset URL and host, release/tag/commit/asset identities, platform/route, safe
+filename, nonzero size and canonical SHA-256. Acquisition, distribution,
+independent-review and protected-acceptance evidence references carry bounded
+HTTPS locations and exact declared digests. Distribution basis is explicit.
+These are inert declarations: shape validation does not authenticate the
+referenced evidence, publisher, build or distribution permission.
+
+The existing Core proposal inspector includes each record's declaration hash
+alongside its port hash without fetching or changing anything. Empty maps are
+omitted from serialized definitions, preserving existing declaration identities.
+Schema-1 and non-GitHub curated proposals are refused. Existing runtime
+acquisition, custom providers and managed GitHub grants refuse curated
+declarations until a separately admitted capability, exact upstream metadata
+and byte verifier, scoped holds and recovery integration are implemented under
+[#315](https://github.com/boburning/portcove/issues/315). No provider digest fallback
+or client-observed self-hash acceptance is introduced by record preparation.
+
 GitHub Stable selection excludes provider-declared prereleases, existing
 hyphenated development markers, and case-insensitive numbered beta suffixes
 such as `Version1.0.5beta12`, even when upstream leaves its prerelease flag unset.
