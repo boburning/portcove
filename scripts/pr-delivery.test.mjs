@@ -10,12 +10,37 @@ import {
   requiredContextsFromConfigs,
   watchRequiredChecks,
   inspectRenovateQueue,
+  baselineTimingWindow,
 } from "./pr-delivery.mjs";
 
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
 const head = "a".repeat(40);
 const base = "b".repeat(40);
 const merge = "c".repeat(40);
+
+test("baseline timings separate initial queue and all required gate completion", () => {
+  const workflow = { created_at: "2026-10-09T00:00:00Z", run_started_at: "2026-10-09T00:00:10Z" };
+  const jobs = required.map((name, index) => ({
+    name,
+    completed_at: `2026-10-09T00:01:${10 + index}Z`,
+  }));
+  const timing = baselineTimingWindow(
+    workflow,
+    jobs,
+    required.map((context) => ({ context })),
+  );
+  assert.equal(timing.queue_ms, 10000);
+  assert.equal(timing.baseline_elapsed_ms, 64000);
+  assert.equal(
+    baselineTimingWindow(
+      workflow,
+      jobs.slice(1),
+      required.map((context) => ({ context })),
+    ).baseline_elapsed_ms,
+    null,
+  );
+  assert.equal(baselineTimingWindow({}, jobs, []).measurement, "unavailable");
+});
 
 function included(body, headers = {}) {
   return (

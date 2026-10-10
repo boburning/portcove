@@ -1234,8 +1234,12 @@ async fn managed_installer_requires_resolver_proof_and_refuses_artifact_redirect
 
 #[tokio::test]
 async fn managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract() {
-    managed_ordinary_lifecycle(None).await;
+    managed_ordinary_lifecycle(None, None).await;
 }
+
+type ManagedAcquisitionDriver<'a> = Option<
+    &'a mut dyn FnMut(&Library, &AcquisitionHttp, u64, &str, &Value, &[u8]) -> crate::InstallRecord,
+>;
 
 type ManagedStageObserver<'a> = Option<&'a mut dyn FnMut(&Library, &str)>;
 
@@ -1245,7 +1249,10 @@ fn observe_managed_stage(observer: &mut ManagedStageObserver<'_>, library: &Libr
     }
 }
 
-async fn managed_ordinary_lifecycle(mut observer: ManagedStageObserver<'_>) {
+async fn managed_ordinary_lifecycle(
+    mut observer: ManagedStageObserver<'_>,
+    mut acquisition: ManagedAcquisitionDriver<'_>,
+) {
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
     let phase_clock = std::time::Instant::now();
@@ -1305,42 +1312,53 @@ async fn managed_ordinary_lifecycle(mut observer: ManagedStageObserver<'_>) {
         let bytes = archive.finish().unwrap().into_inner();
         let digest = hex::encode(Sha256::digest(&bytes));
         phase(&format!("{version}:zip:complete"));
-        server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
         let mut release = server.release(true);
         release[0]["tag_name"] = version.into();
         release[0]["assets"][0]["name"] = format!("game-{}.zip", platform.asset_tokens()[0]).into();
         release[0]["assets"][0]["size"] = bytes.len().into();
         release[0]["assets"][0]["digest"] = format!("sha256:{digest}").into();
-        server.json(release);
-        phase(&format!("{version}:resolve:start"));
-        let resolution = provider
-            .resolve_scoped(
-                catalog.port(ID).unwrap(),
-                ReleaseChannel::Stable,
-                platform,
-                Some(&scope),
+        let installed = if let Some(acquire) = acquisition.as_mut() {
+            acquire(
+                &library,
+                &server,
+                scope.repository_id,
+                version,
+                &release,
+                &bytes,
             )
-            .await
-            .unwrap();
-        phase(&format!("{version}:resolve:complete"));
-        server.bytes(&bytes);
-        let request = crate::InstallRequest {
-            port_id: ID.into(),
-            release: resolution.release.clone(),
-            output_root: library.versions_dir().join(ID),
-            activate: true,
-            managed: None,
-            qualification: crate::InstallQualification::from_catalog(&catalog, ID, platform)
+        } else {
+            server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+            server.json(release);
+            phase(&format!("{version}:resolve:start"));
+            let resolution = provider
+                .resolve_scoped(
+                    catalog.port(ID).unwrap(),
+                    ReleaseChannel::Stable,
+                    platform,
+                    Some(&scope),
+                )
+                .await
+                .unwrap();
+            phase(&format!("{version}:resolve:complete"));
+            server.bytes(&bytes);
+            let request = crate::InstallRequest {
+                port_id: ID.into(),
+                release: resolution.release.clone(),
+                output_root: library.versions_dir().join(ID),
+                activate: true,
+                managed: None,
+                qualification: crate::InstallQualification::from_catalog(&catalog, ID, platform)
+                    .unwrap()
+                    .with_acquisition_resolution(resolution)
+                    .unwrap(),
+            };
+            let operation = crate::operation::OperationCoordinator::new("install", None);
+            phase(&format!("{version}:install:start"));
+            installer
+                .install(request, &operation, |_| {})
+                .await
                 .unwrap()
-                .with_acquisition_resolution(resolution)
-                .unwrap(),
         };
-        let operation = crate::operation::OperationCoordinator::new("install", None);
-        phase(&format!("{version}:install:start"));
-        let installed = installer
-            .install(request, &operation, |_| {})
-            .await
-            .unwrap();
         phase(&format!("{version}:install:complete"));
         phase(&format!("{version}:retained-readback:start"));
         assert_eq!(installed.version, version);
@@ -1370,7 +1388,18 @@ async fn managed_ordinary_lifecycle(mut observer: ManagedStageObserver<'_>) {
         fs::read(delivered[0].path.join(executable)).unwrap(),
         b"owned synthetic ordinary artifact v1"
     );
-    assert_eq!(server.requests.lock().unwrap().len(), 6);
+    assert_eq!(
+        server.requests.lock().unwrap().len(),
+        if acquisition.is_some() { 38 } else { 6 }
+    );
+    assert!(
+        server
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|request| { !request.to_ascii_lowercase().contains("authorization:") })
+    );
     assert!(server.responses.lock().unwrap().is_empty());
 
     // The same capable service must consume a signed presentation correction

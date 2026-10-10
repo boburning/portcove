@@ -177,14 +177,40 @@ test("missing refs and Git errors block rather than authorize guessed validation
   }
 });
 
-test("main and explicit events run all fast groups without consulting a diff", () => {
-  for (const eventName of ["push", "workflow_dispatch", "merge_group"])
-    assert.equal(
-      discoverCiPlan({ eventName, baseSha: "", headSha: "", checkoutSha: sha("c") }, () =>
-        assert.fail("git must not run"),
-      ).mode,
-      "fast",
-    );
+test("main pushes compare the complete before-to-after event diff", () => {
+  const calls = [];
+  const p = discoverCiPlan(
+    {
+      eventName: "push",
+      baseSha: sha("a"),
+      headSha: sha("b"),
+      checkoutSha: sha("b"),
+      proseOnlyEnabled: true,
+      fastValidationEnabled: true,
+    },
+    (args) => {
+      calls.push(args);
+      return Buffer.from(":100644 100644 aaaa bbbb M\0apps/desktop/src/App.tsx\0");
+    },
+  );
+  assert.deepEqual(calls, [
+    ["cat-file", "-e", `${sha("b")}^{commit}`],
+    ["cat-file", "-e", `${sha("a")}^{commit}`],
+    ["diff", "--raw", "-z", "--find-renames", sha("a"), sha("b")],
+  ]);
+  assert.deepEqual(p.groups, ["frontend", "rust-quality"]);
+  assert.equal(p.identities.merge_base, sha("a"));
+  const first = discoverCiPlan(
+    { eventName: "push", baseSha: "0".repeat(40), checkoutSha: sha("b") },
+    () => assert.fail(),
+  );
+  assert.deepEqual(first.groups, [
+    "catalog",
+    "dependency-review",
+    "frontend",
+    "rust",
+    "rust-quality",
+  ]);
 });
 
 test("reusable qualification forces the exhaustive plan on the exact checkout", () => {
@@ -283,21 +309,10 @@ test("containment discovery binds complete protected coverage for both rename si
         (args) => (args[0] === "merge-base" ? `${sha("d")}\n` : diff),
       );
       assert.equal(selected.discovery, "complete");
-      assert.equal(selected.mode, "qualification", input);
-      assert.equal(selected.qualification_required, true, input);
-      assert.deepEqual(selected.groups, [
-        "catalog",
-        "dependency-review",
-        "frontend",
-        "rust",
-        "rust-quality",
-      ]);
-      assert.deepEqual(selected.platforms, [
-        "linux-x86_64",
-        "macos-aarch64",
-        "macos-x86_64",
-        "windows-x86_64",
-      ]);
+      assert.equal(selected.mode, "fast", input);
+      assert.equal(selected.qualification_required, false, input);
+      assert.ok(selected.groups.includes("catalog") && selected.groups.includes("rust-quality"));
+      assert.deepEqual(selected.platforms, ["primary-host"]);
       assert.equal(selected.paths.find((entry) => entry.path === input).unknown, false);
       assert.deepEqual(selected.identities, {
         base: sha("a"),
@@ -310,4 +325,30 @@ test("containment discovery binds complete protected coverage for both rename si
         assert.ok(selected.fallback.paths.includes(future));
     }
   }
+});
+
+test("missing historical push base falls back to the whole baseline; current head and malformed diff block", () => {
+  const options = {
+    eventName: "push",
+    baseSha: sha("a"),
+    headSha: sha("b"),
+    checkoutSha: sha("b"),
+    fastValidationEnabled: true,
+    proseOnlyEnabled: true,
+  };
+  const missing = discoverCiPlan(options, (args) => {
+    if (args[0] === "cat-file" && args[2].startsWith(sha("a")))
+      throw Object.assign(new Error("missing base"), { status: 128 });
+    return Buffer.alloc(0);
+  });
+  assert.equal(missing.mode, "fast");
+  assert.equal(missing.groups.length, 5);
+  assert.deepEqual(missing.changed_files, []);
+  for (const runner of [
+    () => {
+      throw Object.assign(new Error("missing head"), { status: 128 });
+    },
+    (args) => (args[0] === "diff" ? Buffer.from("truncated") : Buffer.alloc(0)),
+  ])
+    assert.equal(discoverCiPlan(options, runner).mode, "blocked");
 });

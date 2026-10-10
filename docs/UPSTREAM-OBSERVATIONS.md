@@ -147,47 +147,134 @@ Core and compiled-CLI tests prove the shared policy and offline boundary.
 Scheduled live observation, actual artifact lifecycle and gameplay evidence
 must be recorded separately in the owning issue and linked run artifacts.
 
-## Catalog repository reachability
+## Catalog location reachability
 
-`node scripts/check-catalog-repositories.mjs` is the separate repository-only
-checker used by `upstream-health.yml`. `--json` emits its versioned diagnostic
-report instead of human lines. It requests metadata from each distinct declared
-GitHub or GitLab repository and records affected stable port IDs, observed numeric
-repository ID and archive state. Existing user-prepared entries retain their
-GitHub upstream coverage; their externally prepared files are not inspected.
-GitLab public metadata may omit archive state; a matching reachable repository
-then carries `archived: null` and human output says archive state unknown. An
-explicit malformed archive value is not accepted as a missing observation.
-Direct-manifest ports are listed as excluded from this repository check. Their
-accepted-artifact availability remains unassessed, rather than counted as healthy.
+`node scripts/check-catalog-repositories.mjs` is the separate read-only location
+checker used by `upstream-health.yml`. `--json` emits its format-2 diagnostic
+report instead of human lines. Its inventory includes each distinct declared
+GitHub or GitLab repository, original project location, DirectManifest artifact
+location and locatable historical qualification identity. Changing the release
+provider does not discard the original upstream. User-prepared entries retain
+upstream coverage; externally prepared files are not inspected.
 
-A complete result means all included repository endpoints supplied valid matching
-metadata. It does not authenticate project continuity or detect reuse of the same
-repository name; the observed numeric ID is not compared against a historical
-accepted identity. Release bytes, acquisition locations, preservation, distribution
-permission, operation holds and qualification are explicitly unassessed. Archived
-repositories remain reachable and do not create a hold by themselves. This report
-cannot replace the configured observer's pinned identity, complete release/asset
-collections, checkpoint or Core projection.
+Hosted metadata records stable port IDs, observed numeric repository ID and
+archive state. GitLab public metadata may omit archive state; a matching reachable
+repository then carries `archived: null`, not an inferred false value. Explicit
+malformed archive values are rejected. Direct artifacts and other project
+locations use credential-free HEAD requests. A matching declared size establishes
+location reachability only; metadata and HEAD never verify accepted artifact bytes.
+Historical release metadata preserves exact refs and provider-reported digest
+claims, with incomplete or contradictory asset collections remaining unknown.
 
-Failures retain a nonzero exit and a report with the complete coverage denominator.
-Transport errors, timeouts, malformed/oversized metadata, mismatched locations,
-HTTP access failures and provider failures remain unknown. A 404 is
-inaccessible-or-missing; it cannot establish deletion, retirement or succession.
-GitHub documents that improperly authenticated private resources can return 404:
+Complete means every inventoried condition is accounted for, not that every port
+is installable. Existing reviewed catalog maintenance declarations account for
+an unavailable original location only at their stated scope and retain degraded
+output. They cannot suppress missing artifacts, new identity/access failures or
+an unclassified shared location. Archived repositories remain reachable and do
+not create a hold by themselves. Original reachability, unresolved lineage,
+accepted-byte obtainability, preservation, holds and retained qualification stay
+separate; this report cannot replace the configured observer or Core authority.
+See [read-only disappearance reporting](CATALOG.md#read-only-disappearance-reporting)
+for the full contract and the existing #124/#139 Starfox continuity incident.
+
+Failures retain a nonzero exit and the complete coverage denominator. Transport
+errors, timeouts, malformed/oversized metadata, mismatched identities, HTTP access
+failures and provider failures remain unknown. A 404 is inaccessible-or-missing;
+it cannot establish deletion, retirement or succession. GitHub documents that
+improperly authenticated private resources can return 404:
 [REST troubleshooting](https://docs.github.com/en/rest/using-the-rest-api/troubleshooting-the-rest-api?apiVersion=2022-11-28).
-No raw response prose, credentials or transport-error details enter the report.
-The observation interval describes this attempt; reports have no continuing
-freshness or admission authority.
+
+Requests observe redirects manually without following them. HTTP 301, 302, 303,
+307 and 308 produce `provider-redirect`, retaining the original response status
+and an identity-review resume condition. Redirects remain unknown; destination
+reachability or continuity is not inferred. Unclassified redirects remain
+unaccounted and incomplete. No
+Location header, potentially signed redirect URL, raw response prose, credentials
+or transport-error details enter the report, and credentials are never forwarded.
+A redirect is therefore distinguishable from a failed transport without trusting
+another location or changing the catalog.
+
+The protected `.github/upstream-health-accounting.json` binds the owner-reviewed
+monitoring dispositions proposed in #247 comment 6082358982. It grants no catalog,
+lineage, artifact, hold or publication authority. Its original-location conditions
+bind exact port contracts (excluding summary), original location, operation,
+HTTP status and rule. A repository 301 additionally requires the exact documented
+numeric redirect identity in bounded JSON metadata; that endpoint is never followed.
+The Starfox 404 remains inaccessible-or-missing with unresolved continuity, not
+retirement. Every shared port must have the matching reviewed scope. Changed,
+missing, malformed or unclassified conditions retain a nonzero outcome.
+
+For the three reviewed GitHub direct pins, a HEAD 302 may trigger three bounded
+fixed API metadata reads derived from the declared repository/tag/filename. These
+validate the reviewed repository, release and asset IDs, complete uncapped asset
+collections, exact uploaded asset URL/name/size/provider digest and retained asset
+facts. They reuse the configured observer's strict metadata normalization through
+a narrow helper; unrelated release enumeration and redirects remain prohibited.
+Missing or changed facts, API redirects, partial/capped/ambiguous collections,
+rate limits and access failures remain unknown and unaccounted.
+
+An exact match is `provider-reported-pin-present; destination-unknown;
+bytes-unverified`. It accounts for this reviewed metadata monitoring obligation,
+never the downstream download or accepted bytes. The original HEAD 302 remains
+visible and unknown, contributes no reachable endpoint, and keeps degraded output.
+Original-location accounting likewise retains unknown availability and lineage.
+The report digests its accounting policy and material condition facts; changed
+conditions produce a new material incident requiring review. Collection counts
+distinguish network-attempted locations, reused repository observations and total
+network requests. A complete bounded HTTP 200 repository response may serve the
+pin check and identical original-location endpoint within the same collection;
+all per-pin and original-location identity checks still run. Failed, redirected,
+partial or malformed reads are not cached. The map is discarded after collection
+and never imports prior-report metadata. Old and relocated endpoints stay distinct.
+Current 88-port fixture coverage retains all 101 locations and nine pin checks
+with 121 requests instead of 128; adding one equivalent pinned title forecasts
+125 requests, two forecast 129 and exceed the unchanged cap. All existing
+request/time/body bounds, credential routing and source/installation safeguards
+remain in force. A passing monitor means accounted conditions, not installability.
+
+An optional bounded `--previous-report=PATH` supplies comparison evidence. A
+matching canonical catalog hash and nonfuture report no older than 24 hours may
+supply notification comparison/backoff; an older matching structural snapshot
+retains only its repository-ID baseline. A different observed numeric ID fails
+closed, rather than silently replacing that baseline. The report does not
+authenticate historical ownership or turn a reused name into continuity evidence.
+Repeated unchanged incidents keep their first-seen time and stable condition key
+without repeated notification; their unknown status and failure exit remain.
+Fresh recovery is reported separately. Current availability is always observed
+within the attempt, except explicitly deferred rate-limit requests.
 
 Collection makes no retries and permits at most 128 requests, three minutes total,
 fifteen seconds per request, one MiB per response and sixteen MiB of consumed
-response bytes. The stream is bounded before JSON parsing; the chunk which crosses
-a byte limit is counted but not retained. A detected rate limit stops further
-requests to that provider during the attempt, records its usable retry time when
-available, and leaves deferred identities explicitly unattempted/unknown. Other
-providers can continue within the shared budget. Budget exhaustion likewise
-preserves every unattempted identity. Start a separately attributed attempt after
-the reported resume condition; a partial collection is never a healthy inventory.
-These are read-only diagnostics, with no exception allowlist, incident writer,
-automatic successor choice or change to protected release policy.
+response bytes. The stream is bounded before JSON parsing; the chunk crossing a
+byte limit is counted but not retained. A detected rate limit stops requests to
+that provider, records its retry time and leaves deferred identities unattempted
+and unknown. Other providers may continue within the shared budget. Budget
+exhaustion likewise preserves every unattempted identity. These diagnostics write
+no incidents and transfer no authority.
+
+## Pull-request applicability
+
+The upstream-health workflow derives PR scope from exact base, merge-base, head
+and checkout commits, retaining the complete Git diff and catalog digests in its
+log. Only regular modifications of the existing authoring/generated catalog pair
+can select narrowly. The comparison excludes port summaries only; other port
+contract changes select that stable port ID. Root/history changes, removals,
+mixed or uncertain diffs, tooling, workflow and policy changes retain full scope.
+Missing or invalid refs, catalogs or diff discovery refuse a narrower check.
+An interacting synthetic checkout also retains full scope. This transition's
+own checker/workflow changes therefore cannot use narrow selection.
+
+Main pushes, scheduled runs and manual runs retain full-catalog monitoring.
+For a verified summary-only PR, the report explicitly says no changed upstream
+health inputs and no live requests, with global health unassessed. This is
+applicability, not a healthy inventory. A selected port's unknown endpoint still
+fails; shared endpoint facts retain all associated port identities and maintenance
+declarations. Other ports remain explicitly unassessed by that PR collection.
+RetComM live comparisons use the same selected PS1 IDs; deterministic offline
+mapping validation in required catalog CI always retains the complete catalog.
+Release checks and standalone invocation retain their existing full scope.
+
+The workflow's protected applicability change requires existing pre-change full
+fresh audit and exhaustive exact-head hosted qualification plus independent
+review. It supplies no exception to an existing failed run, and never changes
+catalog maintenance, accepted bytes, lineage, holds or qualification states.

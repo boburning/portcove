@@ -22,12 +22,13 @@ tracker, mutable status mirror, or competing planning authority.
 
 ## Reading and editing
 
-- Read an issue: `gh issue view <number> --repo boburning/portcove --json number,title,body,labels,comments`.
+- Read an issue: `gh issue view <number> --repo boburning/portcove --json number,title,body,labels`.
 - For complete inventories, use pagination-aware API traversal rather
   than relying on the default issue-list limit.
 - Use `gh issue comment`, `gh issue edit`, and `gh issue close` only
   within the user's authorized scope.
-- Put multiline bodies in UTF-8 files and pass `--body-file`.
+- Use the [guarded body operations](../DEVELOPMENT-TOOLS.md#generated-github-text)
+  for file-based issue/PR bodies, exact edit preimages and remote readback.
 - Use native sub-issues and blocking relationships through the Roadmap
   workflow. Preserve existing parentage; sub-issues alone are not blockers.
 - Read back mutations and finish applicable Roadmap integrity checks.
@@ -44,7 +45,12 @@ GitHub issue through the owning workflow.
 "Fetch the relevant ticket" means read the canonical issue and its
 relevant comments, dependencies, and live Project fields.
 
+Fetch comments only for exact relevant references or bounded recent history; the
+default read does not enumerate comments.
+
 ## Wayfinding operations
+
+This section applies only to an explicitly invoked wayfinding task.
 
 A map is a finite decision effort represented by one canonical GitHub
 issue labelled `wayfinder:map`. Its decision tickets use

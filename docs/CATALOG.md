@@ -774,6 +774,23 @@ location shared with another port. An archived flag or a bare 404 creates no suc
 declaration. The lineage, byte verification, preservation and distribution
 meaning remains independent, even when the monitoring job succeeds.
 
+The owner-approved narrow monitoring extension in #247 comment 6082358982 is
+represented by `.github/upstream-health-accounting.json`. Exact reviewed original
+301/404 conditions may be accounted while remaining visibly unknown/degraded;
+matching requires the same semantic port contract, original location, operation,
+HTTP rule and, for301, numeric redirect identity. This is not retirement,
+succession, relocation acceptance or a catalog URL change. Changed/shared/new
+conditions without matching review remain failures.
+
+Reviewed GitHub direct pins may additionally report exact provider metadata
+presence after a delivery302, with repository/release/asset IDs, complete asset
+inventory and exact URL/name/size/provider digest/facts matched. No redirect is
+followed and no artifact is downloaded or executed. Destination availability and
+accepted bytes stay unknown; endpoint reachability is not incremented. Missing,
+changed, partial or contradictory metadata stays unaccounted. See
+[upstream observations](UPSTREAM-OBSERVATIONS.md) for the bounded collection and
+protected accounting contract.
+
 Historical qualification identities are also inventoried at their exact refs
 and declared hosted locations, or the matching immutable DirectManifest pin.
 Provider-reported digests remain metadata, never verified bytes. Empty/conflicting

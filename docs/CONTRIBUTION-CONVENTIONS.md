@@ -47,45 +47,33 @@ prefix. `dependabot/` is reserved for the dependency service.
 
 ## Pull request description
 
-Keep the five template sections in order:
+Keep the four template sections: **Linked issue**, **Outcome and scope**,
+**Verification**, **Review and risk**. Use a closing keyword only for completed
+scope. State the concrete outcome, link exact-head required CI, identify the
+actual separate non-writing reviewer/head/result, and record explicit
+native/manual acceptance when required. Include material risks or limitations.
+Local checks are optional and need no omission narrative. Drafts may say pending;
+ready candidates carry final evidence in one current description. The advisory
+`just pr-check <number-or-url>` is optional, including after body updates.
 
-1. **Linked issue** — use `Closes`, `Fixes` or `Resolves` only when the pull
-   request completes the issue; otherwise use `Refs` or `Related to`.
-2. **Outcome and scope** — lead with the user or maintainer outcome, then name
-   important implementation boundaries and non-goals.
-3. **Verification** — list exact commands and observed results. Distinguish
-   automated, packaged, physical-platform and human evidence. Use
-   `Not run — <reason>` or `Not applicable — <reason>` instead of silence.
-   For an ordinary pull request, record the focused local checks, the selected
-   hosted validation plan, and the required exact-head GitHub CI result
-   separately. The selected plan may be focused fast validation, exhaustive
-   qualification, or the narrow prose contract. `Not run — full local suite delegated to required exact-head CI` is valid when no task-specific acceptance requires
-   an aggregate local run; it does not excuse pending or failed hosted checks.
-4. **Review and risk** — identify the actual separate non-writing reviewer
-   subagent and record its coherent baseline review against the exact head commit,
-   findings, limitations, repairs, incremental re-review delta and final reviewed head,
-   important invariants, and documentation impact. Implementer self-review may
-   supplement this evidence but is not independent review.
-   The existing Renovate fast-lane exception in `AGENTS.md` takes precedence for
-   an exact head that `just renovate-check` classifies `merge-ready`: record the
-   delivering agent's concise dependency diff and upstream review instead.
-   A repair, controlled update or policy change retains independent review.
-5. **Readiness and follow-ups** — state the live Roadmap status, merge authority,
-   remaining blockers or linked follow-up issues, or `None`.
+## Review and merge
 
-Before review and final acceptance, refresh applicable issue/Project requirements
-and accepted ownership as well as the source candidate. Compare material deltas
-under [Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep):
-reconcile superseded acceptance and repeat only affected obligations. A changed
-fingerprint alone neither rejects sound work nor approves stale work. This does
-not replace exact-head, relevant-target, independent review or protected gates.
+For manually requested workflow qualification, complete substantive review and
+the affected ordinary hosted jobs on the candidate before dispatching the full
+run. Repair setup/producer failures first and repeat only invalidated work.
+Nightly and release qualification keep their existing triggers.
+
+Read requirements at pickup/resume and reuse them until material source or
+requirements changes; refresh relevant authority before final merge or writes
+under the [pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
 
 One local runner owns routine delivery under the owner's single-runner decision.
 Before resuming an existing candidate, verify source, current acceptance and
 actual writer release; preserve commits, evidence and unresolved overlap.
 A coordinator grant or ceremonial ACK is not required. Actual overlap blocks
-only conflicting work. Independent review, validation, exact-head CI, distinct
-acceptance and guarded merge remain required.
+only conflicting work. The narrow verified Renovate review exception is owned by [QUALITY](QUALITY.md#bounded-dependency-delivery).
+Independent review, required exact-head CI, explicit acceptance and guarded
+merge remain required. Local feedback follows [QUALITY](QUALITY.md#required-hosted-baseline).
 
 Record the reviewed source head, target tip used for the comparison, and actual
 merge-base. If `main` advances without changing the source head, do not imply the
@@ -106,6 +94,12 @@ the reviewed head, confirm required checks and conflict-free mergeability, and
 use the guarded command below. A changed source head requires applicable
 current-head validation and review; administrator bypass remains outside the
 routine path.
+
+For sequential stacked delivery, finish the parent independently, compare its
+delivered tree with the reviewed parent, then reconcile and review the child's
+actual final head before expensive final qualification. Preserve exploratory
+checks with their original head; equivalent trees do not replace current-head CI
+or explicitly fresh/stateful acceptance.
 
 Keep the reviewed source head frozen while checks complete. Use
 `just pr-watch --pr <number-or-url> --head <reviewed-head> --run <id> --attempt <number> --deadline <UTC-time>`
@@ -129,7 +123,7 @@ the identified run's jobs,
 logs and available artifacts once; classify product, provisioning, resource or
 authority failures from that evidence, then repair or retain a resumable
 checkpoint. The watcher neither dispatches nor retries a run, and success does
-not supply review, local, native, installed-app or merge authority. Once
+not supply review, native, installed-app or merge authority. Once
 the pull request is ready, conflict-free, reviewed under its applicable contract, authorized,
 and all exact-head contexts are successful, use
 `just pr-merge-rest --pr <number-or-url> --head <reviewed-head>` for the routine

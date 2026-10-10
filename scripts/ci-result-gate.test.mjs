@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { evaluateCiResults } from "./ci-result-gate.mjs";
+import { discoverCiPlan } from "./select-ci-plan.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
 
 const sha = (character) => character.repeat(40);
@@ -46,7 +47,11 @@ test("fast plans require only selected fast group work", () => {
 });
 
 test("qualification plans require qualification and reject fast execution", () => {
-  const qualificationPlan = plan(".github/workflows/ci.yml");
+  const qualificationPlan = discoverCiPlan({
+    eventName: "workflow_call",
+    checkoutSha: sha("d"),
+    forceQualification: true,
+  });
   assert.match(
     evaluate({
       plan: qualificationPlan,
@@ -66,28 +71,20 @@ test("qualification plans require qualification and reject fast execution", () =
   );
 });
 
-test("affected-platform fast plans require their exact native producer", () => {
+test("ordinary native changes use the Windows lane without secondary producers", () => {
   const platformPlan = plan("apps/desktop/src-tauri/src/window_windows.rs");
-  assert.match(
-    evaluate({
-      plan: platformPlan,
-      group: "rust",
-      fast: { fast_rust: "success" },
-      targeted: { fast_platform: "success" },
-      qualification: { rust_full: "skipped" },
-    }),
-    /Accepted fast/u,
-  );
+  const inputs = {
+    plan: platformPlan,
+    group: "rust",
+    fast: { fast_rust: "success" },
+    targeted: {},
+    qualification: { rust_full: "skipped" },
+  };
+  assert.match(evaluate(inputs), /Accepted fast/u);
+  assert.throws(() => evaluate({ ...inputs, fast: { fast_rust: "skipped" } }), /expected success/u);
   assert.throws(
-    () =>
-      evaluate({
-        plan: platformPlan,
-        group: "rust",
-        fast: { fast_rust: "success" },
-        targeted: { fast_platform: "cancelled" },
-        qualification: { rust_full: "skipped" },
-      }),
-    /expected success/u,
+    () => evaluate({ ...inputs, targeted: { obsolete_platform: "success" } }),
+    /expected skipped/u,
   );
 });
 
@@ -117,7 +114,11 @@ test("stale plan content and protected-group omissions are rejected", () => {
   const stale = { ...plan("apps/desktop/src/App.tsx"), reason: "substituted" };
   assert.throws(() => evaluate({ plan: stale }), /digest/u);
   assert.throws(() => evaluate({ group: "unknown" }), /protected group/u);
-  const qualificationPlan = plan(".github/workflows/ci.yml");
+  const qualificationPlan = discoverCiPlan({
+    eventName: "workflow_call",
+    checkoutSha: sha("d"),
+    forceQualification: true,
+  });
   qualificationPlan.groups = qualificationPlan.groups.filter((group) => group !== "frontend");
   assert.throws(() => evaluate({ plan: qualificationPlan }), /digest|omitted/u);
 });

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { planDesktopExecution } from "./desktop-execution-plan.mjs";
 import { createRequire } from "node:module";
 import { appendFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -47,7 +48,7 @@ Options:
 
 export function desktopBuildEnvironment(environment, selection) {
   const result = { ...environment };
-  if (selection.prerequisites.includes("design-compatibility-fixture"))
+  if (planDesktopExecution(selection).fixtures.designCompatibility)
     result.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE = "1";
   return result;
 }
@@ -126,11 +127,9 @@ function executableSuffix(platform = process.platform) {
 }
 
 export function buildDesktopVerifyPlan({ selection, paths, drivers, source, packages }) {
+  const execution = planDesktopExecution(selection);
   const suffix = executableSuffix();
-  const ownedFixture = selection.prerequisites.includes("owned-fixture");
-  const installFixture = selection.prerequisites.includes("install-fixture");
-  const steamFixture = selection.prerequisites.includes("steam-fixture");
-  const externalFixture = selection.prerequisites.includes("external-runtime-fixture");
+  const ownedFixture = execution.fixtures.owned;
   return {
     format_version: 1,
     profile: selection.profile,
@@ -142,13 +141,8 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
     harness_deadline_ms: desktopHarnessDeadlineMs(selection),
     prerequisites: selection.prerequisites,
     host_resources: selection.host_resources,
-    cli_features:
-      selection.selected_scenarios.includes("native-saved-folder-selected-setup") ||
-      selection.selected_scenarios.includes("native-selected-setup-completion")
-        ? ["portcove-core/qualification-fixtures"]
-        : [],
-    qualification_features:
-      installFixture || steamFixture || externalFixture ? ["qualification-fixtures"] : [],
+    cli_features: execution.build.cliFeatures,
+    qualification_features: execution.build.qualificationFeatures,
     source,
     workspace_packages: packages,
     drivers: drivers
@@ -404,14 +398,7 @@ async function runVerification(options, selection) {
       });
       timings.at(-1).reuse = frontendReuse;
     }
-    const desktopFeatures = [
-      "tauri/custom-protocol",
-      ...(selection.prerequisites.includes("install-fixture") ||
-      selection.prerequisites.includes("steam-fixture") ||
-      selection.prerequisites.includes("external-runtime-fixture")
-        ? ["qualification-fixtures"]
-        : []),
-    ];
+    const desktopFeatures = ["tauri/custom-protocol", ...plan.qualification_features];
     await phase("desktop-build", "cargo", [
       "build",
       "-p",
