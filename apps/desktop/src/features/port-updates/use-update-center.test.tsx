@@ -462,15 +462,16 @@ describe("port update read owner", () => {
     expect(host.textContent).toContain("Failed at last check");
   });
 
-  it("keeps cancellation neutral and retains earlier results without reporting a successful new batch", async () => {
+  it("retains earlier results and discloses an unknown cancellation without reporting a successful new batch", async () => {
     const current = status("alpha", "a".repeat(64));
+    const cancelled = { ...failureReport(), code: "cancelled" };
     vi.spyOn(desktopApi, "checkInstalled")
       .mockResolvedValueOnce([outcome(current)])
-      .mockRejectedValueOnce({ ...failureReport(), code: "cancelled" });
+      .mockRejectedValueOnce(cancelled);
     await act(async () => root.render(<OperatingCenter statuses={[current]} />));
     await act(async () => state.checkAll());
     await act(async () => state.checkAll());
-    expect(operations.error).toBeUndefined();
+    expect(operations.error).toBe(cancelled);
     expect(state.outcomes).toEqual([outcome(current)]);
     expect(state.batchRead).toMatchObject({ status: "cancelled", hasResults: true });
     expect(state.batchRead.failure).toBeUndefined();
