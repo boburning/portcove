@@ -211,7 +211,9 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 57;
+// Private parked 58/59 candidates retain their own client/runtime pair.
+// The next public contract is 60; it does not claim those private contracts.
+pub const API_SCHEMA_VERSION: u32 = 60;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

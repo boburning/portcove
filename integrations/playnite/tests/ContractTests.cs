@@ -340,6 +340,13 @@ internal static class ContractTests
         Check(true, "external runtime API schema negotiated without requiring unused commands");
         bad["schema_version"] = 58;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
+        bad["schema_version"] = 59;
+        Reject(() => ProtocolStream.Negotiate(bad), "private source-representation schema is not public compatibility");
+        bad["schema_version"] = 60;
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "public rollback schema accepted by explicit supported membership");
+        bad["schema_version"] = 61;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond rollback rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -427,6 +434,9 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
+            Check(real.ApiSchemaVersion == 60 && statuses.All(status =>
+                PortActions.Read(status).Count(value => value.Action == "rollback") == 1),
+                "compiled schema60 producer and actual reader preserve one rollback assessment per catalog status");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -1396,6 +1406,51 @@ internal static class ContractTests
             }
         }));
         Reject(() => PortActions.Read(repeated), "duplicate action assessment rejected");
+
+        Func<long, object, object> consume = (schema, data) =>
+        {
+            var reader = new ProtocolStream("status");
+            reader.Line(Json.Print(new { schema_version = schema, command = "status", ok = true, data }));
+            return reader.Finish(0);
+        };
+        consume(57, status);
+        consume(42, legacy);
+        Reject(() => consume(60, status), "schema60 status cannot omit rollback assessment");
+        Reject(() => consume(60, legacy), "schema60 cannot use legacy missing actions");
+        foreach (var tuple in new[] {
+            new[] { "allowed", "available" }, new[] { "not_offered", "not_installed" },
+            new[] { "not_offered", "route_not_offered" },
+            new[] { "held", "missing_runtime" }, new[] { "held", "invalid_installation" }
+        })
+        {
+            var rollbackStatus = Json.Parse(Json.Print(new {
+                port_actions = new[] { new { action = "rollback", availability = tuple[0], reason = tuple[1] } }
+            }));
+            var parsed = consume(60, rollbackStatus);
+            Check(PortActions.Summary(parsed).Contains(tuple[1].Replace('_', ' ')),
+                "schema60 rollback reason is consumed by actual client presentation: " + tuple[1]);
+            consume(60, new object[] { rollbackStatus });
+            Reject(() => consume(57, rollbackStatus), "legacy envelope cannot carry new rollback semantics");
+        }
+        foreach (var tuple in new[] {
+            new[] { "allowed", "missing_runtime" }, new[] { "waiting", "missing_runtime" },
+            new[] { "held", "missing_source" }, new[] { "not_offered", "invalid_installation" },
+            new[] { "held", "route_not_offered" },
+            new[] { "held", "future_reason" }
+        })
+            Reject(() => consume(60, Json.Parse(Json.Print(new {
+                port_actions = new[] { new { action = "rollback", availability = tuple[0], reason = tuple[1] } }
+            }))), "contradictory or unknown rollback status is refused");
+        Reject(() => consume(60, Json.Parse(Json.Print(new {
+            port_actions = new[] {
+                new { action = "rollback", availability = "allowed", reason = "available" },
+                new { action = "rollback", availability = "allowed", reason = "available" }
+            }
+        }))), "repeated rollback decision refused before presentation");
+        Reject(() => consume(60, Json.Parse(Json.Print(new {
+            port_actions = new[] { new { action = "rollback", availability = "allowed", reason = "available",
+                definition = new { outcome = "eligible", reason = "mandatory_checks_passed" } } }
+        }))), "rollback cannot substitute current definition permission for retained checks");
     }
     private static object Repair(string kind, string operation, string port, string path) => new
     {

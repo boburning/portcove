@@ -1107,6 +1107,7 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
                 "This operation is not offered on this platform."
             }
             PortActionReason::NotInstalled => match assessment.action {
+                PortAction::Rollback => "No previous managed version is retained for rollback.",
                 PortAction::RemoveManaged => "No managed installation is registered.",
                 PortAction::RemoveExternal => "No external runtime is registered.",
                 _ => "Install or register the port before launching.",
@@ -1135,9 +1136,15 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
             PortActionReason::ChangedBios => {
                 "The registered BIOS changed; check its saved location and identity."
             }
+            PortActionReason::MissingRuntime if assessment.action == PortAction::Rollback => {
+                "The previous version needs its verified runtime before it can be restored."
+            }
             PortActionReason::MissingRuntime => "The required verified runtime is unavailable.",
             PortActionReason::PreparationRequired => {
                 "Prepare the required game data before launching."
+            }
+            PortActionReason::InvalidInstallation if assessment.action == PortAction::Rollback => {
+                "Portcove could not verify the previous version; rollback is on hold."
             }
             PortActionReason::InvalidInstallation => {
                 "The installation or external runtime needs verification or repair."
@@ -2904,6 +2911,7 @@ mod tests {
             (Action::Launch, State::Held),
             (Action::RemoveManaged, State::NotOffered),
             (Action::RemoveExternal, State::Waiting),
+            (Action::Rollback, State::Held),
         ] {
             for reason in reasons {
                 let assessment = portcove_core::PortActionAssessment {

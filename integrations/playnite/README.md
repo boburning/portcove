@@ -66,7 +66,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57 or 60 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -83,10 +83,19 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56 or schema-57 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57 or schema-60 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
+
+Schema 60 status responses require one retained `rollback` assessment. The
+reader validates its availability/reason tuple before returning single or batched
+status, and the management summary displays its actual reason. Missing,
+duplicate, unknown or contradictory rollback assessments are refused. Schemas
+42–57 cannot carry this new action; private paired schemas 58 and 59 are rejected.
+The reference does not offer a rollback command button or infer permission from
+the assessment. Event schemas remain independently 2–3. These source contracts
+do not establish a published CLI or installed client update.
 
 Schema 47 status can include core-owned definition decisions for install,
 preparation and launch. The client shows the exact stable reason and whether the

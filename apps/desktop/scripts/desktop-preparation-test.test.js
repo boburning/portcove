@@ -1,9 +1,38 @@
 import assert from "node:assert/strict";
+import path from "node:path";
+import process from "node:process";
 import { test } from "vitest";
 import {
   assertPreparedLibrarySummary,
+  rollbackWitnessWithinLibrary,
   waitForReviewedUpdateAction,
 } from "./desktop-preparation-test.mjs";
+
+test("accepts owned rollback witnesses across ordinary and namespaced library paths", () => {
+  const library = path.resolve("work", "owned-rollback-library");
+  const witness = path.join(library, "versions", "previous", ".portcove-manifest.json");
+  assert.equal(rollbackWitnessWithinLibrary(library, path.toNamespacedPath(witness)), true);
+  assert.equal(rollbackWitnessWithinLibrary(path.toNamespacedPath(library), witness), true);
+});
+
+test("refuses root, parent, sibling, relative and different-drive rollback witnesses", () => {
+  const library = path.resolve("work", "owned-rollback-library");
+  for (const outside of [
+    library,
+    path.resolve(library, "..", "outside.bin"),
+    path.join(`${library}-sibling`, "witness.bin"),
+    "relative-witness.bin",
+  ])
+    assert.equal(rollbackWitnessWithinLibrary(library, outside), false);
+  assert.equal(
+    rollbackWitnessWithinLibrary("relative-library", path.join(library, "witness.bin")),
+    false,
+  );
+  if (process.platform === "win32") {
+    const otherDrive = path.parse(library).root.toLowerCase().startsWith("c:") ? "E:" : "C:";
+    assert.equal(rollbackWitnessWithinLibrary(library, `${otherDrive}\\outside.bin`), false);
+  }
+});
 
 const prepared = {
   port_id: "prepared",

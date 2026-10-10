@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
+import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 import { backupReviewScenario } from "./desktop-backup-review-test.mjs";
 import { removalReviewScenario } from "./desktop-removal-review-test.mjs";
 import { cliHandoffScenario } from "./desktop-cli-handoff-test.mjs";
@@ -34,6 +35,21 @@ import { readinessScenario } from "./desktop-readiness-test.mjs";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mjs";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mjs";
 import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mjs";
+
+// Qualification witness guard only; Core retains filesystem ownership and symlink authority.
+export function rollbackWitnessWithinLibrary(library, owned) {
+  if (!path.isAbsolute(library) || !path.isAbsolute(owned)) return false;
+  const relative = path.relative(
+    path.toNamespacedPath(path.resolve(library)),
+    path.toNamespacedPath(path.resolve(owned)),
+  );
+  return (
+    relative !== "" &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative)
+  );
+}
 
 function rgbLuminance(color) {
   const channels = color
@@ -1310,6 +1326,229 @@ export async function preparationScenarios({
     }
     await open(port, false);
     assert.equal((await status(port.id)).readiness.launchable, true);
+
+    const before = command(["status", port.id]);
+    assert.ok(before.previous, "The preparation dependency must retain the original version");
+    const previousManifest = path.join(before.previous.path, ".portcove-manifest.json");
+    const previousOriginal = await readFile(previousManifest);
+    const retainedManifest = path.join(output, "rollback-previous-manifest.before.json");
+    await writeFile(retainedManifest, previousOriginal, { flag: "wx" });
+    artifacts.push(retainedManifest);
+    const sources = command(["source", "list"]);
+    const paths = command(["paths", port.id]);
+    const activityBefore = await activities();
+    assert.ok(port.persistent_paths.length > 0);
+    const save = path.join(
+      paths.user_data_root,
+      port.persistent_paths[0],
+      "owned-rollback-preserved.bin",
+    );
+    const activeSave = path.join(
+      before.active.path,
+      port.persistent_paths[0],
+      "owned-rollback-preserved.bin",
+    );
+    for (const owned of [save, activeSave, previousManifest])
+      assert.ok(
+        rollbackWitnessWithinLibrary(library, owned),
+        "Rollback witnesses stay in the isolated library",
+      );
+    await mkdir(path.dirname(save), { recursive: true });
+    await mkdir(path.dirname(activeSave), { recursive: true });
+    await writeFile(save, "owned rollback preservation witness");
+    await writeFile(activeSave, "owned rollback preservation witness");
+    const witness = await Promise.all(
+      [save, path.join(output, `${port.id}.iso`)].map(fileIdentity),
+    );
+    const originalActiveSave = await fileIdentity(activeSave);
+    assert.equal(originalActiveSave.bytes, witness[0].bytes);
+    assert.equal(originalActiveSave.sha256, witness[0].sha256);
+    async function restoredActiveSave(value) {
+      const restored = await fileIdentity(
+        path.join(value.active.path, port.persistent_paths[0], "owned-rollback-preserved.bin"),
+      );
+      assert.equal(restored.bytes, witness[0].bytes);
+      assert.equal(restored.sha256, witness[0].sha256);
+      return restored;
+    }
+    const rollbackDecision = (value) =>
+      value.port_actions.find((item) => item.action === "rollback");
+    const observations = {
+      before: { active: before.active.id, previous: before.previous.id },
+      witness,
+      original_active_save: originalActiveSave,
+      sources,
+    };
+    async function rollbackButton() {
+      const target = await browser.findElement(button("Restore previous version"));
+      if (!(await target.isDisplayed()))
+        await clickVisible(
+          browser,
+          await browser.findElement(By.xpath('//summary[contains(., "Commands and maintenance")]')),
+        );
+      await browser.wait(until.elementIsVisible(target), 5_000);
+      return target;
+    }
+    try {
+      await writeFile(previousManifest, "owned corrupt previous contract fixture");
+      await open(port, false);
+      const held = await status(port.id);
+      assert.deepEqual(rollbackDecision(held), {
+        action: "rollback",
+        availability: "held",
+        reason: "invalid_installation",
+      });
+      assert.deepEqual(rollbackDecision(command(["status", port.id])), rollbackDecision(held));
+      const target = await rollbackButton();
+      assert.equal(await target.isEnabled(), false);
+      const reason = await browser.findElement(By.css("[data-rollback-assessment]"));
+      assert.equal(
+        await reason.getText(),
+        "Portcove could not verify the previous version. Restore previous version is on hold.",
+      );
+      await browser.executeScript(
+        (element) => element.scrollIntoView({ block: "center", behavior: "instant" }),
+        target,
+      );
+      const geometry = await browser.executeScript(
+        (action, explanation) => {
+          const viewport = {
+            width: innerWidth,
+            height: innerHeight,
+            device_scale: devicePixelRatio,
+          };
+          const measure = (element) => {
+            const clipping = {
+              left: 0,
+              top: 0,
+              right: document.documentElement.clientWidth,
+              bottom: document.documentElement.clientHeight,
+            };
+            let settled = element.isConnected;
+            for (let current = element; current; current = current.parentElement) {
+              const style = getComputedStyle(current);
+              settled &&=
+                style.display !== "none" &&
+                style.visibility === "visible" &&
+                Number(style.opacity) > 0 &&
+                !current
+                  .getAnimations()
+                  .some(
+                    (animation) =>
+                      animation.playState === "running" &&
+                      Number.isFinite(animation.effect?.getComputedTiming().endTime),
+                  );
+              if (current === element) continue;
+              const rect = current.getBoundingClientRect();
+              if (/^(auto|scroll|hidden|clip)$/.test(style.overflowX)) {
+                clipping.left = Math.max(clipping.left, rect.left + current.clientLeft);
+                clipping.right = Math.min(
+                  clipping.right,
+                  rect.left + current.clientLeft + current.clientWidth,
+                );
+              }
+              if (/^(auto|scroll|hidden|clip)$/.test(style.overflowY)) {
+                clipping.top = Math.max(clipping.top, rect.top + current.clientTop);
+                clipping.bottom = Math.min(
+                  clipping.bottom,
+                  rect.top + current.clientTop + current.clientHeight,
+                );
+              }
+            }
+            return {
+              bounds: element.getBoundingClientRect().toJSON(),
+              fragments: [...element.getClientRects()].map((rect) => rect.toJSON()),
+              clipping,
+              settled,
+            };
+          };
+          return { viewport, action: measure(action), reason: measure(explanation) };
+        },
+        target,
+        reason,
+      );
+      for (const measured of [geometry.action, geometry.reason]) {
+        assert.equal(measured.settled, true);
+        assert.ok(measured.fragments.length > 0);
+        for (const bounds of [measured.bounds, ...measured.fragments])
+          assert.ok(
+            bounds.width > 0 &&
+              bounds.height > 0 &&
+              bounds.left >= measured.clipping.left &&
+              bounds.top >= measured.clipping.top &&
+              bounds.right <= measured.clipping.right &&
+              bounds.bottom <= measured.clipping.bottom,
+          );
+      }
+      observations.held = {
+        decision: rollbackDecision(held),
+        window: await browser.manage().window().getRect(),
+        ...geometry,
+      };
+      const screenshot = path.join(output, "native-rollback-held.png");
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(screenshot);
+      const refused = spawnCommand(
+        cli,
+        ["--library", library, "--json", "--non-interactive", "rollback", port.id],
+        {
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 15_000,
+          env: { ...process.env, PORTCOVE_PREFERENCES: path.join(output, "preferences.json") },
+        },
+      );
+      assert.notEqual(refused.status, 0);
+      const refusal = JSON.parse(refused.stdout);
+      assert.equal(refusal.ok, false);
+      assert.equal(refusal.error.code, "verification");
+      observations.refusal = refusal;
+      const unchanged = command(["status", port.id]);
+      assert.equal(unchanged.active.id, before.active.id);
+      assert.equal(unchanged.previous.id, before.previous.id);
+      assert.deepEqual(command(["source", "list"]), sources);
+      assert.deepEqual(await Promise.all(witness.map((item) => fileIdentity(item.path))), witness);
+    } finally {
+      await writeFile(previousManifest, previousOriginal);
+    }
+    await open(port, false);
+    assert.deepEqual(rollbackDecision(await status(port.id)), {
+      action: "rollback",
+      availability: "allowed",
+      reason: "available",
+    });
+    await clickVisible(browser, await rollbackButton());
+    await browser.wait(
+      async () => (await status(port.id)).active.id === before.previous.id,
+      15_000,
+    );
+    observations.previous_active_save = await restoredActiveSave(await status(port.id));
+    await open(port, false);
+    assert.deepEqual(rollbackDecision(await status(port.id)), {
+      action: "rollback",
+      availability: "allowed",
+      reason: "available",
+    });
+    await clickVisible(browser, await rollbackButton());
+    await browser.wait(async () => (await status(port.id)).active.id === before.active.id, 15_000);
+    observations.returned_active_save = await restoredActiveSave(await status(port.id));
+    assert.deepEqual(observations.returned_active_save, originalActiveSave);
+    assert.deepEqual(command(["source", "list"]), sources);
+    assert.deepEqual(await Promise.all(witness.map((item) => fileIdentity(item.path))), witness);
+    observations.after = command(["status", port.id]);
+    observations.activity = await activities();
+    const oldIds = new Set(activityBefore.map((item) => item.id));
+    const rollbacks = observations.activity.filter(
+      (item) => !oldIds.has(item.id) && item.operation === "rollback" && item.target_id === port.id,
+    );
+    assert.equal(rollbacks.filter((item) => item.status === "failed").length, 1);
+    assert.equal(rollbacks.filter((item) => item.status === "succeeded").length, 2);
+    const report = path.join(output, "rollback-assessment-recovery.json");
+    await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
+    artifacts.push(report);
   });
 
   await scenario("native-preparation-cancellation", async () => {

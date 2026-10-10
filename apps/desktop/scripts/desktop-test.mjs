@@ -293,6 +293,7 @@ function validateBackupFocusInventory(captured) {
       (check) =>
         [
           "native-selected-setup-completion",
+          "native-retained-contract-repair-state",
           "native-backup-delete-focus",
           "native-host-interrupted-preparation",
           "native-closed-preparation-recovery",

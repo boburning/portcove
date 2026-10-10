@@ -55,7 +55,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference's current window is API 42–57/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57 or 60/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -68,6 +68,17 @@ and reject unknown consequential enum values or a different used schema with a
 migration message. Future client revisions should extend that window only after
 matching fixtures and package tests. The product version is descriptive, never a
 substitute for these checks. Export authoritative schemas with `schema export`.
+
+Schema 60 introduces retained rollback assessment in status. The reference
+validates exactly one rollback decision per status against the envelope version,
+including batched status, and presents its reason. Supported tuples are
+`allowed/available`, `not_offered/not_installed`,
+`not_offered/route_not_offered` when the port has left the current catalog, and `held` with
+`missing_runtime` or `invalid_installation`; a definition decision cannot replace
+these retained-target checks. Legacy envelopes cannot carry this action. The
+supported membership excludes private paired schemas 58 and 59; accepting 60
+does not imply support for every intervening integer. Event schemas stay 2–3.
+No new client rollback command is exposed and no published package is inferred.
 
 Runtime discovery is a trust boundary, not permission to execute the first file
 with a matching name. Ask the user to select or approve a verified compatible
@@ -136,7 +147,7 @@ failure does not imply earlier registration was undone.
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's 42–57 window. Some
+schema within the client's supported 42–57 or 60 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core

@@ -553,6 +553,58 @@ async fn named_saves_survive_reinstallation_without_weakening_executable_policy(
 }
 
 #[tokio::test]
+async fn retained_rollback_assesses_missing_runtime_bytes_read_only() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path()).unwrap();
+    let first = Fixture::new(b"runtime one", false);
+    let previous = first.install(&library, true).await;
+    let second = Fixture::new(b"runtime two", false);
+    let active = second.install(&library, true).await;
+    let service = second.service(library.clone());
+    let assessment = |status: PortStatus| {
+        status
+            .port_actions
+            .into_iter()
+            .find(|action| action.action == PortAction::Rollback)
+            .unwrap()
+    };
+    assert_eq!(
+        assessment(service.status(PORT).unwrap()).availability,
+        PortActionAvailability::Allowed
+    );
+    let runtime = previous.runtime.as_ref().unwrap();
+    let executable = previous
+        .path
+        .join(&runtime.target_directory)
+        .join(&runtime.executable);
+    let bytes = fs::read(&executable).unwrap();
+    let permissions = fs::metadata(&executable).unwrap().permissions();
+    fs::remove_file(&executable).unwrap();
+    let before = crate::test_fixture::library_file_snapshot(&library);
+    let activities = serde_json::to_value(library.activities(100).unwrap()).unwrap();
+
+    let missing = assessment(service.status(PORT).unwrap());
+    assert_eq!(missing.availability, PortActionAvailability::Held);
+    assert_eq!(missing.reason, PortActionReason::MissingRuntime);
+    assert_eq!(crate::test_fixture::library_file_snapshot(&library), before);
+    assert_eq!(
+        serde_json::to_value(library.activities(100).unwrap()).unwrap(),
+        activities
+    );
+    assert!(service.rollback(PORT).is_err());
+    let refused = library.status(PORT, ReleaseChannel::Rolling).unwrap();
+    assert_eq!(refused.active.unwrap().id, active.id);
+    assert_eq!(refused.previous.unwrap().id, previous.id);
+
+    fs::write(&executable, bytes).unwrap();
+    fs::set_permissions(&executable, permissions).unwrap();
+    let restored = assessment(service.status(PORT).unwrap());
+    assert_eq!(restored.availability, PortActionAvailability::Allowed);
+    assert_eq!(restored.reason, PortActionReason::Available);
+    assert_eq!(service.rollback(PORT).unwrap().id, previous.id);
+}
+
+#[tokio::test]
 async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() {
     let root = tempfile::tempdir().unwrap();
     let library = Library::open(root.path()).unwrap();
