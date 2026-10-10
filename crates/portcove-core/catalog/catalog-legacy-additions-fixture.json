@@ -19,7 +19,8 @@
     "digimon-world-2003-psx",
     "duke-nukem-land-of-the-babes-psx",
     "driver-psx",
-    "duke-nukem-time-to-kill-psx"
+    "duke-nukem-time-to-kill-psx",
+    "fade-to-black-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -42,6 +43,7 @@
     "alexbeav-digimon-world-2003-recomp",
     "alexbeav-duke-nukem-land-of-the-babes-recomp",
     "alexbeav-driver-recomp",
-    "alexbeav-duke-nukem-time-to-kill-recomp"
+    "alexbeav-duke-nukem-time-to-kill-recomp",
+    "alexbeav-fade-to-black-recomp"
   ]
 }

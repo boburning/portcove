@@ -155,6 +155,23 @@
       "asset_id": 544445845,
       "release_facts_sha256": "39979cc0da4f06985119f3031db1e3bcd9edb01fac488e90e57a0a638d69e9c7",
       "asset_facts_sha256": "ffd0a4758b1abd89e595d82dff8711c379b784fc691f08df5302b5b1c29baacf"
+    },
+    {
+      "port_id": "alexbeav-fade-to-black-recomp",
+      "port_contract_sha256": "13b5e5e31126fda3793cb85a0e25ff73393d866d936ebc64071230601d81d029",
+      "platform": "windows-x86-64",
+      "repository": "alexbeavs-ps1-ports/fade-to-black-recomp",
+      "tag": "v0.3.6",
+      "name": "Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+      "url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+      "size": 30151839,
+      "sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
+      "repository_id": 1352790254,
+      "archived": false,
+      "release_id": 382786811,
+      "release_facts_sha256": "0f6d0f08bacf062540f0d41bad5166b548a22941d787c785536b326d6c907149",
+      "asset_id": 544445910,
+      "asset_facts_sha256": "2f823de4ce920d22f35327be56a15a87f70added246310db2987eb5b7dd13b12"
     }
   ],
   "original_conditions": [
