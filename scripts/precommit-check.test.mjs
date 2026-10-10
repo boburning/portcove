@@ -226,13 +226,13 @@ test("unstaged nearest package manifest cannot change Node syntax goal", () => {
   assert.deepEqual(state(cwd), before);
 });
 
-test("formatter ignores and nested configuration cannot qualify different staged content", () => {
-  for (const [filename, content, ignored] of [
-    [".prettierignore", "bad.mjs\n", false],
-    [".prettierignore", "bad.mjs\n", true],
-    ["nested/.oxfmtrc.jsonc", '{"semi": false}\n', false],
-    ["nested/oxfmt.config.ts", "export default {};\n", false],
-  ]) {
+for (const [filename, content, ignored] of [
+  [".prettierignore", "bad.mjs\n", false],
+  [".prettierignore", "bad.mjs\n", true],
+  ["nested/.oxfmtrc.jsonc", '{"semi": false}\n', false],
+  ["nested/oxfmt.config.ts", "export default {};\n", false],
+]) {
+  test(`formatter input ${filename} (ignored=${ignored}) cannot qualify different staged content`, () => {
     const cwd = fixture();
     write(cwd, "nested/bad.mjs", "const x=1;\n");
     git(cwd, "add", "--", "nested/bad.mjs");
@@ -250,8 +250,8 @@ test("formatter ignores and nested configuration cannot qualify different staged
     assert.match(failed.stderr, /prettierignore|oxfmtrc|formatter configuration/);
     assert.doesNotMatch(failed.stdout, /Backing up|Hiding unstaged/);
     assert.deepEqual(state(cwd), before);
-  }
-});
+  });
+}
 
 test("copy parser native readiness is checked before lint-staged changes state", () => {
   const cwd = fixture(false, true, true, false);
@@ -363,13 +363,13 @@ test("default copy scan stays complete, explicit scan and syntax checks never ex
   );
 });
 
-test("bounded small-commit hook timing samples", (t) => {
-  const cwd = fixture();
-  for (const [kind, file, text] of [
-    ["documentation", "timing.md", "# Instructions\n"],
-    ["frontend", "apps/desktop/src/Timing.tsx", 'const label = "Game files";\n'],
-    ["rust", "timing.rs", "fn main() {}\n"],
-  ]) {
+for (const [kind, file, text] of [
+  ["documentation", "timing.md", "# Instructions\n"],
+  ["frontend", "apps/desktop/src/Timing.tsx", 'const label = "Game files";\n'],
+  ["rust", "timing.rs", "fn main() {}\n"],
+]) {
+  test(`bounded ${kind} hook timing samples`, (t) => {
+    const cwd = fixture();
     write(cwd, file, text);
     git(cwd, "add", "--", file);
     const samples = [];
@@ -393,8 +393,8 @@ test("bounded small-commit hook timing samples", (t) => {
       }),
     );
     git(cwd, "-c", "core.hooksPath=/dev/null", "commit", "-qm", `timing ${kind}`);
-  }
-});
+  });
+}
 
 test(
   "symlink source targets are refused without reading outside checkout",
