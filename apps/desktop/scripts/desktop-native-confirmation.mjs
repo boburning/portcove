@@ -196,6 +196,22 @@ function projectFailureDiagnostic(value) {
 }
 
 function projectPickerFields(value) {
+  if (
+    !Array.isArray(value?.native_edits) ||
+    value.native_edits.length > 8 ||
+    !value.native_edits.every(
+      (entry) =>
+        Number.isSafeInteger(entry.control_id) &&
+        Number.isSafeInteger(entry.parent_id) &&
+        ["ComboBox", "ComboBoxEx32", "other"].includes(entry.parent_class) &&
+        Number.isSafeInteger(entry.uia_control_type) &&
+        (entry.uia_control_type === 0 ||
+          (entry.uia_control_type >= 50000 && entry.uia_control_type <= 50040)) &&
+        (entry.owned === null || typeof entry.owned === "boolean") &&
+        (entry.value_pattern === null || typeof entry.value_pattern === "boolean"),
+    )
+  )
+    return null;
   const counters = [
     "folder_label_type",
     "folder_descendant_owned_edits",
@@ -214,8 +230,8 @@ function projectPickerFields(value) {
     value.edit_count < 0 ||
     value.edit_count > 1_000_000 ||
     !Array.isArray(value.samples) ||
-    value.samples.length !== Math.min(value.edit_count, 32) ||
-    value.truncated !== value.edit_count > 32 ||
+    value.samples.length !== Math.min(value.edit_count, 16) ||
+    value.truncated !== value.edit_count > 16 ||
     !value.samples.every(
       (entry) =>
         ["folder", "file-name", "folder-name", "empty", "other"].includes(entry?.name_kind) &&
@@ -238,6 +254,16 @@ function projectPickerFields(value) {
   return {
     edit_count: value.edit_count,
     truncated: value.truncated,
+    native_edits: value.native_edits.map(
+      ({ control_id, parent_id, parent_class, uia_control_type, owned, value_pattern }) => ({
+        control_id,
+        parent_id,
+        parent_class,
+        uia_control_type,
+        owned,
+        value_pattern,
+      }),
+    ),
     ...Object.fromEntries(counters.map((key) => [key, value[key]])),
     samples: value.samples.map(({ name_kind, automation_id, owned, enabled }) => ({
       name_kind,

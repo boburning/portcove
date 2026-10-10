@@ -305,6 +305,7 @@ test("picker field diagnostics distinguish absence, ambiguity and ownership with
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 $applicationId = 42
+function Get-NativePickerEditEvidence { @() }
 function New-Field($name, $id, $process) {
     $field = [pscustomobject]@{ Current = [pscustomobject]@{ ControlType = [System.Windows.Automation.ControlType]::Edit; Name = $name; AutomationId = $id; ProcessId = $process; IsEnabled = $true; Value = 'secret-path' } }
     $field | Add-Member ScriptMethod FindAll { param($scope, $condition) @() }
@@ -328,7 +329,7 @@ $private = New-Field 'secret-name' 'secret-id' 42
     { name_kind: "other", automation_id: "other", owned: true, enabled: true },
   ]);
   assert.equal(bounded.edit_count, 33);
-  assert.equal(bounded.samples.length, 32);
+  assert.equal(bounded.samples.length, 16);
   assert.equal(bounded.truncated, true);
 });
 
@@ -394,14 +395,14 @@ test(
     const { result } = await isolatedConsumer(
       t,
       `
-const payload = { format_version: 1, stage: 'nested-discovery-start', location: { script: 'native-confirmation.ps1', line: 250, column: 4, path: 'secret' }, exceptions: [{ type: 'System.Exception', hresult: '0x80131500', message: 'secret' }], exceptions_truncated: false, secret: 'private', picker_fields: { folder_label_type: 50004, folder_descendant_owned_edits: 0, owned_labeled_folder_edits: 0, folder_matches: 1, total_count: 1, automation_element_count: 1, folder_label_count: 1, owned_folder_matches: 0, folder_name_matches: 0, file_name_matches: 0, empty_name_matches: 0, edit_count: 1, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true, value: 'secret' }], truncated: false, path: 'secret' } };
+const payload = { format_version: 1, stage: 'nested-discovery-start', location: { script: 'native-confirmation.ps1', line: 250, column: 4, path: 'secret' }, exceptions: [{ type: 'System.Exception', hresult: '0x80131500', message: 'secret' }], exceptions_truncated: false, secret: 'private', picker_fields: { native_edits: [{ control_id: 1152, parent_id: 1148, parent_class: "other", uia_control_type: 0, owned: null, value_pattern: null }], folder_label_type: 50004, folder_descendant_owned_edits: 0, owned_labeled_folder_edits: 0, folder_matches: 1, total_count: 1, automation_element_count: 1, folder_label_count: 1, owned_folder_matches: 0, folder_name_matches: 0, file_name_matches: 0, empty_name_matches: 0, edit_count: 1, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true, value: 'secret' }], truncated: false, path: 'secret' } };
 for (const [index, stderr] of ['PORTCOVE_NATIVE_FAILURE {bad', 'PORTCOVE_NATIVE_FAILURE ' + 'x'.repeat(5000), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify(payload), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify({ ...payload, stage: 'secret' })].entries()) {
   globalThis.result = { status: 1, signal: null, stdout: 'private', stderr };
   await assert.rejects(nativeConfirmation({ application: 'owned', getDriverPid: () => 1, output, artifacts })('fixture', '__observe__', 'fixture', 'case-' + index), error => error.actual === 1);
   const receipt = await readFile(path.join(output, 'case-' + index + '-helper-result.json'), 'utf8');
   assert.doesNotMatch(receipt, /private|secret/);
   assert.equal(JSON.parse(receipt).diagnostic === null, index !== 2);
-  if (index === 2) assert.deepEqual(JSON.parse(receipt).diagnostic.picker_fields, { folder_label_type: 50004, folder_descendant_owned_edits: 0, owned_labeled_folder_edits: 0, folder_matches: 1, total_count: 1, automation_element_count: 1, folder_label_count: 1, owned_folder_matches: 0, folder_name_matches: 0, file_name_matches: 0, empty_name_matches: 0, edit_count: 1, truncated: false, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true }] });
+  if (index === 2) assert.deepEqual(JSON.parse(receipt).diagnostic.picker_fields, { native_edits: [{ control_id: 1152, parent_id: 1148, parent_class: "other", uia_control_type: 0, owned: null, value_pattern: null }], folder_label_type: 50004, folder_descendant_owned_edits: 0, owned_labeled_folder_edits: 0, folder_matches: 1, total_count: 1, automation_element_count: 1, folder_label_count: 1, owned_folder_matches: 0, folder_name_matches: 0, file_name_matches: 0, empty_name_matches: 0, edit_count: 1, truncated: false, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true }] });
 }
 `,
     );
@@ -534,7 +535,7 @@ $code = [regex]::Match($source, "(?s)Add-Type -TypeDefinition @'\\r?\\n(.*?)\\r?
 if (-not $code) { throw 'production algorithm absent' }
 # Replace only the five OS boundaries; compile the production Matches/Find bodies.
 $pattern = '(?m)^    \\[DllImport[^\\r\\n]+private static extern[^\\r\\n]+;'
-if ([regex]::Matches($code, $pattern).Count -ne 5) { throw 'OS boundary inventory changed' }
+if ([regex]::Matches($code, $pattern).Count -ne 8) { throw 'OS boundary inventory changed' }
 $code = [regex]::Replace($code, $pattern, '')
 $boundary = @'
     public static bool overflow = false, failed = false, disappeared = false;
@@ -546,6 +547,7 @@ $boundary = @'
     }
     private static bool EnumChildWindows(IntPtr parent, Visitor visit, IntPtr state) {
         if (parent.ToInt32() == 1) { visit(new IntPtr(2), state); visit(new IntPtr(5), state); }
+        if (parent.ToInt32() == 2) { visit(new IntPtr(5), state); visit(new IntPtr(3), state); }
         return true;
     }
     private static uint GetWindowThreadProcessId(IntPtr handle, out uint process) {
@@ -556,12 +558,19 @@ $boundary = @'
         text.Append(title); return title.Length;
     }
     private static bool IsWindow(IntPtr handle) { return !disappeared; }
+    private static int GetClassName(IntPtr handle, StringBuilder name, int capacity) {
+        name.Append(handle.ToInt32() == 6 ? "ComboBox" : "Edit"); return name.Length;
+    }
+    private static int GetDlgCtrlID(IntPtr handle) { return handle.ToInt32() == 6 ? 1148 : 1152; }
+    private static IntPtr GetParent(IntPtr handle) { return new IntPtr(6); }
 '@
 $insertion = $code.IndexOf('    public static bool Matches')
 $code = $code.Insert($insertion, $boundary + [Environment]::NewLine)
 Add-Type -TypeDefinition $code
 $handles = @([PortcoveNativeWindows]::Find(42, 'Choose Portcove library') | ForEach-Object { $_.ToInt32() } | Sort-Object)
 if (($handles -join ',') -cne '2,5') { throw 'PID/title/child filtering or deduplication changed' }
+$edits = @([PortcoveNativeWindows]::InspectEdits([IntPtr]2, 42, 'Choose Portcove library'))
+if ($edits.Count -ne 1 -or $edits[0].handle.ToInt32() -ne 5 -or $edits[0].control_id -ne 1152 -or $edits[0].parent_id -ne 1148 -or $edits[0].parent_class -cne 'ComboBox') { throw 'Owned structural edit inspection changed' }
 [PortcoveNativeWindows]::disappeared = $true
 if ([PortcoveNativeWindows]::Matches([IntPtr]2, 42, 'Choose Portcove library')) { throw 'disappeared HWND accepted' }
 [PortcoveNativeWindows]::disappeared = $false

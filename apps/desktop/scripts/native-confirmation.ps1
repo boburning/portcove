@@ -20,7 +20,7 @@ function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1) {
     $all = @($Children)
     $folderLabels = @($all | Where-Object { $_.Current.Name -eq 'Folder:' })
     $edits = @($Children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit })
-    $samples = @($edits | Select-Object -First 32 | ForEach-Object {
+    $samples = @($edits | Select-Object -First 16 | ForEach-Object {
         $current = $_.Current
         [pscustomobject]@{
             name_kind = $(if ($current.Name -eq 'Folder:') { 'folder' } elseif ($current.Name -eq 'File name:') { 'file-name' } elseif ($current.Name -eq 'Folder name:') { 'folder-name' } elseif ([string]::IsNullOrEmpty($current.Name)) { 'empty' } else { 'other' })
@@ -29,7 +29,8 @@ function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1) {
             enabled = [bool]$current.IsEnabled
         }
     })
-    [pscustomobject]@{ edit_count = $edits.Count; samples = $samples; truncated = ($edits.Count -gt 32)
+    [pscustomobject]@{ edit_count = $edits.Count; samples = $samples; truncated = ($edits.Count -gt 16)
+        native_edits = @(Get-NativePickerEditEvidence $window)
         folder_matches = $FolderMatches
         total_count = $all.Count
         automation_element_count = @($all | Where-Object { $_ -is [System.Windows.Automation.AutomationElement] }).Count

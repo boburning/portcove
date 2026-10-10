@@ -5,12 +5,48 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
 public static class PortcoveNativeWindows {
+    public class EditObservation {
+        public int control_id;
+        public int parent_id;
+        public string parent_class;
+        public IntPtr handle;
+    }
     private delegate bool Visitor(IntPtr window, IntPtr state);
     [DllImport("user32.dll")] private static extern bool EnumWindows(Visitor visitor, IntPtr state);
     [DllImport("user32.dll")] private static extern bool EnumChildWindows(IntPtr parent, Visitor visitor, IntPtr state);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, StringBuilder text, int capacity);
     [DllImport("user32.dll")] private static extern bool IsWindow(IntPtr window);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr window, StringBuilder name, int capacity);
+    [DllImport("user32.dll")] private static extern int GetDlgCtrlID(IntPtr window);
+    [DllImport("user32.dll")] private static extern IntPtr GetParent(IntPtr window);
+    private static string Class(IntPtr window) {
+        var name = new StringBuilder(256);
+        GetClassName(window, name, name.Capacity);
+        return name.ToString();
+    }
+    public static EditObservation[] InspectEdits(IntPtr window, int process, string title) {
+        if (!Matches(window, process, title)) throw new InvalidOperationException("Owned picker changed.");
+        var edits = new List<EditObservation>();
+        int count = 0;
+        bool exceeded = false;
+        Visitor visit = (child, state) => {
+            if (++count > 4096) { exceeded = true; return false; }
+            uint actual;
+            GetWindowThreadProcessId(child, out actual);
+            if (actual == process && Class(child) == "Edit") {
+                var parent = GetParent(child);
+                var parentClass = Class(parent);
+                edits.Add(new EditObservation { handle = child, control_id = GetDlgCtrlID(child), parent_id = GetDlgCtrlID(parent),
+                    parent_class = parentClass == "ComboBox" || parentClass == "ComboBoxEx32" ? parentClass : "other" });
+            }
+            return true;
+        };
+        EnumChildWindows(window, visit, IntPtr.Zero);
+        if (exceeded || edits.Count > 8) throw new InvalidOperationException("Owned picker inspection exceeded its bound.");
+        if (!Matches(window, process, title)) throw new InvalidOperationException("Owned picker changed.");
+        return edits.ToArray();
+    }
     public static bool Matches(IntPtr window, int process, string title) {
         uint actual;
         GetWindowThreadProcessId(window, out actual);
@@ -56,6 +92,20 @@ public static class PortcoveNativeWindows {
 function Get-NativePickerHandles { [PortcoveNativeWindows]::Find($applicationId, $Title) }
 function Get-NativePickerElement([IntPtr]$Handle) { [System.Windows.Automation.AutomationElement]::FromHandle($Handle) }
 function Test-NativePickerWindow([IntPtr]$Handle) { [PortcoveNativeWindows]::Matches($Handle, $applicationId, $Title) }
+function Get-NativePickerEditEvidence($Window) {
+    foreach ($edit in [PortcoveNativeWindows]::InspectEdits([IntPtr]$Window.Current.NativeWindowHandle, $applicationId, $Title)) {
+        $type = 0; $owned = $null; $available = $null
+        try {
+            $element = Get-NativePickerElement $edit.handle
+            $type = $element.Current.ControlType.Id
+            $owned = ($element.Current.ProcessId -eq $applicationId)
+            $pattern = $null
+            $available = [bool]$element.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$pattern)
+        } catch { $null = $_ }
+        [pscustomobject]@{ control_id = $edit.control_id; parent_id = $edit.parent_id; parent_class = $edit.parent_class
+            uia_control_type = $type; owned = $owned; value_pattern = $available }
+    }
+}
 
 function Assert-ExactConfirmationWindow($Window) {
     Assert-LiveApplication
