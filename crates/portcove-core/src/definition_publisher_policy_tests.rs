@@ -11,6 +11,10 @@ mod launch_assessments;
 #[path = "definition_compiled_client_tests.rs"]
 mod compiled_clients;
 
+#[cfg(feature = "qualification-fixtures")]
+#[path = "definition_forbidden_memories_qualification_tests.rs"]
+mod forbidden_memories_qualification;
+
 fn availability(revision: u64) -> Value {
     let targets = metadata_targets();
     availability_for(&targets, ID, revision)
