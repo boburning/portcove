@@ -259,6 +259,17 @@ An optional `presentation.manual_preparation` gives the exact player-created
 steps for a user-prepared runtime; the short port summary remains an outcome
 description. The Wave Race pilot requires an empty `portable.txt` beside its
 executable, in addition to the extracted upstream ZIP files.
+A platform-specific prepared spec may opt into `library_user_data: true` for
+`staged-source-portable`, with a safe `user_data_environment` name on the port.
+After retained-package and original-source revalidation, Core creates only the
+private `<library>/user/<port>` directory and binds its absolute path for launch.
+Existing private contents are preserved; missing parents, links and non-directory
+paths are refused. Omitted or false flags create no directory and bind no variable.
+This declaration requires staged-source template contract version 2. It does not
+migrate AppData, qualify an upstream package, or grant update/backup ownership.
+Removing the external registration preserves both the external folder and private
+user files. No current title is admitted by this generic engine component.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and

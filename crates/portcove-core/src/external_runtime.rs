@@ -527,6 +527,7 @@ mod tests {
             executable: "game.exe".into(),
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
+            library_user_data: false,
             mutable_paths: vec!["runtime-state".into()],
         };
         let mismatch = inspect(&runtime, &spec, &library).unwrap_err();

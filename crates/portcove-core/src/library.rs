@@ -661,6 +661,54 @@ impl Library {
     pub fn user_dir(&self, port_id: &str) -> PathBuf {
         self.root.join("user").join(port_id)
     }
+
+    /// Prepare only the validated port directory. Never follow links or recreate
+    /// a missing library parent, and never replace existing private state.
+    pub(crate) fn prepare_user_directory(
+        &self,
+        port_id: &str,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<PathBuf> {
+        if !matches!(
+            Path::new(port_id).components().next(),
+            Some(std::path::Component::Normal(_))
+        ) || Path::new(port_id).components().count() != 1
+        {
+            return Err(PortcoveError::usage(
+                "private user-data port ID must be one path component",
+            ));
+        }
+        let directory = self.user_dir(port_id);
+        crate::path::unicode(&directory, "private user data")?;
+        let check = |allow_missing: bool| -> Result<()> {
+            for ancestor in directory.ancestors() {
+                match fs::symlink_metadata(ancestor) {
+                    Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {}
+                    Err(error)
+                        if allow_missing
+                            && error.kind() == std::io::ErrorKind::NotFound
+                            && ancestor == directory => {}
+                    Err(error) => return Err(error.into()),
+                    _ => {
+                        return Err(PortcoveError::conflict(
+                            "private user-data ancestry is not a real directory",
+                        ));
+                    }
+                }
+            }
+            Ok(())
+        };
+        checkpoint()?;
+        check(true)?;
+        match fs::create_dir(&directory) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(error.into()),
+        }
+        checkpoint()?;
+        check(false)?;
+        Ok(directory)
+    }
     pub fn logs_dir(&self) -> PathBuf {
         self.root.join("logs")
     }
@@ -2362,6 +2410,108 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn prepared_private_directory_cancellation_and_disappearance_fail_closed() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let directory = library.user_dir("prepared-probe");
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Err(PortcoveError::state(
+                    "cancelled fixture"
+                )))
+                .is_err()
+        );
+        assert!(!directory.exists());
+        let count = std::cell::Cell::new(0);
+        let result = library.prepare_user_directory("prepared-probe", &|| {
+            count.set(count.get() + 1);
+            if count.get() == 2 {
+                fs::remove_dir(&directory)?;
+            }
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert!(!directory.exists());
+        fs::remove_dir(library.root().join("user")).unwrap();
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        assert!(!directory.exists());
+        assert!(!library.root().join("user").exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn prepared_private_directory_refuses_junction_leaf_and_ancestry() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(&temporary.path().join("library")).unwrap();
+        let outside = temporary.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join("retained"), b"preserve").unwrap();
+        let create_junction = |link: &Path| {
+            let output = crate::ChildProcessPolicy::native_command(
+                crate::ChildProcessClass::HostTool,
+                Path::new("cmd.exe"),
+            )
+            .unwrap()
+            .args(["/d", "/c", "mklink", "/J"])
+            .arg(link)
+            .arg(&outside)
+            .output()
+            .unwrap();
+            assert!(
+                output.status.success(),
+                "owned junction fixture creation failed"
+            );
+        };
+        let directory = library.user_dir("prepared-probe");
+        create_junction(&directory);
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        fs::remove_dir(&directory).unwrap();
+        fs::remove_dir(library.root().join("user")).unwrap();
+        create_junction(&library.root().join("user"));
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        assert_eq!(fs::read(outside.join("retained")).unwrap(), b"preserve");
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 1);
+        fs::remove_dir(library.root().join("user")).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn prepared_private_directory_refuses_linked_leaf_and_ancestry() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(&temporary.path().join("library")).unwrap();
+        let outside = temporary.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        let directory = library.user_dir("prepared-probe");
+        std::os::unix::fs::symlink(&outside, &directory).unwrap();
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        fs::remove_file(&directory).unwrap();
+        fs::remove_dir(library.root().join("user")).unwrap();
+        std::os::unix::fs::symlink(&outside, library.root().join("user")).unwrap();
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+    }
 
     #[test]
     fn activity_feed_keeps_old_current_attention_and_recovery_rows_beyond_history() {
