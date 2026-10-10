@@ -1882,10 +1882,11 @@ mod tests {
         );
         assert_eq!(
             recorded_versions(&connection).unwrap(),
-            (1..=35).collect::<Vec<_>>()
+            (1..=36).collect::<Vec<_>>()
         );
         verify_migration_34(&connection).unwrap();
         verify_migration_35(&connection).unwrap();
+        verify_migration_36(&connection).unwrap();
     }
 
     #[test]

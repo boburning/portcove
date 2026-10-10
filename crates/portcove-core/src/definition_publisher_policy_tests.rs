@@ -3644,11 +3644,22 @@ async fn curated_installer_boundary_fixture(
             |row| row.get(0),
         )
         .unwrap();
-    library
-        .connection()
-        .unwrap()
+    let connection = library.connection().unwrap();
+    let protected_delete = connection
         .execute("DELETE FROM curated_artifact_admissions", [])
+        .unwrap_err();
+    assert!(protected_delete.to_string().contains("FOREIGN KEY"));
+    // Simulate loss of both membership and immutable identity without disabling
+    // the production foreign key. Retained counters must still refuse renewal.
+    connection
+        .execute_batch(
+            "BEGIN IMMEDIATE;
+             DELETE FROM curated_artifact_scopes;
+             DELETE FROM curated_artifact_admissions;
+             COMMIT;",
+        )
         .unwrap();
+    drop(connection);
     assert!(scope.require_port(catalog.port(ID).unwrap()).is_err());
     for (policy, candidate) in [
         (&original_admission, &original_candidate),
@@ -4710,6 +4721,9 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
     // bytes and current policy but removing information that schema never knew.
     assert_eq!(count(&library, "definition_launch_assessments"), 0);
     assert_eq!(count(&library, "definition_launch_decisions"), 0);
+    assert_eq!(count(&library, "curated_artifact_scopes"), 0);
+    assert_eq!(count(&library, "curated_artifact_admissions"), 0);
+    assert_eq!(count(&library, "curated_transition_receipts"), 0);
     library.connection().unwrap().execute_batch(
         "BEGIN IMMEDIATE;
          CREATE TABLE historical_admission (
@@ -4724,6 +4738,10 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
          ALTER TABLE historical_admission RENAME TO definition_publisher_admission;
          DROP TABLE definition_launch_assessments;
          DROP TABLE definition_launch_decisions;
+         DROP TABLE curated_artifact_scopes;
+         DROP TABLE curated_artifact_admissions;
+         DROP TABLE curated_artifact_history;
+         DROP TABLE curated_transition_receipts;
          DELETE FROM schema_migrations WHERE version>33;
          COMMIT;"
     ).unwrap();
