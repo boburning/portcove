@@ -48,6 +48,8 @@ function Install-SelectedFrontend {
     if ((& node --version) -ne "v$requiredNodeVersion") { throw "Node $requiredNodeVersion is required for frontend setup" }
     & corepack ([string]$toolPaths.pins.packageManager) install --frozen-lockfile
     if ($LASTEXITCODE -ne 0) { throw "Requested frontend dependency provisioning failed" }
+    & node (Join-Path $PSScriptRoot "hooks-install.mjs")
+    if ($LASTEXITCODE -ne 0) { throw "Explicit development hook setup failed; existing hooks were preserved" }
 }
 if ($capabilityPlan -and $capabilityPlan.setup.frontend) { Install-SelectedFrontend }
 if ($CapabilityProfile -eq "frontend") {

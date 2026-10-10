@@ -93,6 +93,7 @@ export function baselineFrontendPlan(plan, options) {
   selection.uiFullTests ||= Boolean(plan.fallback) || !selection.uiRelatedFiles.size;
   return buildPlan(selection, { validationPlan: plan }).filter((entry) =>
     [
+      "ui-copy",
       "ui-transport-types",
       "ui-ipc-exposure",
       "ui-build",

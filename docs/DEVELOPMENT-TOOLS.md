@@ -25,6 +25,43 @@ failed job rather than an entire multi-job workflow. Fallow retains
 original analyzer bytes below `work/fallow-reports`. Selected static gates run
 before compilation and tests; complete selected and hosted obligations remain.
 
+## Early commit feedback
+
+After the pinned frozen frontend dependency install, run `pnpm run hooks:install`.
+Selective frontend setup also runs this explicit step. Repeat it in each linked
+worktree and after replacing dependencies or the hook entrypoint. Setup verifies
+the installed Husky/lint-staged versions and actual generated entrypoint, keeps
+hook configuration local to that worktree, and refuses an existing unrelated
+hook manager. It does not overwrite global Git settings. Source archives and
+actual GitHub Actions setup skip installation; `CI=true` alone does not.
+
+`pnpm run precommit:check` executes the same path as `.husky/pre-commit`.
+It checks the staged diff for whitespace/conflict markers, explicitly selected
+Oxfmt-owned files, JavaScript/Node syntax (not TypeScript checking), and static
+player-facing copy in staged production sources. Tasks are serial and check-only;
+fix formatting with `pnpm run format`, inspect the reported copy/syntax locations,
+and stage changes explicitly. The copy checker still checks all production
+sources with no arguments; `--files <production-source>...` is its strict subset
+interface. Selected validation checks full copy before frontend build/tests;
+standalone `pnpm test` retains its full copy check without duplicate aggregate scans.
+
+Only relevant already-installed tools are required. Missing tools or unstaged
+changes to consumed checkers/configuration fail before lint-staged changes working
+state. Its supported partial-staging isolation, backup and ordinary failure
+restoration remain enabled; staged source symlinks are refused. SIGINT can cancel
+owned check tasks and trigger restoration. Preserve any reported backup stash or
+`.git/lint-staged` recovery files if restoration fails; uncatchable kills or power
+loss cannot guarantee recovery. Untracked work and preexisting stashes are retained.
+
+Rust formatting remains with edition/config-aware `cargo fmt`; repository TOML
+formatting and provisioned workflow lint retain their workspace inventories.
+They are outside this file-local hook, alongside compilation, typed/graph lint,
+tests, browsers/native scenarios, builds, catalog bookkeeping and network checks.
+No commit-time installation or automatic full pre-push check is added. A hook
+pass supplies early feedback only; full selected obligations, independent review,
+required exact-head CI and guarded delivery remain separate. Five seconds for a
+small warm commit is a measurement target, not a deadline or skipped-check rule.
+
 ## CI timing diagnostics
 
 Ordinary Rust, frontend and contract jobs publish diagnostic timing artifacts and
