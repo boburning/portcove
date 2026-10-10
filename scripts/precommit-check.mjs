@@ -62,6 +62,7 @@ export function preflight() {
   const files = nul(git(["diff", "--cached", "--name-only", "--diff-filter=ACMRT", "-z"]));
   if (!files.length) return [];
   const consumed = [...inputs];
+  const indexed = new Set(nul(git(["ls-files", "--cached", "-z"])));
   // Inspect ancestor directories directly: ignored/untracked configuration can
   // still affect Oxfmt and must not disappear from Git's ordinary inventory.
   for (const target of files.filter(isOwnedOxfmtPath)) {
@@ -78,7 +79,7 @@ export function preflight() {
         "oxfmt.config.mts",
       ]) {
         const file = directory === "." ? name : `${directory}/${name}`;
-        if (!existsSync(path.join(root, file))) continue;
+        if (!indexed.has(file) && !existsSync(path.join(root, file))) continue;
         if (/oxfmt\.config\.(?:ts|mts)$/u.test(name))
           throw new Error(
             `Executable formatter configuration needs independently checked transitive inputs; use selected validation: ${file}`,
@@ -94,7 +95,7 @@ export function preflight() {
     let directory = path.posix.dirname(target);
     while (true) {
       const file = directory === "." ? "package.json" : `${directory}/package.json`;
-      if (existsSync(path.join(root, file))) {
+      if (indexed.has(file) || existsSync(path.join(root, file))) {
         consumed.push(file);
         break;
       }

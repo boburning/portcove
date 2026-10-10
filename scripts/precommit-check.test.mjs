@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  unlinkSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -185,6 +186,27 @@ test("unstaged checker/config inputs refuse before temporary changes", () => {
     const result = check(cwd);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Stage or restore consumed/);
+    assert.deepEqual(state(cwd), before);
+  }
+});
+
+test("unstaged deleted ancestor inputs cannot change formatting or Node syntax", () => {
+  for (const [input, content, source] of [
+    ["nested/.oxfmtrc.jsonc", '{"semi": false}\n', "nested/source.mjs"],
+    ["nested/package.json", '{"type":"commonjs"}\n', "nested/source.js"],
+  ]) {
+    const cwd = fixture();
+    write(cwd, input, content);
+    git(cwd, "add", "--", input);
+    git(cwd, "-c", "core.hooksPath=/dev/null", "commit", "-qm", "indexed ancestor input");
+    write(cwd, source, "export const value = 1;\n");
+    git(cwd, "add", "--", source);
+    unlinkSync(path.join(cwd, input));
+    const before = state(cwd);
+    const failed = check(cwd);
+    assert.notEqual(failed.status, 0);
+    assert.match(failed.stderr, /Stage or restore consumed/);
+    assert.doesNotMatch(failed.stdout, /Backing up|Hiding unstaged/);
     assert.deepEqual(state(cwd), before);
   }
 });
