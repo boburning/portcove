@@ -135,13 +135,17 @@ mod tests {
         let target = root.path().join("target");
         let junction = root.path().join("junction");
         std::fs::create_dir(&target).unwrap();
-        let result = std::process::Command::new("cmd.exe")
-            .creation_flags(0x08000000)
-            .args(["/C", "mklink", "/J"])
-            .arg(&junction)
-            .arg(&target)
-            .output()
-            .unwrap();
+        let result = crate::ChildProcessPolicy::native_command(
+            crate::ChildProcessClass::HostTool,
+            "cmd.exe",
+        )
+        .unwrap()
+        .creation_flags(0x08000000)
+        .args(["/C", "mklink", "/J"])
+        .arg(&junction)
+        .arg(&target)
+        .output()
+        .unwrap();
         assert!(
             result.status.success(),
             "junction fixture must actually exist: {:?}",
@@ -223,6 +227,29 @@ mod tests {
                 usize::from(!cancel)
             );
         }
+    }
+
+    #[test]
+    fn a_primary_settings_writer_before_publication_is_preserved() {
+        use std::cell::Cell;
+        let root = tempfile::tempdir().unwrap();
+        let calls = Cell::new(0);
+        let checkpoint = || {
+            calls.set(calls.get() + 1);
+            if calls.get() == 2 {
+                std::fs::write(
+                    root.path().join("graphics.json"),
+                    b"concurrent user settings",
+                )?;
+            }
+            Ok(())
+        };
+        prepare(&port(), Platform::WindowsX86_64, root.path(), &checkpoint).unwrap();
+        assert_eq!(
+            std::fs::read(root.path().join("graphics.json")).unwrap(),
+            b"concurrent user settings"
+        );
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
     }
 
     #[test]

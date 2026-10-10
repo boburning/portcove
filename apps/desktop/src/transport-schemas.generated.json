@@ -3036,6 +3036,10 @@
             },
             "type": "array"
           },
+          "n64_windows_initial_d3d12": {
+            "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
+            "type": "boolean"
+          },
           "name": {
             "type": "string"
           },
@@ -12279,6 +12283,10 @@
         },
         "type": "array"
       },
+      "n64_windows_initial_d3d12": {
+        "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
+        "type": "boolean"
+      },
       "name": {
         "type": "string"
       },
@@ -16260,6 +16268,10 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
+          },
+          "n64_windows_initial_d3d12": {
+            "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
+            "type": "boolean"
           },
           "name": {
             "type": "string"
