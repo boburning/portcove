@@ -72,7 +72,8 @@ substitute for these checks. Export authoritative schemas with `schema export`.
 Schema 60 introduces retained rollback assessment in status. The reference
 validates exactly one rollback decision per status against the envelope version,
 including batched status, and presents its reason. Supported tuples are
-`allowed/available`, `not_offered/not_installed`, and `held` with
+`allowed/available`, `not_offered/not_installed`,
+`not_offered/route_not_offered` when the port has left the current catalog, and `held` with
 `missing_runtime` or `invalid_installation`; a definition decision cannot replace
 these retained-target checks. Legacy envelopes cannot carry this action. The
 supported membership excludes private paired schemas 58 and 59; accepting 60
@@ -234,6 +235,48 @@ polling/concurrency, cancellation and prepared offline behavior. Prefer existing
 batch reads over one CLI process per game, and refresh incrementally where the
 public contract supports it. These measurements may expose a contract gap; they
 do not by themselves justify a daemon, hidden cache authority or invented command.
+
+## Representative source-built developer checks
+
+The source-built Core/public CLI route can exercise disposable installation,
+checksum refusal and controlled interruption without a published package or
+personal game files. Provision the checkout's pinned Core capabilities explicitly
+first; ordinary checks do not install tools. These commands use the existing
+guarded Rust runner and compile the selected CLI from that checkout:
+
+```powershell
+node scripts/run-rust-tests.mjs --locked -p portcove-cli --test machine_contract -E 'test(preparation_plan_reports_missing_inputs_without_starting_work)'
+node scripts/run-rust-tests.mjs --locked -p portcove-core --lib -E 'test(runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes) | test(package_checksum_refusal_preserves_active_install_and_user_data) | test(cancellation_before_prepared_cleans_private_data) | test(cancellation_after_prepared_finishes_publication) | test(interrupted_requested_preparation_is_discarded_without_touching_user_data)'
+```
+
+The CLI case reads the public preparation plan, structured blocking reasons,
+activity completeness and exported schemas from a disposable library. It starts
+no preparation or game process. Core's existing fixture serves tiny synthetic ZIP
+archives on loopback and uses the real installer, verification, activity and
+lifecycle cleanup. The package checksum case retains the previous verified
+installation and exact saved bytes after refusal, including fresh-library
+readback. The cancellation cases distinguish cleanup before publication admission
+from completing an already admitted publication. The interrupted private-intent
+case verifies restart cleanup and preserved user data. These are precise
+operation-specific outcomes, not a general process-kill, replay or resumability
+contract. No fixture executable is launched by this selection.
+
+Loopback fixture traffic does not establish that external networking was denied.
+For the offline acceptance, execute the selected checks only through an existing
+approved environment that denies external network access while allowing the
+fixture's loopback traffic. Retain the enforced boundary and its actual readback,
+exact checkout and compiled CLI identity, pinned tool observations, archive byte
+identities, selected commands, disposable library and terminal/current-state
+results. Cargo's `--locked` protects dependency resolution; it is not a network
+isolation switch. Do not provision during the denied-network execution.
+
+If that environment boundary is unavailable, retain the refusal and leave only
+the external-network-denied criterion pending until an approved capable route is
+available; continue independent fixture work. A namespace permission failure
+does not authorize escalation or a security override. Label Linux and Windows
+results separately and obtain both before claiming representative portability.
+Prepared execution, warm reuse, successful cold acquisition, source-built CLI
+proof and an identified packaged-agent exercise remain separate evidence.
 
 ## Troubleshooting and conformance
 

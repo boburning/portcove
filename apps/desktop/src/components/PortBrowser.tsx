@@ -429,6 +429,28 @@ type PortCardProps = {
   view: View;
 };
 
+function hasAvailableUpdate(status: PortStatus | undefined): boolean {
+  const check = currentUpdateSnapshot(status)?.check;
+  if (!check?.update_available) return false;
+  const staged = status?.staged;
+  if (!staged?.verified || !staged.staged) return true;
+  const { release } = check;
+  const sameDownloadedTarget = [
+    check.port_id === status?.port_id,
+    staged.port_id === check.port_id,
+    staged.channel === check.channel,
+    release.channel === check.channel,
+    release.version.length > 0,
+    staged.version === release.version,
+    /^[a-f0-9]{64}$/u.test(release.asset.sha256),
+    staged.artifact.sha256 === release.asset.sha256,
+    staged.artifact.asset_name === release.asset.name,
+    staged.artifact.size === release.asset.size,
+    JSON.stringify(staged.runtime ?? null) === JSON.stringify(check.required_runtime ?? null),
+  ].every(Boolean);
+  return !sameDownloadedTarget;
+}
+
 function PortCard({
   port,
   status,
@@ -438,9 +460,9 @@ function PortCard({
   nativeSourceDrag,
   view,
 }: PortCardProps) {
-  const state = readinessPresentation(readiness);
+  const state = readinessPresentation(readiness, view, status);
   const channel = status?.channel ? releaseChannelPresentation(status.channel) : undefined;
-  const updateAvailable = currentUpdateSnapshot(status)?.check.update_available;
+  const updateAvailable = hasAvailableUpdate(status);
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   const detailOrigin = `${view}:card:${port.id}`;
@@ -454,11 +476,12 @@ function PortCard({
       view={view}
     />
   );
+  const accessibleLabel = `${port.name}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
   if (view === "library")
     return (
       <article
         className={className}
-        aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+        aria-label={accessibleLabel}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
         data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
       >
@@ -470,7 +493,7 @@ function PortCard({
       data-focusable
       data-detail-origin={detailOrigin}
       className={className}
-      aria-label={`${port.name}. ${state.label}. ${state.action}.`}
+      aria-label={accessibleLabel}
       onClick={() => onSelect(port.id, detailOrigin)}
       data-source-drop-port-id={dropEligible ? port.id : undefined}
       data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
@@ -550,8 +573,11 @@ function PortCardContents({
             Release channel: {channel.label}
           </small>
         )}
-        {(updateAvailable || port.upstream_status === "retired") && (
+        {(status?.staged || updateAvailable || port.upstream_status === "retired") && (
           <div className="flex min-h-[18px] flex-wrap gap-[5px]">
+            {status?.staged && (
+              <span className={`badge update ${cardBadgeClass}`}>Update downloaded</span>
+            )}
             {updateAvailable && (
               <span className={`badge update ${cardBadgeClass}`}>Update available</span>
             )}
@@ -602,13 +628,15 @@ function PortCardStatus({
     >
       {view === "catalog" && (
         <strong className="font-semibold text-[var(--color-text-secondary)]">
-          {status?.active
-            ? status.active.version
-            : status?.external_runtime
-              ? `External ${status.external_runtime.version}`
-              : port.release.provider === "user-prepared"
-                ? "Prepare game"
-                : "Not installed"}
+          {!status
+            ? "Installation status unknown"
+            : status.active
+              ? status.active.version
+              : status?.external_runtime
+                ? `External ${status.external_runtime.version}`
+                : port.release.provider === "user-prepared"
+                  ? "Prepare game"
+                  : "Not installed"}
         </strong>
       )}
       {view === "library" ? (
@@ -684,7 +712,16 @@ function filterLabel(filter: Filter) {
   return filter;
 }
 
-function readinessPresentation(readiness: PortReadiness) {
+function readinessPresentation(readiness: PortReadiness, view: View, status?: PortStatus) {
+  if (view === "catalog" && readiness === "available")
+    return {
+      label:
+        typeof status?.readiness?.launchable === "boolean"
+          ? "Not installed"
+          : "Setup status unknown",
+      action: "View details",
+      tone: "available",
+    } as const;
   const values = {
     available: {
       label: "Available",
@@ -705,7 +742,7 @@ function readinessPresentation(readiness: PortReadiness) {
     },
     bios: { label: "BIOS required", action: "Finish setup", tone: "setup" },
     setup: { label: "Setup required", action: "Finish setup", tone: "setup" },
-    staged: { label: "Update downloaded", action: "Review update", tone: "staged" },
+    staged: { label: "Ready to play", action: "View details", tone: "ready" },
     unknown: {
       label: "Readiness unavailable",
       action: "Review game",

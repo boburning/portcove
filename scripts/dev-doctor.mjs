@@ -18,6 +18,12 @@ import {
   toolCachePaths,
 } from "./tool-cache.mjs";
 
+import {
+  developmentProfiles,
+  developmentCapabilityPlan,
+  validationCapabilities as selectedPrerequisites,
+} from "./development-capabilities.mjs";
+
 const root = fileURLToPath(new URL("..", import.meta.url));
 
 function doctorCommand(command, arguments_, options) {
@@ -83,6 +89,10 @@ function powershellAnalyzerDefinition() {
 
 export function probeTool(definition, run = spawnCommand, options = {}) {
   const { id, command, version = null, required = true } = definition;
+  const versionEvidence =
+    definition.version_source === "installed-package"
+      ? { version_source: definition.version_source }
+      : {};
   let result;
   try {
     result = run(command[0], command.slice(1), {
@@ -101,10 +111,14 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
       status: error.code === "ETIMEDOUT" ? "timeout" : "unavailable",
       observed: null,
       remediation: definition.remediation,
+      ...versionEvidence,
     };
   }
   const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-  const observed = output.match(/(?<![0-9])\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][\w.-]+)?/u)?.[0] ?? null;
+  const observed =
+    definition.version_source === "installed-package"
+      ? definition.installed_version
+      : (output.match(/(?<![0-9])\d+\.\d+\.\d+(?:\.\d+)?(?:[-+][\w.-]+)?/u)?.[0] ?? null);
   const status =
     result.error?.code === "ETIMEDOUT"
       ? "timeout"
@@ -114,76 +128,20 @@ export function probeTool(definition, run = spawnCommand, options = {}) {
           ? "mismatch"
           : "ok";
   // Never include raw tool output: unexpected output can contain credentials.
-  return { id, required, expected: version, observed, status, remediation: definition.remediation };
+  return {
+    id,
+    required,
+    expected: version,
+    observed,
+    status,
+    remediation: definition.remediation,
+    ...versionEvidence,
+  };
 }
 
 // These are prerequisite observations, never successful execution receipts.
 // Test fixtures and build scripts can expose further prerequisites at execution.
-export function selectedPrerequisites(entry, platform = process.platform) {
-  const ids = new Set(["node"]);
-  const rust =
-    entry.id === "rustfmt" ||
-    entry.id.startsWith("rust-") ||
-    ["dependency-policy", "transport-export", "playnite-contract"].includes(entry.id);
-  if (rust) {
-    ids.add("rustc");
-    ids.add("cargo");
-  }
-  if (entry.id === "rustfmt") ids.add("rustfmt-component");
-  if (entry.id.startsWith("rust-clippy") || entry.id === "rust-workspace-clippy")
-    ids.add("clippy-component");
-  if (entry.id.startsWith("rust-tests") || entry.id === "rust-workspace-tests")
-    ids.add("cargo-nextest");
-  if (entry.id === "dependency-policy") ids.add("cargo-deny");
-  if (
-    entry.id.startsWith("ui-") ||
-    ["oxfmt", "oxlint", "toml-format", "fallow", "transport-export"].includes(entry.id)
-  ) {
-    ids.add("pnpm");
-    ids.add("frontend-dependencies");
-  }
-  if (entry.id === "playnite-contract") {
-    ids.add("pwsh");
-    ids.add("windows-host");
-    ids.add("msbuild");
-  }
-  if (entry.id === "powershell-lint" && platform === "win32") {
-    ids.add("pwsh");
-    ids.add("psscriptanalyzer");
-  }
-  if (["shell-lint", "python-lint", "actionlint"].includes(entry.id)) ids.add("aqua-state");
-  if (entry.id === "shell-lint") ids.add("shellcheck");
-  if (entry.id === "python-lint") ids.add("ruff");
-  if (entry.id === "actionlint") {
-    ids.add("actionlint");
-    ids.add("shellcheck");
-  }
-  if (entry.id === "lint-tool-fixtures") {
-    const selected = entry.args?.slice(1) ?? [];
-    const fixtures = {
-      oxfmt: ["npm-oxfmt"],
-      oxlint: ["npm-oxlint", "npm-oxlint-tsgolint"],
-      stylelint: ["npm-stylelint"],
-      ruff: ["ruff"],
-      shellcheck: ["shellcheck"],
-      actionlint: ["actionlint", "shellcheck"],
-      psscriptanalyzer: platform === "win32" ? ["pwsh", "psscriptanalyzer"] : [],
-    };
-    if (!selected.length || selected.some((name) => !Object.hasOwn(fixtures, name)))
-      throw new Error("lint fixture prerequisite inventory is unavailable");
-    for (const name of selected) for (const id of fixtures[name]) ids.add(id);
-    if (["ruff", "shellcheck", "actionlint"].some((id) => ids.has(id))) ids.add("aqua-state");
-  }
-  if (rust && (entry.id.includes("workspace") || entry.id.includes("portcove-desktop")))
-    ids.add("native-desktop-build");
-  if (entry.id === "conservative-audit") {
-    ids.add("complete-audit-prerequisites");
-    ids.add("aqua-state");
-    if (entry.args?.includes("release-unit")) ids.add("pwsh");
-    if (platform === "linux" && entry.args?.includes("rust")) ids.add("unix-socket-path");
-  }
-  return [...ids];
-}
+export { selectedPrerequisites };
 
 export function existingPnpmDefinition(version, environment = process.env) {
   // Corepack's bundled v1 cache is observed; Corepack itself is never invoked.
@@ -287,11 +245,16 @@ export function existingNpmDefinition(id, base, name, bin) {
       !lstatSync(executable).isFile()
     )
       return null;
+    // tsgolint has no version flag. Its help command checks launcher/native
+    // startup; the installed package metadata supplies distinct version evidence.
+    const packageVersion = name === "oxlint-tsgolint" && bin === "tsgolint";
+    if (packageVersion && !/^\d+\.\d+\.\d+$/u.test(installed.version ?? "")) return null;
     return {
       id,
-      command: [process.execPath, executable, "--version"],
+      command: [process.execPath, executable, packageVersion ? "--help" : "--version"],
       version: desired,
       installed_version: installed.version,
+      ...(packageVersion ? { version_source: "installed-package" } : {}),
     };
   } catch {
     return null;
@@ -307,6 +270,7 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
   const environment = {
     ...checkoutToolEnvironment(options.environment ?? process.env, { paths: cachePaths }),
     RUSTUP_AUTO_INSTALL: "0",
+    COREPACK_ENABLE_NETWORK: "0",
   };
   const definitions = {
     node: {
@@ -318,6 +282,11 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
       repositoryPackage.packageManager.split("@")[1],
       environment,
     ),
+    git: { id: "git", command: ["git", "--version"] },
+    aqua: { id: "aqua", command: ["aqua", "--version"], version: cachePaths.pins.aquaSemver },
+    "tauri-driver": { id: "tauri-driver", command: ["tauri-driver", "--help"] },
+    "native-driver": { id: "native-driver", command: ["WebKitWebDriver", "--help"] },
+    xvfb: { id: "xvfb", command: ["Xvfb", "-help"] },
     rustc: { id: "rustc", command: ["rustc", "--version"], version: manifest.rust.channel },
     cargo: { id: "cargo", command: ["cargo", "--version"] },
     pwsh: {
@@ -355,7 +324,34 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
   for (const [id, [base, name, bin]] of Object.entries(npm)) {
     definitions[id] = existingNpmDefinition(id, base, name, bin);
   }
-  const ids = new Set(plan.flatMap((entry) => selectedPrerequisites(entry, platform)));
+  const ids = new Set(
+    options.capabilities ?? plan.flatMap((entry) => selectedPrerequisites(entry, platform)),
+  );
+  if (platform === "win32" && (ids.has("tauri-driver") || ids.has("native-driver"))) {
+    const state = (options.readToolState ?? readToolState)({ paths: cachePaths });
+    const drivers = (options.desktopDrivers ?? cachedDesktopDrivers)({ paths: cachePaths, state });
+    const pinned =
+      state?.desktop?.tauri_driver_version === cachePaths.pins.bootstrap.desktop.tauri_driver;
+    definitions["tauri-driver"] =
+      drivers && pinned
+        ? {
+            id: "tauri-driver",
+            command: [drivers.driver, "--help"],
+            version: cachePaths.pins.bootstrap.desktop.tauri_driver,
+            version_source: "installed-package",
+            installed_version: state.desktop.tauri_driver_version,
+          }
+        : null;
+    definitions["native-driver"] =
+      drivers && pinned
+        ? {
+            id: "native-driver",
+            command: [drivers.nativeDriver, "--version"],
+            version: state.desktop.webview2_version,
+          }
+        : null;
+  }
+  if (platform === "darwin" && ids.has("native-driver")) definitions["native-driver"] = null;
   const results = [];
   for (const id of ids) {
     if (id === "windows-host")
@@ -374,11 +370,14 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
     else if (id === "frontend-dependencies")
       results.push({
         id,
-        status:
-          existsSync(path.join(root, "node_modules")) &&
-          existsSync(path.join(root, "apps/desktop/node_modules"))
-            ? "ok"
-            : "unavailable",
+        status: (
+          options.frontendDependenciesAvailable ??
+          (() =>
+            existsSync(path.join(root, "node_modules")) &&
+            existsSync(path.join(root, "apps/desktop/node_modules")))
+        )()
+          ? "ok"
+          : "unavailable",
         remediation: "pnpm install --frozen-lockfile",
       });
     else if (id === "aqua-state")
@@ -390,7 +389,14 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
             : "unavailable",
         remediation: "./scripts/bootstrap-quality-tools.ps1",
       });
-    else if (id === "native-desktop-build") {
+    else if (["tauri-driver", "native-driver"].includes(id) && platform !== "win32") {
+      results.push({
+        id,
+        status: "unverified",
+        remediation:
+          "use the owning approved native platform route to establish driver pin and installed identity; arbitrary PATH help is not native readiness",
+      });
+    } else if (id === "native-desktop-build") {
       if (platform === "linux")
         results.push(
           probeTool(
@@ -404,6 +410,25 @@ export async function collectSelectedPrerequisites(plan, options = {}) {
             { environment },
           ),
         );
+      else if (platform === "win32" && options.profile === "native-desktop")
+        results.push({
+          ...probeTool(
+            {
+              id,
+              command: [
+                "pwsh",
+                "-NoProfile",
+                "-Command",
+                "$locator=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'; if (!(Test-Path -LiteralPath $locator)) { exit 1 }; $compiler=& $locator -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find 'VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\cl.exe' | Select-Object -First 1; if (!$compiler -or !(Test-Path -LiteralPath $compiler) -or !(Test-Path -LiteralPath (Join-Path (Split-Path $compiler) 'link.exe'))) { exit 1 }; Write-Output 'MSVC compiler and linker are installed'",
+              ],
+              remediation: "establish the existing Visual Studio C++ build prerequisites",
+            },
+            run,
+            { environment },
+          ),
+          interpretation:
+            "Installed compiler/linker presence only; Cargo selection and native execution remain separate evidence",
+        });
       else
         results.push({
           id,
@@ -516,8 +541,41 @@ function windowsCompilers() {
   };
 }
 
+export async function collectProfileDoctor(profile, options = {}) {
+  const plan = await developmentCapabilityPlan(profile, { platform: options.platform });
+  const tools = await collectSelectedPrerequisites([], {
+    ...options,
+    profile,
+    capabilities: plan.capabilities,
+  });
+  let storage;
+  try {
+    const scope = profile === "frontend" ? "frontend" : profile === "core" ? "rust" : "all";
+    storage = {
+      status: "ok",
+      ...(options.storage ?? preflight(getPaths(scope), minimumFreeGiB())),
+    };
+  } catch (error) {
+    storage = { status: "failed", message: error.message };
+  }
+  return {
+    format_version: 2,
+    profile,
+    platform: options.platform ?? process.platform,
+    architecture: process.arch,
+    workspace: root,
+    capabilities: plan.capabilities,
+    ok: storage.status === "ok" && tools.every((tool) => tool.status === "ok"),
+    tools: tools.map((tool) => ({ ...tool, required: true, paths: [] })),
+    cache: { status: "not inferred from profile observations" },
+    storage,
+    msvc: null,
+  };
+}
+
 export async function collectDoctor(options = {}) {
   const profile = options.profile ?? "standard";
+  if (developmentProfiles.includes(profile)) return collectProfileDoctor(profile, options);
   if (!["standard", "desktop"].includes(profile))
     throw new Error(`unknown doctor profile: ${profile}`);
   const cachePaths = toolCachePaths();
@@ -659,7 +717,9 @@ export async function collectDoctor(options = {}) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   if (args.includes("--help")) {
-    console.log("usage: dev-doctor.mjs [--json] [--profile standard|desktop] [--help]");
+    console.log(
+      "usage: dev-doctor.mjs [--json] [--profile standard|desktop|frontend|core|daily|native-desktop] [--help]",
+    );
     process.exit(0);
   }
   let profile = "standard";
@@ -668,8 +728,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (args[index] === "--json") asJson = true;
     else if (args[index] === "--profile") {
       profile = args[++index];
-      if (!profile) throw new Error("--profile requires standard or desktop");
-    } else throw new Error("usage: dev-doctor.mjs [--json] [--profile standard|desktop] [--help]");
+      if (!profile) throw new Error("--profile requires a development profile");
+    } else
+      throw new Error(
+        "usage: dev-doctor.mjs [--json] [--profile standard|desktop|frontend|core|daily|native-desktop] [--help]",
+      );
   }
   const report = await collectDoctor({ profile });
   if (asJson) console.log(JSON.stringify(report, null, 2));

@@ -418,11 +418,12 @@ fn emit_operation(app: &tauri::AppHandle, event: OperationEvent) {
 async fn get_github_auth_status(
     state: tauri::State<'_, DesktopState>,
 ) -> DesktopResult<GithubAuthStatus> {
-    ready(&state)?
-        .github
-        .auth_status()
-        .await
-        .map_err(Into::into)
+    let observation = diagnostics::GithubAuthObservation::begin();
+    let result = match ready(&state) {
+        Ok(ready) => ready.github.auth_status().await.map_err(Into::into),
+        Err(error) => Err(error),
+    };
+    observation.finish(result)
 }
 
 #[tauri::command]

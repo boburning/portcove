@@ -1,5 +1,10 @@
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
+import {
+  beginReviewedUpdateProbe,
+  requireTrustedProbeCleanup,
+} from "./desktop-owned-ipc-probe.mjs";
+import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -383,6 +388,8 @@ async function assertReviewedUpdateOutcomes({
     activities_before: (await invoke("get_activities")).value,
     cases: [],
   };
+  let primaryError;
+  let reportError;
   try {
     for (const mutation of ["committed", "unknown", "no_changes"]) {
       const cancelled = mutation === "no_changes";
@@ -402,84 +409,13 @@ async function assertReviewedUpdateOutcomes({
         restored: false,
       };
       observations.cases.push(observation);
-      await browser.executeScript(
-        (portId, generation, plan, failure) => {
-          const native = window.__TAURI_INTERNALS__;
-          const probe = {
-            original: window.fetch,
-            plans: 0,
-            applies: 0,
-            mismatches: [],
-            channels: 0,
-          };
-          window.__portcoveReviewedUpdateProbe = probe;
-          const planTarget = native.convertFileSrc("plan_game_update", "ipc");
-          const applyTarget = native.convertFileSrc("apply_game_update", "ipc");
-          function readPayload(options) {
-            try {
-              const body = options.body;
-              return JSON.parse(typeof body === "string" ? body : new TextDecoder().decode(body));
-            } catch {
-              probe.mismatches.push("Unreadable controlled IPC payload");
-              return null;
-            }
-          }
-          function closeChannel(payload) {
-            try {
-              if (!/^__CHANNEL__:\d+$/.test(payload.onEvent)) throw new Error("Channel mismatch");
-              native.runCallback(Number(payload.onEvent.slice("__CHANNEL__:".length)), {
-                index: 0,
-                end: true,
-              });
-              probe.channels++;
-            } catch {
-              probe.mismatches.push("Controlled Channel did not close");
-            }
-          }
-          function matchesTarget(payload) {
-            return (
-              payload &&
-              typeof payload === "object" &&
-              payload.portId === portId &&
-              payload.activate === false &&
-              payload.generation === generation
-            );
-          }
-          window.fetch = function (input, ...args) {
-            const url = typeof input === "string" ? input : input.url;
-            if (url !== planTarget && url !== applyTarget)
-              return probe.original.call(window, input, ...args);
-            const reply = (value, outcome) =>
-              Promise.resolve(
-                new Response(JSON.stringify(value), {
-                  headers: { "Content-Type": "application/json", "Tauri-Response": outcome },
-                }),
-              );
-            // Never forward an application, even for malformed or unexpected tuples.
-            // Throwing from fetch could activate Tauri's real-IPC fallback.
-            const payload = readPayload(args[0]);
-            if (url === applyTarget) {
-              probe.applies++;
-              closeChannel(payload);
-            }
-            if (!matchesTarget(payload)) {
-              probe.mismatches.push("Controlled port, activation, or generation mismatch");
-              return reply(failure, "error");
-            }
-            if (url === planTarget) {
-              probe.plans++;
-              return reply(plan, "ok");
-            }
-            if (payload.expectedPlan !== plan.plan_sha256)
-              probe.mismatches.push("Controlled review identity mismatch");
-            return reply(failure, "error");
-          };
-        },
-        port.id,
+      const probe = await beginReviewedUpdateProbe(browser, {
+        portId: port.id,
         generation,
-        suppliedPlan,
+        plan: suppliedPlan,
         failure,
-      );
+      });
+      let scenarioError;
       try {
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
@@ -489,10 +425,7 @@ async function assertReviewedUpdateOutcomes({
           candidate.plan.release.version,
           observation,
         );
-        const admitted = await browser.executeScript(() => ({
-          plans: window.__portcoveReviewedUpdateProbe.plans,
-          mismatches: window.__portcoveReviewedUpdateProbe.mismatches,
-        }));
+        const admitted = await probe.capture();
         assert.equal(admitted.plans, 1, "The supplied review must be intercepted before Apply");
         assert.deepEqual(admitted.mismatches, []);
         assert.equal(/^[a-f0-9]{64}$/.test(suppliedPlan.plan_sha256), false);
@@ -544,6 +477,7 @@ async function assertReviewedUpdateOutcomes({
         await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
         observation.review_cancelled_without_reapply = true;
       } catch (error) {
+        scenarioError = error;
         observation.failure = error.message;
         try {
           const image = path.join(
@@ -560,20 +494,8 @@ async function assertReviewedUpdateOutcomes({
         }
         throw error;
       } finally {
-        Object.assign(
-          observation,
-          await browser.executeScript(() => {
-            const probe = window.__portcoveReviewedUpdateProbe;
-            window.fetch = probe.original;
-            return {
-              plans: probe.plans,
-              applies: probe.applies,
-              mismatches: probe.mismatches,
-              channels: probe.channels,
-              restored: window.fetch === probe.original,
-            };
-          }),
-        );
+        Object.assign(observation, await probe.restore());
+        requireTrustedProbeCleanup(observation, scenarioError);
       }
       assert.deepEqual(observation.mismatches, []);
       assert.equal(observation.plans, 2);
@@ -592,11 +514,35 @@ async function assertReviewedUpdateOutcomes({
     assert.deepEqual(observations.after, observations.before);
     assert.deepEqual(observations.sources_after, observations.sources_before);
     assert.deepEqual(observations.activities_after, observations.activities_before);
+  } catch (error) {
+    primaryError = error;
   } finally {
     const report = path.join(output, "reviewed-update-outcome-observations.json");
-    await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
-    artifacts.push(report);
+    try {
+      await writeFile(report, JSON.stringify(observations, null, 2), { flag: "wx" });
+      artifacts.push(report);
+    } catch (error) {
+      reportError = error;
+      console.error("Owned update observation report failed:", error.message);
+    }
   }
+  if (primaryError) throw primaryError;
+  if (reportError) throw reportError;
+}
+
+export function assertPreparedLibrarySummary(text, statuses, preparedPortId) {
+  const installed = statuses.filter((item) => item.active || item.external_runtime);
+  assert.ok(installed.some((item) => item.port_id === preparedPortId));
+  for (const item of installed) {
+    assert.equal(item.readiness?.launchable, true, `${item.port_id} must be ready`);
+    assert.equal(item.readiness.pending_setup, false);
+    assert.deepEqual(item.readiness.blockers, []);
+    assert.ok(!item.staged, `${item.port_id} must have no downloaded update`);
+  }
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} in library All ready to play`,
+  );
 }
 
 export async function preparationScenarios({
@@ -842,7 +788,9 @@ export async function preparationScenarios({
       15_000,
     );
     const readinessText = await readinessSummary.getText();
-    assert.match(readinessText, /^1 in library\s+All ready to play$/iu);
+    const libraryStatuses = await invoke("get_statuses");
+    assert.equal(libraryStatuses.ok, true);
+    assertPreparedLibrarySummary(readinessText, libraryStatuses.value, port.id);
     assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
     const card = await browser.wait(
       until.elementLocated(
@@ -1606,151 +1554,254 @@ export async function preparationScenarios({
   await scenario("native-preparation-cancellation", async () => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
     await open(port);
-    await browser.findElement(button("Review game preparation")).click();
-    await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
-    await browser.findElement(button("Prepare game data")).click();
-    let activity;
-    await browser.wait(
-      async () => {
-        activity = (await activities()).find(
-          (item) =>
-            item.operation === "prepare" && item.target_id === port.id && item.status === "running",
-        );
-        return (
-          activity &&
-          (await stat(
-            path.join(library, "staging", activity.id, "payload/data/out/setup-ready"),
-          ).then(
-            (value) => value.isFile(),
-            () => false,
-          ))
-        );
-      },
-      15_000,
-      "Preparation must reach its owned cancellation checkpoint",
-    );
-    await browser.findElement(button("Cancel preparation")).click();
-    await browser.wait(
-      async () => {
-        return (await activities()).find((item) => item.id === activity.id)?.status === "cancelled";
-      },
-      15_000,
-      "Preparation cancellation must become durable",
-    );
-    await browser.wait(
-      async () => (await browser.findElements(By.css("#preparation-review-title"))).length === 0,
-      15_000,
-      "Busy preparation review must close after cancellation",
-    );
-    await browser.findElement(By.css(".detail-back")).click();
-    await browser
-      .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
-      .click();
-    const cancelledRow = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//div[contains(@class, "activity-row") and contains(@class, "cancelled")][.//strong[normalize-space(.)="Game-data setup"]]',
+    const observations = { port_id: port.id, phases: [], inputs: [] };
+    const preparationIds = (items) =>
+      items
+        .filter((item) => item.operation === "prepare" && item.target_id === port.id)
+        .map((item) => item.id)
+        .sort();
+    const observe = async (phase) => {
+      const observation = {
+        phase,
+        observed_at: new Date().toISOString(),
+      };
+      observations.phases.push(observation);
+      const bootstrap = await invoke("get_bootstrap_status");
+      observation.bootstrap_response = bootstrap;
+      assert.equal(bootstrap.ok, true);
+      assert.equal(bootstrap.value.ready, true);
+      observation.bootstrap = bootstrap.value;
+      observation.activities = await activities();
+      observation.status = await status(port.id);
+      return observation;
+    };
+    let originalFailure;
+    let evidenceFailure;
+    try {
+      const before = await observe("before-start");
+      const baselineIds = preparationIds(before.activities);
+      const activePath = before.status.active.path;
+      for (const [index, input] of [
+        path.join(output, `${port.id}.chd`),
+        path.join(activePath, port.executable_hints[host][0]),
+        path.join(activePath, port.setup_executable_hints[host][0]),
+        path.join(activePath, "owned-setup-mode"),
+        path.join(activePath, ".portcove-manifest.json"),
+      ].entries()) {
+        const bytes = await readFile(input);
+        const retained = path.join(output, `live-reload-input-${index}.original`);
+        await writeFile(retained, bytes, { flag: "wx" });
+        artifacts.push(retained);
+        observations.inputs.push({
+          path: input,
+          retained,
+          size: bytes.length,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        });
+      }
+      await browser.findElement(button("Review game preparation")).click();
+      await browser.wait(until.elementLocated(button("Prepare game data")), 15_000);
+      await browser.findElement(button("Prepare game data")).click();
+      let activity;
+      await browser.wait(
+        async () => {
+          activity = (await activities()).find(
+            (item) =>
+              item.operation === "prepare" &&
+              item.target_id === port.id &&
+              item.status === "running",
+          );
+          return (
+            activity &&
+            (await stat(
+              path.join(library, "staging", activity.id, "payload/data/out/setup-ready"),
+            ).then(
+              (value) => value.isFile(),
+              () => false,
+            ))
+          );
+        },
+        15_000,
+        "Preparation must reach its owned cancellation checkpoint",
+      );
+      const running = await observe("live-before-reload");
+      assert.equal(running.activities.find((item) => item.id === activity.id)?.status, "running");
+      await open(port, false);
+      const restored = await observe("live-after-reload");
+      assert.equal(restored.bootstrap.library_root, before.bootstrap.library_root);
+      assert.equal(restored.bootstrap.generation, before.bootstrap.generation);
+      assert.equal(restored.status.active.id, install.id);
+      assert.deepEqual(preparationIds(restored.activities), [...baselineIds, activity.id].sort());
+      assert.equal(restored.activities.find((item) => item.id === activity.id)?.status, "running");
+      assert.equal(restored.status.readiness.launchable, false);
+      const cancel = await browser.wait(
+        async () => {
+          const candidates = await browser.findElements(
+            By.xpath(
+              '//section[@data-detail-workspace]//button[normalize-space(.)="Cancel operation"]',
+            ),
+          );
+          if (candidates.length !== 1) return false;
+          const candidate = candidates[0];
+          return (await candidate.isDisplayed()) && (await candidate.isEnabled())
+            ? candidate
+            : false;
+        },
+        15_000,
+        "The restored detail must expose one enabled cancellation control",
+      );
+      assert.equal((await browser.findElements(button("Prepare game data"))).length, 0);
+      const cancellable = (await activities()).filter(
+        (item) => item.target_id === port.id && item.cancellation,
+      );
+      assert.equal(cancellable.length, 1);
+      assert.equal(cancellable[0].id, activity.id);
+      assert.equal(cancellable[0].status, "running");
+      await cancel.click();
+      await browser.wait(
+        async () => {
+          return (
+            (await activities()).find((item) => item.id === activity.id)?.status === "cancelled"
+          );
+        },
+        15_000,
+        "Preparation cancellation must become durable",
+      );
+      const terminal = await observe("terminal-cancelled");
+      assert.deepEqual(preparationIds(terminal.activities), [...baselineIds, activity.id].sort());
+      for (const input of observations.inputs) {
+        const bytes = await readFile(input.path);
+        input.after_sha256 = createHash("sha256").update(bytes).digest("hex");
+        assert.equal(input.after_sha256, input.sha256, `Owned input changed: ${input.path}`);
+      }
+      await browser.findElement(By.css(".detail-back")).click();
+      await browser
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .click();
+      const cancelledRow = await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//div[contains(@class, "activity-row") and contains(@class, "cancelled")][.//strong[normalize-space(.)="Game-data setup"]]',
+          ),
         ),
-      ),
-      15_000,
-      "Cancelled preparation must remain discoverable after navigating away",
-    );
-    const cancelledText = await cancelledRow.getText();
-    assert.ok(cancelledText.includes(port.name));
-    assert.match(cancelledText, /Cancelled/i);
-    assert.equal((await status(port.id)).active.id, install.id);
-    assert.equal((await status(port.id)).readiness.launchable, false);
-    const recorded = (await activities()).find((item) => item.id === activity.id);
-    assert.equal(recorded.failure.code, "cancelled");
-    assert.equal(recorded.failure.presentation.tone, "neutral");
-    assert.equal(recorded.failure.presentation.mutation_state, "recovery_required");
-    assert.equal(recorded.failure.presentation.phase, "preparation.setup");
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-    await browser.wait(
-      until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
-      15_000,
-    );
-    await browser
-      .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
-      .click();
-    await browser.wait(
-      until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-      15_000,
-      "Cancelled preparation must remain discoverable after navigating away and returning",
-    );
-    await browser.navigate().refresh();
-    await browser.wait(
-      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
-    );
-    assert.deepEqual(
-      (await activities()).find((item) => item.id === activity.id).failure,
-      recorded.failure,
-    );
-    await browser
-      .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
-      .click();
-    await browser.wait(
-      until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-      15_000,
-    );
-    const row = await browser.findElement(By.css(".activity-row.cancelled"));
-    assert.match(await row.getText(), /An earlier attempt left unfinished work/);
-    assert.doesNotMatch(await row.getText(), /No files were changed/);
-    await row.findElement(By.css("summary")).click();
-    const generation = (await invoke("get_bootstrap_status")).value.generation;
-    const retained = await invoke("get_activity_diagnostic", {
-      activityId: activity.id,
-      generation,
-    });
-    assert.equal(retained.ok, true);
-    assert.deepEqual(
-      retained.value.map((item) => item.phase),
-      ["preparation.extract", "preparation.setup"],
-    );
-    assert.equal(retained.value[0].complete, true);
-    assert.match(retained.value[0].stdout.text, /owned conversion began/);
-    assert.doesNotMatch(JSON.stringify(retained.value), /owned-conversion-secret/);
-    assert.equal(retained.value[1].complete, true);
-    assert.match(retained.value[1].stdout.text, /owned setup began/);
-    assert.match(retained.value[1].stderr.text, /owned setup diagnostic on stderr/);
-    assert.doesNotMatch(JSON.stringify(retained.value), /owned-fixture-private-value/);
-    assert.deepEqual(command(["activity", "log", activity.id]), retained.value);
-    const staleLog = await invoke("get_activity_diagnostic", {
-      activityId: activity.id,
-      generation: generation + 1,
-    });
-    assert.equal(staleLog.ok, false);
-    assert.equal(staleLog.error.code, "conflict");
-    await row
-      .findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]'))
-      .click();
-    await browser.wait(
-      async () => (await row.getText()).includes("owned setup diagnostic on stderr"),
-      15_000,
-      "The retained preparation log must render after expansion",
-    );
-    assert.match(await row.getText(), /Preparing source data/);
-    assert.match(await row.getText(), /owned conversion began/);
-    assert.doesNotMatch(await row.getText(), /owned-fixture-private-value|owned-conversion-secret/);
-    const bundle = await invoke("create_support_bundle");
-    assert.equal(bundle.ok, true);
-    artifacts.push(bundle.value);
-    const capture = path.join(output, "retained-preparation-log.json");
-    await writeFile(capture, JSON.stringify(retained.value, null, 2), {
-      flag: "wx",
-    });
-    artifacts.push(capture);
+        15_000,
+        "Cancelled preparation must remain discoverable after navigating away",
+      );
+      const cancelledText = await cancelledRow.getText();
+      assert.ok(cancelledText.includes(port.name));
+      assert.match(cancelledText, /Cancelled/i);
+      assert.equal((await status(port.id)).active.id, install.id);
+      assert.equal((await status(port.id)).readiness.launchable, false);
+      const recorded = (await activities()).find((item) => item.id === activity.id);
+      assert.equal(recorded.failure.code, "cancelled");
+      assert.equal(recorded.failure.presentation.tone, "neutral");
+      assert.equal(recorded.failure.presentation.mutation_state, "recovery_required");
+      assert.equal(recorded.failure.presentation.phase, "preparation.setup");
+      await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+      await browser.wait(
+        until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
+        15_000,
+      );
+      await browser
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .click();
+      await browser.wait(
+        until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
+        15_000,
+        "Cancelled preparation must remain discoverable after navigating away and returning",
+      );
+      await browser.navigate().refresh();
+      await browser.wait(
+        until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+        15_000,
+      );
+      assert.deepEqual(
+        (await activities()).find((item) => item.id === activity.id).failure,
+        recorded.failure,
+      );
+      await browser
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .click();
+      await browser.wait(
+        until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
+        15_000,
+      );
+      const row = await browser.findElement(By.css(".activity-row.cancelled"));
+      assert.match(await row.getText(), /An earlier attempt left unfinished work/);
+      assert.doesNotMatch(await row.getText(), /No files were changed/);
+      await row.findElement(By.css("summary")).click();
+      const generation = (await invoke("get_bootstrap_status")).value.generation;
+      const retained = await invoke("get_activity_diagnostic", {
+        activityId: activity.id,
+        generation,
+      });
+      assert.equal(retained.ok, true);
+      assert.deepEqual(
+        retained.value.map((item) => item.phase),
+        ["preparation.extract", "preparation.setup"],
+      );
+      assert.equal(retained.value[0].complete, true);
+      assert.match(retained.value[0].stdout.text, /owned conversion began/);
+      assert.doesNotMatch(JSON.stringify(retained.value), /owned-conversion-secret/);
+      assert.equal(retained.value[1].complete, true);
+      assert.match(retained.value[1].stdout.text, /owned setup began/);
+      assert.match(retained.value[1].stderr.text, /owned setup diagnostic on stderr/);
+      assert.doesNotMatch(JSON.stringify(retained.value), /owned-fixture-private-value/);
+      assert.deepEqual(command(["activity", "log", activity.id]), retained.value);
+      const staleLog = await invoke("get_activity_diagnostic", {
+        activityId: activity.id,
+        generation: generation + 1,
+      });
+      assert.equal(staleLog.ok, false);
+      assert.equal(staleLog.error.code, "conflict");
+      await row
+        .findElement(By.xpath('.//summary[normalize-space(.)="View preparation log"]'))
+        .click();
+      await browser.wait(
+        async () => (await row.getText()).includes("owned setup diagnostic on stderr"),
+        15_000,
+        "The retained preparation log must render after expansion",
+      );
+      assert.match(await row.getText(), /Preparing source data/);
+      assert.match(await row.getText(), /owned conversion began/);
+      assert.doesNotMatch(
+        await row.getText(),
+        /owned-fixture-private-value|owned-conversion-secret/,
+      );
+      const bundle = await invoke("create_support_bundle");
+      assert.equal(bundle.ok, true);
+      artifacts.push(bundle.value);
+      const capture = path.join(output, "retained-preparation-log.json");
+      await writeFile(capture, JSON.stringify(retained.value, null, 2), {
+        flag: "wx",
+      });
+      artifacts.push(capture);
 
-    const report = path.join(output, "recovery-details-accessibility.json");
-    await captureAccessibilityReport(browser, report, artifacts);
-    await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', row);
-    const screenshot = path.join(output, "native-preparation-retained-outcome.png");
-    await writeFile(screenshot, await browser.takeScreenshot(), {
-      encoding: "base64",
-      flag: "wx",
-    });
-    artifacts.push(screenshot);
+      const report = path.join(output, "recovery-details-accessibility.json");
+      await captureAccessibilityReport(browser, report, artifacts);
+      await browser.executeScript('arguments[0].scrollIntoView({ block: "center" });', row);
+      const screenshot = path.join(output, "native-preparation-retained-outcome.png");
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(screenshot);
+    } catch (error) {
+      originalFailure = error;
+      observations.failure = { message: String(error), observed_at: new Date().toISOString() };
+      throw error;
+    } finally {
+      const capture = path.join(output, "live-preparation-reload-observations.json");
+      try {
+        await writeFile(capture, JSON.stringify(observations, null, 2), { flag: "wx" });
+        artifacts.push(capture);
+      } catch (error) {
+        console.error("Live preparation evidence write failed:", error);
+        console.error(JSON.stringify(observations));
+        if (!originalFailure) evidenceFailure = error;
+      }
+    }
+    if (evidenceFailure) throw evidenceFailure;
   });
   browser = await interruptedPreparationScenario({
     browser,
@@ -2156,20 +2207,55 @@ export async function preparationScenarios({
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] !== "--context-preflight")
     throw new Error("Usage: node desktop-preparation-test.mjs --context-preflight");
-  // Register actual callers without executing their browser or CLI callbacks.
-  await preparationScenarios({
+  // Both frontend lanes run this installed-dependency preflight.
+  // Register actual callers without executing browser, CLI, or consent callbacks.
+  const { planDesktopExecution } = await import("../../../scripts/desktop-execution-plan.mjs");
+  const { resolveDesktopSelection } = await import("../../../scripts/desktop-scenarios.mjs");
+  const { runOwnedFixtureJourneys } = await import("./desktop-owned-fixture-journeys.mjs");
+  const { installScenarios } = await import("./desktop-install-test.mjs");
+  const { selectedSetupScenario } = await import("./desktop-source-dialog-test.mjs");
+  const { selectedSetupCompletionScenario } =
+    await import("./desktop-selected-setup-completion-test.mjs");
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({ profile: "full", platform: "win32" }),
+  );
+  const attempts = [];
+  const context = {
     browser: {},
-    invoke: async () => {},
-    scenario: async () => {},
+    invoke: async () => assert.fail("Context preflight must not invoke IPC"),
+    scenario: async (id) => attempts.push(id),
     library: "<preflight-library>",
     output: "<preflight-output>",
     artifacts: [],
     cli: "<preflight-cli>",
     tool: "<preflight-tool>",
-    confirmNative: async () => {},
-    restartApplication: async () => {},
-    interruptApplication: async () => {},
-    captureLivePreparation: () => {},
-  });
-  console.log("Native scenario context preflight passed.");
+    inputs: [],
+    restartApplication: async () => assert.fail("Context preflight must not restart"),
+    interruptApplication: async () => assert.fail("Context preflight must not interrupt"),
+    closeApplication: async () => assert.fail("Context preflight must not close"),
+    captureLivePreparation: () => assert.fail("Context preflight must not capture"),
+  };
+  await runOwnedFixtureJourneys(
+    {
+      plan,
+      runtime: {
+        context: () => context,
+        confirmNative: () => async () => assert.fail("Context preflight must not consent"),
+        recordKnownGap: () => {},
+      },
+    },
+    {
+      install: installScenarios,
+      selectedSetup: selectedSetupScenario,
+      selectedSetupCompletion: selectedSetupCompletionScenario,
+      preparation: preparationScenarios,
+    },
+  );
+  assert(attempts.includes("install-progress-cancellation"));
+  assert(attempts.includes("native-preparation-review-and-play"));
+  for (const family of plan.fixtureFamilies.filter((entry) => entry.family))
+    for (const member of family.members) assert(attempts.includes(member.id), member.id);
+  const { verifyOwnedProbeTransport } = await import("./desktop-owned-ipc-probe-check.mjs");
+  await verifyOwnedProbeTransport();
+  console.log("Native scenario context preflight and pinned probe transport passed.");
 }

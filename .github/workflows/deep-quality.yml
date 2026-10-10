@@ -7,7 +7,7 @@ on:
         description: Fixed validation operation
         type: choice
         default: audit
-        options: [audit, local-check]
+        options: [audit, audit-reuse, local-check]
       source_sha:
         description: Reviewed source commit for local-check
         type: string
@@ -103,20 +103,46 @@ jobs:
       - name: Run deterministic gates and structural audit
         id: fresh-audit
         shell: bash
+        env:
+          PORTCOVE_AUDIT_CAPTURE: "1"
+          AUDIT_OPERATION: ${{ inputs.operation }}
+          GH_TOKEN: ${{ inputs.operation == 'audit-reuse' && github.token || '' }}
         run: |
           node scripts/deep-audit-summary.mjs --start || echo "Audit summary initialization unavailable"
           set +e
-          just audit --fresh
+          if [[ "$AUDIT_OPERATION" == "audit-reuse" ]]; then
+            just audit
+          else
+            just audit --fresh
+          fi
           audit_status=$?
           echo "exit_code=$audit_status" >> "$GITHUB_OUTPUT"
           node scripts/deep-audit-summary.mjs --finish "$audit_status"
           exit "$audit_status"
       - name: Summarize structured audit evidence
-        if: always()
+        if: always() && inputs.operation != 'audit-reuse'
         env:
           AUDIT_OUTCOME: ${{ steps.fresh-audit.outcome }}
           AUDIT_EXIT_CODE: ${{ steps.fresh-audit.outputs.exit_code }}
         run: node scripts/deep-audit-summary.mjs || echo "Structured audit evidence unavailable"
+      - name: Export attempt-bound audit evidence
+        id: audit-evidence
+        if: always() && steps.fresh-audit.outputs.capture_available == 'true'
+        run: |
+          if node scripts/audit-evidence.mjs; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Audit evidence unavailable; original audit outcome retained"
+          fi
+      - name: Retain bounded audit evidence
+        if: always() && steps.audit-evidence.outputs.available == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: audit-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/audit-bundles/${{ github.run_id }}-${{ github.run_attempt }}/
+          retention-days: 7
+          compression-level: 6
+          if-no-files-found: error
 
   local_check:
     if: inputs.operation == 'local-check'
@@ -190,9 +216,11 @@ jobs:
       - name: Verify source pinned tools with normal attestation
         working-directory: source
         run: ./scripts/bootstrap-quality-tools.sh
-      - name: Install source frozen dependencies
+      - name: Install source frozen dependencies through the selected Corepack provider
         working-directory: source
-        run: pnpm install --frozen-lockfile
+        run: corepack pnpm install --frozen-lockfile
+      - name: Provision selected browser prerequisite from the separate controller
+        run: node controller/scripts/workflow-provenance.mjs hosted-local-check provision
       - name: Execute exact fresh local-check from the separate controller
         run: node controller/scripts/workflow-provenance.mjs hosted-local-check run
       - name: Clean owned ephemeral local-check outputs

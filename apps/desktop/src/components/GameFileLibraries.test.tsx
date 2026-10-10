@@ -133,6 +133,78 @@ it("scans only after a player asks and keeps exact results as reviewed candidate
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+function resumableSnapshot(): GameFileScanSnapshot {
+  return {
+    ...snapshot,
+    coverage: {
+      batch_entries_examined: 1,
+      batches: 2,
+      can_resume: true,
+      entries_relisted: 1,
+      frontier_exhausted: false,
+      metadata_checks: 2,
+      pending_directories: 1,
+      prior_member_rechecks: 1,
+      remaining_entries: null,
+      restart_required: false,
+    },
+  };
+}
+
+it("continues Core's saved frontier without discarding matches or changing scan budgets", async () => {
+  const continued = resumableSnapshot();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("These totals cover 2 scan batches.");
+  expect(document.body.textContent).toContain("The number of remaining entries is unknown.");
+  expect(document.body.textContent).toContain("Earlier matches were kept.");
+  expect(document.body.textContent).not.toContain("Remove or update saved folders");
+  expect(document.body.textContent).toContain("D:/Games/game.z64");
+  await click("Continue scan");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("keeps stale resumable results from advertising continuation", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...resumableSnapshot(),
+    freshness: "inputs_changed",
+  });
+  await click("Refresh folders");
+  expect(button("Scan saved folders")).toBeDefined();
+  expect(document.body.textContent).not.toContain("Continue the scan to check another");
+  expect(document.body.textContent).toContain("Scan again before using these results.");
+});
+
+it("presents a required restart separately from another resumable batch", async () => {
+  const restarted = resumableSnapshot();
+  restarted.freshness = "inputs_changed";
+  restarted.coverage = { ...restarted.coverage!, can_resume: false, restart_required: true };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(restarted);
+  await click("Refresh folders");
+  expect(button("Start new scan")).toBeDefined();
+  expect(document.body.textContent).toContain("The saved scan cannot continue.");
+  await click("Start new scan");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledTimes(1);
+});
+
+it("keeps exhausted coverage distinct from skipped files and gameplay support", async () => {
+  const exhausted = resumableSnapshot();
+  exhausted.coverage = {
+    ...exhausted.coverage!,
+    can_resume: false,
+    frontier_exhausted: true,
+    remaining_entries: 0,
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(exhausted);
+  await click("Refresh folders");
+  expect(button("Scan saved folders")).toBeDefined();
+  expect(document.body.textContent).toContain("Skipped files and search limits still apply.");
+  expect(document.body.textContent).toContain(
+    "does not assess every source format or establish gameplay support",
+  );
+});
+
 it("marks matching registered candidates without claiming installation and keeps each port distinct", async () => {
   const source = snapshot.report.candidates[0];
   const onOpenPort = vi.fn();
@@ -356,6 +428,99 @@ it("recognizes a registered source in streamed results but still reviews a diffe
   expect(document.body.textContent).not.toContain("Already added");
   expect(document.body.textContent).not.toContain("Ready for setup review");
   expect(button("Review game files now")).toBeDefined();
+});
+
+it("keeps live catalog associations distinct through completion and stale readback", async () => {
+  const ports = [
+    { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" },
+    { ...portDefinition(), id: "game-b", name: "Game B", source_profile: "game" },
+    {
+      ...portDefinition(),
+      id: "firmware-consumer",
+      name: "Firmware consumer",
+      source_profile: "other",
+      bios_source_profile: "game",
+    },
+    { ...portDefinition(), id: "unrelated", name: "Unrelated", source_profile: "other" },
+  ];
+  const orphan = {
+    ...snapshot.report.candidates[0],
+    profile_id: "orphan",
+    path: "D:/Games/orphan.bin",
+  };
+  const completed = {
+    ...snapshot,
+    report: { ...snapshot.report, candidates: [...snapshot.report.candidates, orphan] },
+  };
+  let onEvent: ((event: OperationEvent) => void) | undefined;
+  let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    onEvent = callback;
+    return new Promise<GameFileScanSnapshot>((resolve) => {
+      finish = resolve;
+    });
+  });
+  await act(async () => root.render(<GameFileLibraries ports={ports} profiles={[]} />));
+  await click("Scan saved folders");
+  for (const [index, candidate] of completed.report.candidates.entries()) {
+    await act(async () =>
+      onEvent?.({
+        schema_version: 3,
+        operation_id: "scan-1",
+        parent_operation_id: null,
+        target: null,
+        sequence: index,
+        timestamp_ms: 1,
+        operation: "discover_sources",
+        type: "source_candidate",
+        profile_id: candidate.profile_id,
+        path: candidate.path,
+        sha256: candidate.sha256,
+        size: candidate.size,
+      }),
+    );
+  }
+  const row = (kind: "live" | "completed", profile: string) => {
+    const element = document.querySelector(
+      `[data-${kind}-candidate][data-profile-id="${profile}"]`,
+    );
+    expect(element).not.toBeNull();
+    return element!;
+  };
+  expect(row("live", "game").textContent).toContain(
+    "Catalog ports using this profile: Game A, Game B, Firmware consumer",
+  );
+  expect(row("live", "game").textContent).not.toContain("Unrelated");
+  expect(row("live", "orphan").textContent).toContain(
+    "No catalog port currently uses this profile",
+  );
+  expect(document.body.textContent).not.toContain("Ready for setup review");
+  expect(document.body.textContent).not.toContain("Already added");
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+
+  const currentPorts = ports.filter((port) => port.id !== "game-a");
+  await act(async () => root.render(<GameFileLibraries ports={currentPorts} profiles={[]} />));
+  expect(row("live", "game").textContent).toContain(
+    "Catalog ports using this profile: Game B, Firmware consumer",
+  );
+  expect(row("live", "game").textContent).not.toContain("Game A");
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(completed);
+  await act(async () => finish?.(completed));
+  expect(document.querySelector("[data-live-candidate]")).toBeNull();
+  expect(row("completed", "game").textContent).toContain(
+    "Catalog ports using this profile: Game B, Firmware consumer",
+  );
+  expect(row("completed", "orphan").textContent).toContain(
+    "No catalog port currently uses this profile",
+  );
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...completed,
+    freshness: "inputs_changed",
+  });
+  await click("Refresh folders");
+  expect(row("completed", "game").querySelector("button")?.disabled).toBe(true);
+  expect(row("completed", "orphan").querySelector("button")?.disabled).toBe(true);
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
 it("reviews a streamed match through a fresh core plan before the scan completes", async () => {

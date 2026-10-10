@@ -134,7 +134,8 @@ pub use failure::{
     redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
 };
 pub use game_file_root::{
-    GameFileRoot, GameFileRootAvailability, GameFileScanFreshness, GameFileScanSnapshot,
+    GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
+    GameFileScanSnapshot,
 };
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{

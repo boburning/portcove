@@ -60,6 +60,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
+import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
 import { portActionPresentation } from "../features/port-actions/port-action-presentation";
 
@@ -183,27 +184,40 @@ export function DetailPanel(props: DetailPanelProps) {
           tone: "setup",
           icon: AlertTriangle,
         }
-      : installed && typeof status?.readiness?.launchable !== "boolean"
+      : !installed &&
+          port.release.provider !== "user-prepared" &&
+          !missingRequirement &&
+          !status?.port_actions?.some((assessment) => assessment.action === "install")
         ? {
-            title: "Readiness unavailable",
-            description: "Current launch readiness is unavailable. Reopen Portcove to check again.",
+            title: "Setup status unknown",
+            description: selectedRequirement
+              ? `${availableInstallState(selectedRequirement).description} Current setup availability is unavailable. Refresh the workspace to check again.`
+              : "Current setup availability is unavailable. Refresh the workspace to check again.",
             tone: "setup",
             icon: AlertTriangle,
           }
-        : detailState(
-            installed,
-            launchReady,
-            status?.staged?.version,
-            pendingSetup,
-            Boolean(status?.readiness?.blockers.includes("missing_runtime")),
-            runtimeUpdateAvailable,
-            status?.readiness?.source,
-            status?.readiness?.bios,
-            selectedRequirement,
-            missingRequirement,
-            Boolean(status?.readiness?.blockers.includes("invalid_installation")),
-            port.release.provider === "user-prepared",
-          );
+        : installed && typeof status?.readiness?.launchable !== "boolean"
+          ? {
+              title: "Readiness unavailable",
+              description:
+                "Current launch readiness is unavailable. Reopen Portcove to check again.",
+              tone: "setup",
+              icon: AlertTriangle,
+            }
+          : detailState(
+              installed,
+              launchReady,
+              status?.staged?.version,
+              pendingSetup,
+              Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+              runtimeUpdateAvailable,
+              status?.readiness?.source,
+              status?.readiness?.bios,
+              selectedRequirement,
+              missingRequirement,
+              Boolean(status?.readiness?.blockers.includes("invalid_installation")),
+              port.release.provider === "user-prepared",
+            );
   const sources: SourceControls = {
     port,
     source,
@@ -325,6 +339,11 @@ function DetailHero({
           {state.title}
         </span>
         {state.tone !== "ready" && <p className="hero-reason">{state.description}</p>}
+        {"updateAttention" in state && (
+          <p className="mt-2 text-sm text-pc-muted-foreground" data-update-attention>
+            {state.updateAttention}
+          </p>
+        )}
         {missingSourceLabels.length > 0 && (
           <p className="hero-requirement">
             Required for setup: <strong>{missingSourceLabels.join(" · ")}</strong>
@@ -399,7 +418,9 @@ function DetailBody({
   openLibraryStorage?: () => void;
 }) {
   const managedPreparation = Boolean(
-    installed && port.adapter === "upstream-managed-setup" && port.setup_output_paths.length,
+    installed &&
+    (port.adapter === "upstream-managed-setup" || port.adapter === "libultraship-portable") &&
+    port.setup_output_paths.length,
   );
   return (
     <div className="detail-body px-8 pt-7 pb-10">
@@ -424,7 +445,7 @@ function DetailBody({
         openLibraryStorage={openLibraryStorage}
       />
       <RequirementsGroup
-        key={port.id}
+        key={`requirements:${port.id}:${libraryGeneration}`}
         port={port}
         status={status}
         installed={installed}
@@ -488,11 +509,17 @@ function DetailBody({
       )}
       <DetailGroup title="Compatibility and testing">
         <CompatibilitySummary port={port} />
+        <DetailQualificationSummary
+          port={port}
+          sourceInspection={sources.sourceInspection}
+          biosInspection={sources.biosInspection}
+        />
       </DetailGroup>
       <DetailGroup title="Project and release">
         <ProjectReleaseSummary port={port} />
       </DetailGroup>
-      {port.release.provider !== "user-prepared" && !status?.external_runtime && (
+      {((port.release.provider !== "user-prepared" && !status?.external_runtime) ||
+        hasRecordedChecks(port, sources)) && (
         <TechnicalDetails
           libraryGeneration={libraryGeneration}
           port={port}
@@ -657,6 +684,7 @@ function RequirementsGroup({
     (managedPreparation && pendingSetup);
   const [initiallyOpen] = useState(needsAttention);
   const disclosure = useRef<HTMLDetailsElement>(null);
+  const preparationFocus = useRef<HTMLElement>(null);
   useEffect(() => {
     if (needsAttention && disclosure.current) disclosure.current.open = true;
   }, [needsAttention]);
@@ -668,7 +696,11 @@ function RequirementsGroup({
         className="requirements-disclosure border-y border-pc-border"
         open={initiallyOpen}
       >
-        <summary data-focusable className={`requirements-summary ${disclosureSummaryStyle}`}>
+        <summary
+          ref={preparationFocus}
+          data-focusable
+          className={`requirements-summary ${disclosureSummaryStyle}`}
+        >
           Game-file requirements and setup
           <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>File controls</span>
           <Icon glyph={ChevronDown} />
@@ -684,6 +716,7 @@ function RequirementsGroup({
               generation={libraryGeneration}
               disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
               run={prepare}
+              focusFallback={() => preparationFocus.current}
             />
           )}
         </div>
@@ -985,39 +1018,8 @@ function CompatibilitySummary({ port }: { port: PortDefinition }) {
         <small>Installation method</small>
         {installationMethodLabel(port)}
       </span>
-      <span>
-        <small>Recorded automated tests</small>
-        {testingCoverageLabel(
-          port.platforms,
-          port.automated_tested_platforms,
-          "No automated test recorded",
-        )}
-      </span>
-      <span>
-        <small>Recorded hands-on tests</small>
-        {testingCoverageLabel(
-          port.platforms,
-          port.manually_validated_platforms,
-          "No hands-on test recorded",
-        )}
-      </span>
     </div>
   );
-}
-
-function testingCoverageLabel(
-  supported: PortDefinition["platforms"],
-  completed: PortDefinition["platforms"],
-  emptyLabel: string,
-) {
-  const completedSet = new Set(completed);
-  const recorded = supported.filter((platform) => completedSet.has(platform));
-  if (recorded.length === 0) return emptyLabel;
-  const unrecorded = supported.filter((platform) => !completedSet.has(platform));
-  const completedLabel = recorded.map((platform) => platformLabel(platform)).join(" · ");
-  return unrecorded.length === 0
-    ? completedLabel
-    : `${completedLabel} · Not recorded: ${unrecorded.map((platform) => platformLabel(platform)).join(" · ")}`;
 }
 
 function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
@@ -1266,6 +1268,15 @@ function RetiredNotice({ port }: { port: PortDefinition }) {
   );
 }
 
+function hasRecordedChecks(port: PortDefinition, sources: SourceControls) {
+  return [sources.sourceInspection, sources.biosInspection].some((report) =>
+    report?.applications.some(
+      (application) =>
+        application.port_id === port.id && application.qualification.exact_records.length > 0,
+    ),
+  );
+}
+
 function TechnicalDetails({
   libraryGeneration,
   port,
@@ -1285,6 +1296,7 @@ function TechnicalDetails({
   sources: SourceControls;
   actions: DetailActions;
 }) {
+  const includeManagement = port.release.provider !== "user-prepared" && !status?.external_runtime;
   const persistentFiles = [
     ...port.persistent_paths,
     ...(port.persistent_file_patterns ?? []).map(
@@ -1296,27 +1308,37 @@ function TechnicalDetails({
       <summary data-focusable className={`advanced-summary ${disclosureSummaryStyle}`}>
         Technical details{" "}
         <span className={`advanced-summary-meta ${disclosureMetaStyle}`}>
-          Commands and maintenance
+          {includeManagement ? "Commands and maintenance" : "Recorded check identities"}
         </span>
         <Icon glyph={ChevronDown} />
       </summary>
       <div className={`advanced-body ${disclosureBodyStyle}`}>
-        <div className="metadata">
-          <span title={persistentFiles}>
-            <small>Saved data patterns</small>
-            {persistentFiles || "No saved data paths declared"}
-          </span>
-        </div>
-        <CliContinuity
-          key={`${port.id}:${libraryGeneration}`}
-          generation={libraryGeneration}
+        {includeManagement && (
+          <div className="metadata">
+            <span title={persistentFiles}>
+              <small>Saved data patterns</small>
+              {persistentFiles || "No saved data paths declared"}
+            </span>
+          </div>
+        )}
+        <DetailQualificationSummary
           port={port}
-          status={status}
-          channel={selectedChannel}
-          sourcePath={sources.sourcePath || sources.source?.path || ""}
-          biosPath={sources.biosPath || sources.bios?.path || ""}
+          sourceInspection={sources.sourceInspection}
+          biosInspection={sources.biosInspection}
+          technical
         />
-        {installed && (
+        {includeManagement && (
+          <CliContinuity
+            key={`${port.id}:${libraryGeneration}`}
+            generation={libraryGeneration}
+            port={port}
+            status={status}
+            channel={selectedChannel}
+            sourcePath={sources.sourcePath || sources.source?.path || ""}
+            biosPath={sources.biosPath || sources.bios?.path || ""}
+          />
+        )}
+        {includeManagement && installed && (
           <MaintenanceActions
             port={port}
             libraryGeneration={libraryGeneration}
@@ -1329,15 +1351,17 @@ function TechnicalDetails({
             actions={actions}
           />
         )}
-        <div className="actions maintenance-actions">
-          <SteamEntryControl
-            key={`steam:${port.id}:${libraryGeneration}`}
-            port={port}
-            generation={libraryGeneration}
-            installed={installed}
-            busy={Boolean(busy)}
-          />
-        </div>
+        {includeManagement && (
+          <div className="actions maintenance-actions">
+            <SteamEntryControl
+              key={`steam:${port.id}:${libraryGeneration}`}
+              port={port}
+              generation={libraryGeneration}
+              installed={installed}
+              busy={Boolean(busy)}
+            />
+          </div>
+        )}
       </div>
     </details>
   );
@@ -2178,10 +2202,11 @@ function detailState(
     };
   if (stagedVersion)
     return {
-      title: "Installed · update saved for later",
-      description: `Play the installed version or use the saved update ${stagedVersion}.`,
-      tone: "staged",
-      icon: RefreshCw,
+      title: "Ready to play",
+      description: "The installed version and all required game files are available.",
+      updateAttention: `Play the installed version or use the saved update ${stagedVersion}.`,
+      tone: "ready",
+      icon: CheckCircle2,
     };
   return {
     title: "Ready to play",

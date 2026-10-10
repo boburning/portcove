@@ -1419,6 +1419,7 @@ internal static class ContractTests
         Reject(() => consume(60, legacy), "schema60 cannot use legacy missing actions");
         foreach (var tuple in new[] {
             new[] { "allowed", "available" }, new[] { "not_offered", "not_installed" },
+            new[] { "not_offered", "route_not_offered" },
             new[] { "held", "missing_runtime" }, new[] { "held", "invalid_installation" }
         })
         {
@@ -1434,6 +1435,7 @@ internal static class ContractTests
         foreach (var tuple in new[] {
             new[] { "allowed", "missing_runtime" }, new[] { "waiting", "missing_runtime" },
             new[] { "held", "missing_source" }, new[] { "not_offered", "invalid_installation" },
+            new[] { "held", "route_not_offered" },
             new[] { "held", "future_reason" }
         })
             Reject(() => consume(60, Json.Parse(Json.Print(new {

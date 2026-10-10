@@ -144,6 +144,65 @@ test("identical offline fixtures produce byte-identical ordered evidence", () =>
   );
 });
 
+test("provenance reports mismatched Supported qualification scopes without promoting historical counts", () => {
+  const input = fixture();
+  const parsed = JSON.parse(input.catalogText);
+  const scope = {
+    port_id: "sample",
+    platform: "windows-x86-64",
+    artifact_sha256: "a".repeat(64),
+    upstream_ref: "v1",
+    contract_id: "sample-contract",
+    check_version: "fixture-v1",
+    variant: {
+      state: "exact",
+      identity: { game_id: "sample-source", variant_id: "retail", representation_id: "canonical" },
+    },
+  };
+  const auto = { scope, kind: "automated_lifecycle", outcome: "passed" };
+  const hands = { ...structuredClone(auto), kind: "hands_on" };
+  input.projectItems[1]["port stage"] = "Supported";
+  const auditFor = (records, legacy = {}) => {
+    parsed.source_catalog.qualification = records;
+    Object.assign(parsed.ports[0], legacy);
+    return buildSourceProvenanceAudit({ ...input, catalogText: JSON.stringify(parsed) });
+  };
+  assert.deepEqual(auditFor([auto, hands]).observations, []);
+  for (const changed of [
+    { ...scope, check_version: "different" },
+    { ...scope, artifact_sha256: "b".repeat(64) },
+    {
+      ...scope,
+      variant: { state: "exact", identity: { ...scope.variant.identity, variant_id: "different" } },
+    },
+  ]) {
+    const audit = auditFor([auto, { ...hands, scope: changed }]);
+    assert.ok(
+      audit.observations.some((value) =>
+        value.includes("no platform with matching automated and hands-on evidence"),
+      ),
+    );
+    assert.equal(audit.counts.qualificationRecords, 2);
+    assert.match(
+      audit.cataloged[0].qualification,
+      /automated_lifecycle:passed=1, hands_on:passed=1/,
+    );
+    assert.match(
+      renderSourceProvenanceAudit(audit),
+      /no platform with matching automated and hands-on evidence/,
+    );
+  }
+  assert.ok(
+    auditFor([hands], { automated_tested_platforms: ["windows-x86-64"] }).observations.some(
+      (value) => value.includes("no platform with matching"),
+    ),
+  );
+  assert.deepEqual(
+    auditFor([], { manually_validated_platforms: ["windows-x86-64"] }).observations,
+    [],
+  );
+});
+
 test("Project context never joins a foreign same-number issue to a local Port", () => {
   const baseline = buildSourceProvenanceAudit(fixture());
   for (const reverse of [false, true]) {
@@ -915,42 +974,94 @@ test("live provenance includes canonical ports beyond 1000 records with determin
   assert.equal(renderSourceProvenanceAudit(first), renderSourceProvenanceAudit(second));
 });
 
-test("failed later live pages preserve existing snapshots and create no partial snapshot", async () => {
+test("failed live collection phases preserve snapshots without exposing raw failures", async (t) => {
   const directory = await mkdtemp(new URL("../docs/archive/provenance-test-", import.meta.url));
   const existing = `${directory}/existing.md`;
   const absent = `${directory}/absent.md`;
   const secret = "github_pat_private_test_value";
   const { issues, projectItems } = largeLiveFixture();
+  const cases = [];
+  for (const isIssues of [true, false]) {
+    const phase = isIssues ? "reading the issue inventory" : "reading the Project inventory";
+    for (const offset of [0, isIssues ? 100 : 50])
+      cases.push({
+        label: `${phase}, offset ${offset}`,
+        phase,
+        run: paginatedLiveRunner(issues, projectItems, (call) => {
+          if (call.isIssues === isIssues && call.offset === offset) throw new Error(secret);
+        }),
+      });
+    const baseRun = paginatedLiveRunner(issues, projectItems);
+    cases.push({
+      label: `${phase}, malformed response`,
+      phase,
+      run(args, payload) {
+        if (isIssues ? !payload && args[0] === "api" : Boolean(payload))
+          return included({ invalid: secret });
+        return baseRun(args, payload);
+      },
+    });
+  }
+  const referenced = mergedBlockerFixture("Waiting for PR #31 to merge.");
+  for (const malformed of [false, true]) {
+    const baseRun = paginatedLiveRunner(referenced.issues, []);
+    cases.push({
+      label: `resolving referenced PRs, ${malformed ? "malformed response" : "request failure"}`,
+      phase: "resolving referenced PRs",
+      run(args, payload) {
+        if (payload && JSON.parse(payload).query.includes("pullRequest(number:")) {
+          if (!malformed) throw new Error(secret);
+          return included({ data: { repository: { pullRequest: { invalid: secret } } } });
+        }
+        return baseRun(args, payload);
+      },
+    });
+  }
+  const boundedIssues = Array.from({ length: 101 }, (_, i) => ({
+    ...referenced.issues[0],
+    number: i + 1,
+    body: referenced.issues[0].body.replaceAll("PR #31", `PR #${i + 1}`),
+  }));
+  const boundedRun = paginatedLiveRunner(boundedIssues, []);
+  let prRequests = 0;
+  cases.push({
+    label: "discovering active PR references, bound exceeded",
+    phase: "discovering active PR references",
+    run(args, payload) {
+      if (payload && JSON.parse(payload).query.includes("pullRequest(number:")) prRequests++;
+      return boundedRun(args, payload);
+    },
+  });
   try {
     await writeFile(existing, "previous verified snapshot\n");
-    for (const failIssues of [true, false]) {
-      const run = paginatedLiveRunner(issues, projectItems, ({ isIssues, offset }) => {
-        if (isIssues === failIssues && offset > 0) throw new Error(secret);
+    for (const { label, phase, run } of cases)
+      await t.test(label, async () => {
+        for (const output of [existing, absent])
+          await assert.rejects(
+            runSourceProvenanceAudit(
+              [
+                "--live",
+                "--generated-at",
+                "2026-09-06T15:00:00Z",
+                "--base-commit",
+                sha("a"),
+                "--generator-commit",
+                sha("b"),
+                "--output",
+                output,
+              ],
+              { run },
+            ),
+            (error) =>
+              error.message ===
+                `read-only GitHub enrichment failed while ${phase}; no snapshot was written` &&
+              !error.message.includes(secret) &&
+              error.cause === undefined,
+          );
+        assert.equal(await readFile(existing, "utf8"), "previous verified snapshot\n");
+        await assert.rejects(readFile(absent), { code: "ENOENT" });
       });
-      for (const output of [existing, absent]) {
-        await assert.rejects(
-          runSourceProvenanceAudit(
-            [
-              "--live",
-              "--generated-at",
-              "2026-09-06T15:00:00Z",
-              "--base-commit",
-              sha("a"),
-              "--generator-commit",
-              sha("b"),
-              "--output",
-              output,
-            ],
-            { run },
-          ),
-          (error) =>
-            error.message === "read-only GitHub enrichment failed; no snapshot was written" &&
-            !error.message.includes(secret),
-        );
-      }
-      assert.equal(await readFile(existing, "utf8"), "previous verified snapshot\n");
-      await assert.rejects(readFile(absent), { code: "ENOENT" });
-    }
+    assert.equal(prRequests, 0);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

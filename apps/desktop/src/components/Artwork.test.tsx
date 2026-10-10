@@ -88,6 +88,55 @@ afterEach(async () => {
 });
 
 describe("local artwork controls", () => {
+  it("keeps previous artwork and provenance visible during a failed refresh, holding changes until retry", async () => {
+    const selected = artworkState("sample", "cover", 1, true);
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      slot === "cover" ? selected : artworkState(port, slot),
+    );
+    const imported = vi.spyOn(desktopApi, "importArtwork");
+    const reset = vi.spyOn(desktopApi, "resetArtwork");
+    await render();
+    await open();
+    const image = container.querySelector<HTMLImageElement>(".artwork-image img")!;
+    const src = image.src;
+    vi.mocked(desktopApi.artwork).mockRejectedValueOnce(new Error("Artwork read unavailable."));
+    await click("cover", "Refresh artwork");
+    expect(container.querySelector<HTMLImageElement>(".artwork-image img")?.src).toBe(src);
+    expect(container.textContent).toContain("owned-image.png");
+    expect(container.textContent).toContain(
+      "Showing previously loaded artwork. Refresh to check the current choice.",
+    );
+    expect(container.querySelector('[aria-label="Cover image"] [role="alert"]')?.textContent).toBe(
+      "Artwork read unavailable.",
+    );
+    expect(button("cover", "Choose local image").disabled).toBe(true);
+    expect(button("cover", "Reset to default").disabled).toBe(true);
+    expect(button("cover", "Refresh artwork").disabled).toBe(false);
+    expect(button("detail", "Choose local image").disabled).toBe(false);
+    await click("cover", "Refresh artwork");
+    expect(container.textContent).not.toContain("Showing previously loaded artwork.");
+    expect(container.querySelector('[aria-label="Cover image"] [role="alert"]')).toBeNull();
+    expect(button("cover", "Choose local image").disabled).toBe(false);
+    expect(button("cover", "Reset to default").disabled).toBe(false);
+    expect(imported).not.toHaveBeenCalled();
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("does not carry a failed-refresh display into another library generation", async () => {
+    vi.mocked(desktopApi.artwork).mockResolvedValue(artworkState("sample", "cover", 1, true));
+    await render();
+    await open();
+    vi.mocked(desktopApi.artwork).mockRejectedValue(new Error("Artwork read unavailable."));
+    await click("cover", "Refresh artwork");
+    expect(container.querySelector(".artwork-image img")).not.toBeNull();
+    await render("sample", 8);
+    await open();
+    expect(container.querySelector(".artwork-image img")).toBeNull();
+    expect(container.textContent).not.toContain("owned-image.png");
+    expect(container.textContent).not.toContain("Showing previously loaded artwork.");
+    expect(button("cover", "Choose local image").disabled).toBe(true);
+  });
+
   it("refreshes artwork when the catalog mapping changes in the same library", async () => {
     await render("sample", 7, "old-cover");
     const before = vi.mocked(desktopApi.artwork).mock.calls.length;

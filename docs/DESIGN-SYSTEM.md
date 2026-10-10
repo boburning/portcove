@@ -195,23 +195,27 @@ installation, updates, and saves for native game ports. Use its desktop app, or
 connect another launcher through the command-line interface.” Use named projects
 only where instructions and scoped status make the name useful.
 
-The game-detail command card must describe the command it actually generated,
-not advertise a list of launchers. For an installed game, the planned copy is
-heading **Launch from another app**, help “Use this command in a launcher that
-supports custom commands. Portcove will start this game without opening the
-desktop app.”, and action/accessibility label **Copy launch command**. For an
-uninstalled game, it is heading **Set up from the command line**, help “Use this
-command to set up this port from a terminal or script.”, and
-action/accessibility label **Copy setup command**.
+The game-detail command card describes the command it actually generated.
+`CliContinuity` uses **Launch from another app** and **Copy launch command** for
+an active or registered external installation. The CLI checks that installation
+before launch; the command does not install or update it. An uninstalled port
+uses **Set up from the command line** and **Copy setup command** for managed
+setup, which can download and install the selected release after checking its
+required files. A user-prepared route instead uses **Copy folder-check command**:
+the player prepares the required version, checks its folder, then reviews and
+saves its location. Portcove does not download, copy, update, back up or delete
+those external files.
 
-[#206](https://github.com/boburning/portcove/issues/206) owns that planned
-runtime change. Use the wording only when the generated command and its
-prerequisites make it truthful. A command containing placeholders is a template,
-not ready-to-run. The implementation must also cover executable discovery,
-explicit effective-library selection, spaces, Unicode, escaping, unavailable
-tooling, and the distinction between a shell command and separate launcher
-executable/argument fields. This documentation does not claim the current UI has
-already changed.
+The card shows the effective library and the command's PowerShell 7 or sh/bash
+format. Missing inputs or an unresolved CLI executable produce **Copy command
+template**, with the placeholders and executable prerequisite explained; this
+is not a ready-to-run command. Separate program-path and argument-array fields
+serve integrations that do not accept a shell string. Generation-bound command
+details, retry, spaces, Unicode, escaping and invalid-path refusal retain their
+existing component and command-builder contracts. These presentation boundaries
+do not establish executable availability, platform qualification or successful
+gameplay; [#206](https://github.com/boburning/portcove/issues/206) retains the
+complete contextual-handoff acceptance.
 
 ## Shell and navigation
 
@@ -379,3 +383,16 @@ broad fragile pixel-perfect suite is required.
 Run the focused frontend tests, applicable theme/style contracts, production build, and Fallow before accepting a design-system change. The style gates must cover the actual Tailwind CSS and JSX utility sources, reject raw status colors and direct primitive consumption, preserve dark/light, focus/selection, contrast, reduced-motion, and production-variant coverage, and handle third-party directives narrowly rather than with blanket exemptions. Fallow should remain free of dead files, unused dependencies, duplication, circular dependencies, unused theme tokens, and above-threshold functions. Acceptance records intentional reference changes and verifies that each migrated surface has one remaining control/style owner.
 
 The three early finished reference compositions are Library, the game-details workspace, and a complex installation-review dialog with nested selection and errors. Their real-component scenarios cover empty, loading, long-title, missing-artwork, disabled, error, interrupted, and narrow-layout states. Completion requires both themes, current minimum/default/large sizes, 1280×800 where relevant, supported scaling, long text, keyboard/mouse/controller behavior, nested overlays, focus return, async changes, navigation during work, reduced motion, and capability parity. Browser fixtures and screenshots do not replace native or intrinsically human evidence.
+
+Keep scenario evidence attached to its actual consumer boundary. The development
+previews in `dev-scenarios/entry.ts` render inert component markup for shape and
+copy; they do not exercise interaction, focus, controller input, IPC or packaged
+behavior. Interactive browser tests such as `browser/adoption.browser.test.tsx`
+exercise real React controls with mocked transport, not Core installation or
+persistence. Native scenarios registered in `scripts/desktop-scenarios.mjs`
+require their guarded execution and retained receipt: registration alone is not
+a pass. A selected-setup Tauri/Core fixture can establish its observed review,
+cancel, result and return sequence only for the recorded source, platform and
+inputs. It does not establish Play, gameplay, other platforms or human/device
+observations. Keep changing journey gaps and their canonical owners in #206 and
+the owning issues rather than maintaining a second backlog here.

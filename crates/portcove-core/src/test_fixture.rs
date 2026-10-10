@@ -69,34 +69,85 @@ pub(crate) fn indexed_catalog_bundle_at_revision(
     port_id: &str,
     revision: u64,
 ) -> IndexedCatalogBundle {
-    use serde_json::json;
-    use sha2::{Digest, Sha256};
-    let target = |bytes: &[u8]| format!("sha256/{}.json", hex::encode(Sha256::digest(bytes)));
-    let contract = serde_json::to_vec_pretty(&json!({
-        "contract_schema":1,"representation":"catalog_projection",
-        "catalog":catalog.authoritative_document()
-    }))
-    .unwrap();
-    let leaf = target(&contract);
-    let port = catalog.port(port_id).unwrap();
-    let entry = serde_json::to_vec_pretty(&json!({
+    IndexedCatalogFixture::new(catalog, port_id).at_revision(revision)
+}
+
+/// Immutable projection bytes shared only within one synthetic fixture lifetime.
+/// Each revision still receives a distinct entry/index and fresh authentication.
+pub(crate) struct IndexedCatalogFixture<'a> {
+    port: &'a crate::PortDefinition,
+    contract: Vec<u8>,
+}
+
+impl<'a> IndexedCatalogFixture<'a> {
+    pub(crate) fn new(catalog: &'a crate::Catalog, port_id: &str) -> Self {
+        Self {
+            port: catalog.port(port_id).unwrap(),
+            contract: serde_json::to_vec_pretty(&serde_json::json!({
+                "contract_schema":1,"representation":"catalog_projection",
+                "catalog":catalog.authoritative_document()
+            }))
+            .unwrap(),
+        }
+    }
+
+    pub(crate) fn at_revision(&self, revision: u64) -> IndexedCatalogBundle {
+        use serde_json::json;
+        use sha2::{Digest, Sha256};
+        let target = |bytes: &[u8]| format!("sha256/{}.json", hex::encode(Sha256::digest(bytes)));
+        let contract = &self.contract;
+        let leaf = target(contract);
+        let port = self.port;
+        let port_id = &port.id;
+        let entry = serde_json::to_vec_pretty(&json!({
         "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":revision,
         "required_capabilities":[{"template":port.adapter,"minimum_version":1,"maximum_version":1}],
         "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
         "artifact_bindings":[],"evidence_references":[]
     }))
     .unwrap();
-    let contents: Vec<_> = [&entry, &contract].into_iter().map(|bytes| json!({
+        let contents: Vec<_> = [&entry, contract].into_iter().map(|bytes| json!({
         "target":target(bytes),"sha256":hex::encode(Sha256::digest(bytes)),"length":bytes.len()
     })).collect();
-    let index = serde_json::to_vec_pretty(&json!({
+        let index = serde_json::to_vec_pretty(&json!({
         "index_schema":1,"definitions":[{"namespace":"official","stable_id":port_id,"revision":revision,"target":target(&entry)}],
         "contents":contents
     }))
     .unwrap();
-    IndexedCatalogBundle {
-        index,
-        contents: vec![(target(&entry), entry), (target(&contract), contract)],
+        IndexedCatalogBundle {
+            index,
+            contents: vec![
+                (target(&entry), entry),
+                (target(contract), contract.clone()),
+            ],
+        }
+    }
+}
+
+#[test]
+fn indexed_fixture_revisions_preserve_full_catalog_projection() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port_id = &catalog.ports()[0].id;
+    let fixture = IndexedCatalogFixture::new(&catalog, port_id);
+    let first = fixture.at_revision(8);
+    let second = fixture.at_revision(9);
+    assert_eq!(first.contents[1], second.contents[1]);
+    assert_ne!(first.contents[0], second.contents[0]);
+    for (revision, bundle) in [(8, first), (9, second)] {
+        let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+        let projection = index
+            .inspect_catalog_projection(
+                "official",
+                port_id,
+                &bundle.contents[0].1,
+                &bundle.contents[1].1,
+            )
+            .unwrap();
+        assert_eq!(projection.entry().revision(), revision);
+        assert_eq!(
+            serde_json::to_value(projection.catalog().authoritative_document()).unwrap(),
+            serde_json::to_value(catalog.authoritative_document()).unwrap()
+        );
     }
 }
 

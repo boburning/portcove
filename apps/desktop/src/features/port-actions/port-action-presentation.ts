@@ -59,6 +59,12 @@ function presentRollbackAssessment(assessment: Assessment): ActionPresentation {
   if (availability === "allowed" && reason === "available") return { blocked: false };
   if (availability === "not_offered" && reason === "not_installed")
     return { blocked: true, reason: "No previous managed version is retained for rollback." };
+  if (availability === "not_offered" && reason === "route_not_offered")
+    return {
+      blocked: true,
+      reason:
+        "Restore previous version is unavailable because this port is no longer in the current catalog.",
+    };
   if (availability === "held" && reason === "missing_runtime")
     return {
       blocked: true,

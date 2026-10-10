@@ -192,7 +192,7 @@ namespace Portcove.ReferenceClient
             Json.TryField(value, "definition", out definition);
             if (action == "rollback" && (definition != null || !(
                 (availability == "allowed" && reason == "available") ||
-                (availability == "not_offered" && reason == "not_installed") ||
+                (availability == "not_offered" && (reason == "not_installed" || reason == "route_not_offered")) ||
                 (availability == "held" && (reason == "missing_runtime" || reason == "invalid_installation")))))
                 throw new InvalidOperationException("Portcove returned an inconsistent rollback assessment. Refresh state.");
             string definitionReason = null;

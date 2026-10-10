@@ -668,7 +668,7 @@ function contractLabel(
   state: SourceInspectionReport["applications"][number]["contract_result"]["state"],
 ) {
   const labels = {
-    supported: "Supported",
+    supported: "Matches evaluated source requirements",
     recognized_not_listed: "Recognized · not listed",
     known_incompatible: "Known mismatch · refused",
     informational: "Informational requirement",
@@ -682,7 +682,7 @@ function applicabilityLabel(
   state: string,
   contract: SourceInspectionReport["applications"][number]["contract_result"]["state"],
 ) {
-  if (contract === "unreviewed_for_release") return "Not applicable to this release";
+  if (contract === "unreviewed_for_release") return "Not reviewed for this release";
   const labels: Record<string, string> = {
     artifact_bound: "Bound to this exact release artifact",
     upstream_release_bound: "Bound to the reviewed upstream release",

@@ -3,6 +3,7 @@ import path from "node:path";
 import process from "node:process";
 import { test } from "vitest";
 import {
+  assertPreparedLibrarySummary,
   rollbackWitnessWithinLibrary,
   waitForReviewedUpdateAction,
 } from "./desktop-preparation-test.mjs";
@@ -31,6 +32,55 @@ test("refuses root, parent, sibling, relative and different-drive rollback witne
     const otherDrive = path.parse(library).root.toLowerCase().startsWith("c:") ? "E:" : "C:";
     assert.equal(rollbackWitnessWithinLibrary(library, `${otherDrive}\\outside.bin`), false);
   }
+});
+
+const prepared = {
+  port_id: "prepared",
+  active: { id: "prepared-install" },
+  readiness: { launchable: true, pending_setup: false, blockers: [] },
+};
+
+test("preparation summary accounts for installations from earlier full-profile journeys", () => {
+  assertPreparedLibrarySummary("1 in library\nAll ready to play", [prepared], "prepared");
+  const statuses = [
+    { ...prepared, port_id: "earlier-install" },
+    {
+      ...prepared,
+      port_id: "earlier-external",
+      active: null,
+      external_runtime: { id: "external" },
+    },
+    prepared,
+    { port_id: "available", active: null, external_runtime: null },
+  ];
+  assertPreparedLibrarySummary("3 in library\nAll ready to play", statuses, "prepared");
+  assert.throws(() =>
+    assertPreparedLibrarySummary("1 in library All ready to play", statuses, "prepared"),
+  );
+});
+
+test("all-ready summary still requires the prepared fixture and native readiness of every entry", () => {
+  assert.throws(() =>
+    assertPreparedLibrarySummary("0 in library All ready to play", [], "prepared"),
+  );
+  for (const changes of [
+    { readiness: { ...prepared.readiness, launchable: false } },
+    { readiness: { ...prepared.readiness, pending_setup: true } },
+    { readiness: { ...prepared.readiness, blockers: ["missing_source"] } },
+    { staged: { id: "downloaded" } },
+  ]) {
+    const statuses = [prepared, { ...prepared, port_id: "earlier-install", ...changes }];
+    assert.throws(() =>
+      assertPreparedLibrarySummary("2 in library All ready to play", statuses, "prepared"),
+    );
+  }
+  assert.throws(() =>
+    assertPreparedLibrarySummary(
+      "1 in library 0 needs attention All ready to play",
+      [prepared],
+      "prepared",
+    ),
+  );
 });
 
 const expectedVersion = "v0.3.8";

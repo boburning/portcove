@@ -1,10 +1,330 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
-import { copyFile, mkdtemp, mkdir, readFile, writeFile, rm, stat } from "node:fs/promises";
+import {
+  copyFile,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readlink,
+  writeFile,
+  rm,
+  stat,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { runInNewContext } from "node:vm";
+import {
+  isUntrustworthyProbeError,
+  requireTrustedProbeCleanup,
+} from "../apps/desktop/scripts/desktop-owned-ipc-probe.mjs";
+
+test("untrustworthy probe cleanup retains the primary error and reaches outer teardown", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function scenario(name, action)");
+  const end = source.indexOf("async function connectObservedDriver()", start);
+  assert(start >= 0 && end > start);
+  const records = [];
+  const primary = Object.freeze(new Error("Original owned scenario failure"));
+  requireTrustedProbeCleanup({ trustworthy: false }, primary);
+  const invokeAttempt = runInNewContext(`${source.slice(start, end)}\nscenario`, {
+    scenarioTarget: () => ({ setup: false }),
+    failedScenarioDependency: () => null,
+    recordScenario: (_target, name, outcome, details) => records.push({ name, outcome, details }),
+    captureScenarioDiagnostics: async () => {},
+    captureScenarioScreenshot: () => assert.fail("Untrustworthy session must enter outer teardown"),
+    isUntrustworthyProbeError,
+    process: { exitCode: 0 },
+  });
+  await assert.rejects(
+    invokeAttempt("owned-probe", async () => {
+      throw primary;
+    }),
+    (error) => error === primary,
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(records)), [
+    { name: "owned-probe", outcome: "failed", details: { message: primary.message } },
+  ]);
+});
+
+test("scan cleanup attempts every owned action and retains the primary scenario failure", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-source-dialog-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function progressiveScanNavigation(");
+  const end = source.indexOf("export async function sourceDialogScenario(", start);
+  assert(start >= 0 && end > start);
+  const primary = new Error("Original scan navigation failure");
+  const reads = new Map();
+  const actions = [];
+  let report;
+  const fixture = {
+    profile_id: "owned-profile",
+    path: "owned-source",
+    sha256: "owned-sha",
+    size: 1,
+  };
+  const command = (args) => {
+    const action = args.join(" ");
+    const count = reads.get(action) ?? 0;
+    reads.set(action, count + 1);
+    if (action === "source roots add owned-root") return { id: "owned-root-id" };
+    if (action === "catalog list")
+      return [{ id: "owned-port", name: "Owned", source_profile: fixture.profile_id }];
+    if (action === "source roots remove owned-root-id") {
+      actions.push("remove-owned-root");
+      throw new Error("Owned root removal failed");
+    }
+    if (count) {
+      actions.push(action);
+      return "Incorrect cleanup readback";
+    }
+    if (action === "source list") return [fixture];
+    if (action === "source roots list") return [];
+    if (action === "status owned-port") return { owned: true };
+    assert.fail(action);
+  };
+  const navigate = runInNewContext(`${source.slice(start, end)}\nprogressiveScanNavigation`, {
+    assert,
+    path,
+    requireTrustedProbeCleanup,
+    reviewControls: () => ({
+      button: (name) => name,
+      click: async () => {
+        throw primary;
+      },
+    }),
+    writeFile: async (_path, bytes) => {
+      report = JSON.parse(bytes);
+    },
+    console: { error() {} },
+  });
+  await assert.rejects(
+    navigate({
+      browser: {
+        executeScript: async () => {
+          throw new Error("Owned capture unavailable");
+        },
+      },
+      output: "owned-output",
+      artifacts: [],
+      command,
+      port: { id: "owned-port", source_profile: fixture.profile_id },
+      searchRoot: "owned-root",
+    }),
+    (error) => error === primary,
+  );
+  assert.deepEqual(actions, [
+    "remove-owned-root",
+    "source roots list",
+    "source list",
+    "status owned-port",
+  ]);
+  assert.equal(report.failure, primary.message);
+  assert.equal(report.owned_cleanup.length, 4);
+  assert(report.owned_cleanup.every((outcome) => outcome.attempted && outcome.completed === false));
+});
+import { createInstallFixture } from "../apps/desktop/scripts/desktop-install-fixture.mjs";
 import { fileIdentity } from "./development-evidence.mjs";
+import { toolCachePaths } from "./tool-cache.mjs";
+import { pathToFileURL } from "node:url";
+import {
+  captureHistorySession,
+  historyDriverStillOwned,
+  waitHistorySessionExit,
+  qualificationHistoryScenario,
+} from "../apps/desktop/scripts/desktop-qualification-history-test.mjs";
+
+test("history opens populated details before waiting for requested inspections", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("      await installFixture();");
+  const end = source.indexOf("      for (const [name, theme, width, height, font]", start);
+  assert.ok(start >= 0 && end > start);
+  const startup = source
+    .slice(start, end)
+    .replace('({ By, Key, until } = await import("selenium-webdriver"));', "");
+  const window = { __portcoveHistoryProbe: { snapshots: 0, reports: 0 } };
+  const calls = [];
+  await runInNewContext(`(async () => { let technicalSummary; ${startup} })()`, {
+    window,
+    By: { xpath: () => ({}) },
+    installFixture: async () => {
+      window.__portcoveHistoryProbe.snapshots++;
+      calls.push("fixture");
+    },
+    openDetails: async () => {
+      assert.equal(window.__portcoveHistoryProbe.snapshots, 1);
+      assert.equal(window.__portcoveHistoryProbe.reports, 0);
+      calls.push("details");
+      window.__portcoveHistoryProbe.reports++;
+    },
+    browser: {
+      executeScript: async (callback) => callback(),
+      wait: async (predicate, timeout) => {
+        assert.equal(timeout, 15_000);
+        assert.equal(await predicate(), true, "Reports require an ordinary detail selection");
+        calls.push("settled");
+      },
+    },
+  });
+  assert.deepEqual(calls, ["fixture", "settled", "details", "settled"]);
+});
+
+test("history procfs disappearance retains narrow errors and live identities", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function historyProcess(pid)");
+  const end = source.indexOf("function sameHistoryIdentity", start);
+  assert.ok(start >= 0 && end > start);
+  for (const code of ["ENOENT", "ESRCH", "EACCES", "EIO"]) {
+    const error = Object.assign(new Error(code), { code });
+    const action = runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+      readFile: async () => {
+        throw error;
+      },
+      readlink: async () => {
+        assert.fail("Disappeared stat must not read executable");
+      },
+    });
+    if (["ENOENT", "ESRCH"].includes(code)) assert.equal(await action, null);
+    else await assert.rejects(action, (actual) => actual === error);
+  }
+  const fields = ["S", "10", "123", ...Array(16).fill("0"), "456"];
+  const live = await runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+    readFile: async () => `123 (owned child) ${fields.join(" ")}`,
+    readlink: async () => "/owned/driver",
+  });
+  assert.deepEqual(
+    { ...live },
+    {
+      state: "S",
+      pid: 123,
+      parent: 10,
+      group: 123,
+      start_ticks: "456",
+      executable: "/owned/driver",
+    },
+  );
+  const error = Object.assign(new Error("exe disappearance"), { code: "ESRCH" });
+  await assert.rejects(
+    runInNewContext(`${source.slice(start, end)} historyProcess(123)`, {
+      readFile: async () => `123 (owned child) ${fields.join(" ")}`,
+      readlink: async () => {
+        throw error;
+      },
+    }),
+    (actual) => actual === error,
+  );
+});
+
+test("history fixture helpers import without installed desktop packages", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-import-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const module = path.join(root, "history.mjs");
+  await copyFile(
+    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mjs", import.meta.url),
+    module,
+  );
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "-e", `await import(${JSON.stringify(pathToFileURL(module).href)})`],
+    { cwd: root, encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test(
+  "history installation and lost-window failures retain original and restoration evidence",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-restoration-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    for (const lostWindow of [false, true]) {
+      const output = path.join(root, String(lostWindow));
+      await mkdir(output);
+      let calls = 0;
+      const browser = {
+        manage: () => ({
+          window: () => ({
+            getRect: async () => ({ width: 800, height: 600 }),
+            setRect: async () => {
+              if (lostWindow) throw new Error("owned window unavailable");
+            },
+          }),
+        }),
+        executeScript: async () => "",
+        executeAsyncScript: async () => {
+          if (++calls === 1) return { error: "owned installation emit rejected" };
+          if (lostWindow) throw new Error("owned restoration unavailable");
+          return { restored: true, snapshots: 0, reports: 0 };
+        },
+      };
+      await assert.rejects(() =>
+        qualificationHistoryScenario({
+          browser,
+          scenario: async (_name, body) => body(),
+          output,
+          artifacts: [],
+          invoke: async () => ({ ok: true, value: [] }),
+        }),
+      );
+      const report = JSON.parse(
+        await readFile(path.join(output, "qualification-history.json"), "utf8"),
+      );
+      assert.match(report.failure.message, /owned installation emit rejected/);
+      assert.equal(calls, 2, "Installation rejection still attempts restoration exactly once");
+      assert.equal(report.restoration.restored, !lostWindow);
+      assert.equal(report.native_source_restoration.count, 0);
+      if (lostWindow) {
+        assert.equal(report.restoration.error, "owned restoration unavailable");
+        assert.equal(report.restoration.window_error, "owned window unavailable");
+      }
+    }
+  },
+);
+
+test(
+  "history ownership rejects an unrelated PID and changed creation identity without signaling",
+  { skip: process.platform !== "linux" },
+  async () => {
+    const raw = await readFile(`/proc/${process.pid}/stat`, "utf8");
+    const fields = raw.slice(raw.lastIndexOf(")") + 2).split(" ");
+    const driver = {
+      pid: process.pid,
+      parent: Number(fields[1]),
+      group: Number(fields[2]),
+      start_ticks: fields[19],
+      executable: await readlink(`/proc/${process.pid}/exe`),
+    };
+    assert.equal(await historyDriverStillOwned({ driver }), true);
+    await assert.rejects(
+      () => historyDriverStillOwned({ driver: { ...driver, start_ticks: "0" } }),
+      /start_ticks changed/,
+    );
+    await assert.rejects(
+      () => captureHistorySession(process.pid, process.execPath, process.execPath),
+      /Expected values to be strictly equal/,
+    );
+    const oldIdentity = await waitHistorySessionExit({
+      processes: [{ ...driver, start_ticks: "0" }],
+    });
+    assert.equal(oldIdentity.all_exited, true);
+    assert.equal(
+      await historyDriverStillOwned({ driver }),
+      true,
+      "An unrelated current process must be retained",
+    );
+  },
+);
 import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,
@@ -19,6 +339,7 @@ import {
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mjs";
 import { assertSteamEntryContext } from "../apps/desktop/scripts/desktop-context-contract.mjs";
 import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mjs";
+import { observeStartupNetwork } from "../apps/desktop/scripts/desktop-startup-network-diagnostic.mjs";
 import { DatabaseSync } from "node:sqlite";
 import {
   librarySwitchRecoverySelection,
@@ -40,10 +361,48 @@ import {
   resolveDesktopSelection,
 } from "./desktop-scenarios.mjs";
 
+test("qualification history is one opt-in Linux normal-app scenario without lifecycle setup", () => {
+  const selected = resolveDesktopSelection({
+    scenarios: ["native-qualification-history"],
+    platform: "linux",
+  });
+  assert.deepEqual(selected.selected_scenarios, ["native-qualification-history"]);
+  assert.deepEqual(selected.setup_scenarios, []);
+  assert.deepEqual(selected.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selected), 180_000);
+  assert.equal(
+    Object.values(DESKTOP_PROFILES).some((ids) => ids.includes("native-qualification-history")),
+    false,
+  );
+});
+
+test("native history fixture reuses exact maintained catalog records without inventing current applicability", async () => {
+  const { qualificationHistoryFixture } =
+    await import("../apps/desktop/scripts/desktop-qualification-history-test.mjs");
+  const catalog = JSON.parse(
+    await readFile(
+      new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const fixture = qualificationHistoryFixture(catalog);
+  assert.equal(fixture.profile_id, fixture.report.expected_identity.id);
+  assert.equal(fixture.report.applications[0].contract.profile_id, fixture.profile_id);
+  assert.deepEqual(
+    fixture.report.applications[0].qualification.exact_records,
+    catalog.source_catalog.qualification.filter(
+      (record) => record.scope.port_id === fixture.port_id,
+    ),
+  );
+  assert.equal(fixture.report.state_code, "not_inspected");
+  assert.equal(fixture.report.applications[0].release_applicability.state_code, "not_rebound");
+  assert.throws(() => qualificationHistoryFixture({ ports: [], source_catalog: {} }));
+});
+
 test("external fixture contracts execute without installed native-driver dependencies", async (t) => {
   // Storage guards can put os.tmpdir() inside an installed workspace. Keep this
   // small module fixture outside its dependency ancestry and prove resolution fails.
-  const isolation = path.join(os.homedir(), ".cache", "portcove", "node-contracts");
+  const isolation = path.join(toolCachePaths().sharedRoot, "node-contracts");
   await mkdir(isolation, { recursive: true });
   const root = await mkdtemp(path.join(isolation, "native-contract-import-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -453,9 +812,196 @@ test("cancelled navigation permits only observed GETs and never popup or executi
     { ...request, method: "POST" },
     { ...request, path: "/untrusted/popup" },
     { ...request, path: "/untrusted/executed-marker" },
+    { ...request, path: "/", phase: "frame-csp" },
     { ...request, phase: "main-controls" },
   ])
     assert.throws(() => assertOwnedBoundaryRequests([invalid]));
+});
+
+test("owned frame CSP requires a trusted enforced event and removes its frame/listener/timer", async (t) => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-frame-boundary-"));
+  t.after(() => rm(outputRoot, { recursive: true, force: true }));
+  const library = path.resolve("work", "frame-boundary-library");
+  const url = "http://tauri.localhost/";
+  const valid = {
+    isTrusted: true,
+    effectiveDirective: "frame-src",
+    disposition: "enforce",
+    blockedURI: "owned-frame",
+    documentURI: url,
+    originalPolicy: "default-src 'self'",
+  };
+  async function run(events, { changedContext = false, failSetup = false } = {}) {
+    const output = await mkdtemp(path.join(outputRoot, "case-"));
+    const listeners = new Set();
+    const timers = new Set();
+    const frames = [];
+    let attempts = 0;
+    let appended = false;
+    const invoke = async (command) => {
+      if (command === "get_locale_preference" && appended)
+        throw new Error("Contract fixture stops after frame guard");
+      if (command === "get_locale_preference") return { ok: true, value: { locale: "en" } };
+      if (command === "plugin:window|get_all_windows") return { ok: true, value: ["main"] };
+      if (command === "plugin:webview|get_all_webviews")
+        return { ok: true, value: [{ window_label: "main", label: "main" }] };
+      if (command === "plugin:webview|create_webview_window")
+        return {
+          ok: false,
+          error: "Command plugin:webview|create_webview_window not allowed by ACL",
+        };
+      if (command === "set_locale_preference") return { ok: true, value: null };
+      if (command.startsWith("open_"))
+        return {
+          ok: false,
+          error: {
+            code: command === "open_external_url" ? "usage" : "not_found",
+            message:
+              command === "open_external_url"
+                ? "only reviewed project, artwork source and GitHub sign-in links may be opened"
+                : "unknown source evidence id: portcove-boundary-unknown-evidence",
+          },
+        };
+      if (command.includes("boundary")) return { ok: false, error: `command ${command} not found` };
+      return command === "get_bootstrap_status"
+        ? {
+            ok: true,
+            value: {
+              ready: true,
+              error: null,
+              library_root: library,
+              generation: appended && changedContext ? 2 : 1,
+              selection: { root: library, source: "environment" },
+            },
+          }
+        : { ok: true, value: { id: "owned-library", root: library } };
+    };
+    let scriptCalls = 0;
+    const browser = {
+      getCurrentUrl: async () => url,
+      manage: () => ({ setTimeouts: async () => {} }),
+      executeScript: async () => (++scriptCalls === 1 ? {} : [url]),
+      executeAsyncScript: (callback, attempted) => {
+        if (attempted === undefined) return {};
+        return new Promise((resolve) => {
+          const document = {
+            createElement: (tag) => {
+              assert.equal(tag, "iframe");
+              const frame = {
+                isConnected: false,
+                remove() {
+                  this.isConnected = false;
+                },
+              };
+              frames.push(frame);
+              return frame;
+            },
+            addEventListener: (type, handler) => {
+              assert.equal(type, "securitypolicyviolation");
+              listeners.add(handler);
+            },
+            removeEventListener: (type, handler) => {
+              assert.equal(type, "securitypolicyviolation");
+              listeners.delete(handler);
+            },
+            body: {
+              append(frame) {
+                appended = true;
+                attempts++;
+                assert.equal(frame.src, attempted);
+                if (failSetup) throw new Error("Owned fixture append failed");
+                frame.isConnected = true;
+                for (const event of events)
+                  for (const listener of [...listeners]) {
+                    const wrongOrigin = new URL(attempted);
+                    wrongOrigin.port = String(
+                      Number(wrongOrigin.port) === 65535 ? 1 : Number(wrongOrigin.port) + 1,
+                    );
+                    listener({
+                      ...event,
+                      blockedURI:
+                        event.blockedURI === "owned-frame"
+                          ? attempted
+                          : event.blockedURI === "wrong-origin"
+                            ? wrongOrigin.href
+                            : event.blockedURI === "wrong-path"
+                              ? new URL("/other", attempted).href
+                              : event.blockedURI,
+                    });
+                  }
+                // Advance the fixture's virtual deadline, without a real wait.
+                for (const timer of [...timers]) timer();
+              },
+            },
+          };
+          runInNewContext(
+            `(${callback.toString()})(attempted, done)`,
+            {
+              URL,
+              document,
+              attempted,
+              done: resolve,
+              setTimeout: (handler, milliseconds) => {
+                assert.equal(milliseconds, 9000);
+                timers.add(handler);
+                return handler;
+              },
+              clearTimeout: (handler) => timers.delete(handler),
+            },
+            { timeout: 1000 },
+          );
+        });
+      },
+    };
+    let error;
+    try {
+      await normalPackageBoundaryScenario({
+        browser,
+        invoke,
+        library,
+        output,
+        artifacts: [],
+        packageEvidence: { fixture: true },
+      });
+    } catch (caught) {
+      if (caught.message !== "Contract fixture stops after frame guard") error = caught;
+    }
+    const observations = JSON.parse(
+      await readFile(path.join(output, "normal-package-boundary.json")),
+    );
+    assert.equal(attempts, 1);
+    assert.equal(frames.length, 1);
+    assert.equal(frames[0].isConnected, false);
+    assert.equal(listeners.size, 0);
+    assert.equal(timers.size, 0);
+    return { observations, error };
+  }
+  const wrong = [
+    { ...valid, isTrusted: false },
+    { ...valid, disposition: "report" },
+    { ...valid, effectiveDirective: "script-src" },
+    { ...valid, blockedURI: "wrong-origin" },
+    { ...valid, blockedURI: "wrong-path" },
+    { ...valid, blockedURI: "inline" },
+  ];
+  const positive = await run([...wrong, valid]);
+  assert.equal(positive.error, undefined);
+  assert.equal(new URL(positive.observations.cspFrame.attempted).hostname, "127.0.0.1");
+  assert.equal(new URL(positive.observations.cspFrame.attempted).pathname, "/");
+  assert.deepEqual(positive.observations.cspFrame.after, positive.observations.cspFrame.before);
+  for (const events of [[], ...wrong.map((event) => [event])]) {
+    const rejected = await run(events);
+    assert.match(rejected.error.message, /enforced owned-frame CSP refusal/);
+    assert.equal(rejected.observations.cspFrame.refusal.observed, false);
+    assert.equal(rejected.observations.cspFrame.refusal.frameRemoved, true);
+  }
+  assert.match(
+    (await run([valid], { changedContext: true })).error.message,
+    /preserve main and library context/,
+  );
+  const setupFailure = await run([], { failSetup: true });
+  assert.match(setupFailure.error.message, /enforced owned-frame CSP refusal/);
+  assert.equal(setupFailure.observations.cspFrame.refusal.reason, "frame-setup-failed");
 });
 
 test("reviewed link refusals require guard errors and preserve the ready native context", async (t) => {
@@ -571,6 +1117,245 @@ test("reviewed link refusals require guard errors and preserve the ready native 
       run({ identityRoot: path.toNamespacedPath(path.resolve("work", "other-library")) }),
     );
   }
+});
+
+test("shipping secondary creation requires ACL refusal and preserves native main state", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-secondary-boundary-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const library = path.join(parent, "library");
+  const command = "plugin:webview|create_webview_window";
+  const error = `Command ${command} not allowed by ACL`;
+  const request = {
+    options: {
+      label: "portcove-boundary-secondary",
+      url: "index.html",
+      title: "Owned denied secondary boundary",
+      visible: false,
+    },
+  };
+  const status = {
+    ready: true,
+    error: null,
+    library_root: library,
+    generation: 1,
+    selection: { root: library, source: "environment" },
+  };
+  async function run(changes = {}) {
+    const output = await mkdtemp(path.join(parent, "case-"));
+    const calls = [];
+    let attempted = false;
+    let secondaryReady = false;
+    const state = () => {
+      if (attempted) return changes;
+      return secondaryReady ? (changes.before ?? {}) : {};
+    };
+    const invoke = async (name, args) => {
+      calls.push({ command: name, args, afterAttempt: attempted });
+      if (name === command) {
+        assert.deepEqual(args, request, "Bind the valid pinned SDK creation options");
+        attempted = true;
+        if (changes.throwCreate) throw new Error(changes.throwCreate);
+        return changes.result ?? { ok: false, error };
+      }
+      const current = state();
+      if (current.throwOn?.[name]) throw new Error(current.throwOn[name]);
+      const replies = {
+        get_bootstrap_status: { ok: true, value: { ...status, ...current.bootstrap } },
+        get_library_identity: {
+          ok: true,
+          value: { id: "owned-library", root: library, ...current.identity },
+        },
+        get_locale_preference: current.localeResult ?? {
+          ok: true,
+          value: { locale: current.locale ?? "en" },
+        },
+        "plugin:window|get_all_windows": current.windowsResult ?? {
+          ok: true,
+          value: current.windows ?? ["main"],
+        },
+        "plugin:webview|get_all_webviews": current.webviewsResult ?? {
+          ok: true,
+          value: current.webviews ?? [{ window_label: "main", label: "main" }],
+        },
+        set_locale_preference: { ok: true, value: null },
+        open_external_url: {
+          ok: false,
+          error: {
+            code: "usage",
+            message: "only reviewed project, artwork source and GitHub sign-in links may be opened",
+          },
+        },
+        open_source_evidence: {
+          ok: false,
+          error: {
+            code: "not_found",
+            message: "unknown source evidence id: portcove-boundary-unknown-evidence",
+          },
+        },
+      };
+      if (Object.hasOwn(replies, name)) return replies[name];
+      assert.ok(name.includes("boundary"), `Unexpected fixture command: ${name}`);
+      if (name === "recreate_boundary_owner") secondaryReady = true;
+      return { ok: false, error: `command ${name} not found` };
+    };
+    let failure;
+    try {
+      await normalPackageBoundaryScenario({
+        browser: {
+          getCurrentUrl: async () => state().url ?? "http://tauri.localhost/",
+          manage: () => ({ setTimeouts: async () => {} }),
+          executeScript: async (callback) => {
+            if (callback.toString().includes("document.scripts"))
+              throw new Error("Contract fixture stops after secondary creation guard");
+            return {};
+          },
+          executeAsyncScript: async () => ({}),
+        },
+        invoke,
+        library,
+        output,
+        artifacts: [],
+        packageEvidence: { fixture: true },
+      });
+    } catch (caught) {
+      if (caught.message !== "Contract fixture stops after secondary creation guard")
+        failure = caught;
+    }
+    const observations = JSON.parse(
+      await readFile(path.join(output, "normal-package-boundary.json"), "utf8"),
+    );
+    return { failure, observations, calls };
+  }
+  const positive = await run();
+  assert.equal(positive.failure, undefined);
+  assert.deepEqual(
+    positive.calls.filter(({ command: name }) => name === command),
+    [{ command, args: request, afterAttempt: false }],
+  );
+  assert.deepEqual(positive.observations.secondaryCreation.request, { command, args: request });
+  assert.deepEqual(positive.observations.secondaryCreation.result, { ok: false, error });
+  assert.deepEqual(
+    positive.observations.secondaryCreation.after,
+    positive.observations.secondaryCreation.before,
+  );
+  assert.equal(positive.observations.reviewedLinkRefusals.length, 2);
+  const wrongLibrary = path.join(parent, "other-library");
+  for (const [name, changes] of [
+    ["unexpected success", { result: { ok: true, value: null } }],
+    [
+      "malformed argument error",
+      { result: { ok: false, error: "invalid args: missing field label" } },
+    ],
+    [
+      "unknown command",
+      { result: { ok: false, error: "command create_webview_window not found" } },
+    ],
+    [
+      "another command ACL",
+      { result: { ok: false, error: "Command plugin:webview|unknown not allowed by ACL" } },
+    ],
+    [
+      "debug-only message",
+      {
+        result: {
+          ok: false,
+          error:
+            "webview.create_webview_window not allowed. Permissions associated with this command: core:webview:allow-create-webview-window",
+        },
+      },
+    ],
+    ["generic error", { result: { ok: false, error: "operation failed" } }],
+    ["timeout", { throwCreate: "owned IPC timeout" }],
+    ["changed generation", { bootstrap: { generation: 2 } }],
+    ["changed selection", { bootstrap: { selection: { root: library, source: "saved" } } }],
+    ["changed identity", { identity: { id: "other-library" } }],
+    ["changed identity root", { identity: { root: wrongLibrary } }],
+    ["changed URL", { url: "http://tauri.localhost/other" }],
+    ["changed locale", { locale: "fr" }],
+    ["unexpected window", { windows: ["main", "portcove-boundary-secondary"] }],
+    ["duplicate window", { windows: ["main", "main"] }],
+    [
+      "unexpected webview",
+      {
+        webviews: [
+          { window_label: "main", label: "main" },
+          { window_label: "main", label: "other" },
+        ],
+      },
+    ],
+    ["unavailable windows", { windowsResult: { ok: false, error: "inventory unavailable" } }],
+    ["malformed webviews", { webviews: ["main"] }],
+  ])
+    await t.test(name, async () => {
+      const result = await run(changes);
+      assert.ok(result.failure, `${name} must fail`);
+      assert.equal(result.calls.filter(({ command: name }) => name === command).length, 1);
+      for (const field of ["context", "locale", "windows", "webviews"])
+        assert.ok(
+          Object.hasOwn(result.observations.secondaryCreation.after, field) ||
+            Object.hasOwn(result.observations.secondaryCreation.after.readFailures, field),
+        );
+      if (changes.throwCreate)
+        assert.equal(result.observations.secondaryCreation.invocationFailure, changes.throwCreate);
+    });
+  for (const [name, before] of [
+    ["reserved window already exists", { windows: ["main", "portcove-boundary-secondary"] }],
+    ["duplicate initial windows", { windows: ["main", "main"] }],
+    ["empty initial windows", { windows: [] }],
+    ["missing initial window inventory", { windowsResult: { ok: false, error: "unavailable" } }],
+    ["malformed initial window inventory", { windows: {} }],
+    [
+      "extra initial webview",
+      {
+        webviews: [
+          { window_label: "main", label: "main" },
+          { window_label: "other", label: "other" },
+        ],
+      },
+    ],
+    [
+      "duplicate initial webviews",
+      {
+        webviews: [
+          { window_label: "main", label: "main" },
+          { window_label: "main", label: "main" },
+        ],
+      },
+    ],
+    ["malformed initial webviews", { webviews: ["main"] }],
+    ["missing initial webview inventory", { webviewsResult: { ok: false, error: "unavailable" } }],
+    ["unready initial context", { bootstrap: { ready: false } }],
+    ["initial bootstrap error", { bootstrap: { error: "library unavailable" } }],
+    ["wrong initial root", { bootstrap: { library_root: wrongLibrary } }],
+    ["wrong initial identity", { identity: { root: wrongLibrary } }],
+    ["missing initial locale", { localeResult: { ok: false, error: "unavailable" } }],
+  ])
+    await t.test(name, async () => {
+      const result = await run({ before });
+      assert.ok(result.failure, `${name} must fail before creation`);
+      assert.equal(result.calls.filter(({ command: name }) => name === command).length, 0);
+      assert.ok(result.observations.secondaryCreation.before);
+      assert.equal(result.observations.secondaryCreation.result, undefined);
+    });
+  const collectors = {
+    context: "get_bootstrap_status",
+    locale: "get_locale_preference",
+    windows: "plugin:window|get_all_windows",
+    webviews: "plugin:webview|get_all_webviews",
+  };
+  for (const [field, name] of Object.entries(collectors))
+    await t.test(`retains ${field} failure after failed creation`, async () => {
+      const message = `owned ${field} read failure`;
+      const result = await run({ throwCreate: "owned IPC timeout", throwOn: { [name]: message } });
+      assert.ok(result.failure);
+      assert.equal(result.observations.secondaryCreation.invocationFailure, "owned IPC timeout");
+      assert.equal(result.observations.secondaryCreation.after.readFailures[field], message);
+      for (const [survivor, readCommand] of Object.entries(collectors)) {
+        assert.ok(result.calls.some((call) => call.command === readCommand && call.afterAttempt));
+        if (survivor !== field)
+          assert.ok(Object.hasOwn(result.observations.secondaryCreation.after, survivor));
+      }
+    });
 });
 
 test("ordinary package boundary is isolated and rejects stale or substituted evidence", async (t) => {
@@ -890,6 +1675,138 @@ test("staged native composition installs its isolated fixture before review", ()
   assert.ok(selection.prerequisites.includes("install-fixture"));
 });
 
+test("startup network diagnostics are standalone and never enter ordinary acceptance profiles", () => {
+  const id = "native-startup-network-diagnostic";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.deepEqual(catalogReport().find((item) => item.id === id).profiles, []);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "native-error-recovery"] }),
+    /standalone/,
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id], platform: "linux" }),
+    /requires Windows/,
+  );
+});
+
+test("diagnostic reply drops credential-shaped data even in summary and success payload", async () => {
+  const secret = "Bearer private-token";
+  const replies = [
+    [{ ok: true, value: { token: secret } }, { ok: true }],
+    [
+      {
+        ok: false,
+        error: {
+          code: "network",
+          message: secret,
+          details: { token: secret },
+          presentation: { summary: secret },
+          context: secret,
+        },
+      },
+      { ok: false, code: "network" },
+    ],
+    [
+      { ok: false, error: { code: secret } },
+      { ok: false, code: "unknown" },
+    ],
+    [{}, undefined],
+  ];
+  for (const [reply, expected] of replies) {
+    const commands = [];
+    const report = await observeStartupNetwork({
+      invoke: async (command) => {
+        commands.push(command);
+        if (command === "get_bootstrap_status")
+          return {
+            ok: true,
+            value: { ready: true, error: null, generation: 1, library_root: "owned-library" },
+          };
+        if (command === "get_library_identity")
+          return { ok: true, value: { id: "owned-id", root: "owned-library" } };
+        assert.equal(command, "get_github_auth_status");
+        return reply;
+      },
+      readAlerts: async () => 1,
+    });
+    assert.deepEqual(report.auth_status, expected);
+    assert.equal(report.completed, expected !== undefined);
+    assert.equal(report.explicit_auth_calls, 1);
+    assert.equal(commands.filter((command) => command === "get_github_auth_status").length, 1);
+    if (expected === undefined) assert.equal(report.coverage_failure, "explicit-auth-status");
+    else {
+      assert.equal(report.before_alert_count, 1);
+      assert.equal(report.after_alert_count, 1);
+      assert.equal(report.library.identity.id, "owned-id");
+    }
+    assert.doesNotMatch(JSON.stringify(report), /Bearer|private-token/);
+  }
+});
+
+test("current failed network observation is complete without retry or library change", async () => {
+  const commands = [];
+  const bootstrap = { ready: true, error: null, generation: 1, library_root: "owned-library" };
+  const report = await observeStartupNetwork({
+    invoke: async (command) => {
+      commands.push(command);
+      if (command === "get_bootstrap_status") return { ok: true, value: bootstrap };
+      if (command === "get_library_identity")
+        return { ok: true, value: { id: "owned-id", root: "owned-library" } };
+      return { ok: false, error: { code: "network", message: "private diagnostic" } };
+    },
+    readAlerts: async () => 1,
+  });
+  assert.equal(report.completed, true);
+  assert.equal(report.explicit_auth_calls, 1);
+  assert.deepEqual(report.auth_status, { ok: false, code: "network" });
+  assert.equal(commands.filter((command) => command === "get_github_auth_status").length, 1);
+  assert.equal(
+    commands.some((command) => /install|token|logout/.test(command)),
+    false,
+  );
+  assert.doesNotMatch(JSON.stringify(report), /private diagnostic/);
+});
+
+test("transport failure retains only coverage phase and does not retry", async () => {
+  let calls = 0;
+  const report = await observeStartupNetwork({
+    invoke: async () => {
+      calls++;
+      throw new Error("Bearer secret");
+    },
+    readAlerts: async () => 0,
+  });
+  assert.equal(report.completed, false);
+  assert.equal(report.explicit_auth_calls, 0);
+  assert.equal(report.coverage_failure, "before-library");
+  assert.equal(calls, 1);
+  assert.doesNotMatch(JSON.stringify(report), /Bearer|secret/);
+});
+
+test("diagnostic refuses a changed library after its one explicit read", async () => {
+  let reads = 0;
+  const report = await observeStartupNetwork({
+    invoke: async (command) => {
+      if (command === "get_bootstrap_status")
+        return {
+          ok: true,
+          value: { ready: true, error: null, generation: ++reads, library_root: "owned-library" },
+        };
+      if (command === "get_library_identity")
+        return { ok: true, value: { id: "owned-id", root: "owned-library" } };
+      return { ok: true, value: { login: "private-login" } };
+    },
+    readAlerts: async () => 0,
+  });
+  assert.equal(report.completed, false);
+  assert.equal(report.coverage_failure, "after-library");
+  assert.equal(report.explicit_auth_calls, 1);
+  assert.doesNotMatch(JSON.stringify(report), /private-login/);
+});
+
 test("missing Steam review context fails without loading Selenium", () => {
   const context = {
     browser: {},
@@ -968,4 +1885,164 @@ test("backup success-focus acceptance is isolated and exact-selection-only", () 
     "native-dialog",
   ]);
   assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+});
+
+test("saved-folder selected setup stays standalone and opt-in", () => {
+  const id = "native-saved-folder-selected-setup";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "install-fixture", "owned-fixture"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  for (const profile of ["smoke", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "keyboard-layout"], platform: "win32" }),
+    /standalone/,
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
+});
+
+test("selected setup completion remains a separate Windows opt-in with ordinary install prerequisites", () => {
+  const id = "native-selected-setup-completion";
+  const selected = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selected.selected_scenarios, [id]);
+  assert.deepEqual(selected.setup_scenarios, []);
+  assert.deepEqual(selected.prerequisites, ["desktop", "install-fixture", "owned-fixture"]);
+  assert.deepEqual(selected.host_resources, ["native-desktop", "keyboard-pointer"]);
+  assert.equal(desktopScenarioById.get(id).qualification_only, true);
+  assert.equal(desktopScenarioById.get(id).source, "desktop-selected-setup-completion-test.mjs");
+  assert.equal(desktopHarnessDeadlineMs(selected), 180_000);
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: [id, "native-saved-folder-selected-setup"],
+        platform: "win32",
+      }),
+    /standalone/,
+  );
+  for (const platform of ["linux", "darwin"])
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+});
+
+test("unavailable-root wait observes enabled state and preserves read rejection", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-source-dialog-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf('report.checkpoint = "unavailable-root-disabled-review";');
+  const end = source.indexOf('report.checkpoint = "unavailable-root-observations";', start);
+  assert.ok(start >= 0 && end > start, "Execute the actual bounded harness wait");
+  const wait = source.slice(start, end);
+  const rejection = new Error("Original enabled-state read failed");
+  for (const enabled of [true, false, rejection]) {
+    let reads = 0;
+    const action = runInNewContext(`(async () => { ${wait} })()`, {
+      report: {},
+      owned: { profiles: ["inert-profile"] },
+      row: (profile) => profile,
+      By: { css: (selector) => selector },
+      browser: {
+        findElement(profile) {
+          assert.equal(profile, "inert-profile");
+          return {
+            findElement(selector) {
+              assert.equal(selector, "[data-candidate-review]");
+              return {
+                async isEnabled() {
+                  reads++;
+                  if (enabled === rejection) throw rejection;
+                  return enabled;
+                },
+              };
+            },
+          };
+        },
+        async wait(predicate, timeout, message) {
+          assert.equal(timeout, 5_000);
+          assert.equal(
+            message,
+            "Selected setup: stale review disabled after unavailable-root refresh",
+          );
+          assert.equal(await predicate(), !enabled);
+        },
+      },
+    });
+    if (enabled === rejection) await assert.rejects(action, (error) => error === rejection);
+    else await action;
+    assert.equal(reads, 1);
+  }
+});
+
+test("selected setup identities admit both replacements only in the opt-in catalog", async (t) => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-selected-setup-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
+  const fixture = await createInstallFixture({
+    root,
+    output,
+    sourceJourney: true,
+    revision: "a".repeat(40),
+  });
+  t.after(() => fixture.close());
+  const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+  const owned = fixture.sourceJourney;
+  assert.equal(owned.game.length, owned.replacement.length);
+  assert.notDeepEqual(owned.game, owned.replacement);
+  for (const [name, original] of [
+    ["gamePath", "gameBefore"],
+    ["biosPath", "biosBefore"],
+  ])
+    assert.deepEqual(await readFile(owned[name]), await readFile(owned[original]));
+  const identities = catalog.source_catalog.identities.filter((item) =>
+    owned.profiles.includes(item.id),
+  );
+  assert.deepEqual(
+    identities.map((item) => item.variants.length),
+    [2, 1],
+  );
+  const expectedHashes = await Promise.all(
+    [owned.gameBefore, owned.gameReplacement].map(
+      async (file) => (await fileIdentity(file)).sha256,
+    ),
+  );
+  assert.deepEqual(
+    identities[0].variants.map((item) => item.representations[0].identities[0].sha256),
+    expectedHashes,
+  );
+  for (const port of [fixture.port, fixture.refreshPort]) {
+    const contract = catalog.source_catalog.contracts.find(
+      (item) => item.port_id === port.id && item.role === "game",
+    );
+    assert.deepEqual(contract.supported_variant_ids, ["inert-0", "inert-1"]);
+    assert.equal(contract.admission_mode, "enforced");
+    assert.ok(contract.immutable_review_url.includes("a".repeat(40)));
+    for (const requirement of port.presentation.source_requirements) {
+      const sourceContract = catalog.source_catalog.contracts.find(
+        (item) => item.port_id === port.id && item.role === requirement.role,
+      );
+      assert.equal(sourceContract.admission_mode, "enforced");
+      assert.equal(sourceContract.validator_contract_id, null);
+      assert.equal(requirement.verification, "catalog-identity");
+    }
+  }
+  assert.equal(fixture.port.adapter, "libultraship-portable");
+  assert.equal(fixture.refreshPort.adapter, "psx-recomp-managed");
+  assert.equal(fixture.refreshPort.bios_source_profile, owned.profiles[1]);
+  assert.equal(fixture.requests.length, 0);
+  const ordinaryOutput = await mkdtemp(path.join(os.tmpdir(), "portcove-ordinary-install-"));
+  t.after(() => rm(ordinaryOutput, { recursive: true, force: true }));
+  const ordinary = await createInstallFixture({ root, output: ordinaryOutput });
+  t.after(() => ordinary.close());
+  assert.equal(ordinary.sourceJourney, null);
+  assert.equal(ordinary.port.source_profile, undefined);
+  assert.equal(ordinary.refreshPort.bios_source_profile, undefined);
+  const original = JSON.parse(
+    await readFile(path.join(root, "crates/portcove-core/catalog/catalog.json"), "utf8"),
+  );
+  const ordinaryCatalog = JSON.parse(await readFile(ordinary.catalogPath, "utf8"));
+  assert.deepEqual(ordinaryCatalog.source_catalog, original.source_catalog);
 });

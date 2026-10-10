@@ -1,0 +1,2887 @@
+{
+  "source": "5d2f7948412eec42247f760dbcaa67c4112d2af1",
+  "auditSourceSha256": "4f35ed5c3fa2f988e35f2cf23545632c56fcba2cf33e69834c347a8cee275c8a",
+  "cases": [
+    {
+      "label": "format-normal",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "aff2214242d54407c3927f35466f9a330c94fcd32681768127e3d28bb0f91a28"
+    },
+    {
+      "label": "format-environment-drift",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "a40e65930b14eaacbd47e05046e3c1040a2faa56dba26a3a14f45cc9664ee31d"
+    },
+    {
+      "label": "rust-normal",
+      "stage": {
+        "id": "rust",
+        "recipe": "check-rust",
+        "domain": "rust",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "f5ca2e616196ae07845b09412419723dd6bc2a13489bd5518448ba4082907ff5"
+    },
+    {
+      "label": "rust-environment-drift",
+      "stage": {
+        "id": "rust",
+        "recipe": "check-rust",
+        "domain": "rust",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "498c573cf65f133c0fa05d81f984e9a3bf4a41eaa389efd0d4a8ff11186aaaaf"
+    },
+    {
+      "label": "ui-normal",
+      "stage": {
+        "id": "ui",
+        "recipe": "ui-check",
+        "domain": "ui",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "718f82dcb76fa9c8ed3e5c23985455d4d603f6701325150cb72428c60e8b368b"
+    },
+    {
+      "label": "ui-environment-drift",
+      "stage": {
+        "id": "ui",
+        "recipe": "ui-check",
+        "domain": "ui",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "a999dddb56108abacae556cabb3e9726d96c36a93189d98e06d53f57947357e6"
+    },
+    {
+      "label": "script-lint-normal",
+      "stage": {
+        "id": "script-lint",
+        "recipe": "script-lint",
+        "domain": "lint",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "f33bd4878cdba73401db546086d534e5755731026de8e1a779f24ad2e60ed924"
+    },
+    {
+      "label": "script-lint-environment-drift",
+      "stage": {
+        "id": "script-lint",
+        "recipe": "script-lint",
+        "domain": "lint",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "607de6a75063126b27703fe321c5e75b830184b40c4a1e0c166553a9156eda14"
+    },
+    {
+      "label": "repository-tooling-normal",
+      "stage": {
+        "id": "repository-tooling",
+        "recipe": "repository-tools",
+        "domain": "repository",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "28b2a2513118ee69ece2f26dd461d246e464a1ac48cbae21cebe2e39b14a8f2c"
+    },
+    {
+      "label": "repository-tooling-environment-drift",
+      "stage": {
+        "id": "repository-tooling",
+        "recipe": "repository-tools",
+        "domain": "repository",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "6c0fd9975b66846c85f54ccb4c6ea4fbcf73a96d4d4a5c014e086b67d630d033"
+    },
+    {
+      "label": "roadmap-normal",
+      "stage": {
+        "id": "roadmap",
+        "recipe": "roadmap-check",
+        "domain": "roadmap",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "9d8f807da2aa3cb7418d2c99983de08015ed5e5e6d1c6c31156679e1e6887da2"
+    },
+    {
+      "label": "roadmap-environment-drift",
+      "stage": {
+        "id": "roadmap",
+        "recipe": "roadmap-check",
+        "domain": "roadmap",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "eddf2ea74d7306dba952b46c64493c6b52f5be6d973109748e9f5da0b58c6b3f"
+    },
+    {
+      "label": "development-tools-normal",
+      "stage": {
+        "id": "development-tools",
+        "recipe": "development-tools",
+        "domain": "development",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "f2332753e1a1f9447c4e3fc7020404a63307467793827ad91291c30ee072d0a5"
+    },
+    {
+      "label": "development-tools-environment-drift",
+      "stage": {
+        "id": "development-tools",
+        "recipe": "development-tools",
+        "domain": "development",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "33cf19ea8a45882cf668b0e40ecc6471609664f1f2ef3a0d4ca29c286d2e476b"
+    },
+    {
+      "label": "dependency-policy-normal",
+      "stage": {
+        "id": "dependency-policy",
+        "recipe": "deny",
+        "domain": "rust",
+        "reusable": false,
+        "reason": "dependency and advisory state is externally mutable"
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "ab9819700d121c6b4301d4d835f51f27cdfb29cbf9b5f2e120ae4129687a444f"
+    },
+    {
+      "label": "dependency-policy-environment-drift",
+      "stage": {
+        "id": "dependency-policy",
+        "recipe": "deny",
+        "domain": "rust",
+        "reusable": false,
+        "reason": "dependency and advisory state is externally mutable"
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "1dde7eba6eb23ab5f5e209d4bd75d750c49756dd563182088541bff0b3c898f6"
+    },
+    {
+      "label": "rscheck-normal",
+      "stage": {
+        "id": "rscheck",
+        "recipe": "rscheck",
+        "domain": "rscheck",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "75a3b44781f3facfb5393597280f826ad3b3ff587ad8335cf34cc19d214c64ea"
+    },
+    {
+      "label": "rscheck-environment-drift",
+      "stage": {
+        "id": "rscheck",
+        "recipe": "rscheck",
+        "domain": "rscheck",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "a240db046422f9bd39852a8de3ce31aba060e70f4fca48da68c63570073aaab8"
+    },
+    {
+      "label": "release-unit-normal",
+      "stage": {
+        "id": "release-unit",
+        "recipe": "release-check",
+        "domain": "release",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "45297e83f5a7e7cf6de095349d54f6e98edd9fa2e0526c947bfa6c6b6a8c586f"
+    },
+    {
+      "label": "release-unit-environment-drift",
+      "stage": {
+        "id": "release-unit",
+        "recipe": "release-check",
+        "domain": "release",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "f41a15fe80eea41df492fe1eaf64ff8638d1a4626c44c47111a0ebc0d2723f49"
+    },
+    {
+      "label": "windows-qualification-normal",
+      "stage": {
+        "id": "windows-qualification",
+        "recipe": "windows-qualification-check",
+        "domain": "release",
+        "reusable": false,
+        "platforms": ["win32"],
+        "reason": "packaged Windows and machine-global state must be observed each audit"
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "9120cb7b913eed4df8b2a68f2849bd086fdd9361ccbea9947d73e8727617eedf"
+    },
+    {
+      "label": "windows-qualification-environment-drift",
+      "stage": {
+        "id": "windows-qualification",
+        "recipe": "windows-qualification-check",
+        "domain": "release",
+        "reusable": false,
+        "platforms": ["win32"],
+        "reason": "packaged Windows and machine-global state must be observed each audit"
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": "true",
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "9f4d663cfea8ef0a5380a4fb3b3c11c1fe5344eb4696360237d7d5291ab757f4"
+    },
+    {
+      "label": "environment-absent",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "363749ccc77f6345d17c8b9a416372124470388e643d47dac77542b43a55623d"
+    },
+    {
+      "label": "environment-null",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": null,
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "b2eaa5e9860d07d5c8e3d36c40453b292140a8f19cb6cef2162138603e89c3db"
+    },
+    {
+      "label": "environment-empty",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "aff2214242d54407c3927f35466f9a330c94fcd32681768127e3d28bb0f91a28"
+    },
+    {
+      "label": "environment-present",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "-D warnings",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "0669e9742a2b6979a1508445cf89aa39602270fe403fe01b1fb9668abf0e1cb8"
+    },
+    {
+      "label": "optional-runtime-absent",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "0a42a4fcde5e94cbe6888399db365b244f854e61d66bf98575858faacf40aded"
+    },
+    {
+      "label": "optional-file-absent",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "576a52dbd8477481309d533bd2595d6e2ba9643c34dccafcb3617e9c937b781c"
+    },
+    {
+      "label": "optional-runtime-null",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": null,
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "626a5554a14a837718d29292cbc92f653497aad2be3d897e22491eb9c6c9838e"
+    },
+    {
+      "label": "optional-file-null",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": null,
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "dd28401af01bd9250dce48c075642c2fb94cf5cdcd2cde58dde0c41f8a028dcb"
+    },
+    {
+      "label": "optional-runtime-empty",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "4db14cf41469706ea02217f11d3cedd16079fbcb98d74ee56582e7966b7d54b3"
+    },
+    {
+      "label": "optional-file-empty",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "3d27f5a074bc20965f7ef76734f417dc231fef5c16ad38ad820d62553c4da414"
+    },
+    {
+      "label": "input-order",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "earlier.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          },
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "96f4ec3b13047be582870c71f4adf283a7d00bff00d56fd0fe94b4fa3d1f4ca4"
+    },
+    {
+      "label": "domain-order",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "rscheck",
+              "release",
+              "development",
+              "roadmap",
+              "repository",
+              "lint",
+              "ui",
+              "rust",
+              "format"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "43b1e595e468d30dd650dc40462c129d68166781c7f7358c2aee1e3b89d0559c"
+    },
+    {
+      "label": "object-format-default",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "aff2214242d54407c3927f35466f9a330c94fcd32681768127e3d28bb0f91a28"
+    },
+    {
+      "label": "object-format-sha256",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha256",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "abe53756deac6b02daa6dd2c90335aaa348602a3c32c2a13f402488ef6206759"
+    },
+    {
+      "label": "mode-blob-dedup",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100755",
+            "indexMode": "100755",
+            "worktreeMode": "100755",
+            "headBlob": "3333333333333333333333333333333333333333",
+            "indexBlob": "3333333333333333333333333333333333333333",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "e51d9b26513a343c5f70e771d5e8b436e543cf3a71aad4ec571e36bd8cf02b47"
+    },
+    {
+      "label": "mode-blob-order",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100755",
+            "indexMode": "100644",
+            "worktreeMode": "100644",
+            "headBlob": "3333333333333333333333333333333333333333",
+            "indexBlob": "1111111111111111111111111111111111111111",
+            "gitBlob": "2222222222222222222222222222222222222222",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "aff2214242d54407c3927f35466f9a330c94fcd32681768127e3d28bb0f91a28"
+    },
+    {
+      "label": "excluded-head-and-nonselected",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "aff2214242d54407c3927f35466f9a330c94fcd32681768127e3d28bb0f91a28"
+    },
+    {
+      "label": "relevant-tool",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "changed",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "84f9ed8cd188fb29331ad03c042111101d3905d25283f4d2ce67e0c647acab84"
+    },
+    {
+      "label": "irrelevant-tool",
+      "stage": {
+        "id": "format",
+        "recipe": "fmt-frontend-check",
+        "domain": "format",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "changed",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "aff2214242d54407c3927f35466f9a330c94fcd32681768127e3d28bb0f91a28"
+    },
+    {
+      "label": "local-recipe",
+      "stage": {
+        "id": "node-tests",
+        "recipe": "test-node scripts/audit.test.mjs",
+        "domain": "repository",
+        "reusable": true
+      },
+      "inventory": {
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "objectFormat": "sha1",
+        "files": [
+          {
+            "path": "scripts/shared.mjs",
+            "kind": "file",
+            "headMode": "100644",
+            "indexMode": "100755",
+            "worktreeMode": "100644",
+            "headBlob": "1111111111111111111111111111111111111111",
+            "indexBlob": "2222222222222222222222222222222222222222",
+            "gitBlob": "3333333333333333333333333333333333333333",
+            "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+            "domains": [
+              "format",
+              "rust",
+              "ui",
+              "lint",
+              "repository",
+              "roadmap",
+              "development",
+              "release",
+              "rscheck"
+            ],
+            "ambiguous": false
+          },
+          {
+            "path": "ignored.bin",
+            "kind": "file",
+            "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+            "domains": ["ui"],
+            "ambiguous": true
+          }
+        ]
+      },
+      "runtime": {
+        "platform": "linux",
+        "architecture": "x64",
+        "osRelease": "baseline",
+        "node": "v24.21.0",
+        "git": "git baseline",
+        "just": "just baseline",
+        "rustc": "rustc baseline",
+        "cargo": "cargo baseline",
+        "cargoNextest": "nextest baseline",
+        "cargoShear": "shear baseline",
+        "rscheck": "rscheck baseline",
+        "aqua": "aqua baseline",
+        "powershell": "powershell baseline",
+        "packageManager": "pnpm@12.8.1",
+        "packageManagerVersion": "12.8.1",
+        "environment": {
+          "CI": null,
+          "RUSTFLAGS": "",
+          "NODE_OPTIONS": null
+        }
+      },
+      "expected": "30bbca0226b22e5780af8d6a4b3e0dc167265d2a2240a0a2b1f624f3b7c011c2"
+    }
+  ]
+}

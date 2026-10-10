@@ -1,3 +1,8 @@
+import {
+  evaluateCatalogQuery,
+  type CatalogQuery,
+  type CatalogQueryContext,
+} from "./features/browsing/catalog-query";
 import type {
   ActivityRecord,
   DesktopError,
@@ -396,17 +401,29 @@ export function filterPorts(
   ports: PortDefinition[],
   statuses: Map<string, PortStatus>,
   view: View,
-  filter: Filter,
+  filter: Filter | CatalogQuery,
   query: string,
   catalogSort: CatalogSort = "catalog",
+  context: CatalogQueryContext = {},
 ) {
+  const selectedStatuses =
+    typeof filter !== "string" && context.library ? context.library.statuses : statuses;
   const normalizedQuery = query.trim().toLowerCase();
-  const visible = ports.filter(
+  const legacyFilter = typeof filter === "string" ? filter : "all";
+  const structuredQuery =
+    typeof filter !== "string"
+      ? filter
+      : {
+          version: 1,
+          channels: ["stable", "beta", "rolling"].includes(filter) ? [filter] : [],
+        };
+  const candidates = ports.filter(
     (port) =>
-      visibleInView(port, statuses, view) &&
-      matchesFilter(port, statuses.get(port.id), filter) &&
+      visibleInView(port, selectedStatuses, view) &&
+      matchesFilter(selectedStatuses.get(port.id), legacyFilter) &&
       searchableText(port).includes(normalizedQuery),
   );
+  const visible = evaluateCatalogQuery(candidates, structuredQuery, context).ports;
   if (view !== "catalog" || catalogSort === "catalog") return visible;
   return visible
     .map((port, index) => ({ port, index }))
@@ -416,13 +433,14 @@ export function filterPorts(
           ? left.port.name.localeCompare(right.port.name, "en", { sensitivity: "base" })
           : Number(
               Boolean(
-                statuses.get(right.port.id)?.active ||
-                statuses.get(right.port.id)?.external_runtime,
+                selectedStatuses.get(right.port.id)?.active ||
+                selectedStatuses.get(right.port.id)?.external_runtime,
               ),
             ) -
             Number(
               Boolean(
-                statuses.get(left.port.id)?.active || statuses.get(left.port.id)?.external_runtime,
+                selectedStatuses.get(left.port.id)?.active ||
+                selectedStatuses.get(left.port.id)?.external_runtime,
               ),
             );
       return comparison || left.index - right.index;
@@ -430,7 +448,11 @@ export function filterPorts(
     .map(({ port }) => port);
 }
 
-function visibleInView(port: PortDefinition, statuses: Map<string, PortStatus>, view: View) {
+function visibleInView(
+  port: PortDefinition,
+  statuses: ReadonlyMap<string, PortStatus>,
+  view: View,
+) {
   const status = statuses.get(port.id);
   return view !== "library" || Boolean(status?.active || status?.external_runtime);
 }
@@ -439,12 +461,10 @@ function needsAttention(readiness: PortReadiness) {
   return readiness !== "available" && readiness !== "ready" && readiness !== "staged";
 }
 
-function matchesFilter(port: PortDefinition, status: PortStatus | undefined, filter: Filter) {
+function matchesFilter(status: PortStatus | undefined, filter: Filter) {
   const readiness = portReadiness(status);
   if (filter === "ready") return readiness === "ready" || readiness === "staged";
   if (filter === "setup") return needsAttention(readiness);
-  if (filter === "stable" || filter === "beta" || filter === "rolling")
-    return port.channels.includes(filter);
   return true;
 }
 

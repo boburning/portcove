@@ -12,16 +12,20 @@ corrections. Agents investigate changed contracts and genuine exceptions.
 Normal use stays local-first, without paid inference, mandatory accounts,
 telemetry or redistribution of copyrighted game data.
 
+Execution uses one local delivery runner with independent non-writing review.
+The retired board preserves historical handoff discovery; it grants no new work.
+See [the pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
+
 ## Start here
 
-| Question                                     | Authoritative starting point                                                                                                                                                                                                                                                   |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| What comes next, and what has shipped?       | [Product Outcomes](https://github.com/users/boburning/projects/1/views/5), grouped by release and including completed outcomes. Issues contain current acceptance and evidence.                                                                                                |
-| What prevents the next release?              | [Required for Beta](https://github.com/users/boburning/projects/1/views/6), then complete dependency-derived readiness below. [Required through 1.0](https://github.com/users/boburning/projects/1/views/10) shows later obligations.                                          |
-| What are runners doing, and what comes next? | [In Progress](https://github.com/users/boburning/projects/1/views/3), [Next Queue](https://github.com/users/boburning/projects/1/views/2) and accepted reservations in [#793](https://github.com/boburning/portcove/issues/793). Status or Horizon alone is not a reservation. |
-| Where is approved non-gating work?           | [Planned Additions](https://github.com/users/boburning/projects/1/views/9); these participate in the common execution queue.                                                                                                                                                   |
-| What is happening with ports?                | Complete [Port Pipeline](https://github.com/users/boburning/projects/1/views/4) and [Active Port Work](https://github.com/users/boburning/projects/1/views/11). Catalog data establishes support.                                                                              |
-| What requires the owner's decision?          | Concrete questions in the existing nightly report and [#793](https://github.com/boburning/portcove/issues/793), with effect and recommendation. Blocked or Deferred alone does not imply owner action.                                                                         |
+| Question                                     | Authoritative starting point                                                                                                                                                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What comes next, and what has shipped?       | [Product Outcomes](https://github.com/users/boburning/projects/1/views/5), grouped by release and including completed outcomes. Issues contain current acceptance and evidence.                                                                                     |
+| What prevents the next release?              | [Required for Beta](https://github.com/users/boburning/projects/1/views/6), then complete dependency-derived readiness below. [Required through 1.0](https://github.com/users/boburning/projects/1/views/10) shows later obligations.                               |
+| What are runners doing, and what comes next? | [In Progress](https://github.com/users/boburning/projects/1/views/3), [Next Queue](https://github.com/users/boburning/projects/1/views/2) and current ownership/handoff evidence on the owning issues/PRs. Status or Horizon alone does not prove an active writer. |
+| Where is approved non-gating work?           | [Planned Additions](https://github.com/users/boburning/projects/1/views/9); these participate in the common execution queue.                                                                                                                                        |
+| What is happening with ports?                | Complete [Port Pipeline](https://github.com/users/boburning/projects/1/views/4) and [Active Port Work](https://github.com/users/boburning/projects/1/views/11). Catalog data establishes support.                                                                   |
+| What requires the owner's decision?          | Concrete questions in the existing nightly report and the owning issue/PR, with effect and recommendation. Blocked or Deferred alone does not imply owner action.                                                                                                   |
 
 Projects owns live planning fields and the port pipeline. Issues own executable
 scope and evidence. Documents own stable contracts and dated history. These
@@ -81,6 +85,30 @@ gate. Unknown gameplay is not a known failure; mandatory failures stay held at
 their affected scope. Unknown saves grant no destructive management. Exact
 artifact/platform/source/operation evidence cannot qualify unrelated versions
 or ports.
+
+## Planned browsing enhancements
+
+[Composable catalog/library queries #1550](https://github.com/boburning/portcove/issues/1550)
+retain small, explainable filters and current browsing state. Separate owners cover
+[local file/attention/update snapshots #1551](https://github.com/boburning/portcove/issues/1551),
+[lightweight Favorites #1552](https://github.com/boburning/portcove/issues/1552) and
+[later metadata, feature and recency browsing #1553](https://github.com/boburning/portcove/issues/1553).
+[Saved queries/sharing #1554](https://github.com/boburning/portcove/issues/1554) and
+[exact evidence browsing #1555](https://github.com/boburning/portcove/issues/1555) remain later independent additions.
+These Planned enhancements do not expand the Required Desktop/discovery boundary.
+Unknown facts remain visible in unfiltered browsing; operational filters reuse
+Core snapshots and do not authorize work or establish qualification. See the
+[dated reconciliation](archive/2026-10-05-browsing-reconciliation.md).
+
+Chips, detail rows and filters reuse truthful scoped facts rather than quality
+ratings. [#206](https://github.com/boburning/portcove/issues/206) owns bounded
+state/copy corrections; [#917](https://github.com/boburning/portcove/issues/917)
+owns passive/interactive semantics and accessible emphasis. Planned
+[#1553](https://github.com/boburning/portcove/issues/1553) adds a small attributable
+capability contract and its first consumers before broader comparison under
+[#251](https://github.com/boburning/portcove/issues/251). Unknown testing does not
+block admission, a source match is not playability, and an update does not erase
+readiness. See the [dated chip reconciliation](archive/2026-10-05-chip-roadmap-reconciliation.md).
 
 ## During beta, before 1.0
 

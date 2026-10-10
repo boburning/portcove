@@ -1498,11 +1498,26 @@ export interface GameFileRoot {
 export interface GameFileScanSnapshot {
   catalog_sha256: string;
   completed_at: number;
+  continuation?: unknown;
+  coverage?: GameFileScanCoverage | null;
   format_version: number;
   freshness: GameFileScanFreshness;
   limits: SourceDiscoveryLimits | null;
   report: SourceDiscoveryReport;
   roots: GameFileRoot[];
+  [k: string]: unknown;
+}
+export interface GameFileScanCoverage {
+  batch_entries_examined: number;
+  batches: number;
+  can_resume: boolean;
+  entries_relisted: number;
+  frontier_exhausted: boolean;
+  metadata_checks: number;
+  pending_directories: number;
+  prior_member_rechecks: number;
+  remaining_entries: number | null;
+  restart_required: boolean;
   [k: string]: unknown;
 }
 export interface SourceDiscoveryLimits {

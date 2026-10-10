@@ -37,6 +37,7 @@ function readStagedLayout(version) {
     activate: activate && { ...rect(activate), enabled: !activate.disabled },
     state: document.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
     reason: document.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
+    attention: document.querySelector(".detail-hero [data-update-attention]")?.textContent?.trim(),
     documentOverflow:
       document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
   };
@@ -444,9 +445,10 @@ export async function installScenarios({
           assert.equal(layout.play.enabled, true, JSON.stringify(layout));
           assert.equal(layout.activate.enabled, true, JSON.stringify(layout));
           assert.equal(layout.documentOverflow, false, JSON.stringify(layout));
-          assert.equal(layout.state, "Installed · update saved for later");
+          assert.equal(layout.state, "Ready to play");
+          assert.equal(layout.reason ?? null, null);
           assert.equal(
-            layout.reason,
+            layout.attention,
             `Play the installed version or use the saved update ${version}.`,
           );
           assert.ok(layout.activate.left >= 0 && layout.activate.right <= width + 1);
@@ -542,6 +544,34 @@ export async function installScenarios({
     const play = await browser.wait(until.elementLocated(button("Play")), 15_000);
     await browser.wait(until.elementIsEnabled(activation), 15_000);
     await browser.wait(until.elementIsEnabled(play), 15_000);
+    await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    const libraryCard = await browser.wait(async () => {
+      return browser.executeScript((name) => {
+        const card = [...document.querySelectorAll("article.port-card")].find((item) =>
+          item.getAttribute("aria-label")?.startsWith(`${name}.`),
+        );
+        if (!card || card.querySelector(".readiness")?.textContent?.trim() !== "Ready to play")
+          return null;
+        return {
+          label: card.getAttribute("aria-label"),
+          state: card.querySelector(".readiness").textContent.trim(),
+          attention: [...card.querySelectorAll(".badge.update")].map((item) =>
+            item.textContent.trim(),
+          ),
+        };
+      }, port.name);
+    }, 15_000);
+    assert.equal(libraryCard.state, "Ready to play");
+    assert.equal(
+      libraryCard.label,
+      `${port.name}. Ready to play. Update downloaded. View details.`,
+    );
+    assert.ok(libraryCard.attention.includes("Update downloaded"));
+    assert.equal(
+      libraryCard.attention.includes("Update available"),
+      false,
+      "the available target already matches the verified downloaded update",
+    );
     const layouts = await captureStagedLayouts(port, nextVersion);
     const finalResult = await invoke("get_statuses");
     assert.equal(finalResult.ok, true);
@@ -551,7 +581,7 @@ export async function installScenarios({
     const report = path.join(output, "native-staged-update-composition.json");
     await writeFile(
       report,
-      `${JSON.stringify({ port_id: port.id, before, published, fixture_revisions: fixtureRevisions, staged: finalStatus, layouts }, null, 2)}\n`,
+      `${JSON.stringify({ port_id: port.id, before, published, fixture_revisions: fixtureRevisions, staged: finalStatus, library_card: libraryCard, layouts }, null, 2)}\n`,
       { flag: "wx" },
     );
     artifacts.push(report);

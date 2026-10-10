@@ -37,13 +37,14 @@
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "preview": "vite preview",
-    "test": "vitest run --pool=threads --isolate --maxWorkers=2 --testTimeout=5000 --reporter=default --reporter=json --outputFile=../../work/ui-tests.json && node ../../scripts/check-vitest-durations.mjs ../../work/ui-tests.json && node scripts/check-theme.mjs && node scripts/check-copy.mjs && pnpm i18n:check",
+    "test": "node scripts/check-copy.mjs && pnpm run test:after-copy",
     "test:copy": "vitest run scripts/check-copy.test.mjs src/count-messages.test.ts && node scripts/check-copy.mjs",
     "test:theme": "node scripts/check-theme.mjs",
     "i18n:extract": "i18next-cli extract",
     "i18n:check": "i18next-cli extract --ci && i18next-cli status && i18next-cli lint && i18next-cli types --ci && node scripts/check-i18n-negative-fixture.mjs",
     "transport:check": "node scripts/generate-transport-types.mjs",
-    "test:cli-handoff": "vitest run scripts/cli-command-shell.test.mjs src/cli-command.test.ts src/components/CliContinuity.test.tsx"
+    "test:cli-handoff": "vitest run scripts/cli-command-shell.test.mjs src/cli-command.test.ts src/components/CliContinuity.test.tsx",
+    "test:after-copy": "vitest run --pool=threads --isolate --maxWorkers=2 --testTimeout=5000 --reporter=default --reporter=json --outputFile=../../work/ui-tests.json && node ../../scripts/check-vitest-durations.mjs ../../work/ui-tests.json && node scripts/check-theme.mjs && pnpm i18n:check"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",

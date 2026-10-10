@@ -41,6 +41,31 @@ database. `exec` deliberately transfers its standard streams and final process
 status to the game; structured management calls and durable core activity remain
 the observation path around it. See [External frontend integration](INTEGRATIONS.md).
 
+### Public domain and transport consumers
+
+Core implementation modules remain private. [The crate facade](../crates/portcove-core/src/lib.rs)
+exports selected services and domain types, plus the existing wildcard exports
+from `source_assessment`, `source_catalog` and `types`. The disposition of these
+exports is **compatibility retained**: their consumers include both Rust adapters
+and serialized contracts. A wildcard is not itself a demonstrated invalid state,
+and a workspace search or `publish = false` does not prove that narrowing a symbol
+is compatible with every external consumer.
+
+| Surface                                    | Actual owner and consumers                                                                                                                                                                                                                                                                       | Retained boundary and replacement condition                                                                                                                                                                                                                                               |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain facade and operation results        | `PortcoveService` and the explicitly exported Library, preparation, source, installation, failure and activity types serve internal Core code, CLI handlers and Tauri commands.                                                                                                                  | Core interprets durable state and owns normal/recovery mutations. Keep valid released requests, outcomes and nullable compatibility fields; narrowing requires the exact affected callers and a compatible migration.                                                                     |
+| Source assessment/catalog and shared types | The three wildcard modules provide source identities, contracts, evidence, assessments and shared domain values. CLI rendering and `schema.rs`, and Desktop's exported transport outputs, consume these values.                                                                                  | Retain the current exports and strict serialized interpretations. An unused-looking Rust name is not authority to remove a machine field or reinterpret old data. No wildcard replacement is selected by this map.                                                                        |
+| CLI machine contract                       | [CLI handlers](../crates/portcove-cli/src/main.rs) translate arguments into Core calls; [schema export](../crates/portcove-cli/src/schema.rs) publishes the advertised JSON schemas. Compiled `machine_contract` fixtures cover the consumer boundary.                                           | CLI envelopes, errors, exit codes and independently versioned events remain distinct from internal Rust visibility. Changes migrate handlers, schema export and applicable compatibility fixtures together.                                                                               |
+| Desktop transport and rendering            | Host-private [transport declarations](../apps/desktop/src-tauri/src/transport.rs) describe inputs/events and wrap Core outputs. [The export example](../apps/desktop/src-tauri/examples/export_transport.rs) generates output/input/event declarations consumed through `types.ts` and `api.ts`. | The host owns IPC translation, native confirmation and process integration; React owns presentation and ephemeral interaction. A generated declaration grants no durable authority. Changes must reconcile host registrations, declarations, generated files and actual frontend callers. |
+| Application updater                        | The Tauri host owns application update trust, staging, replacement and recovery; CLI/Core game updates retain their separate facade.                                                                                                                                                             | Preserve [updater trust](UPDATER-TRUST.md). Shared transport types do not move application replacement into Core or game-update policy into the host.                                                                                                                                     |
+
+No route is superseded merely by documenting this map. A private replacement must
+migrate its actual normal and recovery callers before retiring the old interpreter;
+a public change additionally needs its Rust/wire/generated compatibility decision.
+Absent external-consumer evidence remains unknown, so current compatibility is
+retained rather than assuming a safe removal. This map adds no public API,
+serialization format, crate boundary or measured compilation benefit.
+
 ## Find the owning boundary
 
 Use this map before changing a subsystem. The linked contracts own their detailed
@@ -692,6 +717,12 @@ request's progress, provisional matches and cancellation target, and does not
 start another scan. Settled or disposed-workspace callbacks cannot populate a
 new observer. Library replacement disposes observation without automatically
 cancelling core work; this is not a durable scan intent or restart guarantee.
+Desktop presents core's optional completed-scan coverage with cumulative batch
+counts and explicit unknown remaining-entry counts. A refreshed, matching
+snapshot with a resumable frontier offers Continue scan; a required restart
+offers Start new scan. Both use the existing bounded scan command and limits.
+Exhausting the folder frontier does not erase skipped files or imply gameplay
+support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently
 from API schema and validates candidate fields without changing lifecycle state.
 
@@ -1494,6 +1525,27 @@ disc sets before a source record becomes usable.
 
 Preference writers serialize through a process lock keyed by the exact preference path before taking the persistent sibling operating-system lock, then publish a flushed sibling atomically using the shared durability helper. The process lock closes platforms where operating-system file locks do not serialize handles owned by one process; the sibling lock preserves the cross-process boundary. Reads never create files. Setting or clearing a library preserves compatible unknown JSON fields and unrelated host preferences; explicit recovery reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
 
+Favorites use the compatible `favorites_by_library` extension in that same
+format-1 host preference document. `HostPreferenceStore::favorite_ports` and
+`set_favorite` read or change independent canonical port IDs under a selected
+library's canonical 32-character lowercase hexadecimal ID obtained from `Library::identity_record`. Display-name
+corrections and managed library moves preserve that identity; importing into a
+different library does not inherit its favorites. Temporarily absent or retired
+catalog IDs remain stored until explicitly unset. The existing locks, atomic
+publication and 64 KiB document limit apply, and unrelated preferences and unknown
+extensions survive a change. Removing the last choice removes the empty extension;
+explicit preference reset clears it with the rest of the document.
+
+Only favorites operations decode this extension. A malformed favorite map reports
+an actionable preference error without preventing ordinary library selection,
+locale or host-tool preference operations, and those writers preserve it as JSON
+data rather than silently deleting it. Reads create no storage, and favorite
+changes neither open a library nor confer installation, source or catalog
+ownership. These private host choices do not enter public catalog data or trigger
+networking or scanning. This is the Core preference foundation for #1552; Desktop
+toggles, filter composition, counts and navigation remain separate implementation
+and acceptance work under that issue.
+
 For a live desktop switch, the adapter makes its current state unavailable and drops its cached library/providers. Core then acquires an exclusive lease on the old root; an already-dispatched operation retains a shared lease and makes the switch fail, after which the adapter reopens the old state. Only a successfully opened target is persisted and published as current. A monotonically increasing bootstrap generation remounts React's library-owned state so results from the old workspace cannot populate the new one. This introduces no second library authority or database/catalog migration.
 
 Core resolves newly opened library roots and validated source references to absolute paths before they produce durable records. Relative CLI arguments therefore do not tie a new installation or source to that process's working directory. Existing ambiguous relative records are not guessed or silently rebased; they require qualification from their original base and explicit reinstallation or source relinking.
@@ -1924,17 +1976,48 @@ additionally owns its activity lock and accepted quarantine. The cited component
 applicable, native evidence scopes; this map adds no combined-tree execution or
 power-loss guarantee.
 
-The remaining acceptance owners are explicit without making this document a
-planning ledger. #925 owns the rest of the setup-family configuration inventory,
-durable-order/lock/commit-point review for other selected workflows, and the
-public/internal export and host-consumer map. Each needs an actual invalid state,
-ambiguous owner or edit burden before another functional change is selected;
-otherwise its disposition may be evidence-backed retention. Existing observational
-planners and checked managed-PS1 configuration are credited in the Adapter
-boundary below. #1168 owns offered-route UI semantics, #1282 host interruption,
-and #52 application-updater behavior and host authority. Independent packaged CLI
-consumer proof remains with #1499. These are separate acceptance boundaries, not
-reasons to rewrite compatible journals or to close all of #925 from this map.
+### Other lifecycle persistence dispositions
+
+The selected source-import, backup, removal, relocation and activation families
+already have checked private interpreters. Their disposition is **implemented,
+with released envelopes compatibility retained**. The normal writer and startup
+dispatcher use the same family interpretation; generic optional journal fields
+remain storage compatibility, not permission to mutate another family's payload.
+
+| Family and checked owner                                                                                                                                                                | Normal durable order and locks                                                                                                                                                                                                                                                                                                                                           | Recovery, failure and retained compatibility                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source import — `source_import::SourceImportOperation`, [#1298](https://github.com/boburning/portcove/pull/1298) / [#1300](https://github.com/boburning/portcove/pull/1300)             | Normal import holds source-dependent locks; copy/validation precedes publication, destination revalidation precedes source registration, and Move-only original cleanup follows registration. Publication ownership receipts bind the staged destination.                                                                                                                | Startup takes source-dependent locks and enters the same `continue_import` interpreter. Copy cannot enter original removal; incompatible payloads and an operation-unbound quarantine are refused. A changed original may be retained with an explicit copied-original-retained outcome. Existing released phases are decoded without manufacturing consent.                                                                                   |
+| Backup restore/delete — checked operations in `service/backups.rs`, [#1342](https://github.com/boburning/portcove/pull/1342) / [#1344](https://github.com/boburning/portcove/pull/1344) | Reviewed mutation holds the port lock. Restore verifies staged backup data, creates the applicable safety backup, journals the replacement, swaps live/staged data, synchronizes restored data, then retires private work. Delete journals the authorized original/quarantine, renames without replacement, deletes the quarantined payload, then commits/cleans intent. | `recovery.rs` uses the same checked identities, paths, family payload and legal phases. Foreign/ambiguous paths and unconfirmed deletion are retained/refused; partial accepted deletion can finish. Restore's initial diagnostic intent can be written before lock acquisition: this is not a claim that every journal write is under the mutation lock. Filesystem rename and later metadata/journal updates are separate commit boundaries. |
+| Managed removal — `service/removal::RemovalOperation`, [#1377](https://github.com/boburning/portcove/pull/1377)                                                                         | Under the port lock, consume the current removal review, collect applicable saved data, journal exact owned paths, quarantine managed versions, remove registered metadata, then clean quarantine. Failed cleanup can return the completed removal result while retaining cleanup-pending intent.                                                                        | Startup uses the checked envelope and owned quarantine paths; skipped transitions, changed intent and incompatible payloads are refused. An unstarted legacy intent is not promoted into authorized deletion. Non-owning external-registration removal remains a separate metadata-only operation.                                                                                                                                             |
+| Game output relocation — `output_relocation::RelocationOperation`, [#1390](https://github.com/boburning/portcove/pull/1390)                                                             | Under the port lock, bind the reviewed plan, verify copied trees and publish vacant destinations before a checked SQLite transaction changes install paths/output settings. Only after verifying the new authority may old owned copies be cleaned.                                                                                                                      | Startup reuses the same checked plan, phase and old/new authority classification. Contradictory paths/payloads, foreign port ownership and changed identities do not grant copy/delete authority. Post-commit cleanup failures retain the new authority and recovery work; they do not imply a rolled-back relocation. Released phases remain compatible.                                                                                      |
+| Staged activation — `recovery::ActivationOperation`, [#1393](https://github.com/boburning/portcove/pull/1393)                                                                           | The service verifies the retained install and collects/restores applicable user data under activation's port lock; a checked commit intent is prepared before `Library::activate_staged` changes pointers and the committed phase is persisted.                                                                                                                          | Startup rejects foreign install/family intent and changed identities. A failed committed-phase write retains the checked operation for reconciliation rather than implying that the SQLite pointer change was undone. The legacy committed cleanup-only interpretation remains supported.                                                                                                                                                      |
+
+Startup first inventories candidate journal IDs, acquires the recorded owner's
+port or source-dependent locks, then rereads kind, owner and creation identity
+before dispatch. Live-worker lock conflicts postpone recovery. Ordinary service
+reads do not implicitly advance journals. Family diagnostics and terminal
+activity remain distinct from mutation success; best-effort diagnostic persistence
+is not a filesystem/SQLite transaction or proof of process quiescence.
+
+The executable controls are the existing source-import legal-phase/quarantine
+fixtures; backup foreign-path, incompatible-family and partial-cleanup fixtures;
+removal legal-phase/changed-intent fixtures; relocation authority/checked-transition
+fixtures; and activation foreign-family/checked-commit/failed-phase-write fixtures.
+These retain their actual component and platform evidence. No replacement
+interpreter is selected here: the checked family interpretations already replaced
+the demonstrated unsafe generic interpretations in both normal and recovery
+consumers. A future replacement must preserve valid legacy phases and migrate
+these consumers and controls together.
+
+The [setup configuration map](#setup-configuration-dispositions) and
+[public consumer map](#public-domain-and-transport-consumers) complete this document's
+selected ownership dispositions without a new lifecycle authority. #925 owns a
+demonstrated further invalid state, ambiguous owner or material cross-boundary
+edit burden; its full acceptance is not established by analysis alone. #1168 owns
+offered-route UI semantics, #1282 actual host interruption and #52 application
+updater behavior. Independent packaged CLI proof remains with #1499. Existing
+source/native/platform limitations remain at those owners, and no combined-tree
+execution, arbitrary crash or power-loss guarantee follows from this map.
 
 Adoption uses the same publication state machine and never copies into a final version path directly. Its first step recursively hashes every regular file into a deterministic copy plan, preserves empty directories, and reports symlinks or special entries that will be skipped. The reviewed plan fingerprint is authorized for five minutes and one use; core recomputes it under the port lock and verifies the private copied tree before activation. Persistent data is taken from that verified private copy, never from a source path that can change after copying. Removal runs the publication state machine in reverse: every registered managed version is renamed under `recovery/<operation-id>/` before SQLite metadata is deleted, then quarantine cleanup is retried. Port removal, backup restore, backup deletion, adoption, source-reference removal and retained-preparation cleanup all consume action-, target-, and state-bound core authorizations. Desktop issuance occurs only after a native backend-owned confirmation dialog; renderer state cannot authorize a destructive command. Backup, installed-game removal and retained-preparation cleanup also provide detailed custom reviews before this final confirmation. The Desktop cleanup review distinguishes deletion of unfinished setup's working files from clearing an empty setup record, while showing the recorded path and preserved locations in either case. Core still revalidates the selected action and reviewed state under its operation lock. Startup advances only recorded states whose payload, manifest and path layout are unambiguous. A preparation interrupted before validation remains failed and cannot be resumed. Its exact operation-private tree may be discarded only after an inventory-bound review while the port and original activity are idle. Core records the accepted cleanup before deletion; startup may retry that deletion but cannot reinterpret the original preparation as successful. The action never owns the recorded original installation, source, saved data, backups or logs, and it never deletes an untracked final directory. The read-only doctor repair plan distinguishes retained private preparation from other incomplete journals, cleanup-pending trees, registered paths that are missing and orphaned final directories with proposed review actions.
 
@@ -2017,8 +2100,32 @@ Explicit preparation checks cancellation before materialization or cleanup and
 uses the existing identity-checked staging and owned cleanup helpers. The plan
 is consumed immediately under existing service ownership; it is not cached
 permission. Source revalidation, save synchronization, executable verification
-and process authority remain in the service. Other launch-spec branches still
-perform preparation; this boundary does not make the full API read-only.
+and process authority remain in the service. All adapter launch-spec branches are
+observational; explicit preparation and the full service API still perform
+authorized mutations.
+
+### Setup configuration dispositions
+
+The seven `AdapterKind` families retain catalog data and existing generic
+adapters. Their current configuration disposition is **satisfactory checked
+boundaries, compatible public inputs retained**; optional fields alone do not
+justify a parallel typed workflow or catalog/schema rewrite.
+
+| Family                                                                    | Checked current configuration and consumers                                                                                                                                                                                                                                                                                                                    | Evidence and retained condition                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| N64 portable, staged-source portable, referenced-disc and generated-cache | `Catalog::from_json` validates source/materialization, executable, persistence and applicable runtime paths. `StandardAdapter::launch_spec_with_executable` observes current paths/environment/arguments; explicit `prepare_launch_with_executable` owns markers, descriptors, caches and source materialization under supervised service ownership.           | [#1368](https://github.com/boburning/portcove/pull/1368) separates planning for all seven families; `every_adapter_launch_plan_preserves_files_and_missing_outputs` and cancellation controls retain files and missing outputs. Existing nullable catalog fields remain compatible; a proposed mode needs its actual valid/invalid combination before another configuration abstraction is justified. |
+| Libultraship portable                                                     | The private `LibultrashipSourcePlan` distinguishes original source, admitted archive materialization, no source argument and generated-archive cleanup. The observational plan is consumed immediately by explicit preparation; source identity and service supervision remain authoritative.                                                                  | The existing plan and source-conversion controls are retained. It is not cached consent, and a generated archive does not authorize arbitrary cleanup or source substitution. The same public request/definition shapes remain supported.                                                                                                                                                             |
+| Upstream-managed setup                                                    | Catalog validation binds marker/hints/arguments to the admitted disc/materialization contract. For managed preparation, `plan_preparation` checks the active retained definition, reviewed outputs, host artifact and verified install/runtime/source; authorization and execution bind the current plan. Legacy launch setup remains in explicit preparation. | [#1428](https://github.com/boburning/portcove/pull/1428) retains separate service observation/preparation, and existing preparation refusal/cancellation/recovery fixtures retain its stronger admission. Missing outputs, unsupported target or changed admitted inputs remain failures rather than an inferred valid mode. No arbitrary upstream script execution is introduced.                    |
+| Managed PS1 recomp                                                        | Private `psx::PreparationConfiguration::from_preparation` requires source paths matching the verified source, a safe single-component executable basename and, for runtime raw-set materialization, a safe relative directory with at least two verified discs. Public `PsxManagedPreparation` remains the compatible input envelope.                          | [#1503](https://github.com/boburning/portcove/pull/1503) implements the checked interpretation before adapter work. Existing invalid-disc/basename/runtime-path/single-disc controls, valid-input control and cancellation/quiescence control are retained; no second configuration authority is selected.                                                                                            |
+
+CLI and Desktop preparation handlers enter the same Core plan/authorize/prepare
+facade. Supervised launch enters explicit launch preparation and then the same
+observational planner; preparation startup recovery enters its existing checked
+family before common publication. Old serialized fields do not skip these
+checks. The inspected boundaries select no additional functional repair or crate
+split, and do not claim exhaustive arbitrary configuration, upstream-build,
+gameplay or native termination qualification. New contradictory inputs require
+an exact causal case and compatible normal/recovery consumer migration.
 
 Adapters describe recurring families rather than individual games: libultraship portable releases, N64 recomp portable releases, staged-source portable releases, referenced-disc ports, generated-cache ports, upstream-managed setup, and managed PS1 recomp builds. Port-specific facts stay in `catalog.json`: repository, channels, platform availability, source profile, executable hints, launch behavior, persistent paths, and optional runtime subdirectory and source paths. Source profiles may use exact SHA-1, SHA-256, file-set CRC32, reviewed PS1 ISO-volume allowlists, or a tightly bounded upstream-validator handoff so Portcove can enforce the strongest identity form an upstream actually publishes while continuing to record SHA-256 in local state. A declared runtime subdirectory keeps working-directory, portable-marker, and stored-source behavior inside a stable nested release layout without port-specific code. Runtime source materialization is limited to reviewed generic operations: N64 byte-order normalization, bounded exact copy or ZIP-member extraction, GameCube or PS2 ISO conversion, single-disc PS1 CHD expansion to a multi-BIN/CUE directory, multi-disc PS1 CHD expansion to numbered raw data tracks, and read-only LIVE/STFS extraction into a new directory. STFS extraction validates a bounded ASCII path table, rejects traversal, case collisions, cyclic or out-of-range block chains, caps depth/count/expanded bytes against available storage, and publishes only after declared inner-file SHA-256 checks pass. File replacements and directory swaps preserve the prior destination until the staged replacement is ready; schema-2 source sidecars bind reuse to the current storage SHA-256 and size instead of path metadata, forcing restaging even when changed bytes retain the same path, length, and timestamp.
 

@@ -1274,6 +1274,87 @@ fn library_move_requires_review_and_redirects_later_cli_processes() {
     assert_eq!(json_stdout(&resumed)["command"], "library.resume_move");
 }
 
+#[test]
+fn human_library_move_review_and_completion_keep_machine_identity() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("original library");
+    let destination = temporary.path().join("new library");
+    let identity = json_stdout(&portcove(&source, &["--json", "library", "identity"]));
+    let args = ["library", "move", destination.to_str().unwrap()];
+    let plan = json_stdout(&portcove(&source, &["--json", args[0], args[1], args[2]]));
+    let preview = portcove(&source, &args);
+    let text = human_stdout(&preview);
+    assert!(text.starts_with("Library move review\n"));
+    assert!(text.contains(&format!(
+        "Original library: {}",
+        plan["data"]["source_root"].as_str().unwrap()
+    )));
+    assert!(text.contains(&format!(
+        "New destination: {}",
+        plan["data"]["destination_root"].as_str().unwrap()
+    )));
+    assert!(text.contains("Content to copy:"));
+    assert!(text.contains("Working space required:"));
+    assert!(text.contains("Original retained as a recovery copy: Yes"));
+    assert!(text.contains("Review only; no move has been applied."));
+    assert!(text.contains("Original game-file references stay at their existing paths."));
+    assert!(!text.contains("Schema version:"));
+    assert!(!destination.exists());
+    let digest = plan["data"]["plan_sha256"].as_str().unwrap();
+    assert_eq!(digest.len(), 64);
+    assert!(text.contains(&format!("Review SHA-256: {digest}")));
+    let stream = json_stdout(&portcove(&source, &["--jsonl", args[0], args[1], args[2]]));
+    assert_eq!(stream["type"], "result");
+    assert_eq!(stream["data"]["plan_sha256"], digest);
+    let stale = portcove(
+        &source,
+        &[
+            args[0],
+            args[1],
+            args[2],
+            "--apply",
+            "--expected-plan",
+            &"0".repeat(64),
+        ],
+    );
+    assert_eq!(stale.status.code(), Some(14));
+    assert!(!destination.exists());
+    let moved = portcove(
+        &source,
+        &[
+            args[0],
+            args[1],
+            args[2],
+            "--apply",
+            "--expected-plan",
+            digest,
+        ],
+    );
+    let text = human_stdout(&moved);
+    assert!(text.starts_with("Library move completed\n"));
+    let result = json_stdout(&portcove(&source, &["--json", "library", "resume-move"]));
+    assert!(text.contains(&format!(
+        "Active library: {}",
+        result["data"]["active_root"].as_str().unwrap()
+    )));
+    assert!(text.contains("Original retained: Yes"));
+    let after = json_stdout(&portcove(&destination, &["--json", "library", "identity"]));
+    assert_eq!(identity["data"]["id"], after["data"]["id"]);
+    let resumed = portcove(&source, &["library", "resume-move"]);
+    assert!(human_stdout(&resumed).starts_with("Library move completed\n"));
+    let aborted = portcove(&source, &["library", "abort-move"]);
+    assert_eq!(aborted.status.code(), Some(14));
+    let machine_abort = portcove(&source, &["--json", "library", "abort-move"]);
+    assert_eq!(aborted.status.code(), machine_abort.status.code());
+    assert!(!aborted.stderr.is_empty());
+    assert!(aborted.stdout.is_empty());
+    assert_eq!(json_stdout(&machine_abort)["ok"], false);
+    assert_eq!(
+        after,
+        json_stdout(&portcove(&destination, &["--json", "library", "identity"]))
+    );
+}
+
 struct CliImportFixture {
     _temporary: tempfile::TempDir,
     destination: std::path::PathBuf,
@@ -1687,6 +1768,7 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
     std::fs::remove_dir(&unavailable).unwrap();
     std::fs::write(available.join("first.fixture"), b"first original").unwrap();
     std::fs::write(available.join("second.fixture"), b"second original").unwrap();
+    std::fs::write(available.join("third.fixture"), b"third original").unwrap();
     let immediate = portcove(&library, &["source", "roots", "scan", "--max-entries", "1"]);
     assert!(immediate.status.success(), "{immediate:?}");
     let immediate = String::from_utf8(immediate.stdout).unwrap();
@@ -1702,6 +1784,13 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
         json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
         serde_json::json!([])
     );
+    let first_batch = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "snapshot"],
+    ));
+    assert_eq!(first_batch["data"]["report"]["entries_examined"], 1);
+    assert_eq!(first_batch["data"]["coverage"]["batches"], 1);
+    assert_eq!(first_batch["data"]["coverage"]["can_resume"], true);
     let scan = json_stdout(&portcove(
         &library,
         &["--json", "source", "roots", "scan", "--max-entries", "1"],
@@ -1712,6 +1801,9 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
             .unwrap()
             .contains(&serde_json::json!("entries"))
     );
+    assert_eq!(scan["data"]["report"]["entries_examined"], 2);
+    assert_eq!(scan["data"]["coverage"]["batches"], 2);
+    assert_eq!(scan["data"]["coverage"]["can_resume"], true);
     let issues = scan["data"]["report"]["issues"].as_array().unwrap().len();
     assert!(issues > 0);
     assert_eq!(scan["data"]["report"]["issues_omitted"], 0);
@@ -1745,6 +1837,10 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
     assert_eq!(
         std::fs::read(available.join("second.fixture")).unwrap(),
         b"second original"
+    );
+    assert_eq!(
+        std::fs::read(available.join("third.fixture")).unwrap(),
+        b"third original"
     );
     let added = temporary.path().join("new-root");
     std::fs::create_dir(&added).unwrap();
@@ -1860,7 +1956,7 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         &["--json", "source", "roots", "scan", "--max-entries", "4"],
     ));
     assert_eq!(scan["command"], "source.roots.scan");
-    assert_eq!(scan["data"]["format_version"], 7);
+    assert_eq!(scan["data"]["format_version"], 8);
     assert_eq!(scan["data"]["limits"]["max_entries"], 4);
     assert_eq!(scan["data"]["limits"]["max_depth"], 6);
     assert_eq!(scan["data"]["freshness"], "inputs_match");

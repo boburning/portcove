@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { readFile, readdir, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { collectRepositoryHealth, renderRepositoryHealth } from "./check-catalog-repositories.mjs";
 import os from "node:os";
 import path from "node:path";
-import { encodeBackupEvidence, recoverBackupEvidence } from "./native-backup-evidence.mjs";
+import {
+  encodeBackupEvidence,
+  recoverBackupEvidence,
+  encodeHostedEvidence,
+  recoverHostedEvidence,
+} from "./native-backup-evidence.mjs";
 import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
 import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
@@ -22,6 +28,26 @@ const nativeCompatibilityRunner = await readFile(
   new URL("../apps/desktop/test/native-compatibility.mjs", import.meta.url),
   "utf8",
 );
+
+test("candidate consumer selects only existing selected, compiled and history jobs", () => {
+  const jobs = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
+  const consumers = jobs.filter((job) => /^hosted_.*\n    if:.*candidate-consumer/mu.test(job));
+  assert.deepEqual(
+    consumers.map((job) => job.match(/^hosted_[a-z]+/u)[0]),
+    ["hosted_selected", "hosted_compiled", "hosted_history"],
+  );
+  for (const [job, minutes, phase] of [
+    [consumers[0], 60, "selected"],
+    [consumers[1], 120, "compiled"],
+    [consumers[2], 45, "native"],
+  ]) {
+    assert.match(job, new RegExp(`timeout-minutes: ${minutes}\\n`));
+    assert.match(job, /runs-on: ubuntu-24\.04/u);
+    assert.match(job, /persist-credentials: false/u);
+    assert.match(job, new RegExp(`hosted-validation ${phase}\\n`));
+    assert.doesNotMatch(job, /upload-artifact|actions\/cache|cache: pnpm/u);
+  }
+});
 const desktopPackage = JSON.parse(
   await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
 );
@@ -31,6 +57,123 @@ const windowsQualificationRunner = await readFile(
   "utf8",
 );
 const requiredCiSurface = `${workflow}\n${windowsQualificationRunner}`;
+
+test("reviewed hosted phases retain independent allocations, fixed commands and read-only isolation", () => {
+  const source = nativeDesignCompatibilityWorkflow;
+  for (const [name, limit, phase] of [
+    ["hosted_selected", 60, "selected"],
+    ["hosted_audit", 30, "audit"],
+    ["hosted_compiled", 120, "compiled"],
+    ["hosted_history", 45, "native"],
+  ]) {
+    const section = source.split(`\n  ${name}:`)[1]?.split(/\n  [a-z_]+:\n/)[0];
+    assert.ok(section);
+    assert.match(section, new RegExp(`timeout-minutes: ${limit}`));
+    assert.match(section, /runs-on: ubuntu-24\.04/);
+    assert.match(section, /persist-credentials: false/);
+    assert.match(section, new RegExp(`hosted-validation ${phase}`));
+    assert.match(section, /emit-hosted hosted-evidence/);
+    assert.doesNotMatch(
+      section,
+      /upload-artifact|actions\/cache|rust-cache|secrets\.|VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE/,
+    );
+  }
+  assert.match(source, /^permissions:\n {2}contents: read$/m);
+  assert.doesNotMatch(source, /checks: write|contents: write|pull_request_target/);
+});
+
+test("hosted selected setup prepares the provider observed by preflight and used by selected recipes", () => {
+  const selected = nativeDesignCompatibilityWorkflow
+    .split("\n  hosted_selected:")[1]
+    .split("\n  hosted_audit:")[0];
+  const install = selected.indexOf("run: corepack pnpm install --frozen-lockfile");
+  const preflight = selected.indexOf("hosted-validation provision");
+  assert.ok(install >= 0 && install < preflight);
+  assert.match(
+    selected,
+    /working-directory: source\n        run: corepack pnpm install --frozen-lockfile/u,
+  );
+  assert.doesNotMatch(
+    selected,
+    /COREPACK_ENABLE_PROJECT_SPEC: ["']?0|COREPACK_ENABLE_NETWORK: ["']?0/u,
+  );
+});
+
+test("decoded hosted evidence recovers exact PNG bytes and rejects wrong run or missing terminal data", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-hosted-evidence-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const expected = {
+    source: "a".repeat(40),
+    controller: "b".repeat(40),
+    base: "c".repeat(40),
+    run: "42",
+    attempt: "1",
+    job: "hosted_history",
+    phase: "native",
+    binding_sha256: "d".repeat(64),
+  };
+  const input = path.join(root, "input");
+  await mkdir(input);
+  await writeFile(path.join(input, "binding.json"), JSON.stringify(expected));
+  await writeFile(
+    path.join(input, "execution.json"),
+    JSON.stringify({ ...expected, phase: "native", exit_code: 0 }),
+  );
+  // Codec unit fixture, never native acceptance evidence.
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aTfcAAAAASUVORK5CYII=",
+    "base64",
+  );
+  await writeFile(path.join(input, "fixture.png"), png);
+  await mkdir(path.join(input, "native", "library"), { recursive: true });
+  await writeFile(
+    path.join(input, "native", "library", "portcove.sqlite3"),
+    "runtime state, not evidence",
+  );
+  await mkdir(path.join(input, "native", "webview"));
+  await writeFile(path.join(input, "native", "webview", "Cache"), "runtime state, not evidence");
+  const encoded = await encodeHostedEvidence(input);
+  const decodedLog = encoded
+    .split("\n")
+    .map((line) => `2026-10-08T00:00:00Z ${line}`)
+    .join("\n");
+  const output = path.join(root, "decoded");
+  assert.equal((await recoverHostedEvidence(decodedLog, output, expected)).exit_code, 0);
+  assert.deepEqual(await readFile(path.join(output, "fixture.png")), png);
+  assert.equal((await readdir(output)).includes("native"), false);
+  for (const patch of [{ phase: "audit" }, { job: "hosted_audit" }])
+    await assert.rejects(
+      () =>
+        recoverHostedEvidence(decodedLog, path.join(root, Object.keys(patch)[0]), {
+          ...expected,
+          ...patch,
+        }),
+      /differs/,
+    );
+  await assert.rejects(
+    () =>
+      recoverHostedEvidence(decodedLog, path.join(root, "wrong-run"), { ...expected, run: "43" }),
+    /run differs/,
+  );
+  await rm(path.join(input, "execution.json"));
+  await assert.rejects(
+    async () =>
+      recoverHostedEvidence(
+        await encodeHostedEvidence(input),
+        path.join(root, "partial"),
+        expected,
+      ),
+    /terminal/,
+  );
+  // Reject Windows directory junctions without requiring symlink privileges.
+  // Unix retains the file-symlink rejection fixture.
+  await symlink(
+    process.platform === "win32" ? input : path.join(input, "fixture.png"),
+    path.join(input, "linked.png"),
+    process.platform === "win32" ? "junction" : "file",
+  );
+  await assert.rejects(() => encodeHostedEvidence(input), /links/);
+});
 
 test("hosted backup focus is manual-only, pinned, isolated and retains real evidence without billed storage", async () => {
   const source = await readFile(
@@ -55,11 +198,11 @@ test("hosted backup focus is manual-only, pinned, isolated and retains real evid
   );
   assert.match(
     source,
-    /qualify:\n {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
+    /qualify:\n {4}if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/,
   );
   assert.match(
     windows,
-    /^ {4}if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
+    /^ {4}if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner == 'windows-2022' \}\}/,
   );
   assert.match(windows, /PORTCOVE_TEMP_DIR: \$\{\{ github.workspace \}\}/);
   assert.doesNotMatch(windows.split("    steps:")[0], /\$\{\{ runner\./);
@@ -116,27 +259,24 @@ test("Windows updater rehearsal adopts manifest-pinned prebuilt tools before Des
   assert.match(bootstrap, /run: \.\/scripts\/bootstrap-quality-tools\.ps1 -Desktop/);
 });
 
-test("native scenario consumers keep Node and context contracts in both frontend lanes", () => {
-  for (const section of [
-    jobSection("fast_frontend", "fast_catalog"),
-    jobSection("frontend_full", "frontend"),
-  ]) {
-    assert.match(
-      section,
-      /scripts\/desktop-scenarios\.test\.mjs scripts\/desktop-verify\.test\.mjs scripts\/development-evidence\.test\.mjs scripts\/native-session-lock\.test\.mjs/,
-    );
-    assert.match(
-      section,
-      /node apps\/desktop\/scripts\/desktop-preparation-test\.mjs --context-preflight/,
-    );
-    assert.match(section, /pnpm install --frozen-lockfile/);
-  }
+test("full frontend qualification retains native scenario contracts; ordinary CI uses selected units", () => {
+  const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
+  const fast = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
+  assert.match(full, /desktop-scenarios\.test\.mjs/);
+  assert.match(full, /--context-preflight/);
+  assert.match(fast, /ci-baseline\.mjs frontend/);
+  assert.doesNotMatch(fast, /desktop-preparation-test|test:browser|run-fallow/);
 });
 
 test("EdgeDriver trust proof is manual, isolated, and does not launch the application", () => {
-  const job = nativeDesignCompatibilityWorkflow.split("\n  edge_driver_proof:")[1];
+  const job = nativeDesignCompatibilityWorkflow
+    .split("\n  edge_driver_proof:")[1]
+    ?.split("\n  hosted_selected:")[0];
   assert.ok(job);
-  assert.match(job, /if: inputs\.edge_driver_proof/u);
+  assert.match(
+    job,
+    /if: \$\{\{ inputs\.operation == 'compatibility' && inputs\.edge_driver_proof \}\}/u,
+  );
   assert.match(job, /runs-on: windows-2022/u);
   assert.match(job, /persist-credentials: false/u);
   assert.doesNotMatch(
@@ -151,7 +291,7 @@ test("EdgeDriver trust proof is manual, isolated, and does not launch the applic
   assert.match(job, /driver_sha256/u);
   assert.match(
     nativeDesignCompatibilityWorkflow,
-    /if: \$\{\{ !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/u,
+    /if: \$\{\{ inputs\.operation == 'compatibility' && !inputs\.edge_driver_proof && inputs\.runner != 'windows-2022' \}\}/u,
   );
 });
 
@@ -192,7 +332,7 @@ test("native design compatibility remains explicit, isolated, and non-publishing
 const classify = jobSection("classify", "provenance");
 const provenance = jobSection("provenance", "prose_checks");
 const proseChecks = jobSection("prose_checks", "fast_rust");
-const fastRust = jobSection("fast_rust", "fast_platform");
+const fastRust = jobSection("fast_rust", "fast_rust_quality");
 const fastPlatform = jobSection("fast_platform", "fast_rust_quality");
 const fastRustQuality = jobSection("fast_rust_quality", "fast_frontend");
 const fastFrontend = jobSection("fast_frontend", "fast_catalog");
@@ -283,7 +423,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(provenance, /retention-days: 7/);
   assert.match(
     rustQualityGate,
-    /\[classify, provenance, prose_checks, fast_rust_quality, fast_platform, rust_quality_full\]/,
+    /\[classify, provenance, prose_checks, fast_rust_quality, rust_quality_full\]/,
   );
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
@@ -300,42 +440,31 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
     assert.match(gate, /PORTCOVE_TARGETED_RESULTS/);
     assert.match(gate, /PORTCOVE_QUALIFICATION_RESULTS/);
   }
-  for (const fast of [fastRust, fastRustQuality, fastFrontend, fastCatalog]) {
+  for (const fast of [fastRustQuality, fastFrontend, fastCatalog]) {
     assert.match(fast, /mode == 'fast'/);
     assert.match(fast, /runs-on: ubuntu-22\.04/);
   }
-  assert.match(fastPlatform, /mode == 'fast'/);
-  assert.match(fastPlatform, /platform_matrix_json/);
-  assert.match(fastPlatform, /runs-on: \$\{\{ matrix\.runner \}\}/);
-  assert.match(fastPlatform, /cargo nextest run --locked --workspace/);
+  assert.match(fastRust, /runs-on: windows-latest/);
+  assert.match(fastRust, /rust-test-impact\.mjs --workspace-run/);
+  assert.equal(fastPlatform, "");
   assert.match(fastRustQuality, /actions\/setup-node@/);
   assert.match(fastRustQuality, /pnpm install --frozen-lockfile/);
-  assert.match(fastRustQuality, /run-oxfmt\.mjs --check/);
-  assert.match(fastRustQuality, /lint:oxlint/);
+  assert.match(desktopPackage.scripts["format:oxfmt:check"], /run-oxfmt\.mjs --check/);
+  assert.match(fastRustQuality, /format:check/);
   assert.match(fastRust, /key: fast-rust-tests-/);
-  assert.match(fastRustQuality, /key: fast-rust-quality-/);
+  assert.doesNotMatch(fastRustQuality, /cargo clippy|rust-cache/);
   assert.match(fastDependencyReview, /actions\/dependency-review-action@/);
   assert.match(fastDependencyReview, /base-ref:/);
   assert.match(fastDependencyReview, /head-ref:/);
 });
 
-test("fast plans give Oxfmt and Oxlint one job owner", () => {
-  const repositoryLintStep = fastRustQuality.match(
-    /- name: Check repository formatting and JavaScript lint\r?\n([\s\S]*?)(?=^ {6}- name:)/m,
-  )?.[1];
-  assert.ok(repositoryLintStep, "fast Rust quality must retain repository formatting and lint");
-  assert.match(
-    repositoryLintStep,
-    /if: \$\{\{ !contains\(fromJSON\(needs\.classify\.outputs\.groups_json\), 'frontend'\) \}\}/,
-  );
-  assert.match(repositoryLintStep, /run-oxfmt\.mjs --check/);
-  assert.match(repositoryLintStep, /pnpm --dir apps\/desktop lint:oxlint/);
-  assert.equal(fastRustQuality.match(/run-oxfmt\.mjs --check/gu)?.length, 1);
-  assert.equal(fastRustQuality.match(/lint:oxlint/gu)?.length, 1);
-  assert.equal(fastFrontend.match(/pnpm format:check/gu)?.length, 1);
-  assert.equal(fastFrontend.match(/pnpm lint/gu)?.length, 1);
-  assert.equal(fastFrontend.match(/run-fallow\.mjs/gu)?.length, 1);
-  assert.ok(fastFrontend.indexOf("run-fallow.mjs") < fastFrontend.indexOf("pnpm build"));
+test("ordinary formatting has one owner and analyzers stay in qualification", () => {
+  const formatting = workflow.split("  fast_rust_quality:")[1].split("  fast_frontend:")[0];
+  assert.match(formatting, /format:check/);
+  assert.match(formatting, /cargo fmt/);
+  assert.doesNotMatch(formatting, /cargo clippy|lint:oxlint|run-fallow/);
+  const frontend = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
+  assert.doesNotMatch(frontend, /format:check|pnpm lint/);
 });
 
 test("reusable qualification is read-only, daily, and coalesces without cancelling", () => {
@@ -379,7 +508,7 @@ test("Linux desktop prerequisite installation is shared, bounded, and retrying",
   const invocation =
     /timeout-minutes: 15\r?\n\s+run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/g;
 
-  assert.equal((workflow.match(invocation) ?? []).length, 6);
+  assert.equal((workflow.match(invocation) ?? []).length, 3);
   assert.equal((deepQuality.match(invocation) ?? []).length, 1);
   assert.equal((release.match(invocation) ?? []).length, 2);
   assert.match(
@@ -501,6 +630,192 @@ test("Linux package ownership rehearsal is focused and preserves managed executa
   assert.match(qualification, /package_managed_files_unchanged: true/);
 });
 
+// Observe only the first reader; asynchronous scheduling is diagnostic, not a repair.
+// Keep the same command, environment, SIGTERM deadline and wait-for-close cleanup.
+async function observeFirstReader(executable, args, options, hooks = {}) {
+  const started = performance.now();
+  const observation = {
+    representation: "instrumented asynchronous first invocation; not original-cause proof",
+    pid: null,
+    spawned_ms: null,
+    first_stderr_ms: null,
+    closed_ms: null,
+    deadline_reached: false,
+    samples: [],
+    sample_scope: "PID-addressed Linux State/RSS/Threads; not start identity, CPU or process tree",
+  };
+  return await new Promise((resolve) => {
+    const { timeout, ...spawnOptions } = options;
+    const child = (hooks.spawn ?? spawn)(executable, args, {
+      ...spawnOptions,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let error = null;
+    let stdout = "";
+    let stderr = "";
+    let sampling = false;
+    let closed = false;
+    const elapsed = () => performance.now() - started;
+    const deadline = setTimeout(() => {
+      observation.deadline_reached = true;
+      error ??= Object.assign(new Error(`spawn ${executable} ETIMEDOUT`), {
+        code: "ETIMEDOUT",
+      });
+      child.kill("SIGTERM");
+    }, timeout);
+    const sample = async () => {
+      if (closed || sampling || observation.samples.length >= 4 || !child.pid) return;
+      sampling = true;
+      try {
+        const body = await (hooks.readStatus ?? readFile)(`/proc/${child.pid}/status`, "utf8");
+        if (closed) return;
+        observation.samples.push({
+          elapsed_ms: elapsed(),
+          status: body.split("\n").filter((line) => /^(?:State|VmRSS|Threads):/u.test(line)),
+        });
+      } catch (cause) {
+        if (!closed)
+          observation.samples.push({ elapsed_ms: elapsed(), error: cause.code ?? cause.name });
+      } finally {
+        sampling = false;
+      }
+    };
+    const sampler = process.platform === "linux" ? setInterval(sample, 250) : null;
+    child.once("spawn", () => {
+      observation.pid = child.pid;
+      observation.spawned_ms = elapsed();
+      if (process.platform === "linux") void sample();
+    });
+    // Preserve spawnSync's default 1 MiB output bound, instead of hiding overflow.
+    const collect = (name, chunk) => {
+      if (name === "stderr" && observation.first_stderr_ms === null)
+        observation.first_stderr_ms = elapsed();
+      if (error?.code === "ENOBUFS") return;
+      const retained = name === "stdout" ? stdout : stderr;
+      if (Buffer.byteLength(retained) + Buffer.byteLength(chunk) > 1024 * 1024) {
+        error ??= Object.assign(new Error(`spawn ${executable} ENOBUFS`), { code: "ENOBUFS" });
+        child.kill("SIGTERM");
+        return;
+      }
+      if (name === "stdout") stdout += chunk;
+      else stderr += chunk;
+    };
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => collect("stdout", chunk));
+    child.stderr.on("data", (chunk) => collect("stderr", chunk));
+    child.once("error", (cause) => {
+      error ??= cause;
+    });
+    child.once("close", (status, signal) => {
+      closed = true;
+      clearTimeout(deadline);
+      if (sampler) clearInterval(sampler);
+      observation.closed_ms = elapsed();
+      resolve({ status: error ? null : status, signal, error, stdout, stderr, observation });
+    });
+    // spawnSync sends EOF when there is no input; keep that contract here.
+    child.stdin.end();
+  });
+}
+
+function readerControlChild() {
+  const child = new EventEmitter();
+  child.pid = 123;
+  child.stdin = {
+    end: () => {
+      child.stdinEnded = true;
+    },
+  };
+  child.stdout = new EventEmitter();
+  child.stderr = new EventEmitter();
+  child.stdout.setEncoding = child.stderr.setEncoding = () => {};
+  child.kill = (signal) => {
+    child.killedWith = signal;
+    queueMicrotask(() => child.emit("close", null, signal));
+    return true;
+  };
+  return child;
+}
+
+for (const outcome of ["success", "failure", "spawn-error", "timeout", "overflow"]) {
+  test(`first reader observation control: ${outcome}`, async () => {
+    const child = readerControlChild();
+    const spawnError = Object.assign(new Error("missing owned control"), { code: "ENOENT" });
+    const result = await observeFirstReader(
+      "owned-control",
+      ["unchanged-command"],
+      { timeout: 20 },
+      {
+        spawn: () => {
+          queueMicrotask(() => {
+            if (outcome === "spawn-error") child.emit("error", spawnError);
+            else child.emit("spawn");
+            if (outcome === "timeout") return;
+            if (outcome === "overflow") child.stdout.emit("data", "x".repeat(1024 * 1024 + 1));
+            else if (outcome !== "spawn-error") {
+              child.stdout.emit("data", "original-output");
+              child.stderr.emit("data", "first-marker");
+            }
+            if (outcome !== "overflow") child.emit("close", outcome === "failure" ? 7 : 0, null);
+          });
+          return child;
+        },
+        readStatus: async () => "State:\tR (running)\nVmRSS:\t100 kB\nThreads:\t1\n",
+      },
+    );
+    assert.ok(result.observation.closed_ms !== null);
+    assert.equal(child.stdinEnded, true);
+    if (outcome === "timeout" || outcome === "overflow") {
+      assert.equal(child.killedWith, "SIGTERM");
+      assert.equal(result.error.code, outcome === "timeout" ? "ETIMEDOUT" : "ENOBUFS");
+      assert.equal(result.status, null);
+      assert.equal(result.signal, "SIGTERM");
+      assert.equal(result.observation.deadline_reached, outcome === "timeout");
+    } else if (outcome === "spawn-error") {
+      assert.equal(result.error, spawnError);
+      assert.equal(result.observation.spawned_ms, null);
+    } else {
+      assert.equal(result.error, null);
+      assert.equal(result.status, outcome === "failure" ? 7 : 0);
+      assert.equal(result.stdout, "original-output");
+      assert.equal(result.stderr, "first-marker");
+      assert.ok(result.observation.first_stderr_ms !== null);
+    }
+  });
+}
+
+test("first reader observation ignores a sample finishing after close", async () => {
+  const child = readerControlChild();
+  let finishSample;
+  const result = await observeFirstReader(
+    "owned-control",
+    [],
+    { timeout: 20 },
+    {
+      spawn: () => {
+        queueMicrotask(() => {
+          child.emit("spawn");
+          child.emit("close", 0, null);
+        });
+        return child;
+      },
+      readStatus: () =>
+        new Promise((resolve) => {
+          finishSample = resolve;
+        }),
+    },
+  );
+  const closed = structuredClone(result.observation);
+  if (process.platform === "linux") {
+    assert.equal(typeof finishSample, "function");
+    finishSample("State:\tR (running)\n");
+    await Promise.resolve();
+    assert.deepEqual(result.observation, closed);
+  }
+  assert.equal(child.killedWith, undefined);
+});
+
 test("repository toolchain reader exports the declared components before installation", async (context) => {
   const setup = await readFile(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
@@ -511,6 +826,9 @@ test("repository toolchain reader exports the declared components before install
   )?.[1];
   assert.ok(body);
   const script = body.replace(/^ {8}/gm, "");
+  assert.doesNotMatch(script, /\$portcoveReaderClock\b/);
+  const phaseDiagnostic = (phase) =>
+    `[Console]::Error.WriteLine("portcove-reader-phase:${phase};elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds)")`;
   let tracedScript = script;
   for (const [line, phase] of [
     ["$config = Get-Content rust-toolchain.toml -Raw", "read-config"],
@@ -525,18 +843,21 @@ test("repository toolchain reader exports the declared components before install
     );
     tracedScript = tracedScript.replace(
       line,
-      `[Console]::Error.WriteLine("portcove-reader-phase:${phase}")\n${line}`,
+      `${phaseDiagnostic(phase)}\n${line}${phase === "read-config" ? `\n${phaseDiagnostic("config-read")}` : ""}`,
     );
   }
   tracedScript =
-    '[Console]::Error.WriteLine("portcove-reader-phase:started;pwsh=$($PSVersionTable.PSVersion)")\n' +
+    "$portcoveReaderClock = [System.Diagnostics.Stopwatch]::StartNew()\n" +
+    `[Console]::Error.WriteLine("portcove-reader-phase:started;pwsh=$($PSVersionTable.PSVersion);elapsed_ms=$($portcoveReaderClock.ElapsedMilliseconds);utc=$([DateTime]::UtcNow.ToString('o'))")\n` +
     tracedScript +
-    '\n[Console]::Error.WriteLine("portcove-reader-phase:completed")\n';
+    `\n${phaseDiagnostic("completed")}\n`;
   const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-toolchain-reader-"));
   const output = path.join(directory, "github-output");
-  function runReader(fixture) {
+  async function runReader(fixture, command = tracedScript) {
+    const startedAt = new Date().toISOString();
     const started = performance.now();
-    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", tracedScript], {
+    const execute = fixture === "valid-1" ? observeFirstReader : spawnSync;
+    const result = await execute("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
       cwd: directory,
       env: { ...process.env, GITHUB_OUTPUT: output },
       encoding: "utf8",
@@ -551,12 +872,15 @@ test("repository toolchain reader exports the declared components before install
     context.diagnostic(
       JSON.stringify({
         reader_fixture: fixture,
+        first_invocation_observation: result.observation ?? null,
+        observation_order: "reader-then-startup; startup is diagnostic-only",
         node: process.version,
         platform: process.platform,
         architecture: process.arch,
         os_release: os.release(),
         runner_image: process.env.ImageOS ?? null,
         runner_image_version: process.env.ImageVersion ?? null,
+        started_at: startedAt,
         elapsed_ms: performance.now() - started,
         timeout_ms: 10_000,
         status: result.status,
@@ -580,9 +904,32 @@ test("repository toolchain reader exports the declared components before install
         `[toolchain]\nchannel = "1.98.1"\ncomponents = ${JSON.stringify(components)}\n`,
       );
       await writeFile(output, "");
-      const result = runReader(`valid-${index + 1}`);
+      const result = await runReader(`valid-${index + 1}`);
       assert.ifError(result.error);
       assert.equal(result.status, 0, result.stdout + result.stderr);
+      const phases = [
+        ...result.stderr.matchAll(
+          /portcove-reader-phase:([a-z-]+);(?:pwsh=[^;\r\n]+;)?elapsed_ms=(\d+)/g,
+        ),
+      ];
+      assert.deepEqual(
+        phases.map((phase) => phase[1]),
+        [
+          "started",
+          "read-config",
+          "config-read",
+          "channel-parsed",
+          "parse-components",
+          "write-output",
+          "completed",
+        ],
+      );
+      assert.ok(
+        phases.every(
+          (phase, index) => index === 0 || Number(phase[2]) >= Number(phases[index - 1][2]),
+        ),
+      );
+      assert.match(result.stderr, /;utc=\d{4}-\d{2}-\d{2}T[^\r\n]+Z/);
       assert.deepEqual((await readFile(output, "utf8")).trim().split(/\r?\n/), [
         "channel=1.98.1",
         `components=${components.join(",")}`,
@@ -599,13 +946,25 @@ test("repository toolchain reader exports the declared components before install
         `[toolchain]\nchannel = "1.98.1"\n${declaration}\n`,
       );
       await writeFile(output, "");
-      const result = runReader(`invalid-${index + 1}`);
+      const result = await runReader(`invalid-${index + 1}`);
       assert.ifError(result.error);
       assert.notEqual(result.status, 0, declaration);
       assert.equal(await readFile(output, "utf8"), "");
     }
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    try {
+      // Observe startup after the reader without warming its first invocation.
+      // This result cannot replace the reader verdict or explain an earlier timeout.
+      await runReader(
+        "startup-after-reader-diagnostic-only",
+        '[Console]::Error.WriteLine("portcove-startup-discriminator:entered"); ' +
+          "[PSCustomObject]@{version=$PSVersionTable.PSVersion.ToString();executable=[Environment]::ProcessPath} | ConvertTo-Json -Compress",
+      );
+    } catch {
+      // Best-effort diagnostics must preserve the original reader failure.
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   }
 });
 
@@ -867,6 +1226,102 @@ test("Windows Rust keeps exhaustive parallel gates without duplicate setup", () 
   assert.doesNotMatch(rust, /continue-on-error/);
 });
 
+test("Windows analyzer acquisition retains the exact pin and both mandatory gates", (t) => {
+  const body = windowsStorage.match(
+    /- name: Lint PowerShell scripts\r?\n {8}shell: pwsh\r?\n {8}run: \|\r?\n([\s\S]*)/,
+  )?.[1];
+  assert.ok(body);
+  const script = body.replace(/^ {10}/gm, "");
+  assert.match(
+    script,
+    /Import-PowerShellDataFile -LiteralPath \.config\/powershell-resources\.psd1/,
+  );
+  assert.match(
+    script,
+    /Get-Module -ListAvailable -Name PSScriptAnalyzer \| Where-Object Version -EQ \$requiredVersion/,
+  );
+  assert.match(
+    script,
+    /Import-Module -Name PSScriptAnalyzer -RequiredVersion \$requiredVersion -Force/,
+  );
+  assert.doesNotMatch(script, /PSModulePath|ModuleBase|continue-on-error|SilentlyContinue/);
+  const available = spawnSync(
+    "pwsh",
+    ["-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()"],
+    { encoding: "utf8", timeout: 10_000 },
+  );
+  if (available.error?.code === "ENOENT" && process.platform !== "win32") {
+    t.skip("PowerShell unavailable; required Windows job executes this contract");
+    return;
+  }
+  assert.ifError(available.error);
+  assert.equal(available.status, 0, available.stdout + available.stderr);
+  const mocks = `
+$ErrorActionPreference = 'Stop'
+$script:pin = [string](Import-PowerShellDataFile -LiteralPath .config/powershell-resources.psd1).PSScriptAnalyzer.version
+$script:available = @($env:PORTCOVE_ANALYZER_VERSIONS | ConvertFrom-Json)
+function Get-Module {
+  param([switch]$ListAvailable, [string]$Name)
+  if (-not $ListAvailable -or $Name -ne 'PSScriptAnalyzer') { throw 'unexpected module lookup' }
+  $script:available | ForEach-Object { [pscustomobject]@{ Version = [version]$_ } }
+}
+function Install-PSResource {
+  param([string]$RequiredResourceFile, [string]$Scope, [switch]$TrustRepository)
+  if ($RequiredResourceFile -ne '.config/powershell-resources.psd1' -or $Scope -ne 'CurrentUser' -or -not $TrustRepository) { throw 'changed acquisition contract' }
+  Write-Output 'acquire-exact-pin'
+  if ($env:PORTCOVE_ANALYZER_FAILURE -eq 'acquisition') { throw 'acquisition failed' }
+  $script:available = @($script:pin)
+}
+function Import-Module {
+  param([string]$Name, [string]$RequiredVersion, [switch]$Force)
+  if ($Name -ne 'PSScriptAnalyzer' -or $RequiredVersion -ne $script:pin -or -not $Force) { throw 'changed import contract' }
+  Write-Output 'import-exact-pin'
+  if ($script:available -notcontains $RequiredVersion -or $env:PORTCOVE_ANALYZER_FAILURE -eq 'import') { throw 'exact import failed' }
+}
+function node {
+  param([string]$Script, [string]$Fixture)
+  Write-Output "gate:$Script"
+  if ($Script -eq 'scripts/run-powershell-lint.mjs' -and -not $Fixture) {
+    $global:LASTEXITCODE = [int]($env:PORTCOVE_ANALYZER_FAILURE -eq 'lint')
+  } elseif ($Script -eq 'scripts/lint-tools.integration.mjs' -and $Fixture -eq 'psscriptanalyzer') {
+    $global:LASTEXITCODE = [int]($env:PORTCOVE_ANALYZER_FAILURE -eq 'fixture')
+  } else { throw 'changed mandatory gate' }
+}
+`;
+  for (const [versions, failure, acquisition, gates, success] of [
+    [["1.25.0"], "", false, 2, true],
+    [["1.24.0", "1.25.0", "1.26.0"], "", false, 2, true],
+    [[], "", true, 2, true],
+    [["1.24.0", "1.26.0"], "", true, 2, true],
+    [[], "acquisition", true, 0, false],
+    [["1.25.0"], "import", false, 0, false],
+    [["1.25.0"], "lint", false, 1, false],
+    [["1.25.0"], "fixture", false, 2, false],
+  ]) {
+    const result = spawnSync(
+      "pwsh",
+      ["-NoProfile", "-NonInteractive", "-Command", mocks + script],
+      {
+        cwd: new URL("..", import.meta.url),
+        env: {
+          ...process.env,
+          PORTCOVE_ANALYZER_VERSIONS: JSON.stringify(versions),
+          PORTCOVE_ANALYZER_FAILURE: failure,
+        },
+        encoding: "utf8",
+        timeout: 10_000,
+        windowsHide: true,
+      },
+    );
+    assert.ifError(result.error);
+    const context = JSON.stringify({ versions, failure }) + result.stdout + result.stderr;
+    assert.equal(result.status === 0, success, context);
+    assert.equal(result.stdout.includes("acquire-exact-pin"), acquisition, context);
+    assert.equal((result.stdout.match(/gate:/g) ?? []).length, gates, context);
+    assert.equal(result.stdout.includes("import-exact-pin"), failure !== "acquisition", context);
+  }
+});
+
 test("Windows fixture setup selects runner-owned temporary storage before compilation", async () => {
   const setup = await readFile(
     new URL("../.github/actions/setup-rust/action.yml", import.meta.url),
@@ -993,7 +1448,7 @@ test("native Rust runs the full workspace on every supported Unix architecture",
   assert.doesNotMatch(nativeRust, /continue-on-error/);
 });
 
-test("Intel tests build once and retries preserve their attempt-scoped producer chain", () => {
+test("Intel tests build once and retries preserve their attempt-scoped producer chain", async () => {
   assert.match(intelBuild, /runs-on: macos-15$/m);
   assert.match(intelBuild, /targets: x86_64-apple-darwin/);
   assert.match(
@@ -1013,12 +1468,17 @@ test("Intel tests build once and retries preserve their attempt-scoped producer 
     assert.match(section, /name: intel-rust-tests-\$\{\{ github\.run_attempt \}\}/);
     assert.doesNotMatch(section, /continue-on-error/);
   }
+  const transferGuide = await readFile(
+    new URL("../docs/reference/quality-operations.md", import.meta.url),
+    "utf8",
+  );
+  assert.match(qualityGuide, /reference\/quality-operations\.md#consumed-intel-test-transfers/);
   assert.match(
-    qualityGuide,
+    transferGuide,
     /gh run rerun <run-id> --job <build-intel-tests-job-id> --repo boburning\/portcove/,
   );
-  assert.match(qualityGuide, /Do not use .*--failed.*Intel consumer/u);
-  assert.match(qualityGuide, /never reuse an\s+artifact from an earlier attempt/u);
+  assert.match(transferGuide, /Do not use .*--failed.*Intel consumer/u);
+  assert.match(transferGuide, /never reuse an\s+artifact from an earlier attempt/u);
   for (const job of ["intel_build", "intel_tests"])
     assert.ok(rust.includes(`"${job}":"` + "${{ needs." + job + '.result }}"'));
 });
@@ -1084,20 +1544,14 @@ test("frontend keeps deterministic product gates and delegates vulnerability cha
   assert.match(dependencyReview, /fail-on-severity: high/);
 });
 
-test("both frontend lanes provision browser artifacts before running the bounded composition", () => {
-  for (const [name, job] of [
-    ["fast", fastFrontend],
-    ["full", frontend],
-  ]) {
-    const install = job.indexOf("pnpm install --frozen-lockfile");
-    const bootstrap = job.indexOf("pnpm browser:bootstrap");
-    const browserTest = job.indexOf("pnpm test:browser");
-    assert.ok(install >= 0 && bootstrap > install && browserTest > bootstrap, name);
-    assert.match(job, new RegExp(`browser-traces-${name}-`));
-    assert.match(job, /work\/browser-traces/);
-    assert.match(job, /apps\/desktop\/\.vitest\/attachments/);
-    assert.doesNotMatch(job, /pnpm test:browser:trace-probe/);
-  }
+test("full frontend qualification provisions browser artifacts before composition", () => {
+  const full = workflow.split("  frontend_full:")[1].split("  frontend:")[0];
+  const provision = full.indexOf("pnpm browser:bootstrap"),
+    run = full.indexOf("pnpm test:browser");
+  assert.ok(provision >= 0 && run > provision);
+  assert.match(full, /browser-traces-full/);
+  const fast = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
+  assert.doesNotMatch(fast, /browser:bootstrap|test:browser/);
 });
 
 test("frontend tooling uses the pinned Oxc contracts without legacy quality layers", async () => {
@@ -1285,12 +1739,20 @@ test("frontend tooling uses the pinned Oxc contracts without legacy quality laye
   }
 });
 
-test("catalog executes the CI workflow contract", () => {
-  assert.match(catalog, /scripts\/ci-workflow\.test\.mjs/);
-  assert.match(fastCatalog, /scripts\/repository-settings\.test\.mjs/);
-  assert.match(fastCatalog, /scripts\/repository-skills\.test\.mjs/);
-  assert.match(fastCatalog, /scripts\/generate-catalog\.test\.mjs/);
-  assert.match(fastCatalog, /scripts\/migrate-catalog-schema2\.test\.mjs/);
+test("ordinary tooling contracts select the workflow contract and full CI retains its inventory", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mjs");
+  const { buildValidationPlan } = await import("./validation-plan.mjs");
+  const file = ".github/workflows/ci.yml";
+  const p = buildValidationPlan({
+    changes: [{ status: "M", oldMode: "100644", newMode: "100644", oldPath: file, newPath: file }],
+    eventName: "pull_request",
+    base: "a".repeat(40),
+    mergeBase: "a".repeat(40),
+    head: "b".repeat(40),
+    checkout: "b".repeat(40),
+  });
+  assert.ok(baselineContractTests(p).includes("scripts/ci-workflow.test.mjs"));
+  assert.match(workflow.split("  catalog_full:")[1], /ci-workflow\.test\.mjs/);
 });
 
 test("routine checks retain architecture enforcement but make cycles optional", async () => {
@@ -1391,7 +1853,7 @@ test("release and deep preflights require a fresh audit", async () => {
   assert.match(localPreflight, /just audit --fresh/);
 });
 
-test("manual deep workflow retains only the deterministic fresh audit", async () => {
+test("manual deep workflow preserves fresh default with explicit bounded audit reuse", async () => {
   const deep = await readFile(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
@@ -1399,6 +1861,13 @@ test("manual deep workflow retains only the deterministic fresh audit", async ()
   assert.match(deep, /^name: Deep audit$/m);
   assert.match(deep, /^ {2}audit:\r?$/m);
   assert.match(deep, /just audit --fresh/);
+  assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check\]/);
+  assert.match(
+    deep,
+    /GH_TOKEN: \$\{\{ inputs.operation == 'audit-reuse' && github.token \|\| '' \}\}/,
+  );
+  assert.match(deep, /if: always\(\) && inputs.operation != 'audit-reuse'/);
+  assert.doesNotMatch(deep, /actions: read|actions: write|contents: write/);
   assert.doesNotMatch(deep, /^ {2}(?:hawk|duplicates):/m);
   assert.doesNotMatch(deep, /semdup|cargo-hawk|run-hawk|run-semdup|dead-public/i);
 });
@@ -1422,6 +1891,7 @@ test("live upstream health has bounded independent triggers while catalog stays 
       "scripts/retcomm-psx-upstreams.json",
       "scripts/check-catalog-repositories.mjs",
       "scripts/check-retcomm-upstreams.mjs",
+      "scripts/upstream-health-plan.mjs",
       ".node-version",
       ".github/workflows/upstream-health.yml",
     ]) {
@@ -1431,8 +1901,26 @@ test("live upstream health has bounded independent triggers while catalog stays 
       );
     }
   }
-  assert.match(health, /run: node scripts\/check-catalog-repositories\.mjs/);
-  assert.match(health, /run: node scripts\/check-retcomm-upstreams\.mjs\r?$/m);
+  assert.match(health, /run: node scripts\/upstream-health-plan\.mjs/);
+  assert.match(health, /PR_BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
+  assert.match(health, /PR_HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
+  assert.match(health, /fetch-depth: 0/);
+  assert.match(health, /full\) node scripts\/check-catalog-repositories\.mjs ;;/);
+  assert.match(
+    health,
+    /node scripts\/check-catalog-repositories\.mjs --port-ids="\$HEALTH_PORT_IDS"/,
+  );
+  assert.match(health, /node scripts\/check-catalog-repositories\.mjs --port-ids= ;;/);
+  assert.match(health, /Missing or invalid upstream health scope/);
+  assert.match(
+    health,
+    /steps\.scope\.outcome == 'success' && steps\.scope\.outputs\.retcomm == 'true'/,
+  );
+  assert.match(health, /full\) node scripts\/check-retcomm-upstreams\.mjs ;;/);
+  assert.match(
+    health,
+    /node scripts\/check-retcomm-upstreams\.mjs --port-ids="\$RETCOMM_PORT_IDS"/,
+  );
   const release = await readFile(
     new URL("../.github/workflows/release.yml", import.meta.url),
     "utf8",
@@ -1483,6 +1971,424 @@ test("offline RetComM validation rejects bad mappings without loading upstream d
       assert.match(invalid.stderr, /missing RetComM title mapping/);
       assert.doesNotMatch(invalid.stderr, /NETWORK_FORBIDDEN/);
     }
+
+    const actualCatalog = JSON.parse(
+      await readFile(
+        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const independent = actualCatalog.ports.filter((entry) =>
+      ["alexbeav-ape-escape-recomp", "alexbeav-alundra-recomp"].includes(entry.id),
+    );
+    assert.equal(independent.length, 2);
+    await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
+    await writeFile(catalogFile, JSON.stringify({ ports: [port, ...independent] }));
+    const coexist = run("--offline");
+    assert.equal(coexist.status, 0, coexist.stderr);
+    assert.match(coexist.stdout, /Verified 1 local PS1 mappings/);
+    assert.equal(coexist.stdout.match(/RetComM audit NOT_APPLICABLE:/gu).length, 2);
+    assert.equal(coexist.stdout.match(/upstream health NOT_CHECKED/gu).length, 2);
+    for (const entry of independent) {
+      assert.match(coexist.stdout, new RegExp(entry.id));
+      assert.ok(coexist.stdout.includes(entry.release.direct["windows-x86-64"].sha256));
+    }
+    const direct = structuredClone(independent[0]);
+    direct.id = "independent-fixture"; // Identity semantics, never a title allowlist.
+    const invalidCases = [
+      {
+        name: "mapped direct",
+        ports: [direct],
+        mappings: { [direct.id]: "fixture-title" },
+        error: /must resolve directly through GitHub/,
+      },
+      {
+        name: "missing mapping",
+        ports: [port],
+        mappings: {},
+        error: /missing RetComM title mapping/,
+      },
+      {
+        name: "stale mapping",
+        ports: [direct],
+        mappings: { stale: "fixture-title" },
+        error: /stale mapping/,
+      },
+      {
+        name: "invalid mapped provider",
+        ports: [{ ...port, release: { provider: "gitlab", repository: "owner/game" } }],
+        error: /must resolve directly through GitHub/,
+      },
+      {
+        name: "missing mapped repository",
+        ports: [{ ...port, release: {} }],
+        error: /missing GitHub game repository identity/,
+      },
+      {
+        name: "launcher substitution",
+        ports: [{ ...port, release: { repository: "TechnicallyComputers/RetComM-Launcher" } }],
+        error: /instead of the game upstream/,
+      },
+    ];
+    const ambiguous = (name, mutate) => {
+      const entry = structuredClone(direct);
+      mutate(entry);
+      invalidCases.push({
+        name,
+        ports: [port, entry],
+        error: /ambiguous independent direct-manifest identity/,
+      });
+    };
+    ambiguous("mapped project disguised", (entry) => {
+      entry.project_url = "https://github.com/OWNER/GAME";
+    });
+    ambiguous("mapped artifact disguised", (entry) => {
+      entry.release.direct["windows-x86-64"].url =
+        "https://github.com/OWNER/GAME/releases/download/v1/game.zip";
+    });
+    ambiguous("launcher project", (entry) => {
+      entry.project_url = "https://github.com/TechnicallyComputers/RetComM-Launcher";
+    });
+    ambiguous("RetComM artifact", (entry) => {
+      entry.release.direct["windows-x86-64"].url =
+        "https://github.com/TechnicallyComputers/retcomm-catalog/releases/download/v1/game.zip";
+    });
+    ambiguous("fake repository", (entry) => {
+      entry.release.repository = "owner/game";
+    });
+    ambiguous("missing project", (entry) => {
+      delete entry.project_url;
+    });
+    ambiguous("aliased project", (entry) => {
+      entry.project_url += "?alias=owner/game";
+    });
+    ambiguous("git project alias", (entry) => {
+      entry.project_url = "https://github.com/owner/game.git";
+    });
+    ambiguous("empty artifact path component", (entry) => {
+      entry.release.direct["windows-x86-64"].url =
+        "https://github.com/owner/game/releases/download//game.zip";
+    });
+    ambiguous("invalid digest", (entry) => {
+      entry.release.direct["windows-x86-64"].sha256 = "bad";
+    });
+    ambiguous("missing platform", (entry) => {
+      entry.platforms.push("linux-x86-64");
+    });
+    ambiguous("invalid size", (entry) => {
+      entry.release.direct["windows-x86-64"].size = 0;
+    });
+    ambiguous("missing version", (entry) => {
+      delete entry.release.direct["windows-x86-64"].version;
+    });
+    for (const fixture of invalidCases) {
+      await writeFile(catalogFile, JSON.stringify({ ports: fixture.ports }));
+      await writeFile(
+        mappingFile,
+        JSON.stringify(fixture.mappings ?? { fixture: "fixture-title" }),
+      );
+      const rejected = run("--offline");
+      assert.equal(rejected.status, 1, fixture.name);
+      assert.match(rejected.stderr, fixture.error, fixture.name);
+      assert.doesNotMatch(rejected.stderr, /TypeError|NETWORK_FORBIDDEN/, fixture.name);
+      assert.doesNotMatch(rejected.stdout, /Verified/, fixture.name);
+    }
+    await writeFile(catalogFile, JSON.stringify({ ports: [port, direct] }));
+    await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
+    const renamed = run("--offline");
+    assert.equal(renamed.status, 0, renamed.stderr);
+    assert.match(renamed.stdout, /independent-fixture/);
+    assert.match(renamed.stdout, /Verified 1 local PS1 mappings/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("RetComM remote manifests fall back only after 404 and retain access failures", async () => {
+  const { copyFile } = await import("node:fs/promises");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-remote-"));
+  try {
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+    const checker = path.join(root, "scripts/check-retcomm-upstreams.mjs");
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    const independent = JSON.parse(
+      await readFile(
+        new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+        "utf8",
+      ),
+    ).ports.filter((entry) =>
+      ["alexbeav-ape-escape-recomp", "alexbeav-alundra-recomp"].includes(entry.id),
+    );
+    assert.equal(independent.length, 2);
+    await writeFile(
+      path.join(root, "crates/portcove-core/catalog/catalog.json"),
+      JSON.stringify({
+        ports: [
+          { id: "fixture", adapter: "psx-recomp-managed", release: { repository: "owner/game" } },
+          ...independent,
+        ],
+      }),
+    );
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify({ fixture: "fixture-title" }),
+    );
+    const preload = path.join(root, "fixture-fetch.mjs");
+    const requestsFile = path.join(root, "requests.json");
+    await writeFile(
+      preload,
+      `import { writeFileSync } from "node:fs";
+const replies = JSON.parse(process.env.RETCOMM_FIXTURE_REPLIES);
+const requests = [];
+globalThis.fetch = async (url, options) => {
+  requests.push({ url, headers: options.headers });
+  writeFileSync(process.env.RETCOMM_FIXTURE_REQUESTS, JSON.stringify(requests));
+  const reply = replies[requests.length - 1];
+  if (!reply) throw new Error("UNEXPECTED_NETWORK_REQUEST");
+  if (reply.error) throw new Error(reply.error);
+  return new Response(reply.body, { status: reply.status });
+};`,
+    );
+    const valid = { status: 200, body: JSON.stringify({ release: { github: "owner/game" } }) };
+    const missing = { status: 404, body: "missing" };
+    const cases = [
+      { name: "platform precedence", replies: [valid], status: 0, requests: 1 },
+      { name: "legacy fallback", replies: [missing, valid], status: 0, requests: 2 },
+      {
+        name: "both missing",
+        replies: [missing, missing],
+        status: 1,
+        requests: 2,
+        error: /returned 404/,
+      },
+      {
+        name: "forbidden",
+        replies: [{ status: 403, body: "private" }, valid],
+        status: 1,
+        requests: 1,
+        error: /returned 403/,
+      },
+      {
+        name: "server failure",
+        replies: [{ status: 503, body: "unavailable" }, valid],
+        status: 1,
+        requests: 1,
+        error: /returned 503/,
+      },
+      {
+        name: "transport failure",
+        replies: [{ error: "FIXTURE_ACCESS_FAILURE" }, valid],
+        status: 1,
+        requests: 1,
+        error: /FIXTURE_ACCESS_FAILURE/,
+      },
+      {
+        name: "invalid platform JSON",
+        replies: [{ status: 200, body: "{" }, valid],
+        status: 1,
+        requests: 1,
+        error: /fixture:/,
+      },
+      {
+        name: "invalid legacy JSON",
+        replies: [missing, { status: 200, body: "{" }],
+        status: 1,
+        requests: 2,
+        error: /fixture:/,
+      },
+      {
+        name: "missing repository",
+        replies: [{ status: 200, body: "{}" }, valid],
+        status: 1,
+        requests: 1,
+        error: /no GitHub game release repository/,
+      },
+      {
+        name: "conflicting source",
+        replies: [
+          {
+            status: 200,
+            body: JSON.stringify({
+              release: { github: "owner/game" },
+              build: { source: { github: "other/game" } },
+            }),
+          },
+        ],
+        status: 1,
+        requests: 1,
+        error: /repositories differ/,
+      },
+    ];
+    const urls = [
+      "https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/fixture%2Fref/titles/psx/fixture-title.json",
+      "https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/fixture%2Fref/titles/fixture-title.json",
+    ];
+    for (const fixture of cases) {
+      await writeFile(requestsFile, "[]");
+      const result = spawnSync(
+        process.execPath,
+        ["--import", pathToFileURL(preload).href, checker],
+        {
+          encoding: "utf8",
+          timeout: 10000,
+          env: {
+            ...process.env,
+            RETCOMM_CATALOG_DIR: "",
+            RETCOMM_CATALOG_REF: "fixture/ref",
+            RETCOMM_FIXTURE_REPLIES: JSON.stringify(fixture.replies),
+            RETCOMM_FIXTURE_REQUESTS: requestsFile,
+          },
+        },
+      );
+      assert.equal(result.status, fixture.status, `${fixture.name}: ${result.stderr}`);
+      const requests = JSON.parse(await readFile(requestsFile, "utf8"));
+      assert.deepEqual(
+        requests.map((request) => request.url),
+        urls.slice(0, fixture.requests),
+        fixture.name,
+      );
+      for (const request of requests) {
+        assert.deepEqual(request.headers, { "User-Agent": "Portcove-RetComM-upstream-audit" });
+      }
+      if (fixture.error) {
+        assert.match(result.stderr, fixture.error, fixture.name);
+        assert.doesNotMatch(result.stdout, /Verified/);
+      } else {
+        assert.match(result.stdout, /Verified 1 direct PS1 game upstreams/);
+        assert.equal(result.stdout.match(/RetComM audit NOT_APPLICABLE:/gu).length, 2);
+        assert.equal(result.stdout.match(/upstream health NOT_CHECKED/gu).length, 2);
+      }
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("RetComM scoped live reads exclude unrelated manifests without narrowing offline validation", async () => {
+  const { copyFile } = await import("node:fs/promises");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-scoped-"));
+  try {
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+    const checker = path.join(root, "scripts/check-retcomm-upstreams.mjs");
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    await writeFile(
+      path.join(root, "crates/portcove-core/catalog/catalog.json"),
+      JSON.stringify({
+        ports: ["selected", "unselected"].map((id) => ({
+          id,
+          adapter: "psx-recomp-managed",
+          release: { repository: `owner/${id}` },
+        })),
+      }),
+    );
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify({ selected: "selected-title", unselected: "unselected-title" }),
+    );
+    const upstream = path.join(root, "upstream");
+    await mkdir(path.join(upstream, "titles/psx"), { recursive: true });
+    await writeFile(
+      path.join(upstream, "titles/psx/selected-title.json"),
+      JSON.stringify({ release: { github: "owner/selected" } }),
+    );
+    const preload = path.join(root, "deny-network.mjs");
+    await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
+    const run = (...args) =>
+      spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, checker, ...args], {
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, RETCOMM_CATALOG_DIR: upstream },
+      });
+    const scoped = run("--port-ids=selected");
+    assert.equal(scoped.status, 0, scoped.stderr);
+    assert.match(scoped.stdout, /Verified 1 direct PS1 game upstreams/);
+    assert.match(scoped.stdout, /Unselected live identities remain unassessed/);
+    const full = run();
+    assert.equal(full.status, 1);
+    assert.match(full.stderr, /unselected/);
+    assert.equal(run("--offline").status, 0);
+    for (const args of [
+      ["--offline", "--port-ids=selected"],
+      ["--port-ids=missing"],
+      ["--port-ids=selected,,unselected"],
+      ["--port-ids=selected,selected"],
+    ])
+      assert.equal(run(...args).status, 1, JSON.stringify(args));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("RetComM local manifests preserve platform precedence and refuse malformed paths", async () => {
+  const { copyFile } = await import("node:fs/promises");
+  const { pathToFileURL } = await import("node:url");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-retcomm-local-"));
+  try {
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+    const checker = path.join(root, "scripts/check-retcomm-upstreams.mjs");
+    await copyFile(new URL("./check-retcomm-upstreams.mjs", import.meta.url), checker);
+    await writeFile(
+      path.join(root, "crates/portcove-core/catalog/catalog.json"),
+      JSON.stringify({
+        ports: [
+          { id: "fixture", adapter: "psx-recomp-managed", release: { repository: "owner/game" } },
+        ],
+      }),
+    );
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify({ fixture: "fixture-title" }),
+    );
+    const preload = path.join(root, "deny-network.mjs");
+    await writeFile(preload, 'globalThis.fetch = () => { throw new Error("NETWORK_FORBIDDEN"); };');
+    const upstream = path.join(root, "upstream");
+    await mkdir(path.join(upstream, "titles/psx"), { recursive: true });
+    const platform = path.join(upstream, "titles/psx/fixture-title.json");
+    const legacy = path.join(upstream, "titles/fixture-title.json");
+    const run = () =>
+      spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, checker], {
+        encoding: "utf8",
+        timeout: 10000,
+        env: { ...process.env, RETCOMM_CATALOG_DIR: upstream },
+      });
+    const valid = JSON.stringify({ release: { github: "owner/game" } });
+    await writeFile(platform, valid);
+    await writeFile(legacy, "{");
+    assert.equal(
+      run().status,
+      0,
+      "valid platform manifest must take precedence over malformed legacy",
+    );
+    await rm(platform);
+    await writeFile(legacy, valid);
+    assert.equal(run().status, 0, "missing platform manifest must use the legacy path");
+    await writeFile(platform, "{");
+    const malformed = run();
+    assert.equal(malformed.status, 1);
+    assert.doesNotMatch(malformed.stdout, /Verified/);
+    assert.doesNotMatch(malformed.stderr, /NETWORK_FORBIDDEN/);
+    await rm(platform);
+    await mkdir(platform);
+    const inaccessible = run();
+    assert.equal(
+      inaccessible.status,
+      1,
+      "non-ENOENT read errors must not fall back to valid legacy",
+    );
+    assert.doesNotMatch(inaccessible.stdout, /Verified/);
+    assert.doesNotMatch(inaccessible.stderr, /NETWORK_FORBIDDEN/);
+    await rm(platform, { recursive: true });
+    await rm(legacy);
+    const missing = run();
+    assert.equal(missing.status, 1);
+    assert.match(missing.stderr, /no PSX title manifest for fixture-title/);
+    assert.doesNotMatch(missing.stdout, /Verified/);
+    assert.doesNotMatch(missing.stderr, /NETWORK_FORBIDDEN/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -1505,7 +2411,7 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'",
     'success-output = "immediate"',
   ]);
-  assert.doesNotMatch(outputOverrides[0], /slow-timeout|retries|threads-required|priority/);
+  assert.doesNotMatch(outputOverrides[0], /retries|threads-required|priority/);
   assert.doesNotMatch(config.split("[[profile.default.overrides]]")[0], /success-output/);
   const repository = await readFile(
     new URL("../crates/portcove-core/src/definition_repository.rs", import.meta.url),
@@ -1556,8 +2462,39 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     config,
     /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
   );
-  for (const override of config.split("[[profile.default.overrides]]").slice(1)) {
-    assert.doesNotMatch(override, /slow-timeout|retries/);
+  const lifecycleFilter = outputOverrides[0].trim().split(/\r?\n/)[0];
+  function assertTimeoutOverrides(source) {
+    const [defaults, ...overrides] = source.split("[[profile.default.overrides]]");
+    assert.match(
+      defaults,
+      /^slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}$/m,
+    );
+    const budgets = overrides.filter((override) => /^slow-timeout = /m.test(override));
+    assert.equal(budgets.length, 1);
+    assert.equal(budgets[0].trim().split(/\r?\n/)[0], lifecycleFilter);
+    assert.match(
+      budgets[0],
+      /^slow-timeout = \{ period = "5s", terminate-after = 9, grace-period = "0s" \}$/m,
+    );
+    for (const override of overrides) {
+      assert.doesNotMatch(override, /retries/);
+      if (override !== budgets[0]) assert.doesNotMatch(override, /slow-timeout/);
+    }
+  }
+  assertTimeoutOverrides(config);
+  for (const changed of [
+    config.replace("terminate-after = 9", "terminate-after = 18"),
+    config.replace("terminate-after = 6", "terminate-after = 9"),
+    config.replace(lifecycleFilter, "filter = 'package(portcove-core)'"),
+    config.replace(
+      'terminate-after = 9, grace-period = "0s"',
+      'terminate-after = 9, grace-period = "1s"',
+    ),
+    config +
+      '\n[[profile.default.overrides]]\nfilter = \'package(portcove-cli)\'\nslow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }\n',
+    config + "\n[[profile.default.overrides]]\nfilter = 'package(portcove-cli)'\nretries = 1\n",
+  ]) {
+    assert.throws(() => assertTimeoutOverrides(changed));
   }
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
@@ -1577,13 +2514,16 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   assert.match(workflow, /CARGO_PROFILE_DEV_DEBUG: line-tables-only/);
 });
 
-test("deep audit summary retains audit status without artifacts or privilege changes", async () => {
+test("deep audit evidence retains audit status without privilege changes", async () => {
   const deep = await readFile(
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
   );
   assert.match(deep, /id: fresh-audit/);
-  assert.match(deep, /just audit --fresh\r?\n {10}audit_status=\$\?/);
+  assert.match(
+    deep,
+    /if \[\[ "\$AUDIT_OPERATION" == "audit-reuse" \]\]; then\r?\n {12}just audit\r?\n {10}else\r?\n {12}just audit --fresh\r?\n {10}fi\r?\n {10}audit_status=\$\?/,
+  );
   assert.match(deep, /exit "\$audit_status"/);
   assert.match(deep, /node scripts\/deep-audit-summary\.mjs --start/);
   assert.match(deep, /node scripts\/deep-audit-summary\.mjs --finish "\$audit_status"/);
@@ -1595,7 +2535,28 @@ test("deep audit summary retains audit status without artifacts or privilege cha
     /run: node scripts\/deep-audit-summary\.mjs \|\| echo "Structured audit evidence unavailable"/,
   );
   assert.match(deep, /^permissions:\r?\n {2}contents: read$/m);
-  assert.doesNotMatch(deep, /upload-artifact|continue-on-error|secrets:|schedule:|tee /);
+  assert.doesNotMatch(deep, /continue-on-error|secrets:|schedule:|tee /);
+  assert.match(deep, /PORTCOVE_AUDIT_CAPTURE: "1"/);
+  assert.match(
+    deep,
+    /name: Export attempt-bound audit evidence\r?\n {8}id: audit-evidence\r?\n {8}if: always\(\)/,
+  );
+  assert.match(deep, /node scripts\/audit-evidence.mjs/);
+  assert.match(deep, /if: always\(\) && steps.fresh-audit.outputs.capture_available == 'true'/);
+  assert.match(deep, /if: always\(\) && steps.audit-evidence.outputs.available == 'true'/);
+  assert.match(deep, /uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a/);
+  assert.match(
+    deep,
+    /name: audit-evidence-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}/,
+  );
+  assert.match(
+    deep,
+    /path: work\/audit-bundles\/\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}\//,
+  );
+  assert.match(
+    deep,
+    /retention-days: 7\r?\n {10}compression-level: 6\r?\n {10}if-no-files-found: error/,
+  );
 });
 
 const auditSummarySource = "a".repeat(40);
@@ -1885,7 +2846,20 @@ test("export refuses links and oversized evidence instead of silently dropping r
   const clock = 1_780_000_000_000;
   const port = (id, repository = `owner/${id}`, provider = "github") => ({
     id,
-    release: { repository, provider },
+    release:
+      provider === "direct-manifest"
+        ? {
+            provider,
+            direct: {
+              windows: {
+                version: "v1",
+                url: "https://downloads.example.com/direct.zip",
+                size: 42,
+                sha256: "a".repeat(64),
+              },
+            },
+          }
+        : { repository, provider },
   });
   const catalog = (...ports) => ({ ports });
   const response = (facts, status = 200, headers = {}) =>
@@ -1904,7 +2878,12 @@ test("export refuses links and oversized evidence instead of silently dropping r
   const collect = (input, fetcher, options = {}) =>
     collectRepositoryHealth(input, {
       now: () => clock,
-      fetch: fetcher ?? (async (url) => response(factsFor(url))),
+      fetch:
+        fetcher ??
+        (async (url) =>
+          url.startsWith("https://downloads.example.com/")
+            ? new Response(null, { headers: { "content-length": "42" } })
+            : response(factsFor(url))),
       ...options,
     });
 
@@ -1918,7 +2897,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
     const calls = [];
     const fetcher = async (url, options) => {
       calls.push({ url, options });
-      assert.equal(options.redirect, "error");
+      assert.equal(options.redirect, "manual");
       assert.ok(options.signal instanceof AbortSignal);
       assert.equal(
         new URL(url).host === "api.github.com",
@@ -1928,20 +2907,26 @@ test("export refuses links and oversized evidence instead of silently dropping r
         new URL(url).host === "gitlab.com",
         Object.hasOwn(options.headers, "PRIVATE-TOKEN"),
       );
+      if (url.startsWith("https://downloads.example.com/")) {
+        assert.equal(options.method, "HEAD");
+        return new Response(null, { headers: { "content-length": "42" } });
+      }
       return response({ ...factsFor(url), archived: true });
     };
     const report = await collect(input, fetcher, {
       githubToken: "fixture-github",
       gitlabToken: "fixture-gitlab",
     });
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     assert.deepEqual(report.coverage, {
       ports: 4,
       hosted_ports: 3,
       direct_manifest_port_ids: ["direct"],
-      repositories: 2,
-      attempted_repositories: 2,
-      reachable_repositories: 2,
+      monitored_ports: 4,
+      repositories: 3,
+      attempted_repositories: 3,
+      reused_repositories: 0,
+      reachable_repositories: 3,
       unknown_repositories: 0,
     });
     assert.deepEqual(report.observations[0].port_ids, ["gold", "silver"]);
@@ -1951,7 +2936,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
     assert.ok(report.unassessed.includes("accepted-artifact-availability"));
     assert.doesNotMatch(JSON.stringify(report), /fixture-github|fixture-gitlab/);
     assert.deepEqual(await collect(input), await collect(input));
-    assert.match(renderRepositoryHealth(report), /1 direct-manifest ports not assessed/);
+    assert.match(renderRepositoryHealth(report), /1 direct-manifest ports included/);
   });
 
   test("transport failure does not truncate later repository coverage or expose error details", async () => {
@@ -2010,7 +2995,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
       [401, "authentication"],
       [403, "forbidden"],
       [503, "provider-error"],
-      [302, "provider-status"],
+      [302, "provider-redirect"],
     ]) {
       const report = await collect(catalog(port("failure")), async () => response({}, status));
       assert.equal(report.observations[0].reason, reason);
@@ -2055,7 +3040,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
       assert.equal(report.observations[1].retry_at, report.observations[0].retry_at);
       assert.equal(
         report.observations[0].retry_at,
-        headers["retry-after"] === "invalid" ? null : new Date(clock + 120_000).toISOString(),
+        new Date(clock + (headers["retry-after"] === "invalid" ? 60_000 : 120_000)).toISOString(),
       );
     }
   });
@@ -2144,7 +3129,7 @@ test("export refuses links and oversized evidence instead of silently dropping r
     assert.equal(report.observations[1].reason, "budget");
   });
 
-  test("malformed inventory refuses before network and direct-manifest-only is explicitly excluded", async () => {
+  test("malformed inventory refuses before network and direct-manifest-only retains exact coverage", async () => {
     for (const input of [
       {},
       catalog(port("repeat"), port("repeat")),
@@ -2159,11 +3144,12 @@ test("export refuses links and oversized evidence instead of silently dropping r
     }
     const report = await collect(
       catalog(port("direct", undefined, "direct-manifest")),
-      async () => {
-        assert.fail("direct manifest is outside repository coverage");
+      async (_url, options) => {
+        assert.equal(options.method, "HEAD");
+        return new Response(null, { headers: { "content-length": "42" } });
       },
     );
-    assert.equal(report.consumed.requests, 0);
+    assert.equal(report.consumed.requests, 1);
     assert.equal(report.coverage.hosted_ports, 0);
     assert.deepEqual(report.coverage.direct_manifest_port_ids, ["direct"]);
   });
@@ -2175,8 +3161,20 @@ test("export refuses links and oversized evidence instead of silently dropping r
       const preload = path.join(dir, "fetch.mjs");
       await writeFile(
         preload,
-        `let calls=0; globalThis.fetch=async(url)=>{
+        `const catalog=JSON.parse(await (await import('node:fs/promises')).readFile('crates/portcove-core/catalog/catalog.json','utf8'));
+    const pins=new Map(catalog.ports.flatMap(port=>Object.values(port.release.direct??{}).map(pin=>[pin.url,pin.size])));
+    let calls=0; globalThis.fetch=async(url,options)=>{
       if(process.env.HEALTH_FIXTURE_FAILURE==='yes' && ++calls===1) throw new Error('private fixture error');
+      if(options.method==='HEAD') return new Response(null,{headers:pins.has(url)?{'content-length':String(pins.get(url))}:{}});
+      if(url.includes('/releases/')) {
+        const github=url.startsWith('https://api.github.com/');
+        const [encoded,ref]=(github?url.split('/repos/')[1]:url.split('/projects/')[1]).split(github?'/releases/tags/':'/releases/');
+        const repository=decodeURIComponent(encoded);
+        const tag=decodeURIComponent(ref);
+        const ports=catalog.ports.filter(port=>port.release.repository===repository || port.project_url?.toLowerCase()==='https://github.com/'+repository.toLowerCase()).map(port=>port.id);
+        const digests=catalog.source_catalog.qualification.filter(value=>ports.includes(value.scope.port_id)&&value.scope.upstream_ref===tag).map(value=>({digest:'sha256:'+value.scope.artifact_sha256}));
+        return new Response(JSON.stringify({id:2,tag_name:tag,assets:github?digests:{links:digests}}),{headers:{'content-type':'application/json'}});
+      }
       const github=url.startsWith('https://api.github.com/');
       return new Response(JSON.stringify({id:1,archived:false,...(github?{full_name:url.split('/repos/')[1]}:{path_with_namespace:decodeURIComponent(url.split('/projects/')[1])})}),{headers:{'content-type':'application/json'}});
     };`,
@@ -2210,7 +3208,19 @@ test("export refuses links and oversized evidence instead of silently dropping r
       assert.equal(report.coverage.ports, realCatalog.ports.length);
       assert.equal(report.observations.length, report.coverage.repositories);
       assert.equal(report.coverage.attempted_repositories, report.coverage.repositories);
-      assert.equal(report.coverage.unknown_repositories, 1);
+      assert.equal(
+        report.coverage.unknown_repositories,
+        1,
+        JSON.stringify(
+          report.observations
+            .filter((value) => value.status === "unknown")
+            .map((value) => ({
+              repository: value.repository,
+              ref: value.release_ref,
+              reason: value.reason,
+            })),
+        ),
+      );
       assert.equal(report.observations.at(-1).status, "reachable");
       const human = run([], true);
       assert.equal(human.status, 1, human.stderr);
@@ -2227,3 +3237,13 @@ test("export refuses links and oversized evidence instead of silently dropping r
     }
   });
 }
+
+test("native repository contracts provision pinned Rust before metadata or containment execution", () => {
+  for (const section of [fastCatalog, catalog]) {
+    assert.ok(section.indexOf("./.github/actions/setup-rust") >= 0);
+    const contract = section.includes("scripts/ci-baseline.mjs contracts")
+      ? section.indexOf("scripts/ci-baseline.mjs contracts")
+      : section.indexOf("Verify repository and release contracts");
+    assert.ok(contract > section.indexOf("./.github/actions/setup-rust"));
+  }
+});

@@ -33,6 +33,7 @@ const fixture = (): Diagnostic => [
 let root: Root;
 let host: HTMLDivElement;
 beforeEach(() => {
+  vi.mocked(copyText).mockReset().mockResolvedValue(undefined);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   host = document.createElement("div");
   root = createRoot(host);
@@ -276,3 +277,127 @@ it("discards a delayed log from the previous activity and library", async () => 
   expect(host.textContent).toContain("current library output");
   expect(host.textContent).not.toContain("owned output token");
 });
+
+it("announces clipboard failure with an exact fallback without reading or changing the log", async () => {
+  const capture = fixture();
+  const read = vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(capture);
+  vi.mocked(copyText).mockRejectedValueOnce(new Error("private clipboard detail"));
+  await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={1} />));
+  await open();
+  const streams = [...host.querySelectorAll<HTMLTextAreaElement>("section textarea")].map(
+    (field) => field.value,
+  );
+  await click("Copy retained log");
+  expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+    "Clipboard unavailable. Select and copy the retained log below.",
+  );
+  const fallback = host.querySelector<HTMLTextAreaElement>(
+    '[aria-label="Retained log for manual copy"]',
+  )!;
+  expect(fallback.readOnly).toBe(true);
+  expect(fallback.value).toBe(JSON.stringify(capture, null, 2));
+  expect(copyText).toHaveBeenLastCalledWith(fallback.value);
+  expect(host.textContent).not.toContain("private clipboard detail");
+  expect(
+    [...host.querySelectorAll<HTMLTextAreaElement>("section textarea")].map((field) => field.value),
+  ).toEqual(streams);
+  await click("Copy retained log");
+  expect(host.querySelector('[role="status"]')?.textContent).toBe("Retained log copied.");
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+  expect(host.querySelector('[aria-label="Retained log for manual copy"]')).toBeNull();
+  expect(read).toHaveBeenCalledTimes(1);
+});
+
+it.each(["success", "failure"])(
+  "ignores an older copy %s after a newer attempt",
+  async (outcome) => {
+    let resolve!: () => void;
+    let reject!: (error: Error) => void;
+    vi.mocked(copyText).mockReturnValueOnce(
+      new Promise<void>((done, fail) => {
+        resolve = done;
+        reject = fail;
+      }),
+    );
+    const read = vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(fixture());
+    await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={1} />));
+    await open();
+    await click("Copy retained log");
+    await click("Copy retained log");
+    await act(async () => {
+      if (outcome === "success") resolve();
+      else reject(new Error("old failure"));
+    });
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("Retained log copied.");
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(read).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each(["success", "failure"])(
+  "ignores a copy %s from the capture displayed during refresh",
+  async (outcome) => {
+    let finishRead!: (value: Diagnostic) => void;
+    let resolve!: () => void;
+    let reject!: (error: Error) => void;
+    const next = fixture();
+    next[0].stdout.text = "refreshed output";
+    const read = vi
+      .spyOn(desktopApi, "activityDiagnostic")
+      .mockResolvedValueOnce(fixture())
+      .mockReturnValueOnce(
+        new Promise<Diagnostic>((done) => {
+          finishRead = done;
+        }),
+      );
+    vi.mocked(copyText).mockReturnValueOnce(
+      new Promise<void>((done, fail) => {
+        resolve = done;
+        reject = fail;
+      }),
+    );
+    await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={1} />));
+    await open();
+    await click("Refresh captured log");
+    await click("Copy retained log");
+    await act(async () => finishRead(next));
+    await act(async () => {
+      if (outcome === "success") resolve();
+      else reject(new Error("old failure"));
+    });
+    expect(host.querySelector('[role="status"], [role="alert"]')).toBeNull();
+    expect(host.querySelector("textarea")?.value).toBe("refreshed output");
+    await click("Copy retained log");
+    expect(copyText).toHaveBeenLastCalledWith(JSON.stringify(next, null, 2));
+    expect(read).toHaveBeenCalledTimes(2);
+  },
+);
+
+it.each(["success", "failure"])(
+  "ignores a copy %s after the selected activity changes",
+  async (outcome) => {
+    let resolve!: () => void;
+    let reject!: (error: Error) => void;
+    vi.mocked(copyText).mockReturnValueOnce(
+      new Promise<void>((done, fail) => {
+        resolve = done;
+        reject = fail;
+      }),
+    );
+    const read = vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(fixture());
+    await act(async () => root.render(<ActivityDiagnostic activityId="old" generation={1} />));
+    await open();
+    await click("Copy retained log");
+    await act(async () => root.render(<ActivityDiagnostic activityId="new" generation={2} />));
+    await click("Refresh captured log");
+    await act(async () => {
+      if (outcome === "success") resolve();
+      else reject(new Error("old failure"));
+    });
+    expect(host.querySelector('[role="status"], [role="alert"]')).toBeNull();
+    expect(read.mock.calls).toEqual([
+      ["old", 1],
+      ["new", 2],
+    ]);
+  },
+);

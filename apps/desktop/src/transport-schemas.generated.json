@@ -5917,6 +5917,70 @@
         ],
         "type": "string"
       },
+      "GameFileScanCoverage": {
+        "properties": {
+          "batch_entries_examined": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "batches": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "can_resume": {
+            "type": "boolean"
+          },
+          "entries_relisted": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "frontier_exhausted": {
+            "type": "boolean"
+          },
+          "metadata_checks": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pending_directories": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "prior_member_rechecks": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "remaining_entries": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "restart_required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "batches",
+          "batch_entries_examined",
+          "entries_relisted",
+          "metadata_checks",
+          "prior_member_rechecks",
+          "pending_directories",
+          "remaining_entries",
+          "frontier_exhausted",
+          "can_resume",
+          "restart_required"
+        ],
+        "type": "object"
+      },
       "GameFileScanFreshness": {
         "enum": [
           "inputs_match",
@@ -5932,6 +5996,17 @@
           "completed_at": {
             "format": "int64",
             "type": "integer"
+          },
+          "continuation": true,
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GameFileScanCoverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "format_version": {
             "format": "uint32",

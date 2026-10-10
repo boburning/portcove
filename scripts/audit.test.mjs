@@ -23,7 +23,12 @@ import {
   canonicalTextBlob,
   validateReceipt,
 } from "./audit.mjs";
-import { buildValidationPlan, digestValidationPlan } from "./validation-plan.mjs";
+import {
+  buildValidationPlan,
+  digestValidationPlan,
+  fastGroups,
+  qualificationPlatforms,
+} from "./validation-plan.mjs";
 
 test("release audit profile delegates source and platform coverage without going empty", () => {
   const stages = auditStagesForProfile("release");
@@ -79,6 +84,19 @@ function inventory(head, entries) {
   return { head, files: entries };
 }
 
+function qualifyAuditFixture(plan) {
+  if (plan.mode === "blocked") return plan;
+  const qualified = {
+    ...plan,
+    mode: "qualification",
+    reason: "explicit-test-qualification",
+    groups: fastGroups,
+    platforms: qualificationPlatforms,
+    qualification_required: true,
+  };
+  delete qualified.digest;
+  return { ...qualified, digest: digestValidationPlan(qualified) };
+}
 function transitionContext(paths, overrides = {}) {
   const head = "a".repeat(40);
   const changes = paths.map((pathname) => ({
@@ -93,16 +111,18 @@ function transitionContext(paths, overrides = {}) {
       head,
       paths.map((pathname) => file(pathname, "fixture")),
     ),
-    validationPlan: buildValidationPlan({
-      changes,
-      eventName: "pull_request",
-      base: "b".repeat(40),
-      mergeBase: "b".repeat(40),
-      head,
-      checkout: head,
-      fastValidationEnabled: true,
-      proseOnlyEnabled: true,
-    }),
+    validationPlan: qualifyAuditFixture(
+      buildValidationPlan({
+        changes,
+        eventName: "pull_request",
+        base: "b".repeat(40),
+        mergeBase: "b".repeat(40),
+        head,
+        checkout: head,
+        fastValidationEnabled: true,
+        proseOnlyEnabled: true,
+      }),
+    ),
     changes,
     workingTreeStatus: "",
     ...overrides,
@@ -119,14 +139,23 @@ test("standalone resource and impact changes retain full local coverage under re
     "docs/DEVELOPMENT-STORAGE.md",
   ]) {
     const context = transitionContext([pathname]);
-    assert.equal(context.validationPlan.qualification_required, false, pathname);
+    const ordinary = buildValidationPlan({
+      changes: context.changes,
+      eventName: "pull_request",
+      base: "b".repeat(40),
+      mergeBase: "b".repeat(40),
+      head: context.inventory.head,
+      checkout: context.inventory.head,
+    });
+    context.validationPlan = ordinary;
+    assert.equal(ordinary.qualification_required, false, pathname);
     const selected = selectTransitionAudit(context);
     assert.equal(selected.profile, "complete", pathname);
     assert.deepEqual(selected.stages, AUDIT_STAGES, pathname);
   }
 });
 
-test("real rename and copy path unions retain the complete audit instead of failing discovery", () => {
+test("renames retain complete audit coverage and unsupported copies block discovery", () => {
   for (const status of ["R", "C"]) {
     const context = transitionContext(["scripts/local-validation.mjs", "docs/QUALITY.md"]);
     context.changes[0] = {
@@ -143,8 +172,10 @@ test("real rename and copy path unions retain the complete audit instead of fail
       checkout: context.inventory.head,
     });
     context.inventory.files.push(file("scripts/renamed-local-validation.mjs", "fixture"));
-    assert.equal(selectTransitionAudit(context).profile, "complete", status);
-    assert.equal(context.validationPlan.changed_files.length, 3);
+    if (status === "C")
+      assert.throws(() => selectTransitionAudit(context), /exact complete source diff/);
+    else assert.equal(selectTransitionAudit(context).profile, "complete", status);
+    assert.equal(context.validationPlan.changed_files.length, status === "C" ? 0 : 3);
   }
 });
 
@@ -243,11 +274,13 @@ test("candidate coverage constants cannot authorize their own reduced transition
   }
   const runner = `
     import assert from 'node:assert/strict';
-    import {buildValidationPlan, validateQualificationBinding} from './scripts/validation-plan.mjs';
+    import {buildValidationPlan, digestValidationPlan, fastGroups, qualificationPlatforms, validateQualificationBinding} from './scripts/validation-plan.mjs';
     import {selectTransitionAudit} from './scripts/audit.mjs';
     const context=JSON.parse(process.env.TRANSITION_FIXTURE);
     context.validationPlan=buildValidationPlan({changes:context.changes,eventName:'pull_request',
       base:'b'.repeat(40),mergeBase:'b'.repeat(40),head:context.inventory.head,checkout:context.inventory.head});
+    Object.assign(context.validationPlan,{mode:'qualification',groups:fastGroups,platforms:qualificationPlatforms,qualification_required:true});
+    delete context.validationPlan.digest;context.validationPlan.digest=digestValidationPlan(context.validationPlan);
     assert.equal(context.validationPlan.groups.includes('rust'),false);
     assert.equal(context.validationPlan.platforms.includes('windows-x86_64'),false);
     validateQualificationBinding({plan:context.validationPlan,digest:context.validationPlan.digest,checkout:context.inventory.head});
@@ -471,6 +504,32 @@ test("release handbook edits invalidate their consumers without expiring unchang
     ),
   );
 });
+
+for (const pathname of ["scripts/desktop-scenarios.mjs", "scripts/desktop-scenarios.test.mjs"]) {
+  test(`desktop scenario consumer ${pathname} invalidates only consumed receipts`, (t) => {
+    const stages = AUDIT_STAGES.filter((stage) => stage.reusable);
+    const receiptRoot = temporaryDirectory(t);
+    const before = inventory("before", [file(pathname, "original scenario contract")]);
+    const after = inventory("after", [file(pathname, "changed scenario contract")]);
+    const initial = planAudit({ stages, inventory: before, runtime, receiptRoot, fresh: true });
+    assert.equal(executeAudit(initial, { execute: () => ({ status: 0 }) }).success, true);
+    const unchanged = planAudit({ stages, inventory: before, runtime, receiptRoot });
+    assert.ok(
+      unchanged.stages.every((stage) => stage.action === "reuse"),
+      pathname,
+    );
+    const changed = planAudit({ stages, inventory: after, runtime, receiptRoot });
+    for (const stage of changed.stages) {
+      const consumes = ["format", "development-tools"].includes(stage.id);
+      assert.equal(stage.action, consumes ? "run" : "reuse", `${pathname}: ${stage.id}`);
+      assert.equal(
+        stage.fingerprint !== initial.stages.find((entry) => entry.id === stage.id).fingerprint,
+        consumes,
+        `${pathname}: ${stage.id} fingerprint`,
+      );
+    }
+  });
+}
 
 test("formatting and transport inputs invalidate every stage that actually reads them", () => {
   const documentation = file("docs/README.md", "docs");
@@ -759,4 +818,32 @@ test("plan construction is side-effect free when no receipt directory exists", (
   });
   assert.equal(plan.stages[0].action, "run");
   assert.equal(existsSync(receiptRoot), false);
+});
+
+test("containment authorities invalidate every reusable audit receipt domain", () => {
+  const paths = [
+    "scripts/rust-test-tree-supervisor.mjs",
+    "scripts/rust-test-tree-supervisor.test.mjs",
+    "scripts/fixtures/linux-process-tree-reaper.rs.txt",
+  ];
+  for (const pathname of paths) {
+    const before = inventory("before", [file(pathname, "original containment")]);
+    const after = inventory("after", [file(pathname, "changed containment")]);
+    const removed = inventory("after", []);
+    const renamed = inventory("after", [
+      file("new-subsystem/future-supervisor.mjs", "original containment"),
+    ]);
+    for (const stage of AUDIT_STAGES.filter((entry) => entry.reusable)) {
+      assert.ok(domainsForPath(pathname).domains.has(stage.domain), `${pathname} -> ${stage.id}`);
+      for (const next of [after, removed, renamed])
+        assert.notEqual(
+          fingerprintStage(stage, before, runtime),
+          fingerprintStage(stage, next, runtime),
+          `${pathname} -> ${stage.id}`,
+        );
+    }
+    const context = transitionContext([pathname]);
+    assert.equal(context.validationPlan.qualification_required, true);
+    assert.equal(selectTransitionAudit(context).profile, "complete");
+  }
 });

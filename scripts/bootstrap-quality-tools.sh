@@ -2,18 +2,50 @@
 set -euo pipefail
 
 include_deep=false
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-  printf 'usage: %s [--include-deep] [--help]\n' "$0"
-  exit 0
-elif [[ "${1:-}" == "--include-deep" ]]; then
-  include_deep=true
-elif [[ $# -gt 0 ]]; then
-  printf 'usage: %s [--include-deep] [--help]\n' "$0" >&2
-  exit 2
-fi
+profile=standard
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --help|-h) printf 'usage: %s [--include-deep] [--profile standard|frontend|core|daily|native-desktop] [--help]\n' "$0"; exit 0 ;;
+    --include-deep) include_deep=true; shift ;;
+    --profile) [[ $# -ge 2 ]] || { printf '%s\n' '--profile requires a value' >&2; exit 2; }; profile="$2"; shift 2 ;;
+    *) printf 'unknown bootstrap option: %s\n' "$1" >&2; exit 2 ;;
+  esac
+done
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$project_root"
+
+want_frontend=false
+want_rust=true
+want_aqua=true
+capability_plan=""
+if [[ "$profile" != standard ]]; then
+  capability_plan="$(node scripts/development-capabilities.mjs --profile "$profile")"
+  plan_flag() { node -e 'const p=JSON.parse(process.argv[1]); process.exit(p.setup[process.argv[2]] ? 0 : 1)' "$capability_plan" "$1"; }
+  plan_flag frontend && want_frontend=true
+  if $include_deep; then printf '%s\n' 'Selective profiles cannot be combined with --include-deep' >&2; exit 2; fi
+  want_rust=false; plan_flag rust && want_rust=true
+  want_aqua=false; plan_flag aqua && want_aqua=true
+  if plan_flag native; then
+    printf '%s\n' 'Selective native-desktop setup is unavailable on this bootstrap; use the existing approved native platform setup, then doctor --profile native-desktop.' >&2
+    exit 1
+  fi
+fi
+if $want_frontend; then
+  node_pin="$(tr -d '\r\n' < .node-version)"
+  [[ "$(node --version)" == "v$node_pin" ]] || { printf 'Node %s is required for frontend setup.\n' "$node_pin" >&2; exit 1; }
+  package_spec="$(node -p 'JSON.parse(require("node:fs").readFileSync("package.json","utf8")).packageManager')"
+  corepack "$package_spec" install --frozen-lockfile
+fi
+if $want_rust && [[ "$profile" != standard ]]; then
+  rust_pin="$(node -e 'console.log(JSON.parse(process.argv[1]).pins.rust)' "$capability_plan")"
+  if [[ "$(RUSTUP_AUTO_INSTALL=0 rustc --version 2>/dev/null || true)" != "rustc $rust_pin "* ]] ||
+     ! RUSTUP_AUTO_INSTALL=0 cargo fmt --version >/dev/null 2>&1 ||
+     ! RUSTUP_AUTO_INSTALL=0 cargo clippy --version >/dev/null 2>&1; then
+    rustup toolchain install "$rust_pin" --profile minimal --component rustfmt --component clippy
+  fi
+fi
+if $want_aqua; then
 
 required_aqua="$(tr -d '\r\n' < .aqua-version)"
 if ! command -v aqua >/dev/null 2>&1; then
@@ -38,10 +70,18 @@ export AQUA_ENFORCE_REQUIRE_CHECKSUM=true
 mkdir -p "$AQUA_ROOT_DIR"
 aqua install
 
+fi
+
 required_tools=()
-while IFS= read -r tool; do required_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs required)
+if [[ "$profile" == standard ]]; then
+  while IFS= read -r tool; do required_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs required)
+else
+  while IFS= read -r tool; do required_tools+=("$tool"); done < <(node -e 'for(const t of JSON.parse(process.argv[1]).setup.cargo_tools) console.log([t.crate,t.version,t.command.join(" ")].join("|"))' "$capability_plan")
+fi
 optional_tools=()
-while IFS= read -r tool; do optional_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs deep)
+if $include_deep; then
+  while IFS= read -r tool; do optional_tools+=("$tool"); done < <(node scripts/quality-tools.mjs --specs deep)
+fi
 
 reported_version() {
   local command_line="$1"
@@ -84,6 +124,9 @@ for tool in "${required_tools[@]}"; do
 done
 
 optional_failures=()
+if $include_deep && ! $want_rust; then
+  printf '%s\n' '--include-deep requires a Rust-capable profile' >&2; exit 2
+fi
 if $include_deep; then
   for tool in "${optional_tools[@]}"; do
     crate="${tool%%|*}"
@@ -95,7 +138,10 @@ if $include_deep; then
 
 fi
 
-printf 'Required pinned Portcove quality tools are ready.\n'
+if [[ "$profile" != standard ]]; then
+  node scripts/dev-doctor.mjs --profile "$profile"
+fi
+printf 'Requested pinned Portcove tools are ready (%s).\n' "$profile"
 if [[ ${#optional_failures[@]} -gt 0 ]]; then
   printf 'warning: optional deep tools unavailable on this host: %s\n' "${optional_failures[*]}" >&2
 fi

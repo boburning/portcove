@@ -3534,26 +3534,161 @@ mod tests {
         server.join().unwrap();
     }
 
+    struct StalledDownloadServer {
+        address: std::net::SocketAddr,
+        stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        worker: Option<std::thread::JoinHandle<bool>>,
+    }
+
+    impl StalledDownloadServer {
+        fn start() -> Self {
+            use std::{
+                io::{ErrorKind, Read, Write},
+                net::TcpListener,
+                sync::{Arc, atomic::AtomicBool},
+                thread,
+            };
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let address = listener.local_addr().unwrap();
+            let stop = Arc::new(AtomicBool::new(false));
+            let worker_stop = Arc::clone(&stop);
+            let (ready_sender, ready_receiver) = std::sync::mpsc::channel();
+            let worker = thread::spawn(move || {
+                if ready_sender.send(()).is_err() {
+                    return false;
+                }
+                let Some(mut stream) = crate::test_fixture::phase("stalled-server accept", || {
+                    while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                        match listener.accept() {
+                            Ok((stream, _)) => return Some(stream),
+                            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                                thread::sleep(Duration::from_millis(5));
+                            }
+                            Err(error) => panic!("stalled fixture accept failed: {error}"),
+                        }
+                    }
+                    None
+                }) else {
+                    return false;
+                };
+                stream.set_nonblocking(true).unwrap();
+                let mut request = [0_u8; 1024];
+                let request_received = crate::test_fixture::phase("stalled-server request", || {
+                    while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                        match stream.read(&mut request) {
+                            Ok(0) => return false,
+                            Ok(_) => return true,
+                            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                                thread::sleep(Duration::from_millis(5));
+                            }
+                            Err(error) => panic!("stalled fixture request failed: {error}"),
+                        }
+                    }
+                    false
+                });
+                if !request_received {
+                    return false;
+                }
+                stream.set_nonblocking(false).unwrap();
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                if stream
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
+                    .and_then(|()| stream.flush())
+                    .is_err()
+                {
+                    return false;
+                }
+                // Retain the original deliberate gap, then keep the connection
+                // open until the client finishes. A fixture-imposed EOF cannot
+                // silently substitute for the client's read-idle timeout.
+                thread::sleep(Duration::from_millis(180));
+                let deadline = std::time::Instant::now() + Duration::from_secs(2);
+                while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                    if std::time::Instant::now() >= deadline {
+                        return false;
+                    }
+                    thread::sleep(Duration::from_millis(5));
+                }
+                true
+            });
+            let server = Self {
+                address,
+                stop,
+                worker: Some(worker),
+            };
+            crate::test_fixture::phase("stalled-server ready", || {
+                ready_receiver.recv_timeout(Duration::from_secs(2))
+            })
+            .expect("the owned fixture server did not become ready");
+            server
+        }
+
+        fn finish(mut self) -> bool {
+            self.stop.store(true, std::sync::atomic::Ordering::Release);
+            crate::test_fixture::phase("stalled-server join", || self.worker.take().unwrap().join())
+                .unwrap()
+        }
+    }
+
+    impl Drop for StalledDownloadServer {
+        fn drop(&mut self) {
+            self.stop.store(true, std::sync::atomic::Ordering::Release);
+            if let Some(worker) = self.worker.take() {
+                let _ = worker.join();
+            }
+        }
+    }
+
     #[tokio::test]
     async fn streaming_download_fails_after_a_read_idle_stall() {
-        use std::{
-            io::{Read, Write},
-            net::TcpListener,
-            thread,
-        };
-
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut request = [0_u8; 1024];
-            let _ = stream.read(&mut request).unwrap();
-            stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        // Reqwest's read timer also covers connection/header admission. Keep
+        // the connect bound, allow measured loopback admission margin, and
+        // prove the body received a byte before the full idle interval elapsed.
+        let read_idle_timeout = Duration::from_millis(250);
+        let installer =
+            Installer::with_network_bounds(library, Duration::from_millis(50), read_idle_timeout)
                 .unwrap();
-            stream.flush().unwrap();
-            thread::sleep(Duration::from_millis(180));
-        });
+        let server = StalledDownloadServer::start();
+        let asset = ReleaseAsset {
+            name: "stalled.zip".into(),
+            url: format!("http://{}/stalled.zip", server.address),
+            size: 2,
+            sha256: "a".repeat(64),
+        };
+        let operation = OperationCoordinator::new("download", None);
+        let mut emit = |_| {};
+        let destination = temporary.path().join("stalled.download");
+        let download_started = std::time::Instant::now();
+        let error = installer
+            .download(&asset, &destination, &operation, &mut emit)
+            .await
+            .unwrap_err();
+        let download_elapsed = download_started.elapsed();
+        eprintln!("fixture download error after {download_elapsed:?}: {error:?}");
+        let partial_body_sent = server.finish();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(
+            download_elapsed >= read_idle_timeout,
+            "the received partial body must reach the full read-idle interval"
+        );
+        assert!(
+            partial_body_sent,
+            "the fixture never reached a partial-body read-idle stall"
+        );
+        assert_eq!(
+            fs::read(destination).unwrap(),
+            b"x",
+            "the client must have received the partial body"
+        );
+    }
+
+    #[tokio::test]
+    async fn streaming_download_client_error_before_connection_quiesces_the_fixture() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let installer = Installer::with_network_bounds(
@@ -3562,9 +3697,10 @@ mod tests {
             Duration::from_millis(50),
         )
         .unwrap();
+        let server = StalledDownloadServer::start();
         let asset = ReleaseAsset {
-            name: "stalled.zip".into(),
-            url: format!("http://{address}/stalled.zip"),
+            name: "invalid-url.zip".into(),
+            url: "http://[invalid".into(),
             size: 2,
             sha256: "a".repeat(64),
         };
@@ -3573,14 +3709,19 @@ mod tests {
         let error = installer
             .download(
                 &asset,
-                &temporary.path().join("stalled.download"),
+                &temporary.path().join("invalid.download"),
                 &operation,
                 &mut emit,
             )
             .await
             .unwrap_err();
+        eprintln!("synthetic client error before connection: {:?}", error.code);
+        let partial_body_sent = server.finish();
         assert_eq!(error.code, crate::ErrorCode::Network);
-        server.join().unwrap();
+        assert!(
+            !partial_body_sent,
+            "invalid URL must not reach the fixture listener"
+        );
     }
 
     #[tokio::test]

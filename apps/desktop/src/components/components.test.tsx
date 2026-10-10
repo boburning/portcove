@@ -580,6 +580,119 @@ describe("desktop components", () => {
     expect(html).not.toContain("Portcove will run and verify the upstream setup before play.");
   });
 
+  it.each(["opengoal-jak1", "paperboat"])(
+    "offers guarded preparation review for the installed %s definition",
+    (id) => {
+      const definition = currentCatalogPort(id);
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: id,
+        active: installRecord({ port_id: id }),
+        readiness: {
+          launchable: false,
+          blockers: ["preparation_required"],
+          pending_setup: true,
+          source: "current",
+        },
+      };
+      const props = {
+        port: definition,
+        status,
+        sourcePath: "source.z64",
+        setSourcePath: vi.fn(),
+        prepare: vi.fn(),
+        actions,
+      };
+      const ready = renderToStaticMarkup(<DetailPanel {...props} />);
+      const reviewButton = ready.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
+      expect(reviewButton).toBeDefined();
+      expect(reviewButton).not.toMatch(/\sdisabled(?:\s|=|>)/);
+      expect(ready).toContain("First-time setup required");
+      expect(ready).not.toContain(">Play</button>");
+
+      const blocked = [
+        { ...props, busy: "prepare" },
+        { ...props, prepare: undefined },
+        ...(
+          [
+            "unregistered",
+            "missing",
+            "unreadable",
+            "changed",
+            "not_checked",
+            "not_baselined",
+          ] as const
+        ).flatMap((health) => [
+          {
+            ...props,
+            status: { ...status, readiness: { ...status.readiness!, source: health } },
+          },
+          {
+            ...props,
+            // These explicit refusal fixtures add a BIOS contract; the embedded ports do not.
+            port: { ...definition, bios_source_profile: "required-test-bios" },
+            status: { ...status, readiness: { ...status.readiness!, bios: health } },
+          },
+        ]),
+      ];
+      for (const refusal of blocked) {
+        const html = renderToStaticMarkup(<DetailPanel {...refusal} />);
+        const button = html.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
+        expect(button).toBeDefined();
+        expect(button).toMatch(/\sdisabled(?:\s|=|>)/);
+      }
+      expect(props.prepare).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["opengoal-jak1", "paperboat"])(
+    "does not manufacture preparation review outside the %s managed contract",
+    (id) => {
+      const definition = currentCatalogPort(id);
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: id,
+        active: installRecord({ port_id: id }),
+        readiness: {
+          launchable: false,
+          blockers: ["preparation_required"],
+          pending_setup: true,
+          source: "current",
+        },
+      };
+      const props = {
+        port: definition,
+        status,
+        sourcePath: "source.z64",
+        setSourcePath: vi.fn(),
+        prepare: vi.fn(),
+        actions,
+      };
+      const unavailable = [
+        { ...props, port: { ...definition, adapter: "staged-source-portable" as const } },
+        { ...props, port: { ...definition, setup_output_paths: [] } },
+        { ...props, status: { ...status, active: null } },
+        {
+          ...props,
+          status: {
+            ...status,
+            readiness: {
+              ...status.readiness!,
+              launchable: true,
+              blockers: [],
+              pending_setup: false,
+            },
+          },
+        },
+      ];
+      for (const outsideContract of unavailable) {
+        const html = renderToStaticMarkup(<DetailPanel {...outsideContract} />);
+        expect(html).not.toContain("Review game preparation");
+      }
+      expect(props.prepare).not.toHaveBeenCalled();
+    },
+  );
+
   it("uses player-facing ready and downloaded-update labels", () => {
     const status: PortStatus = {
       ...portStatus(),
@@ -614,9 +727,11 @@ describe("desktop components", () => {
     expect(ready.indexOf("Ready to play")).toBeLessThan(ready.indexOf("Play"));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf(port.summary));
     expect(ready.indexOf("Play")).toBeLessThan(ready.indexOf("Change artwork"));
-    expect(downloaded).toContain("Installed · update saved for later");
+    expect(downloaded).toContain("Ready to play");
+    expect(downloaded).toContain("Use update · 1.0");
     expect(downloaded).toContain("Play the installed version or use the saved update 1.0.");
-    expect(downloaded).toContain('class="hero-reason"');
+    expect(downloaded).toContain("data-update-attention");
+    expect(downloaded).not.toContain('class="hero-reason"');
     expect(`${ready}${downloaded}`).not.toContain("Ready to launch");
     expect(`${ready}${downloaded}`).not.toContain("update staged");
     expect(`${ready}${downloaded}`).not.toContain("active version");
@@ -671,6 +786,98 @@ describe("desktop components", () => {
     expect(checking.match(/<div class="actions primary-actions"><button([^>]*)>/)?.[1]).toContain(
       "disabled",
     );
+  });
+
+  it.each(
+    (["library", "catalog"] as const).flatMap((view) =>
+      [
+        "same target",
+        "newer release",
+        "different artifact",
+        "different asset name",
+        "different asset size",
+        "different channel",
+        "different required runtime",
+        "different downloaded runtime",
+        "different port",
+        "unverified download",
+        "unknown artifact",
+        "stale installed version",
+        "stale installed artifact",
+        "stale installed runtime",
+        "stale selected channel",
+      ].map((difference) => ({ view, difference })),
+    ),
+  )("matches downloaded attention in $view: $difference", ({ view, difference }) => {
+    const install = installRecord();
+    const downloaded = installRecord({ id: "2", version: "2.0", staged: true });
+    const status: PortStatus = {
+      ...portStatus(),
+      port_id: port.id,
+      channel: "stable",
+      active: install,
+      staged: downloaded,
+      readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" },
+      last_update_check: {
+        checked_at: 2,
+        check: {
+          port_id: port.id,
+          channel: "stable",
+          installed_version: install.version,
+          installed_artifact: install.artifact,
+          installed_runtime: install.runtime,
+          required_runtime: downloaded.runtime,
+          update_available: true,
+          release: {
+            version: downloaded.version,
+            channel: downloaded.channel,
+            published_at: null,
+            asset: {
+              name: downloaded.artifact.asset_name,
+              sha256: downloaded.artifact.sha256,
+              size: downloaded.artifact.size,
+              url: "https://example.com/sample.zip",
+            },
+          },
+        },
+      },
+    };
+    const check = status.last_update_check?.check;
+    if (!check) throw new Error("Current update fixture is required");
+    if (difference === "newer release") check.release.version = "3.0";
+    if (difference === "different artifact") check.release.asset.sha256 = "e".repeat(64);
+    if (difference === "different asset name") check.release.asset.name = "other.zip";
+    if (difference === "different asset size") check.release.asset.size = 2;
+    if (difference === "different channel") downloaded.channel = "beta";
+    if (difference === "different required runtime") check.required_runtime = runtimeIdentity;
+    if (difference === "different downloaded runtime") downloaded.runtime = runtimeIdentity;
+    if (difference === "different port") downloaded.port_id = "other-port";
+    if (difference === "unverified download") downloaded.verified = false;
+    if (difference === "unknown artifact") {
+      downloaded.artifact = { ...downloaded.artifact, sha256: "" };
+      check.release.asset.sha256 = "";
+    }
+    if (difference === "stale installed version") check.installed_version = "0.9";
+    if (difference === "stale installed artifact")
+      check.installed_artifact = { ...install.artifact, sha256: "e".repeat(64) };
+    if (difference === "stale installed runtime") check.installed_runtime = runtimeIdentity;
+    if (difference === "stale selected channel") status.channel = "beta";
+    const html = renderToStaticMarkup(
+      <PortBrowser
+        view={view}
+        ports={[port]}
+        statuses={new Map([[port.id, status]])}
+        overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 1 }}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+      />,
+    );
+    expect(html).toContain("Ready to play");
+    expect(html).toContain("Update downloaded</span>");
+    const expectedAvailable = difference !== "same target" && !difference.startsWith("stale ");
+    expect(html.includes("Update available</span>")).toBe(expectedAvailable);
   });
 
   it.each([
@@ -2018,6 +2225,10 @@ describe("desktop components", () => {
     const sourceFree = renderToStaticMarkup(
       <DetailPanel
         port={{ ...port, source_profile: null }}
+        status={{
+          ...portStatus(),
+          port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+        }}
         sourcePath=""
         setSourcePath={vi.fn()}
         actions={actions}
@@ -2146,7 +2357,7 @@ describe("desktop components", () => {
     expect(installed).toMatch(/<details class="future-setup-disclosure" open="">/u);
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
-    expect(installed).toContain("No hands-on test recorded");
+    expect(installed).toContain("No legacy platform coverage recorded");
     expect(installed).toContain("Launch from another app");
     expect(installed).toContain("Finding the command-line app");
     expect(installed).not.toContain("portcove exec sample --");
@@ -2177,8 +2388,9 @@ describe("desktop components", () => {
     const details = renderToStaticMarkup(
       <DetailPanel port={untestedPort} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
     );
-    expect(details).toContain("No automated test recorded");
-    expect(details).toContain("No hands-on test recorded");
+    expect(details).toContain("Legacy port-wide automated tests");
+    expect(details).toContain("Legacy port-wide hands-on tests");
+    expect(details).toContain("No legacy platform coverage recorded");
   });
 
   it("scopes mixed testing evidence by platform", () => {
@@ -2223,8 +2435,8 @@ describe("desktop components", () => {
     expect(linux).toContain(
       "Linux availability does not show whether this game works on SteamOS or in Gaming Mode.",
     );
-    expect(linux).toContain("<small>Recorded automated tests</small>Windows · Linux");
-    expect(linux).toContain("<small>Recorded hands-on tests</small>Windows · Linux");
+    expect(linux).toContain("<small>Legacy port-wide automated tests</small>Windows · Linux");
+    expect(linux).toContain("<small>Legacy port-wide hands-on tests</small>Windows · Linux");
     const buttons = (html: string) => [...html.matchAll(/<button\b[^>]*>[^]*?<\/button>/gu)];
     expect(buttons(linux).map(([button]) => button)).toEqual(
       buttons(windows).map(([button]) => button),
@@ -2380,6 +2592,10 @@ describe("desktop components", () => {
     const selected = renderToStaticMarkup(
       <DetailPanel
         port={biosPort}
+        status={{
+          ...portStatus(),
+          port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+        }}
         source={mortalKombat4Source}
         sourceProfile={mortalKombat4Profile}
         sourcePath="game.chd"
@@ -2561,7 +2777,8 @@ describe("desktop components", () => {
     expect(cards).toContain("Sample Port");
     expect(cards).toContain("Catalog order");
     expect(cards).toContain("Sort");
-    expect(cards).toContain("Available");
+    expect(cards).toContain("Setup status unknown");
+    expect(cards).toContain("Installation status unknown");
     expect(cards).toContain("Windows");
     expect(cards).toContain(port.summary);
     expect(cards).toContain(">Windows</span>");
@@ -3021,10 +3238,56 @@ describe("desktop components", () => {
 
     expect(html).toContain("Update downloaded");
     expect(html).toContain("1 update downloaded");
-    expect(html).toContain("Review update");
+    expect(html).toMatch(/<h2[^>]*>Sample Port<\/h2>[\s\S]*?Ready to play/u);
+    expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
     expect(html).not.toContain("Staged updates");
   });
+
+  it.each([
+    {
+      readiness: { launchable: true, blockers: [], pending_setup: false, source: "current" },
+      label: "Ready to play",
+      action: "View details",
+    },
+    {
+      readiness: {
+        launchable: false,
+        blockers: ["missing_runtime"],
+        pending_setup: false,
+        source: "current",
+      },
+      label: "Runtime required",
+      action: "Finish setup",
+    },
+    { readiness: null, label: "Readiness unavailable", action: "Review game" },
+  ] satisfies { readiness: PortStatus["readiness"]; label: string; action: string }[])(
+    "announces downloaded update attention beside $label on Catalog cards",
+    ({ readiness, label, action }) => {
+      const install = installRecord();
+      const status: PortStatus = {
+        ...portStatus(),
+        port_id: port.id,
+        active: install,
+        staged: { ...install, id: "2", version: "2.0", staged: true },
+        readiness,
+      };
+      const html = renderToStaticMarkup(
+        <PortBrowser
+          view="catalog"
+          ports={[port]}
+          statuses={new Map([[port.id, status]])}
+          overview={{ installed: 1, ready: 0, needsSetup: 0, staged: 1 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={vi.fn()}
+          loading={false}
+        />,
+      );
+      expect(html).toContain(`aria-label="Sample Port. ${label}. Update downloaded. ${action}."`);
+      expect(html).toContain("Update downloaded</span>");
+    },
+  );
 
   it("offers Continue only from a recorded successful launch", () => {
     const install = installRecord();

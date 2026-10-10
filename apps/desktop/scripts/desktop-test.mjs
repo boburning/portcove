@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mjs";
+import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mjs";
+import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mjs";
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -16,26 +19,36 @@ import {
   verifyNormalPackageEvidence,
 } from "./desktop-main-webview-boundary.mjs";
 import { OwnedNativeSession } from "./desktop-owned-native-session.mjs";
+import { observeStartupNetwork } from "./desktop-startup-network-diagnostic.mjs";
 import {
-  librarySwitchRecoverySelection,
   prepareLibrarySwitchRecoveryFixture,
+  librarySwitchRecoverySelection,
   librarySwitchRecoveryScenario,
 } from "./desktop-library-switch-recovery-test.mjs";
 import {
   bootstrapRecoveryEnvironment,
   bootstrapRecoverySelection,
-  bootstrapRecoveryScenario,
   preferencesRecoverySelection,
+  bootstrapRecoveryScenario,
   preparePreferencesRecoveryFixture,
   preferencesRecoveryScenario,
   prepareBootstrapRecoveryFixture,
 } from "./desktop-bootstrap-recovery-test.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
+import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mjs";
+import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
+import {
+  qualificationHistoryScenario,
+  captureHistorySession,
+  captureHistoryDriver,
+  historyDriverStillOwned,
+  waitHistorySessionExit,
+} from "./desktop-qualification-history-test.mjs";
 import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
 import {
@@ -122,143 +135,47 @@ const selection = resolveDesktopSelection({
   reloadCycles,
   defaultProfile: values["preparation-cli"] ? "full" : "smoke",
 });
-const bootstrapRecoverySession = bootstrapRecoverySelection(selection, process.platform);
-const librarySwitchRecoverySession = librarySwitchRecoverySelection(selection, process.platform);
-const preferencesRecoverySession = preferencesRecoverySelection(selection, process.platform);
+// Admission stays with the existing native owners; planning never grants it.
+bootstrapRecoverySelection(selection, process.platform);
+librarySwitchRecoverySelection(selection, process.platform);
+preferencesRecoverySelection(selection, process.platform);
+const executionPlan = planDesktopExecution(selection);
+const {
+  bootstrapRecoverySession,
+  librarySwitchRecoverySession,
+  preferencesRecoverySession,
+  historySession,
+  backupFocusSession,
+  hostInterruptionSession,
+  ordinaryCloseSession,
+  minimizedPreparationSession,
+  normalPackageSession,
+  identityBoundSession,
+  cleanupName,
+} = executionPlan.session;
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cli"])
   throw new Error("Selected fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
   throw new Error("--port must be 1024..65533");
-const inputs = await Promise.all(
-  ["app", "driver", "native-driver"].map((name) => fileIdentity(values[name])),
-);
-inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
-if (bootstrapRecoverySession || preferencesRecoverySession)
-  for (const name of [
-    "desktop-bootstrap-recovery-test.mjs",
-    "desktop-native-confirmation.mjs",
-    "native-confirmation.ps1",
-  ])
-    inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
-if (librarySwitchRecoverySession)
-  for (const name of [
-    "desktop-library-switch-recovery-test.mjs",
-    "desktop-bootstrap-recovery-test.mjs",
-    "desktop-native-confirmation.mjs",
-    "native-confirmation.ps1",
-  ])
-    inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
-inputs.push(
-  await fileIdentity(fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url))),
-);
-for (const name of [
-  "native-session.ps1",
-  "native-process-tree.ps1",
-  "native-startup-observation.ps1",
-  "desktop-startup-observation.mjs",
-  "desktop-owned-native-session.mjs",
-])
-  inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
-inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url))));
-inputs.push(
-  await fileIdentity(fileURLToPath(new URL("desktop-workspace-refresh-test.mjs", import.meta.url))),
-);
-inputs.push(
-  await fileIdentity(fileURLToPath(new URL("desktop-catalog-update-test.mjs", import.meta.url))),
-  await fileIdentity(fileURLToPath(new URL("desktop-default-cover-test.mjs", import.meta.url))),
-);
-if (selection.prerequisites.includes("owned-fixture")) {
-  if (selection.selected_scenarios.includes("native-artwork-catalog-correction"))
-    for (const name of [
-      "desktop-artwork-correction-test.mjs",
-      "testdata/catalog-artwork-red.jpg",
-      "testdata/catalog-artwork-blue.jpg",
-      "../../../scripts/sign-catalog.mjs",
-      "../../../crates/portcove-core/catalog/catalog.json",
-    ])
-      inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
+if (executionPlan.fixtures.owned) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
     if (!values[name] || !path.isAbsolute(values[name]))
       throw new Error(`--${name} requires an absolute path`);
-    inputs.push(await fileIdentity(values[name]));
   }
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-preparation-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-readiness-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-artwork-observations.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-preparation-recovery-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-backup-review-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-removal-review-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-steam-entry-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-source-removal-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-adoption-review-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-library-handoff-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-cli-handoff-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-review-controls.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-native-confirmation.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url))),
-  );
 }
-if (selection.prerequisites.includes("install-fixture")) {
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-install-fixture.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-install-test.mjs", import.meta.url))),
-  );
-}
-inputs.push(
-  await fileIdentity(
-    fileURLToPath(new URL("../../../scripts/desktop-scenarios.mjs", import.meta.url)),
+const inputs = await Promise.all(
+  executionPlan.receiptInputs.map((input) =>
+    fileIdentity(input.kind === "executable" ? values[input.name] : path.join(root, input.path)),
   ),
 );
-inputs.push(
-  await fileIdentity(
-    fileURLToPath(new URL("../../../scripts/native-session-lock.mjs", import.meta.url)),
-  ),
-);
+for (const name of [
+  "scripts/desktop-execution-plan.mjs",
+  "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+  "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
+])
+  inputs.push(await fileIdentity(path.join(root, name)));
 let runnerMetadata = {};
 if (values["run-metadata"]) {
   if (!path.isAbsolute(values["run-metadata"]))
@@ -287,46 +204,7 @@ let driver;
 let browser;
 let driverLog = "";
 let startupAttempt = 0;
-const backupFocusSession = selection.selected_scenarios.includes("native-backup-delete-focus");
-const hostInterruptionSession = selection.selected_scenarios.includes(
-  "native-host-interrupted-preparation",
-);
-const ordinaryCloseSession = selection.selected_scenarios.includes(
-  "native-closed-preparation-recovery",
-);
-const minimizedPreparationSession = selection.selected_scenarios.includes(
-  "native-minimized-preparation-continuity",
-);
-const normalPackageSession = selection.selected_scenarios.includes(
-  "native-normal-package-webview-boundary",
-);
-const identityBoundSession =
-  selection.selected_scenarios.includes("native-external-runtime-review") ||
-  backupFocusSession ||
-  hostInterruptionSession ||
-  ordinaryCloseSession ||
-  minimizedPreparationSession ||
-  normalPackageSession ||
-  preferencesRecoverySession ||
-  bootstrapRecoverySession ||
-  librarySwitchRecoverySession;
-const cleanupName = selection.selected_scenarios.includes("native-external-runtime-review")
-  ? "external-runtime-review"
-  : preferencesRecoverySession
-    ? "startup-preferences-recovery"
-    : librarySwitchRecoverySession
-      ? "library-switch-recovery"
-      : bootstrapRecoverySession
-        ? "startup-library-recovery"
-        : normalPackageSession
-          ? "normal-package-boundary"
-          : ordinaryCloseSession
-            ? "ordinary-close-preparation"
-            : hostInterruptionSession
-              ? "host-interruption"
-              : minimizedPreparationSession
-                ? "minimized-preparation"
-                : "backup-focus";
+let historyInventory;
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -371,12 +249,16 @@ const nativeLock = await acquireNativeSessionLock({
   scenarios: selection.selected_scenarios,
 });
 const harnessStarted = new Date();
-function stopDriver() {
+async function stopDriver() {
   if (identityBoundSession) {
     stopBackupFocusDriver();
     return;
   }
   if (!driver?.pid || driver.exitCode !== null) return;
+  if (historySession) {
+    assert.ok(historyInventory, "History cleanup cannot signal without captured driver identity");
+    if (!(await historyDriverStillOwned(historyInventory))) return;
+  }
   if (process.platform === "win32") {
     spawnCommand("taskkill.exe", ["/PID", String(driver.pid), "/T", "/F"], {
       windowsHide: true,
@@ -762,9 +644,9 @@ async function refreshSettings() {
 
 // Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
-const deadline = setTimeout(() => {
+const deadline = setTimeout(async () => {
   try {
-    stopDriver();
+    await stopDriver();
   } catch (error) {
     checks.push({
       scenario: "native-backup-watchdog-cleanup",
@@ -1006,6 +888,7 @@ async function scenario(name, action) {
     recordScenario(target, name, "failed", { message: error.message });
     await captureScenarioDiagnostics(name, target.setup);
     process.exitCode = 1;
+    if (isUntrustworthyProbeError(error)) throw error;
   }
   if (!target.setup) await captureScenarioScreenshot(name);
 }
@@ -1169,6 +1052,7 @@ async function interruptApplication(name, preparationExecutable, assertStillPrep
   driver = undefined;
   await startDriver();
   await connect();
+
   observation.reconnected_at = new Date().toISOString();
   const evidence = path.join(output, `${name}-restart.json`);
   await writeFile(evidence, JSON.stringify(observation, null, 2), { flag: "wx" });
@@ -1336,6 +1220,7 @@ async function startDriver(childEnvironment = {}) {
       driverLog = (driverLog + chunk).slice(-1024 * 1024);
     });
   await captureSelectedDriverLaunch(launchStarted);
+  if (historySession) historyInventory = await captureHistoryDriver(driver.pid, values.driver);
   for (let attempt = 0; attempt < 40; attempt++) {
     if (spawnError) throw spawnError;
     if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
@@ -1516,7 +1401,25 @@ try {
     );
   }
   if (selection.prerequisites.includes("install-fixture")) {
-    installFixture = await createInstallFixture({ root, output });
+    installFixture = await createInstallFixture({
+      root,
+      output,
+      revision,
+      sourceJourney: executionPlan.fixtures.sourceJourney,
+      completionJourney: executionPlan.fixtures.completionJourney,
+      holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
+      preparationTool: values["preparation-tool"],
+    });
+    if (installFixture.sourceJourney) {
+      for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
+        inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
+      installFixture.sourceJourney.root = seedSelectedSetup({
+        cli: values["preparation-cli"],
+        library,
+        output,
+        fixture: installFixture,
+      });
+    }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     inputs.push(await fileIdentity(installFixture.catalogPath));
   }
@@ -1549,6 +1452,12 @@ try {
   await requireUnusedPort(port + 1);
   await startDriver();
   await connect();
+  if (historySession) {
+    historyInventory = await captureHistorySession(driver.pid, values.driver, values.app);
+    const record = path.join(output, "qualification-history-process-identities.json");
+    await writeFile(record, JSON.stringify(historyInventory, null, 2), { flag: "wx" });
+    artifacts.push(record);
+  }
   await scenario("native-external-runtime-review", async () => {
     const pickerContext = {
       application: values.app,
@@ -1736,6 +1645,26 @@ try {
     assert.equal(failed.ok, false);
     assert.ok(failed.error.code);
     assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
+  });
+  await scenario("native-startup-network-diagnostic", async () => {
+    inputs.push(
+      await fileIdentity(
+        fileURLToPath(new URL("./desktop-startup-network-diagnostic.mjs", import.meta.url)),
+      ),
+    );
+    const observation = await observeStartupNetwork({
+      invoke,
+      readAlerts: () =>
+        browser.executeScript(() => document.querySelectorAll(".error-banner").length),
+    });
+    const report = path.join(output, "startup-network-diagnostic.json");
+    await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
+    artifacts.push(report);
+    assert.equal(
+      observation.completed,
+      true,
+      "Current diagnostic coverage is incomplete; inspect its phase",
+    );
   });
   await scenario("native-library-selection-review", async () => {
     const before = await invoke("get_bootstrap_status");
@@ -2851,41 +2780,52 @@ try {
     cli: values["preparation-cli"],
     tool: values["preparation-tool"],
   });
-  await installScenarios({
+  await qualificationHistoryScenario({
     browser,
     invoke,
     scenario,
-    library,
     output,
     artifacts,
-    inputs,
-    fixture: installFixture,
-    restartApplication,
+    captureScreenshot: captureScenarioScreenshot,
   });
-  for (const gap of selection.known_gaps)
-    checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason });
-  if (selection.prerequisites.includes("owned-fixture")) {
-    await preparationScenarios({
-      browser,
-      invoke,
-      scenario,
-      library,
-      output,
-      artifacts,
-      confirmNative: nativeConfirmation({
-        application: values.app,
-        getDriverPid: () => driver.pid,
-        output,
-        artifacts,
-      }),
-      restartApplication,
-      cli: values["preparation-cli"],
-      interruptApplication,
-      closeApplication,
-      captureLivePreparation,
-      tool: values["preparation-tool"],
-    });
-  }
+  await runOwnedFixtureJourneys(
+    {
+      plan: executionPlan,
+      runtime: {
+        context: () => ({
+          browser,
+          invoke,
+          scenario,
+          library,
+          output,
+          artifacts,
+          inputs,
+          installFixture,
+          restartApplication,
+          cli: values["preparation-cli"],
+          tool: values["preparation-tool"],
+          interruptApplication,
+          closeApplication,
+          captureLivePreparation,
+        }),
+        confirmNative: () =>
+          nativeConfirmation({
+            application: values.app,
+            getDriverPid: () => driver.pid,
+            output,
+            artifacts,
+          }),
+        recordKnownGap: (gap) =>
+          checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason }),
+      },
+    },
+    {
+      install: installScenarios,
+      selectedSetup: selectedSetupScenario,
+      selectedSetupCompletion: selectedSetupCompletionScenario,
+      preparation: preparationScenarios,
+    },
+  );
   if (selection.selected_scenarios.includes("native-repeated-library-reload"))
     await reloadScenario({
       browser,
@@ -2920,7 +2860,7 @@ try {
             quitError = error;
           });
         browser = undefined;
-        stopDriver();
+        await stopDriver();
         ownedSession.requireQuiescence();
         const report = path.join(output, `${cleanupName}-cleanup.json`);
         await writeFile(
@@ -2950,9 +2890,52 @@ try {
         process.exitCode = 1;
         // No PID-only fallback when identity or positive exit could not be proved.
       }
+    } else if (historySession) {
+      let quitError;
+      try {
+        assert.ok(historyInventory, "History requires captured identities before interaction");
+        const finalInventory = (await historyDriverStillOwned(historyInventory))
+          ? await captureHistorySession(driver.pid, values.driver, values.app, "cleanup")
+          : historyInventory;
+        assert.equal(finalInventory.driver.start_ticks, historyInventory.driver.start_ticks);
+        const identities = new Map(
+          [...historyInventory.processes, ...finalInventory.processes].map((entry) => [
+            `${entry.pid}:${entry.start_ticks}`,
+            entry,
+          ]),
+        );
+        historyInventory.processes = [...identities.values()];
+        if (browser)
+          await browser.quit().catch((error) => {
+            quitError = error;
+          });
+        browser = undefined;
+        await stopDriver();
+        const exited = await waitHistorySessionExit(historyInventory);
+        const report = path.join(output, "qualification-history-cleanup.json");
+        await writeFile(
+          report,
+          JSON.stringify({ ...exited, session_quit_error: quitError?.message ?? null }, null, 2),
+          { flag: "wx" },
+        );
+        artifacts.push(report);
+        assert.equal(
+          quitError,
+          undefined,
+          "History session deletion failed; preserve its cleanup receipt",
+        );
+      } catch (error) {
+        checks.push({
+          scenario: "native-history-owned-cleanup",
+          outcome: "failed",
+          message: error.message,
+        });
+        process.exitCode = 1;
+        // No PID-only fallback after missing or changed identity.
+      }
     } else {
       if (browser) await browser.quit().catch(() => {});
-      stopDriver();
+      await stopDriver();
     }
     clearTimeout(deadline);
     try {

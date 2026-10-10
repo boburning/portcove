@@ -712,6 +712,60 @@ async fn runtime_checksum_preserves_the_active_install() {
 }
 
 #[tokio::test]
+async fn package_checksum_refusal_preserves_active_install_and_user_data() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("disposable library")).unwrap();
+    let fixture = Fixture::new(b"runtime", false);
+    let installed = fixture.install(&library, true).await;
+    let save = library.user_dir(PORT).join("existing save");
+    fs::create_dir_all(save.parent().unwrap()).unwrap();
+    fs::write(&save, b"preserve these bytes").unwrap();
+    let service = fixture.service(library.clone());
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::Install,
+            ActivityTargetKind::Port,
+            Some(PORT),
+        )
+        .unwrap();
+    let mut request = fixture.request(&library, true);
+    request.release.version = "invalid-checksum-candidate".into();
+    request.release.asset.sha256 = "0".repeat(64);
+    let result = Installer::new(library.clone())
+        .unwrap()
+        .install(request, &operation, |_| {})
+        .await;
+    let error = service.finish_activity(activity, result).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Verification);
+
+    let reopened = fixture.service(Library::open(library.root()).unwrap());
+    assert_eq!(
+        reopened.status(PORT).unwrap().active.unwrap().id,
+        installed.id
+    );
+    assert_eq!(reopened.library().all_installs().unwrap().len(), 1);
+    assert_eq!(fs::read(&save).unwrap(), b"preserve these bytes");
+    assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        library.activities(1).unwrap()[0].status,
+        ActivityStatus::Failed
+    );
+    assert!(
+        Installer::new(library)
+            .unwrap()
+            .verify(&installed)
+            .unwrap()
+            .valid
+    );
+}
+
+#[tokio::test]
 async fn runtime_collision_preserves_the_active_install() {
     assert_runtime_failure_preserves_install("collision").await;
 }

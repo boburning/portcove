@@ -4,11 +4,12 @@ use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
     CatalogOrigin, CatalogStatus, DoctorReport, GameFileRoot, GameFileScanSnapshot,
     GithubAuthSource, GithubAuthStatus, HostToolProbeResult, HostToolSource, HostToolState,
-    HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker, OutputDestinationAvailability,
-    OutputDestinationOwnership, OutputDestinationPreview, OutputLocationSource,
-    OutputRelocationPlan, Platform, PortDefinition, PortOutputLocation, PortPaths, PortStatus,
-    RepairItemKind, SourceClassification, SourceContractResult, SourceInspectionReport,
-    SourceRecord, SourceRequirementRole, StorageSummary, SupportTier,
+    HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker, LibraryContentKind,
+    LibraryMovePlan, LibraryMoveResult, OutputDestinationAvailability, OutputDestinationOwnership,
+    OutputDestinationPreview, OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition,
+    PortOutputLocation, PortPaths, PortStatus, RepairItemKind, SourceClassification,
+    SourceContractResult, SourceInspectionReport, SourceRecord, SourceRequirementRole,
+    StorageSummary, SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -29,6 +30,80 @@ pub(crate) fn document<T: Serialize>(data: &T) -> serde_json::Result<String> {
     let mut output = String::new();
     render_value(&serde_json::to_value(data)?, 0, &mut output);
     Ok(output.trim_end().to_owned())
+}
+
+pub(crate) fn library_move_plan(plan: &LibraryMovePlan) -> String {
+    let content = plan
+        .content
+        .iter()
+        .map(|tree| {
+            let kind = match tree.kind {
+                LibraryContentKind::ApplicationVersions => "Application versions",
+                LibraryContentKind::UserData => "Saves and settings",
+                LibraryContentKind::SourceInbox => "Imported game files",
+                LibraryContentKind::Backups => "Backups",
+                LibraryContentKind::Toolchains => "Managed tools",
+                LibraryContentKind::LocalArtwork => "Local artwork",
+            };
+            format!(
+                "  {kind}: {} {}, {} {}, {}",
+                tree.copy.files.len(),
+                if tree.copy.files.len() == 1 {
+                    "file"
+                } else {
+                    "files"
+                },
+                tree.copy.directories.len(),
+                if tree.copy.directories.len() == 1 {
+                    "folder"
+                } else {
+                    "folders"
+                },
+                format_bytes(tree.copy.total_bytes)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "Library move review\nOriginal library: {}\nNew destination: {}\nContent to copy:\n{}\nWorking space required: {}\nAvailable space: {}\nOriginal retained as a recovery copy: {}\nOriginal game-file references stay at their existing paths.\nReview only; no move has been applied.\nReview SHA-256: {}\nNext step: Close other Portcove clients, then repeat this move with --apply --expected-plan {}.",
+        clean(&plan.source_root.display().to_string()),
+        clean(&plan.destination_root.display().to_string()),
+        if content.is_empty() {
+            "  No managed content files."
+        } else {
+            &content
+        },
+        format_bytes(plan.required_bytes),
+        format_bytes(plan.available_bytes),
+        if plan.source_will_be_retained {
+            "Yes"
+        } else {
+            "No"
+        },
+        clean(&plan.plan_sha256),
+        clean(&plan.plan_sha256),
+    )
+}
+
+pub(crate) fn library_move_result(result: &LibraryMoveResult) -> String {
+    let outcome = if result.completed {
+        "Library move completed"
+    } else {
+        "Library move not completed"
+    };
+    let next = if result.completed {
+        "Use the active library shown above for future commands."
+    } else {
+        "Continue with the active original library. Any copied destination files remain in place; choose a new destination for another move."
+    };
+    format!(
+        "{outcome}\nTransfer: {}\nOriginal library: {}\nDestination: {}\nActive library: {}\nOriginal retained: {}\nNext step: {next}",
+        clean(&result.transfer_id),
+        clean(&result.source_root.display().to_string()),
+        clean(&result.destination_root.display().to_string()),
+        clean(&result.active_root.display().to_string()),
+        if result.source_retained { "Yes" } else { "No" },
+    )
 }
 
 pub(crate) fn activity_diagnostic(captures: &[portcove_core::ActivityDiagnostic]) -> String {
@@ -634,6 +709,25 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
         ));
     } else {
         output.push_str("\nRecorded scan limits: not recorded.");
+    }
+    if let Some(coverage) = &snapshot.coverage {
+        output.push_str(&format!(
+            "\nScan batches: {}; this batch examined {} entries, re-listed {} entries, and made {} metadata checks.\nPrior-batch file-set members rehashed: {}.\nPending directories: {}. Remaining entries: {}.",
+            coverage.batches, coverage.batch_entries_examined, coverage.entries_relisted,
+            coverage.metadata_checks, coverage.prior_member_rechecks, coverage.pending_directories,
+            coverage.remaining_entries.map_or_else(|| "unknown".into(), |count| count.to_string()),
+        ));
+        output.push_str(if coverage.restart_required {
+            "\nContinuation was refused. Repeat source roots scan to start fresh."
+        } else if coverage.can_resume {
+            "\nRepeat source roots scan with the same limits to resume the saved checkpoint."
+        } else if coverage.frontier_exhausted {
+            "\nRecorded directory frontier exhausted; limits and issues may still leave coverage incomplete."
+        } else {
+            "\nScan stopped at a terminal safety limit; a new scan starts fresh."
+        });
+    } else {
+        output.push_str("\nContinuation coverage: not recorded; a new scan starts fresh.");
     }
     if snapshot.report.limits_reached.is_empty() {
         output.push_str("\nNo recorded scan limits reached.");
@@ -1834,6 +1928,62 @@ fn optional_path(path: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn library_move_review_has_scoped_counts_and_full_hash() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("original library");
+        let library = portcove_core::Library::open(&root).unwrap();
+        let service = portcove_core::PortcoveService::new_read_only(library).unwrap();
+        let mut plan = service
+            .plan_library_move(&temporary.path().join("new library"))
+            .unwrap();
+        plan.content.clear();
+        plan.plan_sha256 = "a".repeat(64);
+        assert!(super::library_move_plan(&plan).contains("No managed content files."));
+        plan.content.push(portcove_core::LibraryTreePlan {
+            kind: portcove_core::LibraryContentKind::UserData,
+            relative_path: "user".into(),
+            copy: portcove_core::AdoptionCopyPlan {
+                directories: vec!["settings".into()],
+                files: vec![portcove_core::AdoptionCopyFile {
+                    relative_path: "settings/preferences.json".into(),
+                    size: 1024,
+                    sha256: "b".repeat(64),
+                }],
+                skipped_entries: vec![],
+                total_bytes: 1024,
+            },
+        });
+        let text = super::library_move_plan(&plan);
+        assert!(text.contains("Saves and settings: 1 file, 1 folder, 1.0 KiB"));
+        assert!(text.contains(&format!("Review SHA-256: {}", "a".repeat(64))));
+        assert!(text.contains(&format!("--apply --expected-plan {}", "a".repeat(64))));
+        assert!(!text.contains("preferences.json"));
+    }
+
+    #[test]
+    fn library_move_result_distinguishes_aborted_and_completed_authority() {
+        let mut result = portcove_core::LibraryMoveResult {
+            transfer_id: "transfer-id".into(),
+            source_root: "original library".into(),
+            destination_root: "copied library".into(),
+            active_root: "original library".into(),
+            source_retained: true,
+            completed: false,
+        };
+        let aborted = super::library_move_result(&result);
+        assert!(aborted.starts_with("Library move not completed\n"));
+        assert!(aborted.contains("Active library: original library"));
+        assert!(aborted.contains("Any copied destination files remain in place"));
+        assert!(aborted.contains("choose a new destination"));
+        result.completed = true;
+        result.active_root = result.destination_root.clone();
+        let completed = super::library_move_result(&result);
+        assert!(completed.starts_with("Library move completed\n"));
+        assert!(completed.contains("Active library: copied library"));
+        assert!(!completed.contains("choose a new destination"));
+    }
+
     fn discovery_report() -> portcove_core::SourceDiscoveryReport {
         portcove_core::SourceDiscoveryReport {
             searched_roots: vec!["owned-search-folder".into()],
@@ -1999,6 +2149,8 @@ mod tests {
             },
             completed_at: 2,
             freshness: GameFileScanFreshness::InputsMatch,
+            coverage: None,
+            continuation: None,
         }
     }
 
@@ -2076,6 +2228,39 @@ mod tests {
         let output = super::game_file_scan_snapshot(&Some(legacy));
         assert!(output.contains("Recorded scan limits: not recorded."));
         assert!(!output.contains("Recorded scan limits: entries="));
+    }
+
+    #[test]
+    fn saved_scan_readback_distinguishes_resume_restart_and_exhausted_frontier() {
+        let mut snapshot = scan_snapshot_fixture();
+        snapshot.coverage = Some(portcove_core::GameFileScanCoverage {
+            batches: 2,
+            batch_entries_examined: 1,
+            entries_relisted: 3,
+            metadata_checks: 8,
+            prior_member_rechecks: 1,
+            pending_directories: 2,
+            can_resume: true,
+            ..Default::default()
+        });
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Scan batches: 2; this batch examined 1 entries"));
+        assert!(output.contains("Remaining entries: unknown"));
+        assert!(output.contains("same limits to resume"));
+        let coverage = snapshot.coverage.as_mut().unwrap();
+        coverage.can_resume = false;
+        coverage.restart_required = true;
+        snapshot.freshness = portcove_core::GameFileScanFreshness::InputsChanged;
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Continuation was refused"));
+        assert!(!output.contains("same limits to resume"));
+        let coverage = snapshot.coverage.as_mut().unwrap();
+        coverage.restart_required = false;
+        coverage.frontier_exhausted = true;
+        coverage.remaining_entries = Some(0);
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Remaining entries: 0"));
+        assert!(output.contains("issues may still leave coverage incomplete"));
     }
 
     #[test]

@@ -43,13 +43,15 @@ function ActivityDiagnosticSession({
     presentation?: FailureDisplay;
     cancelled: boolean;
   }>();
-  const [copied, setCopied] = useState(false);
+  const [copyOutcome, setCopyOutcome] = useState<"idle" | "copied" | "failed">("idle");
+  const copyRequest = useRef(0);
   const request = useRef(0);
   const reading = useRef(false);
   const readRequested = useRef(false);
   useLayoutEffect(() => {
     return () => {
       request.current += 1;
+      copyRequest.current += 1;
     };
   }, []);
   const load = async () => {
@@ -59,10 +61,15 @@ function ActivityDiagnosticSession({
     const current = ++request.current;
     setPending(true);
     setFailure(undefined);
-    setCopied(false);
+    copyRequest.current += 1;
+    setCopyOutcome("idle");
     try {
       const value = await desktopApi.activityDiagnostic(activityId, generation);
-      if (request.current === current) setCapture(value);
+      if (request.current === current) {
+        copyRequest.current += 1;
+        setCopyOutcome("idle");
+        setCapture(value);
+      }
     } catch (value) {
       if (request.current === current)
         setFailure({ presentation: failurePresentation(value), cancelled: isCancellation(value) });
@@ -73,6 +80,7 @@ function ActivityDiagnosticSession({
       }
     }
   };
+  const technical = capture ? JSON.stringify(capture, null, 2) : "";
   return (
     <details
       className="activity-diagnostic col-[2/-1] min-w-0 text-xs"
@@ -159,17 +167,18 @@ function ActivityDiagnosticSession({
             variant="outline"
             size="sm"
             onClick={() => {
-              const current = request.current;
-              void copyText(JSON.stringify(capture, null, 2))
+              const current = ++copyRequest.current;
+              setCopyOutcome("idle");
+              void copyText(technical)
                 .then(() => {
-                  if (request.current === current) setCopied(true);
+                  if (copyRequest.current === current) setCopyOutcome("copied");
                 })
                 .catch(() => {
-                  if (request.current === current) setCopied(false);
+                  if (copyRequest.current === current) setCopyOutcome("failed");
                 });
             }}
           >
-            {copied ? "Copied" : "Copy retained log"}
+            {copyOutcome === "copied" ? "Copied" : "Copy retained log"}
           </Button>
         )}
         <Button
@@ -184,6 +193,18 @@ function ActivityDiagnosticSession({
           {failure ? "Retry log read" : "Refresh captured log"}
         </Button>
       </div>
+      {copyOutcome === "copied" && <p role="status">Retained log copied.</p>}
+      {copyOutcome === "failed" && (
+        <>
+          <p role="alert">Clipboard unavailable. Select and copy the retained log below.</p>
+          <textarea
+            readOnly
+            className={diagnosticTextareaClass}
+            aria-label="Retained log for manual copy"
+            value={technical}
+          />
+        </>
+      )}
     </details>
   );
 }

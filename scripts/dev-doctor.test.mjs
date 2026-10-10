@@ -1,9 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, symlinkSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  collectProfileDoctor,
   probeTool,
   selectedPrerequisites,
   collectSelectedPrerequisites,
@@ -200,6 +209,61 @@ test("cached package-manager observations require exact identity and contained r
   assert.equal(existingPnpmDefinition("12.7.0", { COREPACK_HOME: directory }), null);
 });
 
+test("selected and profile observations refuse missing pnpm runtime acquisition and reuse warm runtime", async (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove pnpm runtime "));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const version = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ).packageManager.split("@")[1];
+  const installed = path.join(directory, "v1/pnpm", version);
+  mkdirSync(path.join(installed, "bin"), { recursive: true });
+  writeFileSync(
+    path.join(installed, ".corepack"),
+    JSON.stringify({
+      locator: { name: "pnpm", reference: version },
+      bin: { pnpm: "bin/pnpm.mjs" },
+    }),
+  );
+  const runtime = path.join(installed, "pnpm-native");
+  const acquisition = path.join(installed, "acquisition-attempt");
+  writeFileSync(
+    path.join(installed, "bin/pnpm.mjs"),
+    `import {existsSync,writeFileSync} from "node:fs";
+if (!existsSync(${JSON.stringify(runtime)})) {
+  if (process.env.COREPACK_ENABLE_NETWORK === "0") {
+    console.error("pnpm native runtime is missing; explicit setup required");
+    process.exit(1);
+  }
+  writeFileSync(${JSON.stringify(acquisition)}, "ordinary observation attempted acquisition");
+}
+console.log(${JSON.stringify(version)});
+`,
+  );
+  const environment = Object.freeze({
+    ...process.env,
+    COREPACK_HOME: directory,
+    COREPACK_ENABLE_NETWORK: "1",
+  });
+  const globalNetwork = process.env.COREPACK_ENABLE_NETWORK;
+  const options = { environment, frontendDependenciesAvailable: () => true, storage: {} };
+  for (const warm of [false, true]) {
+    if (warm) writeFileSync(runtime, "verified warm fixture");
+    const selected = await collectSelectedPrerequisites([{ id: "oxfmt" }], options);
+    const profile = await collectProfileDoctor("frontend", options);
+    for (const tools of [selected, profile.tools]) {
+      const pnpm = tools.find((tool) => tool.id === "pnpm");
+      assert.equal(pnpm.status, warm ? "ok" : "unavailable");
+      if (!warm) assert.match(pnpm.remediation, /pinned package-manager bootstrap/u);
+      assert.equal(tools.find((tool) => tool.id === "node").status, "ok");
+    }
+    assert.equal(profile.ok, warm);
+    assert.equal(existsSync(acquisition), false);
+    assert.equal(existsSync(runtime), warm);
+    assert.equal(environment.COREPACK_ENABLE_NETWORK, "1");
+    assert.equal(process.env.COREPACK_ENABLE_NETWORK, globalNetwork);
+  }
+});
+
 test("Aqua observations use an existing unique payload and reject ambiguous or missing caches", (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-cached-aqua-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
@@ -279,6 +343,104 @@ test("stale npm fixture tools cannot approve their own installed version", (t) =
   );
   assert.equal(existingNpmDefinition("npm-oxfmt", directory, "oxfmt", "oxfmt"), null);
 });
+test("tsgolint observes installed metadata only after successful help startup", (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-tsgolint-prerequisite-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  writeFileSync(
+    path.join(directory, "package.json"),
+    JSON.stringify({ devDependencies: { "oxlint-tsgolint": "7.0.2003" } }),
+  );
+  const packageRoot = path.join(directory, "node_modules/oxlint-tsgolint");
+  mkdirSync(packageRoot, { recursive: true });
+  const executable = path.join(packageRoot, "cli.cjs");
+  writeFileSync(executable, "throw new Error('fixture must not execute');");
+  const marker = path.join(packageRoot, "package.json");
+  const metadata = { name: "oxlint-tsgolint", version: "7.0.2003", bin: { tsgolint: "cli.cjs" } };
+  const writeMetadata = (value) => writeFileSync(marker, JSON.stringify(value));
+  const readDefinition = () =>
+    existingNpmDefinition("npm-oxlint-tsgolint", directory, "oxlint-tsgolint", "tsgolint");
+  writeMetadata(metadata);
+  const definition = readDefinition();
+  assert.deepEqual(definition.command, [process.execPath, executable, "--help"]);
+  const calls = [];
+  const result = probeTool(definition, (command, args) => {
+    calls.push([command, args]);
+    return { status: 0, stderr: "Usage: tsgolint; incidental 1.2.3 SECRET" };
+  });
+  assert.deepEqual(calls, [[process.execPath, [executable, "--help"]]]);
+  assert.equal(result.status, "ok");
+  assert.equal(result.observed, "7.0.2003");
+  assert.equal(result.expected, "7.0.2003");
+  assert.equal(result.version_source, "installed-package");
+  assert.ok(!JSON.stringify(result).includes("SECRET"));
+
+  writeMetadata({ ...metadata, version: "7.0.2002" });
+  const stale = probeTool(readDefinition(), () => ({ status: 0, stdout: "7.0.2003" }));
+  assert.equal(stale.status, "mismatch");
+  assert.equal(stale.observed, "7.0.2002");
+  for (const failure of [
+    { status: 2, stderr: "SECRET startup failure" },
+    { status: null, error: { code: "ENOENT" } },
+    { status: null, error: { code: "ETIMEDOUT" } },
+  ]) {
+    const failed = probeTool(definition, () => failure);
+    assert.equal(failed.status, failure.error?.code === "ETIMEDOUT" ? "timeout" : "unavailable");
+    assert.ok(!JSON.stringify(failed).includes("SECRET"));
+  }
+  for (const code of ["ENOENT", "ETIMEDOUT"]) {
+    const failed = probeTool(definition, () => {
+      throw Object.assign(new Error("SECRET"), { code });
+    });
+    assert.equal(failed.status, code === "ETIMEDOUT" ? "timeout" : "unavailable");
+    assert.equal(failed.observed, null);
+    assert.ok(!JSON.stringify(failed).includes("SECRET"));
+  }
+  for (const invalid of [
+    { ...metadata, name: "wrong-package" },
+    { ...metadata, version: undefined },
+    { ...metadata, version: "invalid" },
+    { ...metadata, bin: { tsgolint: "missing.cjs" } },
+    { ...metadata, bin: { tsgolint: "." } },
+    { ...metadata, bin: { tsgolint: "../../outside.cjs" } },
+  ]) {
+    writeMetadata(invalid);
+    assert.equal(readDefinition(), null);
+  }
+  writeFileSync(marker, "malformed json");
+  assert.equal(readDefinition(), null);
+  rmSync(marker);
+  assert.equal(readDefinition(), null);
+  writeMetadata(metadata);
+  writeFileSync(
+    path.join(directory, "package.json"),
+    JSON.stringify({ devDependencies: { "oxlint-tsgolint": "^7.0.2003" } }),
+  );
+  assert.equal(readDefinition(), null);
+});
+
+test("tsgolint refuses a launcher symlink outside its installed package", (t) => {
+  if (process.platform === "win32") return t.skip("file symlinks require Windows privilege");
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-tsgolint-linked-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const packageRoot = path.join(directory, "node_modules/oxlint-tsgolint");
+  mkdirSync(packageRoot, { recursive: true });
+  writeFileSync(
+    path.join(directory, "package.json"),
+    JSON.stringify({ devDependencies: { "oxlint-tsgolint": "7.0.2003" } }),
+  );
+  writeFileSync(
+    path.join(packageRoot, "package.json"),
+    JSON.stringify({ name: "oxlint-tsgolint", version: "7.0.2003", bin: "cli.cjs" }),
+  );
+  const outside = path.join(directory, "outside.cjs");
+  writeFileSync(outside, "");
+  symlinkSync(outside, path.join(packageRoot, "cli.cjs"));
+  assert.equal(
+    existingNpmDefinition("npm-oxlint-tsgolint", directory, "oxlint-tsgolint", "tsgolint"),
+    null,
+  );
+});
+
 test("doctor distinguishes exact, mismatched, failed and absent tools without raw output", () => {
   const run = (stdout) => () => ({ status: 0, stdout });
   assert.equal(probeTool(definition, run("example 1.2.3")).status, "ok");
@@ -300,4 +462,139 @@ test("doctor reports a timeout rather than a version pass", () => {
     })).status,
     "timeout",
   );
+});
+
+test("Core profile observes only Rust capabilities; missing frontend cannot block it", async () => {
+  const commands = [];
+  const report = await collectProfileDoctor("core", {
+    storage: {},
+    pnpmDefinition: () => null,
+    aquaDefinition: () => null,
+    run(command, args, options) {
+      commands.push([command, args]);
+      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      assert.equal(options.env.COREPACK_ENABLE_NETWORK, "0");
+      if (command === "rustc") return { status: 0, stdout: "rustc 1.98.1" };
+      if (args[0] === "nextest") return { status: 0, stdout: "cargo-nextest 0.9.100" };
+      return { status: 0, stdout: "1.98.1" };
+    },
+  });
+  assert.equal(report.ok, true);
+  assert.ok(commands.every(([command]) => command === "rustc" || command === "cargo"));
+  assert.ok(!report.capabilities.includes("node"));
+  assert.ok(!report.capabilities.includes("frontend-dependencies"));
+});
+
+test("requested profile stays failed when one capability is missing; observations never provision", async () => {
+  const commands = [];
+  const report = await collectProfileDoctor("frontend", {
+    storage: {},
+    pnpmDefinition: () => null,
+    run(command, args, options) {
+      commands.push([command, args]);
+      assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      return { status: 0, stdout: "24.21.0" };
+    },
+  });
+  assert.equal(report.ok, false);
+  assert.equal(report.tools.find((tool) => tool.id === "pnpm").status, "unavailable");
+  assert.equal(report.tools.find((tool) => tool.id === "node").status, "ok");
+  assert.equal(commands.length, 1);
+});
+
+test("native Windows profile observes installed compiler paths while ordinary validation stays unverified", async () => {
+  const { developmentCapabilityPlan } = await import("./development-capabilities.mjs");
+  const { readFileSync } = await import("node:fs");
+  const plan = await developmentCapabilityPlan("native-desktop", { platform: "win32" });
+  const quality = JSON.parse(
+    readFileSync(new URL("../.github/quality-tools.json", import.meta.url), "utf8"),
+  );
+  const pssa = readFileSync(
+    new URL("../.config/powershell-resources.psd1", import.meta.url),
+    "utf8",
+  ).match(/version\s*=\s*'([^']+)'/u)[1];
+  const calls = [];
+  const options = {
+    platform: "win32",
+    storage: {},
+    readToolState: () => ({
+      desktop: {
+        tauri_driver_version: JSON.parse(
+          readFileSync(new URL("../.config/tool-bootstrap.json", import.meta.url), "utf8"),
+        ).desktop.tauri_driver,
+        webview2_version: "100.0.0.1",
+      },
+    }),
+    frontendDependenciesAvailable: () => true,
+    desktopDrivers: () => ({
+      driver: "/verified/tauri-driver",
+      nativeDriver: "/verified/msedgedriver",
+    }),
+    pnpmDefinition: (version) => ({ id: "pnpm", version, command: ["cached-pnpm", "--version"] }),
+    aquaDefinition: (definition) => ({ ...definition, command: [definition.id, "--version"] }),
+    run(command, args) {
+      calls.push([command, args]);
+      if (command === "/verified/msedgedriver") return { status: 0, stdout: "100.0.0.1" };
+      const tool = quality.tools.find(
+        (tool) => JSON.stringify(tool.command) === JSON.stringify([command, ...args]),
+      );
+      const version =
+        tool?.version ??
+        (command === "rustc"
+          ? plan.pins.rust
+          : command === "cached-pnpm"
+            ? plan.pins.package_manager.split("@")[1]
+            : command === "aqua"
+              ? readFileSync(new URL("../.aqua-version", import.meta.url), "utf8")
+                  .trim()
+                  .replace(/^v/u, "")
+              : command === "pwsh" && args.join(" ").includes("Import-Module")
+                ? pssa
+                : command === "pwsh"
+                  ? "7.6.6"
+                  : plan.pins.node);
+      if (["ruff", "shellcheck", "actionlint"].includes(command)) {
+        const pin = readFileSync(new URL("../aqua.yaml", import.meta.url), "utf8")
+          .match(new RegExp(`(?:ruff|shellcheck|actionlint)@([^\\s]+)`, "g"))
+          ?.find((value) => value.startsWith(command + "@"));
+        return { status: 0, stdout: pin.split("@")[1].replace(/^v/u, "") };
+      }
+      return { status: 0, stdout: version };
+    },
+  };
+  const report = await collectProfileDoctor("native-desktop", options);
+  assert.equal(report.ok, true, JSON.stringify(report.tools));
+  assert.equal(report.tools.find((tool) => tool.id === "native-desktop-build").status, "ok");
+  assert.match(
+    report.tools.find((tool) => tool.id === "native-desktop-build").interpretation,
+    /presence only/,
+  );
+  assert.ok(
+    calls.some(
+      ([command, args]) =>
+        command === "pwsh" &&
+        args.join(" ").includes("Microsoft.VisualStudio.Component.VC.Tools.x86.x64"),
+    ),
+  );
+  const legacy = await collectSelectedPrerequisites(
+    [{ id: "rust-clippy:portcove-desktop" }],
+    options,
+  );
+  assert.equal(legacy.find((tool) => tool.id === "native-desktop-build").status, "unverified");
+});
+
+test("Linux native PATH help cannot approve unverified driver identity", async () => {
+  const commands = [];
+  const report = await collectProfileDoctor("native-desktop", {
+    platform: "linux",
+    storage: {},
+    run(command) {
+      commands.push(command);
+      return { status: 0, stdout: "24.21.0" };
+    },
+  });
+  for (const id of ["tauri-driver", "native-driver"])
+    assert.equal(report.tools.find((tool) => tool.id === id).status, "unverified");
+  assert.equal(report.ok, false);
+  assert.ok(!commands.includes("tauri-driver") && !commands.includes("WebKitWebDriver"));
 });

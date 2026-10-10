@@ -75,13 +75,10 @@ jobs:
       - name: Select the fail-closed CI plan
         id: plan
         env:
-          PORTCOVE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          # The independently authorized activation change itself is not prose-only,
-          # so it must receive exhaustive CI before this policy becomes trusted on main.
+          PORTCOVE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PORTCOVE_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PORTCOVE_PROSE_POLICY_ACTIVATED: "true"
-          # The routing foundation merged under exhaustive qualification. This
-          # policy change also qualifies itself because workflow paths escalate.
+          # Full qualification is explicit (nightly, manual, release and this cutover).
           PORTCOVE_FAST_VALIDATION_ACTIVATED: "true"
           PORTCOVE_FORCE_QUALIFICATION: ${{ inputs.force_qualification || false }}
         run: node scripts/select-ci-plan.mjs
@@ -160,22 +157,26 @@ jobs:
           node scripts/check-ci-prose.mjs
 
   fast_rust:
-    name: fast-rust (linux-x86_64)
+    name: fast-rust (windows-x86_64)
     needs: classify
     if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
-    runs-on: ubuntu-22.04
+    runs-on: windows-latest
+    env:
+      PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
       - uses: ./.github/actions/setup-rust
         with:
           test-fixtures: true
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - id: workspace-cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
           key: fast-rust-tests-${{ hashFiles('Cargo.toml') }}
-      - name: Install Linux desktop prerequisites
-        timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh
       - name: Read pinned test runner
         id: test-runner
         shell: pwsh
@@ -188,47 +189,34 @@ jobs:
         uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
         with:
           tool: ${{ steps.test-runner.outputs.spec }}
-      - name: Test the primary-host Rust workspace
-        run: |
-          node scripts/run-rust-tests.mjs --locked --workspace
-          cargo test --locked --workspace --doc
-
-  fast_platform:
-    name: fast-platform-native (${{ matrix.platform }})
-    needs: classify
-    if: needs.classify.outputs.mode == 'fast' && needs.classify.outputs.platform_matrix_json != '[]'
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.classify.outputs.platform_matrix_json) }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-rust
-        with:
-          test-fixtures: true
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          cache-on-failure: true
-          key: fast-platform-${{ matrix.platform }}-${{ hashFiles('Cargo.toml') }}
-      - name: Read pinned test runner
-        id: test-runner
+      - name: Record workspace cache observation
+        if: always()
+        continue-on-error: true
+        env:
+          PORTCOVE_CACHE_HIT: ${{ steps.workspace-cache.outputs.cache-hit }}
+        shell: pwsh
+        run: node scripts/ci-metrics.mjs cache rust-workspace "$env:PORTCOVE_CACHE_HIT"
+      - name: Exercise relevant bootstrap regressions on Windows
+        run: node scripts/ci-baseline.mjs bootstrap
+      - name: Compile workspace targets and test affected families
+        env:
+          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+        run: node scripts/run-rust-tests.mjs --guard-command node scripts/rust-test-impact.mjs --workspace-run
+      - name: Summarize diagnostic timings
+        if: always()
+        continue-on-error: true
         shell: pwsh
         run: |
-          $manifest = Get-Content .github/quality-tools.json -Raw | ConvertFrom-Json
-          $version = ($manifest.tools | Where-Object id -eq "cargo-nextest").version
-          if (-not $version) { throw "Missing cargo-nextest version" }
-          "spec=cargo-nextest@$version" >> $env:GITHUB_OUTPUT
-      - name: Install pinned test runner
-        uses: taiki-e/install-action@c3ec0de9ae7f1019cea21aa96aa0a895b9552063 # v2
+          node scripts/ci-metrics.mjs summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain diagnostic timings
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          tool: ${{ steps.test-runner.outputs.spec }}
-      - name: Install Linux desktop prerequisites
-        if: runner.os == 'Linux'
-        timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh
-      - name: Test the affected platform natively
-        run: cargo nextest run --locked --workspace
+          name: ci-timings-${{ github.job }}-${{ github.run_attempt }}
+          path: work/ci-metrics/*.json
+          if-no-files-found: warn
+          retention-days: 7
 
   fast_rust_quality:
     name: fast-rust-quality (linux-x86_64)
@@ -248,28 +236,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - uses: ./.github/actions/setup-rust
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
-        with:
-          cache-on-failure: true
-          key: fast-rust-quality-${{ hashFiles('Cargo.toml') }}
       - name: Check Rust formatting
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         run: cargo fmt --all -- --check
-      - name: Install Linux desktop prerequisites
-        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
-        timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh
-      - name: Lint the primary-host Rust workspace
-        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
-        run: cargo clippy --locked --workspace --all-targets -- -D warnings
-      - name: Check repository formatting and JavaScript lint
-        if: ${{ !contains(fromJSON(needs.classify.outputs.groups_json), 'frontend') }}
-        run: |
-          node scripts/run-oxfmt.mjs --check
-          pnpm --dir apps/desktop lint:oxlint
-      - name: Check validation-plan and result-gate contracts
-        run: node --test --test-timeout=30000 scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs
+      - name: Check repository formatting
+        run: pnpm --dir apps/desktop format:check
 
   fast_frontend:
     name: fast-frontend (linux-x86_64)
@@ -277,6 +248,8 @@ jobs:
     if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'frontend')
     runs-on: ubuntu-22.04
     env:
+      PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
       npm_config_audit: "false"
     defaults:
       run:
@@ -286,57 +259,91 @@ jobs:
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           package_json_file: package.json
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - id: dependency-cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: .
-      - run: pnpm format:check
-      - run: pnpm lint
-      - name: Fallow quality gate
-        run: node scripts/run-fallow.mjs
+      - name: Build and run related frontend unit tests
+        env:
+          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
         working-directory: .
-      - run: pnpm build
-      - run: pnpm test
-      - name: Check maintained native scenario consumer contracts
+        run: node scripts/ci-baseline.mjs frontend
+      - name: Record dependency cache observation
+        if: always()
+        continue-on-error: true
+        working-directory: .
+        env:
+          PORTCOVE_CACHE_HIT: ${{ steps.dependency-cache.outputs.cache-hit }}
+        shell: pwsh
+        run: node scripts/ci-metrics.mjs cache pnpm-store "$env:PORTCOVE_CACHE_HIT"
+      - name: Summarize diagnostic timings
+        working-directory: .
+        if: always()
+        continue-on-error: true
+        shell: pwsh
         run: |
-          node --test --test-timeout=30000 scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/development-evidence.test.mjs scripts/native-session-lock.test.mjs
-          node apps/desktop/scripts/desktop-preparation-test.mjs --context-preflight
-        working-directory: .
-      - name: Provision reviewed Chromium for browser composition
-        run: pnpm browser:bootstrap
-      - name: Test browser composition
-        run: pnpm test:browser
-      - name: Retain failed browser traces
-        if: failure()
+          node scripts/ci-metrics.mjs summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain diagnostic timings
+        if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: browser-traces-fast-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            work/browser-traces
-            apps/desktop/.vitest/attachments
-          retention-days: 7
+          name: ci-timings-${{ github.job }}-${{ github.run_attempt }}
+          path: work/ci-metrics/*.json
           if-no-files-found: warn
+          retention-days: 7
 
   fast_catalog:
     name: fast-catalog (linux-x86_64)
     needs: classify
     if: needs.classify.outputs.mode == 'fast' && contains(fromJSON(needs.classify.outputs.groups_json), 'catalog')
     runs-on: ubuntu-22.04
+    env:
+      PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
+      PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - id: dependency-cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
-      - name: Check catalog and repository contracts
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - uses: ./.github/actions/setup-rust
+      - run: pnpm install --frozen-lockfile
+      - name: Check relevant cheap repository contracts
+        env:
+          PORTCOVE_PLAN_JSON: ${{ needs.classify.outputs.plan_json }}
+        run: node scripts/ci-baseline.mjs contracts
+      - name: Record dependency cache observation
+        if: always()
+        continue-on-error: true
+        env:
+          PORTCOVE_CACHE_HIT: ${{ steps.dependency-cache.outputs.cache-hit }}
+        shell: pwsh
+        run: node scripts/ci-metrics.mjs cache pnpm-store "$env:PORTCOVE_CACHE_HIT"
+      - name: Summarize diagnostic timings
+        if: always()
+        continue-on-error: true
+        shell: pwsh
         run: |
-          node --test --test-timeout=30000 scripts/roadmap.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-release-metadata.test.mjs scripts/release-package-policy.test.mjs scripts/ci-workflow.test.mjs scripts/validation-plan.test.mjs scripts/qualification-coverage.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/generate-catalog.test.mjs scripts/migrate-catalog-schema2.test.mjs
-          node scripts/check-release-metadata.mjs
-          node scripts/check-retcomm-upstreams.mjs --offline
-          node scripts/qualification-coverage.mjs
-          node scripts/roadmap.mjs check
+          node scripts/ci-metrics.mjs summarize "$env:PORTCOVE_CI_METRICS_DIR" >> $env:GITHUB_STEP_SUMMARY
+      - name: Retain diagnostic timings
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-timings-${{ github.job }}-${{ github.run_attempt }}
+          path: work/ci-metrics/*.json
+          if-no-files-found: warn
+          retention-days: 7
 
   rust_tests:
     name: rust-test (${{ matrix.shard }})
@@ -472,13 +479,20 @@ jobs:
         shell: pwsh
         run: ./scripts/run-windows-qualification.ps1
       - name: Test development diagnostics and evidence
-        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
+        run: node scripts/dev-storage.mjs run -- node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
       - name: Lint PowerShell scripts
         shell: pwsh
         run: |
-          Install-PSResource -RequiredResourceFile .config/powershell-resources.psd1 -Scope CurrentUser -TrustRepository
+          $resources = Import-PowerShellDataFile -LiteralPath .config/powershell-resources.psd1
+          $requiredVersion = [string]$resources.PSScriptAnalyzer.version
+          if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object Version -EQ $requiredVersion)) {
+            Install-PSResource -RequiredResourceFile .config/powershell-resources.psd1 -Scope CurrentUser -TrustRepository
+          }
+          Import-Module -Name PSScriptAnalyzer -RequiredVersion $requiredVersion -Force
           node scripts/run-powershell-lint.mjs
+          if ($LASTEXITCODE -ne 0) { throw "PSScriptAnalyzer lint failed" }
           node scripts/lint-tools.integration.mjs psscriptanalyzer
+          if ($LASTEXITCODE -ne 0) { throw "PSScriptAnalyzer causal fixture failed" }
 
   native_rust:
     name: native-rust (${{ matrix.platform }}, ${{ matrix.partition }})
@@ -636,7 +650,6 @@ jobs:
         classify,
         prose_checks,
         fast_rust,
-        fast_platform,
         rust_tests,
         rust_workspace_tests,
         rust_clippy,
@@ -656,7 +669,7 @@ jobs:
           PORTCOVE_GROUP: rust
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_rust":"${{ needs.fast_rust.result }}"}'
-          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: "{}"
           PORTCOVE_QUALIFICATION_RESULTS: '{"rust_tests":"${{ needs.rust_tests.result }}","rust_workspace_tests":"${{ needs.rust_workspace_tests.result }}","rust_clippy":"${{ needs.rust_clippy.result }}","windows_storage":"${{ needs.windows_storage.result }}","native_rust":"${{ needs.native_rust.result }}","intel_build":"${{ needs.intel_build.result }}","intel_tests":"${{ needs.intel_tests.result }}","rust_docs":"${{ needs.rust_docs.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
@@ -743,7 +756,7 @@ jobs:
 
   rust-quality:
     if: always()
-    needs: [classify, provenance, prose_checks, fast_rust_quality, fast_platform, rust_quality_full]
+    needs: [classify, provenance, prose_checks, fast_rust_quality, rust_quality_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -755,7 +768,7 @@ jobs:
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_ALWAYS_RESULTS: '{"provenance":"${{ needs.provenance.result }}"}'
           PORTCOVE_FAST_RESULTS: '{"fast_rust_quality":"${{ needs.fast_rust_quality.result }}"}'
-          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: "{}"
           PORTCOVE_QUALIFICATION_RESULTS: '{"rust_quality_full":"${{ needs.rust_quality_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
@@ -789,6 +802,9 @@ jobs:
           tool: ${{ steps.quality-pins.outputs.just }}
       - run: pnpm install --frozen-lockfile
         working-directory: .
+      - name: Verify staged checks and hook installation
+        working-directory: .
+        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/precommit-check.test.mjs
       - name: Check repository formatting
         working-directory: .
         run: pnpm --dir apps/desktop format:check
@@ -808,7 +824,7 @@ jobs:
       - run: pnpm test
       - name: Check maintained native scenario consumer contracts
         run: |
-          node --test --test-timeout=30000 scripts/desktop-scenarios.test.mjs scripts/desktop-verify.test.mjs scripts/development-evidence.test.mjs scripts/native-session-lock.test.mjs
+          node --test --test-timeout=30000 scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-verify.test.mjs scripts/development-evidence.test.mjs scripts/native-session-lock.test.mjs
           node apps/desktop/scripts/desktop-preparation-test.mjs --context-preflight
         working-directory: .
       - name: Provision reviewed Chromium for browser composition
@@ -834,7 +850,7 @@ jobs:
 
   frontend:
     if: always()
-    needs: [classify, prose_checks, fast_frontend, fast_platform, frontend_full]
+    needs: [classify, prose_checks, fast_frontend, frontend_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -845,7 +861,7 @@ jobs:
           PORTCOVE_GROUP: frontend
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_frontend":"${{ needs.fast_frontend.result }}"}'
-          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: "{}"
           PORTCOVE_QUALIFICATION_RESULTS: '{"frontend_full":"${{ needs.frontend_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
@@ -859,10 +875,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/audit.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/qualification-coverage.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/generate-catalog.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/rust-test-impact.test.mjs scripts/qualification-coverage.test.mjs scripts/test-duration-reporter.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/generate-catalog.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/qualification-coverage.mjs
@@ -873,7 +890,7 @@ jobs:
 
   catalog:
     if: always()
-    needs: [classify, prose_checks, fast_catalog, fast_platform, catalog_full]
+    needs: [classify, prose_checks, fast_catalog, catalog_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -884,7 +901,7 @@ jobs:
           PORTCOVE_GROUP: catalog
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_catalog":"${{ needs.fast_catalog.result }}"}'
-          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: "{}"
           PORTCOVE_QUALIFICATION_RESULTS: '{"catalog_full":"${{ needs.catalog_full.result }}"}'
         run: node scripts/ci-result-gate.mjs
 
@@ -914,7 +931,7 @@ jobs:
 
   dependency-review:
     if: github.event_name == 'pull_request' && always()
-    needs: [classify, prose_checks, fast_dependency_review, fast_platform, dependency_review_full]
+    needs: [classify, prose_checks, fast_dependency_review, dependency_review_full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -925,6 +942,6 @@ jobs:
           PORTCOVE_GROUP: dependency-review
           PORTCOVE_PROSE_RESULT: ${{ needs.prose_checks.result }}
           PORTCOVE_FAST_RESULTS: '{"fast_dependency_review":"${{ needs.fast_dependency_review.result }}"}'
-          PORTCOVE_TARGETED_RESULTS: '{"fast_platform":"${{ needs.fast_platform.result }}"}'
+          PORTCOVE_TARGETED_RESULTS: "{}"
           PORTCOVE_QUALIFICATION_RESULTS: '{"dependency_review_full":"${{ needs.dependency_review_full.result }}"}'
         run: node scripts/ci-result-gate.mjs

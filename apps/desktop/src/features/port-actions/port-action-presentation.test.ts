@@ -21,6 +21,7 @@ it.each([undefined, { ...portStatus(), port_actions: [] }, portStatus()])(
 it.each([
   ["allowed", "available", false],
   ["not_offered", "not_installed", true],
+  ["not_offered", "route_not_offered", true],
   ["held", "missing_runtime", true],
   ["held", "invalid_installation", true],
 ] as const)("consumes retained rollback assessment %s/%s", (availability, reason, blocked) => {
@@ -30,12 +31,30 @@ it.each([
   expect(JSON.stringify(status)).toBe(before);
 });
 
+it("explains the current-catalog rollback route refusal", () => {
+  expect(
+    portActionPresentation(
+      withAssessment({
+        action: "rollback",
+        availability: "not_offered",
+        reason: "route_not_offered",
+      }),
+      "rollback",
+    ),
+  ).toEqual({
+    blocked: true,
+    reason:
+      "Restore previous version is unavailable because this port is no longer in the current catalog.",
+  });
+});
+
 it.each(
   [
     [{ action: "launch", availability: "allowed", reason: "available" }],
     [{ action: "rollback", availability: "allowed", reason: "missing_runtime" }],
     [{ action: "rollback", availability: "waiting", reason: "missing_runtime" }],
     [{ action: "rollback", availability: "held", reason: "missing_source" }],
+    [{ action: "rollback", availability: "held", reason: "route_not_offered" }],
     [{ action: "rollback", availability: "held", reason: "future_reason" }],
     [
       {
