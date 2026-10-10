@@ -89,6 +89,19 @@ export function preflight() {
       directory = path.posix.dirname(directory);
     }
   }
+  // Node's syntax goal for .js is selected by its nearest package manifest.
+  for (const target of files.filter(syntaxPath)) {
+    let directory = path.posix.dirname(target);
+    while (true) {
+      const file = directory === "." ? "package.json" : `${directory}/package.json`;
+      if (existsSync(path.join(root, file))) {
+        consumed.push(file);
+        break;
+      }
+      if (directory === ".") break;
+      directory = path.posix.dirname(directory);
+    }
+  }
   if (files.some(copyPath))
     consumed.push("apps/desktop/scripts/check-copy.mjs", "apps/desktop/package.json");
   const unstaged = nul(git(["diff", "--name-only", "-z", "--", ...consumed]));

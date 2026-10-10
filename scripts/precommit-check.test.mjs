@@ -189,6 +189,21 @@ test("unstaged checker/config inputs refuse before temporary changes", () => {
   }
 });
 
+test("unstaged nearest package manifest cannot change Node syntax goal", () => {
+  const cwd = fixture();
+  write(cwd, "apps/desktop/scripts/source.js", "export const value = 1;\n");
+  git(cwd, "add", "--", "apps/desktop/scripts/source.js");
+  const manifest = JSON.parse(readFileSync(path.join(cwd, "apps/desktop/package.json"), "utf8"));
+  manifest.type = "commonjs";
+  write(cwd, "apps/desktop/package.json", JSON.stringify(manifest, null, 2) + "\n");
+  const before = state(cwd);
+  const failed = check(cwd);
+  assert.notEqual(failed.status, 0);
+  assert.match(failed.stderr, /Stage or restore consumed.*apps\/desktop\/package.json/);
+  assert.doesNotMatch(failed.stdout, /Backing up|Hiding unstaged/);
+  assert.deepEqual(state(cwd), before);
+});
+
 test("formatter ignores and nested configuration cannot qualify different staged content", () => {
   for (const [filename, content, ignored] of [
     [".prettierignore", "bad.mjs\n", false],
