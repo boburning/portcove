@@ -1929,6 +1929,14 @@ pinMetadata.push({
     },
   ],
 });
+pinMetadata.push(
+  JSON.parse(
+    await readFile(
+      new URL("./fixtures/upstream-health-fade-to-black.json", import.meta.url),
+      "utf8",
+    ),
+  ),
+);
 const currentHealthCatalog = JSON.parse(
   await readFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
 );
@@ -1997,13 +2005,13 @@ test("reviewed exact metadata and original conditions remain degraded without gr
   });
   assert.equal(report.outcome, "complete");
   assert.equal(report.degradation, true);
-  assert.equal(report.coverage.repositories, 20);
-  assert.equal(report.coverage.attempted_repositories, 13);
-  assert.equal(report.coverage.reused_repositories, 7);
-  assert.equal(report.coverage.reachable_repositories, 7);
-  assert.equal(report.coverage.unknown_repositories, 13);
-  assert.equal(report.consumed.requests, 40);
-  assert.equal(calls.length, 40);
+  assert.equal(report.coverage.repositories, 22);
+  assert.equal(report.coverage.attempted_repositories, 14);
+  assert.equal(report.coverage.reused_repositories, 8);
+  assert.equal(report.coverage.reachable_repositories, 8);
+  assert.equal(report.coverage.unknown_repositories, 14);
+  assert.equal(report.consumed.requests, 44);
+  assert.equal(calls.length, 44);
   for (const call of calls) {
     assert.equal(call.options.redirect, "manual");
     if (call.url.startsWith("https://api.github.com/"))
@@ -2039,7 +2047,7 @@ test("reviewed exact metadata and original conditions remain degraded without gr
   assert.equal(original, JSON.stringify(catalog));
 });
 
-test("full catalog retains every location and pin check with seven fewer actual requests", async () => {
+test("full catalog retains every location and pin check with eight fewer actual requests", async () => {
   const calls = [];
   const inventory = await collectRepositoryHealth(currentHealthCatalog, {
     fetch: async () => {
@@ -2109,14 +2117,14 @@ test("full catalog retains every location and pin check with seven fewer actual 
     "complete",
     JSON.stringify(report.observations.filter((r) => !r.accounted_for)),
   );
-  assert.equal(report.coverage.monitored_ports, 88);
-  assert.equal(report.coverage.repositories, 101);
-  assert.equal(report.coverage.attempted_repositories, 94);
-  assert.equal(report.coverage.reused_repositories, 7);
-  assert.equal(report.consumed.requests, 121);
-  assert.equal(calls.length, 121);
+  assert.equal(report.coverage.monitored_ports, 89);
+  assert.equal(report.coverage.repositories, 103);
+  assert.equal(report.coverage.attempted_repositories, 95);
+  assert.equal(report.coverage.reused_repositories, 8);
+  assert.equal(report.consumed.requests, 125);
+  assert.equal(calls.length, 125);
   assert.equal(report.limits.requests, 128);
-  assert.equal(report.observations.filter((record) => record.pin_assessment).length, 9);
+  assert.equal(report.observations.filter((record) => record.pin_assessment).length, 10);
   for (const pin of reviewedAccounting.pins) {
     const prefix = `https://api.github.com/repos/${pin.repository}`;
     assert.equal(calls.filter((call) => call.url === prefix).length, 1);
@@ -2194,7 +2202,7 @@ test("repository reuse stays in one collection and failed or partial reads are n
     fetch: accountingFetch(calls),
   });
   assert.equal(fresh.outcome, "complete");
-  assert.equal(calls.length, 40);
+  assert.equal(calls.length, 44);
 });
 
 test("reused repository facts still fail pin and original-location identity checks", async () => {
