@@ -945,6 +945,7 @@ export function GameFileLibraries({
       />
       <SourceImportReview
         plan={plan}
+        profiles={profiles}
         busy={Boolean(busy)}
         onCancel={() => {
           focusAfterReview.current = true;
