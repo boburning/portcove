@@ -2389,7 +2389,7 @@ pub(crate) fn materialize_psx_chd(source: &Path, destination: &Path) -> Result<P
     )
 }
 
-fn materialize_psx_chd_with_tool(
+pub(crate) fn materialize_psx_chd_with_tool(
     source: &Path,
     destination: &Path,
     pinned_tool: Option<&Path>,

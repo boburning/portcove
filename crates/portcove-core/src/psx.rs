@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
     OperationResult, Platform, PortcoveError, Result, SourceRecord,
-    adapter::{hash_file, materialize_psx_chd},
+    adapter::hash_file,
     archive::{extract_archive, validate_download_progress, validate_download_size},
 };
 
@@ -541,10 +541,13 @@ fn prepare_install_inner(
     let python = toolchain_python(&preparation.toolchain_root)?;
     operation.checkpoint()?;
     let temporary = retained_source_workspace(root)?;
-    // This existing CHD helper exposes no quiescence observer. A later builder
-    // callback cannot erase its uncertainty, even on a contained platform.
-    *quiesced = false;
-    let cue = materialize_psx_chd(configuration.primary_source, &temporary)?;
+    let cue = materialize_managed_disc(
+        configuration.primary_source,
+        &temporary,
+        None,
+        operation,
+        quiesced,
+    )?;
     operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     let config_path = crate::path::unicode(&config, "managed build config")?;
@@ -1180,6 +1183,35 @@ fn retained_source_workspace(root: &Path) -> Result<PathBuf> {
         .prefix("psx-source-")
         .tempdir_in(root.parent().unwrap_or(root))?
         .keep())
+}
+
+fn materialize_managed_disc(
+    source: &Path,
+    destination: &Path,
+    pinned_tool: Option<&Path>,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+) -> Result<PathBuf> {
+    operation.checkpoint()?;
+    let previous_quiescence = *quiesced;
+    *quiesced = false;
+    let mut command_quiesced = false;
+    let result = crate::adapter::materialize_psx_chd_with_tool(
+        source,
+        destination,
+        pinned_tool,
+        &|| operation.checkpoint(),
+        crate::tool_process::ToolProcessObserver {
+            diagnostics: None,
+            quiesced: Some(&mut || {
+                command_quiesced = true;
+                Ok(())
+            }),
+        },
+    );
+    // A later successful command cannot erase an earlier uncertain owner.
+    *quiesced = previous_quiescence && command_quiesced;
+    result
 }
 
 fn run_cli(
@@ -2148,6 +2180,160 @@ mod tests {
             .filter_map(|entry| entry.ok())
             .any(|entry| entry.path().join("owned-panic-input").is_file());
         assert!(retained);
+    }
+
+    #[test]
+    fn managed_chd_materialization_preserves_prior_quiescence_and_nonzero_status() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("owned-disc.chd");
+        fs::write(&source, b"unchanged owned CHD fixture").unwrap();
+        let operation = OperationCoordinator::new("owned-chd", None);
+        for previous in [true, false] {
+            let destination = root.path().join(format!("success-{previous}"));
+            let mut quiesced = previous;
+            let cue = materialize_managed_disc(
+                &source,
+                &destination,
+                Some(&program),
+                &operation,
+                &mut quiesced,
+            )
+            .unwrap();
+            assert!(cue.is_file());
+            assert_eq!(quiesced, previous && cfg!(windows));
+        }
+        fs::write(source.with_extension("conversion-mode"), "failure").unwrap();
+        let destination = root.path().join("failed-output");
+        let mut quiesced = true;
+        let error = materialize_managed_disc(
+            &source,
+            &destination,
+            Some(&program),
+            &operation,
+            &mut quiesced,
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::PortcoveError::source("fixture").code);
+        assert_eq!(error.details["exit_code"], "29");
+        assert_eq!(quiesced, cfg!(windows));
+        assert!(
+            destination.join("disc.cue").is_file(),
+            "partial work remains retained"
+        );
+        assert_eq!(fs::read(source).unwrap(), b"unchanged owned CHD fixture");
+    }
+
+    #[test]
+    fn managed_chd_materialization_observes_active_cancellation_and_stops_descendants() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("owned-disc.chd");
+        fs::write(&source, b"unchanged owned CHD fixture").unwrap();
+        fs::write(source.with_extension("conversion-mode"), "wait").unwrap();
+        let destination = root.path().join("private-disc");
+        let service =
+            crate::PortcoveService::new(Library::open(root.path().join("library")).unwrap())
+                .unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Library,
+                None,
+            )
+            .unwrap();
+        let observer = crate::PortcoveService::new(service.library().clone()).unwrap();
+        let id = activity.id.clone();
+        let ready = source.with_extension("conversion-ready");
+        let private = destination.clone();
+        let started = Instant::now();
+        let request = thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(6);
+            while !ready.is_file() {
+                assert!(
+                    Instant::now() < deadline,
+                    "owned CHD helper did not reach waiting boundary"
+                );
+                thread::sleep(Duration::from_millis(10));
+            }
+            assert!(private.join("disc.cue").is_file());
+            assert!(private.join("disc1.bin").is_file());
+            eprintln!("owned CHD ready at {:?}", started.elapsed());
+            observer.request_cancellation(&id).unwrap();
+            eprintln!("owned cancellation acknowledged at {:?}", started.elapsed());
+            Instant::now()
+        });
+        let mut quiesced = true;
+        let result = materialize_managed_disc(
+            &source,
+            &destination,
+            Some(&program),
+            &operation,
+            &mut quiesced,
+        );
+        let returned = Instant::now();
+        let acknowledged = request.join().unwrap();
+        eprintln!(
+            "owned helper returned at {:?}",
+            returned.duration_since(started)
+        );
+        assert_eq!(
+            result.as_ref().unwrap_err().code,
+            crate::ErrorCode::Cancelled
+        );
+        // Bound stopping after the durable request is acknowledged, separately
+        // from the service's catalog/SQLite admission work before that ACK.
+        assert!(returned.saturating_duration_since(acknowledged) < Duration::from_secs(3));
+        assert_eq!(quiesced, cfg!(windows));
+        assert!(destination.join("disc.cue").is_file());
+        assert!(destination.join("disc1.bin").is_file());
+        assert_eq!(fs::read(&source).unwrap(), b"unchanged owned CHD fixture");
+        assert_eq!(
+            service.finish_activity(activity, result).unwrap_err().code,
+            crate::ErrorCode::Cancelled
+        );
+        // Positive owned-tree exit is checked by the supervisor tests above;
+        // these retained partial inputs must not receive additional writes.
+        thread::sleep(Duration::from_millis(1200));
+        assert!(!source.with_extension("orphan-output").exists());
+        assert!(
+            !source
+                .with_extension("conversion-unexpected-completion")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn managed_chd_materialization_pre_spawn_cancellation_preserves_prior_uncertainty() {
+        let root = tempfile::tempdir().unwrap();
+        let service =
+            crate::PortcoveService::new(Library::open(root.path().join("library")).unwrap())
+                .unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Library,
+                None,
+            )
+            .unwrap();
+        service.request_cancellation(&activity.id).unwrap();
+        let destination = root.path().join("must-not-create");
+        for previous in [true, false] {
+            let mut quiesced = previous;
+            let error = materialize_managed_disc(
+                &root.path().join("must-not-read.chd"),
+                &destination,
+                Some(Path::new("must-not-launch")),
+                &operation,
+                &mut quiesced,
+            )
+            .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Cancelled);
+            assert_eq!(quiesced, previous);
+            assert!(!destination.exists());
+        }
     }
 
     #[test]

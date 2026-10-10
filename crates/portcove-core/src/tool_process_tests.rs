@@ -314,6 +314,155 @@ fn setup_descendants_cannot_keep_writing_after_completion_or_cancellation() {
     }
 }
 
+#[cfg(windows)]
+#[test]
+fn windows_quiescence_callback_observes_descendant_handle_exit() {
+    use std::{
+        cell::RefCell,
+        os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle},
+    };
+    use windows_sys::Win32::{
+        Foundation::WAIT_OBJECT_0,
+        System::Threading::{OpenProcess, PROCESS_SYNCHRONIZE, WaitForSingleObject},
+    };
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    for cancel in [false, true] {
+        let working = tempfile::tempdir().unwrap();
+        let descendant = RefCell::new(None::<OwnedHandle>);
+        let mut confirmed = false;
+        let result = run_setup(
+            &program,
+            &[
+                "--setup-tree".into(),
+                working.path().join("orphan-output").display().to_string(),
+                if cancel {
+                    "observed-wait"
+                } else {
+                    "observed-exit"
+                }
+                .into(),
+            ],
+            &working.path().join("owned.iso"),
+            working.path(),
+            &Default::default(),
+            &|| {
+                let pid_file = working.path().join("descendant-pid");
+                if descendant.borrow().is_none() && pid_file.is_file() {
+                    let pid = fs::read_to_string(&pid_file).unwrap().parse().unwrap();
+                    let handle = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, pid) };
+                    assert!(
+                        !handle.is_null(),
+                        "capture the live owned descendant handle"
+                    );
+                    assert_ne!(unsafe { WaitForSingleObject(handle, 0) }, WAIT_OBJECT_0);
+                    *descendant.borrow_mut() =
+                        Some(unsafe { OwnedHandle::from_raw_handle(handle) });
+                    fs::write(
+                        working.path().join("descendant-observed"),
+                        b"handle captured",
+                    )
+                    .unwrap();
+                }
+                if cancel && descendant.borrow().is_some() {
+                    Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "owned cancellation",
+                    ))
+                } else {
+                    Ok(())
+                }
+            },
+            ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    let handles = descendant.borrow();
+                    let handle = handles
+                        .as_ref()
+                        .expect("descendant observed before parent exit");
+                    assert_eq!(
+                        unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) },
+                        WAIT_OBJECT_0,
+                        "positive descendant exit must precede cleanup eligibility"
+                    );
+                    confirmed = true;
+                    Ok(())
+                }),
+            },
+        );
+        assert!(confirmed);
+        if cancel {
+            assert_eq!(result.err().unwrap().code, crate::ErrorCode::Cancelled);
+        } else {
+            assert!(result.unwrap().status.success());
+        }
+        assert!(!working.path().join("orphan-output").exists());
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    let working = tempfile::tempdir().unwrap();
+    let mut confirmed = false;
+    let result = run_setup(
+        &program,
+        &["--setup-unobserved-child".into()],
+        &working.path().join("owned.iso"),
+        working.path(),
+        &Default::default(),
+        &|| {
+            if working.path().join("leader-ready").is_file() {
+                // The supervisor took its membership snapshot before this
+                // checkpoint. Complete one real child while that snapshot is
+                // paused, so its lifetime cannot be covered by a later handle.
+                fs::write(working.path().join("spawn-child"), b"spawn").unwrap();
+                let deadline = Instant::now() + Duration::from_secs(5);
+                while !working.path().join("child-finished").is_file() {
+                    assert!(Instant::now() < deadline, "owned child did not finish");
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+            }
+            Ok(())
+        },
+        ToolProcessObserver {
+            diagnostics: None,
+            quiesced: Some(&mut || {
+                confirmed = true;
+                Ok(())
+            }),
+        },
+    );
+    let error = result
+        .err()
+        .expect("unobserved lifetime must hold preparation");
+    assert_eq!(error.code, crate::ErrorCode::State);
+    assert!(
+        error
+            .message
+            .contains("process-tree exit could not be verified")
+    );
+    assert!(
+        !confirmed,
+        "successful leader exit cannot grant cleanup authority"
+    );
+    assert!(working.path().join("child-finished").is_file());
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_quiescence_refuses_invalid_job_observation() {
+    let group = ToolProcessGroup {
+        job: std::ptr::null_mut(),
+        members: Default::default(),
+        complete: std::cell::Cell::new(true),
+        termination_deadline: Default::default(),
+    };
+    assert!(!group.proves_tree_quiescence());
+}
+
 #[cfg(unix)]
 #[test]
 fn detached_unix_descendant_never_records_tree_quiescence() {
