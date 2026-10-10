@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 35;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 36;
 
 struct Migration {
     version: i64,
@@ -234,7 +234,53 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_35,
         verify: verify_migration_35,
     },
+    Migration {
+        version: 36,
+        name: "retained immutable curated acquisition identities",
+        apply: crate::curated_acquisition::migrate,
+        verify: verify_migration_36,
+    },
 ];
+
+fn verify_migration_36(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "curated_artifact_admissions",
+        &[
+            "repository_id",
+            "asset_id",
+            "identity_json",
+            "policy_sha256",
+        ],
+    )?;
+    require_columns(
+        connection,
+        "curated_artifact_history",
+        &[
+            "singleton",
+            "admission_count",
+            "transition_count",
+            "scope_count",
+        ],
+    )?;
+    require_columns(
+        connection,
+        "curated_artifact_scopes",
+        &[
+            "repository_id",
+            "asset_id",
+            "namespace",
+            "stable_id",
+            "anchor_sha256",
+            "policy_sha256",
+        ],
+    )?;
+    require_columns(
+        connection,
+        "curated_transition_receipts",
+        &["policy_sha256", "policy_json", "provenance_json"],
+    )
+}
 
 fn migration_34(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -1734,6 +1780,7 @@ mod tests {
         schema_32: 32,
         schema_33: 33,
         schema_34: 34,
+        schema_35: 35,
     }
 
     #[test]

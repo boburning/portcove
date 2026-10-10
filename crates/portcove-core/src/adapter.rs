@@ -1610,6 +1610,18 @@ pub(crate) fn hash_file_with_checkpoint(
     hash_reader_with_checkpoint(File::open(path)?, checkpoint)
 }
 
+pub(crate) fn hash_file_bounded_with_checkpoint(
+    path: &Path,
+    maximum: u64,
+    checkpoint: impl FnMut() -> Result<()>,
+) -> Result<(String, u64)> {
+    // One extra byte distinguishes an exact input from concurrent growth.
+    hash_reader_with_checkpoint(
+        File::open(path)?.take(maximum.saturating_add(1)),
+        checkpoint,
+    )
+}
+
 fn hash_reader_with_checkpoint(
     mut file: impl Read,
     mut checkpoint: impl FnMut() -> Result<()>,
@@ -2901,6 +2913,34 @@ mod tests {
                 .to_string_lossy()
                 .starts_with(".portcove-stfs-")
         }));
+    }
+
+    #[test]
+    fn curated_bounded_hashing_refuses_growth_after_preflight() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("cached.asset");
+        std::fs::write(&source, b"accepted").unwrap();
+        let expected = std::fs::metadata(&source).unwrap().len();
+        let mut checks = 0;
+        let (_, actual) = hash_file_bounded_with_checkpoint(&source, expected, || {
+            checks += 1;
+            if checks == 1 {
+                std::fs::OpenOptions::new()
+                    .append(true)
+                    .open(&source)
+                    .unwrap()
+                    .write_all(&vec![9; 1024 * 1024])
+                    .unwrap();
+            }
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(actual, expected + 1);
+        assert_eq!(
+            checks, 2,
+            "growth must not force hashing the appended megabyte"
+        );
+        assert!(crate::archive::validate_download_size(actual, expected).is_err());
     }
 
     #[test]

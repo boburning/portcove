@@ -502,6 +502,107 @@ refused. The independent installed authority, authenticated policy, exact
 candidate and monotonic floors remain mandatory; policy bytes cannot provision
 their own authority.
 
+Policy schema 4 adds `decision.curated_acquisition_checks: 1` and also requires
+`decision.scoped_launch_checks: 1`. Earlier schemas refuse the curated field,
+including null; unknown versions fail closed. A schema-4 grant binds a nonempty
+curated record map to the exact independently authenticated definition. Record
+claims or a first client download cannot create this grant or install its root.
+
+Curated resolution freshly observes the numeric GitHub repository, release and
+asset IDs, tag, peeled commit, filename, canonical asset URL and nonzero size.
+They must match the accepted record. A present publisher digest must agree; an
+absent digest uses the protected record's expected SHA-256. Mutable metadata
+bypasses selection and HTTP caches and refuses redirects. Installation refreshes
+these identities through the same opaque scope before acquiring artifact bytes,
+then uses the existing shared byte verifier and policy checks at publication.
+Previously returned resolutions do not confer reusable upstream freshness.
+
+Only an exactly qualified curated platform uses the shared `downloads/curated-v1`
+byte cache; another platform's publisher-digest route remains independent. Cache
+hits still refresh upstream metadata, recheck current policy and immutable
+admission history, and verify a private copy against the protected size and
+SHA-256 before extraction. Copying and hashing bound actual reads and writes,
+including growth after a preflight size check. A cached file is never authority.
+Cache copying and verification run in an awaited blocking worker. Cooperative
+cancellation must join that worker before the installer cleans private staging
+or reports its terminal result; interrupted cache partials retain their separate
+evidence lifetime.
+
+The cache uses one existing library OS lock. Retaining a new entry inventories
+at most 256 entries and 8 GiB of retained bytes, including interrupted partial
+copies, and refuses unexpected members or over-bound inventories. An existing
+hit verifies its own bytes and path without auditing unrelated members. Lock
+contention or exhausted capacity permits ordinary verified acquisition without
+new cache retention. Symlinks and corruption are refused and preserved.
+Private `.partial-<UUID>` copies never qualify as hits; no eviction
+or automatic failed-evidence cleanup is introduced. Cancellation and policy
+checks precede atomic cache publication. A later installation interruption can
+retain verified cache bytes without registering an installed version.
+
+Library schema 36 retains the first immutable curated identity and admitting
+policy hash under the numeric repository/asset pair, atomically with policy
+admission. Changing accepted bytes, size, commit or other immutable coordinates
+for that pair fails; advancing evidence or policy cannot silently repin it.
+Platform and evidence references do not redefine an artifact's byte identity.
+History survives policy replacement and revocation. A separately retained
+admission count detects missing history before acquisition or another admission;
+an exact retry cannot recreate lost rows. This structural corruption holds fresh
+curated acquisition without deleting installations or granting retained Launch.
+Existing retained integrity, policy and launch-assessment guards still apply.
+
+Schema 4 can additionally carry an explicit `curated_transitions` fact with
+`future_acceptance_lost` and at most 64 distinct artifact transitions. Each
+transition binds a nonzero numeric asset ID and accepted SHA-256 within the
+grant's numeric repository scope; its status is `revoked`,
+`distribution_withdrawn` or explicitly `cleared`. Null, earlier schemas,
+unknown fields/statuses and repeated asset IDs are refused. Each affected
+artifact must already exist in immutable admission history and have retained
+authenticated membership in that policy's namespace, stable ID and independent
+authority anchor. A transition cannot accept new arbitrary bytes or exercise
+another port's authority merely because it shares an upstream repository.
+Membership survives omission from a later definition; a separate completeness
+count detects deleted membership. Holds from scopes that independently admitted
+the same immutable bytes remain applicable until each scope explicitly clears
+its own observation. Future-acceptance loss also refuses new scope membership.
+
+The policy transaction retains the full authenticated transition policy and
+original provenance, up to 256 receipts of the existing 64-KiB policy/16-KiB
+provenance bounds. A separate completeness count prevents a deleted receipt
+from being silently renewed. Capacity exhaustion holds admission and preserves
+the receipts. Exact policy-byte renewal retains its original fact receipt;
+current policy freshness remains independently required. Omission, later grant
+replacement or expiry cannot erase a known hold. A higher explicit `cleared`
+fact changes only its own authority/scope's observation; another scope's hold
+remains applicable.
+
+Artifact revocation holds acquisition and critical retained use, including the
+same verification guard consumed by managed launch and rollback. Distribution
+withdrawal holds acquisition across locations and the byte cache but does not
+itself revoke permitted local use. Future-acceptance loss refuses previously
+unadmitted identities in that scope while leaving exact historical artifacts
+under their existing authorization. Existing `publisher_revoked`, missing-scope,
+changed-grant, source, integrity and execution checks are unchanged. These facts
+do not delete installations, saves or configuration and do not renew authority.
+Read-only integrity verification remains distinct from permission to execute.
+
+The shared status model projects these exact artifact guards after existing
+publisher, freshness and launch-baseline assessment. API schema 61 distinguishes
+artifact revocation from distribution withdrawal for Desktop and CLI consumers;
+retained rollback carries the exact revoked-target reason. A status observation
+is advisory and execution rechecks authority under its existing operation guards.
+
+Interrupted publication rechecks the exact artifact from the verified manifest
+owned by its current phase: the private payload before publication rename and
+the published payload before installation registration. Install recovery applies
+acquisition holds; adoption and preparation recovery apply local-use holds
+alongside their existing publisher and freshness guards. A refusal retains the
+payload and operation journal without activating or registering the target.
+
+These capability and fixture paths do not establish production acceptance.
+[#315](https://github.com/boburning/portcove/issues/315) still requires complete
+cache qualification, exact scoped holds, cancellation/recovery, exhaustive transition
+qualification and a lawful exact canary before its complete route is delivered.
+
 ### Exact managed Launch assessment format
 
 Policy schema 3 keeps schema 2's exact managed acquisition grant and coupled
@@ -535,7 +636,7 @@ they are not optional gameplay observations. Canonical typed decision hashes
 are available from the authenticated inspection for an explicit correction.
 Authentication alone does not imply library admission.
 
-Admission requires the exact currently installed schema 3 grant, matching
+Admission requires the exact currently installed schema 3 or 4 grant, matching
 independent anchor/root, fresh grant and assessment metadata, and the authority
 chain replay floor. An immediate transaction binds the collection revision,
 individual decisions and complete retained inventory before committing the

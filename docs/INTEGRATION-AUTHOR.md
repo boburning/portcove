@@ -55,7 +55,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57 or 60/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57 or 60–61/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -79,6 +79,13 @@ these retained-target checks. Legacy envelopes cannot carry this action. The
 supported membership excludes private paired schemas 58 and 59; accepting 60
 does not imply support for every intervening integer. Event schemas stay 2–3.
 No new client rollback command is exposed and no published package is inferred.
+
+Schema 61 adds exact revoked-artifact and distribution-withdrawal reasons. The
+reference consumes both through install/launch status and its management summary;
+withdrawal cannot become a Launch hold. It admits only the exact revoked-artifact
+rollback tuple described in the CLI contract. Contradictory outcomes, unknown
+reasons and schema-61 meanings carried by older envelopes are refused, including
+batched status. These source changes do not qualify an installed client update.
 
 Runtime discovery is a trust boundary, not permission to execute the first file
 with a matching name. Ask the user to select or approve a verified compatible
@@ -147,7 +154,7 @@ failure does not imply earlier registration was undone.
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57 or 60 membership. Some
+schema within the client's supported 42–57 or 60–61 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core

@@ -527,6 +527,20 @@ release their shared leases before the protocol advances. API schema 43 adds `in
 an unreadable or corrupt manifest blocks its game without failing the entire
 status list. Actual launch still performs immutable-file verification.
 
+Schema 36 retains immutable curated GitHub repository/asset identities and their
+first independently admitting policy hash within the existing publisher-policy
+transaction. Bounded authenticated transition receipts preserve exact artifact
+revocation, distribution withdrawal and future-acceptance loss independently of
+current-grant replacement or expiry. Completeness markers prevent missing
+identity or transition history from being recreated by policy retry. Acquisition
+and cache publication recheck the exact artifact; critical installed verification
+derives the artifact from the verified retained manifest and applies its
+local-use hold for launch, preparation and recovery callers. A caller's mutable
+verification projection cannot omit that authority check. This
+history is neither another catalog nor an installed-version deletion rule; the
+[definition delivery contract](DEFINITION-DELIVERY.md#exact-definition-availability-policy)
+defines the explicit schema-4 capability and remaining qualification obligations.
+
 Retained content is not a new admission authority. Metadata import continues to
 check the current platform contract and compares retained execution semantics
 with the existing frozen admission rules; a self-consistent hash cannot authorize

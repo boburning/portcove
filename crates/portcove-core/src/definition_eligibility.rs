@@ -49,6 +49,8 @@ pub enum DefinitionEligibilityOutcome {
 pub enum DefinitionEligibilityReason {
     MandatoryChecksPassed,
     PublisherRevoked,
+    CuratedArtifactRevoked,
+    CuratedDistributionWithdrawn,
     UnknownSafetySemantics,
     PublisherScopeRequired,
     EngineCapabilityRequired,

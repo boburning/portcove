@@ -1064,6 +1064,12 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
         match definition.reason {
             Definition::MandatoryChecksPassed => "Required definition checks passed.",
             Definition::PublisherRevoked => "The definition publisher's authority was revoked.",
+            Definition::CuratedArtifactRevoked => {
+                "This exact release file was revoked; installed files and saves are retained."
+            }
+            Definition::CuratedDistributionWithdrawn => {
+                "Distribution of this release file was withdrawn; permitted installed use remains available."
+            }
             Definition::UnknownSafetySemantics => {
                 "This client cannot interpret the definition's safety requirements."
             }

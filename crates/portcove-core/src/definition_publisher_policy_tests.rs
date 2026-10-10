@@ -823,7 +823,11 @@ async fn managed_fixture_for_policy(
     let fixture = RepositoryFixture::new();
     let key = Key::new(fixture._directory.path());
     let mut targets = repository_targets_for(&authored, ID);
-    let document = managed_policy_for(&targets, launch_checks);
+    let mut document = managed_policy_for(&targets, launch_checks);
+    if launch_checks && !authored.port(ID).unwrap().release.curated.is_empty() {
+        document["policy_schema"] = 4.into();
+        document["decision"]["curated_acquisition_checks"] = 1.into();
+    }
     targets.push((
         format!("policy/official/{ID}.json"),
         serde_json::to_vec(&document).unwrap(),
@@ -865,7 +869,11 @@ async fn managed_fixture_for_policy(
 }
 
 fn managed_policy_for(targets: &[(String, Vec<u8>)], launch_checks: bool) -> Value {
-    let mut document = availability_for(targets, ID, 1);
+    managed_policy_for_id(targets, launch_checks, ID)
+}
+
+fn managed_policy_for_id(targets: &[(String, Vec<u8>)], launch_checks: bool, id: &str) -> Value {
+    let mut document = availability_for(targets, id, 1);
     document["policy_schema"] = serde_json::json!(if launch_checks { 3 } else { 2 });
     if launch_checks {
         document["decision"]["scoped_launch_checks"] = 1.into();
@@ -881,6 +889,2800 @@ fn managed_policy_for(targets: &[(String, Vec<u8>)], launch_checks: bool) -> Val
         document["decision"][field] = managed_github(1)["decision"][field].clone();
     }
     document
+}
+
+#[tokio::test]
+async fn curated_capability_preserves_other_platform_publisher_digest_installation() {
+    use crate::ReleaseProvider;
+    use std::io::{Cursor, Write};
+    let platform = crate::Platform::current().unwrap();
+    let other = if platform == crate::Platform::WindowsX86_64 {
+        crate::Platform::LinuxX86_64
+    } else {
+        crate::Platform::WindowsX86_64
+    };
+    let executable = if cfg!(windows) {
+        "fixture.exe"
+    } else {
+        "fixture"
+    };
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    archive
+        .start_file(
+            executable,
+            zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+        )
+        .unwrap();
+    archive
+        .write_all(b"Owned nonexecuted publisher-digest platform fixture")
+        .unwrap();
+    let bytes = archive.finish().unwrap().into_inner();
+    let digest = hex::encode(Sha256::digest(&bytes));
+    let mut baseline = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.platforms = vec![platform, other];
+    port.executable_hints = std::collections::BTreeMap::from([
+        (platform, vec![executable.into()]),
+        (
+            other,
+            vec![if other == crate::Platform::WindowsX86_64 {
+                "fixture.exe".into()
+            } else {
+                "fixture".into()
+            }],
+        ),
+    ]);
+    let mut record = crate::curated_acquisition::fixture_record();
+    record.repository = port.release.repository.clone();
+    record.upstream_url = format!("https://github.com/{}", record.repository);
+    record.platform = other;
+    record.filename = format!("game-{}.zip", other.asset_tokens()[0]);
+    record.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        record.upstream_url, record.tag, record.filename
+    );
+    port.release.curated.insert(other, record);
+    baseline.ports.push(port);
+    let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
+    let (_fixture, _key, _root, _directory, library, catalog, mut scope) =
+        managed_fixture_for_policy(authored, true).await;
+    assert_eq!(scope.curated_checks, Some(1));
+    let server = AcquisitionHttp::new();
+    scope.fixture_origin = Some(server.origin.clone());
+    let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+    let mut release = server.release(true);
+    release[0]["assets"][0]["name"] = format!("game-{}.zip", platform.asset_tokens()[0]).into();
+    release[0]["assets"][0]["size"] = bytes.len().into();
+    release[0]["assets"][0]["digest"] = format!("sha256:{digest}").into();
+    server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+    server.json(release.clone());
+    let resolution = provider
+        .resolve_scoped(
+            catalog.port(ID).unwrap(),
+            ReleaseChannel::Stable,
+            platform,
+            Some(&scope),
+        )
+        .await
+        .unwrap();
+    server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+    server.json(release);
+    server.bytes(&bytes);
+    let installer = crate::Installer::new(library.clone()).unwrap();
+    let request = crate::InstallRequest {
+        port_id: ID.into(),
+        release: resolution.release.clone(),
+        output_root: library.versions_dir().join(ID),
+        activate: false,
+        managed: None,
+        qualification: crate::InstallQualification::from_catalog(&catalog, ID, platform)
+            .unwrap()
+            .with_acquisition_resolution(resolution)
+            .unwrap(),
+    };
+    let installed = installer
+        .install(
+            request,
+            &crate::operation::OperationCoordinator::new("install", None),
+            |_| {},
+        )
+        .await
+        .unwrap();
+    assert_eq!(installed.artifact.sha256, digest);
+    assert!(installer.verify(&installed).unwrap().valid);
+    assert_eq!(server.requests.lock().unwrap().len(), 5);
+    assert!(
+        !library.downloads_dir().join("curated-v1").exists(),
+        "publisher-digest platform must not enter the curated cache"
+    );
+}
+
+async fn curated_transition_fixture() -> (
+    RepositoryFixture,
+    Key,
+    Vec<u8>,
+    TempDir,
+    Library,
+    Catalog,
+    crate::CuratedAcquisitionRecord,
+    crate::CuratedAcquisitionRecord,
+) {
+    let mut baseline = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.platforms = vec![crate::Platform::WindowsX86_64, crate::Platform::LinuxX86_64];
+    port.executable_hints = std::collections::BTreeMap::from([
+        (crate::Platform::WindowsX86_64, vec!["fixture.exe".into()]),
+        (crate::Platform::LinuxX86_64, vec!["fixture".into()]),
+    ]);
+    let mut affected = crate::curated_acquisition::fixture_record();
+    affected.repository = port.release.repository.clone();
+    affected.upstream_url = format!("https://github.com/{}", affected.repository);
+    affected.filename = "game-windows.zip".into();
+    affected.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        affected.upstream_url, affected.tag, affected.filename
+    );
+    let mut unaffected = affected.clone();
+    unaffected.asset_id += 1;
+    unaffected.platform = crate::Platform::LinuxX86_64;
+    unaffected.filename = "game-linux.zip".into();
+    unaffected.sha256 = "d".repeat(64);
+    unaffected.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        unaffected.upstream_url, unaffected.tag, unaffected.filename
+    );
+    port.release.curated = std::collections::BTreeMap::from([
+        (affected.platform, affected.clone()),
+        (unaffected.platform, unaffected.clone()),
+    ]);
+    baseline.ports.push(port);
+    let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
+    let (fixture, key, root, directory, library, catalog, _) =
+        managed_fixture_for_policy(authored, true).await;
+    (
+        fixture, key, root, directory, library, catalog, affected, unaffected,
+    )
+}
+
+async fn publish_curated_transition(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    root: &[u8],
+    catalog: &Catalog,
+    revision: u64,
+    transitions: Option<Value>,
+) -> (
+    crate::AuthenticatedDefinitionCandidate,
+    crate::AuthenticatedDefinitionPublisherPolicy,
+) {
+    publish_curated_transition_for_id(fixture, key, root, catalog, revision, transitions, ID).await
+}
+
+async fn publish_curated_transition_for_id(
+    fixture: &RepositoryFixture,
+    key: &Key,
+    root: &[u8],
+    catalog: &Catalog,
+    revision: u64,
+    transitions: Option<Value>,
+    id: &str,
+) -> (
+    crate::AuthenticatedDefinitionCandidate,
+    crate::AuthenticatedDefinitionPublisherPolicy,
+) {
+    let definition_revision = catalog
+        .definition_selection(id)
+        .map_or(7, |identity| identity.definition_revision);
+    let bundle =
+        crate::test_fixture::indexed_catalog_bundle_at_revision(catalog, id, definition_revision);
+    let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+    targets.extend(bundle.contents);
+    let mut document = managed_policy_for_id(&targets, true, id);
+    document["policy_schema"] = 4.into();
+    document["policy_revision"] = revision.into();
+    document["decision"]["curated_acquisition_checks"] = 1.into();
+    if let Some(transitions) = transitions {
+        document["curated_transitions"] = transitions;
+    }
+    targets.push((
+        format!("policy/official/{id}.json"),
+        serde_json::to_vec(&document).unwrap(),
+    ));
+    fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((key, revision)),
+        )
+        .await;
+    (
+        acquire(fixture, root).await.unwrap(),
+        acquire_policy(fixture, root, id).await.unwrap(),
+    )
+}
+
+fn curated_other_scope_catalog(
+    catalog: &Catalog,
+    record: &crate::CuratedAcquisitionRecord,
+) -> Catalog {
+    let mut document = catalog.authoritative_document();
+    let mut other = catalog.port(ID).unwrap().clone();
+    other.id = "curated-other-scope".into();
+    other.release.curated = std::collections::BTreeMap::from([(record.platform, record.clone())]);
+    document.ports.push(other);
+    Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
+#[tokio::test]
+async fn curated_other_scope_cannot_transition_or_accept_another_ports_history() {
+    let (fixture, key, root, _directory, library, catalog, affected, unaffected) =
+        curated_transition_fixture().await;
+    let other = curated_other_scope_catalog(&catalog, &unaffected);
+    let transition = serde_json::json!({"future_acceptance_lost":false, "artifacts":[
+        {"asset_id":affected.asset_id,"sha256":affected.sha256,"status":"revoked"}]});
+    let (candidate, admission) = publish_curated_transition_for_id(
+        &fixture,
+        &key,
+        &root,
+        &other,
+        2,
+        Some(transition),
+        "curated-other-scope",
+    )
+    .await;
+    let refusal = library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap_err();
+    assert!(refusal.message.contains("authority scope"));
+    assert_eq!(count(&library, "curated_transition_receipts"), 0);
+    assert_eq!(count(&library, "curated_artifact_scopes"), 2);
+    // The hash is globally accepted, but this port has never admitted it.
+    let transition = serde_json::json!({"future_acceptance_lost":true, "artifacts":[]});
+    let (candidate, admission) = publish_curated_transition_for_id(
+        &fixture,
+        &key,
+        &root,
+        &other,
+        3,
+        Some(transition),
+        "curated-other-scope",
+    )
+    .await;
+    assert!(
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap_err()
+            .message
+            .contains("authority scope")
+    );
+    assert_eq!(count(&library, "curated_transition_receipts"), 0);
+    assert_eq!(count(&library, "curated_artifact_scopes"), 2);
+    let (candidate, admission) = publish_curated_transition_for_id(
+        &fixture,
+        &key,
+        &root,
+        &other,
+        4,
+        None,
+        "curated-other-scope",
+    )
+    .await;
+    library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap();
+    let repository = policy::acquisition_scope(&library, &catalog, ID)
+        .unwrap()
+        .unwrap()
+        .repository_id;
+    for record in [&affected, &unaffected] {
+        policy::require_curated_artifact_operation(
+            &library.connection().unwrap(),
+            repository,
+            record,
+            policy::CuratedArtifactOperation::LocalUse,
+        )
+        .unwrap();
+    }
+    assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+    assert_eq!(count(&library, "curated_artifact_scopes"), 3);
+    assert_eq!(count(&library, "installs"), 0);
+    // Lost membership evidence cannot be silently restored by exact renewal.
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "DELETE FROM curated_artifact_scopes WHERE stable_id='curated-other-scope'",
+            [],
+        )
+        .unwrap();
+    assert_eq!(count(&library, "curated_artifact_scopes"), 2);
+    assert!(
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap_err()
+            .message
+            .contains("scope history is incomplete")
+    );
+    assert!(
+        policy::require_curated_artifact_operation(
+            &library.connection().unwrap(),
+            repository,
+            &unaffected,
+            policy::CuratedArtifactOperation::LocalUse
+        )
+        .unwrap_err()
+        .message
+        .contains("scope history is incomplete")
+    );
+    assert_eq!(count(&library, "curated_artifact_scopes"), 2);
+    assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+}
+
+#[tokio::test]
+async fn curated_shared_artifact_clearance_preserves_other_scope_and_omitted_history() {
+    let (fixture, key, root, _directory, library, catalog, affected, unaffected) =
+        curated_transition_fixture().await;
+    let other = curated_other_scope_catalog(&catalog, &affected);
+    let (candidate, admission) = publish_curated_transition_for_id(
+        &fixture,
+        &key,
+        &root,
+        &other,
+        2,
+        None,
+        "curated-other-scope",
+    )
+    .await;
+    library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap();
+    let repository = policy::acquisition_scope(&library, &catalog, ID)
+        .unwrap()
+        .unwrap()
+        .repository_id;
+    let omitted = curated_other_scope_catalog(&catalog, &unaffected);
+    for (revision, id, document, status, held) in [
+        (3, ID, &catalog, "revoked", true),
+        (4, "curated-other-scope", &omitted, "revoked", true),
+        (5, ID, &catalog, "cleared", true),
+        (6, "curated-other-scope", &omitted, "cleared", false),
+    ] {
+        let transition = serde_json::json!({"future_acceptance_lost":false,"artifacts":[
+            {"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}]});
+        let (candidate, admission) = publish_curated_transition_for_id(
+            &fixture,
+            &key,
+            &root,
+            document,
+            revision,
+            Some(transition),
+            id,
+        )
+        .await;
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap();
+        for operation in [
+            policy::CuratedArtifactOperation::Acquisition,
+            policy::CuratedArtifactOperation::LocalUse,
+        ] {
+            let result = policy::require_curated_artifact_operation(
+                &library.connection().unwrap(),
+                repository,
+                &affected,
+                operation,
+            );
+            if held {
+                assert!(result.unwrap_err().message.contains("revoked"));
+            } else {
+                result.unwrap();
+            }
+            policy::require_curated_artifact_operation(
+                &library.connection().unwrap(),
+                repository,
+                &unaffected,
+                operation,
+            )
+            .unwrap();
+        }
+    }
+    assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+    assert_eq!(count(&library, "curated_artifact_scopes"), 4);
+    assert_eq!(count(&library, "curated_transition_receipts"), 4);
+    assert_eq!(count(&library, "installs"), 0);
+}
+
+#[tokio::test]
+async fn curated_distribution_withdrawal_survives_renewal_without_revoking_local_use() {
+    let (fixture, key, root, _directory, library, catalog, affected, unaffected) =
+        curated_transition_fixture().await;
+    let repository_id = crate::curated_acquisition::repository_for_retained_record(
+        &library.connection().unwrap(),
+        &affected,
+    )
+    .unwrap();
+    let transitions = serde_json::json!({"future_acceptance_lost":false, "artifacts":[{"asset_id":affected.asset_id,"sha256":affected.sha256,"status":"distribution_withdrawn"}]});
+    let (candidate, policy) =
+        publish_curated_transition(&fixture, &key, &root, &catalog, 2, Some(transitions)).await;
+    library
+        .apply_definition_publisher_policy(&policy, Some(&candidate))
+        .unwrap();
+    let (candidate, policy) =
+        publish_curated_transition(&fixture, &key, &root, &catalog, 3, None).await;
+    library
+        .apply_definition_publisher_policy(&policy, Some(&candidate))
+        .unwrap();
+    let library_root = library.root().to_owned();
+    drop(library);
+    let library = Library::open(library_root).unwrap();
+    assert_eq!(count(&library, "curated_transition_receipts"), 1);
+    let connection = library.connection().unwrap();
+    assert!(
+        policy::require_curated_artifact_operation(
+            &connection,
+            repository_id,
+            &affected,
+            policy::CuratedArtifactOperation::Acquisition
+        )
+        .unwrap_err()
+        .message
+        .contains("distribution")
+    );
+    policy::require_curated_artifact_operation(
+        &connection,
+        repository_id,
+        &affected,
+        policy::CuratedArtifactOperation::LocalUse,
+    )
+    .unwrap();
+    for operation in [
+        policy::CuratedArtifactOperation::Acquisition,
+        policy::CuratedArtifactOperation::LocalUse,
+    ] {
+        policy::require_curated_artifact_operation(
+            &connection,
+            repository_id,
+            &unaffected,
+            operation,
+        )
+        .unwrap();
+    }
+    assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+}
+
+#[tokio::test]
+async fn curated_metadata_tag_peeling_enforces_exact_identity_and_finite_bound() {
+    use crate::ReleaseProvider;
+    let (_fixture, _key, _root, _directory, library, catalog, record, _) =
+        curated_transition_fixture().await;
+    let mut scope = policy::acquisition_scope(&library, &catalog, ID)
+        .unwrap()
+        .unwrap();
+    let server = AcquisitionHttp::new();
+    scope.fixture_origin = Some(server.origin.clone());
+    let provider = crate::GithubReleaseProvider::with_api_root_and_library(
+        server.origin.clone(),
+        library.clone(),
+    )
+    .unwrap();
+    let path = reqwest::Url::parse(&record.acquisition_url)
+        .unwrap()
+        .path()
+        .to_owned();
+    let release = serde_json::json!([{
+        "id":record.release_id,"tag_name":record.tag,"draft":false,"prerelease":false,"published_at":null,
+        "assets":[{"id":record.asset_id,"name":record.filename,"size":record.size,"digest":null,
+        "browser_download_url":format!("{}{path}", server.origin)}]
+    }]);
+    let object = |kind: &str, sha: &str| serde_json::json!({"type":kind,"sha":sha});
+    let reference = |kind: &str, sha: &str| serde_json::json!({"ref":format!("refs/tags/{}",record.tag),"object":object(kind,sha)});
+    let mut cases = vec![(
+        "lightweight",
+        reference("commit", &record.commit_sha1),
+        Vec::new(),
+        None,
+    )];
+    for depth in [1usize, 4, 5] {
+        let ids: Vec<_> = (0..depth)
+            .map(|index| char::from(b'b' + index as u8).to_string().repeat(40))
+            .collect();
+        let annotations = ids.iter().enumerate().map(|(index, sha)| serde_json::json!({
+            "sha":sha,"object":if index + 1 == depth {object("commit", &record.commit_sha1)} else {object("tag", &ids[index+1])}
+        })).collect();
+        cases.push((
+            match depth {
+                1 => "annotated",
+                4 => "maximum-permitted-chain",
+                _ => "over-bound-chain",
+            },
+            reference("tag", &ids[0]),
+            annotations,
+            (depth == 5).then_some("exceeds its peel bound"),
+        ));
+    }
+    let tag_id = "b".repeat(40);
+    cases.push(("mismatched-object", reference("tag", &tag_id), vec![serde_json::json!({"sha":"c".repeat(40),"object":object("commit", &record.commit_sha1)})], Some("annotated tag identity differs")));
+    cases.push((
+        "cycle",
+        reference("tag", &tag_id),
+        vec![serde_json::json!({"sha":tag_id,"object":object("tag", &tag_id)})],
+        Some("invalid or cyclic curated tag object"),
+    ));
+    cases.push((
+        "non-commit-object",
+        reference("blob", &tag_id),
+        vec![],
+        Some("does not identify a commit"),
+    ));
+    cases.push((
+        "malformed-object",
+        reference("commit", &"A".repeat(40)),
+        vec![],
+        Some("invalid or cyclic curated tag object"),
+    ));
+    let mut wrong_reference = reference("commit", &record.commit_sha1);
+    wrong_reference["ref"] = "refs/tags/other".into();
+    cases.push((
+        "mismatched-reference",
+        wrong_reference,
+        vec![],
+        Some("tag reference differs"),
+    ));
+    let admission_count = count(&library, "curated_artifact_admissions");
+    for (name, tag_reference, annotations, failure) in cases {
+        let before = server.requests.lock().unwrap().len();
+        server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+        server.json(release.clone());
+        server.json(tag_reference);
+        let annotation_count = annotations.len();
+        for annotation in annotations {
+            server.json(annotation);
+        }
+        let resolved = provider
+            .resolve_scoped(
+                catalog.port(ID).unwrap(),
+                ReleaseChannel::Stable,
+                record.platform,
+                Some(&scope),
+            )
+            .await;
+        if let Some(message) = failure {
+            let error = resolved.unwrap_err();
+            assert_eq!(
+                error.code,
+                crate::ErrorCode::Verification,
+                "{name}: {error:?}"
+            );
+            assert!(error.message.contains(message), "{name}: {error:?}");
+        } else {
+            let resolved = resolved.unwrap();
+            assert_eq!(resolved.release.asset.sha256, record.sha256, "{name}");
+            assert_eq!(resolved.release.asset.size, record.size, "{name}");
+        }
+        let requests = server.requests.lock().unwrap();
+        assert_eq!(
+            requests.len(),
+            before + 3 + annotation_count,
+            "{name}: fresh bounded metadata only"
+        );
+        assert!(
+            requests[before + 2].starts_with(&format!(
+                "GET /repos/{}/git/ref/tags/{} ",
+                record.repository, record.tag
+            )),
+            "{name}"
+        );
+        assert!(
+            requests[before..]
+                .iter()
+                .all(|request| !request.starts_with(&format!("GET {path} "))),
+            "{name}: no payload acquisition"
+        );
+        drop(requests);
+        assert!(server.responses.lock().unwrap().is_empty(), "{name}");
+        assert_eq!(
+            count(&library, "curated_artifact_admissions"),
+            admission_count
+        );
+        assert_eq!(count(&library, "curated_transition_receipts"), 0);
+        assert_eq!(count(&library, "installs"), 0);
+        assert!(
+            crate::operation::OperationStore::new(library.clone())
+                .all()
+                .unwrap()
+                .is_empty()
+        );
+    }
+    // Scoped metadata never follows a redirect, including between two owned
+    // loopback endpoints. No credential or payload can reach the second host.
+    let redirect_target = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    redirect_target.set_nonblocking(true).unwrap();
+    let before = server.requests.lock().unwrap().len();
+    server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+    server.json(release);
+    server.redirect(&format!(
+        "http://{}/redirected-tag",
+        redirect_target.local_addr().unwrap()
+    ));
+    assert!(
+        provider
+            .resolve_scoped(
+                catalog.port(ID).unwrap(),
+                ReleaseChannel::Stable,
+                record.platform,
+                Some(&scope)
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(server.requests.lock().unwrap().len(), before + 3);
+    assert_eq!(
+        redirect_target.accept().unwrap_err().kind(),
+        std::io::ErrorKind::WouldBlock
+    );
+    assert!(server.responses.lock().unwrap().is_empty());
+    assert_eq!(
+        count(&library, "curated_artifact_admissions"),
+        admission_count
+    );
+    assert_eq!(count(&library, "installs"), 0);
+}
+
+#[tokio::test]
+async fn curated_artifact_revocation_is_exact_and_missing_receipts_cannot_be_renewed() {
+    let (fixture, key, root, _directory, library, catalog, affected, unaffected) =
+        curated_transition_fixture().await;
+    let repository_id = crate::curated_acquisition::repository_for_retained_record(
+        &library.connection().unwrap(),
+        &affected,
+    )
+    .unwrap();
+    let transitions = serde_json::json!({"future_acceptance_lost":false, "artifacts":[{"asset_id":affected.asset_id,"sha256":affected.sha256,"status":"revoked"}]});
+    let (candidate, admission) =
+        publish_curated_transition(&fixture, &key, &root, &catalog, 2, Some(transitions)).await;
+    library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap();
+    for operation in [
+        policy::CuratedArtifactOperation::Acquisition,
+        policy::CuratedArtifactOperation::LocalUse,
+    ] {
+        assert!(
+            policy::require_curated_artifact_operation(
+                &library.connection().unwrap(),
+                repository_id,
+                &affected,
+                operation
+            )
+            .unwrap_err()
+            .message
+            .contains("revoked")
+        );
+        policy::require_curated_artifact_operation(
+            &library.connection().unwrap(),
+            repository_id,
+            &unaffected,
+            operation,
+        )
+        .unwrap();
+    }
+    library
+        .connection()
+        .unwrap()
+        .execute("DELETE FROM curated_transition_receipts", [])
+        .unwrap();
+    assert!(
+        policy::require_curated_artifact_operation(
+            &library.connection().unwrap(),
+            repository_id,
+            &affected,
+            policy::CuratedArtifactOperation::LocalUse
+        )
+        .is_err()
+    );
+    assert!(
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap_err()
+            .message
+            .contains("transition history")
+    );
+    assert_eq!(count(&library, "curated_transition_receipts"), 0);
+    assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+}
+
+#[tokio::test]
+async fn curated_artifact_hold_survives_expiry_and_requires_explicit_scoped_clearance() {
+    let (fixture, key, root, _directory, library, catalog, affected, unaffected) =
+        curated_transition_fixture().await;
+    let repository_id = crate::curated_acquisition::repository_for_retained_record(
+        &library.connection().unwrap(),
+        &affected,
+    )
+    .unwrap();
+    let transitions = serde_json::json!({"future_acceptance_lost":false, "artifacts":[
+        {"asset_id":affected.asset_id,"sha256":affected.sha256,"status":"revoked"}]});
+    let (candidate, admission) =
+        publish_curated_transition(&fixture, &key, &root, &catalog, 2, Some(transitions)).await;
+    library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap();
+    let connection = library.connection().unwrap();
+    let encoded: String = connection
+        .query_row(
+            "SELECT provenance_json FROM curated_transition_receipts",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    // Elapsed-time simulation changes only the owned fixture's receipt expiry.
+    let mut provenance: Value = serde_json::from_str(&encoded).unwrap();
+    provenance["expires_at"] = "2000-01-01T00:00:00Z".into();
+    connection
+        .execute(
+            "UPDATE curated_transition_receipts SET provenance_json=?1",
+            [provenance.to_string()],
+        )
+        .unwrap();
+    for operation in [
+        policy::CuratedArtifactOperation::Acquisition,
+        policy::CuratedArtifactOperation::LocalUse,
+    ] {
+        assert!(
+            policy::require_curated_artifact_operation(
+                &connection,
+                repository_id,
+                &affected,
+                operation
+            )
+            .unwrap_err()
+            .message
+            .contains("revoked")
+        );
+        policy::require_curated_artifact_operation(
+            &connection,
+            repository_id,
+            &unaffected,
+            operation,
+        )
+        .unwrap();
+    }
+    let transitions = serde_json::json!({"future_acceptance_lost":false, "artifacts":[
+        {"asset_id":affected.asset_id,"sha256":affected.sha256,"status":"cleared"}]});
+    let (candidate, admission) =
+        publish_curated_transition(&fixture, &key, &root, &catalog, 3, Some(transitions)).await;
+    library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap();
+    for operation in [
+        policy::CuratedArtifactOperation::Acquisition,
+        policy::CuratedArtifactOperation::LocalUse,
+    ] {
+        policy::require_curated_artifact_operation(
+            &connection,
+            repository_id,
+            &affected,
+            operation,
+        )
+        .unwrap();
+    }
+    assert_eq!(count(&library, "curated_transition_receipts"), 2);
+    assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+}
+
+#[tokio::test]
+async fn curated_future_acceptance_loss_preserves_old_records_but_refuses_new_identity() {
+    let (fixture, key, root, _directory, library, catalog, affected, _) =
+        curated_transition_fixture().await;
+    let (candidate, policy) = publish_curated_transition(
+        &fixture,
+        &key,
+        &root,
+        &catalog,
+        2,
+        Some(serde_json::json!({"future_acceptance_lost":true,"artifacts":[]})),
+    )
+    .await;
+    library
+        .apply_definition_publisher_policy(&policy, Some(&candidate))
+        .unwrap();
+    let repository_id = crate::curated_acquisition::repository_for_retained_record(
+        &library.connection().unwrap(),
+        &affected,
+    )
+    .unwrap();
+    for operation in [
+        policy::CuratedArtifactOperation::Acquisition,
+        policy::CuratedArtifactOperation::LocalUse,
+    ] {
+        policy::require_curated_artifact_operation(
+            &library.connection().unwrap(),
+            repository_id,
+            &affected,
+            operation,
+        )
+        .unwrap();
+    }
+    let mut new = catalog.authoritative_document();
+    let record = new
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ID)
+        .unwrap()
+        .release
+        .curated
+        .get_mut(&affected.platform)
+        .unwrap();
+    record.asset_id += 10;
+    let new = Catalog::from_json(&serde_json::to_string(&new).unwrap()).unwrap();
+    let (candidate, policy) =
+        publish_curated_transition(&fixture, &key, &root, &new, 3, None).await;
+    assert!(
+        library
+            .apply_definition_publisher_policy(&policy, Some(&candidate))
+            .unwrap_err()
+            .message
+            .contains("immutable identity")
+    );
+    assert_eq!(count(&library, "curated_transition_receipts"), 1);
+    assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+}
+
+#[tokio::test]
+async fn curated_cache_restore_cancellation_waits_for_worker_before_cleanup() {
+    curated_cache_worker_intervention(CacheIntervention::CancelRestore).await;
+}
+
+#[tokio::test]
+async fn curated_cache_retention_cancellation_preserves_partial_after_worker_exit() {
+    curated_cache_worker_intervention(CacheIntervention::CancelRetain).await;
+}
+
+#[tokio::test]
+async fn curated_cache_policy_loss_during_copy_refuses_publication_and_preserves_bytes() {
+    curated_cache_worker_intervention(CacheIntervention::PolicyLoss).await;
+}
+
+enum CacheIntervention {
+    CancelRestore,
+    CancelRetain,
+    PolicyLoss,
+    ArtifactRevocationRetain,
+    ArtifactWithdrawalRetain,
+    ArtifactRevocationRestore,
+    ArtifactWithdrawalRestore,
+}
+
+macro_rules! curated_cache_artifact_interventions {
+    ($($name:ident: $case:ident),+ $(,)?) => {
+        $(#[tokio::test] async fn $name() { curated_cache_worker_intervention(CacheIntervention::$case).await; })+
+    };
+}
+curated_cache_artifact_interventions! {
+    curated_cache_retention_revocation_during_copy_refuses_publication: ArtifactRevocationRetain,
+    curated_cache_retention_withdrawal_during_copy_refuses_publication: ArtifactWithdrawalRetain,
+    curated_cache_restore_revocation_during_copy_preserves_cached_bytes: ArtifactRevocationRestore,
+    curated_cache_restore_withdrawal_during_copy_preserves_cached_bytes: ArtifactWithdrawalRestore,
+}
+
+async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
+    use crate::ReleaseProvider;
+    use std::{
+        io::{Cursor, Write},
+        sync::{
+            Arc, Condvar, Mutex,
+            atomic::{AtomicBool, Ordering},
+        },
+        time::Duration,
+    };
+    let cache_hit = matches!(
+        intervention,
+        CacheIntervention::CancelRestore
+            | CacheIntervention::ArtifactRevocationRestore
+            | CacheIntervention::ArtifactWithdrawalRestore
+    );
+    let artifact_status = match intervention {
+        CacheIntervention::ArtifactRevocationRetain
+        | CacheIntervention::ArtifactRevocationRestore => Some("revoked"),
+        CacheIntervention::ArtifactWithdrawalRetain
+        | CacheIntervention::ArtifactWithdrawalRestore => Some("distribution_withdrawn"),
+        _ => None,
+    };
+    let policy_loss =
+        matches!(intervention, CacheIntervention::PolicyLoss) || artifact_status.is_some();
+    let platform = crate::Platform::current().unwrap();
+    let executable = if cfg!(windows) {
+        "fixture.exe"
+    } else {
+        "fixture"
+    };
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    archive
+        .start_file(
+            executable,
+            zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored)
+                .unix_permissions(0o755),
+        )
+        .unwrap();
+    archive.write_all(&vec![b'x'; 128 * 1024]).unwrap();
+    let bytes = archive.finish().unwrap().into_inner();
+    let mut baseline = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.platforms = vec![platform];
+    port.executable_hints = std::collections::BTreeMap::from([(platform, vec![executable.into()])]);
+    let mut record = crate::curated_acquisition::fixture_record();
+    record.repository = port.release.repository.clone();
+    record.upstream_url = format!("https://github.com/{}", record.repository);
+    record.platform = platform;
+    record.tag = "v1".into();
+    record.filename = format!("game-{}.zip", platform.asset_tokens()[0]);
+    record.size = bytes.len() as u64;
+    record.sha256 = hex::encode(Sha256::digest(&bytes));
+    record.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        record.upstream_url, record.tag, record.filename
+    );
+    port.release.curated.insert(platform, record.clone());
+    baseline.ports.push(port);
+    let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
+    let (_fixture, _key, _root, _directory, library, catalog, mut scope) =
+        managed_fixture_for_policy(authored, true).await;
+    let withdrawal = if let Some(status) = artifact_status {
+        let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":record.asset_id,"sha256":record.sha256,"status":status}]});
+        let (candidate, admission) =
+            publish_curated_transition(&_fixture, &_key, &_root, &catalog, 2, Some(transitions))
+                .await;
+        Some((admission, Some(candidate)))
+    } else if policy_loss {
+        let mut document = managed_github(2);
+        document["policy_schema"] = 4.into();
+        document["decision"] = serde_json::json!({"status":"revoked"});
+        publish(&_fixture, &_key, 2, &document).await;
+        Some((acquire_policy(&_fixture, &_root, ID).await.unwrap(), None))
+    } else {
+        None
+    };
+    let server = AcquisitionHttp::new();
+    scope.fixture_origin = Some(server.origin.clone());
+    let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+    let mut release = server.release(false);
+    release[0]["id"] = record.release_id.into();
+    release[0]["assets"][0]["id"] = record.asset_id.into();
+    release[0]["assets"][0]["name"] = record.filename.clone().into();
+    release[0]["assets"][0]["size"] = record.size.into();
+    release[0]["assets"][0]["browser_download_url"] = format!(
+        "{}{}",
+        server.origin,
+        reqwest::Url::parse(&record.acquisition_url).unwrap().path()
+    )
+    .into();
+    let tag = serde_json::json!({"ref":"refs/tags/v1", "object":{"type":"commit","sha":record.commit_sha1}});
+    server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+    server.json(release.clone());
+    server.json(tag.clone());
+    let resolution = provider
+        .resolve_scoped(
+            catalog.port(ID).unwrap(),
+            ReleaseChannel::Stable,
+            platform,
+            Some(&scope),
+        )
+        .await
+        .unwrap();
+    server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+    server.json(release);
+    server.json(tag);
+    let cache_root = library.downloads_dir().join("curated-v1");
+    let cache_entry = cache_root.join(format!("{}.asset", record.sha256));
+    if cache_hit {
+        fs::create_dir_all(&cache_root).unwrap();
+        fs::write(&cache_entry, &bytes).unwrap();
+    } else {
+        server.bytes(&bytes);
+    }
+    let service = crate::PortcoveService::new(library.clone()).unwrap();
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            crate::ActivityOperation::Install,
+            crate::ActivityTargetKind::Port,
+            Some(ID),
+        )
+        .unwrap();
+    let operation_id = activity.id.clone();
+    let staging = library.staging_dir().join(&operation_id);
+    let latch = Arc::new((
+        Mutex::new((None::<std::path::PathBuf>, false)),
+        Condvar::new(),
+    ));
+    let hook_latch = latch.clone();
+    let finished = Arc::new(AtomicBool::new(false));
+    let hook = crate::curated_cache::CacheWorkerTestHook {
+        after_copy: Arc::new(move |path, written| {
+            if written == 64 * 1024 {
+                let (lock, condition) = &*hook_latch;
+                let mut state = lock.lock().unwrap();
+                state.0 = Some(path.to_owned());
+                condition.notify_all();
+                while !state.1 {
+                    state = condition.wait(state).unwrap();
+                }
+            }
+            Ok(())
+        }),
+        finished: finished.clone(),
+    };
+    let installer = crate::Installer::new(library.clone())
+        .unwrap()
+        .with_cache_worker_test_hook(hook);
+    let request = crate::InstallRequest {
+        port_id: ID.into(),
+        release: resolution.release.clone(),
+        output_root: library.versions_dir().join(ID),
+        activate: false,
+        managed: None,
+        qualification: crate::InstallQualification::from_catalog(&catalog, ID, platform)
+            .unwrap()
+            .with_acquisition_resolution(resolution)
+            .unwrap(),
+    };
+    let install = tokio::spawn(async move {
+        (
+            activity,
+            installer.install(request, &operation, |_| {}).await,
+        )
+    });
+    let reached = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if let Some(path) = latch.0.lock().unwrap().0.clone() {
+                break path;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    let disposition = match withdrawal {
+        Some((admission, candidate)) => library
+            .apply_definition_publisher_policy(&admission, candidate.as_ref())
+            .map(|changed| assert!(changed)),
+        None => service.request_cancellation(&operation_id).map(|_| ()),
+    };
+    tokio::time::sleep(Duration::from_millis(75)).await;
+    let result_finished = install.is_finished();
+    let worker_finished = finished.load(Ordering::SeqCst);
+    let staging_present = staging.is_dir();
+    let journals = crate::operation::OperationStore::new(library.clone()).all();
+    let partial_size = reached
+        .as_ref()
+        .ok()
+        .map(|path| fs::metadata(path).unwrap().len());
+    {
+        let (lock, condition) = &*latch;
+        lock.lock().unwrap().1 = true;
+        condition.notify_all();
+    }
+    let (activity, result) = install.await.unwrap();
+    let result = service.finish_activity(activity, result);
+    let partial = reached.expect("actual cache copy reached the bounded latch");
+    disposition.unwrap();
+    assert!(!result_finished && !worker_finished);
+    assert!(staging_present);
+    assert_eq!(journals.unwrap().len(), 1);
+    assert_eq!(partial_size, Some(64 * 1024));
+    assert!(finished.load(Ordering::SeqCst));
+    let refusal = result.unwrap_err();
+    if policy_loss {
+        assert_eq!(refusal.code, crate::ErrorCode::Conflict);
+        assert!(scope.require_current().is_err());
+        assert_eq!(count(&library, "curated_artifact_admissions"), 1);
+        if let Some(status) = artifact_status {
+            let held = policy::require_curated_artifact_operation(
+                &library.connection().unwrap(),
+                scope.repository_id,
+                &record,
+                policy::CuratedArtifactOperation::Acquisition,
+            )
+            .unwrap_err();
+            assert!(held.message.contains(if status == "revoked" {
+                "revoked"
+            } else {
+                "distribution"
+            }));
+            assert_eq!(count(&library, "curated_transition_receipts"), 1);
+        }
+    } else {
+        assert_eq!(refusal.code, crate::ErrorCode::Cancelled);
+    }
+    assert!(!staging.exists());
+    assert!(library.all_installs().unwrap().is_empty());
+    assert!(
+        crate::operation::OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        library.activities(1).unwrap()[0].status,
+        if policy_loss {
+            crate::ActivityStatus::Failed
+        } else {
+            crate::ActivityStatus::Cancelled
+        }
+    );
+    if cache_hit {
+        assert!(!partial.exists());
+        assert_eq!(fs::read(cache_entry).unwrap(), bytes);
+    } else {
+        assert!(partial.starts_with(cache_root));
+        assert_eq!(
+            fs::metadata(&partial).unwrap().len(),
+            if policy_loss { record.size } else { 64 * 1024 }
+        );
+        if policy_loss {
+            assert_eq!(fs::read(partial).unwrap(), bytes);
+        }
+        assert!(
+            !cache_entry.exists(),
+            "an interrupted private copy cannot publish a cache hit"
+        );
+    }
+    assert!(server.responses.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity() {
+    curated_installer_fixture(false, None).await;
+}
+
+#[tokio::test]
+async fn curated_cache_reuse_refuses_corruption_and_preserves_capacity_evidence() {
+    curated_installer_fixture(true, None).await;
+}
+
+#[tokio::test]
+async fn curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition() {
+    curated_installer_fixture(false, Some("distribution_withdrawn")).await;
+}
+
+#[tokio::test]
+async fn curated_installed_revocation_holds_critical_verification_and_fresh_acquisition() {
+    curated_installer_fixture(false, Some("revoked")).await;
+}
+
+#[tokio::test]
+async fn curated_rollback_withdrawal_permits_exact_retained_target() {
+    curated_retained_rollback_fixture("distribution_withdrawn", RetainedCuratedOperation::Rollback)
+        .await;
+}
+
+#[tokio::test]
+async fn curated_rollback_revocation_preserves_unaffected_active_and_recovery_evidence() {
+    curated_retained_rollback_fixture("revoked", RetainedCuratedOperation::Rollback).await;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RetainedCuratedOperation {
+    Status,
+    Launch,
+    LaunchBoundary,
+    Rollback,
+    Activation,
+    ActivationRecovery,
+    PublicationRecovery,
+    PublicationRecoveryPublished,
+    AdoptionRefusal,
+    AdoptionRecovery,
+    AdoptionRecoveryPublished,
+}
+
+#[tokio::test]
+async fn curated_adoption_refuses_before_authorization_or_copy() {
+    curated_retained_rollback_fixture("available", RetainedCuratedOperation::AdoptionRefusal).await;
+}
+
+macro_rules! curated_adoption_recovery_cases {
+    ($($name:ident: $status:literal, $operation:ident),+ $(,)?) => {
+        $(#[tokio::test] async fn $name() {
+            curated_retained_rollback_fixture($status, RetainedCuratedOperation::$operation).await;
+        })+
+    };
+}
+curated_adoption_recovery_cases! {
+    curated_adoption_prepared_refuses_unsupported_grant: "available", AdoptionRecovery,
+    curated_adoption_published_refuses_unsupported_grant: "available", AdoptionRecoveryPublished,
+    curated_adoption_prepared_revocation_preserves_evidence: "revoked", AdoptionRecovery,
+    curated_adoption_published_revocation_preserves_evidence: "revoked", AdoptionRecoveryPublished,
+    curated_adoption_prepared_withdrawal_preserves_adoption_refusal: "distribution_withdrawn", AdoptionRecovery,
+    curated_adoption_published_withdrawal_preserves_adoption_refusal: "distribution_withdrawn", AdoptionRecoveryPublished,
+}
+
+#[tokio::test]
+async fn curated_status_revocation_holds_exact_current_and_retained_operations() {
+    curated_retained_rollback_fixture("revoked", RetainedCuratedOperation::Status).await;
+}
+
+#[tokio::test]
+async fn curated_status_withdrawal_holds_acquisition_and_permits_retained_launch() {
+    curated_retained_rollback_fixture("distribution_withdrawn", RetainedCuratedOperation::Status)
+        .await;
+}
+
+#[tokio::test]
+async fn curated_retained_launch_revocation_prevents_child_start_after_reopen() {
+    curated_retained_rollback_fixture("revoked", RetainedCuratedOperation::Launch).await;
+}
+
+#[tokio::test]
+async fn curated_retained_launch_withdrawal_supervises_exact_owned_child_after_reopen() {
+    curated_retained_rollback_fixture("distribution_withdrawn", RetainedCuratedOperation::Launch)
+        .await;
+}
+
+#[tokio::test]
+async fn curated_launch_boundary_shared_revocation_refuses_before_child_with_valid_baseline() {
+    curated_retained_rollback_fixture("revoked", RetainedCuratedOperation::LaunchBoundary).await;
+}
+
+#[tokio::test]
+async fn curated_publication_recovery_revocation_preserves_private_payload() {
+    curated_retained_rollback_fixture("revoked", RetainedCuratedOperation::PublicationRecovery)
+        .await;
+}
+
+#[tokio::test]
+async fn curated_publication_recovery_withdrawal_preserves_private_payload() {
+    curated_retained_rollback_fixture(
+        "distribution_withdrawn",
+        RetainedCuratedOperation::PublicationRecovery,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn curated_publication_recovery_permitted_artifact_commits_once() {
+    curated_retained_rollback_fixture("available", RetainedCuratedOperation::PublicationRecovery)
+        .await;
+}
+
+#[tokio::test]
+async fn curated_publication_recovery_published_revocation_preserves_payload() {
+    curated_retained_rollback_fixture(
+        "revoked",
+        RetainedCuratedOperation::PublicationRecoveryPublished,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn curated_publication_recovery_published_withdrawal_preserves_payload() {
+    curated_retained_rollback_fixture(
+        "distribution_withdrawn",
+        RetainedCuratedOperation::PublicationRecoveryPublished,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn curated_publication_recovery_published_permitted_artifact_commits_once() {
+    curated_retained_rollback_fixture(
+        "available",
+        RetainedCuratedOperation::PublicationRecoveryPublished,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn curated_activation_withdrawal_permits_exact_retained_target() {
+    curated_retained_rollback_fixture(
+        "distribution_withdrawn",
+        RetainedCuratedOperation::Activation,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn curated_activation_revocation_preserves_staged_target_and_active_version() {
+    curated_retained_rollback_fixture("revoked", RetainedCuratedOperation::Activation).await;
+}
+
+#[tokio::test]
+async fn curated_activation_recovery_withdrawal_permits_local_commit() {
+    curated_retained_rollback_fixture(
+        "distribution_withdrawn",
+        RetainedCuratedOperation::ActivationRecovery,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn curated_activation_recovery_revocation_retains_interrupted_journal() {
+    curated_retained_rollback_fixture("revoked", RetainedCuratedOperation::ActivationRecovery)
+        .await;
+}
+
+async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCuratedOperation) {
+    use crate::operation::{
+        LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore,
+    };
+    use std::io::{Cursor, Write};
+    let clock = std::time::Instant::now();
+    let phase = |name: &str| {
+        println!(
+            "curated retained {operation:?} {status} {name}: {:?}",
+            clock.elapsed()
+        )
+    };
+    phase("start");
+    let platform = crate::Platform::current().unwrap();
+    let executable = if cfg!(windows) {
+        "fixture.exe"
+    } else {
+        "fixture"
+    };
+    let probe_directory = TempDir::new().unwrap();
+    let probe_bytes = matches!(
+        operation,
+        RetainedCuratedOperation::Launch | RetainedCuratedOperation::LaunchBoundary
+    )
+    .then(|| fs::read(crate::test_fixture::build_probe(probe_directory.path())).unwrap());
+    let mut authored = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.platforms = vec![platform];
+    port.executable_hints = std::collections::BTreeMap::from([(platform, vec![executable.into()])]);
+    let mut artifacts = Vec::new();
+    for (index, version) in ["v1", "v2"].into_iter().enumerate() {
+        let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        archive
+            .start_file(
+                executable,
+                zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+            )
+            .unwrap();
+        if let Some(probe_bytes) = &probe_bytes {
+            archive.write_all(probe_bytes).unwrap();
+            // Distinct fixture archives/install roots preserve exact version
+            // identity when versions contain the same owned native launch probe.
+            archive
+                .start_file(
+                    "owned-version.txt",
+                    zip::write::SimpleFileOptions::default(),
+                )
+                .unwrap();
+            archive.write_all(version.as_bytes()).unwrap();
+        } else {
+            archive
+                .write_all(format!("owned nonexecuted retained {version}").as_bytes())
+                .unwrap();
+        }
+        let bytes = archive.finish().unwrap().into_inner();
+        let mut record = crate::curated_acquisition::fixture_record();
+        record.repository = port.release.repository.clone();
+        record.upstream_url = format!("https://github.com/{}", record.repository);
+        record.platform = platform;
+        record.release_id += index as u64;
+        record.asset_id += index as u64;
+        record.tag = version.into();
+        record.filename = format!("game-{}.zip", platform.asset_tokens()[0]);
+        record.size = bytes.len() as u64;
+        record.sha256 = hex::encode(Sha256::digest(&bytes));
+        record.acquisition_url = format!(
+            "{}/releases/download/{}/{}",
+            record.upstream_url, version, record.filename
+        );
+        artifacts.push((record, bytes));
+    }
+    port.release
+        .curated
+        .insert(platform, artifacts[0].0.clone());
+    authored.ports.push(port);
+    let authored = Catalog::from_json(&serde_json::to_string(&authored).unwrap()).unwrap();
+    let (fixture, key, root, _directory, library, mut catalog, _) =
+        managed_fixture_for_policy(authored, true).await;
+    phase("initial admission");
+    let installer = crate::Installer::new(library.clone()).unwrap();
+    let mut delivered = Vec::new();
+    for (index, (record, bytes)) in artifacts.iter().enumerate() {
+        if index == 1 {
+            let mut document = catalog.authoritative_document();
+            document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == ID)
+                .unwrap()
+                .release
+                .curated
+                .insert(platform, record.clone());
+            let next = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+            let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(&next, ID, 8);
+            let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+            targets.extend(bundle.contents);
+            let mut policy_document = managed_policy_for(&targets, true);
+            policy_document["policy_schema"] = 4.into();
+            policy_document["policy_revision"] = 2.into();
+            policy_document["decision"]["curated_acquisition_checks"] = 1.into();
+            targets.push((
+                format!("policy/official/{ID}.json"),
+                serde_json::to_vec(&policy_document).unwrap(),
+            ));
+            fixture
+                .publish_with_policy(
+                    &targets,
+                    true,
+                    &DEFINITION_ROLE_PATHS,
+                    later(),
+                    Some((&key, 2)),
+                )
+                .await;
+            let candidate = acquire(&fixture, &root).await.unwrap();
+            let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+            library
+                .apply_definition_publisher_policy(&admission, Some(&candidate))
+                .unwrap();
+            let eligible = library
+                .assess_definition_candidate(&candidate, "official", ID)
+                .unwrap()
+                .into_eligible()
+                .unwrap();
+            library.select_definition_candidate(eligible).unwrap();
+            catalog = library.load_catalog().unwrap().0;
+            phase("second admission");
+        }
+        // Owned locally materialized retained-install fixtures isolate rollback;
+        // actual network acquisition/cache/install is qualified separately.
+        assert_eq!(hex::encode(Sha256::digest(bytes)), record.sha256);
+        let path = library.versions_dir().join(ID).join(&record.sha256);
+        fs::create_dir_all(&path).unwrap();
+        let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
+        let mut entry = archive.by_name(executable).unwrap();
+        let mut output = fs::File::create(path.join(executable)).unwrap();
+        std::io::copy(&mut entry, &mut output).unwrap();
+        drop(output);
+        crate::permissions::normalize_archive_entry(&path.join(executable), false, true).unwrap();
+        let artifact = crate::ArtifactIdentity {
+            asset_name: record.filename.clone(),
+            sha256: record.sha256.clone(),
+            size: record.size,
+        };
+        let id = uuid::Uuid::new_v4().to_string();
+        let qualification =
+            crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap();
+        let (manifest_sha256, selected_executable, runtime) = installer
+            .create_manifest(&id, ID, &record.tag, &artifact, &qualification, &path)
+            .unwrap();
+        let installed = crate::InstallRecord {
+            id,
+            port_id: ID.into(),
+            version: record.tag.clone(),
+            path,
+            channel: ReleaseChannel::Stable,
+            installed_at: Library::now(),
+            verified: true,
+            staged: false,
+            artifact,
+            manifest_sha256,
+            selected_executable,
+            runtime,
+        };
+        library.register_install(&installed, true).unwrap();
+        assert!(installer.verify(&installed).unwrap().valid);
+        delivered.push(installed);
+        phase(&format!("install {index}"));
+    }
+    let before = library.status(ID, ReleaseChannel::Stable).unwrap();
+    assert_eq!(before.active.unwrap().id, delivered[1].id);
+    assert_eq!(before.previous.unwrap().id, delivered[0].id);
+    if operation == RetainedCuratedOperation::Launch && status == "distribution_withdrawn" {
+        // Successful supervision owns this existing marker mutation; include it
+        // in preservation expectations, as in the retained-expiry launch control.
+        fs::write(delivered[1].path.join(".portcove-launched"), b"1").unwrap();
+    }
+    let trees: Vec<_> = delivered
+        .iter()
+        .map(|install| crate::library_transfer::reviewed_tree(&install.path).unwrap())
+        .collect();
+    let user = library.user_dir(ID);
+    fs::create_dir_all(user.join("saves")).unwrap();
+    fs::write(user.join("saves/progress.bin"), b"owned retained progress").unwrap();
+    let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
+    if operation == RetainedCuratedOperation::AdoptionRefusal {
+        let source = probe_directory.path().join("unmanaged-owned-source");
+        crate::service::copy_tree(&delivered[1].path, &source).unwrap();
+        let source_tree = crate::library_transfer::reviewed_tree(&source).unwrap();
+        let store = OperationStore::new(library.clone());
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let error = service
+            .adopt(&source, Some(ID), "unconsumed-fixture-token")
+            .unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("managed GitHub acquisition does not authorize adoption"),
+            "{error:?}"
+        );
+        assert!(store.all().unwrap().is_empty());
+        assert_eq!(count(&library, "installs"), 2);
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&source).unwrap(),
+            source_tree
+        );
+        for (install, tree) in delivered.iter().zip(&trees) {
+            assert_eq!(
+                crate::library_transfer::reviewed_tree(&install.path).unwrap(),
+                *tree
+            );
+        }
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&user).unwrap(),
+            user_tree
+        );
+        let after = library.status(ID, ReleaseChannel::Stable).unwrap();
+        assert_eq!(after.active.unwrap().id, delivered[1].id);
+        assert_eq!(after.previous.unwrap().id, delivered[0].id);
+        return;
+    }
+    if operation == RetainedCuratedOperation::LaunchBoundary {
+        let affected = &artifacts[1].0;
+        // A second independent port scope first admits these same immutable
+        // bytes. Its later hold must not invalidate A's Launch baseline.
+        let other = curated_other_scope_catalog(&catalog, affected);
+        let (candidate, admission) = publish_curated_transition_for_id(
+            &fixture,
+            &key,
+            &root,
+            &other,
+            3,
+            None,
+            "curated-other-scope",
+        )
+        .await;
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap();
+        let fresh_scope = policy::acquisition_scope(&library, &catalog, ID)
+            .unwrap()
+            .unwrap();
+        let baseline =
+            launch_assessments::assessment_document(&fresh_scope.policy_sha256, 1, vec![]);
+        let exact_policy: String = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT policy_json FROM definition_publisher_admission WHERE stable_id=?1",
+                [ID],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
+            &catalog,
+            ID,
+            catalog
+                .definition_selection(ID)
+                .unwrap()
+                .definition_revision,
+        );
+        let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+        targets.extend(bundle.contents);
+        targets.push((
+            format!("policy/official/{ID}.json"),
+            exact_policy.into_bytes(),
+        ));
+        let accepted = launch_assessments::publish_assessment_for_targets(
+            &fixture, &key, &root, targets, 4, &baseline,
+        )
+        .await
+        .unwrap();
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        assert!(service.status(ID).unwrap().readiness.unwrap().launchable);
+        let qualification =
+            crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap();
+        installer
+            .verify_critical(&delivered[1], &qualification)
+            .unwrap();
+        let mut context =
+            DefinitionOperationContext::observed(crate::DefinitionOperation::Launch, true, true);
+        context.launch_subject =
+            Some(policy::launch_assessment::verified_subject_key(&delivered[1], platform).unwrap());
+        let identity = catalog.definition_selection(ID).unwrap();
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, context)
+                .unwrap()
+                .outcome,
+            crate::DefinitionEligibilityOutcome::Eligible
+        );
+        let transition = serde_json::json!({"future_acceptance_lost":false,"artifacts":[
+            {"asset_id":affected.asset_id,"sha256":affected.sha256,"status":"revoked"}]});
+        let (candidate, admission) = publish_curated_transition_for_id(
+            &fixture,
+            &key,
+            &root,
+            &other,
+            5,
+            Some(transition),
+            "curated-other-scope",
+        )
+        .await;
+        let interventions = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let late = PortcoveService::with_faults(
+            library.clone(),
+            std::sync::Arc::new(WithdrawPreparation {
+                library: library.clone(),
+                withdrawal: admission,
+                candidate: Some(candidate),
+                point: crate::operation::LifecycleFaultPoint::LaunchReadyToSpawn,
+                interrupt: false,
+                withdrawals: interventions.clone(),
+            }),
+        )
+        .unwrap();
+        let release = probe_directory.path().join("late-release");
+        let mut started = 0;
+        let error = late
+            .supervise_launch(
+                ID,
+                None,
+                &[
+                    "--game".into(),
+                    "--owned-wait".into(),
+                    release.to_string_lossy().into_owned(),
+                ],
+                crate::LaunchStdio::Null,
+                |_| {
+                    started += 1;
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(
+            error
+                .message
+                .contains("accepted curated artifact is revoked"),
+            "{error:?}"
+        );
+        assert_eq!(interventions.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(started, 0);
+        assert!(!release.exists());
+        assert!(!delivered[1].path.join(".portcove-launched").exists());
+        assert!(library.launch_sessions().unwrap().is_empty());
+        assert_eq!(
+            library
+                .assess_definition_operation(identity, context)
+                .unwrap()
+                .outcome,
+            crate::DefinitionEligibilityOutcome::Eligible,
+            "definition Launch baseline must remain eligible despite B's exact artifact hold"
+        );
+        for (install, tree) in delivered.iter().zip(&trees) {
+            assert_eq!(
+                crate::library_transfer::reviewed_tree(&install.path).unwrap(),
+                *tree
+            );
+        }
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&user).unwrap(),
+            user_tree
+        );
+        let after = library.status(ID, ReleaseChannel::Stable).unwrap();
+        assert_eq!(after.active.unwrap().id, delivered[1].id);
+        assert_eq!(after.previous.unwrap().id, delivered[0].id);
+        assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+        assert_eq!(count(&library, "curated_artifact_scopes"), 3);
+        assert_eq!(count(&library, "curated_transition_receipts"), 1);
+        return;
+    }
+    if matches!(
+        operation,
+        RetainedCuratedOperation::Status | RetainedCuratedOperation::Launch
+    ) {
+        let affected = &artifacts[1].0;
+        let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}]});
+        let (candidate, admission) =
+            publish_curated_transition(&fixture, &key, &root, &catalog, 3, Some(transitions)).await;
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap();
+        let eligible = library
+            .assess_definition_candidate(&candidate, "official", ID)
+            .unwrap()
+            .into_eligible()
+            .unwrap();
+        library.select_definition_candidate(eligible).unwrap();
+        let current_catalog = library.load_catalog().unwrap().0;
+        let without_baseline = PortcoveService::new(library.clone())
+            .unwrap()
+            .status(ID)
+            .unwrap();
+        assert!(!without_baseline.readiness.unwrap().launchable);
+        let baseline_refusal = without_baseline
+            .definition_operations
+            .iter()
+            .find(|item| item.operation == crate::DefinitionOperation::Launch)
+            .unwrap();
+        assert_ne!(
+            baseline_refusal.eligibility.outcome,
+            crate::DefinitionEligibilityOutcome::Eligible
+        );
+        assert_ne!(
+            baseline_refusal.eligibility.reason,
+            crate::DefinitionEligibilityReason::CuratedArtifactRevoked
+        );
+        let fresh_scope = policy::acquisition_scope(&library, &current_catalog, ID)
+            .unwrap()
+            .unwrap();
+        let baseline =
+            launch_assessments::assessment_document(&fresh_scope.policy_sha256, 1, vec![]);
+        let exact_policy: String = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT policy_json FROM definition_publisher_admission WHERE stable_id=?1",
+                [ID],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
+            &current_catalog,
+            ID,
+            current_catalog
+                .definition_selection(ID)
+                .unwrap()
+                .definition_revision,
+        );
+        let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+        targets.extend(bundle.contents);
+        targets.push((
+            format!("policy/official/{ID}.json"),
+            exact_policy.into_bytes(),
+        ));
+        let accepted = launch_assessments::publish_assessment_for_targets(
+            &fixture, &key, &root, targets, 4, &baseline,
+        )
+        .await
+        .unwrap();
+        library
+            .apply_definition_launch_assessment(&accepted)
+            .unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let projected = service.status(ID).unwrap();
+        let expected_reason = if status == "revoked" {
+            crate::DefinitionEligibilityReason::CuratedArtifactRevoked
+        } else {
+            crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn
+        };
+        let acquisition = projected
+            .definition_operations
+            .iter()
+            .find(|item| item.operation == crate::DefinitionOperation::Install)
+            .unwrap();
+        assert_eq!(
+            acquisition.eligibility.outcome,
+            crate::DefinitionEligibilityOutcome::Hold
+        );
+        assert_eq!(acquisition.eligibility.reason, expected_reason);
+        let launch = projected
+            .definition_operations
+            .iter()
+            .find(|item| item.operation == crate::DefinitionOperation::Launch)
+            .unwrap();
+        if status == "revoked" {
+            assert_eq!(
+                launch.eligibility.outcome,
+                crate::DefinitionEligibilityOutcome::Hold
+            );
+            assert_eq!(launch.eligibility.reason, expected_reason);
+            assert!(!projected.readiness.as_ref().unwrap().launchable);
+            let action = projected
+                .port_actions
+                .iter()
+                .find(|item| item.action == crate::PortAction::Launch)
+                .unwrap();
+            assert_eq!(action.availability, crate::PortActionAvailability::Held);
+            assert_eq!(action.definition.unwrap().reason, expected_reason);
+        } else {
+            assert_eq!(
+                launch.eligibility.outcome,
+                crate::DefinitionEligibilityOutcome::Eligible
+            );
+            assert!(projected.readiness.as_ref().unwrap().launchable);
+        }
+        let bulk = service
+            .statuses()
+            .unwrap()
+            .into_iter()
+            .find(|item| item.port_id == ID)
+            .unwrap();
+        assert_eq!(bulk.definition_operations, projected.definition_operations);
+        assert_eq!(bulk.port_actions, projected.port_actions);
+        let rollback = projected
+            .port_actions
+            .iter()
+            .find(|item| item.action == crate::PortAction::Rollback)
+            .unwrap();
+        assert_eq!(
+            rollback.availability,
+            crate::PortActionAvailability::Allowed
+        );
+        if operation == RetainedCuratedOperation::Launch {
+            for attempt in 0..2 {
+                // The second construction consumes durable retained authority,
+                // not a caller-provided projection or an in-memory status result.
+                let reopened = PortcoveService::new(library.clone()).unwrap();
+                let release = probe_directory.path().join(format!("release-{attempt}"));
+                let mut started = 0;
+                let outcome = reopened.supervise_launch(
+                    ID,
+                    None,
+                    &[
+                        "--game".into(),
+                        "--owned-wait".into(),
+                        release.to_string_lossy().into_owned(),
+                    ],
+                    crate::LaunchStdio::Null,
+                    |session| {
+                        assert_eq!(session.install_id, delivered[1].id);
+                        started += 1;
+                        fs::write(&release, b"released").unwrap();
+                    },
+                );
+                if status == "revoked" {
+                    assert!(outcome.unwrap_err().message.contains("revoked"));
+                    assert_eq!(started, 0);
+                    assert!(!release.exists());
+                    assert!(!delivered[1].path.join(".portcove-launched").exists());
+                } else {
+                    let outcome = outcome.unwrap();
+                    assert!(outcome.successful);
+                    assert_eq!(outcome.exit_code, Some(0));
+                    assert_eq!(started, 1);
+                }
+                assert!(reopened.stale_launch_sessions().unwrap().is_empty());
+                let after = library.status(ID, ReleaseChannel::Stable).unwrap();
+                assert_eq!(after.active.unwrap().id, delivered[1].id);
+                assert_eq!(after.previous.unwrap().id, delivered[0].id);
+            }
+        }
+        for (install, tree) in delivered.iter().zip(&trees) {
+            assert!(installer.verify(install).unwrap().valid);
+            assert_eq!(
+                crate::library_transfer::reviewed_tree(&install.path).unwrap(),
+                *tree
+            );
+        }
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&user).unwrap(),
+            user_tree
+        );
+        assert_eq!(count(&library, "installs"), 2);
+        assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+        assert_eq!(count(&library, "curated_transition_receipts"), 1);
+        return;
+    }
+    if matches!(
+        operation,
+        RetainedCuratedOperation::PublicationRecovery
+            | RetainedCuratedOperation::PublicationRecoveryPublished
+            | RetainedCuratedOperation::AdoptionRecovery
+            | RetainedCuratedOperation::AdoptionRecoveryPublished
+    ) {
+        let unsupported_adoption = matches!(
+            operation,
+            RetainedCuratedOperation::AdoptionRecovery
+                | RetainedCuratedOperation::AdoptionRecoveryPublished
+        );
+        let mut journal = LifecycleOperation::new(
+            uuid::Uuid::new_v4().to_string(),
+            if unsupported_adoption {
+                LifecycleOperationKind::Adopt
+            } else {
+                LifecycleOperationKind::Install
+            },
+            ID,
+        );
+        let staging = library.staging_dir().join(&journal.id);
+        let payload = staging.join("payload");
+        crate::service::copy_tree(&delivered[1].path, &payload).unwrap();
+        let original = &delivered[1];
+        let install_id = uuid::Uuid::new_v4().to_string();
+        let qualification =
+            crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap();
+        let (manifest_sha256, selected_executable, runtime) = installer
+            .create_manifest(
+                &install_id,
+                ID,
+                &original.version,
+                &original.artifact,
+                &qualification,
+                &payload,
+            )
+            .unwrap();
+        let published = crate::InstallRecord {
+            id: install_id,
+            path: library
+                .versions_dir()
+                .join(ID)
+                .join(format!("{}-resumed", original.artifact.sha256)),
+            manifest_sha256,
+            selected_executable,
+            runtime,
+            ..original.clone()
+        };
+        let private = crate::InstallRecord {
+            path: payload.clone(),
+            ..published.clone()
+        };
+        assert!(installer.verify(&private).unwrap().valid);
+        let private_tree = crate::library_transfer::reviewed_tree(&payload).unwrap();
+        let already_published = matches!(
+            operation,
+            RetainedCuratedOperation::PublicationRecoveryPublished
+                | RetainedCuratedOperation::AdoptionRecoveryPublished
+        );
+        let interrupted_phase = if already_published {
+            crate::durability::rename_noreplace(&payload, &published.path).unwrap();
+            LifecyclePhase::PayloadPublished
+        } else {
+            LifecyclePhase::Prepared
+        };
+        journal.phase = interrupted_phase;
+        journal.install = Some(published.clone());
+        journal.paths.staging = Some(staging.clone());
+        journal.paths.final_path = Some(published.path.clone());
+        journal.activate = true;
+        let store = OperationStore::new(library.clone());
+        store.put(&mut journal).unwrap();
+        if status != "available" {
+            let affected = &artifacts[1].0;
+            let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}]});
+            let (candidate, admission) =
+                publish_curated_transition(&fixture, &key, &root, &catalog, 3, Some(transitions))
+                    .await;
+            library
+                .apply_definition_publisher_policy(&admission, Some(&candidate))
+                .unwrap();
+            let eligible = library
+                .assess_definition_candidate(&candidate, "official", ID)
+                .unwrap()
+                .into_eligible()
+                .unwrap();
+            library.select_definition_candidate(eligible).unwrap();
+        }
+        let current = library.load_catalog().unwrap().0;
+        policy::acquisition_scope(&library, &current, ID)
+            .unwrap()
+            .unwrap()
+            .require_current()
+            .unwrap();
+        for _ in 0..2 {
+            let _reopened = PortcoveService::new(library.clone()).unwrap();
+            let after = library.status(ID, ReleaseChannel::Stable).unwrap();
+            if status == "available" && !unsupported_adoption {
+                assert_eq!(after.active.unwrap().id, published.id);
+                assert_eq!(after.previous.unwrap().id, delivered[1].id);
+                assert!(store.get(&journal.id).unwrap().is_none());
+                assert!(!staging.exists());
+                assert_eq!(
+                    crate::library_transfer::reviewed_tree(&published.path).unwrap(),
+                    private_tree
+                );
+                assert_eq!(count(&library, "installs"), 3);
+            } else {
+                assert_eq!(after.active.unwrap().id, delivered[1].id);
+                assert_eq!(after.previous.unwrap().id, delivered[0].id);
+                let retained = store.get(&journal.id).unwrap().unwrap();
+                assert_eq!(retained.phase, interrupted_phase);
+                assert_eq!(retained.install.unwrap().id, published.id);
+                assert!(
+                    retained
+                        .last_error
+                        .unwrap()
+                        .contains(if status == "revoked" {
+                            "revoked"
+                        } else if unsupported_adoption {
+                            "managed GitHub acquisition does not authorize adoption"
+                        } else {
+                            "distribution"
+                        })
+                );
+                assert_eq!(published.path.exists(), already_published);
+                assert_eq!(payload.exists(), !already_published);
+                assert!(staging.exists());
+                assert_eq!(
+                    crate::library_transfer::reviewed_tree(if already_published {
+                        &published.path
+                    } else {
+                        &payload
+                    })
+                    .unwrap(),
+                    private_tree
+                );
+                assert_eq!(count(&library, "installs"), 2);
+            }
+            for (install, tree) in delivered.iter().zip(&trees) {
+                assert!(installer.verify(install).unwrap().valid);
+                assert_eq!(
+                    crate::library_transfer::reviewed_tree(&install.path).unwrap(),
+                    *tree
+                );
+            }
+            assert!(
+                installer
+                    .verify_critical(&delivered[0], &qualification)
+                    .is_ok()
+            );
+            assert_eq!(
+                crate::library_transfer::reviewed_tree(&user).unwrap(),
+                user_tree
+            );
+        }
+        assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+        assert_eq!(
+            count(&library, "curated_transition_receipts"),
+            i64::from(status != "available")
+        );
+        return;
+    }
+    let store = OperationStore::new(library.clone());
+    let mut interrupted = LifecycleOperation::new(
+        uuid::Uuid::new_v4().to_string(),
+        LifecycleOperationKind::Activate,
+        ID,
+    );
+    interrupted.install = Some(delivered[0].clone());
+    if operation != RetainedCuratedOperation::Rollback {
+        library.register_install(&delivered[0], false).unwrap();
+        if operation == RetainedCuratedOperation::ActivationRecovery {
+            store.put(&mut interrupted).unwrap();
+        }
+    }
+    let affected = &artifacts[0].0;
+    let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}]});
+    let (candidate, admission) =
+        publish_curated_transition(&fixture, &key, &root, &catalog, 3, Some(transitions)).await;
+    library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap();
+    let eligible = library
+        .assess_definition_candidate(&candidate, "official", ID)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    library.select_definition_candidate(eligible).unwrap();
+    let current_catalog = library.load_catalog().unwrap().0;
+    policy::acquisition_scope(&library, &current_catalog, ID)
+        .unwrap()
+        .unwrap()
+        .require_current()
+        .unwrap();
+    phase("transition admission and fresh scope");
+    let attempts = if operation == RetainedCuratedOperation::Activation {
+        1
+    } else {
+        2
+    };
+    for attempt in 0..attempts {
+        // Service construction executes actual startup recovery each time.
+        let service = PortcoveService::new(library.clone()).unwrap();
+        phase(&format!("startup {attempt}"));
+        if operation == RetainedCuratedOperation::Rollback {
+            let projected = service.status(ID).unwrap();
+            let rollback = projected
+                .port_actions
+                .iter()
+                .find(|action| action.action == crate::PortAction::Rollback)
+                .unwrap();
+            if status == "revoked" {
+                assert_eq!(rollback.availability, crate::PortActionAvailability::Held);
+                assert_eq!(
+                    rollback.reason,
+                    crate::PortActionReason::DefinitionIneligible
+                );
+                assert_eq!(
+                    rollback.definition.unwrap().reason,
+                    crate::DefinitionEligibilityReason::CuratedArtifactRevoked
+                );
+            } else {
+                assert_eq!(
+                    rollback.availability,
+                    crate::PortActionAvailability::Allowed
+                );
+                assert!(rollback.definition.is_none());
+            }
+            // The unaffected current v2 identity remains eligible even when the
+            // previous v1 identity is held. Single and bulk status agree.
+            let install = projected
+                .definition_operations
+                .iter()
+                .find(|item| item.operation == crate::DefinitionOperation::Install)
+                .unwrap();
+            assert_eq!(
+                install.eligibility.outcome,
+                crate::DefinitionEligibilityOutcome::Eligible
+            );
+            let bulk = service
+                .statuses()
+                .unwrap()
+                .into_iter()
+                .find(|item| item.port_id == ID)
+                .unwrap();
+            assert_eq!(bulk.definition_operations, projected.definition_operations);
+            assert_eq!(bulk.port_actions, projected.port_actions);
+        }
+        if operation != RetainedCuratedOperation::ActivationRecovery {
+            let result = match operation {
+                RetainedCuratedOperation::Rollback => service.rollback(ID),
+                RetainedCuratedOperation::Activation => service.activate_staged(ID),
+                _ => unreachable!(),
+            };
+            phase(&format!("execute {attempt}"));
+            if status == "revoked" {
+                assert!(result.unwrap_err().message.contains("revoked"));
+            } else {
+                assert_eq!(result.unwrap().id, delivered[attempt].id);
+            }
+        }
+        let after = library.status(ID, ReleaseChannel::Stable).unwrap();
+        if status == "revoked" {
+            assert_eq!(after.active.unwrap().id, delivered[1].id);
+            assert_eq!(after.previous.unwrap().id, delivered[0].id);
+            if operation != RetainedCuratedOperation::Rollback {
+                assert_eq!(after.staged.unwrap().id, delivered[0].id);
+            }
+            if operation == RetainedCuratedOperation::ActivationRecovery {
+                let retained = store.get(&interrupted.id).unwrap().unwrap();
+                assert_eq!(retained.phase, LifecyclePhase::Preparing);
+                assert_eq!(retained.install.unwrap().id, delivered[0].id);
+                assert!(retained.last_error.unwrap().contains("revoked"));
+                assert_eq!(store.all().unwrap().len(), 1);
+            }
+        } else {
+            let expected = if operation == RetainedCuratedOperation::Rollback {
+                attempt
+            } else {
+                0
+            };
+            assert_eq!(after.active.unwrap().id, delivered[expected].id);
+            if operation != RetainedCuratedOperation::Rollback {
+                assert!(after.staged.is_none());
+                assert!(store.all().unwrap().is_empty());
+            }
+        }
+        assert!(
+            installer
+                .verify_critical(
+                    &delivered[1],
+                    &crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap()
+                )
+                .is_ok()
+        );
+        for (install, tree) in delivered.iter().zip(&trees) {
+            assert!(installer.verify(install).unwrap().valid);
+            assert_eq!(
+                crate::library_transfer::reviewed_tree(&install.path).unwrap(),
+                *tree
+            );
+        }
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&user).unwrap(),
+            user_tree
+        );
+    }
+    assert_eq!(count(&library, "installs"), 2);
+    assert_eq!(count(&library, "curated_artifact_admissions"), 2);
+    assert_eq!(count(&library, "curated_transition_receipts"), 1);
+}
+
+async fn curated_installer_fixture(cache_controls: bool, artifact_status: Option<&str>) {
+    curated_installer_boundary_fixture(cache_controls, artifact_status, None).await;
+}
+
+macro_rules! curated_install_boundary_cases {
+    ($($name:ident: $status:literal, $point:ident,)*) => {$(
+        #[tokio::test]
+        async fn $name() {
+            curated_installer_boundary_fixture(false, Some($status),
+                Some(crate::operation::LifecycleFaultPoint::$point)).await;
+        }
+    )*};
+}
+curated_install_boundary_cases! {
+    curated_install_prepared_revocation_preserves_owned_payload: "revoked", InstallPrepared,
+    curated_install_prepared_withdrawal_preserves_owned_payload: "distribution_withdrawn", InstallPrepared,
+    curated_install_published_revocation_preserves_owned_payload: "revoked", InstallPublished,
+    curated_install_published_withdrawal_preserves_owned_payload: "distribution_withdrawn", InstallPublished,
+}
+
+async fn curated_installer_boundary_fixture(
+    cache_controls: bool,
+    artifact_status: Option<&str>,
+    boundary: Option<crate::operation::LifecycleFaultPoint>,
+) {
+    use crate::ReleaseProvider;
+    use std::io::{Cursor, Write};
+    let platform = crate::Platform::current().unwrap();
+    let executable = if cfg!(windows) {
+        "fixture.exe"
+    } else {
+        "fixture"
+    };
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    archive
+        .start_file(
+            executable,
+            zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+        )
+        .unwrap();
+    archive
+        .write_all(b"Owned nonexecuted curated byte fixture")
+        .unwrap();
+    let bytes = archive.finish().unwrap().into_inner();
+    let mut baseline = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.platforms = vec![platform];
+    port.executable_hints.clear();
+    port.executable_hints
+        .insert(platform, vec![executable.into()]);
+    let mut record = crate::curated_acquisition::fixture_record();
+    record.repository = port.release.repository.clone();
+    record.upstream_url = format!("https://github.com/{}", record.repository);
+    record.platform = platform;
+    record.tag = "v1".into();
+    record.filename = format!("game-{}.zip", platform.asset_tokens()[0]);
+    record.size = bytes.len() as u64;
+    record.sha256 = hex::encode(Sha256::digest(&bytes));
+    record.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        record.upstream_url, record.tag, record.filename
+    );
+    port.release.curated.insert(record.platform, record.clone());
+    assert!(
+        crate::DefinitionAcquisitionScope::validate_port(&port).is_err(),
+        "legacy scope must refuse curated content"
+    );
+    baseline.ports.push(port);
+    let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
+    let (fixture, key, root, _directory, library, catalog, mut scope) =
+        managed_fixture_for_policy(authored, true).await;
+    let original_candidate = acquire(&fixture, &root).await.unwrap();
+    let original_admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    assert_eq!(scope.curated_checks, Some(1));
+    let server = AcquisitionHttp::new();
+    scope.fixture_origin = Some(server.origin.clone());
+    let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+    let mut release = server.release(false);
+    release[0]["id"] = record.release_id.into();
+    release[0]["assets"][0]["id"] = record.asset_id.into();
+    release[0]["assets"][0]["size"] = record.size.into();
+    release[0]["assets"][0]["name"] = record.filename.clone().into();
+    let path = reqwest::Url::parse(&record.acquisition_url)
+        .unwrap()
+        .path()
+        .to_owned();
+    release[0]["assets"][0]["browser_download_url"] = format!("{}{path}", server.origin).into();
+    let tag = serde_json::json!({"ref":"refs/tags/v1", "object":{"type":"commit","sha":record.commit_sha1}});
+    for iteration in 0..2 {
+        let before = server.requests.lock().unwrap().len();
+        server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+        server.json(release.clone());
+        server.json(tag.clone());
+        let resolved = provider
+            .resolve_scoped(
+                catalog.port(ID).unwrap(),
+                ReleaseChannel::Stable,
+                record.platform,
+                Some(&scope),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resolved.release.asset.sha256, record.sha256);
+        assert_eq!(resolved.release.asset.size, record.size);
+        assert_eq!(
+            server.requests.lock().unwrap().len(),
+            before + 3,
+            "mutable curated metadata must be read even inside the selection-cache TTL"
+        );
+        if iteration == 0 {
+            let installer = crate::Installer::new(library.clone()).unwrap();
+            let request =
+                |resolution: crate::ScopedResolvedRelease, _suffix: &str| crate::InstallRequest {
+                    port_id: ID.into(),
+                    release: resolution.release.clone(),
+                    output_root: library.versions_dir().join(ID),
+                    activate: false,
+                    managed: None,
+                    qualification: crate::InstallQualification::from_catalog(
+                        &catalog,
+                        ID,
+                        record.platform,
+                    )
+                    .unwrap()
+                    .with_acquisition_resolution(resolution)
+                    .unwrap(),
+                };
+            // Metadata substitution, changed bytes and interrupted cache
+            // population are qualified by the dedicated acquisition/cache
+            // controls. Artifact-hold cases need one actual admitted install.
+            if artifact_status.is_none() {
+                let mut moved_tag = tag.clone();
+                moved_tag["object"]["sha"] = "d".repeat(40).into();
+                server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+                server.json(release.clone());
+                server.json(moved_tag);
+                let before = server.requests.lock().unwrap().len();
+                assert!(
+                    installer
+                        .install(
+                            request(resolved.clone(), "-stale-proof"),
+                            &crate::operation::OperationCoordinator::new("install", None),
+                            |_| {},
+                        )
+                        .await
+                        .is_err()
+                );
+                assert_eq!(
+                    server.requests.lock().unwrap().len(),
+                    before + 3,
+                    "a stale resolution must refuse before requesting artifact bytes"
+                );
+                assert_eq!(count(&library, "installs"), 0);
+                let mut changed_bytes = bytes.clone();
+                changed_bytes[0] ^= 1;
+                server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+                server.json(release.clone());
+                server.json(tag.clone());
+                server.bytes(&changed_bytes);
+                let refused = installer
+                    .install(
+                        request(resolved.clone(), "-changed-bytes"),
+                        &crate::operation::OperationCoordinator::new("install", None),
+                        |_| {},
+                    )
+                    .await
+                    .unwrap_err();
+                assert_eq!(refused.code, crate::ErrorCode::Verification);
+                assert!(refused.message.contains("SHA-256"));
+                assert_eq!(count(&library, "installs"), 0);
+                server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+                server.json(release.clone());
+                server.json(tag.clone());
+                server.bytes(&bytes);
+                struct BeforePublication;
+                impl crate::operation::LifecycleFaultInjector for BeforePublication {
+                    fn check(
+                        &self,
+                        point: crate::operation::LifecycleFaultPoint,
+                    ) -> crate::Result<()> {
+                        if point == crate::operation::LifecycleFaultPoint::InstallReadyToPublish {
+                            Err(PortcoveError::state(
+                                "owned fixture interruption before publication",
+                            ))
+                        } else {
+                            Ok(())
+                        }
+                    }
+                }
+                let interrupted = crate::Installer::with_faults(
+                    library.clone(),
+                    std::sync::Arc::new(BeforePublication),
+                )
+                .unwrap();
+                let refusal = interrupted
+                    .install(
+                        request(resolved.clone(), "-populate-cache"),
+                        &crate::operation::OperationCoordinator::new("install", None),
+                        |_| {},
+                    )
+                    .await
+                    .unwrap_err();
+                assert!(refusal.message.contains("owned fixture interruption"));
+                assert_eq!(count(&library, "installs"), 0);
+            }
+            let before = server.requests.lock().unwrap().len();
+            server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+            server.json(release.clone());
+            server.json(tag.clone());
+            if artifact_status.is_some() {
+                server.bytes(&bytes);
+            }
+            // Cache controls queue no artifact response: installation refreshes
+            // metadata and reuses only reverified immutable cached bytes.
+            // Artifact-hold controls acquire their one actual payload here.
+            if let Some(point) = boundary {
+                use crate::operation::{LifecyclePhase, OperationStore};
+                let status = artifact_status.unwrap();
+                let transitions = serde_json::json!({"future_acceptance_lost":false,
+                    "artifacts":[{"asset_id":record.asset_id,"sha256":record.sha256,"status":status}]});
+                let (candidate, admission) = publish_curated_transition(
+                    &fixture,
+                    &key,
+                    &root,
+                    &catalog,
+                    2,
+                    Some(transitions),
+                )
+                .await;
+                let interventions = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+                let guarded = crate::Installer::with_faults(
+                    library.clone(),
+                    std::sync::Arc::new(WithdrawPreparation {
+                        library: library.clone(),
+                        withdrawal: admission,
+                        candidate: Some(candidate),
+                        point,
+                        interrupt: false,
+                        withdrawals: interventions.clone(),
+                    }),
+                )
+                .unwrap();
+                let refusal = guarded
+                    .install(
+                        request(resolved.clone(), ""),
+                        &crate::operation::OperationCoordinator::new("install", None),
+                        |_| {},
+                    )
+                    .await
+                    .unwrap_err();
+                assert_eq!(refusal.code, crate::ErrorCode::Conflict);
+                assert_eq!(interventions.load(std::sync::atomic::Ordering::SeqCst), 1);
+                assert_eq!(server.requests.lock().unwrap().len(), before + 4);
+                assert!(server.responses.lock().unwrap().is_empty());
+                assert_eq!(count(&library, "installs"), 0);
+                let journals = OperationStore::new(library.clone()).all().unwrap();
+                assert_eq!(journals.len(), 1);
+                let journal = &journals[0];
+                let published = point == crate::operation::LifecycleFaultPoint::InstallPublished;
+                let expected_phase = if published {
+                    LifecyclePhase::PayloadPublished
+                } else {
+                    LifecyclePhase::Prepared
+                };
+                assert_eq!(journal.phase, expected_phase);
+                let staging = journal.paths.staging.as_ref().unwrap();
+                let destination = journal.paths.final_path.as_ref().unwrap();
+                let payload = staging.join("payload");
+                assert!(staging.exists());
+                assert_eq!(destination.exists(), published);
+                assert_eq!(payload.exists(), !published);
+                let retained = if published { destination } else { &payload };
+                assert_eq!(
+                    fs::read(retained.join(executable)).unwrap(),
+                    b"Owned nonexecuted curated byte fixture"
+                );
+                let tree = crate::library_transfer::reviewed_tree(retained).unwrap();
+                let cached = library
+                    .downloads_dir()
+                    .join("curated-v1")
+                    .join(format!("{}.asset", record.sha256));
+                assert_eq!(fs::read(&cached).unwrap(), bytes);
+                for _ in 0..2 {
+                    let reopened = crate::PortcoveService::new(library.clone()).unwrap();
+                    drop(reopened);
+                    let held = OperationStore::new(library.clone()).all().unwrap();
+                    assert_eq!(held.len(), 1);
+                    assert_eq!(held[0].id, journal.id);
+                    assert_eq!(held[0].phase, expected_phase);
+                    assert!(held[0].last_error.as_ref().unwrap().contains(
+                        if status == "revoked" {
+                            "revoked"
+                        } else {
+                            "distribution"
+                        }
+                    ));
+                    assert_eq!(count(&library, "installs"), 0);
+                    assert_eq!(
+                        crate::library_transfer::reviewed_tree(retained).unwrap(),
+                        tree
+                    );
+                    assert_eq!(destination.exists(), published);
+                    assert_eq!(payload.exists(), !published);
+                    assert!(staging.exists());
+                    assert_eq!(fs::read(&cached).unwrap(), bytes);
+                }
+                assert_eq!(count(&library, "curated_artifact_admissions"), 1);
+                assert_eq!(count(&library, "curated_transition_receipts"), 1);
+                return;
+            }
+            let installed = installer
+                .install(
+                    request(resolved.clone(), ""),
+                    &crate::operation::OperationCoordinator::new("install", None),
+                    |_| {},
+                )
+                .await
+                .unwrap();
+            assert!(installer.verify(&installed).unwrap().valid);
+            assert_eq!(count(&library, "installs"), 1);
+            assert_eq!(
+                server.requests.lock().unwrap().len(),
+                before + if artifact_status.is_some() { 4 } else { 3 }
+            );
+            if let Some(status) = artifact_status {
+                let qualification =
+                    crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap();
+                let original_tree =
+                    crate::library_transfer::reviewed_tree(&installed.path).unwrap();
+                let cached = library
+                    .downloads_dir()
+                    .join("curated-v1")
+                    .join(format!("{}.asset", record.sha256));
+                assert_eq!(fs::read(&cached).unwrap(), bytes);
+                let transitions = serde_json::json!({"future_acceptance_lost":false, "artifacts":[
+                    {"asset_id":record.asset_id,"sha256":record.sha256,"status":status}]});
+                let (candidate, admission) = publish_curated_transition(
+                    &fixture,
+                    &key,
+                    &root,
+                    &catalog,
+                    2,
+                    Some(transitions),
+                )
+                .await;
+                library
+                    .apply_definition_publisher_policy(&admission, Some(&candidate))
+                    .unwrap();
+                let critical = installer.verify_critical(&installed, &qualification);
+                if status == "revoked" {
+                    assert!(critical.unwrap_err().message.contains("revoked"));
+                } else {
+                    assert_eq!(critical.unwrap(), installed.path.join(executable));
+                }
+                // Reassess and select the new exact policy. These acquisition
+                // refusals must not be explained by an obsolete in-memory scope.
+                let eligible = library
+                    .assess_definition_candidate(&candidate, "official", ID)
+                    .unwrap()
+                    .into_eligible()
+                    .unwrap();
+                library.select_definition_candidate(eligible).unwrap();
+                let (current_catalog, _) = library.load_catalog().unwrap();
+                let mut current_scope = policy::acquisition_scope(&library, &current_catalog, ID)
+                    .unwrap()
+                    .unwrap();
+                current_scope.fixture_origin = Some(server.origin.clone());
+                current_scope.require_current().unwrap();
+                let before = server.requests.lock().unwrap().len();
+                let refusal = provider
+                    .resolve_scoped(
+                        current_catalog.port(ID).unwrap(),
+                        ReleaseChannel::Stable,
+                        platform,
+                        Some(&current_scope),
+                    )
+                    .await
+                    .unwrap_err();
+                assert!(refusal.message.contains(if status == "revoked" {
+                    "revoked"
+                } else {
+                    "distribution"
+                }));
+                assert_eq!(server.requests.lock().unwrap().len(), before);
+                let destination = library.root().join("held-cache-copy.zip");
+                let refusal = crate::curated_cache::CacheWorker::new(
+                    &current_scope,
+                    &resolved.release.asset,
+                    &crate::operation::OperationCoordinator::new("install", None),
+                )
+                .restore(&destination)
+                .await
+                .unwrap_err();
+                assert!(refusal.message.contains(if status == "revoked" {
+                    "revoked"
+                } else {
+                    "distribution"
+                }));
+                assert!(!destination.exists());
+                assert!(installer.verify(&installed).unwrap().valid);
+                assert_eq!(
+                    crate::library_transfer::reviewed_tree(&installed.path).unwrap(),
+                    original_tree
+                );
+                assert_eq!(fs::read(cached).unwrap(), bytes);
+                assert_eq!(count(&library, "installs"), 1);
+                assert_eq!(count(&library, "curated_artifact_admissions"), 1);
+                assert_eq!(count(&library, "curated_transition_receipts"), 1);
+                assert!(server.responses.lock().unwrap().is_empty());
+                return;
+            }
+            if !cache_controls {
+                continue;
+            }
+            let guard = library.try_lock_curated_cache().unwrap();
+            let blocked = library.root().join("busy-cache-copy.zip");
+            assert!(
+                !crate::curated_cache::CacheWorker::new(
+                    &scope,
+                    &resolved.release.asset,
+                    &crate::operation::OperationCoordinator::new("install", None)
+                )
+                .restore(&blocked)
+                .await
+                .unwrap()
+            );
+            assert!(!blocked.exists());
+            drop(guard);
+            let cached = library
+                .downloads_dir()
+                .join("curated-v1")
+                .join(format!("{}.asset", record.sha256));
+            let mut corrupted = bytes.clone();
+            corrupted[0] ^= 1;
+            std::fs::write(&cached, &corrupted).unwrap();
+            let refusal = crate::curated_cache::CacheWorker::new(
+                &scope,
+                &resolved.release.asset,
+                &crate::operation::OperationCoordinator::new("install", None),
+            )
+            .restore(&library.root().join("refused-cache-copy.zip"))
+            .await
+            .unwrap_err();
+            assert!(refusal.message.contains("SHA-256"));
+            assert_eq!(
+                std::fs::read(&cached).unwrap(),
+                corrupted,
+                "failed cache evidence must remain"
+            );
+            assert!(installer.verify(&installed).unwrap().valid);
+            let root = library.downloads_dir().join("curated-v1");
+            std::fs::rename(
+                &root,
+                library.downloads_dir().join("curated-failed-fixture"),
+            )
+            .unwrap();
+            std::fs::create_dir(&root).unwrap();
+            for number in 0..256 {
+                std::fs::write(root.join(format!("{number:064x}.asset")), []).unwrap();
+            }
+            let original = library.root().join("capacity-source.zip");
+            std::fs::write(&original, &bytes).unwrap();
+            assert!(
+                !crate::curated_cache::CacheWorker::new(
+                    &scope,
+                    &resolved.release.asset,
+                    &crate::operation::OperationCoordinator::new("install", None)
+                )
+                .retain(&original)
+                .await
+                .unwrap()
+            );
+            assert_eq!(
+                std::fs::read_dir(&root).unwrap().count(),
+                256,
+                "a full cache must not evict evidence"
+            );
+        }
+    }
+    if cache_controls {
+        assert!(server.responses.lock().unwrap().is_empty());
+        return;
+    }
+    let before = server.requests.lock().unwrap().len();
+    server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+    let mut changed = release.clone();
+    changed[0]["assets"][0]["id"] = (record.asset_id + 1).into();
+    server.json(changed);
+    assert!(
+        provider
+            .resolve_scoped(
+                catalog.port(ID).unwrap(),
+                ReleaseChannel::Stable,
+                record.platform,
+                Some(&scope)
+            )
+            .await
+            .is_err()
+    );
+    assert_eq!(server.requests.lock().unwrap().len(), before + 2);
+    server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+    server.json(release);
+    let mut changed = tag;
+    changed["object"]["sha"] = "d".repeat(40).into();
+    server.json(changed);
+    assert!(
+        provider
+            .resolve_scoped(
+                catalog.port(ID).unwrap(),
+                ReleaseChannel::Stable,
+                record.platform,
+                Some(&scope)
+            )
+            .await
+            .is_err()
+    );
+    assert!(server.responses.lock().unwrap().is_empty());
+    // Even a newly authenticated independent policy cannot silently repin an
+    // already admitted immutable GitHub asset. The entire policy write rolls
+    // back, preserving the earlier scope and accepted installation.
+    let mut repinned = catalog.authoritative_document();
+    repinned
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ID)
+        .unwrap()
+        .release
+        .curated
+        .get_mut(&record.platform)
+        .unwrap()
+        .sha256 = "d".repeat(64);
+    let repinned = Catalog::from_json(&serde_json::to_string(&repinned).unwrap()).unwrap();
+    let mut targets = repository_targets_for(&repinned, ID);
+    let mut document = managed_policy_for(&targets, true);
+    document["policy_schema"] = 4.into();
+    document["policy_revision"] = 2.into();
+    document["decision"]["curated_acquisition_checks"] = 1.into();
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&document).unwrap(),
+    ));
+    fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 2)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    let refusal = library
+        .apply_definition_publisher_policy(&admission, Some(&candidate))
+        .unwrap_err();
+    assert!(refusal.message.contains("previously accepted bytes"));
+    scope.require_current().unwrap();
+    assert_eq!(count(&library, "curated_artifact_admissions"), 1);
+    assert_eq!(count(&library, "installs"), 1);
+    let original_policy: String = library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT policy_json FROM definition_publisher_admission WHERE stable_id=?1",
+            [ID],
+            |row| row.get(0),
+        )
+        .unwrap();
+    library
+        .connection()
+        .unwrap()
+        .execute("DELETE FROM curated_artifact_admissions", [])
+        .unwrap();
+    assert!(scope.require_port(catalog.port(ID).unwrap()).is_err());
+    for (policy, candidate) in [
+        (&original_admission, &original_candidate),
+        (&admission, &candidate),
+    ] {
+        let refusal = library
+            .apply_definition_publisher_policy(policy, Some(candidate))
+            .unwrap_err();
+        assert!(
+            refusal.message.contains("history is incomplete"),
+            "{}",
+            refusal.message
+        );
+    }
+    let retained_policy: String = library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT policy_json FROM definition_publisher_admission WHERE stable_id=?1",
+            [ID],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(retained_policy, original_policy);
+    assert_eq!(count(&library, "curated_artifact_admissions"), 0);
+    let installs = library.all_installs().unwrap();
+    assert_eq!(installs.len(), 1);
+    assert!(
+        crate::Installer::new(library.clone())
+            .unwrap()
+            .verify(&installs[0])
+            .unwrap()
+            .valid
+    );
 }
 
 // Owned HTTP fixtures exercise real reqwest consumers without pretending to
@@ -2145,6 +4947,7 @@ async fn retained_launch_refuses_invalid_continuity_and_mismatched_policy() {
 struct WithdrawPreparation {
     library: Library,
     withdrawal: crate::AuthenticatedDefinitionPublisherPolicy,
+    candidate: Option<crate::AuthenticatedDefinitionCandidate>,
     point: crate::operation::LifecycleFaultPoint,
     interrupt: bool,
     withdrawals: std::sync::Arc<std::sync::atomic::AtomicUsize>,
@@ -2153,7 +4956,7 @@ impl crate::operation::LifecycleFaultInjector for WithdrawPreparation {
     fn check(&self, point: crate::operation::LifecycleFaultPoint) -> crate::Result<()> {
         if point == self.point {
             self.library
-                .apply_definition_publisher_policy(&self.withdrawal, None)?;
+                .apply_definition_publisher_policy(&self.withdrawal, self.candidate.as_ref())?;
             self.withdrawals
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             if self.interrupt {
@@ -2237,19 +5040,40 @@ fn install_managed_preparation_fixture(
     catalog: &Catalog,
     source_bytes: &[u8],
 ) -> (crate::InstallRecord, std::path::PathBuf) {
+    install_managed_preparation_fixture_with_probe(directory, library, catalog, source_bytes, None)
+}
+
+fn install_managed_preparation_fixture_with_probe(
+    directory: &TempDir,
+    library: &Library,
+    catalog: &Catalog,
+    source_bytes: &[u8],
+    exact_probe: Option<&std::path::Path>,
+) -> (crate::InstallRecord, std::path::PathBuf) {
     let platform = crate::Platform::current().unwrap();
     let port = catalog.port(ID).unwrap();
-    let artifact = crate::ArtifactIdentity {
-        asset_name: "fixture.zip".into(),
-        sha256: hex::encode(Sha256::digest(b"owned source artifact")),
-        size: 1,
-    };
+    let artifact = port.release.curated.get(&platform).map_or_else(
+        || crate::ArtifactIdentity {
+            asset_name: "fixture.zip".into(),
+            sha256: hex::encode(Sha256::digest(b"owned source artifact")),
+            size: 1,
+        },
+        |record| crate::ArtifactIdentity {
+            asset_name: record.filename.clone(),
+            sha256: record.sha256.clone(),
+            size: record.size,
+        },
+    );
     let install_root = library.versions_dir().join(ID).join(&artifact.sha256);
     fs::create_dir_all(&install_root).unwrap();
     let probe_root = directory.path().join("owned-probe");
     fs::create_dir(&probe_root).unwrap();
     let executable = install_root.join(&port.executable_hints[&platform][0]);
-    fs::copy(crate::test_fixture::build_probe(&probe_root), &executable).unwrap();
+    let probe = exact_probe
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| crate::test_fixture::build_probe(&probe_root));
+    fs::copy(&probe, &executable).unwrap();
+    assert_eq!(fs::read(&executable).unwrap(), fs::read(&probe).unwrap());
     crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
     let install_id = uuid::Uuid::new_v4().to_string();
     let qualification = crate::InstallQualification::from_catalog(catalog, ID, platform).unwrap();
@@ -2293,6 +5117,257 @@ fn install_managed_preparation_fixture(
     (original, source)
 }
 
+async fn curated_preparation_fixture(
+    status: &str,
+    interrupted: Option<crate::operation::LifecycleFaultPoint>,
+) {
+    use crate::operation::{LifecycleFaultPoint, LifecyclePhase, OperationStore};
+    use std::io::{Cursor, Write};
+    let source_bytes: &[u8] = &[0x80, 0x37, 0x12, 0x40, 0, 0, 0, 0];
+    let platform = crate::Platform::current().unwrap();
+    let probe_directory = TempDir::new().unwrap();
+    let probe = crate::test_fixture::build_probe(probe_directory.path());
+    let mut document = managed_preparation_catalog(source_bytes).authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ID)
+        .unwrap();
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    archive
+        .start_file(
+            &port.executable_hints[&platform][0],
+            zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+        )
+        .unwrap();
+    archive.write_all(&fs::read(&probe).unwrap()).unwrap();
+    let bytes = archive.finish().unwrap().into_inner();
+    let mut record = crate::curated_acquisition::fixture_record();
+    record.repository = port.release.repository.clone();
+    record.upstream_url = format!("https://github.com/{}", record.repository);
+    record.platform = platform;
+    record.tag = "v1".into();
+    record.filename = format!("game-{}.zip", platform.asset_tokens()[0]);
+    record.size = bytes.len() as u64;
+    record.sha256 = hex::encode(Sha256::digest(&bytes));
+    record.acquisition_url = format!(
+        "{}/releases/download/{}/{}",
+        record.upstream_url, record.tag, record.filename
+    );
+    port.release.curated.insert(platform, record.clone());
+    let authored = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let (fixture, key, root, directory, library, mut catalog, _) =
+        managed_fixture_for_policy(authored, true).await;
+    let user = library.user_dir(ID);
+    fs::create_dir_all(user.join("saves")).unwrap();
+    fs::write(
+        user.join("saves/progress.bin"),
+        b"owned preparation progress",
+    )
+    .unwrap();
+    let user_tree = crate::library_transfer::reviewed_tree(&user).unwrap();
+    let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":record.asset_id,"sha256":record.sha256,"status":status}]});
+    let (candidate, admission) =
+        publish_curated_transition(&fixture, &key, &root, &catalog, 2, Some(transitions)).await;
+    if status == "distribution_withdrawn" || interrupted.is_none() {
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap();
+        let eligible = library
+            .assess_definition_candidate(&candidate, "official", ID)
+            .unwrap()
+            .into_eligible()
+            .unwrap();
+        library.select_definition_candidate(eligible).unwrap();
+        catalog = crate::definition_candidate::selection::load_selected_definition_catalog(
+            &library.connection().unwrap(),
+            &catalog,
+            now_unix(),
+        )
+        .unwrap()
+        .unwrap()
+        .0;
+    }
+    // Withdrawal does not waive the existing policy-revision guard. Its positive
+    // control retains the current reviewed contract, while revocation is applied
+    // to an already prepared original at the selected interruption boundary.
+    let (original, source) = install_managed_preparation_fixture_with_probe(
+        &directory,
+        &library,
+        &catalog,
+        source_bytes,
+        Some(&probe),
+    );
+    let original_tree = crate::library_transfer::reviewed_tree(&original.path).unwrap();
+    let hits = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut service = if let Some(point) = interrupted {
+        PortcoveService::with_faults(
+            library.clone(),
+            std::sync::Arc::new(WithdrawPreparation {
+                library: library.clone(),
+                withdrawal: admission,
+                candidate: Some(candidate),
+                point,
+                interrupt: true,
+                withdrawals: hits.clone(),
+            }),
+        )
+        .unwrap()
+    } else {
+        PortcoveService::new(library.clone()).unwrap()
+    };
+    service.replace_catalog_for_test(catalog.clone());
+    let options = crate::PreparationOptions {
+        target: platform,
+        mode: crate::PreparationMode::Default,
+    };
+    let store = OperationStore::new(library.clone());
+    if interrupted.is_none() && status == "revoked" {
+        assert!(
+            service
+                .plan_preparation(ID, options)
+                .unwrap_err()
+                .message
+                .contains("revoked")
+        );
+        assert!(store.all().unwrap().is_empty());
+        assert_eq!(count(&library, "installs"), 1);
+    } else {
+        let plan = service.plan_preparation(ID, options).unwrap();
+        let authorization = service
+            .authorize_preparation(ID, options, &plan.plan_sha256)
+            .unwrap();
+        let prepared = service.prepare(ID, options, &authorization.token, |_| {});
+        if let Some(point) = interrupted {
+            let error = prepared.unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("owned managed preparation interruption"),
+                "unexpected preparation error: {error:?}"
+            );
+            assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1);
+            let journal = store.all().unwrap().remove(0);
+            let expected_phase = if point == LifecycleFaultPoint::PreparationPrepared {
+                LifecyclePhase::Prepared
+            } else {
+                LifecyclePhase::PayloadPublished
+            };
+            assert_eq!(journal.phase, expected_phase);
+            let install = journal.install.as_ref().unwrap();
+            let payload = journal.paths.staging.as_ref().unwrap().join("payload");
+            let retained_path = if expected_phase == LifecyclePhase::Prepared {
+                &payload
+            } else {
+                &install.path
+            };
+            let retained_tree = crate::library_transfer::reviewed_tree(retained_path).unwrap();
+            drop(service);
+            for _ in 0..2 {
+                let _reopened = PortcoveService::new(library.clone()).unwrap();
+                if status == "revoked" {
+                    let held = store.get(&journal.id).unwrap().unwrap();
+                    assert_eq!(held.phase, expected_phase);
+                    assert!(held.last_error.unwrap().contains("revoked"));
+                    assert_eq!(count(&library, "installs"), 1);
+                    assert_eq!(
+                        library
+                            .status(ID, ReleaseChannel::Stable)
+                            .unwrap()
+                            .active
+                            .unwrap()
+                            .id,
+                        original.id
+                    );
+                    assert_eq!(
+                        crate::library_transfer::reviewed_tree(retained_path).unwrap(),
+                        retained_tree
+                    );
+                    assert_eq!(
+                        install.path.exists(),
+                        expected_phase == LifecyclePhase::PayloadPublished
+                    );
+                } else {
+                    assert!(store.get(&journal.id).unwrap().is_none());
+                    assert_eq!(count(&library, "installs"), 2);
+                    assert_eq!(
+                        library
+                            .status(ID, ReleaseChannel::Stable)
+                            .unwrap()
+                            .active
+                            .unwrap()
+                            .id,
+                        install.id
+                    );
+                    assert_eq!(
+                        crate::library_transfer::reviewed_tree(&install.path).unwrap(),
+                        retained_tree
+                    );
+                    assert!(!journal.paths.staging.as_ref().unwrap().exists());
+                }
+            }
+        } else {
+            let prepared = prepared.unwrap();
+            assert_ne!(prepared.id, original.id);
+            assert!(prepared.path.join("prepared.marker").is_file());
+            assert!(store.all().unwrap().is_empty());
+            assert_eq!(count(&library, "installs"), 2);
+        }
+    }
+    assert_eq!(fs::read(&source).unwrap(), source_bytes);
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&original.path).unwrap(),
+        original_tree
+    );
+    assert_eq!(
+        crate::library_transfer::reviewed_tree(&user).unwrap(),
+        user_tree
+    );
+    assert_eq!(count(&library, "curated_artifact_admissions"), 1);
+    assert_eq!(count(&library, "curated_transition_receipts"), 1);
+}
+
+#[tokio::test]
+async fn curated_preparation_revocation_refuses_before_setup() {
+    curated_preparation_fixture("revoked", None).await;
+}
+#[tokio::test]
+async fn curated_preparation_withdrawal_permits_owned_setup() {
+    curated_preparation_fixture("distribution_withdrawn", None).await;
+}
+#[tokio::test]
+async fn curated_preparation_prepared_revocation_retains_journal() {
+    curated_preparation_fixture(
+        "revoked",
+        Some(crate::operation::LifecycleFaultPoint::PreparationPrepared),
+    )
+    .await;
+}
+#[tokio::test]
+async fn curated_preparation_published_revocation_retains_journal() {
+    curated_preparation_fixture(
+        "revoked",
+        Some(crate::operation::LifecycleFaultPoint::PreparationPublished),
+    )
+    .await;
+}
+#[tokio::test]
+async fn curated_preparation_prepared_withdrawal_recovers_once() {
+    curated_preparation_fixture(
+        "distribution_withdrawn",
+        Some(crate::operation::LifecycleFaultPoint::PreparationPrepared),
+    )
+    .await;
+}
+#[tokio::test]
+async fn curated_preparation_published_withdrawal_recovers_once() {
+    curated_preparation_fixture(
+        "distribution_withdrawn",
+        Some(crate::operation::LifecycleFaultPoint::PreparationPublished),
+    )
+    .await;
+}
+
 async fn assert_managed_preparation_withdrawal(
     point: crate::operation::LifecycleFaultPoint,
     interrupt: bool,
@@ -2320,6 +5395,7 @@ async fn assert_managed_preparation_withdrawal(
         std::sync::Arc::new(WithdrawPreparation {
             library: library.clone(),
             withdrawal,
+            candidate: None,
             point,
             interrupt,
             withdrawals: withdrawals.clone(),
