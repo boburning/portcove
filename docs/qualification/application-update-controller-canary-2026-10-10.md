@@ -2,8 +2,10 @@
 
 Owner: [#534](https://github.com/boburning/portcove/issues/534), consuming
 [the existing owner amendment](https://github.com/boburning/portcove/issues/534#issuecomment-5999823580).
-This component is source preparation. The `.yml.txt` template is inert, and no
-workflow, tag, environment, variable, secret or protection is provisioned here.
+The initial component was source preparation. The `.yml.txt` template is inert;
+that preparation provisioned no workflow, tag, environment, variable, secret or
+protection. The separately authorized activation and bounded proof are recorded
+below.
 The existing default-branch release-coordinator rehearsal remains unchanged.
 The delivered #1710 offline-targets/online-role split remains credited.
 
@@ -104,3 +106,48 @@ no mandatory server/App/PAT or additional paid resource, but current account and
 artifact capacity must be verified. Preserve Windows/ordinary Linux, the full
 317-record/316-identity cohort, Linux GLib security hold and production/tagging
 authority boundaries. This component closes no release/platform acceptance.
+
+## Authorized bounded platform proof
+
+The canonical owner approved [the exact packet](https://github.com/boburning/portcove/issues/534#issuecomment-6099501516)
+and then [the narrower zero-spend attempt](https://github.com/boburning/portcove/issues/534#issuecomment-6099765626).
+[The complete delivery receipt](https://github.com/boburning/portcove/issues/534#issuecomment-6099823612)
+records control preimages, actual denials, archive verification and remaining scope.
+PR #1719 merged as `c32b86072e931586b1901f88253e413dbc8155c9`.
+The protected tag targets reviewed head `b67826eda36547add4b3304682d6301464a979a1`,
+tree `adecbfd5ae375ef54e29ace13b6f25c594c14f56`; all 15 reviewed closure blobs agreed.
+
+| Ref                                    | Run / attempt                                                                   | Observation                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Exact controller tag                   | [38068408780/1](https://github.com/boburning/portcove/actions/runs/38068408780) | Admission and protected canary passed; nonsecret receipt retained |
+| `refs/heads/main`                      | [38068507505/1](https://github.com/boburning/portcove/actions/runs/38068507505) | Explicit environment branch-policy denial                         |
+| Wrong tag ending `-wrong-ref`          | [38068532042/1](https://github.com/boburning/portcove/actions/runs/38068532042) | Explicit environment tag-policy denial                            |
+| Branch sharing the controller tag name | [38068602640/1](https://github.com/boburning/portcove/actions/runs/38068602640) | Explicit environment branch-policy denial                         |
+
+Each negative job had runner ID 0 and no steps. Check annotations named the denied
+ref and environment protection rule. Complete enumeration found exactly four
+dispatches, each attempt 1, serialized without retries. Positive artifact
+11676380818 is 529 bytes and expires October 17, 2026, at 16:37:42 UTC. The downloaded
+archive agrees with its API SHA-256 digest:
+`ecf5e68e3990b9e594284d83ac39d68599b5383019f58e2e97ac4f3a071fc3e4`.
+The parsed receipt agrees on head, execution/workflow ref, actor, run, attempt,
+nonce and disposable canary digest. No secret bytes were retained in evidence.
+
+Final readback found Active exact tag ruleset 24845568, creation/update/deletion
+restrictions, no bypass actors, and the unchanged tag. Environment 23963641917 has
+administrator bypass disabled and only tag policy 62609324 for the exact controller
+tag, the two approved variables and one disposable secret. Actual update/deletion
+probes returned explicit rule violations. Creation returned generic `Reference
+update failed`: creation-policy denial remains unproven. No release tag changed.
+
+The existing zero-dollar Actions budget with stop-usage enabled was preserved.
+Included artifact headroom was unconfirmed; the owner authorized one bounded
+attempt, whose artifact upload succeeded. No paid capacity, budget change, evidence
+deletion or further attempt was admitted. The allocation is exhausted. Disposable
+material/configuration and two probe refs remain retained for canonical owner
+teardown disposition.
+
+PR/fork/reusable-caller cases and a safe attributable creation-denial probe require
+separately reviewed nonsecret source. Production request lineage, custody, signing,
+feed publication and installed acceptance remain unqualified. This evidence does
+not close #534 or lift the Linux GLib or native custody holds.
