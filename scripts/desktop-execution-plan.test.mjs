@@ -35,9 +35,20 @@ test("execution planning preserves the independently reviewed pre-change oracle"
     const plan = planDesktopExecution(selection);
     assert.deepEqual(plan.selection, row.selection);
     assert.deepEqual(
-      plan.receiptInputs.map((input) =>
-        input.kind === "executable" ? executableNames[input.name] : input.path,
-      ),
+      plan.receiptInputs
+        .filter((input) => {
+          if (input.path === "apps/desktop/scripts/native-window-discovery.ps1") return false;
+          // Keep the historical oracle immutable; only these explicit missing
+          // browsing-helper receipts supplement it, without changing execution.
+          return (
+            row.initial_receipt_inputs.includes(input.path) ||
+            ![
+              "apps/desktop/scripts/desktop-native-confirmation.mjs",
+              "apps/desktop/scripts/native-confirmation.ps1",
+            ].includes(input.path)
+          );
+        })
+        .map((input) => (input.kind === "executable" ? executableNames[input.name] : input.path)),
       row.initial_receipt_inputs,
     );
     if (!row.harness_admission.error) assert.deepEqual(plan.session, row.harness_admission);
@@ -66,6 +77,35 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       expected.harness_deadline_ms = desktopHarnessDeadlineMs(selection); // Deliberately retained pre-change deadline owner.
       assert.deepEqual(actual, expected);
     }
+  }
+});
+
+test("library browsing receipts bind every confirmation helper exactly once", () => {
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-library-browsing-context"],
+      platform: "win32",
+    }),
+  );
+  for (const name of [
+    "desktop-native-confirmation.mjs",
+    "native-confirmation.ps1",
+    "native-window-discovery.ps1",
+  ])
+    assert.equal(
+      plan.receiptInputs.filter((input) => input.path === `apps/desktop/scripts/${name}`).length,
+      1,
+    );
+  for (const row of baseline.rows.filter((row) => !row.selection_error)) {
+    const inputs = planDesktopExecution(
+      resolveDesktopSelection({ ...row.options, platform: row.platform }),
+    ).receiptInputs;
+    if (inputs.some((input) => input.path === "apps/desktop/scripts/native-confirmation.ps1"))
+      assert.equal(
+        inputs.filter((input) => input.path === "apps/desktop/scripts/native-window-discovery.ps1")
+          .length,
+        1,
+      );
   }
 });
 

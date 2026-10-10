@@ -115,6 +115,8 @@ $applicationId = [int]$application.ProcessId
 function Assert-LiveApplication {
     $live = Get-CimInstance Win32_Process -Filter "ProcessId = $applicationId"
     if (-not $live -or $live.CreationDate -ne $application.CreationDate -or $live.ExecutablePath -ne $application.ExecutablePath) { throw 'Owned application identity changed while waiting for confirmation.' }
+    $liveDriver = Get-CimInstance Win32_Process -Filter "ProcessId = $DriverProcessId"
+    if (-not $liveDriver -or $liveDriver.CreationDate -ne $tree.driver.CreationDate -or $liveDriver.ExecutablePath -ne $tree.driver.ExecutablePath) { throw 'Owned driver identity changed while waiting for confirmation.' }
 }
 if ($ObservePicker) {
     # Observation cancels without input. Prepared selection is separately limited
@@ -237,12 +239,14 @@ if ($ObservePicker) {
     $observation | ConvertTo-Json -Depth 5 -Compress
     exit 0
 }
+. (Join-Path $PSScriptRoot 'native-window-discovery.ps1')
 $condition = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@(
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId),
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $Title),
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
 ))
 function Get-OwnedConfirmationWindows {
+    if ($DirectoryPath) { return Get-OwnedLibraryPickerWindows }
     $ownedWindows = @()
     $seen = [Collections.Generic.HashSet[string]]::new()
     Write-ObservationProgress 'exact-root-discovery-start'
@@ -290,22 +294,15 @@ while ([DateTime]::UtcNow -lt $deadline) {
     Start-Sleep -Milliseconds 100
 }
 if (-not $window) {
-    $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
-    Write-ObservationProgress 'timeout-roots-start'
-    $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
-    $observed = @($roots | ForEach-Object {
+    $observed = @(Get-OwnedConfirmationWindows | ForEach-Object {
         [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; process = $_.Current.ProcessId }
-        Write-ObservationProgress 'timeout-nested-start'
-        $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)) | ForEach-Object {
-            [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; process = $_.Current.ProcessId }
-        }
     }) | ConvertTo-Json -Compress
     throw "Owned native confirmation did not appear. Owned window observations: $observed"
 }
 $windowScope = 'owned-exact-target'
 if ($FilePath -and $DirectoryPath) { throw 'Choose only one native picker input.' }
 if ($FilePath) {
-    Assert-LiveApplication
+    Assert-ExactConfirmationWindow $window
     if ($Button -ne 'Open' -or $Title -notin @('Choose local artwork', 'Choose game files', 'Choose ZIP file', 'Choose BIOS file')) { throw 'File input is limited to artwork, game-file, and BIOS pickers.' }
     $selected = (Resolve-Path -LiteralPath $FilePath).Path
     if (-not [IO.File]::Exists($selected)) { throw 'Owned picker fixture is not a file.' }
@@ -314,14 +311,15 @@ if ($FilePath) {
     $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
 }
 if ($DirectoryPath) {
-    Assert-LiveApplication
+    Assert-ExactConfirmationWindow $window
     if ($Button -ne 'Select Folder' -or $Title -ne 'Choose Portcove library') { throw 'Directory input is limited to the owned library picker.' }
     $selected = (Resolve-Path -LiteralPath $DirectoryPath).Path
     if (-not [IO.Directory]::Exists($selected)) { throw 'Owned picker fixture is not a directory.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
-    if ($fields.Count -ne 1) { throw 'Expected one exact folder field in the owned library picker.' }
+    if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId) { throw 'Expected one exact owned folder field in the library picker.' }
     $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
 }
+$selectedWindowHandle = $window.Current.NativeWindowHandle
 if ($Button -ne '__observe__') {
     $buttonDeadline = [DateTime]::UtcNow.AddSeconds(10)
     $buttons = @()
@@ -346,6 +344,9 @@ if ($Button -ne '__observe__') {
             continue
         }
         $window = $freshTargets[0].window
+        if ($DirectoryPath -and $window.Current.NativeWindowHandle -ne $selectedWindowHandle) {
+            throw 'Owned picker window changed after selection; no input permitted.'
+        }
         $children = $freshTargets[0].children
         $text = $freshTargets[0].text
         $buttons = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $_.Current.Name -eq $Button })
@@ -412,6 +413,8 @@ public static class PortcoveConsentWindow {
 }
 Write-ObservationProgress 'observation-complete'
 if ($Button -ne '__observe__') {
+    Assert-ExactConfirmationWindow $window
+    if ($DirectoryPath -and $buttons[0].Current.ProcessId -ne $applicationId) { throw 'Owned library picker button identity changed; no input permitted.' }
     $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 }
 [pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath; screenshot = $screenshotObservation } | ConvertTo-Json -Depth 4 -Compress
