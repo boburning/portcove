@@ -1340,17 +1340,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             command: InstallationCommand::Plan { port_id },
         } => {
             let review = service.plan_game_install(&port_id).await?;
-            let mut text = human::plan(&review.plan);
-            if let Some(selected) = &review.selected_install {
-                text.push_str(&format!(
-                    "\nExisting copy to activate: {}\nExisting copy version: {}\nExisting copy channel: {}\nNo artifact download.\n",
-                    selected.path.display(), selected.version, selected.channel,
-                ));
-            }
-            text.push_str(&format!(
-                "\nReviewed plan SHA-256: {}\n",
-                review.plan_sha256
-            ));
+            let text = human::game_install_plan(&review);
             render_read_success(mode, "installation.plan", review, |_| text.clone())?;
         }
         Commands::Installation {

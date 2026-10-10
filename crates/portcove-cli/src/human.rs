@@ -1358,6 +1358,21 @@ pub(crate) fn host_tool_probe(result: &HostToolProbeResult) -> String {
     )
 }
 
+pub(crate) fn game_install_plan(review: &portcove_core::GameInstallPlan) -> String {
+    let mut text = plan(&review.plan);
+    if let Some(selected) = &review.selected_install {
+        text.push_str(&format!(
+            "\nExisting copy to activate: {}\nExisting copy version: {}\nExisting copy channel: {}\nNo artifact download.\n",
+            selected.path.display(), selected.version, release_channel(selected.channel),
+        ));
+    }
+    text.push_str(&format!(
+        "\nReviewed plan SHA-256: {}\n",
+        review.plan_sha256
+    ));
+    text
+}
+
 pub(crate) fn plan(plan: &InstallPlan) -> String {
     let requirements = if plan.source_requirements.is_empty() {
         "none".into()
@@ -1968,6 +1983,37 @@ mod tests {
             super::release_channel(portcove_core::ReleaseChannel::Rolling),
             "Rolling"
         );
+    }
+
+    #[test]
+    fn retained_install_review_displays_preview_without_changing_json() {
+        let review: portcove_core::GameInstallPlan = serde_json::from_value(serde_json::json!({
+            "plan": {
+                "port_id": "fixture", "channel": "beta", "platform": "windows-x86-64",
+                "release": {"version": "Upstream Beta 12", "channel": "beta", "published_at": null,
+                    "asset": {"name": "fixture.zip", "url": "https://example.invalid/fixture.zip", "size": 0, "sha256": "a".repeat(64)}},
+                "bundled_runtime": null, "download_bytes": 0, "action": "reuse_retained",
+                "source_requirements": [],
+                "storage": {"library_root": "owned", "volume_total_bytes": 1024, "volume_available_bytes": 1024},
+                "output_location": {"port_id": "fixture", "library_root": "owned", "default_output_directory": "owned/ports",
+                    "configured_output_directory": null, "effective_output_directory": "owned/ports",
+                    "selection_source": "library_default", "user_data_root": "owned/user"}
+            },
+            "selected_install": {"id": "retained", "port_id": "fixture", "version": "Upstream Beta 12", "path": "owned/retained",
+                "channel": "beta", "installed_at": 0, "verified": true, "staged": false},
+            "plan_sha256": "b".repeat(64)
+        })).unwrap();
+        let before = serde_json::to_value(&review).unwrap();
+        let text = super::game_install_plan(&review);
+        assert!(text.contains("Channel: Preview"));
+        assert!(text.contains("Existing copy channel: Preview"));
+        assert!(text.contains("Existing copy version: Upstream Beta 12"));
+        assert!(text.contains("No artifact download."));
+        assert!(text.contains(&format!("Reviewed plan SHA-256: {}", "b".repeat(64))));
+        assert!(!text.contains("Existing copy channel: beta"));
+        assert_eq!(before["plan"]["channel"], "beta");
+        assert_eq!(before["selected_install"]["channel"], "beta");
+        assert_eq!(serde_json::to_value(&review).unwrap(), before);
     }
 
     #[test]
