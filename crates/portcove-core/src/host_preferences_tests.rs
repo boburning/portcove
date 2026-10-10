@@ -429,6 +429,7 @@ fn poisoned_process_lock_stops_selection_before_preference_path_inspection() {
     assert_eq!(error.code, crate::ErrorCode::State);
     assert!(error.message.contains("process lock poisoned"), "{error:?}");
     assert_eq!(error.details["host_preference_operation"], "set_library");
+    assert_eq!(error.details["host_preference_phase"], "process-lock");
     assert!(fs::read_dir(&selected).unwrap().next().is_none());
 }
 

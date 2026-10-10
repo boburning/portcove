@@ -204,6 +204,9 @@ impl HostPreferenceStore {
     pub fn set_library(&self, root: &Path) -> Result<()> {
         let root = crate::Library::validate_selection_target(root)
             .map_err(|error| selection_phase(error, "selected-target-validation"))?;
+        let process_guard = self
+            .process_guard()
+            .map_err(|error| selection_phase(error, "process-lock"))?;
         let preference_path = crate::path::resolve_existing_ancestor(&self.path)
             .map_err(|error| selection_phase(error, "preference-path-resolution"))?;
         if preference_path.starts_with(&root) {
@@ -212,9 +215,11 @@ impl HostPreferenceStore {
             ));
         }
         let _lock = self
-            .lock()
-            .map_err(|error| selection_phase(error, "preference-lock"))?;
-        let mut preferences = self.load().map_err(|error| selection_phase(error, "load"))?;
+            .lock_with_process_guard(process_guard)
+            .map_err(|error| selection_phase(error, "sibling-file-lock"))?;
+        let mut preferences = self
+            .load()
+            .map_err(|error| selection_phase(error, "load"))?;
         preferences.library_root = Some(root);
         self.publish(&preferences)
             .map_err(|error| selection_phase(error, "publication"))
@@ -383,11 +388,20 @@ impl HostPreferenceStore {
         self.publish(&HostPreferences::default())
     }
 
-    fn lock(&self) -> Result<HostPreferenceLock<'_>> {
-        let process_guard = self
-            .process_lock
+    fn process_guard(&self) -> Result<MutexGuard<'_, ()>> {
+        self.process_lock
             .lock()
-            .map_err(|_| PortcoveError::state("host preference process lock poisoned"))?;
+            .map_err(|_| PortcoveError::state("host preference process lock poisoned"))
+    }
+
+    fn lock(&self) -> Result<HostPreferenceLock<'_>> {
+        self.lock_with_process_guard(self.process_guard()?)
+    }
+
+    fn lock_with_process_guard<'a>(
+        &'a self,
+        process_guard: MutexGuard<'a, ()>,
+    ) -> Result<HostPreferenceLock<'a>> {
         crate::path::refuse_symlink_ancestors(&self.path)?;
         let parent = self
             .path
