@@ -67,7 +67,10 @@ export function commandFailure(message, result, directory, cause = result.error,
         String(result.stderr ?? ""),
         evidence.failure ? `evidence-collection failure (secondary): ${evidence.failure}` : "",
       ].filter(Boolean),
-      { reference: Object.values(evidence).join("; ") },
+      {
+        reference:
+          [evidence.stdout, evidence.stderr].filter(Boolean).join("; ") || "retention unavailable",
+      },
     ).text,
     { cause },
   );
@@ -118,15 +121,23 @@ export function summarizeReport(kind, report, reference) {
     }
     const failures = [...observed.values()].flatMap((entries) => {
       const ordered = entries.every((entry) => Number.isFinite(Date.parse(entry.recorded_at)));
+      const earliest = ordered
+        ? entries.reduce((stamp, entry) => Math.min(stamp, Date.parse(entry.recorded_at)), Infinity)
+        : null;
       const selected = ordered
-        ? [entries.toSorted((a, b) => Date.parse(a.recorded_at) - Date.parse(b.recorded_at))[0]]
+        ? entries.filter((entry) => Date.parse(entry.recorded_at) === earliest)
         : entries;
       return selected.map((entry) => {
         const failure = entry.failure;
         const label = Object.hasOwn(failureLabels, failure?.kind)
           ? failureLabels[failure.kind]
           : failureLabels.unknown;
-        return `${ordered ? "First recorded" : "Order unavailable for"} failing producer ${entry.context?.job ?? "unknown job"}/${entry.context?.run ?? "unknown run"}/${entry.context?.attempt ?? "unknown attempt"} ${entry.phase}: ${label}; ${failure?.observation ?? "cause not established"}`;
+        const order = !ordered
+          ? "Order unavailable for"
+          : selected.length === 1
+            ? "First recorded"
+            : "Co-earliest recorded (order ambiguous)";
+        return `${order} failing producer ${entry.context?.job ?? "unknown job"}/${entry.context?.run ?? "unknown run"}/${entry.context?.attempt ?? "unknown attempt"} ${entry.phase}: ${label}; ${failure?.observation ?? "cause not established"}`;
       });
     });
     return renderBoundedSummary(

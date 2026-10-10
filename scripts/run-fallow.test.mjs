@@ -52,8 +52,19 @@ test("validated Fallow findings and failed evidence retention remain distinct fa
     assert.match(result.text, /1 dead-code or dependency findings/);
     const blocked = path.join(directory, "not-a-directory");
     writeFileSync(blocked, "preserved");
+    const combined = runFallow({ evidenceDirectory: blocked, spawn });
+    assert.equal(combined.exitCode, 1);
+    assert.match(combined.text, /source\/check failure/);
+    assert.match(combined.text, /1 dead-code or dependency findings/);
+    assert.match(combined.text, /evidence-collection failure \(secondary\)/);
+    const healthy = JSON.parse(stdout);
+    healthy.check.total_issues = 0;
     assert.throws(
-      () => runFallow({ evidenceDirectory: blocked, spawn }),
+      () =>
+        runFallow({
+          evidenceDirectory: blocked,
+          spawn: () => ({ status: 0, stdout: JSON.stringify(healthy), stderr: "" }),
+        }),
       (error) => {
         assert.equal(error.failure.kind, "evidence-collection");
         assert.match(error.message, /evidence could not be retained/);

@@ -80,6 +80,23 @@ test("real aggregate CLI preserves failed exit and names its producer", () => {
   assert.equal(result.stdout, "");
 });
 
+test("the prose producer is identified only where success was required", () => {
+  assert.throws(
+    () => evaluate({ plan: plan("docs/README.md"), group: "catalog", prose: "failure" }),
+    (error) => {
+      assert.match(formatResultGateFailure(error), /Dependent aggregate failure: producer prose/);
+      return true;
+    },
+  );
+  assert.throws(
+    () => evaluate({ prose: "failure" }),
+    (error) => {
+      assert.match(formatResultGateFailure(error), /Aggregate contract failure/);
+      return true;
+    },
+  );
+});
+
 test("fast plans require only selected fast group work", () => {
   assert.match(evaluate(), /Accepted fast/u);
   assert.match(

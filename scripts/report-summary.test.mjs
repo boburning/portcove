@@ -98,6 +98,15 @@ test("diagnostic summaries show the first recorded producer per job without gues
   assert.match(unknown.text, /Order unavailable/);
   assert.match(unknown.text, /unknown\/unclassified/);
   assert.doesNotMatch(unknown.text, /First recorded/);
+  for (const records of [
+    [first, { ...later, recorded_at: first.recorded_at }],
+    [{ ...later, recorded_at: first.recorded_at }, first],
+  ]) {
+    const tied = summarizeReport("timings", { records }, "original");
+    assert.match(tied.text, /Co-earliest recorded \(order ambiguous\).* syntax:/);
+    assert.match(tied.text, /Co-earliest recorded \(order ambiguous\).* retain:/);
+    assert.doesNotMatch(tied.text, /First recorded/);
+  }
 });
 
 test("REST and gh IDs remain visible without claiming complete inventories", () => {

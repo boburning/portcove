@@ -82,7 +82,7 @@ export function evaluateCiResults({
       );
   } else if (plan.mode === "prose") {
     if (prose !== "success")
-      throw new Error(`prose lane was ${prose || "missing"}, expected success`);
+      throw resultFailure(`prose lane was ${prose || "missing"}, expected success`, "prose", prose);
     requireResults(fast, "skipped", "prose");
     if (Object.keys(targeted ?? {}).length)
       requireResults(targeted, "skipped", "prose targeted-platform");
