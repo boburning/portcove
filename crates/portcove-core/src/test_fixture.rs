@@ -99,11 +99,12 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = target(contract);
         let port = self.port;
         let port_id = &port.id;
-        let version = if port
-            .release
-            .user_prepared
-            .values()
-            .any(|runtime| runtime.library_user_data)
+        let capability_version = if port.n64_windows_initial_d3d12
+            || port
+                .release
+                .user_prepared
+                .values()
+                .any(|runtime| runtime.library_user_data)
         {
             2
         } else {
@@ -111,7 +112,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         };
         let entry = serde_json::to_vec_pretty(&json!({
         "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":revision,
-        "required_capabilities":[{"template":port.adapter,"minimum_version":version,"maximum_version":version}],
+        "required_capabilities":[{"template":port.adapter,"minimum_version":capability_version,"maximum_version":capability_version}],
         "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
         "artifact_bindings":[],"evidence_references":[]
     }))

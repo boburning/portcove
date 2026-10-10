@@ -47,6 +47,7 @@ mod library_authority;
 mod library_import;
 mod library_move;
 mod library_transfer;
+mod n64_graphics;
 mod operation;
 mod output_relocation;
 mod output_root;

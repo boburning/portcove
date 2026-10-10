@@ -132,6 +132,15 @@ impl DefinitionContentIndex {
             ));
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if port.n64_windows_initial_d3d12
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "n64-recomp-portable" && requirement.minimum_version >= 2
+            })
+        {
+            return Err(PortcoveError::verification(
+                "initial D3D12 requires N64 engine capability version 2",
+            ));
+        }
         if port
             .release
             .user_prepared

@@ -450,6 +450,7 @@ impl Adapter for StandardAdapter {
         if self.0 == AdapterKind::LibultrashipPortable {
             plan_libultraship_source(request, has_generated_archive)?.prepare(checkpoint)?;
         }
+        crate::n64_graphics::prepare(port, platform, &working_directory, checkpoint)?;
         self.launch_spec_with_executable(request, checkpoint)
     }
 }
