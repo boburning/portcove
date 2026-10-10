@@ -21,6 +21,8 @@ use crate::{
     library::HttpCacheEntry,
 };
 
+#[cfg(any(test, feature = "qualification-fixtures"))]
+mod forbidden_memories_qualification;
 mod observation;
 pub use observation::{
     ChannelObservation as UpstreamChannelObservation, ObservationEvidence, ObservedReleaseIdentity,

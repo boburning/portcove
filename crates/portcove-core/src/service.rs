@@ -38,6 +38,8 @@ use crate::{
 
 mod backups;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
+#[cfg(any(test, feature = "qualification-fixtures"))]
+mod forbidden_memories_qualification;
 mod launch_preparation;
 mod removal;
 pub(crate) use removal::{RemovalOperation, RemovalPhase};
