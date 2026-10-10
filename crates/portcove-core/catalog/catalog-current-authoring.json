@@ -439,6 +439,16 @@
         "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Duke Nukem: Time to Kill (USA NTSC-U, SLUS-00583); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/62f7313c39e96a1146967df3beecae06a81df18b/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-fade-to-black-recomp-v0-3-6-source-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/fade-to-black-recomp",
+        "authority_ref": "25df871d2185eb45ec0e9253b96a2667e2feca6b",
+        "reviewed_at": "2026-10-10",
+        "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Fade to Black (USA, SLUS-00236); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/blob/25df871d2185eb45ec0e9253b96a2667e2feca6b/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/blob/main/game.toml"
       }
     ],
     "identities": [
@@ -5152,6 +5162,51 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "fade-to-black-psx",
+        "label": "Fade to Black (USA) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "usa",
+            "title": "Fade to Black",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [
+              "SLUS-00236"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "cdd0ddbe768bcd89a04132b08d050164b3f13794",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-fade-to-black-recomp-v0-3-6-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-fade-to-black-recomp-v0-3-6-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -7290,6 +7345,33 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-fade-to-black-recomp-game-source",
+        "port_id": "alexbeav-fade-to-black-recomp",
+        "role": "game",
+        "profile_id": "fade-to-black-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-fade-to-black-recomp-v0-3-6-source-contract"
+        ],
+        "authority_ref": "25df871d2185eb45ec0e9253b96a2667e2feca6b",
+        "reviewed_at": "2026-10-10",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/blob/25df871d2185eb45ec0e9253b96a2667e2feca6b/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.3.6",
+            "artifact_sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3"
           }
         ],
         "aliases": [],
@@ -14922,6 +15004,87 @@
         ],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching single-track CHD for SLUS-00583. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
+      }
+    },
+    {
+      "id": "alexbeav-fade-to-black-recomp",
+      "name": "Fade to Black / Alexbeav PSXRecomp",
+      "summary": "Native Fade to Black recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.3.6",
+            "url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+            "size": 30151839,
+            "sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
+            "published_at": "2026-09-04T14:48:44Z"
+          }
+        }
+      },
+      "source_profile": "fade-to-black-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Fade_to_Black_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher",
+        "--bios",
+        "bios/openbios.bin"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "fade-to-black-psx",
+            "label": "Fade to Black (USA) disc",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for SLUS-00236. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
       }
     }
   ]
