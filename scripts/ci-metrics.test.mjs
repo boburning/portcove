@@ -42,6 +42,11 @@ test("timers preserve result/error identity and retain failed partial phases", a
   assert.equal(records.filter((entry) => entry.outcome === "failed").length, 3);
   assert.ok(
     records
+      .filter((entry) => entry.outcome === "failed")
+      .every((entry) => entry.failure.kind === "unknown"),
+  );
+  assert.ok(
+    records
       .filter((entry) => entry.elapsed_ms !== undefined)
       .every((entry) => entry.elapsed_ms === 1),
   );
@@ -88,6 +93,7 @@ test("signal failures and diagnostic warning failures preserve operation outcome
     result,
   );
   assert.equal(records[0].outcome, "failed");
+  assert.equal(records[0].failure.kind, "unknown");
   const broken = createCiMetrics({
     environment: { PORTCOVE_CI_METRICS_DIR: os.tmpdir() },
     write: () => {
@@ -109,4 +115,25 @@ test("signal failures and diagnostic warning failures preserve operation outcome
       }),
     (error) => error === failure,
   );
+});
+
+test("sync and async launch failures preserve identities and observed prerequisite evidence", async () => {
+  const records = [];
+  const metrics = createCiMetrics({
+    environment: { PORTCOVE_CI_METRICS_DIR: os.tmpdir() },
+    write: (_file, data) => records.push(JSON.parse(data)),
+  });
+  const error = Object.assign(new Error("missing"), { code: "ENOENT", syscall: "spawn tool" });
+  const result = { status: null, error };
+  assert.equal(
+    metrics.measure("startup", () => result),
+    result,
+  );
+  await assert.rejects(
+    metrics.measureAsync("startup", async () => {
+      throw error;
+    }),
+    (caught) => caught === error,
+  );
+  assert.ok(records.every((entry) => entry.failure.kind === "missing-prerequisite"));
 });

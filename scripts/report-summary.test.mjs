@@ -4,7 +4,110 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { renderBoundedSummary, summarizeReport } from "./report-summary.mjs";
+import {
+  commandFailure,
+  describeFailure,
+  renderBoundedSummary,
+  summarizeReport,
+} from "./report-summary.mjs";
+
+test("only structured launch facts classify prerequisites; exits, timeouts and signals stay unknown", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "missing-process-"));
+  try {
+    const missing = spawnSync(path.join(root, "unavailable-tool"), [], { encoding: "utf8" });
+    assert.equal(describeFailure(missing).kind, "missing-prerequisite");
+    assert.equal(
+      describeFailure({ error: { code: "EACCES", syscall: "spawn tool" } }).kind,
+      "executor-provider",
+    );
+    for (const result of [
+      { status: 1 },
+      { error: { code: "ETIMEDOUT", syscall: "spawnSync tool" } },
+      { signal: "SIGTERM" },
+      { error: new Error("ENOENT in unrelated log text") },
+    ])
+      assert.equal(describeFailure(result).kind, "unknown");
+    for (const kind of ["source-check", "external-service", "evidence-collection"])
+      assert.equal(describeFailure({ status: 1 }, kind).kind, kind);
+    assert.equal(describeFailure({ status: 1 }, "__proto__").kind, "unknown");
+    assert.equal(
+      describeFailure({
+        get error() {
+          throw new Error("diagnostic getter");
+        },
+      }).kind,
+      "unknown",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("evidence collection failure remains secondary to the original failed command", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "failure-evidence-"));
+  try {
+    const file = path.join(root, "not-a-directory");
+    writeFileSync(file, "preserved");
+    const cause = new Error("original scenario");
+    const error = commandFailure(
+      "original command failed",
+      { status: 7, stderr: "original diagnostics" },
+      file,
+      cause,
+    );
+    assert.equal(error.cause, cause);
+    assert.equal(error.exitCode, 7);
+    assert.equal(error.failure.kind, "unknown");
+    assert.match(error.message, /unknown\/unclassified: exit 7/);
+    assert.match(error.message, /evidence-collection failure \(secondary\)/);
+    assert.match(error.message, /original diagnostics/);
+    assert.equal(readFileSync(file, "utf8"), "preserved");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("diagnostic summaries show the first recorded producer per job without guessing unknown order", () => {
+  const context = { job: "contracts", run: "12", attempt: "1" };
+  const first = {
+    phase: "syntax",
+    outcome: "failed",
+    context,
+    recorded_at: "2026-10-10T01:00:00Z",
+    failure: { kind: "source-check", observation: "explicit checker findings" },
+  };
+  const later = {
+    phase: "retain",
+    outcome: "failed",
+    context,
+    recorded_at: "2026-10-10T01:00:01Z",
+    failure: { kind: "evidence-collection", observation: "EIO" },
+  };
+  const result = summarizeReport("timings", { records: [later, first] }, "original");
+  assert.match(
+    result.text,
+    /First recorded failing producer contracts\/12\/1 syntax: source\/check failure/,
+  );
+  assert.ok(result.text.indexOf("failing producer") < result.text.indexOf("retain:"));
+  assert.doesNotMatch(result.text, /First recorded failing producer .* retain:/);
+  const unknown = summarizeReport(
+    "timings",
+    { records: [later, { ...first, recorded_at: undefined, failure: { kind: "__proto__" } }] },
+    "original",
+  );
+  assert.match(unknown.text, /Order unavailable/);
+  assert.match(unknown.text, /unknown\/unclassified/);
+  assert.doesNotMatch(unknown.text, /First recorded/);
+  for (const records of [
+    [first, { ...later, recorded_at: first.recorded_at }],
+    [{ ...later, recorded_at: first.recorded_at }, first],
+  ]) {
+    const tied = summarizeReport("timings", { records }, "original");
+    assert.match(tied.text, /Co-earliest recorded \(order ambiguous\).* syntax:/);
+    assert.match(tied.text, /Co-earliest recorded \(order ambiguous\).* retain:/);
+    assert.doesNotMatch(tied.text, /First recorded/);
+  }
+});
 
 test("REST and gh IDs remain visible without claiming complete inventories", () => {
   for (const job of [{ id: 12 }, { databaseId: 12 }]) {

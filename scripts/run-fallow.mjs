@@ -53,8 +53,6 @@ export function runFallow({
       error,
     );
   }
-  if (evidence.failure)
-    throw commandFailure("Fallow evidence could not be retained", result, evidenceDirectory);
   if (assessment.failures.length) {
     const findings = report.health.findings
       .filter((entry) => entry.severity === "critical")
@@ -65,12 +63,30 @@ export function runFallow({
     return {
       exitCode: 1,
       text: renderBoundedSummary(
-        "Fallow quality gate failed",
-        [...assessment.failures, ...findings],
-        { reference: Object.values(evidence).join("; ") },
+        "Fallow quality gate failed (source/check failure)",
+        [
+          ...assessment.failures,
+          ...(evidence.failure
+            ? [`evidence-collection failure (secondary): ${evidence.failure}`]
+            : []),
+          ...findings,
+        ],
+        {
+          reference:
+            [evidence.stdout, evidence.stderr].filter(Boolean).join("; ") ||
+            "retention unavailable",
+        },
       ).text,
     };
   }
+  if (evidence.failure)
+    throw commandFailure(
+      "Fallow evidence could not be retained",
+      result,
+      evidenceDirectory,
+      undefined,
+      "evidence-collection",
+    );
   return {
     exitCode: 0,
     text: `Fallow gate passed: maintainability ${assessment.maintainability}, duplication ${assessment.duplicationPercentage}%.`,
