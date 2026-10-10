@@ -62,8 +62,23 @@ describe("accessible operation progress", () => {
     }
   });
 
+  it.each(["check_installed", "reconcile_installed"])(
+    "keeps zero-total %s progress indeterminate",
+    async (phase) => {
+      await render(event(0, 0, phase));
+      expect(document.body.textContent).toContain(
+        phase === "check_installed" ? "Checking for updates" : "Applying update settings",
+      );
+      expect(document.body.textContent).not.toContain("reported yet");
+      expect(
+        document.body.querySelector('[role="progressbar"]')?.hasAttribute("aria-valuenow"),
+      ).toBe(false);
+      expect(document.body.textContent).not.toContain("0%");
+    },
+  );
+
   it.each([
-    { completed: 0, total: 0, now: null, text: "No bytes reported yet." },
+    { completed: 0, total: 0, now: null, text: "" },
     { completed: 0, total: 1, now: "0", text: "0 B of 1 B" },
     { completed: 1, total: 1, now: "1", text: "1 B of 1 B" },
     { completed: 99, total: 10, now: "10", text: "99 B of 10 B" },

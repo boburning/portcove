@@ -152,17 +152,17 @@ function CatalogUpdatesDialog({
     try {
       await task();
     } catch (value) {
-      if (isCancellation(value)) setNotice("Catalog update cancelled.");
+      if (isCancellation(value)) setNotice("Catalog action cancelled.");
       else setError(errorText(value));
     } finally {
       setBusy("");
       setOperationId(undefined);
     }
   };
-  const changed = async (next: CatalogStatus | null) => {
+  const changed = async (next: CatalogStatus | null, message: string) => {
     if (!next) return;
     setStatus(next);
-    setNotice("Catalog settings saved.");
+    setNotice(message);
     await onChanged?.();
   };
   const actions = { busy: Boolean(busy), run, changed };
@@ -252,7 +252,7 @@ interface CatalogActions {
   status: CatalogStatus;
   busy: boolean;
   run: (label: string, task: () => Promise<void>) => Promise<void>;
-  changed: (status: CatalogStatus | null) => Promise<void>;
+  changed: (status: CatalogStatus | null, message: string) => Promise<void>;
 }
 
 function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
@@ -282,7 +282,10 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
             disabled={Boolean(busy)}
             onClick={() => {
               void run("Removing publisher…", async () =>
-                changed(await desktopApi.revokeCatalogKey(key.key_id, status.state_sha256)),
+                changed(
+                  await desktopApi.revokeCatalogKey(key.key_id, status.state_sha256),
+                  "Publisher trust removed.",
+                ),
               );
             }}
           >
@@ -312,7 +315,10 @@ function PublisherTrust({ status, busy, run, changed }: CatalogActions) {
           disabled={Boolean(busy) || !publicKey.trim()}
           onClick={() => {
             void run("Confirming publisher…", async () => {
-              await changed(await desktopApi.trustCatalogKey(publicKey.trim()));
+              await changed(
+                await desktopApi.trustCatalogKey(publicKey.trim()),
+                "Publisher trusted.",
+              );
             });
           }}
         >
@@ -484,6 +490,7 @@ function CatalogReview({
                       if (event.type === "started") started(event.operation_id);
                     },
                   ),
+                  "Catalog update applied.",
                 );
               });
             }}
@@ -510,7 +517,10 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
         disabled={Boolean(busy) || !status.can_rollback}
         onClick={() => {
           void run("Restoring previous catalog…", async () =>
-            changed(await desktopApi.rollbackCatalog(status.state_sha256)),
+            changed(
+              await desktopApi.rollbackCatalog(status.state_sha256),
+              "Previous catalog restored.",
+            ),
           );
         }}
       >
@@ -522,7 +532,10 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
         disabled={Boolean(busy) || status.updates_enabled || !status.can_use_cached}
         onClick={() => {
           void run("Selecting cached catalog…", async () =>
-            changed(await desktopApi.useCachedCatalog(status.state_sha256)),
+            changed(
+              await desktopApi.useCachedCatalog(status.state_sha256),
+              "Cached signed catalog selected.",
+            ),
           );
         }}
       >
@@ -534,7 +547,10 @@ function CatalogSelection({ status, busy, run, changed }: CatalogActions) {
         disabled={Boolean(busy) || !status.updates_enabled}
         onClick={() => {
           void run("Selecting built-in catalog…", async () =>
-            changed(await desktopApi.useEmbeddedCatalog(status.state_sha256)),
+            changed(
+              await desktopApi.useEmbeddedCatalog(status.state_sha256),
+              "Built-in catalog selected.",
+            ),
           );
         }}
       >

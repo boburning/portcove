@@ -119,9 +119,9 @@ pub(crate) fn activity_diagnostic(captures: &[portcove_core::ActivityDiagnostic]
 
 fn diagnostic_phase(capture: &portcove_core::ActivityDiagnostic) -> String {
     let status = if capture.complete {
-        "Capture reached the end of both streams."
+        "The saved log includes both output streams through their end."
     } else {
-        "Capture is incomplete. Only output saved before the last observation is available."
+        "Only the output saved before the last observation is available. Later output may be missing."
     };
     let truncation = if capture.stdout.truncated || capture.stderr.truncated {
         "\nOutput exceeded the capture limit; some output was omitted."
@@ -2391,7 +2391,7 @@ mod tests {
         assert!(rendered.contains(r"safe\u{1b}]2;owned-title\u{7}"));
         assert!(rendered.contains("password=[REDACTED]"));
         assert!(!rendered.contains("owned-private-value"));
-        assert!(rendered.contains("Capture is incomplete."));
+        assert!(rendered.contains("Later output may be missing."));
         assert!(rendered.contains("Output exceeded the capture limit; some output was omitted."));
         assert_eq!(serde_json::to_value(&capture).unwrap(), stored);
         assert!(
@@ -2442,12 +2442,12 @@ mod tests {
         assert!(rendered.contains("Activity: owned-id[31m header\nPhase: preparation.setup phase"));
         assert_eq!(
             rendered
-                .matches("Capture reached the end of both streams.")
+                .matches("The saved log includes both output streams through their end.")
                 .count(),
             2
         );
         assert_eq!(rendered.matches("ordinary π\n\tsecond line\n").count(), 4);
-        assert!(!rendered.contains("Capture is incomplete"));
+        assert!(!rendered.contains("Later output may be missing"));
         assert!(!rendered.contains("some output was omitted"));
         assert!(!rendered.contains('\u{1b}'));
         assert!(!rendered.contains('\u{8}'));

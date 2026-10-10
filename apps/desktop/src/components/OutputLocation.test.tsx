@@ -274,6 +274,8 @@ describe("per-game install folder", () => {
     });
     await render(<OutputLocationControl portId="sample" generation={7} />);
     expect(document.body.textContent).toContain(message);
+    for (let index = 0; index < Number(count); index++)
+      expect(document.body.textContent).toContain(`E:/Portcove/old-${index}`);
     expect(document.body.textContent).not.toContain("folder(s)");
   });
 
@@ -700,6 +702,7 @@ describe("per-game install folder", () => {
     expect(move).toHaveBeenCalledWith("sample", "F:/Games/Sample", "b".repeat(64), 14);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
     expect(document.body.textContent).toContain("Move completed");
+    expect(document.body.textContent).toContain(affected.path);
     expect(document.activeElement).toBe(trigger);
     expect(document.body.textContent).toContain(
       "Move completed. 1 old folder contains changed files and remains for safe cleanup.",

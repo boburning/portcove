@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SourceInspectionReport } from "../types";
+import { copyText } from "../clipboard";
 import { focusableControls } from "../focus";
 import { SourceIdentityPanel } from "./SourceIdentity";
+
+vi.mock("../clipboard", () => ({ copyText: vi.fn().mockResolvedValue(undefined) }));
 
 const calculatedSha = "a".repeat(64);
 const expectedSha = "b".repeat(64);
@@ -475,6 +478,7 @@ describe("source identity controls", () => {
   let root: Root;
   let host: HTMLDivElement;
   beforeEach(() => {
+    vi.mocked(copyText).mockReset().mockResolvedValue(undefined);
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     vi.spyOn(HTMLElement.prototype, "getClientRects").mockReturnValue([
       new DOMRect(0, 0, 100, 40),
@@ -489,6 +493,87 @@ describe("source identity controls", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
+
+  it("announces digest clipboard failure and keeps an exact manual fallback until retry succeeds", async () => {
+    vi.mocked(copyText).mockRejectedValueOnce(new Error("private clipboard cause"));
+    await act(async () => root.render(<SourceIdentityPanel report={report()} />));
+    const copy = host.querySelector<HTMLButtonElement>(
+      "[aria-label='Copy Calculated SHA256 for normalized content']",
+    )!;
+    await act(async () => copy.click());
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain("Clipboard unavailable");
+    const fallback = host.querySelector<HTMLInputElement>(
+      "[aria-label='Calculated SHA256 for normalized content for manual copy']",
+    )!;
+    expect(fallback.readOnly).toBe(true);
+    expect(fallback.value).toBe(calculatedSha);
+    expect(copyText).toHaveBeenLastCalledWith(calculatedSha);
+    expect(host.textContent).not.toContain("private clipboard cause");
+    await act(async () => copy.click());
+    expect(host.textContent).toContain("Calculated SHA256 for normalized content copied.");
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    expect(host.querySelector('[aria-label$="for manual copy"]')).toBeNull();
+  });
+
+  it.each(["copied", "failed"])(
+    "does not show previous %s feedback on the first committed replacement render",
+    async (outcome) => {
+      if (outcome === "failed") vi.mocked(copyText).mockRejectedValueOnce(new Error("unavailable"));
+      const observations: string[] = [];
+      function Observed({ value }: { value: SourceInspectionReport }) {
+        useLayoutEffect(() => {
+          observations.push(host.textContent ?? "");
+        });
+        return <SourceIdentityPanel report={value} />;
+      }
+      await act(async () => root.render(<Observed value={report()} />));
+      await act(async () =>
+        host
+          .querySelector<HTMLButtonElement>(
+            "[aria-label='Copy Calculated SHA256 for normalized content']",
+          )!
+          .click(),
+      );
+      const next = JSON.parse(
+        JSON.stringify(report()).replaceAll(calculatedSha, "c".repeat(64)),
+      ) as SourceInspectionReport;
+      await act(async () => root.render(<Observed value={next} />));
+      expect(observations.at(-1)).toContain("c".repeat(64));
+      expect(observations.at(-1)).not.toContain("content copied.");
+      expect(observations.at(-1)).not.toContain("Clipboard unavailable");
+    },
+  );
+
+  it.each(["resolve", "reject"] as const)(
+    "ignores an older digest copy %s after retry and content replacement",
+    async (outcome) => {
+      let resolve!: () => void;
+      let reject!: (error: Error) => void;
+      vi.mocked(copyText).mockReturnValueOnce(
+        new Promise<void>((yes, no) => {
+          resolve = yes;
+          reject = no;
+        }),
+      );
+      await act(async () => root.render(<SourceIdentityPanel report={report()} />));
+      const button = () =>
+        host.querySelector<HTMLButtonElement>(
+          "[aria-label='Copy Calculated SHA256 for normalized content']",
+        )!;
+      await act(async () => button().click());
+      await act(async () => button().click());
+      expect(host.textContent).toContain("Calculated SHA256 for normalized content copied.");
+      const next = JSON.parse(
+        JSON.stringify(report()).replaceAll(calculatedSha, "c".repeat(64)),
+      ) as SourceInspectionReport;
+      await act(async () => root.render(<SourceIdentityPanel report={next} />));
+      await act(async () => (outcome === "resolve" ? resolve() : reject(new Error("old attempt"))));
+      expect(host.textContent).not.toContain("content copied.");
+      expect(host.querySelector('[role="alert"]')).toBeNull();
+      await act(async () => button().click());
+      expect(copyText).toHaveBeenLastCalledWith("c".repeat(64));
+    },
+  );
 
   it("offers the matching disc-tool route only when the source problem names a tool", async () => {
     const openHostTool = vi.fn();

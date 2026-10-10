@@ -486,11 +486,29 @@ function OutputLocationStatus({
             : formatCountMessage(result.relocated_installs.length, movedVersionMessages)}
         </p>
       )}
+      {result && result.old_paths_retained.length > 0 && (
+        <ul aria-label="Retained old folders" className="grid gap-1 text-xs">
+          {result.old_paths_retained.map((path) => (
+            <li key={path}>
+              <code className="break-all">{path}</code>
+            </li>
+          ))}
+        </ul>
+      )}
       {status && (
         <p className={outputProblemClass} role="status">
           <Icon glyph={AlertTriangle} size="sm" />
           {formatCountMessage(status.cleanup_pending_paths.length, pendingCleanupMessages)}
         </p>
+      )}
+      {status && status.cleanup_pending_paths.length > 0 && (
+        <ul aria-label="Folders awaiting safe cleanup" className="grid gap-1 text-xs">
+          {status.cleanup_pending_paths.map((path) => (
+            <li key={path}>
+              <code className="break-all">{path}</code>
+            </li>
+          ))}
+        </ul>
       )}
       {error && (
         <p className={outputProblemClass} role="alert">

@@ -134,8 +134,8 @@ function ActivityDiagnosticSession({
           </h3>
           <p>
             {phase.complete
-              ? "Capture reached the end of both output streams."
-              : "Capture is incomplete. Only the output saved before the last observation is available."}
+              ? "The saved log includes both output streams through their end."
+              : "Only the output saved before the last observation is available. Later output may be missing."}
           </p>
           {(phase.stdout.truncated || phase.stderr.truncated) && (
             <p>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -19,6 +19,7 @@ import type {
 import { platformLabel } from "../view-model";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 export function SourceIdentityPanel({
   report,
@@ -402,16 +403,23 @@ function DigestList({
   );
 }
 
-function DigestValue({
-  label,
-  scope,
-  value,
-}: {
-  label: string;
-  scope: string;
-  value: string | null;
-}) {
-  const [copied, setCopied] = useState(false);
+type DigestValueProps = { label: string; scope: string; value: string | null };
+
+function DigestValue(props: DigestValueProps) {
+  return (
+    <DigestValueContent key={JSON.stringify([props.label, props.scope, props.value])} {...props} />
+  );
+}
+
+function DigestValueContent({ label, scope, value }: DigestValueProps) {
+  const [copyOutcome, setCopyOutcome] = useState<"idle" | "copied" | "failed">("idle");
+  const copyRequest = useRef(0);
+  useLayoutEffect(
+    () => () => {
+      ++copyRequest.current;
+    },
+    [],
+  );
   if (!value)
     return (
       <p className="digest-value missing">
@@ -422,12 +430,15 @@ function DigestValue({
       </p>
     );
   const copy = () => {
+    const current = ++copyRequest.current;
+    setCopyOutcome("idle");
     void copyText(value)
       .then(() => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1600);
+        if (copyRequest.current === current) setCopyOutcome("copied");
       })
-      .catch(() => setCopied(false));
+      .catch(() => {
+        if (copyRequest.current === current) setCopyOutcome("failed");
+      });
   };
   return (
     <div className="digest-value">
@@ -442,8 +453,26 @@ function DigestValue({
         aria-label={`Copy ${label} for ${digestScopeLabel(scope)}`}
         onClick={copy}
       >
-        <Icon glyph={copied ? ClipboardCheck : Clipboard} size="sm" />
+        <Icon glyph={copyOutcome === "copied" ? ClipboardCheck : Clipboard} size="sm" />
       </Button>
+      {copyOutcome === "copied" && (
+        <p role="status">
+          {label} for {digestScopeLabel(scope)} copied.
+        </p>
+      )}
+      {copyOutcome === "failed" && (
+        <>
+          <p role="alert">
+            Clipboard unavailable. Select and copy {label} for {digestScopeLabel(scope)} below.
+          </p>
+          <Input
+            readOnly
+            data-focusable
+            aria-label={`${label} for ${digestScopeLabel(scope)} for manual copy`}
+            value={value}
+          />
+        </>
+      )}
     </div>
   );
 }
