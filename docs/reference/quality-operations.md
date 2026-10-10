@@ -441,6 +441,12 @@ database or real-process lifecycle test a justified finite execution budget.
 Its setup and teardown budget is distinct from the product timing assertions
 inside the test; cancellation, shutdown and other product deadlines remain intact.
 
+The exact managed ordinary-release publisher lifecycle has a forty-five-second
+harness budget to retain its complete authenticated catalog, artifact and correction
+sequence across observed Intel phase variability. Its anchored filter retains
+five-second warnings, zero retries and grace, and the existing two-slot reservation.
+The default remains thirty seconds; the contract rejects other budget overrides.
+
 Do not hide failures with larger timeouts. Preserve the original failure and
 identify the firing deadline: per-test harness, product assertion, whole command
 or job, admission queue, or observation window. A live process whose observer

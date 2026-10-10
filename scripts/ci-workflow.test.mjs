@@ -2411,7 +2411,7 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'",
     'success-output = "immediate"',
   ]);
-  assert.doesNotMatch(outputOverrides[0], /slow-timeout|retries|threads-required|priority/);
+  assert.doesNotMatch(outputOverrides[0], /retries|threads-required|priority/);
   assert.doesNotMatch(config.split("[[profile.default.overrides]]")[0], /success-output/);
   const repository = await readFile(
     new URL("../crates/portcove-core/src/definition_repository.rs", import.meta.url),
@@ -2462,8 +2462,39 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     config,
     /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
   );
-  for (const override of config.split("[[profile.default.overrides]]").slice(1)) {
-    assert.doesNotMatch(override, /slow-timeout|retries/);
+  const lifecycleFilter = outputOverrides[0].trim().split(/\r?\n/)[0];
+  function assertTimeoutOverrides(source) {
+    const [defaults, ...overrides] = source.split("[[profile.default.overrides]]");
+    assert.match(
+      defaults,
+      /^slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}$/m,
+    );
+    const budgets = overrides.filter((override) => /^slow-timeout = /m.test(override));
+    assert.equal(budgets.length, 1);
+    assert.equal(budgets[0].trim().split(/\r?\n/)[0], lifecycleFilter);
+    assert.match(
+      budgets[0],
+      /^slow-timeout = \{ period = "5s", terminate-after = 9, grace-period = "0s" \}$/m,
+    );
+    for (const override of overrides) {
+      assert.doesNotMatch(override, /retries/);
+      if (override !== budgets[0]) assert.doesNotMatch(override, /slow-timeout/);
+    }
+  }
+  assertTimeoutOverrides(config);
+  for (const changed of [
+    config.replace("terminate-after = 9", "terminate-after = 18"),
+    config.replace("terminate-after = 6", "terminate-after = 9"),
+    config.replace(lifecycleFilter, "filter = 'package(portcove-core)'"),
+    config.replace(
+      'terminate-after = 9, grace-period = "0s"',
+      'terminate-after = 9, grace-period = "1s"',
+    ),
+    config +
+      '\n[[profile.default.overrides]]\nfilter = \'package(portcove-cli)\'\nslow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }\n',
+    config + "\n[[profile.default.overrides]]\nfilter = 'package(portcove-cli)'\nretries = 1\n",
+  ]) {
+    assert.throws(() => assertTimeoutOverrides(changed));
   }
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);

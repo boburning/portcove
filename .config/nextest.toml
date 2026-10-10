@@ -14,6 +14,10 @@ final-status-level = "slow"
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'
 success-output = "immediate"
+# Complete authenticated full-catalog/artifact correction lifecycle. Intel
+# variability reached the final reopen at the default cutoff; keep a finite
+# exact-case harness budget without changing product deadlines.
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
