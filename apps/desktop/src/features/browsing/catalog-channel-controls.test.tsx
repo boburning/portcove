@@ -30,7 +30,15 @@ const fetchSpy = vi.fn();
 function Fixture({ initial }: { initial?: BrowsingInputs }) {
   shell = useAppShellState("catalog", initial);
   const visible = filterPorts(
-    ports,
+    shell.view === "library"
+      ? filterPorts(
+          ports,
+          statuses,
+          "library",
+          shell.libraryReadiness as "all" | "ready" | "setup",
+          "",
+        )
+      : ports,
     statuses,
     shell.view,
     shell.filter,
@@ -41,6 +49,9 @@ function Fixture({ initial }: { initial?: BrowsingInputs }) {
     <PortBrowser
       view={shell.view}
       ports={visible}
+      libraryReadiness={shell.libraryReadiness}
+      setLibraryReadiness={shell.setLibraryReadiness}
+      libraryFilterCandidates={filterPorts(ports, statuses, "library", "all", shell.query)}
       statuses={statuses}
       overview={summarizeLibrary(ports, statuses)}
       filter={shell.filter}
@@ -49,6 +60,7 @@ function Fixture({ initial }: { initial?: BrowsingInputs }) {
       onSelect={shell.setSelectedId}
       clearFilters={() => {
         shell.setFilter("all");
+        shell.setLibraryReadiness("all");
         shell.setQuery("");
       }}
       loading={false}
@@ -324,7 +336,7 @@ describe("Catalog channel controls", () => {
     await act(async () => shell.setView("library"));
     const libraryButton = (name: string) =>
       [...host.querySelectorAll<HTMLButtonElement>('[aria-label="Library filters"] button')].find(
-        (item) => item.textContent === name,
+        (item) => item.textContent?.startsWith(`${name} (`),
       )!;
     await act(async () => libraryButton("Ready").click());
     expect(

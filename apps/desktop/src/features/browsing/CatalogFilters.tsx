@@ -39,14 +39,16 @@ export function CatalogFilters({
   candidates,
   filter,
   setFilter,
+  view = "catalog",
 }: {
-  candidates: readonly PortDefinition[];
+  candidates?: readonly PortDefinition[];
+  view?: "catalog" | "library";
   filter: Filter | CatalogQuery;
   setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const query = queryFromFilter(filter);
-  const result = evaluateCatalogQuery(candidates, query);
+  const result = evaluateCatalogQuery(candidates ?? [], query);
   const editable = result.state === "matched";
   const selected = editable
     ? groups.flatMap((group) =>
@@ -92,22 +94,24 @@ export function CatalogFilters({
           <ListFilter /> Filters ({activeCount})
         </DialogTrigger>
         <DialogContent finalFocus={trigger}>
-          <DialogTitle>Catalog filters</DialogTitle>
+          <DialogTitle>{view === "library" ? "Library" : "Catalog"} filters</DialogTitle>
           <DialogDescription>
             Match any selected value in each group and both groups together. Platforms describe
             catalog targets; they do not confirm installation compatibility.
+            {view === "library" &&
+              " Ready with Linux means current Library readiness and a declared Linux target, not a ready Linux installation."}
           </DialogDescription>
           {!editable && (
             <p role="alert">
               {result.state === "unresolved"
                 ? "These restored filters are not supported."
                 : "These restored filters need unavailable local context."}{" "}
-              Reset catalog filters to choose a supported query.
+              Reset {view} filters to choose a supported query.
             </p>
           )}
           {additional && (
             <p role="status">
-              Additional restored filters remain active. Reset catalog filters to remove them.
+              Additional restored filters remain active. Reset {view} filters to remove them.
             </p>
           )}
           {groups.map((group) => (
@@ -124,14 +128,18 @@ export function CatalogFilters({
                     disabled={!editable}
                     onClick={() => toggle(group.key, value)}
                   >
-                    {label(group.key, value)} ({result.counts[group.key][value] ?? "unavailable"})
+                    {label(group.key, value)} (
+                    {candidates === undefined
+                      ? "unavailable"
+                      : (result.counts[group.key][value] ?? "unavailable")}
+                    )
                   </Button>
                 ))}
               </div>
             </fieldset>
           ))}
           <Button data-focusable variant="outline" onClick={() => setFilter("all")}>
-            Reset catalog filters
+            Reset {view} filters
           </Button>
         </DialogContent>
       </Dialog>

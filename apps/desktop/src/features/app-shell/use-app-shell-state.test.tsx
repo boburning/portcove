@@ -52,13 +52,13 @@ describe("app shell state", () => {
     await act(async () => root.unmount());
     root = createRoot(host);
     await act(async () => root.render(createElement(Fixture)));
-    expect(state.filter).toBe("setup");
+    expect(state.libraryReadiness).toBe("setup");
     await act(async () => state.setFilter("ready"));
     await act(async () => state.setView("catalog"));
     expect(state.filter).toEqual(filter);
     expect(state.selectedId).toBeUndefined();
     await act(async () => state.setView("library"));
-    expect(state.filter).toBe("ready");
+    expect(state.libraryReadiness).toBe("ready");
   });
 
   it("retains unsupported legacy restored values as constrained queries", async () => {
@@ -82,7 +82,7 @@ describe("app shell state", () => {
       state.setQuery("installed");
       state.setSelectedId("lighthouse");
     });
-    expect(state.filter).toBe("ready");
+    expect(state.libraryReadiness).toBe("ready");
 
     await act(async () =>
       state.setView((current) => (current === "library" ? "catalog" : current)),
@@ -101,7 +101,7 @@ describe("app shell state", () => {
     });
 
     expect(state.view).toBe("library");
-    expect(state.filter).toBe("ready");
+    expect(state.libraryReadiness).toBe("ready");
     expect(state.query).toBe("installed");
 
     await act(async () => state.setView("catalog"));
@@ -151,7 +151,8 @@ describe("app shell state", () => {
 
     expect(state).toMatchObject({
       view: "library",
-      filter: "ready",
+      filter: "all",
+      libraryReadiness: "ready",
       query: "my ports",
       selectedId: undefined,
       adoptOpen: false,
@@ -164,4 +165,26 @@ describe("app shell state", () => {
       catalogSort: "installed-first",
     });
   });
+});
+
+it("composes readiness and declared intent in either update order without changing the other section", async () => {
+  const filter = { version: 1, platforms: ["linux-x86-64"], channels: ["beta"] };
+  await act(async () => {
+    state.setLibraryReadiness("ready");
+    state.setFilter(filter);
+  });
+  expect(state).toMatchObject({ libraryReadiness: "ready", filter });
+  await act(async () => {
+    state.setFilter((current) => ({ ...(current as typeof filter), channels: ["stable"] }));
+    state.setLibraryReadiness("setup");
+  });
+  expect(state).toMatchObject({
+    libraryReadiness: "setup",
+    filter: { ...filter, channels: ["stable"] },
+  });
+  await act(async () => state.setView("catalog"));
+  expect(state.filter).toBe("all");
+  await act(async () => state.setView("library"));
+  expect(state.libraryReadiness).toBe("setup");
+  expect(state.filter).toEqual({ ...filter, channels: ["stable"] });
 });

@@ -16,6 +16,7 @@ import type { PortDefinition, PortStatus } from "../types";
 import {
   currentUpdateSnapshot,
   filterOptions,
+  filterPorts,
   platformLabel,
   portReadiness,
   releaseChannelPresentation,
@@ -49,6 +50,9 @@ export function PortBrowser({
   view,
   ports,
   catalogFilterCandidates,
+  libraryFilterCandidates,
+  libraryReadiness = "all",
+  setLibraryReadiness,
   statuses,
   overview,
   recent,
@@ -71,6 +75,10 @@ export function PortBrowser({
   ports: PortDefinition[];
   /** Search/view narrowed candidates, before either editable Catalog group. */
   catalogFilterCandidates?: PortDefinition[];
+  /** Search and canonical Library membership, before readiness and declared query. */
+  libraryFilterCandidates?: PortDefinition[];
+  libraryReadiness?: string;
+  setLibraryReadiness?: (readiness: string) => void;
   statuses: Map<string, PortStatus>;
   overview: LibraryOverview;
   filter: Filter | CatalogQuery;
@@ -117,6 +125,44 @@ export function PortBrowser({
   const onFavoriteToggle = (portId: string, button: HTMLButtonElement) => {
     if (favorites) void restoreAfter(button, () => favorites.toggle(portId));
   };
+  const composedLibrary = view === "library" && Boolean(setLibraryReadiness);
+  const unresolvedReadiness =
+    composedLibrary && !["all", "ready", "setup"].includes(libraryReadiness);
+  const candidates = view === "library" ? libraryFilterCandidates : catalogFilterCandidates;
+  const countCandidates =
+    candidates === undefined || (favorites?.only && !favorites.ids)
+      ? undefined
+      : favorites?.only
+        ? candidates.filter((port) => favorites.ids?.has(port.id))
+        : candidates;
+  const declaredMatches =
+    countCandidates === undefined
+      ? undefined
+      : evaluateCatalogQuery(
+          countCandidates,
+          filter === "all"
+            ? { version: 1 }
+            : typeof filter === "string"
+              ? { version: 1, channels: [filter] }
+              : filter,
+        );
+  const readinessCount = (readiness: "all" | "ready" | "setup") =>
+    declaredMatches?.state === "matched"
+      ? filterPorts(declaredMatches.ports, statuses, "library", readiness, "").length
+      : "unavailable";
+  const declaredCandidates = composedLibrary
+    ? countCandidates === undefined || unresolvedReadiness
+      ? undefined
+      : filterPorts(
+          countCandidates,
+          statuses,
+          "library",
+          libraryReadiness as "all" | "ready" | "setup",
+          "",
+        )
+    : countCandidates;
+  const favoritesUnavailable = favorites?.only === true && !favorites.ids;
+  const resultsUnavailable = favoritesUnavailable || (composedLibrary && candidates === undefined);
   const unresolvedFilter =
     typeof filter !== "string" && evaluateCatalogQuery([], filter).state === "unresolved";
   const favoriteCount = favorites?.ids
@@ -129,7 +175,10 @@ export function PortBrowser({
     favorites?.setOnly(false);
     clearFilters?.();
   };
-  const constrained = filterConstrained(filter) || favorites?.only === true;
+  const constrained =
+    filterConstrained(filter) ||
+    favorites?.only === true ||
+    (composedLibrary && libraryReadiness !== "all");
   const firstUseEmpty =
     view === "library" &&
     !loading &&
@@ -176,6 +225,15 @@ export function PortBrowser({
           </div>
         </section>
       )}
+      {unresolvedReadiness && (
+        <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
+          Restored readiness “{libraryReadiness}” is not supported. Choose All to reset readiness;
+          declared filters remain active.
+        </p>
+      )}
+      {favoritesUnavailable && (
+        <p role="status">Favorites are unavailable; retained constraints need confirmed choices.</p>
+      )}
       {unresolvedFilter && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
           These filters are not supported. Reset filters to choose a supported query.
@@ -191,19 +249,28 @@ export function PortBrowser({
           {filterOptions(view).map((item) => (
             <Button
               data-focusable
-              aria-pressed={filterSelected(filter, item)}
+              aria-pressed={
+                composedLibrary ? libraryReadiness === item : filterSelected(filter, item)
+              }
               key={item}
-              variant={filterSelected(filter, item) ? "selected" : "outline"}
+              variant={
+                (composedLibrary ? libraryReadiness === item : filterSelected(filter, item))
+                  ? "selected"
+                  : "outline"
+              }
               size="sm"
               className="capitalize"
-              disabled={unresolvedFilter && item !== "all"}
+              disabled={!composedLibrary && unresolvedFilter && item !== "all"}
               onClick={() =>
-                setFilter((current) =>
-                  view === "catalog" ? toggleCatalogChannel(current, item) : item,
-                )
+                composedLibrary
+                  ? setLibraryReadiness?.(item)
+                  : setFilter((current) =>
+                      view === "catalog" ? toggleCatalogChannel(current, item) : item,
+                    )
               }
             >
               {filterLabel(item)}
+              {composedLibrary && ` (${readinessCount(item as "all" | "ready" | "setup")})`}
             </Button>
           ))}
           {favorites && (
@@ -227,7 +294,9 @@ export function PortBrowser({
             </Button>
           )}
           <span className="ml-auto text-xs text-pc-muted-foreground">
-            {visiblePorts.length} {visiblePorts.length === 1 ? "port" : "ports"}
+            {resultsUnavailable
+              ? "Ports unavailable"
+              : `${visiblePorts.length} ${visiblePorts.length === 1 ? "port" : "ports"}`}
           </span>
         </div>
       )}
@@ -241,13 +310,10 @@ export function PortBrowser({
           />
         </div>
       )}
-      {view === "catalog" && catalogFilterCandidates && (
+      {((view === "catalog" && catalogFilterCandidates) || composedLibrary) && (
         <CatalogFilters
-          candidates={
-            favorites?.only
-              ? catalogFilterCandidates.filter((port) => favorites.ids?.has(port.id))
-              : catalogFilterCandidates
-          }
+          view={view === "library" ? "library" : "catalog"}
+          candidates={declaredCandidates}
           filter={filter}
           setFilter={setFilter}
         />
@@ -265,7 +331,7 @@ export function PortBrowser({
         onBrowseCatalog={onBrowseCatalog}
         onConnectGameFiles={onConnectGameFiles}
         clearFilters={reset}
-        loading={loading}
+        loading={loading || resultsUnavailable}
         nativeSourceDrag={nativeSourceDrag}
       />
     </div>

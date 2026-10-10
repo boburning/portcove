@@ -29,7 +29,7 @@ function storedInputs(value: unknown, root: string): BrowsingInputs | undefined 
   if (
     !object(value) ||
     !onlyKeys(value, ["version", "library", "inputs"]) ||
-    value.version !== 1 ||
+    (value.version !== 1 && value.version !== 2) ||
     value.library !== libraryBrowsingKey(root) ||
     !object(value.inputs) ||
     !onlyKeys(value.inputs, ["sections", "catalogSort"]) ||
@@ -43,7 +43,13 @@ function storedInputs(value: unknown, root: string): BrowsingInputs | undefined 
     const inputs = value.inputs.sections[section];
     if (
       !object(inputs) ||
-      !onlyKeys(inputs, ["query", "filter"]) ||
+      !onlyKeys(
+        inputs,
+        value.version === 2 && section === "library"
+          ? ["query", "filter", "readiness"]
+          : ["query", "filter"],
+      ) ||
+      (inputs.readiness !== undefined && typeof inputs.readiness !== "string") ||
       typeof inputs.query !== "string" ||
       !(typeof inputs.filter === "string" || object(inputs.filter))
     )
@@ -74,7 +80,7 @@ function readBrowsingInputs(root: string | null): {
 
 function writeBrowsingInputs(root: string, serializedInputs: string): void {
   const serialized = JSON.stringify({
-    version: 1,
+    version: 2,
     library: libraryBrowsingKey(root),
     inputs: JSON.parse(serializedInputs),
   });

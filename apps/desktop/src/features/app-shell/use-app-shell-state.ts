@@ -2,7 +2,7 @@ import { useCallback, useState, type SetStateAction } from "react";
 import { type CatalogSort, type Filter, type View } from "../../view-model";
 import type { CatalogQuery } from "../browsing/catalog-query";
 
-type BrowserState = { filter: Filter | CatalogQuery; query: string };
+type BrowserState = { filter: Filter | CatalogQuery; query: string; readiness?: string };
 export type BrowsingInputs = {
   sections: Record<View, BrowserState>;
   catalogSort: CatalogSort;
@@ -22,11 +22,24 @@ function restoredBrowserState(initial?: BrowsingInputs): Record<View, BrowserSta
       section,
       {
         ...inputs,
+        ...(section === "library"
+          ? {
+              readiness:
+                inputs.readiness ??
+                (typeof inputs.filter === "string" && ["ready", "setup"].includes(inputs.filter)
+                  ? inputs.filter
+                  : "all"),
+            }
+          : {}),
         filter:
+          section === "library" &&
           typeof inputs.filter === "string" &&
-          !["all", "ready", "setup", "stable", "beta", "rolling"].includes(inputs.filter)
-            ? { version: 1, channels: [inputs.filter] }
-            : inputs.filter,
+          ["ready", "setup"].includes(inputs.filter)
+            ? "all"
+            : typeof inputs.filter === "string" &&
+                !["all", "ready", "setup", "stable", "beta", "rolling"].includes(inputs.filter)
+              ? { version: 1, channels: [inputs.filter] }
+              : inputs.filter,
       },
     ]),
   ) as Record<View, BrowserState>;
@@ -55,7 +68,13 @@ export function useAppShellState(initialView: View = "library", initial?: Browsi
         ...current,
         [view]: {
           ...current[view],
-          filter: typeof nextFilter === "function" ? nextFilter(current[view].filter) : nextFilter,
+          ...(() => {
+            const filter =
+              typeof nextFilter === "function" ? nextFilter(current[view].filter) : nextFilter;
+            return view === "library" && (filter === "ready" || filter === "setup")
+              ? { readiness: filter }
+              : { filter };
+          })(),
         },
       })),
     [view],
@@ -71,6 +90,15 @@ export function useAppShellState(initialView: View = "library", initial?: Browsi
       })),
     [view],
   );
+  const setLibraryReadiness = useCallback(
+    (readiness: string) =>
+      setBrowserState((current) => ({
+        ...current,
+        library: { ...current.library, readiness },
+      })),
+    [],
+  );
+  const libraryReadiness = browserState.library.readiness ?? "all";
   const { filter, query } = browserState[view];
   return {
     browsingInputs: { sections: browserState, catalogSort },
@@ -78,6 +106,8 @@ export function useAppShellState(initialView: View = "library", initial?: Browsi
     setView,
     filter,
     setFilter,
+    libraryReadiness,
+    setLibraryReadiness,
     query,
     setQuery,
     catalogSort,
