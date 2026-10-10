@@ -135,6 +135,13 @@ export function CliContinuity({
             ? "Prepare the required version yourself. Replace game-folder with its folder path, check it, then save the location after review. Portcove does not download, copy, update, back up, or delete these files."
             : "Running this command can download and install the selected release. Required game files are checked before use."}
       </p>
+      {!installed && !useInPlace && channel === "beta" && (
+        <p>
+          This command uses the compatible beta spelling: beta selects Preview. The selected CLI's
+          preview input support has not been verified, so the copied command retains beta for
+          compatibility.
+        </p>
+      )}
       <details>
         <summary data-focusable>Separate program and arguments</summary>
         <p>

@@ -1,6 +1,12 @@
 # Portcove CLI
 
-Game-port release channels display as **Stable / Preview / Rolling**. The compatible CLI, JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; Preview is the display name for `beta`, not a new value or alias. Changing a label does not select a different release or migrate saved choices. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
+Use `portcove plan PORT_ID --channel preview`, `portcove install PORT_ID --channel preview`,
+`portcove ensure PORT_ID --channel preview`, or `portcove channel set PORT_ID preview`.
+The legacy `beta` spelling remains accepted on each route. Inputs remain case-sensitive;
+Stable/Rolling spellings, omitted-channel defaults, consent and eligibility checks are unchanged.
+Changing a saved channel does not install or activate a release.
 
 ## Using the CLI
 
@@ -831,7 +837,7 @@ Machine schema version 5 introduced `move_library` to the activity operation enu
 ### Idempotent automation
 
 ```text
-portcove --library <path> --json --non-interactive ensure <port-id> [--channel stable|beta|rolling] [--source <path>]
+portcove --library <path> --json --non-interactive ensure <port-id> [--channel stable|preview|rolling] [--source <path>]
 portcove --library <path> --json status [port-id]
 portcove --library <path> --json check <port-id>
 portcove --library <path> --json check --all
@@ -915,7 +921,7 @@ The response contains the resolved `library_root` plus `volume_total_bytes` and 
 Before presenting an install or update confirmation, a frontend can resolve Portcove's intended work without mutating installed state:
 
 ```bash
-portcove --library <path> --json plan <port-id> [--channel stable|beta|rolling]
+portcove --library <path> --json plan <port-id> [--channel stable|preview|rolling]
 ```
 
 The plan reports the resolved release and asset size, current platform and channel, registered game-source and BIOS requirements, containing-volume capacity, and one typed action: `already_active`, `use_staged`, `reuse_retained`, `blocked_unverified`, or `download`. These actions compare immutable artifact identity, not display version, so an upstream republish under the same tag is still an update. Planning may perform a normal conditional network lookup and update Portcove's HTTP response cache, but it does not download a release, change source registrations, switch versions, or create an activity record. `use_staged` does not imply activation: the following install's `--stage` choice still controls whether that verified release remains staged. Asset size is the upstream download size; callers must not present it as a guarantee of final extracted footprint.

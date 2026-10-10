@@ -724,7 +724,7 @@ fn source_limits(
 struct InstallArgs {
     /// Catalog port to install.
     port_id: String,
-    /// Release channel: stable (Stable), beta (Preview), or rolling (Rolling).
+    /// Release channel: stable (Stable), preview (Preview), or rolling (Rolling); beta is a compatibility alias.
     #[arg(long, value_enum)]
     channel: Option<ChannelArg>,
     /// Override the registered game file for this installation.
@@ -745,7 +745,7 @@ struct InstallArgs {
 struct EnsureArgs {
     /// Port to use or install.
     port_id: String,
-    /// Release channel if needed: stable (Stable), beta (Preview), or rolling (Rolling).
+    /// Release channel if needed: stable (Stable), preview (Preview), or rolling (Rolling); beta is a compatibility alias.
     #[arg(long, value_enum)]
     channel: Option<ChannelArg>,
     /// Override the source game file used if installation is needed.
@@ -855,7 +855,7 @@ struct ExecArgs {
 
 #[derive(Debug, Subcommand)]
 enum ChannelCommand {
-    /// Save the preferred channel: stable (Stable), beta (Preview), or rolling (Rolling).
+    /// Save the preferred channel: stable (Stable), preview (Preview), or rolling (Rolling); beta is a compatibility alias.
     Set {
         port_id: String,
         #[arg(value_enum)]
@@ -886,7 +886,8 @@ enum SchemaCommand {
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum ChannelArg {
     Stable,
-    /// Preview releases; the compatible command value remains beta.
+    /// Preview releases; beta is a compatibility alias for the same stream.
+    #[value(name = "preview", alias = "beta")]
     Beta,
     Rolling,
 }
@@ -3844,25 +3845,102 @@ mod tests {
         ));
     }
 
+    fn parsed_channel(route: &str, value: Option<&str>) -> Option<ChannelArg> {
+        let mut args = vec!["portcove", route];
+        if route == "channel" {
+            args.push("set");
+        }
+        args.push("lighthouse");
+        if let Some(value) = value {
+            if route != "channel" {
+                args.push("--channel");
+            }
+            args.push(value);
+        }
+        match Cli::try_parse_from(args).unwrap().command {
+            Commands::Plan { channel, .. } => channel,
+            Commands::Install(args) => args.channel,
+            Commands::Ensure(args) => args.channel,
+            Commands::Channel {
+                command: super::ChannelCommand::Set { channel, .. },
+            } => Some(channel),
+            _ => panic!("expected channel consumer"),
+        }
+    }
+
     #[test]
-    fn plan_accepts_an_optional_release_channel() {
-        let cli =
-            Cli::try_parse_from(["portcove", "plan", "lighthouse", "--channel", "beta"]).unwrap();
-        let Commands::Plan {
-            port_id,
-            channel,
-            output_dir,
-        } = cli.command
-        else {
-            panic!("expected plan command");
-        };
-        assert_eq!(port_id, "lighthouse");
-        assert!(matches!(channel, Some(ChannelArg::Beta)));
-        assert!(output_dir.is_none());
-        assert!(
-            Cli::try_parse_from(["portcove", "plan", "lighthouse", "--channel", "preview"])
-                .is_err()
+    fn preview_and_beta_inputs_share_the_existing_channel_on_every_route() {
+        for route in ["plan", "install", "ensure", "channel"] {
+            for value in ["preview", "beta"] {
+                let channel: portcove_core::ReleaseChannel =
+                    parsed_channel(route, Some(value)).unwrap().into();
+                assert_eq!(channel, portcove_core::ReleaseChannel::Beta);
+                assert_eq!(channel.to_string(), "beta");
+                assert_eq!(serde_json::to_value(channel).unwrap(), "beta");
+            }
+            for (value, expected) in [
+                ("stable", portcove_core::ReleaseChannel::Stable),
+                ("rolling", portcove_core::ReleaseChannel::Rolling),
+            ] {
+                let channel: portcove_core::ReleaseChannel =
+                    parsed_channel(route, Some(value)).unwrap().into();
+                assert_eq!(channel, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn channel_inputs_preserve_case_errors_and_optional_defaults() {
+        for route in ["plan", "install", "ensure", "channel"] {
+            for value in ["Preview", "Beta", "Stable", "Rolling", "invalid"] {
+                let mut args = vec!["portcove", route];
+                if route == "channel" {
+                    args.push("set");
+                }
+                args.push("lighthouse");
+                if route != "channel" {
+                    args.push("--channel");
+                }
+                args.push(value);
+                assert_eq!(
+                    Cli::try_parse_from(args).unwrap_err().kind(),
+                    clap::error::ErrorKind::InvalidValue
+                );
+            }
+        }
+        for route in ["plan", "install", "ensure"] {
+            assert!(parsed_channel(route, None).is_none());
+        }
+        assert_eq!(
+            Cli::try_parse_from(["portcove", "channel", "set", "lighthouse"])
+                .unwrap_err()
+                .kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
         );
+    }
+
+    #[test]
+    fn channel_help_prefers_preview_and_explains_the_beta_alias() {
+        use clap::{CommandFactory, ValueEnum};
+        for args in [
+            vec!["portcove", "plan", "--help"],
+            vec!["portcove", "install", "--help"],
+            vec!["portcove", "ensure", "--help"],
+            vec!["portcove", "channel", "set", "--help"],
+        ] {
+            let error = Cli::try_parse_from(args).unwrap_err();
+            assert_eq!(error.kind(), clap::error::ErrorKind::DisplayHelp);
+            let help = error.to_string();
+            assert!(help.contains("preview"), "{help}");
+            assert!(help.contains("beta"), "{help}");
+            assert!(help.contains("compatibility alias"), "{help}");
+        }
+        let values = <ChannelArg as clap::ValueEnum>::value_variants()
+            .iter()
+            .map(|value| value.to_possible_value().unwrap().get_name().to_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(values, ["stable", "preview", "rolling"]);
+        Cli::command().debug_assert();
     }
 
     #[test]
