@@ -151,7 +151,8 @@ describe("catalog and capacity presentation", () => {
         refresh={vi.fn()}
       />,
     );
-    expect(html).toContain("Release channel information is unavailable");
+    expect(html).toContain("Selected channel:");
+    expect(html).toContain("Your saved choice has not changed");
     expect(html).not.toContain('aria-haspopup="dialog"');
     expect(change).not.toHaveBeenCalled();
   });

@@ -64,7 +64,7 @@ fn consequential_help_explains_actions_and_review_arguments() {
         .output()
         .unwrap();
     let help = std::str::from_utf8(&ensure.stdout).unwrap();
-    assert!(help.contains("Release channel to select if installation is needed"));
+    assert!(help.contains("Release channel if needed"));
     assert!(help.contains("an existing install is not moved"));
     let export = Command::new(cli_binary())
         .args(["library", "export", "--help"])
@@ -2199,13 +2199,14 @@ fn port_status_has_human_output_snapshot() {
     let status = human_stdout(&portcove(root.path(), &["status", "lighthouse"])).to_owned();
     assert!(status.starts_with("Status (1)\nPORT"));
     assert!(status.contains("lighthouse"));
-    assert!(status.contains("stable"));
+    assert!(status.contains("Stable"));
     assert!(status.contains("Actions:"));
     assert!(status.contains("launch: waiting (not_installed)"));
     assert!(status.contains("remove_managed: not_offered (not_installed)"));
     assert!(!status.trim_start().starts_with('{'));
     let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
     assert_eq!(machine["schema_version"], 60);
+    assert_eq!(machine["data"]["channel"], "stable");
     assert_eq!(machine["data"]["port_actions"][2]["action"], "launch");
     assert_eq!(
         machine["data"]["port_actions"][2]["availability"],

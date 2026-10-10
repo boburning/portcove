@@ -724,7 +724,7 @@ fn source_limits(
 struct InstallArgs {
     /// Catalog port to install.
     port_id: String,
-    /// Release channel for this installation.
+    /// Release channel: stable (Stable), beta (Preview), or rolling (Rolling).
     #[arg(long, value_enum)]
     channel: Option<ChannelArg>,
     /// Override the registered game file for this installation.
@@ -745,7 +745,7 @@ struct InstallArgs {
 struct EnsureArgs {
     /// Port to use or install.
     port_id: String,
-    /// Release channel to select if installation is needed.
+    /// Release channel if needed: stable (Stable), beta (Preview), or rolling (Rolling).
     #[arg(long, value_enum)]
     channel: Option<ChannelArg>,
     /// Override the source game file used if installation is needed.
@@ -855,7 +855,7 @@ struct ExecArgs {
 
 #[derive(Debug, Subcommand)]
 enum ChannelCommand {
-    /// Save the preferred release channel for future game updates.
+    /// Save the preferred channel: stable (Stable), beta (Preview), or rolling (Rolling).
     Set {
         port_id: String,
         #[arg(value_enum)]
@@ -886,6 +886,7 @@ enum SchemaCommand {
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum ChannelArg {
     Stable,
+    /// Preview releases; the compatible command value remains beta.
     Beta,
     Rolling,
 }
@@ -3868,6 +3869,10 @@ mod tests {
         assert_eq!(port_id, "lighthouse");
         assert!(matches!(channel, Some(ChannelArg::Beta)));
         assert!(output_dir.is_none());
+        assert!(
+            Cli::try_parse_from(["portcove", "plan", "lighthouse", "--channel", "preview"])
+                .is_err()
+        );
     }
 
     #[test]

@@ -1,0 +1,98 @@
+import { DirectionProvider } from "@base-ui/react/direction-provider";
+import { useState } from "react";
+import { flushSync } from "react-dom";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { PortBrowser } from "../components/PortBrowser";
+import { ReleaseChannelControl } from "../components/ReleaseChannel";
+import { portDefinition, portStatus } from "../test-fixtures";
+import type { ReleaseChannel } from "../types";
+import { filterPorts, summarizeLibrary, type Filter } from "../view-model";
+import type { CatalogQuery } from "../features/browsing/catalog-query";
+import "../styles.css";
+
+vi.mock("../api", () => ({ desktopApi: {} }));
+const ports = [
+  { ...portDefinition(), id: "preview", name: "Upstream Beta 12", channels: ["beta" as const] },
+  { ...portDefinition(), id: "stable", name: "Stable-only port", channels: ["stable" as const] },
+];
+const statuses = new Map();
+let root: Root;
+let host: HTMLDivElement;
+let query: Filter | CatalogQuery;
+const change = vi.fn(async (channel: ReleaseChannel) => ({ ...portStatus(), channel }));
+const refresh = vi.fn(async () => ({}));
+function Fixture() {
+  const [filter, setFilter] = useState<Filter | CatalogQuery>("all");
+  query = filter;
+  return (
+    <main className="p-4">
+      <PortBrowser
+        view="catalog"
+        ports={filterPorts(ports, statuses, "catalog", filter, "")}
+        statuses={statuses}
+        overview={summarizeLibrary(ports, statuses)}
+        filter={filter}
+        setFilter={setFilter}
+        onSelect={() => {}}
+        loading={false}
+      />
+      <ReleaseChannelControl
+        channels={["stable", "beta", "rolling"]}
+        selected="beta"
+        busy={false}
+        change={change}
+        refresh={refresh}
+      />
+    </main>
+  );
+}
+beforeEach(() => {
+  host = document.body.appendChild(document.createElement("div"));
+  root = createRoot(host);
+  change.mockClear();
+  refresh.mockClear();
+});
+afterEach(() => {
+  flushSync(() => root.unmount());
+  host.remove();
+  delete document.documentElement.dataset.theme;
+});
+it.each(["light", "dark"])(
+  "presents Preview while keeping beta identities in %s",
+  async (theme) => {
+    document.documentElement.dataset.theme = theme;
+    await page.viewport(1280, 800);
+    flushSync(() =>
+      root.render(
+        <DirectionProvider direction="ltr">
+          <Fixture />
+        </DirectionProvider>,
+      ),
+    );
+    const preview = page.getByRole("button", { name: "Preview", exact: true });
+    await userEvent.click(preview);
+    await expect.element(preview).toHaveAttribute("aria-pressed", "true");
+    expect(query).toEqual({ version: 1, channels: ["beta"] });
+    await expect.element(page.getByRole("button", { name: /^Upstream Beta 12\./ })).toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: /^Stable-only port\./ }))
+      .not.toBeInTheDocument();
+    expect(change).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    const selector = page.getByRole("combobox");
+    await userEvent.click(selector);
+    await expect.element(page.getByRole("option", { name: "Preview", exact: true })).toBeVisible();
+    await page.screenshot({ path: `../../../../work/preview1726/${theme}.png` });
+    await userEvent.keyboard("{Escape}");
+    await expect.element(selector).toHaveFocus();
+    await userEvent.click(selector);
+    await userEvent.click(page.getByRole("option", { name: "Rolling", exact: true }));
+    expect(change).toHaveBeenCalledExactlyOnceWith("rolling");
+    await expect.poll(() => refresh.mock.calls.length).toBe(1);
+    await expect
+      .element(page.getByRole("status"))
+      .toHaveTextContent("Rolling selected. Release information refreshed.");
+  },
+);

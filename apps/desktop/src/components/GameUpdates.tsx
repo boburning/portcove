@@ -3,7 +3,12 @@ import { desktopApi } from "../api";
 import type { GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
 import type { Perform } from "../features/operations/use-operation-state";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
-import { errorText, failurePresentation, formatBytes } from "../view-model";
+import {
+  errorText,
+  failurePresentation,
+  formatBytes,
+  releaseChannelPresentation,
+} from "../view-model";
 import { FailureDetails } from "./FailureDetails";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
@@ -319,7 +324,8 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
   return (
     <div className="install-plan">
       <p>
-        <strong>{plan.plan.release.version}</strong> · {plan.plan.channel}
+        <strong>{plan.plan.release.version}</strong> ·{" "}
+        {releaseChannelPresentation(plan.plan.channel).label}
       </p>
       <p>
         {plan.plan.action === "download"

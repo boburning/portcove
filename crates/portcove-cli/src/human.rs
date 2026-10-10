@@ -7,9 +7,9 @@ use portcove_core::{
     HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker, LibraryContentKind,
     LibraryMovePlan, LibraryMoveResult, OutputDestinationAvailability, OutputDestinationOwnership,
     OutputDestinationPreview, OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition,
-    PortOutputLocation, PortPaths, PortStatus, RepairItemKind, SourceClassification,
-    SourceContractResult, SourceInspectionReport, SourceRecord, SourceRequirementRole,
-    StorageSummary, SupportTier,
+    PortOutputLocation, PortPaths, PortStatus, ReleaseChannel, RepairItemKind,
+    SourceClassification, SourceContractResult, SourceInspectionReport, SourceRecord,
+    SourceRequirementRole, StorageSummary, SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -237,7 +237,7 @@ pub(crate) fn catalog_list(ports: &[PortDefinition]) -> String {
                 support_tier(port.support_tier).into(),
                 port.channels
                     .iter()
-                    .map(ToString::to_string)
+                    .map(|channel| release_channel(*channel))
                     .collect::<Vec<_>>()
                     .join(","),
             ]
@@ -321,7 +321,7 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
             "Channels: {}",
             port.channels
                 .iter()
-                .map(ToString::to_string)
+                .map(|channel| release_channel(*channel))
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
@@ -992,7 +992,7 @@ pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
         .map(|status| {
             vec![
                 status.port_id.clone(),
-                status.channel.to_string(),
+                release_channel(status.channel).into(),
                 status.update_policy.to_string(),
                 status
                     .active
@@ -1396,7 +1396,7 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nTotal download: {}\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}",
         clean(&plan.port_id),
         install_action(plan.action),
-        plan.channel,
+        release_channel(plan.channel),
         platform_name(plan.platform),
         clean(&plan.release.version),
         clean(&plan.release.asset.name),
@@ -1695,7 +1695,22 @@ fn render_value(value: &Value, indent: usize, output: &mut String) {
     }
 }
 
+fn release_channel(channel: ReleaseChannel) -> &'static str {
+    match channel {
+        ReleaseChannel::Stable => "Stable",
+        ReleaseChannel::Beta => "Preview",
+        ReleaseChannel::Rolling => "Rolling",
+    }
+}
+
 fn field_scalar(key: &str, value: &Value) -> String {
+    if key == "channel"
+        && let Some(channel) = value
+            .as_str()
+            .and_then(|value| value.parse::<ReleaseChannel>().ok())
+    {
+        return release_channel(channel).into();
+    }
     if matches!(
         key,
         "created_at" | "updated_at" | "started_at" | "finished_at" | "resets_at"
@@ -1928,6 +1943,33 @@ fn optional_path(path: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn preview_channel_presentation_preserves_compatibility_and_upstream_names() {
+        let value = serde_json::json!({"channel": "beta", "version": "Version1.0.5beta12", "upstream_name": "Beta 12", "application_milestone": "Public beta", "support_tier": "beta"});
+        let before = value.clone();
+        let rendered = super::document(&value).unwrap();
+        assert!(rendered.contains("Channel: Preview"));
+        assert!(rendered.contains("Version1.0.5beta12"));
+        assert!(rendered.contains("Beta 12"));
+        assert!(rendered.contains("Public beta"));
+        assert!(rendered.contains("Support tier: beta"));
+        assert_eq!(value, before);
+        assert_eq!(portcove_core::ReleaseChannel::Beta.to_string(), "beta");
+        assert_eq!(
+            serde_json::to_value(portcove_core::ReleaseChannel::Beta).unwrap(),
+            "beta"
+        );
+        assert!("preview".parse::<portcove_core::ReleaseChannel>().is_err());
+        assert_eq!(
+            super::release_channel(portcove_core::ReleaseChannel::Stable),
+            "Stable"
+        );
+        assert_eq!(
+            super::release_channel(portcove_core::ReleaseChannel::Rolling),
+            "Rolling"
+        );
+    }
+
     #[test]
     fn library_move_review_has_scoped_counts_and_full_hash() {
         let temporary = tempfile::tempdir().unwrap();

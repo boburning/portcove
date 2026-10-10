@@ -756,7 +756,7 @@ function filterLabel(filter: Filter) {
   if (filter === "all") return "All";
   if (filter === "ready") return "Ready";
   if (filter === "setup") return "Needs attention";
-  return filter;
+  return releaseChannelPresentation(filter).label;
 }
 
 function readinessPresentation(readiness: PortReadiness, view: View, status?: PortStatus) {

@@ -57,6 +57,8 @@ during beta before 1.0, without holding the initial Windows/Linux foundation.
 
 ## Component rules
 
+Game-port release channels display as **Stable / Preview / Rolling**. The compatible CLI, JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; Preview is the display name for `beta`, not a new value or alias. Changing a label does not select a different release or migrate saved choices. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
 - Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Shared selects use these as minimum heights: option labels and selected decision text wrap within the available width, including long unbroken values, rather than clipping source requirements or relying on hover. Pills are reserved for compact status badges.
@@ -124,7 +126,7 @@ The first foundation slice records the actual `components.json` paths, aliases, 
 | Port catalog    | Every reviewed Portcove definition, including ports not installed locally.                             |
 | Source          | A legally obtained original game file or reviewed file set referenced in place.                        |
 | BIOS            | A separately modeled firmware requirement. It is not called a game source in recovery copy.            |
-| Release channel | Stable, beta, or rolling upstream stream selected per port.                                            |
+| Release channel | Stable, Preview (`beta`), or Rolling stream selected per port.                                         |
 | Update policy   | Notify, stage, or automatically install for one installed port.                                        |
 | Staged release  | A verified release retained locally but not yet active.                                                |
 | Active version  | The managed version currently selected for launch.                                                     |

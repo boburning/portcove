@@ -99,13 +99,13 @@ never infer qualification or eligibility from a label or color.
 Release channels and other product states use these same semantic families
 without collapsing distinct facts:
 
-| Fact or state                                                             | Semantic treatment |
-| ------------------------------------------------------------------------- | ------------------ |
-| Stable channel; healthy, verified, complete, current                      | green              |
-| Beta channel; informational, selected, loading, staged or in progress     | blue               |
-| Rolling channel; attention, setup, available update or caution            | gold/yellow        |
-| Genuine failure, incompatibility, destructive action or required recovery | red                |
-| Unknown, not evaluated, neutral, inactive or disabled                     | gray               |
+| Fact or state                                                                     | Semantic treatment |
+| --------------------------------------------------------------------------------- | ------------------ |
+| Stable channel; healthy, verified, complete, current                              | green              |
+| Preview channel (`beta`); informational, selected, loading, staged or in progress | blue               |
+| Rolling channel; attention, setup, available update or caution                    | gold/yellow        |
+| Genuine failure, incompatibility, destructive action or required recovery         | red                |
+| Unknown, not evaluated, neutral, inactive or disabled                             | gray               |
 
 Release channel, Portcove support tier, readiness, qualification, update state,
 and upstream status remain separate labeled contracts even when their colors

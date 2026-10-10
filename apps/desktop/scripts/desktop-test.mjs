@@ -1734,7 +1734,7 @@ try {
     const channelButton = (channel) =>
       browser.findElement(
         By.xpath(
-          `//div[@aria-label="Release channel filters"]//button[normalize-space(.)="${channel}"]`,
+          `//div[@aria-label="Release channel filters"]//button[normalize-space(.)="${channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling"}"]`,
         ),
       );
     const expectChannels = async (channels) => {
@@ -1768,7 +1768,9 @@ try {
     await expectChannels(["stable"]);
     const beta = await browser.wait(
       until.elementLocated(
-        By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
+        By.xpath(
+          '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
+        ),
       ),
       15_000,
     );
@@ -1934,7 +1936,9 @@ try {
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
     const alternateBeta = await browser.findElement(
-      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
+      By.xpath(
+        '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
+      ),
     );
     assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
@@ -1944,7 +1948,9 @@ try {
     const restoredSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await restoredSearch.getAttribute("value"), "zelda");
     const restoredBeta = await browser.findElement(
-      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
+      By.xpath(
+        '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
+      ),
     );
     assert.equal(await restoredBeta.getAttribute("aria-pressed"), "true");
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "true");

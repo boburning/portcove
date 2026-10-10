@@ -17,6 +17,9 @@ namespace Portcove.ReferenceClient
             return text;
         }
 
+        private static string ChannelLabel(string channel) =>
+            channel == "beta" ? "Preview" : channel == "stable" ? "Stable" : channel == "rolling" ? "Rolling" : "Unknown channel";
+
         private static string Digest(object value, string field)
         {
             var text = RequiredText(value, field);
@@ -86,14 +89,14 @@ namespace Portcove.ReferenceClient
                 if (!new[] { "stable", "beta", "rolling" }.Contains(storedChannel))
                     throw new InvalidOperationException("Existing copy has an unsupported channel.");
                 destinationDescription = "Existing copy to activate: " + actualDestination +
-                    "\nExisting copy version: " + RequiredText(selected, "version") + "\nExisting copy channel: " + storedChannel;
+                    "\nExisting copy version: " + RequiredText(selected, "version") + "\nExisting copy channel: " + ChannelLabel(storedChannel);
                 downloadDescription = "No artifact download; use the verified existing copy (" + action.Replace('_', ' ') + ")";
             }
             return new InstallationReview
             {
                 Fingerprint = Digest(value, "plan_sha256"),
                 Description = "Install and activate this reviewed release? Portcove rechecks these inputs before applying it. Changed inputs require another review.\n\n" +
-                    "Requested release version: " + RequiredText(release, "version") + "\nRequested channel: " + channel +
+                    "Requested release version: " + RequiredText(release, "version") + "\nRequested channel: " + ChannelLabel(channel) +
                     "\nArtifact: " + RequiredText(asset, "name") + "\nSHA-256: " + Digest(asset, "sha256") +
                     runtimeDescription + "\n" + downloadDescription +
                     "\n" + destinationDescription + "\nSaved data: " + saves +
