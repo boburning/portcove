@@ -1,3 +1,4 @@
+import { useFavorites } from "./features/favorites/use-favorites";
 import {
   useApplicationUpdateChoice,
   useApplicationUpdateNotice,
@@ -294,6 +295,7 @@ function Workspace({
   consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
+  const favorites = useFavorites(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
   const operations = useOperationState({
     refresh: data.retryRefresh,
@@ -588,6 +590,7 @@ function Workspace({
             />
           ) : (
             <CurrentView
+              favorites={favorites}
               data={data}
               ui={{ ...ui, setView: setPrimaryView }}
               model={model}
@@ -727,6 +730,7 @@ function selectedPort(
 }
 
 function CurrentView({
+  favorites,
   data,
   ui,
   model,
@@ -746,6 +750,7 @@ function CurrentView({
   setupSource,
   setSetupSource,
 }: {
+  favorites: ReturnType<typeof useFavorites>;
   data: DataState;
   ui: UiState;
   model: ReturnType<typeof useAppModel>;
@@ -894,6 +899,7 @@ function CurrentView({
   if (!data.catalog && data.refreshFailure) return null;
   return (
     <PortBrowser
+      favorites={favorites}
       view={ui.view}
       ports={model.visible}
       statuses={model.statusMap}
