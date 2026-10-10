@@ -341,6 +341,7 @@ const workflowTests = new Map([
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/controller-canary.test.mjs",
   "scripts/check-release-metadata.test.mjs",
   "scripts/release-package-policy.test.mjs",
   "scripts/write-release-checksums.test.mjs",

@@ -125,6 +125,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "docs/SIGNED-CATALOG.md",
   "docs/UPGRADING.md",
   "scripts/check-release-metadata.mjs",
+  "scripts/controller-canary.mjs",
   "scripts/finalize-release-assets.mjs",
   "scripts/generate-release-downloads.mjs",
   "scripts/package-cli.ps1",
