@@ -1,0 +1,71 @@
+# Operation notes
+
+Use only the paragraphs relevant to the explicitly selected operation. The
+entrypoint and canonical QUALITY/CONTRIBUTION contracts own current routing;
+old blanket document-load and local-check wording below does not add a gate.
+
+Resolve the current checkout root with `git rev-parse --show-toplevel` before using
+paths below. Read [PROJECT-GOVERNANCE.md](../../../../docs/PROJECT-GOVERNANCE.md) and inspect current commands in [roadmap.mjs](../../../../scripts/roadmap.mjs). GitHub Projects is the live authority; never create a local backlog mirror.
+
+Read every page of the relevant inventory and require unique counts to match totals. An API failure, stalled cursor, changing total or incomplete dependency read invalidates the result. REST may recover issue reads but does not establish Project fields it did not return.
+
+For pickup and upkeep, follow PROJECT-GOVERNANCE's single-local-runner contract.
+`next --json` recommends; `context --issue <number> --runner <reported-instance> --json`
+collects relevant live requirements without a Dot grant or retired board read.
+`.github/roadmap.json:delivery_mode` selects this behavior. The retained
+`runner_coordination` pointers discover old handoffs only. Verify actual writers
+and source-owner release before overlapping work; missing paperwork does not
+block independent delivery. Preserve old records, commits, unresolved evidence
+and pauses without fabricating ACKs or inactivity. Missing task/Project reads
+remain a named coverage limitation.
+
+Compare validated `--consumed-file` baselines before repeating work; unchanged specification and operational text may be suppressed before model output only with valid raw observation/scoped baseline binding. Raw hash and edited timestamp changes are both detected. Exact `--consumed-comment` and `--reservation-comment` references are evidence, not grants. Optional `--coordination-pr` binds only the owning evidence PR. Explicit `node scripts/roadmap.mjs history --issue <number> [--coordination-pr <number>] --json` is the bounded recent50-record historical route, with uncovered latest/absence UNKNOWN. Legacy #793 references remain exact/read-only; do not enumerate its archive.
+
+Ordinary pickup needs no coordinator acknowledgment or offer/return ritual.
+Coordinator planners refuse in single-runner mode; preserve the historical
+protocol and use owning issues/PRs for material task evidence. Keep one actively
+edited candidate, freeze clean waiting heads and continue independent work when
+blocked. Refresh acceptance, source, review and evidence before candidate
+completion; takeover does not waive remaining gates.
+
+Before ending/handoff, preserve findings in the canonical issue: fact/hypothesis, affected scope, evidence, disposition and next action/resume condition. Search before intake; refresh before writing, preserve concurrent edits, and read back. Keep runner-local limitations narrow, clear resolved current blockers while linking history, and retain exact unavailable writes as unapplied handoff artifacts. Following delivery, reconcile the finite parent/direct prerequisites/blocking consumers and reservation; later siblings and optional opportunities do not acquire release gates.
+
+For GitHub compare-based discovery, validate commit and changed-file completeness separately. A complete commit count does not make a 300-element files array complete. When capped, diff immutable endpoints through a metadata-only clone for the path inventory, use ordinal path identity, and state separately whether deeper content review was complete or targeted.
+
+Search existing issues by upstream and stable game/target identity before intake. Use `capture-port` or `normalize-port` for ports. Preserve canonical issues, completed work, existing parents, origin markers and explicit dependencies. Parentage alone is not a blocking dependency.
+
+Use `next`, `readiness --release <stage>`, and `doctor` for read-only assessment. Before classifying doctor drift under concurrent delivery, verify the local catalog/governance revision is current for the intended authority. Compare live issue/Project fields, current main's catalog, and active unmerged catalog work; coordinate with the owner instead of resetting another task's state from a stale checkout.
+
+`capture-feature`, `promote`, `set`, `move`, and `bootstrap` mutate live state: use only within authorized scope and inspect flags. Before updating several items, account for the cost of complete Project traversal and reserve quota for exact readback and one final doctor. Prefer a repository-supported batch mechanism when available; do not loop a whole-project `set` command blindly. Use REST for independent issue/body/comment work when appropriate, never as proof of Project fields.
+
+For every remote mutation, keep attempted action, transport result, targeted readback, and final doctor acceptance separate. After an ambiguous response, read the requested field before retrying and describe it as verified after the attempt rather than client-applied when causality is unknowable. In machine-readable output, use `unknown` for unavailable or contradictory readback and `partial` for known incomplete acceptance, keep diagnostics off structured stdout, and exit nonzero for either state.
+
+Keep each issue body a coherent current specification: finite outcome, delivered evidence, exact remaining acceptance and owners, blockers/resume conditions, and separate later/contextual work. For an authorized rewrite, preserve the full prior body in a dated issue comment, link it from the new specification, and keep every applicable requirement in an accessible current owner. Refresh body, labels and relationships immediately before writing; reject concurrent changes. Read back the exact saved body (normalizing line endings only), preserved markers and directly affected relationships. Resume idempotently from verified state, never duplicate history or overwrite a concurrent edit. Append-only amendments remain appropriate for new evidence, not contradictory current specifications.
+
+Native children contribute to the parent's defined finite completion; independent later phases are siblings in the existing topic. Shared prerequisites retain one owner and explicit blocking edges where genuine. Parentage, contextual links, display labels and queue predecessors never imply release gates. Durable Port records stay in Port Pipeline, not organizational child lists under reusable adapters. On completion or material scope change, reconcile the owning task, finite parent and affected relationships; a closed child alone is not delivery evidence.
+
+`roadmap-outcome` selects meaningful canonical product/engineering outcomes for presentation, including completed outcomes. It never changes readiness or queue eligibility. Use configured saved views and current owning issue/PR evidence; retain the old operational issue and fixed comments as historical discovery pointers. Owning issues/PRs retain task acceptance and evidence; do not create another coordination issue or status ledger. Keep exact comment links; a sent message does not prove authority, consumption or activity. Aging or missing evidence prompts investigation, not automatic closure. Ordinary observations belong with their existing owner; create independent tasks only for separately owned/scheduled/verifiable work.
+
+Keep Target release, Release commitment, Status, Port stage and catalog support separate. Unset commitment is unclassified. Inspect outcome, acceptance, blockers, and completion prose for semantic cycles that wait on downstream shipping or integrated proof despite an acyclic formal graph. Give each prerequisite component an independently satisfiable proof and assign integrated evidence to the downstream owner.
+
+When a researched port enters the catalog, compare its admitted catalog ID with the existing canonical issue marker and Catalog ID field. If identity changed, update that issue body through the authorized guarded path, preserve research evidence, and verify one canonical catalog marker and the full body. Run the full doctor from the admitted main revision before reporting governance acceptance; do not infer new support or alter scheduling fields from admission alone.
+
+After mutations, read back issues, Project fields, dependencies, and markers. Rerun the full doctor from a coherent current revision. Report exact scope, evidence and unresolved conflicts; preserve priorities unless authorized. Repository docs retain stable contracts or dated snapshots only.
+
+Budget a multi-mutation intake as one quota-bound sequence, including capture and promotion traversals, one guarded field batch, exact readback, and the final complete doctor. Avoid optional whole-Project reads between a successful batch and its doctor. If fields verify but the doctor cannot finish, report partial acceptance, retain the idempotent spec, and wait for enough quota to run one coherent final inventory and doctor.
+
+When REST `/rate_limit` disagrees with a real GraphQL request, use the GraphQL response headers and data for GraphQL availability. If quota fails between draft capture and promotion, preserve exact draft IDs and specs and determine whether durable issues already exist. After the authoritative reset, recheck live state and quota, then verify each draft's identity before resuming supported promotion or replacing only those drafts with the exact existing issues. Never infer absence from a failed promotion response or delete an unverified draft; use the repository-managed roadmap lock for each resumed command and complete full final readback.
+
+When a newly captured draft is absent from an immediate Project traversal, preserve the returned item ID and query that exact node and Project identity. Reject an inventory whose unique IDs do not match its stated total, allow indexed views to converge, and do not recapture a duplicate. Use the repository-managed locked command for promotion and verify the converted issue body and item identity; inspect its current exact-ID behavior before proposing a fallback. Treat a later `set-many` lookup miss the same way before repeating a mutation.
+
+`capture-feature` leaves Status, Work type, and Effort at neutral intake defaults even when similarly named generic flags are accepted. Read those Project fields after promotion. For authorized non-neutral classification, declare and apply one guarded `set-many` transition and verify its readback rather than treating the capture invocation as proof.
+
+Required and Planned share the `next` execution queue. Readiness is a separate release-gate calculation. Preserve Deferred and current reservations; at clean handoffs record concrete pass-over reasons, named scheduling predecessors and resume conditions on the owning issue/PR. Scheduling is not a blocking edge. Use the selection/reporting contract in PROJECT-GOVERNANCE; do not add another scheduler or infer adoption from a sent steer. Historical Opportunistic inputs remain non-gating. `rename-commitment` plans by default; `--apply` preserves option/item IDs and reads every assignment back.
+
+At safe handoffs optimize for finishing accepted beta outcomes and exact remaining acceptance, fitting frozen-cohort reuse, and demonstrated delivery bottlenecks. Preserve immediate safety/required-validation precedence and healthy assignments. Planned work may be the best accelerator; unrelated work remains eligible when no higher-value available beta work can use the lane. Apply existing Priority/Horizon/order only, preserve Status/release/commitment/acceptance, and use the owning governance rule for finite improvement selection and beta-progress reporting.
+
+Before freezing a roadmap vocabulary migration, make one bounded old-term search across active contracts, agent guidance, configuration and command/output documentation. Classify relevant hits as active normative language to update, historical evidence to retain or compatibility behavior to test; include active corrections in the same reviewed migration rather than globally replacing history.
+
+Declare whether a Project inventory includes archived items; use an explicit supported archive scope when claiming that coverage. Interpret saved-view totals against filters and native parent/child nesting: a rendered root-row count need not equal the full requirement or outcome set. Verify UI settings independently, retain actual readiness relationships and calculations, and report authentication or child-loading limits without claiming missing work.
+
+For typed coordination changes, capacity failures or upstream transfer reconciliation, read [coordination and inventory checks](coordination-inventory.md). The historical coordinator protocol remains read-only in single-runner mode; owning issue/PR changes use guarded freshness and readback.

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { isSlowTest } from "./test-duration-reporter.mjs";
-import { checkVitestDurations } from "./check-vitest-durations.mjs";
+import { checkVitestDurations, completeRelatedUiCoverage } from "./check-vitest-durations.mjs";
 
 function event(duration, type = "test") {
   return {
@@ -68,4 +68,33 @@ test("UI timing reports slow tests and rejects missing or incomplete measurement
     longest: 0,
     slow: [],
   });
+});
+
+test("related frontend completion executes one full fallback and propagates failure before a receipt", () => {
+  const empty = { success: true, numTotalTests: 0, numPassedTests: 0, testResults: [] };
+  let calls = 0;
+  completeRelatedUiCoverage(empty, (command, args, options) => {
+    calls++;
+    assert.equal(command, "corepack");
+    assert.deepEqual(args, ["pnpm", "test"]);
+    assert.match(options.cwd, /apps[\\/]desktop/);
+    return { status: 0 };
+  });
+  assert.equal(calls, 1);
+  assert.throws(() => completeRelatedUiCoverage(empty, () => ({ status: 7 })), /fallback failed/);
+  assert.throws(
+    () => completeRelatedUiCoverage({ ...empty, numTotalTests: undefined }, () => assert.fail()),
+    /Incomplete frontend/,
+  );
+  const nonempty = {
+    success: true,
+    numTotalTests: 1,
+    numPassedTests: 1,
+    testResults: [
+      { assertionResults: [{ status: "passed", duration: 1, fullName: "related fixture" }] },
+    ],
+  };
+  completeRelatedUiCoverage(nonempty, () =>
+    assert.fail("nonempty selection must not execute the full suite"),
+  );
 });

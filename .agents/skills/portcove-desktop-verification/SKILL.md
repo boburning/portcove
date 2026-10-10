@@ -1,55 +1,28 @@
 ---
 name: portcove-desktop-verification
-description: Reproduce and verify Portcove desktop behavior with isolated native UI runs, logs, and screenshots. Use when acceptance for an interaction or presentation change requires the actual Tauri application; not for a routine noninteractive unit-test-only UI edit.
+description: Reproduce and verify Portcove desktop behavior with isolated native UI runs, logs, and screenshots. Use for explicit owning-issue native acceptance or release qualification, not ordinary presentation edits.
 ---
 
-Resolve the current checkout root with `git rev-parse --show-toplevel` before using
-paths below. Read [development tooling](../../../docs/DEVELOPMENT-TOOLS.md) and the issue's actual acceptance criteria. Use `just desktop-verify --plan` to inspect the resolved run, then choose the smallest matching `--profile` or repeat `--scenario` for an exact series. The one-command runner checks the desktop doctor and workspace packages, builds only required binaries, allocates isolated ports and output, and invokes the existing native harness. It never installs prerequisites. Keep `just desktop-test` for low-level runs with explicitly selected executables and a new output directory.
+Resolve the checkout with `git rev-parse --show-toplevel`. Use this route only for
+explicit native acceptance in the owning issue or a release contract.
+Inspect `just desktop-verify --plan`, then select one scenario or the smallest
+matching profile. The runner checks prerequisites and uses the maintained harness;
+it does not provision them. See [native operation](../../../docs/DEVELOPMENT-TOOLS.md#native-desktop-smoke-tests)
+for command syntax, not the entire tooling handbook.
 
-Use a fresh library/configuration scope. Never point fixture tests at the user's normal library. Keep real lifecycle behavior in core and distinguish mocked renderer cases from actual Tauri IPC/native runs.
+Use a fresh isolated library/configuration scope. Interactive input, WebView,
+installer registrations and Registry state are shared host resources: establish
+an uncontended window and preserve inconclusive contention evidence. Worktrees
+do not isolate these resources. Never use the player's normal library.
 
-For native harness coverage, dependency-free fixture consumers, source/runtime representation, retained-profile schema compatibility, Windows environment aliases, replacement-host proof, identity-sensitive callbacks or WebView containment, read the relevant checks in [qualification boundaries](references/qualification-boundaries.md).
+Bind executable hash/revision/platform and selected scenarios to logs/screenshots.
+Inspect images before making visual claims. Keep failed/skipped outcomes visible;
+fixtures, native IPC, installed behavior and physical/human observations are distinct.
+Preserve owned-process identity and positive exit proof before fixture mutation.
+Do not kill foreign or ambiguously owned processes.
 
-Treat the interactive desktop, keyboard/pointer input, browser profile, installer registrations, Registry state, and native qualification runners as host-wide resources. Separate worktrees and libraries do not isolate them. Before input-driving or Registry-touching scenarios, including audits that launch them indirectly, establish a window without competing user input or another Portcove qualification runner. Preserve contention-affected evidence as inconclusive, do not present a later serialized pass as a code fix, continue noninteractive work where possible, and never capture the user's typed text.
-
-Choose scenarios matching the change: onboarding, unavailable sources, operation progress/cancellation, error recovery, settings persistence, focus order and scaled layouts. Capture the exact executable hash, revision, platform, scenario results, screenshots and logs. Failed and skipped scenarios must remain visible.
-
-For a native visual claim, wait for the semantic settled signal, frame the changed control in the viewport, retain the relevant state, and inspect the image itself. Interaction assertions do not establish visual coverage. For size-specific layouts, read back actual outer window dimensions after resizing and measure the client viewport; label evidence with verified dimensions, not requested sizes.
-
-For one known behavior, use one exact scenario. Repeat `--scenario` for a tightly related series; use `presentation`, `restart`, `artwork`, or `owned-lifecycle` for those boundaries and `full` only for cross-cutting completion evidence. Setup scenarios needed to create isolated fixture state are not selected-test passes. Size any aggregate watchdog from the selected scenario inventory while retaining bounded per-interaction limits, and record the selection and outer deadline. Use `--require-clean` for final evidence. Do not add native verification to routine local checks, CI, schedules, or background work. Explicitly requested manual-only hosted acceptance may use an isolated standard public runner through the existing harness; follow [hosted acceptance](../../../docs/NATIVE-HOSTED-ACCEPTANCE.md). It creates no routine or blanket required status and claims only the actual tested runner/image, application and scenarios.
-
-Before asserting that an artifact survives a native mutation, establish a known owned pre-state and record its identity. When a scenario overwrites an input fixture after launch, retain immutable before copies and separate after identities; rehash the retained files against the evidence manifest. Check these preconditions before a costly native build. If a qualification-only fixture changes renderer or boot mode, run it separately from normal-app scenarios unless the harness explicitly restores normal mode; retain any incompatible combined run as fixture-bound evidence.
-
-Size disposable interactive-fixture lifetimes for the evidence collection itself, including screenshots, accessibility refreshes, process-tree capture, and durable-state queries. Prefer an explicit external release signal with a bounded but comfortable deadline. If a fixture expires, retain the run as a negative fixture outcome and prepare a new positive-control install; do not relabel it as a product failure, increase a product watchdog, or overwrite a managed executable to extend the window.
-
-If an in-process fixture server, timer, socket, WebDriver callback, or other event-loop-owned resource must remain responsive while the application runs, launch the child asynchronously. Bound and terminate only the owned child, and prove the fixture observed the expected request. Use synchronous child execution only when the parent event loop is not needed, such as a build completed before the server starts.
-
-If a validation command is interrupted or its handle is lost, preserve completed prior-stage results and identify the interrupted stage. Inspect retained logs, owned processes, and partial artifacts before restarting or synchronizing a validation checkout. Require terminal completion evidence for the exact resumed revision; file existence alone is insufficient. Do not combine incomplete runs into final acceptance unless the acceptance contract explicitly composes independently identity-bound outcomes. Preserve incomplete outputs and do not terminate unrelated processes.
-
-Capture the separately launched driver root, application, WebView, and other descendant identities before native interaction or restart, including exact executable, PID, creation time, and task/session ownership. When ancestry establishes ownership, validate chronology at every edge and reject missing timestamps, cycles, stale identities, or ambiguity. `browser.quit()` deletes the session but does not prove the driver or descendants exited. If the isolated task-owned driver retains the application tree, revalidate its exact identity before ending only that driver tree, then independently verify every captured application/WebView identity within the unchanged shared bound. Never kill by name, ambiguous PID, or ancestry alone.
-
-Before directly mutating durable recovery fixtures after cancellation or failure, capture the owned process tree, close through the driver, wait boundedly for positive exit evidence, and reconnect. A terminal activity row, renderer disappearance, or cancellation acknowledgement proves outcome, not quiescence.
-
-For synthetic failure fixtures, prove that the intended interception or setup took effect before diagnosing product recovery behavior. Record the injected count and exact affected operation without credentials or full payloads, and verify restoration even on failure. Keep fixture failure, product failure, and unrelated intermittent failures distinct.
-
-When recovery behavior depends on cached state or freshness identifiers, include a previously loaded value rather than testing only a cold-start failure. Exercise local recovery and a fresh read after external recovery at lower or equal revisions, plus an old in-flight result arriving after recovery. Verify controls, drafts or prompts, and subsequent mutation revisions bind to the recovered snapshot identity. Keep this bounded to the changed recovery contract; revision numbers are not necessarily monotonic across corruption, replacement, or recovery.
-
-For native interactions, distinguish durable core commit from rendered completion and post-interaction focus restoration. Identify failures through semantic product contracts such as alert roles, explicit error state, or dedicated failure selectors; a visual class shared by notices and errors is insufficient, and neutral notices need a negative check. Before scrolling or changing views, wait for relevant completion signals. If an asynchronous diagnostic refresh can remount a safety-review surface, wait for its semantic settled signal and reacquire the current container and control after opening it. Permit only a bounded reopen of a non-mutating disclosure, never a retry of consent, cleanup, or another mutation.
-
-For workflow-wide terminology or identity changes, inspect the complete player-visible trace across renderer, native dialogs, activity/history, accessibility names, and test selectors. Compare retained native-dialog text with the accepted language; a passing scenario may merely prove that its obsolete selector still matches. When presentation derives a selected identity from candidates, trace the authoritative selection semantics and test zero, one, and multiple-candidate states instead of treating the first candidate as selected.
-
-If an isolated scenario passes but the combined sequence fails, retain and reproduce that sequence. Do not mask races with arbitrary sleeps, forced focus, synthetic consent, JavaScript mutation clicks, broad stale-element retries, or longer timeouts.
-
-Classify UI-runner evidence before choosing a framework. Browser-mode automation may improve renderer iteration but does not replace the actual Tauri application, platform WebView, IPC, restart, native-dialog, isolation, or evidence contracts. Preserve the native runner until a candidate demonstrates parity; label complementary browser lanes non-native and avoid duplicate lifecycle authority.
-
-For semantic CSS migrations, inspect computed WebView styles on representative element types and states when a property moves between cascade layers. For ambiguous arbitrary-value utilities, check the generated production CSS declaration or computed property and use an explicit type hint when needed. Compare native screenshots with the prior composition; a passing build or a present class name does not prove the rendered property.
-
-Use existing browser/computer-use tools for visual inspection where available, following their skills. Automated accessibility checks supplement keyboard and visual inspection; they cannot establish novice comprehension, physical controller ergonomics or human gameplay.
-
-Use focused UI tests and `just local-check` for an ordinary change. Run `just check-ui` or `just check` only when the acceptance scope, a broad investigation, or the aggregate-command rules in [quality](../../../docs/QUALITY.md) require them. Report scenario coverage and gaps explicitly; do not close intrinsic human requirements with screenshots or synthetic input alone.
-
-When adding another native WebDriver transport for the same interactions, share one transport-neutral behavioral assertion module. Keep executable identity and hashing, host identity, launch/driver connection, process ownership, bounded positive exit proof, screenshots, and logs in each transport adapter. Check that every supported transport actually invokes the shared assertions; adding a transport alone does not broaden platform or minimum-version qualification.
-
-For the qualification-only embedded Mac WebDriver transport, check the driver's input semantics before attributing a non-input element `sendKeys` failure to the product. Use WebDriver actions for supported keyboard paths and retain the failed transport run. Hosted generated keyboard events do not establish physical keyboard behavior or minimum OS support.
-
-For focus acceptance after a stateful action, inspect whether success replaces the opener, ancestor, route, or whole workspace. Test the successful replacement path separately from Escape or cancellation and verify focus on the new authoritative control. If the native fixture cannot safely perform the mutation, state that native limit and use a focused remount integration test; a native dismissal pass does not prove focus after replacement.
+For harness engineering or a specific recovery/layout/transport assertion, read
+the relevant [operation notes](references/operation-notes.md) and
+[qualification boundary](references/qualification-boundaries.md). Hosted acceptance
+uses its [specific contract](../../../docs/NATIVE-HOSTED-ACCEPTANCE.md).
+Local checks follow [QUALITY](../../../docs/QUALITY.md#required-hosted-baseline).

@@ -1,5 +1,9 @@
 // Actual-Tauri proof for the paired one-off intake and explicit-folder source journeys.
 import assert from "node:assert/strict";
+import {
+  beginProgressiveScanProbe,
+  requireTrustedProbeCleanup,
+} from "./desktop-owned-ipc-probe.mjs";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -55,6 +59,10 @@ async function progressiveScanNavigation({
     injected: 0,
     restored: false,
   };
+  let probe;
+  let scenarioError;
+  let primaryError;
+  let cleanupError;
   try {
     try {
       await click(button("Refresh folders"));
@@ -62,52 +70,7 @@ async function progressiveScanNavigation({
         const scan = await browser.findElements(button("Scan saved folders"));
         return scan.length === 1 && (await scan[0].isEnabled());
       }, 5_000);
-      await browser.executeScript((source) => {
-        const native = window.__TAURI_INTERNALS__;
-        const original = window.fetch;
-        const target = native.convertFileSrc("scan_game_file_roots", "ipc");
-        const probe = { original, injected: 0, release: null, channel: null };
-        window.__portcoveProgressiveScanProbe = probe;
-        window.fetch = function (input, ...args) {
-          const url = typeof input === "string" ? input : input.url;
-          if (url !== target) return original.call(window, input, ...args);
-          probe.injected++;
-          const body = args[0].body;
-          const payload = JSON.parse(
-            typeof body === "string" ? body : new TextDecoder().decode(body),
-          );
-          if (!/^__CHANNEL__:\d+$/.test(payload.onEvent))
-            throw new Error("Unexpected pinned Channel payload");
-          probe.channel = Number(payload.onEvent.slice("__CHANNEL__:".length));
-          const event = {
-            schema_version: 3,
-            operation_id: "owned-progressive-navigation-probe",
-            parent_operation_id: null,
-            target: null,
-            operation: "discover_sources",
-            timestamp_ms: Date.now(),
-          };
-          native.runCallback(probe.channel, {
-            index: 0,
-            message: { ...event, type: "started", sequence: 1 },
-          });
-          native.runCallback(probe.channel, {
-            index: 1,
-            message: {
-              ...event,
-              type: "source_candidate",
-              sequence: 2,
-              profile_id: source.profile_id,
-              path: source.path,
-              sha256: source.sha256,
-              size: source.size,
-            },
-          });
-          return new Promise((resolve) => {
-            probe.release = resolve;
-          });
-        };
-      }, source);
+      probe = await beginProgressiveScanProbe(browser, { source });
       await click(button("Scan saved folders"));
       await browser.wait(until.elementLocated(button(`View ${port.name} details`)), 5_000);
       assert.equal(await browser.findElement(button("Scan saved folders")).isEnabled(), false);
@@ -138,10 +101,7 @@ async function progressiveScanNavigation({
         "The remounted saved-folder read must expose the owned root's Relink control",
       );
       assert.equal(await ownedRelink.isEnabled(), false);
-      assert.equal(
-        await browser.executeScript(() => window.__portcoveProgressiveScanProbe.injected),
-        1,
-      );
+      assert.equal((await probe.capture()).injected, 1);
       await browser.wait(
         () =>
           browser.executeScript(
@@ -279,6 +239,7 @@ async function progressiveScanNavigation({
         artifacts,
       );
     } catch (error) {
+      scenarioError = error;
       try {
         const dom = path.join(output, "progressive-scan-failure-before-cleanup.html");
         await writeFile(
@@ -300,29 +261,10 @@ async function progressiveScanNavigation({
       }
       throw error;
     } finally {
-      Object.assign(
-        observations,
-        await browser.executeScript(() => {
-          const probe = window.__portcoveProgressiveScanProbe;
-          if (!probe) return { injected: 0, restored: true, channel_closed: false };
-          window.fetch = probe.original;
-          if (probe.channel !== null)
-            window.__TAURI_INTERNALS__.runCallback(probe.channel, { index: 2, end: true });
-          probe.release?.(
-            new Response(
-              JSON.stringify("Controlled scan observation ended; refresh or scan again."),
-              {
-                headers: { "Content-Type": "application/json", "Tauri-Response": "error" },
-              },
-            ),
-          );
-          return {
-            injected: probe.injected,
-            restored: window.fetch === probe.original,
-            channel_closed: probe.channel !== null,
-          };
-        }),
-      );
+      if (probe) {
+        Object.assign(observations, await probe.restore());
+        requireTrustedProbeCleanup(observations, scenarioError);
+      }
     }
     assert.equal(observations.injected, 1);
     assert.equal(observations.restored, true);
@@ -346,16 +288,44 @@ async function progressiveScanNavigation({
       async () => (await browser.findElements(By.css('[role="alert"]'))).length === 0,
       5_000,
     );
+  } catch (error) {
+    primaryError = error;
+    observations.failure = error.message;
   } finally {
-    const removed = command(["source", "roots", "remove", root.id]);
-    assert.equal(removed.removed, true);
-    assert.deepEqual(command(["source", "roots", "list"]), rootsBefore);
-    assert.deepEqual(command(["source", "list"]), sourcesBefore);
-    assert.deepEqual(command(["status", port.id]), statusBefore);
+    observations.owned_cleanup = [];
+    for (const [action, run] of [
+      [
+        "remove-owned-root",
+        () => assert.equal(command(["source", "roots", "remove", root.id]).removed, true),
+      ],
+      ["roots-readback", () => assert.deepEqual(command(["source", "roots", "list"]), rootsBefore)],
+      ["sources-readback", () => assert.deepEqual(command(["source", "list"]), sourcesBefore)],
+      ["status-readback", () => assert.deepEqual(command(["status", port.id]), statusBefore)],
+    ]) {
+      try {
+        run();
+        observations.owned_cleanup.push({ action, attempted: true, completed: true });
+      } catch (error) {
+        cleanupError ??= error;
+        observations.owned_cleanup.push({
+          action,
+          attempted: true,
+          completed: false,
+          error: error.message,
+        });
+      }
+    }
     const report = path.join(output, "progressive-scan-navigation.json");
-    await writeFile(report, `${JSON.stringify(observations, null, 2)}\n`, { flag: "wx" });
-    artifacts.push(report);
+    try {
+      await writeFile(report, `${JSON.stringify(observations, null, 2)}\n`, { flag: "wx" });
+      artifacts.push(report);
+    } catch (error) {
+      cleanupError ??= error;
+      console.error("Owned scan observation report failed:", error.message);
+    }
   }
+  if (primaryError) throw primaryError;
+  if (cleanupError) throw cleanupError;
 }
 
 export async function sourceDialogScenario({ browser, scenario, output, artifacts, command }) {
@@ -766,6 +736,161 @@ async function recordSelectedSetupFailure(browser, report, error) {
   }
 }
 
+async function scanCoveragePresentation({ browser, snapshot, output, artifacts }) {
+  const { button, click } = reviewControls(browser);
+  let presentationFailure;
+  let cleanupFailure;
+  const observations = {
+    scope:
+      "controlled completed-snapshot presentation in actual Tauri; not backend resume execution",
+  };
+  await browser.executeScript((snapshot) => {
+    const native = window.__TAURI_INTERNALS__;
+    const original = window.fetch;
+    const readTarget = native.convertFileSrc("get_game_file_scan_snapshot", "ipc");
+    const scanTarget = native.convertFileSrc("scan_game_file_roots", "ipc");
+    const probe = { original, reads: 0, scans: 0, snapshot: structuredClone(snapshot) };
+    probe.snapshot.coverage = {
+      ...snapshot.coverage,
+      batches: 2,
+      can_resume: true,
+      frontier_exhausted: false,
+      remaining_entries: null,
+      restart_required: false,
+    };
+    probe.snapshot.report.limits_reached = ["entries"];
+    window.__portcoveCoverageProbe = probe;
+    window.fetch = function (input, ...args) {
+      const url = typeof input === "string" ? input : input.url;
+      if (url !== readTarget && url !== scanTarget) return original.call(window, input, ...args);
+      if (url === readTarget) probe.reads++;
+      else {
+        probe.scans++;
+        const body = args[0].body;
+        const payload = JSON.parse(
+          typeof body === "string" ? body : new TextDecoder().decode(body),
+        );
+        probe.limits = payload.limits;
+        if (!/^__CHANNEL__:\d+$/.test(payload.onEvent)) throw new Error("Unexpected scan Channel");
+        native.runCallback(Number(payload.onEvent.slice("__CHANNEL__:".length)), {
+          index: 0,
+          end: true,
+        });
+        Object.assign(probe.snapshot.coverage, {
+          batches: 3,
+          can_resume: false,
+          frontier_exhausted: true,
+          remaining_entries: 0,
+        });
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify(probe.snapshot), {
+          headers: { "Content-Type": "application/json", "Tauri-Response": "ok" },
+        }),
+      );
+    };
+  }, snapshot);
+  try {
+    await click(button("Refresh folders"));
+    const continueButton = await browser.wait(until.elementLocated(button("Continue scan")), 5_000);
+    assert.equal(await continueButton.isEnabled(), true);
+    const coverage = await browser.wait(
+      until.elementLocated(
+        By.xpath(
+          '//section[@aria-label="Saved folder scan results"]//p[contains(., "These totals cover 2 scan batches.") and contains(., "The number of remaining entries is unknown.")]',
+        ),
+      ),
+      5_000,
+    );
+    await browser.executeScript(
+      (element) => element.scrollIntoView({ block: "center", behavior: "instant" }),
+      coverage,
+    );
+    observations.presentation = await browser.wait(
+      () =>
+        browser.executeScript((element) => {
+          const bounds = element.getBoundingClientRect().toJSON();
+          const style = getComputedStyle(element);
+          if (
+            !element.isConnected ||
+            style.visibility !== "visible" ||
+            Number(style.opacity) === 0 ||
+            bounds.width <= 0 ||
+            bounds.height <= 0 ||
+            bounds.top < 0 ||
+            bounds.bottom > innerHeight ||
+            bounds.left < 0 ||
+            bounds.right > document.documentElement.clientWidth ||
+            element.getAnimations().some((animation) => animation.playState === "running")
+          )
+            return null;
+          return {
+            text: element.textContent.trim(),
+            bounds,
+            viewport: { width: innerWidth, height: innerHeight },
+          };
+        }, coverage),
+      5_000,
+      "Coverage copy must be settled and framed",
+    );
+    const screenshot = path.join(output, "selected-setup-scan-coverage.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(screenshot);
+    await click(button("Continue scan"));
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//p[contains(., "Skipped files and search limits still apply.")]'),
+      ),
+      5_000,
+    );
+    await browser.wait(until.elementLocated(button("Scan saved folders")), 5_000);
+    await browser.executeScript(() => {
+      window.__portcoveCoverageProbe.snapshot.freshness = "inputs_changed";
+      Object.assign(window.__portcoveCoverageProbe.snapshot.coverage, {
+        restart_required: true,
+        frontier_exhausted: false,
+      });
+    });
+    await click(button("Refresh folders"));
+    assert.equal(
+      await (await browser.wait(until.elementLocated(button("Start new scan")), 5_000)).isEnabled(),
+      true,
+    );
+  } catch (error) {
+    presentationFailure = error;
+    observations.failure = String(error);
+  } finally {
+    try {
+      Object.assign(
+        observations,
+        await browser.executeScript(() => {
+          const probe = window.__portcoveCoverageProbe;
+          window.fetch = probe.original;
+          return {
+            reads: probe.reads,
+            scans: probe.scans,
+            limits: probe.limits,
+            restored: window.fetch === probe.original,
+          };
+        }),
+      );
+      const report = path.join(output, "selected-setup-scan-coverage.json");
+      await writeFile(report, `${JSON.stringify(observations, null, 2)}\n`, { flag: "wx" });
+      artifacts.push(report);
+    } catch (error) {
+      cleanupFailure = error;
+      console.error(JSON.stringify({ observations, cleanup_failure: String(error) }));
+    }
+  }
+  if (presentationFailure) throw presentationFailure;
+  if (cleanupFailure) throw cleanupFailure;
+  assert.equal(observations.scans, 1);
+  assert.deepEqual(observations.limits, snapshot.limits);
+  assert.equal(observations.restored, true);
+  await click(button("Refresh folders"));
+  await browser.wait(until.elementLocated(button("Scan saved folders")), 5_000);
+}
+
 export async function selectedSetupScenario({
   browser,
   invoke,
@@ -865,6 +990,102 @@ export async function selectedSetupScenario({
       await click(button("Refresh folders"));
       report.observations.initial_scan = await scan();
       assert.deepEqual(command(["source", "list"]), [], "Discovery must never register sources");
+      const sourceRow = await browser.findElement(row(owned.profiles[1]));
+      const associationText = `Catalog ports using this profile: ${command(["catalog", "list"])
+        .filter((port) => port.bios_source_profile === owned.profiles[1])
+        .map((port) => port.name)
+        .join(", ")}`;
+      await browser.executeScript(
+        (element) => element.scrollIntoView({ block: "center", behavior: "instant" }),
+        sourceRow,
+      );
+      report.observations.source_metadata_presentation = await browser.wait(
+        () =>
+          browser.executeScript(
+            (element, expectedAssociation) => {
+              const spans = [...element.querySelectorAll("span")];
+              const size = spans.find((span) => span.textContent.trim() === "37 B");
+              const association = spans.find(
+                (span) => span.textContent.trim() === expectedAssociation,
+              );
+              if (!size || !association) return null;
+              const clipping = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+              for (let ancestor = element; ancestor; ancestor = ancestor.parentElement) {
+                const style = getComputedStyle(ancestor);
+                if (
+                  style.display === "none" ||
+                  style.visibility !== "visible" ||
+                  Number(style.opacity) === 0 ||
+                  ancestor.getAnimations().some((animation) => animation.playState === "running")
+                )
+                  return null;
+                const bounds = ancestor.getBoundingClientRect();
+                if (/^(auto|scroll|hidden|clip)$/.test(style.overflowX)) {
+                  clipping.left = Math.max(clipping.left, bounds.left + ancestor.clientLeft);
+                  clipping.right = Math.min(
+                    clipping.right,
+                    bounds.left + ancestor.clientLeft + ancestor.clientWidth,
+                  );
+                }
+                if (/^(auto|scroll|hidden|clip)$/.test(style.overflowY)) {
+                  clipping.top = Math.max(clipping.top, bounds.top + ancestor.clientTop);
+                  clipping.bottom = Math.min(
+                    clipping.bottom,
+                    bounds.top + ancestor.clientTop + ancestor.clientHeight,
+                  );
+                }
+              }
+              const textRects = (span) => {
+                const range = document.createRange();
+                range.selectNodeContents(span);
+                return [...range.getClientRects()].map((rect) => rect.toJSON());
+              };
+              const sizeRects = textRects(size);
+              const associationRects = textRects(association);
+              const framed = (rect) =>
+                rect.width > 0 &&
+                rect.height > 0 &&
+                rect.left >= clipping.left &&
+                rect.top >= clipping.top &&
+                rect.right <= clipping.right &&
+                rect.bottom <= clipping.bottom;
+              if (
+                !sizeRects.length ||
+                !associationRects.length ||
+                ![...sizeRects, ...associationRects].every(framed) ||
+                Math.min(...associationRects.map((rect) => rect.top)) <
+                  Math.max(...sizeRects.map((rect) => rect.bottom))
+              )
+                return null;
+              return {
+                size: size.textContent.trim(),
+                association: association.textContent.trim(),
+                size_rects: sizeRects,
+                association_rects: associationRects,
+                clipping,
+                viewport: {
+                  width: innerWidth,
+                  height: innerHeight,
+                  device_scale: devicePixelRatio,
+                },
+              };
+            },
+            sourceRow,
+            associationText,
+          ),
+        5_000,
+        "The settled source size and Catalog association must be fully framed on separate lines",
+      );
+      report.observations.source_metadata_presentation.window = await browser
+        .manage()
+        .window()
+        .getRect();
+      const metadataScreenshot = path.join(output, "selected-setup-source-metadata.png");
+      await writeFile(metadataScreenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(metadataScreenshot);
       await reviewCandidate(owned.profiles[0]);
       assertOwnedSelectedSetupPath(
         await browser.findElement(review).findElement(By.css("code")).getText(),
@@ -1049,6 +1270,15 @@ export async function selectedSetupScenario({
         5_000,
         "Selected setup: return continuation after registered BIOS details",
       );
+      report.checkpoint = "controlled-coverage-presentation";
+      const registrationsBeforeCoverage = command(["source", "list"]);
+      await scanCoveragePresentation({
+        browser,
+        snapshot: await nativeRead("get_game_file_scan_snapshot"),
+        output,
+        artifacts,
+      });
+      assert.deepEqual(command(["source", "list"]), registrationsBeforeCoverage);
       report.checkpoint = "unavailable-root-refresh";
       await rename(owned.directory, missingRoot);
       rootMoved = true;

@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { inflateRawSync } from "node:zlib";
 import { parseArgs } from "node:util";
@@ -55,8 +55,16 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   ".github/qualification-coverage.json",
   ".github/workflows/ci.yml",
   "scripts/local-validation.mjs",
+  "scripts/checked-git.mjs",
+  "scripts/resource-status.mjs",
+  "scripts/report-summary.mjs",
+  "scripts/native-session-lock.mjs",
+  "scripts/process-lock.mjs",
   "scripts/validation-plan.mjs",
   "scripts/audit.mjs",
+  "scripts/audit-evidence.mjs",
+  "scripts/audit-archive.mjs",
+  "scripts/audit-reuse.mjs",
   "scripts/dev-storage.mjs",
   "scripts/tool-cache.mjs",
   "scripts/select-ci-plan.mjs",
@@ -306,13 +314,144 @@ function cargoDependencyBinding(raw, git, sourceRoot, identities) {
   return { profile: "cargo-dependency", ...spec, manifests: manifestBindings };
 }
 
-function hostedBrowserSelection(stdout, identities, exitStatus) {
-  const invalid = () => new Error("Invalid complete local-check preflight for provisioning");
+// This projection is diagnostic only: it never supplies input to an acceptance predicate.
+function emitPreflightRefusal(log, reason, result, identities, report, elapsedMs) {
+  try {
+    const describe = (value) => {
+      if (typeof value === "string") {
+        const bytes = Buffer.from(value);
+        return { type: "string", bytes: bytes.length, sha256: sha256(bytes) };
+      }
+      if (Array.isArray(value)) return { type: "array", count: value.length };
+      return { type: value === null ? "null" : typeof value };
+    };
+    const code = result.error?.code;
+    const diagnostic = {
+      format_version: 1,
+      reason,
+      expected: {
+        source: exactSha(identities.source) ? identities.source : null,
+        base: exactSha(identities.base) ? identities.base : null,
+        merge_base: exactSha(identities.mergeBase ?? identities.merge_base)
+          ? (identities.mergeBase ?? identities.merge_base)
+          : null,
+      },
+      result: {
+        status: Number.isInteger(result.status) ? result.status : null,
+        signal: ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"].includes(result.signal)
+          ? result.signal
+          : result.signal == null
+            ? null
+            : "UNKNOWN",
+        code: ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].includes(code)
+          ? code
+          : code === undefined
+            ? null
+            : "UNKNOWN",
+        code_observation: describe(code),
+        signal_observation: describe(result.signal),
+      },
+      elapsed_ms: Math.max(0, Math.round(elapsedMs)),
+      capture_complete: !result.error && Number.isInteger(result.status) && result.signal == null,
+      stdout: describe(result.stdout),
+      stderr: describe(result.stderr),
+      omitted: false,
+    };
+    if (report !== undefined) {
+      diagnostic.report = {
+        format_version:
+          typeof report?.format_version === "number"
+            ? report.format_version
+            : describe(report?.format_version),
+        source: exactSha(report?.source) ? report.source : describe(report?.source),
+        base: exactSha(report?.base) ? report.base : describe(report?.base),
+        merge_base: exactSha(report?.merge_base) ? report.merge_base : describe(report?.merge_base),
+        plan_digest: /^[a-f0-9]{64}$/u.test(report?.plan_digest ?? "")
+          ? report.plan_digest
+          : describe(report?.plan_digest),
+        status:
+          report?.status === "planning-blocked" ? "planning-blocked" : describe(report?.status),
+        obligations: Array.isArray(report?.obligations)
+          ? report.obligations.map((entry) => ({
+              id: describe(entry?.id),
+              route: ["local", "blocked", "hosted-local-check"].includes(entry?.route)
+                ? entry.route
+                : describe(entry?.route),
+              missing: describe(entry?.missing),
+            }))
+          : describe(report?.obligations),
+        audit: {
+          route:
+            report?.pre_change_audit?.route === "local-prerequisites-unverified"
+              ? "local-prerequisites-unverified"
+              : describe(report?.pre_change_audit?.route),
+          profile: ["complete", "transition"].includes(report?.pre_change_audit?.profile)
+            ? report.pre_change_audit.profile
+            : describe(report?.pre_change_audit?.profile),
+          command_matches:
+            report?.pre_change_audit?.command === "just audit --profile transition --fresh",
+          command_observation: describe(report?.pre_change_audit?.command),
+        },
+      };
+      const observation = report?.blocker?.observation;
+      if (report?.blocker?.id === "cargo-metadata" && observation)
+        diagnostic.report.cargo = {
+          reason: [
+            "spawn-error",
+            "cargo-exit",
+            "metadata-json",
+            "package-inventory",
+            "UNKNOWN",
+          ].includes(observation.reason)
+            ? observation.reason
+            : "UNKNOWN",
+          status: Number.isInteger(observation.status) ? observation.status : null,
+          code: ["ENOENT", "EACCES", "EPERM", "ETIMEDOUT", "ENOBUFS", "E2BIG", "EIO"].includes(
+            observation.code,
+          )
+            ? observation.code
+            : "UNKNOWN",
+        };
+    }
+    const prefix = "Hosted preflight refusal: ";
+    let text = prefix + JSON.stringify(diagnostic);
+    if (Buffer.byteLength(text + "\n") > 64 * 1024) {
+      delete diagnostic.report;
+      diagnostic.omitted = true;
+      text = prefix + JSON.stringify(diagnostic);
+    }
+    if (Buffer.byteLength(text + "\n") <= 64 * 1024) log(text);
+  } catch {
+    // Reporting/serialization failure must never mask the existing refusal.
+  }
+}
+
+function preflightReportReason(report, identities) {
+  if (report?.format_version !== 1) return "format-version";
+  if (report.source !== identities.source) return "source";
+  if (report.base !== identities.base) return "base";
+  if (report.merge_base !== (identities.mergeBase ?? identities.merge_base)) return "merge-base";
+  if (!/^[a-f0-9]{64}$/u.test(report.plan_digest ?? "")) return "plan-digest";
+  if (report.status !== undefined) return "status";
+  if (!Array.isArray(report.obligations)) return "obligations";
+  if (report.obligations.length === 0) return "obligations-empty";
+  if (report.obligations.some((entry) => typeof entry?.id !== "string" || entry.id.length === 0))
+    return "obligation-id";
+  if (new Set(report.obligations.map((entry) => entry.id)).size !== report.obligations.length)
+    return "obligation-duplicate";
+  return "prerequisites";
+}
+
+function hostedBrowserSelection(stdout, identities, exitStatus, reject = () => {}) {
+  const invalid = (reason, report) => {
+    reject(reason, report);
+    return new Error("Invalid complete local-check preflight for provisioning");
+  };
   let report;
   try {
     report = JSON.parse(stdout);
   } catch {
-    throw invalid();
+    throw invalid("json");
   }
   if (
     report?.format_version !== 1 ||
@@ -326,14 +465,14 @@ function hostedBrowserSelection(stdout, identities, exitStatus) {
     report.obligations.some((entry) => typeof entry?.id !== "string" || entry.id.length === 0) ||
     new Set(report.obligations.map((entry) => entry.id)).size !== report.obligations.length
   )
-    throw invalid();
+    throw invalid(preflightReportReason(report, identities), report);
   if (
     report.obligations.some(
       (entry) =>
         entry.route !== "local" || !Array.isArray(entry.missing) || entry.missing.length !== 0,
     )
   )
-    throw invalid();
+    throw invalid("prerequisites", report);
   // A policy preflight reports selection and the separate audit obligation together.
   // Acquisition cannot satisfy that audit, but its named routing disposition is
   // not a failure of the complete selected browser prerequisite observation.
@@ -345,7 +484,7 @@ function hostedBrowserSelection(stdout, identities, exitStatus) {
       !["complete", "transition"].includes(audit.profile) ||
       audit.command !== "just audit --profile transition --fresh")
   )
-    throw invalid();
+    throw invalid("audit-exit", report);
   return {
     plan_digest: report.plan_digest,
     browser: report.obligations.some((entry) => entry.id === "ui-browser-tests"),
@@ -485,6 +624,7 @@ export async function runHostedLocalCheck(phase, options = {}) {
     throw new Error("Observed local-check tools differ from repository pins");
   const execute = options.spawn ?? spawnSync;
   if (phase === "provision") {
+    const started = performance.now();
     const preflight = execute(
       process.execPath,
       ["scripts/local-validation.mjs", "check", "--preflight", "--json"],
@@ -497,9 +637,22 @@ export async function runHostedLocalCheck(phase, options = {}) {
         maxBuffer: 8 * 1024 * 1024,
       },
     );
-    if (preflight.error) throw preflight.error;
-    if (![0, 1].includes(preflight.status)) return preflight.status ?? 1;
-    const selection = hostedBrowserSelection(preflight.stdout, identities, preflight.status);
+    const refusal = (reason, report) =>
+      emitPreflightRefusal(log, reason, preflight, identities, report, performance.now() - started);
+    if (preflight.error) {
+      refusal("child-error");
+      throw preflight.error;
+    }
+    if (![0, 1].includes(preflight.status)) {
+      refusal("child-status");
+      return preflight.status ?? 1;
+    }
+    const selection = hostedBrowserSelection(
+      preflight.stdout,
+      identities,
+      preflight.status,
+      refusal,
+    );
     const recheck = async () => {
       clean(controllerRoot, identities.controller);
       clean(sourceRoot, identities.source);
@@ -600,6 +753,502 @@ export async function runHostedLocalCheck(phase, options = {}) {
     throw new Error("Local-check comparison target changed during execution");
   if (status === 0) log(`Hosted local-check completed: ${JSON.stringify(binding)}`);
   return status;
+}
+
+const bootstrapPaths = new Set([
+  ".github/workflows/ci.yml",
+  ".github/workflows/deep-quality.yml",
+  ".github/workflows/native-design-compatibility.yml",
+  "scripts/workflow-provenance.mjs",
+  "scripts/workflow-provenance.test.mjs",
+  "scripts/local-validation.mjs",
+  "scripts/local-validation.test.mjs",
+  "scripts/native-backup-evidence.mjs",
+  "scripts/ci-workflow.test.mjs",
+  "scripts/desktop-scenarios.mjs",
+  "scripts/desktop-scenarios.test.mjs",
+  "apps/desktop/scripts/desktop-test.mjs",
+  "apps/desktop/scripts/desktop-qualification-history-test.mjs",
+  "docs/NATIVE-HOSTED-ACCEPTANCE.md",
+  "docs/DEVELOPMENT-TOOLS.md",
+]);
+const hostedOperations = new Set([
+  "bootstrap",
+  "selected",
+  "compiled",
+  "qualification-history",
+  "candidate-consumer",
+]);
+const historyProductPaths = [
+  "apps/desktop/src/components/DetailPanel.tsx",
+  "apps/desktop/src/components/DetailQualificationSummary.test.tsx",
+  "apps/desktop/src/components/DetailQualificationSummary.tsx",
+  "apps/desktop/src/components/components.test.tsx",
+];
+const fixedWorkflow = ".github/workflows/native-design-compatibility.yml";
+const fixedPhaseJobs = {
+  selected: "hosted_selected",
+  audit: "hosted_audit",
+  compiled: "hosted_compiled",
+  native: "hosted_history",
+};
+
+export function parseHostedValidationBinding(raw, digest) {
+  if (typeof raw !== "string" || Buffer.byteLength(raw) > 60_000 || sha256(raw) !== digest)
+    throw new Error("Reviewed execution binding digest or size differs");
+  const binding = JSON.parse(raw);
+  const keys = (
+    "authority,base,baseline_plan,controller,format_version,inventory_sha256,merge_base,operation,plan_digest,selected_plan,source" +
+    (binding.operation === "candidate-consumer" ? ",consumer" : "")
+  )
+    .split(",")
+    .sort()
+    .join();
+  if (
+    Object.keys(binding).sort().join() !== keys ||
+    binding.format_version !== 1 ||
+    !hostedOperations.has(binding.operation) ||
+    !["source", "controller", "base", "merge_base", "authority"].every((key) =>
+      exactSha(binding[key]),
+    ) ||
+    !["inventory_sha256", "plan_digest"].every((key) => /^[a-f0-9]{64}$/u.test(binding[key])) ||
+    !Array.isArray(binding.selected_plan) ||
+    !Array.isArray(binding.baseline_plan)
+  )
+    throw new Error("Invalid reviewed execution binding");
+  if (binding.operation === "bootstrap" && binding.source !== binding.controller)
+    throw new Error("Bootstrap source must be the independently reviewed controller candidate");
+  if (
+    binding.operation === "candidate-consumer" &&
+    (binding.source === binding.controller ||
+      !binding.consumer ||
+      Object.keys(binding.consumer).sort().join() !==
+        "controller_tree,product_source,product_tree,source_tree" ||
+      !Object.values(binding.consumer).every(exactSha))
+  )
+    throw new Error("Invalid independently reviewed candidate consumer composition");
+  assertRetainedSelectedPlan(binding.baseline_plan, binding.selected_plan);
+  return binding;
+}
+
+export function assertRetainedSelectedPlan(baseline, selected) {
+  const validate = (plan) => {
+    if (
+      !plan.length ||
+      new Set(plan.map((entry) => entry.id)).size !== plan.length ||
+      plan.some(
+        (entry) =>
+          Object.keys(entry).sort().join() !== "args,cwd,executable,id" ||
+          typeof entry.id !== "string" ||
+          !entry.id ||
+          typeof entry.executable !== "string" ||
+          typeof entry.cwd !== "string" ||
+          !Array.isArray(entry.args) ||
+          entry.args.some((arg) => typeof arg !== "string"),
+      )
+    )
+      throw new Error("Incomplete selected obligation inventory");
+  };
+  validate(baseline);
+  validate(selected);
+  for (const expected of baseline) {
+    const actual = selected.find((entry) => entry.id === expected.id);
+    if (!actual || actual.executable !== expected.executable || actual.cwd !== expected.cwd)
+      throw new Error(`Missing baseline selected obligation: ${expected.id}`);
+    if (JSON.stringify(actual.args) !== JSON.stringify(expected.args))
+      throw new Error(`Baseline selected arguments removed: ${expected.id}`);
+  }
+}
+
+// Explicit execution-under-test admission. This never changes the old route's refusal
+// or establishes that an unmerged controller is a trusted qualification authority.
+export async function runHostedValidation(phase, options = {}) {
+  const log = options.log ?? console.log;
+  if (
+    !["controller", "prepare", "provision", "selected", "audit", "compiled", "native"].includes(
+      phase,
+    )
+  )
+    throw new Error("Unsupported fixed hosted phase");
+  const env = options.environment ?? process.env;
+  const binding = parseHostedValidationBinding(
+    env.PORTCOVE_LOCAL_BINDING,
+    env.PORTCOVE_LOCAL_BINDING_SHA256,
+  );
+  if (env.PORTCOVE_LOCAL_OPERATION !== binding.operation)
+    throw new Error("Dispatch operation differs from the reviewed binding");
+  const permitted = {
+    bootstrap: ["prepare", "provision", "selected", "audit"],
+    selected: ["prepare", "provision", "selected"],
+    compiled: ["prepare", "compiled"],
+    "qualification-history": ["prepare", "native"],
+    "candidate-consumer": ["prepare", "provision", "selected", "compiled", "native"],
+  };
+  if (phase !== "controller" && !permitted[binding.operation].includes(phase))
+    throw new Error("Phase differs from admitted operation");
+  const admittedJobs = permitted[binding.operation]
+    .map((entry) => fixedPhaseJobs[entry])
+    .filter(Boolean);
+  if (
+    !admittedJobs.includes(env.GITHUB_JOB) ||
+    (fixedPhaseJobs[phase] && fixedPhaseJobs[phase] !== env.GITHUB_JOB)
+  )
+    throw new Error("Fixed phase/job identity differs");
+  if (
+    env.GITHUB_REPOSITORY !== "boburning/portcove" ||
+    env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
+    env.GITHUB_SHA !== binding.controller ||
+    env.GITHUB_WORKFLOW_SHA !== binding.controller ||
+    !env.GITHUB_WORKFLOW_REF?.startsWith(`boburning/portcove/${fixedWorkflow}@`) ||
+    env.RUNNER_OS !== "Linux" ||
+    env.RUNNER_ARCH !== "X64" ||
+    !exactPositiveInteger(env.GITHUB_RUN_ID) ||
+    !exactPositiveInteger(env.GITHUB_RUN_ATTEMPT)
+  )
+    throw new Error("Reviewed workflow/run/runner identity differs");
+  const controller = options.controllerRoot ?? root;
+  const source = path.resolve(controller, "../source");
+  const evidence = path.resolve(controller, "../hosted-evidence");
+  const invoke = options.command ?? command;
+  const git = (cwd, args) => invoke("git", args, cwd);
+  if (phase === "controller") {
+    if (
+      git(controller, ["rev-parse", "HEAD"]) !== binding.controller ||
+      git(controller, ["status", "--porcelain=v1", "--untracked-files=all"])
+    )
+      throw new Error("Reviewed controller checkout differs");
+    for (const name of [fixedWorkflow, "scripts/workflow-provenance.mjs"])
+      if (
+        git(controller, ["hash-object", name]) !==
+        git(controller, ["rev-parse", `${binding.controller}:${name}`])
+      )
+        throw new Error("Reviewed controller bytes differ");
+    return 0;
+  }
+  const clean = () => {
+    for (const [cwd, sha] of [
+      [controller, binding.controller],
+      [source, binding.source],
+    ])
+      if (
+        path.resolve(git(cwd, ["rev-parse", "--show-toplevel"])) !== path.resolve(cwd) ||
+        git(cwd, ["rev-parse", "HEAD"]) !== sha ||
+        git(cwd, ["status", "--porcelain=v1", "--untracked-files=all"])
+      )
+        throw new Error("Reviewed checkout is dirty or has a different identity");
+  };
+  clean();
+  git(source, ["merge-base", "--is-ancestor", binding.authority, binding.base]);
+  if (git(source, ["merge-base", binding.source, binding.base]) !== binding.merge_base)
+    throw new Error("Reviewed merge-base differs");
+  const names = git(source, [
+    "diff",
+    "--name-only",
+    "--no-renames",
+    binding.merge_base,
+    binding.source,
+  ])
+    .split("\n")
+    .filter(Boolean);
+  const inventory = names.map((name) => {
+    if (!/^[A-Za-z0-9_./-]+$/u.test(name) || name.split("/").includes(".."))
+      throw new Error("Unsafe changed inventory path");
+    const before = git(source, ["ls-tree", binding.merge_base, "--", name]);
+    const after = git(source, ["ls-tree", binding.source, "--", name]);
+    if (
+      [before, after]
+        .filter(Boolean)
+        .some((entry) => !/^100(?:644|755) blob [a-f0-9]{40}\t/u.test(entry))
+    )
+      throw new Error("Non-regular changed inventory input");
+    return { path: name, base: before, source: after };
+  });
+  if (sha256(JSON.stringify(inventory)) !== binding.inventory_sha256)
+    throw new Error("Complete reviewed changed inventory differs");
+  const authorityChanges = git(source, [
+    "diff",
+    "--name-only",
+    "--no-renames",
+    binding.authority,
+    binding.source,
+  ])
+    .split("\n")
+    .filter(Boolean);
+  if (binding.operation === "bootstrap") {
+    if (authorityChanges.some((name) => !bootstrapPaths.has(name)))
+      throw new Error("Bootstrap exceeds the independently admitted fifteen-path scope");
+  } else if (binding.operation === "candidate-consumer") {
+    const diff = (before, after) =>
+      git(source, ["diff", "--name-only", "--no-renames", before, after])
+        .split("\n")
+        .filter(Boolean);
+    git(source, ["merge-base", "--is-ancestor", binding.base, binding.controller]);
+    git(source, ["merge-base", "--is-ancestor", binding.controller, binding.source]);
+    if (diff(binding.authority, binding.controller).some((name) => !bootstrapPaths.has(name)))
+      throw new Error("Candidate controller exceeds the independently admitted fifteen-path scope");
+    const productBase = git(source, ["merge-base", binding.base, binding.consumer.product_source]);
+    for (const changes of [
+      diff(binding.controller, binding.source),
+      diff(productBase, binding.consumer.product_source),
+    ])
+      if (JSON.stringify(changes) !== JSON.stringify(historyProductPaths))
+        throw new Error("Candidate consumer must compose exactly the four reviewed product paths");
+    for (const [commit, expected] of [
+      [binding.controller, binding.consumer.controller_tree],
+      [binding.source, binding.consumer.source_tree],
+      [binding.consumer.product_source, binding.consumer.product_tree],
+    ])
+      if (git(source, ["rev-parse", `${commit}^{tree}`]) !== expected)
+        throw new Error("Candidate consumer tree differs from the independently reviewed binding");
+    for (const name of historyProductPaths) {
+      const product = git(source, ["ls-tree", binding.consumer.product_source, "--", name]);
+      if (
+        !/^100(?:644|755) blob [a-f0-9]{40}\t/u.test(product) ||
+        git(source, ["ls-tree", binding.source, "--", name]) !== product
+      )
+        throw new Error("Candidate consumer product bytes differ from the reviewed product source");
+    }
+  } else {
+    git(source, ["merge-base", "--is-ancestor", binding.controller, binding.base]);
+    if (
+      authorityChanges.some(
+        (name) =>
+          hostedLocalCheckAuthorityPaths.includes(name) ||
+          (isHostedLocalCheckScriptAuthority(name) &&
+            name !== "apps/desktop/scripts/adapter-conformance.mjs"),
+      )
+    )
+      throw new Error("Unrelated executable or trusted selected authority changed");
+    if (
+      git(source, ["rev-parse", `${binding.source}:scripts/workflow-provenance.mjs`]) !==
+      git(controller, ["rev-parse", `${binding.controller}:scripts/workflow-provenance.mjs`])
+    )
+      throw new Error("Source controller differs from the separately reviewed controller");
+  }
+  const preserved = [
+    "scripts/audit.mjs",
+    "justfile",
+    "rust-toolchain.toml",
+    ".node-version",
+    "package.json",
+    "apps/desktop/package.json",
+    "Cargo.toml",
+    "Cargo.lock",
+    "pnpm-lock.yaml",
+    "aqua.yaml",
+    "aqua-checksums.json",
+    ".github/quality-tools.json",
+    ".config/nextest.toml",
+    "scripts/run-rust-tests.mjs",
+    "scripts/heavy-rust-test-lock.mjs",
+    "scripts/rust-test-tree-supervisor.mjs",
+    "scripts/dev-storage.mjs",
+    "scripts/bootstrap-quality-tools.sh",
+    "scripts/install-linux-desktop-prerequisites.sh",
+  ];
+  if (git(source, ["diff", "--name-only", binding.authority, binding.source, "--", ...preserved]))
+    throw new Error("Bootstrap changed preserved recipes, pins, resources or containment");
+  for (const name of [
+    fixedWorkflow,
+    "scripts/workflow-provenance.mjs",
+    "scripts/native-backup-evidence.mjs",
+  ])
+    if (
+      git(controller, ["hash-object", name]) !==
+      git(controller, ["rev-parse", `${binding.controller}:${name}`])
+    )
+      throw new Error("Reviewed controller bytes changed");
+  const rustPin = (await readFile(path.join(source, "rust-toolchain.toml"), "utf8")).match(
+    /^channel = "([^"]+)"$/mu,
+  )?.[1];
+  if (!/^\d+\.\d+\.\d+$/u.test(rustPin ?? "")) throw new Error("Invalid Rust pin");
+  const child = hostedLocalCheckEnvironment(env, rustPin, source);
+  git(source, ["update-ref", "refs/remotes/origin/main", binding.base]);
+  await mkdir(evidence, { recursive: true });
+  const receipt = {
+    format_version: 1,
+    ...binding,
+    binding_sha256: env.PORTCOVE_LOCAL_BINDING_SHA256,
+    run: env.GITHUB_RUN_ID,
+    attempt: env.GITHUB_RUN_ATTEMPT,
+    job: env.GITHUB_JOB,
+    phase,
+    source_tree: git(source, ["rev-parse", `${binding.source}^{tree}`]),
+    controller_tree: git(controller, ["rev-parse", `${binding.controller}^{tree}`]),
+    workflow_sha256: sha256(await readFile(path.join(controller, fixedWorkflow))),
+  };
+  await writeFile(path.join(evidence, "binding.json"), JSON.stringify(receipt, null, 2) + "\n");
+  if (phase === "prepare") return 0;
+  const nodePin = (await readFile(path.join(source, ".node-version"), "utf8")).trim();
+  const manager = JSON.parse(
+    await readFile(path.join(source, "package.json"), "utf8"),
+  ).packageManager;
+  const tools = JSON.parse(await readFile(path.join(source, ".github/quality-tools.json"), "utf8"));
+  const just = tools.tools.find((tool) => tool.id === "just")?.version;
+  if (
+    process.version !== `v${nodePin}` ||
+    invoke("just", ["--version"], source) !== `just ${just}` ||
+    invoke("pnpm", ["--version"], source) !== manager.replace(/^pnpm@/u, "") ||
+    rustVersion(invoke("rustc", ["--version"], source), "rustc") !== rustPin ||
+    rustVersion(invoke("cargo", ["--version"], source), "cargo") !== rustPin
+  )
+    throw new Error("Observed execution tools differ from preserved pins");
+  const execute = options.spawn ?? spawnSync;
+  if (["provision", "selected"].includes(phase)) {
+    const started = performance.now();
+    const planned = execute(
+      process.execPath,
+      ["scripts/local-validation.mjs", "check", "--preflight", "--json"],
+      { cwd: source, env: child, encoding: "utf8", timeout: 60_000, maxBuffer: 16 * 1024 * 1024 },
+    );
+    const refusal = (reason, report) =>
+      emitPreflightRefusal(log, reason, planned, binding, report, performance.now() - started);
+    if (planned.error) {
+      refusal("child-error");
+      throw planned.error;
+    }
+    if (![0, 1].includes(planned.status)) {
+      refusal("child-status");
+      throw new Error("Complete candidate-root planning failed");
+    }
+    let report;
+    try {
+      report = JSON.parse(planned.stdout);
+    } catch (error) {
+      refusal("json");
+      throw error;
+    }
+    await writeFile(
+      path.join(evidence, "selected-plan.json"),
+      JSON.stringify(report, null, 2) + "\n",
+    );
+    let mismatch;
+    try {
+      mismatch =
+        report.source !== binding.source ||
+        report.base !== binding.base ||
+        report.merge_base !== binding.merge_base ||
+        report.plan_digest !== binding.plan_digest ||
+        JSON.stringify(report.selected_plan) !== JSON.stringify(binding.selected_plan) ||
+        !Array.isArray(report.obligations) ||
+        report.obligations.some((entry) => entry.missing.length);
+    } catch (error) {
+      refusal("report-evaluation", report);
+      throw error;
+    }
+    if (mismatch) {
+      const reason =
+        report.source !== binding.source
+          ? "source"
+          : report.base !== binding.base
+            ? "base"
+            : report.merge_base !== binding.merge_base
+              ? "merge-base"
+              : report.plan_digest !== binding.plan_digest
+                ? "plan-digest"
+                : JSON.stringify(report.selected_plan) !== JSON.stringify(binding.selected_plan)
+                  ? "selected-plan"
+                  : !Array.isArray(report.obligations)
+                    ? "obligations"
+                    : "prerequisites";
+      refusal(reason, report);
+      throw new Error("Full reviewed selected plan or prerequisites differ");
+    }
+    clean();
+    if (phase === "provision") {
+      if (!report.obligations.some((entry) => entry.id === "ui-browser-tests")) return 0;
+      const result = execute("pnpm", ["--dir", "apps/desktop", "browser:bootstrap"], {
+        cwd: source,
+        env: child,
+        stdio: "inherit",
+        timeout: 300_000,
+      });
+      clean();
+      if (result.error) throw result.error;
+      return result.status ?? 1;
+    }
+  }
+  const commands = {
+    selected: ["just", ["local-check", "--fresh"]],
+    audit: ["just", ["audit", "--fresh"]],
+    compiled: ["pnpm", ["--dir", "apps/desktop", "test:adapter-conformance"]],
+    native: [
+      "xvfb-run",
+      [
+        "-a",
+        "dbus-run-session",
+        "--",
+        "pnpm",
+        "--dir",
+        "apps/desktop",
+        "test:desktop",
+        "--app",
+        path.join(source, "target", "debug", "portcove-desktop"),
+        "--driver",
+        phase === "native" ? invoke("which", ["tauri-driver"], source) : "",
+        "--native-driver",
+        phase === "native" ? invoke("which", ["WebKitWebDriver"], source) : "",
+        "--output",
+        path.join(evidence, "native"),
+        "--scenario",
+        "native-qualification-history",
+      ],
+    ],
+  };
+  const [executable, args] = commands[phase];
+  // No command parameters are supplied by the candidate or dispatch caller.
+  const stdout = await open(path.join(evidence, "stdout.log"), "wx");
+  const stderr = await open(path.join(evidence, "stderr.log"), "wx");
+  let result;
+  const started = new Date().toISOString();
+  try {
+    result = execute(executable, args, {
+      cwd: source,
+      env: {
+        ...child,
+        ...(phase === "native"
+          ? { PORTCOVE_OUTPUT_DIR: evidence, PORTCOVE_TEMP_DIR: path.join(source, "work", "temp") }
+          : {}),
+      },
+      stdio: ["ignore", stdout.fd, stderr.fd],
+    });
+  } finally {
+    await stdout.close();
+    await stderr.close();
+  }
+  clean();
+  if (git(source, ["rev-parse", "origin/main"]) !== binding.base)
+    throw new Error("Comparison target changed");
+  if (phase === "audit") {
+    const auditReceipt = await readFile(
+      path.join(source, "work", "validation-receipts", "audits", `${binding.source}.json`),
+    ).catch((error) => {
+      if (error.code === "ENOENT" && result.status !== 0) return null;
+      throw error;
+    });
+    if (auditReceipt)
+      await writeFile(path.join(evidence, "complete-audit-receipt.json"), auditReceipt, {
+        flag: "wx",
+      });
+  }
+  await writeFile(
+    path.join(evidence, "execution.json"),
+    JSON.stringify(
+      {
+        ...receipt,
+        command: [executable, ...args],
+        started,
+        finished: new Date().toISOString(),
+        exit_code: result.status ?? 1,
+        error: result.error?.message ?? null,
+        tools: { node: process.version, rust: rustPin, just, package_manager: manager },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  if (result.error) throw result.error;
+  return result.status ?? 1;
 }
 
 function cohortInputs(record) {
@@ -845,6 +1494,11 @@ export function validateWorkflowProvenance(
 }
 
 async function main(args = process.argv.slice(2)) {
+  if (args[0] === "hosted-validation") {
+    if (args.length !== 2) throw new Error("hosted-validation accepts one fixed phase only");
+    process.exitCode = await runHostedValidation(args[1]);
+    return;
+  }
   if (args[0] === "hosted-local-check") {
     if (args.length !== 2) throw new Error("hosted-local-check accepts only one fixed phase");
     process.exitCode = await runHostedLocalCheck(args[1]);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
 import {
   checkDesktopCommandContract,
@@ -429,5 +430,23 @@ test("unparsed event constants and Tauri producers fail closed", () => {
         declarations,
       ),
     /DESKTOP_EVENT_OPERATION schema must export portcove_core::OperationEvent, found \(\)/,
+  );
+});
+
+test("the cheap IPC-only CLI checks actual repository exposure without accepting schema substitutes", () => {
+  const output = execFileSync(
+    process.execPath,
+    ["scripts/check-transport-contract.mjs", "--ipc-only"],
+    { encoding: "utf8", windowsHide: true },
+  );
+  assert.match(output, /Desktop command\/event exposure matches Rust/);
+  assert.throws(
+    () =>
+      execFileSync(
+        process.execPath,
+        ["scripts/check-transport-contract.mjs", "--ipc-only", "--types", "missing.json"],
+        { encoding: "utf8", windowsHide: true, stdio: "pipe" },
+      ),
+    /cannot write or substitute/,
   );
 });

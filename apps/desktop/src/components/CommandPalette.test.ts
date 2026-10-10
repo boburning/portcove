@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { Boxes, Library } from "lucide-react";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -323,5 +323,127 @@ describe("command search transitions", () => {
     });
     expect(available.action).toHaveBeenCalledOnce();
     expect(close).toHaveBeenCalledOnce();
+  });
+});
+
+describe("command input ownership", () => {
+  let host: HTMLDivElement;
+  let root: ReturnType<typeof createRoot>;
+  let close: Mock<() => void>;
+  let available: PaletteCommand[];
+  const search = () => document.body.querySelector<HTMLInputElement>('[role="combobox"]')!;
+  const key = async (value: string, options: KeyboardEventInit = {}) => {
+    const event = new KeyboardEvent("keydown", {
+      key: value,
+      bubbles: true,
+      cancelable: true,
+      ...options,
+    });
+    await act(async () => {
+      search().dispatchEvent(event);
+    });
+    return event;
+  };
+  beforeEach(async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    host = document.body.appendChild(document.createElement("div"));
+    root = createRoot(host);
+    close = vi.fn();
+    available = commands.map((command) => ({ ...command, action: vi.fn() }));
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: true, commands: available, close })),
+    );
+  });
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    host.remove();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("leaves composing arrows and Enter to the input, then resumes command navigation", async () => {
+    for (const value of ["ArrowDown", "ArrowUp", "Enter"]) {
+      expect((await key(value, { isComposing: true })).defaultPrevented).toBe(false);
+      expect(search().getAttribute("aria-activedescendant")).toBe("command-library");
+    }
+    expect(close).not.toHaveBeenCalled();
+    await key("ArrowDown");
+    expect(search().getAttribute("aria-activedescendant")).toBe("command-catalog");
+    await key("Enter");
+    expect(available[0].action).not.toHaveBeenCalled();
+    expect(available[1].action).toHaveBeenCalledOnce();
+  });
+
+  it("holds command input throughout composition even when a key omits its composing flag", async () => {
+    await act(async () =>
+      search().dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true })),
+    );
+    expect((await key("ArrowDown")).defaultPrevented).toBe(false);
+    expect((await key("Enter")).defaultPrevented).toBe(false);
+    expect(search().getAttribute("aria-activedescendant")).toBe("command-library");
+    expect(close).not.toHaveBeenCalled();
+    await act(async () =>
+      search().dispatchEvent(new CompositionEvent("compositionend", { bubbles: true })),
+    );
+    await key("Enter", { keyCode: 229 });
+    expect(close).not.toHaveBeenCalled();
+    await key("Enter");
+    expect(available[0].action).toHaveBeenCalledOnce();
+  });
+
+  it("does not treat a repeated Enter as a fresh activation", async () => {
+    expect((await key("Enter", { repeat: true })).defaultPrevented).toBe(true);
+    expect(close).not.toHaveBeenCalled();
+    await key("Enter");
+    expect(close).toHaveBeenCalledOnce();
+    expect(available[0].action).toHaveBeenCalledOnce();
+  });
+
+  it("consumes a dispatch before close, including reentrant and mixed input", async () => {
+    close.mockImplementation(() => {
+      document.querySelector<HTMLButtonElement>("#command-catalog")!.click();
+    });
+    await act(async () => {
+      search().dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+      search().dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
+      );
+      document.querySelector<HTMLButtonElement>("#command-library")!.click();
+    });
+    expect(close).toHaveBeenCalledOnce();
+    expect(available[0].action).toHaveBeenCalledOnce();
+    expect(available[1].action).not.toHaveBeenCalled();
+  });
+
+  it("prevents native repeat activation on a focused option", async () => {
+    const option = document.querySelector<HTMLButtonElement>("#command-library")!;
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      repeat: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    await act(async () => option.dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(true);
+    await act(async () => option.click());
+    expect(available[0].action).toHaveBeenCalledOnce();
+  });
+
+  it("admits a new command after close and reopen", async () => {
+    await key("Enter");
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: false, commands: available, close })),
+    );
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: true, commands: available, close })),
+    );
+    await key("ArrowDown");
+    await key("Enter");
+    expect(close).toHaveBeenCalledTimes(2);
+    expect(available[0].action).toHaveBeenCalledOnce();
+    expect(available[1].action).toHaveBeenCalledOnce();
   });
 });

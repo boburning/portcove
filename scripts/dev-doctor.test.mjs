@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync, symlinkSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -199,6 +207,61 @@ test("cached package-manager observations require exact identity and contained r
   writeFileSync(path.join(directory, "outside.mjs"), "throw Error('must not execute');");
   writeFileSync(marker, JSON.stringify({ ...metadata, bin: { pnpm: "../../../outside.mjs" } }));
   assert.equal(existingPnpmDefinition("12.7.0", { COREPACK_HOME: directory }), null);
+});
+
+test("selected and profile observations refuse missing pnpm runtime acquisition and reuse warm runtime", async (t) => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove pnpm runtime "));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const version = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ).packageManager.split("@")[1];
+  const installed = path.join(directory, "v1/pnpm", version);
+  mkdirSync(path.join(installed, "bin"), { recursive: true });
+  writeFileSync(
+    path.join(installed, ".corepack"),
+    JSON.stringify({
+      locator: { name: "pnpm", reference: version },
+      bin: { pnpm: "bin/pnpm.mjs" },
+    }),
+  );
+  const runtime = path.join(installed, "pnpm-native");
+  const acquisition = path.join(installed, "acquisition-attempt");
+  writeFileSync(
+    path.join(installed, "bin/pnpm.mjs"),
+    `import {existsSync,writeFileSync} from "node:fs";
+if (!existsSync(${JSON.stringify(runtime)})) {
+  if (process.env.COREPACK_ENABLE_NETWORK === "0") {
+    console.error("pnpm native runtime is missing; explicit setup required");
+    process.exit(1);
+  }
+  writeFileSync(${JSON.stringify(acquisition)}, "ordinary observation attempted acquisition");
+}
+console.log(${JSON.stringify(version)});
+`,
+  );
+  const environment = Object.freeze({
+    ...process.env,
+    COREPACK_HOME: directory,
+    COREPACK_ENABLE_NETWORK: "1",
+  });
+  const globalNetwork = process.env.COREPACK_ENABLE_NETWORK;
+  const options = { environment, frontendDependenciesAvailable: () => true, storage: {} };
+  for (const warm of [false, true]) {
+    if (warm) writeFileSync(runtime, "verified warm fixture");
+    const selected = await collectSelectedPrerequisites([{ id: "oxfmt" }], options);
+    const profile = await collectProfileDoctor("frontend", options);
+    for (const tools of [selected, profile.tools]) {
+      const pnpm = tools.find((tool) => tool.id === "pnpm");
+      assert.equal(pnpm.status, warm ? "ok" : "unavailable");
+      if (!warm) assert.match(pnpm.remediation, /pinned package-manager bootstrap/u);
+      assert.equal(tools.find((tool) => tool.id === "node").status, "ok");
+    }
+    assert.equal(profile.ok, warm);
+    assert.equal(existsSync(acquisition), false);
+    assert.equal(existsSync(runtime), warm);
+    assert.equal(environment.COREPACK_ENABLE_NETWORK, "1");
+    assert.equal(process.env.COREPACK_ENABLE_NETWORK, globalNetwork);
+  }
 });
 
 test("Aqua observations use an existing unique payload and reject ambiguous or missing caches", (t) => {
@@ -410,6 +473,7 @@ test("Core profile observes only Rust capabilities; missing frontend cannot bloc
     run(command, args, options) {
       commands.push([command, args]);
       assert.equal(options.env.RUSTUP_AUTO_INSTALL, "0");
+      assert.equal(options.env.COREPACK_ENABLE_NETWORK, "0");
       if (command === "rustc") return { status: 0, stdout: "rustc 1.98.1" };
       if (args[0] === "nextest") return { status: 0, stdout: "cargo-nextest 0.9.100" };
       return { status: 0, stdout: "1.98.1" };

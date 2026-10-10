@@ -6,6 +6,7 @@ import { createGitHubRunner } from "./github-api.mjs";
 
 import {
   RoadmapClient,
+  deliveryMode,
   analyzeReleaseReadiness,
   catalogQualificationSummary,
   completionEvidenceLinks,
@@ -123,6 +124,7 @@ function operationalFixture() {
   const lanes = ["cloud-a", "cloud-b", "local"];
   const configured = {
     ...config,
+    delivery_mode: "coordinated",
     runner_coordination: {
       schema_version: 1,
       board_issue: 1800,
@@ -3114,6 +3116,25 @@ test("Port stage validation is evidence-based and platform-scoped", () => {
   );
 });
 
+function qualificationScope(portId, platform = "windows") {
+  return {
+    port_id: portId,
+    platform,
+    artifact_sha256: "a".repeat(64),
+    upstream_ref: "v1",
+    contract_id: "fixture-contract",
+    variant: {
+      state: "exact",
+      identity: {
+        game_id: "fixture-game",
+        variant_id: "retail",
+        representation_id: "canonical",
+      },
+    },
+    check_version: "fixture-v1",
+  };
+}
+
 test("Port stage validation consumes only passed exact qualification records", () => {
   const port = {
     id: "exact",
@@ -3122,7 +3143,7 @@ test("Port stage validation consumes only passed exact qualification records", (
     manually_validated_platforms: [],
   };
   const record = (kind, outcome, platform = "windows") => ({
-    scope: { port_id: port.id, platform },
+    scope: qualificationScope(port.id, platform),
     kind,
     outcome,
   });
@@ -3199,6 +3220,117 @@ test("Port stage validation consumes only passed exact qualification records", (
         value.includes("steam-deck"),
     ),
   );
+});
+
+test("Supported requires complete matching exact scopes and separate legacy intersections", () => {
+  const port = {
+    id: "scoped",
+    platforms: ["windows"],
+    automated_tested_platforms: [],
+    manually_validated_platforms: [],
+  };
+  const auto = {
+    scope: qualificationScope(port.id),
+    kind: "automated_lifecycle",
+    outcome: "passed",
+  };
+  const hands = { ...structuredClone(auto), kind: "hands_on" };
+  const item = {
+    id: "scoped",
+    title: "[Port] Scoped",
+    "port stage": "Supported",
+    content: {
+      type: "Issue",
+      number: 1,
+      url: "https://github.com/boburning/portcove/issues/1",
+      body: renderPortIssueBody({
+        title: "Scoped",
+        upstream: "https://example.test/scoped",
+        catalogId: port.id,
+      }),
+    },
+  };
+  assert.deepEqual(qualifiedPlatforms(port, [auto, hands]), ["windows"]);
+  for (const path of [
+    ["port_id"],
+    ["platform"],
+    ["artifact_sha256"],
+    ["upstream_ref"],
+    ["contract_id"],
+    ["variant", "identity", "game_id"],
+    ["variant", "identity", "variant_id"],
+    ["variant", "identity", "representation_id"],
+    ["check_version"],
+  ]) {
+    const changed = structuredClone(hands);
+    const parent = path.slice(0, -1).reduce((value, key) => value[key], changed.scope);
+    const key = path.at(-1);
+    parent[key] = key === "artifact_sha256" ? "b".repeat(64) : `${parent[key]}-different`;
+    const records = [auto, changed];
+    assert.deepEqual(qualifiedPlatforms(port, records), [], path.join("."));
+    const result = validatePortStageSemantics(
+      { ports: [port], source_catalog: { qualification: records } },
+      [item],
+    );
+    assert.ok(
+      result.errors.some((error) => error.includes("no platform with matching")),
+      path.join("."),
+    );
+    assert.deepEqual(
+      planPortStageReconciliation({ ports: [port], source_catalog: { qualification: records } }, [
+        item,
+      ]).map((change) => change.to),
+      ["Automated qualification"],
+    );
+  }
+  for (const path of [
+    ["artifact_sha256"],
+    ["upstream_ref"],
+    ["contract_id"],
+    ["check_version"],
+    ["variant"],
+    ["variant", "identity", "game_id"],
+    ["variant", "identity", "variant_id"],
+    ["variant", "identity", "representation_id"],
+  ]) {
+    const incomplete = structuredClone(hands);
+    const parent = path.slice(0, -1).reduce((value, key) => value[key], incomplete.scope);
+    delete parent[path.at(-1)];
+    assert.deepEqual(qualifiedPlatforms(port, [auto, incomplete]), [], path.join("."));
+    const incompleteAuto = { ...incomplete, kind: "automated_lifecycle" };
+    assert.deepEqual(qualifiedPlatforms(port, [incompleteAuto, incomplete]), [], path.join("."));
+  }
+  const unknown = structuredClone(hands);
+  unknown.scope.variant = { state: "unknown" };
+  assert.deepEqual(qualifiedPlatforms(port, [auto, unknown]), []);
+  for (const digest of [["a".repeat(64)], 42, {}]) {
+    const malformedAuto = structuredClone(auto);
+    malformedAuto.scope.artifact_sha256 = digest;
+    const malformedHands = { ...structuredClone(malformedAuto), kind: "hands_on" };
+    assert.deepEqual(qualifiedPlatforms(port, [malformedAuto, malformedHands]), []);
+    const malformedCatalog = {
+      ports: [port],
+      source_catalog: {
+        qualification: [malformedAuto, malformedHands],
+      },
+    };
+    assert.ok(
+      validatePortStageSemantics(malformedCatalog, [
+        { ...item, "port stage": "Automated qualification" },
+      ]).errors.some((error) => error.includes("no automated evidence")),
+    );
+  }
+  const failed = { ...hands, outcome: "failed" };
+  assert.deepEqual(qualifiedPlatforms(port, [auto, failed]), []);
+  const legacyAuto = { ...port, automated_tested_platforms: ["windows"] };
+  const legacyHands = { ...port, manually_validated_platforms: ["windows"] };
+  assert.deepEqual(qualifiedPlatforms(legacyAuto, [hands]), []);
+  assert.deepEqual(qualifiedPlatforms(legacyHands, [auto]), []);
+  assert.deepEqual(
+    qualifiedPlatforms({ ...legacyAuto, manually_validated_platforms: ["windows"] }, []),
+    ["windows"],
+  );
+  assert.deepEqual(qualifiedPlatforms(port, [hands, auto, hands]), ["windows"]);
 });
 
 test("Port stage validation rejects broken manual evidence non-catalog overclaim and unsupported rejection", () => {
@@ -3338,17 +3470,17 @@ test("Supported reconciliation planning uses exact automated and hands-on record
   }));
   const qualification = [
     {
-      scope: { port_id: "auto", platform: "windows" },
+      scope: qualificationScope("auto"),
       kind: "automated_lifecycle",
       outcome: "passed",
     },
     {
-      scope: { port_id: "qualified", platform: "windows" },
+      scope: qualificationScope("qualified"),
       kind: "automated_lifecycle",
       outcome: "passed",
     },
     {
-      scope: { port_id: "qualified", platform: "windows" },
+      scope: qualificationScope("qualified"),
       kind: "hands_on",
       outcome: "passed",
     },
@@ -4877,4 +5009,55 @@ test("queue displays incomplete dependency coverage instead of an empty prerequi
     content: { number: 1, state: "OPEN", blockedBy: { totalCount: 11, nodes: [] } },
   };
   assert.match(renderExecutionQueue([record]), /prerequisite coverage incomplete/);
+});
+
+test("single-local pickup avoids obsolete board reads without claiming writer release", () => {
+  const single = { ...config, delivery_mode: "single-local-runner", runner_coordination: null };
+  const snapshot = readOperationalBoard(single, {
+    request: () => assert.fail("retired board must not be read"),
+  });
+  assert.equal(snapshot.status, "retired");
+  assert.equal(snapshot.active_writer_overlap, "not assessed");
+  assert.equal(bindOperationalAssignment(snapshot, "Local", 244), null);
+  const envelope = operationalEnvelope(snapshot, { status: "observed" });
+  assert.equal(envelope.operational_baseline, null);
+  assert.equal(envelope.operational_binding, undefined);
+  assert.match(
+    envelope.operational_snapshot.authority_limit,
+    /does not prove release or inactivity/,
+  );
+  assert.throws(() => bindOperationalAssignment(snapshot, "", 244), /identity/);
+  assert.throws(() => bindOperationalAssignment(snapshot, "Local", 0), /positive/);
+});
+
+test("retired coordinator planners cannot revive historical grants or writes", () => {
+  const single = { ...config, delivery_mode: "single-local-runner" };
+  for (const apply of [false, true]) {
+    for (const plan of [
+      prepareOperationalConsumption,
+      prepareOperationalOffer,
+      prepareOperationalReturn,
+      prepareOperationalReturnAcceptance,
+      prepareOperationalReleaseEvidence,
+    ])
+      assert.throws(() => plan({ config: single, apply }), /coordination is retired/);
+  }
+  assert.throws(() => prepareOperationalCheckpoint(single), /coordination is retired/);
+  assert.equal(deliveryMode({}), "coordinated");
+  assert.throws(() => validateConfig({ ...config, delivery_mode: "local-ish" }), /delivery_mode/);
+});
+
+test("explicit pickup references do not revive coordinator authority in single mode", () => {
+  const reservation = { url: "https://github.com/boburning/portcove/issues/244#issuecomment-1" };
+  const options = { runner: "Local", comments: [], coverage: { complete: false }, reservation };
+  const context = deriveExecutionContext(config, pickupIssue(244), pickupRelations(), options);
+  assert.match(context.reservation.assessment, /actual writer activity, source-owner release/);
+  assert.equal(context.reservation.url, reservation.url);
+  const historical = deriveExecutionContext(
+    { ...config, delivery_mode: "coordinated" },
+    pickupIssue(244),
+    pickupRelations(),
+    options,
+  );
+  assert.match(historical.reservation.assessment, /accepted grant.*coordinator/);
 });

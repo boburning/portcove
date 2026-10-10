@@ -9,8 +9,16 @@ import {
   observationHash,
   observeUpstream,
   validateObserverConfig,
+  githubDirectPin,
+  validateGithubPinMetadata,
 } from "./upstream-observer.mjs";
 import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mjs";
+import {
+  collectRepositoryHealth,
+  renderRepositoryHealth,
+  validateHealthAccountingPolicy,
+} from "./check-catalog-repositories.mjs";
+import { discoverUpstreamHealthScope, selectUpstreamHealthScope } from "./upstream-health-plan.mjs";
 
 const config = JSON.parse(
   await readFile(new URL("../release/upstream-observer.json", import.meta.url), "utf8"),
@@ -436,4 +444,2082 @@ test("deferred checkpoints honor retry clocks without requests and mismatched co
     advanceObservation(config, { ...good.checkpoint, config_sha256: "wrong" }, options),
     (error) => error.rule === "invalid-checkpoint",
   );
+});
+
+// #247 early slice: exact declared locations and six independent evidence roles.
+const healthPin = {
+  version: "v1",
+  url: "https://downloads.example.com/package.zip",
+  size: 42,
+  sha256: "a".repeat(64),
+};
+const healthCatalog = (pin = healthPin) => ({
+  source_catalog: {
+    qualification: [
+      {
+        scope: { port_id: "sample-port", artifact_sha256: "b".repeat(64), upstream_ref: "v0" },
+        kind: "automated_lifecycle",
+        outcome: "passed",
+        evidence_ids: ["historical"],
+      },
+    ],
+  },
+  ports: [
+    {
+      id: "sample-port",
+      project_url: "https://github.com/original/project",
+      release: { provider: "direct-manifest", direct: { "windows-x86-64": { ...pin } } },
+    },
+  ],
+});
+const healthTime = Date.parse("2026-10-08T12:00:00Z");
+const healthFetch = async (url, _options) =>
+  url.includes("/releases/tags/")
+    ? new Response(
+        JSON.stringify({ id: 3, tag_name: "v0", assets: [{ digest: `sha256:${"b".repeat(64)}` }] }),
+        { headers: { "content-type": "application/json" } },
+      )
+    : url === healthPin.url
+      ? new Response(null, { headers: { "content-length": String(healthPin.size) } })
+      : new Response(JSON.stringify({ id: 1, full_name: "original/project", archived: false }), {
+          headers: { "content-type": "application/json" },
+        });
+
+test("direct provider preserves original upstream and scopes HEAD separately from exact accepted bytes", async () => {
+  const calls = [];
+  const report = await collectRepositoryHealth(healthCatalog(), {
+    now: () => healthTime,
+    githubToken: "private-token",
+    gitlabToken: "private-gitlab",
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      if (url === healthPin.url) {
+        assert.equal(options.method, "HEAD");
+        assert.equal(options.headers.Authorization, undefined);
+        assert.equal(options.headers["PRIVATE-TOKEN"], undefined);
+        assert.equal(options.redirect, "manual");
+      }
+      return healthFetch(url, options);
+    },
+  });
+  assert.equal(calls.length, 3);
+  assert.equal(report.coverage.monitored_ports, 1);
+  assert.equal(report.outcome, "complete");
+  const [health] = report.port_health;
+  assert.equal(health.original_upstream.status, "reachable");
+  assert.equal(health.lineage.status, "unresolved");
+  assert.equal(health.lineage.successor_selected, false);
+  assert.equal(health.accepted_artifact_obtainability.status, "unknown");
+  assert.equal(health.accepted_artifact_obtainability.identities[0].sha256, healthPin.sha256);
+  assert.equal(health.preservation.status, "unknown");
+  assert.equal(health.applicable_holds.status, "unknown");
+  assert.equal(health.qualification.records[0].scope.artifact_sha256, "b".repeat(64));
+  assert.equal(health.qualification.inherited, false);
+  assert.match(renderRepositoryHealth(report), /direct-manifest ports included/);
+  assert.match(renderRepositoryHealth(report), /Accepted bytes remain unverified/);
+  assert.doesNotMatch(JSON.stringify(report), /private-token|private-gitlab/);
+});
+
+test("direct endpoint corruption, unavailable headers and redirects remain unknown rather than verified artifacts", async () => {
+  for (const headers of [{}, { "content-length": "41" }, { "content-length": "42junk" }]) {
+    const report = await collectRepositoryHealth(healthCatalog(), {
+      now: () => healthTime,
+      fetch: async (url, options) =>
+        url === healthPin.url ? new Response(null, { headers }) : healthFetch(url, options),
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.observations[0].reason, "invalid-metadata");
+    assert.equal(report.port_health[0].accepted_artifact_obtainability.status, "unknown");
+  }
+  const report = await collectRepositoryHealth(healthCatalog(), {
+    now: () => healthTime,
+    fetch: async (url, options) =>
+      url === healthPin.url ? new Response(null, { status: 302 }) : healthFetch(url, options),
+  });
+  assert.equal(report.observations[0].reason, "provider-redirect");
+});
+
+test("redirects remain distinct unknown HTTP facts without following or retaining their destinations", async () => {
+  for (const status of [301, 302, 303, 307, 308]) {
+    const calls = [];
+    let cancelled = 0;
+    const secret = "private-signed-location-and-response";
+    const report = await collectRepositoryHealth(healthCatalog(), {
+      now: () => healthTime,
+      githubToken: "private-token",
+      fetch: async (url, options) => {
+        calls.push({ url, options });
+        assert.equal(options.redirect, "manual");
+        const body = new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(secret));
+          },
+          cancel() {
+            cancelled++;
+          },
+        });
+        return new Response(body, {
+          status,
+          headers: { location: `https://untrusted.example/asset?token=${secret}` },
+        });
+      },
+    });
+    assert.equal(calls.length, 3);
+    assert.equal(cancelled, 3);
+    assert.ok(calls.every(({ url }) => !url.startsWith("https://untrusted.example/")));
+    const direct = calls.find(({ url }) => url === healthPin.url);
+    assert.equal(direct.options.method, "HEAD");
+    assert.equal(direct.options.headers.Authorization, undefined);
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.degradation, true);
+    assert.equal(report.coverage.reachable_repositories, 0);
+    for (const observation of report.observations) {
+      assert.equal(observation.status, "unknown");
+      assert.equal(observation.reason, "provider-redirect");
+      assert.equal(observation.http_status, status);
+      assert.equal(observation.accounted_for, false);
+      assert.match(observation.resume_condition, /no redirect was followed/);
+    }
+    assert.ok(
+      report.port_health[0].canonical_incidents.every(
+        (incident) => incident.rule === "provider-redirect" && !incident.accounted_for,
+      ),
+    );
+    assert.match(renderRepositoryHealth(report), new RegExp(`provider-redirect; HTTP ${status}`));
+    assert.ok(!JSON.stringify(report).includes(secret));
+    assert.ok(!JSON.stringify(report).includes("private-token"));
+  }
+});
+
+test("transport failures and nonredirect provider statuses do not become redirect observations", async () => {
+  const input = { ports: [{ id: "original", release: { repository: "owner/original" } }] };
+  for (const [status, reason] of [
+    [404, "inaccessible-or-missing"],
+    [503, "provider-error"],
+    [304, "provider-status"],
+  ]) {
+    const report = await collectRepositoryHealth(input, {
+      fetch: async () => new Response(null, { status }),
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.observations[0].reason, reason);
+    assert.equal(report.observations[0].http_status, status);
+  }
+  const transport = await collectRepositoryHealth(input, {
+    fetch: async () => {
+      throw new Error("private-network-details");
+    },
+  });
+  assert.equal(transport.outcome, "incomplete");
+  assert.equal(transport.observations[0].reason, "transport");
+  assert.equal(transport.observations[0].http_status, null);
+  assert.ok(!JSON.stringify(transport).includes("private-network-details"));
+});
+
+test("partial direct inventory never becomes an empty or healthy collection", async () => {
+  for (const bad of [
+    { ...healthPin, sha256: "bad" },
+    { ...healthPin, url: "https://127.0.0.1/secret" },
+    { ...healthPin, url: "https://user:password@example.com/pkg" },
+  ]) {
+    let calls = 0;
+    await assert.rejects(
+      collectRepositoryHealth(healthCatalog(bad), {
+        fetch: async () => {
+          calls++;
+          return new Response();
+        },
+      }),
+      /safe exact artifact identity/,
+    );
+    assert.equal(calls, 0);
+  }
+});
+
+test("incident identity is stable across observation times while changed rules create distinct conditions", async () => {
+  const collect = (time, status) =>
+    collectRepositoryHealth(healthCatalog(), {
+      now: () => time,
+      fetch: async (url, options) =>
+        url === healthPin.url ? new Response(null, { status }) : healthFetch(url, options),
+    });
+  const first = await collect(healthTime, 404);
+  const repeated = await collect(healthTime + 60_000, 404);
+  const changed = await collect(healthTime + 60_000, 401);
+  const incident = (report) => report.port_health[0].canonical_incidents[0];
+  assert.equal(incident(first).key, incident(repeated).key);
+  assert.notEqual(incident(first).observed_at, incident(repeated).observed_at);
+  assert.notEqual(incident(first).key, incident(changed).key);
+  assert.match(incident(first).resume_condition, /404 does not establish deletion or succession/);
+  assert.equal(first.port_health[0].lineage.successor_selected, false);
+});
+
+test("non-hosted original project remains monitored after a provider change", async () => {
+  const input = healthCatalog();
+  input.ports[0].project_url = "https://original.example.com/";
+  const calls = [];
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    githubToken: "private-token",
+    gitlabToken: "private-token",
+    fetch: async (url, options) => {
+      calls.push(url);
+      assert.equal(options.method, "HEAD");
+      assert.equal(options.headers.Authorization, undefined);
+      assert.equal(options.headers["PRIVATE-TOKEN"], undefined);
+      return url === healthPin.url ? healthFetch(url, options) : new Response(null);
+    },
+  });
+  assert.deepEqual(calls, [healthPin.url, "https://original.example.com/"]);
+  assert.equal(report.port_health[0].original_upstream.status, "reachable");
+  assert.equal(report.port_health[0].lineage.status, "unresolved");
+});
+
+test("rate limits defer only the affected direct origin and preserve other acquisition locations", async () => {
+  const input = healthCatalog();
+  input.ports[0].release.direct.linux = {
+    ...healthPin,
+    url: "https://downloads.example.com/linux.zip",
+  };
+  input.ports[0].release.direct.macos = {
+    ...healthPin,
+    url: "https://other.example.com/package.zip",
+  };
+  const calls = [];
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async (url, options) => {
+      calls.push(url);
+      if (url === healthPin.url)
+        return new Response(null, { status: 429, headers: { "retry-after": "120" } });
+      if (url.startsWith("https://other.example.com/"))
+        return new Response(null, { headers: { "content-length": "42" } });
+      return healthFetch(url, options);
+    },
+  });
+  assert.equal(calls.length, 4);
+  assert.equal(report.observations[1].attempted, false);
+  assert.equal(report.observations[1].retry_at, new Date(healthTime + 120_000).toISOString());
+  assert.equal(report.observations[2].status, "reachable");
+  assert.equal(report.port_health[0].accepted_artifact_obtainability.locations.length, 5);
+});
+
+test("contradictory immutable pins at one location stay prominent without selecting an authority", async () => {
+  const input = healthCatalog();
+  input.ports[0].release.direct.linux = { ...healthPin, sha256: "c".repeat(64) };
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: healthFetch,
+  });
+  assert.equal(report.observations[0].reason, "identity-mismatch");
+  assert.equal(report.observations[0].attempted, false);
+  assert.equal(report.outcome, "incomplete");
+  assert.equal(report.port_health[0].accepted_artifact_obtainability.identities.length, 2);
+  assert.equal(report.port_health[0].applicable_holds.status, "unknown");
+});
+
+test("retained Star Fox failure is an unresolved availability condition with no historical qualification transfer", async () => {
+  // Exact failure text and immutable run identity retained in #247's early slice.
+  // HTTP fixture reconstructs that recorded failure; it is not a new live probe.
+  const incident = {
+    run: "36735216087",
+    job: "109955016518",
+    head: "5d6905ea8bf90fb887bb49a6a8524ab2ecc5846b",
+    stderr: "kandowontu/starfox-enhanced: github returned 404",
+    port_issue: 124,
+    lineage_issue: 139,
+  };
+  const repository = incident.stderr.split(": ")[0];
+  const report = await collectRepositoryHealth(
+    {
+      ports: [{ id: "star-fox-enhanced", release: { repository } }],
+    },
+    { now: () => healthTime, fetch: async () => new Response(null, { status: 404 }) },
+  );
+  const [health] = report.port_health;
+  assert.equal(report.outcome, "incomplete");
+  assert.equal(health.original_upstream.status, "unknown");
+  assert.equal(health.canonical_incidents[0].http_status, 404);
+  assert.equal(health.canonical_incidents[0].rule, "inaccessible-or-missing");
+  assert.equal(health.lineage.owner_issue, incident.lineage_issue);
+  assert.equal(health.lineage.status, "unresolved");
+  assert.equal(health.lineage.successor_selected, false);
+  assert.deepEqual(health.qualification.records, []);
+  assert.equal(health.qualification.inherited, false);
+});
+
+test("hosted relocation keeps original upstream distinct from the current acquisition repository", async () => {
+  const input = {
+    ports: [
+      {
+        id: "relocated",
+        project_url: "https://github.com/original/project",
+        release: { repository: "successor/project" },
+      },
+    ],
+  };
+  const calls = [];
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async (url) => {
+      calls.push(url);
+      if (url.endsWith("original/project")) return new Response(null, { status: 404 });
+      return new Response(
+        JSON.stringify({ id: 2, full_name: "successor/project", archived: false }),
+        { headers: { "content-type": "application/json" } },
+      );
+    },
+  });
+  assert.deepEqual(calls, [
+    "https://api.github.com/repos/successor/project",
+    "https://api.github.com/repos/original/project",
+  ]);
+  assert.equal(report.port_health[0].original_upstream.status, "unknown");
+  assert.equal(report.port_health[0].original_upstream.locations[0].repository, "original/project");
+  assert.equal(report.port_health[0].lineage.successor_selected, false);
+});
+
+test("shared acquisition request retains each port's exact artifact scope", async () => {
+  const input = healthCatalog();
+  input.ports.push({ ...structuredClone(input.ports[0]), id: "other-port" });
+  const report = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: healthFetch,
+  });
+  assert.equal(report.consumed.requests, 3);
+  for (const port of report.port_health) {
+    assert.deepEqual(
+      port.accepted_artifact_obtainability.identities.map((identity) => identity.port_id),
+      [port.port_id],
+    );
+  }
+});
+
+test("reviewed catalog maintenance accounts for a known original outage without acquiring successor authority", async () => {
+  const input = healthCatalog();
+  input.source_catalog.qualification = [];
+  input.ports[0].upstream_status = "retired";
+  const options = {
+    now: () => healthTime,
+    fetch: async (url, opts) =>
+      url.includes("api.github.com") ? new Response(null, { status: 404 }) : healthFetch(url, opts),
+  };
+  const known = await collectRepositoryHealth(input, options);
+  assert.equal(known.outcome, "complete");
+  assert.equal(known.degradation, true);
+  assert.equal(known.observations[1].classification, "catalog-declared-unavailable-original");
+  assert.equal(known.port_health[0].accepted_artifact_obtainability.status, "unknown");
+  assert.equal(known.port_health[0].preservation.status, "unknown");
+  assert.equal(known.port_health[0].applicable_holds.status, "unknown");
+  assert.equal(known.port_health[0].lineage.successor_selected, false);
+  delete input.ports[0].upstream_status;
+  assert.equal((await collectRepositoryHealth(input, options)).outcome, "incomplete");
+  input.ports[0].upstream_status = "retired";
+  const artifactMissing = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async () => new Response(null, { status: 404 }),
+  });
+  assert.equal(artifactMissing.outcome, "incomplete");
+  assert.equal(artifactMissing.observations[0].accounted_for, false);
+});
+
+test("recent report comparison deduplicates unchanged conditions, exposes recovery and rejects stale scope", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  const collect = (time, previousReport, status) =>
+    collectRepositoryHealth(input, {
+      now: () => time,
+      previousReport,
+      fetch: async () =>
+        status === 200
+          ? new Response(JSON.stringify({ id: 1, full_name: "owner/tracked", archived: false }), {
+              headers: { "content-type": "application/json" },
+            })
+          : new Response(null, { status }),
+    });
+  const first = await collect(healthTime, null, 404);
+  const repeated = await collect(healthTime + 1000, first, 404);
+  assert.equal(repeated.material_changes.length, 0);
+  assert.equal(repeated.port_health[0].canonical_incidents[0].occurrences, 2);
+  assert.equal(
+    repeated.port_health[0].canonical_incidents[0].first_seen,
+    first.port_health[0].canonical_incidents[0].first_seen,
+  );
+  const recovered = await collect(healthTime + 2000, repeated, 200);
+  assert.deepEqual(recovered.resolved_incidents, [first.port_health[0].canonical_incidents[0].key]);
+  const stale = await collect(healthTime + 25 * 3600_000, first, 404);
+  assert.match(stale.previous_report, /stale/);
+  assert.equal(stale.material_changes.length, 1);
+  const altered = structuredClone(first);
+  altered.catalog_sha256 = "f".repeat(64);
+  assert.equal((await collect(healthTime + 1000, altered, 404)).material_changes.length, 1);
+});
+
+test("repository-name reuse is a changed unknown condition, never continuity or inherited qualification", async () => {
+  const input = {
+    ports: [
+      {
+        id: "tracked",
+        project_url: "https://github.com/owner/tracked",
+        release: { repository: "owner/tracked" },
+      },
+    ],
+  };
+  const collect = (id, previousReport = null) =>
+    collectRepositoryHealth(input, {
+      now: () => healthTime,
+      previousReport,
+      fetch: async () =>
+        new Response(JSON.stringify({ id, full_name: "owner/tracked", archived: false }), {
+          headers: { "content-type": "application/json" },
+        }),
+    });
+  const prior = await collect(1);
+  const replaced = await collect(2, prior);
+  assert.equal(replaced.observations[0].reason, "identity-mismatch");
+  assert.equal(replaced.outcome, "incomplete");
+  assert.equal(replaced.port_health[0].lineage.status, "unresolved");
+  assert.equal(replaced.port_health[0].qualification.inherited, false);
+});
+
+test("historical release digests are observed at exact tags and partial or conflicting asset pages remain unknown", async () => {
+  const input = healthCatalog();
+  const paths = [];
+  const complete = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async (url, options) => {
+      paths.push(url);
+      return healthFetch(url, options);
+    },
+  });
+  assert.ok(paths.includes("https://api.github.com/repos/original/project/releases/tags/v0"));
+  assert.equal(complete.port_health[0].accepted_artifact_obtainability.status, "unknown");
+  for (const assets of [
+    [],
+    [{ digest: `sha256:${"c".repeat(64)}` }],
+    Array(100).fill({ digest: `sha256:${"b".repeat(64)}` }),
+  ]) {
+    const report = await collectRepositoryHealth(input, {
+      now: () => healthTime,
+      fetch: async (url, options) =>
+        url.includes("/releases/tags/")
+          ? new Response(JSON.stringify({ id: 3, tag_name: "v0", assets }), {
+              headers: { "content-type": "application/json" },
+            })
+          : healthFetch(url, options),
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.observations.at(-1).status, "unknown");
+    assert.equal(
+      report.port_health[0].qualification.records[0].scope.artifact_sha256,
+      "b".repeat(64),
+    );
+  }
+});
+
+test("prior provider backoff is honored without using a previous failure as healthy evidence", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  const first = await collectRepositoryHealth(input, {
+    now: () => healthTime,
+    fetch: async () => new Response(null, { status: 429, headers: { "retry-after": "120" } }),
+  });
+  const deferred = await collectRepositoryHealth(input, {
+    now: () => healthTime + 1000,
+    previousReport: first,
+    fetch: async () => assert.fail("backoff must not request"),
+  });
+  assert.equal(deferred.observations[0].attempted, false);
+  assert.equal(deferred.observations[0].reason, "rate-limit");
+  assert.equal(deferred.outcome, "incomplete");
+});
+
+test("known artifact, authority and distribution failures retain exact reported scope without creating or clearing holds", async () => {
+  for (const rule of ["artifact-integrity", "publisher-authority", "distribution-authority"]) {
+    const input = healthCatalog();
+    input.source_catalog.qualification[0].outcome = "failed";
+    input.source_catalog.qualification[0].method = rule;
+    input.ports.push({
+      id: "unaffected",
+      project_url: "https://github.com/original/project",
+      release: { repository: "original/project" },
+    });
+    const report = await collectRepositoryHealth(input, {
+      now: () => healthTime,
+      fetch: healthFetch,
+    });
+    assert.equal(report.port_health[0].applicable_holds.reported_failures[0].method, rule);
+    assert.equal(
+      report.port_health[0].applicable_holds.reported_failures[0].scope.artifact_sha256,
+      "b".repeat(64),
+    );
+    assert.equal(report.port_health[0].applicable_holds.status, "unknown");
+    assert.deepEqual(report.port_health[1].applicable_holds.reported_failures, []);
+    assert.equal(report.port_health[1].qualification.inherited, false);
+  }
+});
+
+test("repository identity baseline survives replacement, outage and aged snapshots", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  const collect = (id, previousReport, time = healthTime) =>
+    collectRepositoryHealth(input, {
+      now: () => time,
+      previousReport,
+      fetch: async () =>
+        id === null
+          ? new Response(null, { status: 404 })
+          : new Response(JSON.stringify({ id, full_name: "owner/tracked", archived: false }), {
+              headers: { "content-type": "application/json" },
+            }),
+    });
+  const original = await collect(1);
+  for (const intervening of [await collect(2, original), await collect(null, original), original]) {
+    const report = await collect(2, intervening, healthTime + 25 * 3600_000);
+    assert.equal(report.observations[0].baseline_repository_id, 1);
+    assert.equal(report.observations[0].observed_repository_id, 2);
+    assert.equal(report.observations[0].reason, "identity-mismatch");
+    assert.equal(report.outcome, "incomplete");
+    assert.deepEqual(report.resolved_incidents, []);
+  }
+  const replacement = await collect(2, original);
+  const repeated = await collect(2, replacement);
+  assert.equal(repeated.observations[0].reason, "identity-mismatch");
+  assert.equal(repeated.material_changes.length, 0);
+});
+
+test("changed material retains condition history and provider-specific recovery", async () => {
+  const input = {
+    ports: [
+      {
+        id: "tracked",
+        project_url: "https://github.com/owner/tracked",
+        release: { provider: "gitlab", repository: "owner/tracked" },
+      },
+    ],
+  };
+  const collect = (status, previousReport, time) =>
+    collectRepositoryHealth(input, {
+      now: () => time,
+      previousReport,
+      fetch: async (url) =>
+        url.includes("api.github.com")
+          ? new Response(null, { status })
+          : new Response(
+              JSON.stringify({ id: 2, path_with_namespace: "owner/tracked", archived: false }),
+              {
+                headers: { "content-type": "application/json" },
+              },
+            ),
+    });
+  const first = await collect(503, null, healthTime);
+  const changed = await collect(502, first, healthTime + 1000);
+  const before = first.port_health[0].canonical_incidents[0];
+  const after = changed.port_health[0].canonical_incidents[0];
+  assert.equal(after.first_seen, before.first_seen);
+  assert.equal(after.occurrences, 2);
+  assert.equal(after.notify, true);
+  assert.equal(after.provider, "github");
+  assert.deepEqual(changed.resolved_incidents, []);
+  const missing = await collect(404, null, healthTime);
+  const repeated = await collect(404, missing, healthTime + 1000);
+  assert.deepEqual(repeated.resolved_incidents, []);
+  assert.equal(repeated.material_changes.length, 0);
+});
+
+test("rate-limit fallback defers repeated runs while preserving comparison and incident history", async () => {
+  const input = { ports: [{ id: "tracked", release: { repository: "owner/tracked" } }] };
+  for (const headers of [{}, { "retry-after": "120" }]) {
+    const first = await collectRepositoryHealth(input, {
+      now: () => healthTime,
+      fetch: async () => new Response(null, { status: 429, headers }),
+    });
+    let prior = first;
+    for (const elapsed of [1000, 2000]) {
+      const report = await collectRepositoryHealth(input, {
+        now: () => healthTime + elapsed,
+        previousReport: prior,
+        fetch: async () => assert.fail("backoff must not request"),
+      });
+      assert.equal(report.observations[0].attempted, false);
+      assert.equal(report.observations[0].http_status, null);
+      assert.equal(report.observations[0].comparison_http_status, 429);
+      assert.equal(report.material_changes.length, 0);
+      const incident = report.port_health[0].canonical_incidents[0];
+      assert.equal(incident.first_seen, first.port_health[0].canonical_incidents[0].first_seen);
+      assert.equal(incident.occurrences, elapsed / 1000 + 1);
+      assert.equal(incident.notify, false);
+      prior = report;
+    }
+    assert.ok(Date.parse(first.observations[0].retry_at) >= healthTime + 60_000);
+  }
+});
+
+const healthScopePort = (id, repository = `owner/${id}`) => ({
+  id,
+  summary: "A native port.",
+  platforms: ["windows-x86-64"],
+  release: { repository },
+  adapter: "owned",
+});
+const healthScopeCatalog = (...ports) => ({ schema_version: 2, ports });
+const change = (file = "crates/portcove-core/catalog/catalog.json", extra = {}) => ({
+  oldPath: file,
+  newPath: file,
+  status: "M",
+  oldMode: "100644",
+  newMode: "100644",
+  ...extra,
+});
+const copy = (value) => structuredClone(value);
+
+test("summary-only selection makes no requests and does not claim global health", async () => {
+  const base = healthScopeCatalog(healthScopePort("game"), healthScopePort("unavailable"));
+  const head = copy(base);
+  head.ports[0].summary = "Shorter title description.";
+  const scope = await selectUpstreamHealthScope(base, head, [change()]);
+  assert.equal(scope.mode, "none");
+  assert.deepEqual(scope.port_ids, []);
+  const report = await collectRepositoryHealth(head, {
+    portIds: scope.port_ids,
+    fetch: () => assert.fail("Summary changes cannot request any upstream"),
+  });
+  assert.equal(report.outcome, "not-applicable");
+  assert.equal(report.scope.global_health, "not assessed");
+  assert.deepEqual(report.scope.unassessed_port_ids, ["game", "unavailable"]);
+  assert.equal(report.coverage.monitored_ports, 0);
+  assert.equal(report.coverage.attempted_repositories, 0);
+});
+
+test("semantic port contracts select affected obligations and their unknowns still block", async () => {
+  const base = healthScopeCatalog(healthScopePort("game"), healthScopePort("unavailable"));
+  for (const update of [
+    (p) => {
+      p.release.repository = "owner/new-location";
+    },
+    (p) => {
+      p.release.sha256 = "a".repeat(64);
+    },
+    (p) => {
+      p.upstream_status = "retired";
+    },
+    (p) => {
+      p.platforms.push("linux-x86-64");
+    },
+    (p) => {
+      p.source_profile = "changed-source";
+    },
+    (p) => {
+      p.adapter = "psx-recomp-managed";
+    },
+  ]) {
+    const head = copy(base);
+    update(head.ports[0]);
+    const scope = await selectUpstreamHealthScope(base, head, [change()]);
+    assert.equal(scope.mode, "affected");
+    assert.deepEqual(scope.port_ids, ["game"]);
+    const calls = [];
+    const report = await collectRepositoryHealth(head, {
+      portIds: scope.port_ids,
+      fetch: async (url) => {
+        calls.push(url);
+        return new Response(null, { status: 503 });
+      },
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(report.observations[0].reason, "provider-error");
+    assert.ok(calls.every((url) => !url.endsWith("/unavailable")));
+    assert.deepEqual(report.scope.unassessed_port_ids, ["unavailable"]);
+    assert.deepEqual(
+      scope.retcomm_port_ids,
+      head.ports[0].adapter === "psx-recomp-managed" ? ["game"] : [],
+    );
+  }
+});
+
+test("shared endpoints retain unselected maintenance and identity obligations", async () => {
+  const input = healthScopeCatalog(
+    {
+      ...healthScopePort("retired", "owner/shared"),
+      upstream_status: "retired",
+      project_url: "https://github.com/owner/shared",
+    },
+    {
+      ...healthScopePort("active", "owner/shared"),
+      project_url: "https://github.com/owner/shared",
+    },
+  );
+  const report = await collectRepositoryHealth(input, {
+    portIds: ["retired"],
+    fetch: async () => new Response(null, { status: 404 }),
+  });
+  assert.equal(report.coverage.repositories, 1);
+  assert.deepEqual(report.observations[0].port_ids, ["retired", "active"]);
+  assert.equal(report.observations[0].accounted_for, false);
+  assert.equal(report.outcome, "incomplete");
+});
+
+test("additions select the new port; removals and root/history changes retain full scope", async () => {
+  const base = healthScopeCatalog(healthScopePort("old"));
+  const head = healthScopeCatalog(healthScopePort("old"), healthScopePort("new"));
+  assert.deepEqual((await selectUpstreamHealthScope(base, head, [change()])).port_ids, ["new"]);
+  assert.equal((await selectUpstreamHealthScope(head, base, [change()])).mode, "full");
+  for (const update of [
+    (c) => {
+      c.schema_version++;
+    },
+    (c) => {
+      c.source_catalog = {
+        qualification: [
+          { scope: { port_id: "old", artifact_sha256: "a".repeat(64), upstream_ref: "v1" } },
+        ],
+      };
+    },
+  ]) {
+    const changed = copy(base);
+    update(changed);
+    assert.equal((await selectUpstreamHealthScope(base, changed, [change()])).mode, "full");
+  }
+});
+
+test("tools, workflows, policy, mixed changes and uncertain inventories cannot narrow monitoring", async () => {
+  const input = healthScopeCatalog(healthScopePort("old"));
+  for (const changes of [
+    [],
+    [change("scripts/check-catalog-repositories.mjs")],
+    [change("scripts/upstream-health-plan.mjs")],
+    [change(".github/workflows/upstream-health.yml")],
+    [change("AGENTS.md")],
+    [change(), change("README.md")],
+    [change(undefined, { newMode: "120000" })],
+    [change(undefined, { status: "R" })],
+  ])
+    assert.equal((await selectUpstreamHealthScope(input, input, changes)).mode, "full");
+  await assert.rejects(
+    selectUpstreamHealthScope(
+      { ports: [healthScopePort("duplicate"), healthScopePort("duplicate")] },
+      input,
+      [change()],
+    ),
+    /unique stable/,
+  );
+  await assert.rejects(
+    collectRepositoryHealth(input, { portIds: ["missing"] }),
+    /existing port IDs/,
+  );
+  await assert.rejects(
+    collectRepositoryHealth(input, { portIds: ["old", "old"] }),
+    /unique existing/,
+  );
+});
+
+test("exact Git discovery binds base, merge base, head and checkout; drift and missing refs fail closed", async () => {
+  const baseSha = "a".repeat(40),
+    headSha = "b".repeat(40),
+    checkoutSha = "c".repeat(40);
+  const base = healthScopeCatalog(healthScopePort("old"));
+  const head = copy(base);
+  head.ports[0].summary = "New copy.";
+  const tree = "d".repeat(40);
+  let drift = false;
+  const git = (args) => {
+    if (args[0] === "rev-parse") {
+      const value = args.at(-1).split("^")[0];
+      return Buffer.from(
+        args.at(-1).endsWith("^{commit}")
+          ? value
+          : drift && value === checkoutSha
+            ? "e".repeat(40)
+            : tree,
+      );
+    }
+    if (args[0] === "merge-base") return Buffer.from(baseSha);
+    if (args[0] === "diff")
+      return Buffer.from(
+        `:100644 100644 ${baseSha} ${headSha} M\0crates/portcove-core/catalog/catalog.json\0`,
+      );
+    if (args[0] === "show")
+      return Buffer.from(JSON.stringify(args[1].startsWith(baseSha) ? base : head));
+    assert.fail(args);
+  };
+  const context = { event: "pull_request", baseSha, headSha, checkoutSha };
+  const discover = () => discoverUpstreamHealthScope(context, git, () => JSON.stringify(head));
+  const scope = await discover();
+  assert.equal(scope.mode, "none");
+  assert.equal(scope.identities.head, headSha);
+  assert.equal(scope.identities.merge_base, baseSha);
+  assert.equal(scope.identities.checkout_tree, tree);
+  drift = true;
+  assert.equal((await discover()).mode, "full");
+  await assert.rejects(
+    discoverUpstreamHealthScope({ ...context, baseSha: "main" }, git, () => JSON.stringify(head)),
+    /exact base/,
+  );
+  await assert.rejects(
+    discoverUpstreamHealthScope(
+      context,
+      () => {
+        throw new Error("missing ref");
+      },
+      () => JSON.stringify(head),
+    ),
+    /missing ref/,
+  );
+  for (const event of ["push", "schedule", "workflow_dispatch", "unknown"])
+    assert.equal(
+      (
+        await discoverUpstreamHealthScope(
+          { event },
+          () => assert.fail("Full monitoring does not need PR Git refs"),
+          () => JSON.stringify(head),
+        )
+      ).mode,
+      "full",
+    );
+});
+
+const reviewedAccounting = JSON.parse(
+  await readFile(new URL("../.github/upstream-health-accounting.json", import.meta.url), "utf8"),
+);
+const pinMetadata = JSON.parse(
+  await readFile(new URL("./fixtures/upstream-health-pins.json", import.meta.url), "utf8"),
+).pins;
+// Independently retained complete public provider metadata; no accepted-byte claim.
+pinMetadata.push({
+  repository: {
+    id: 1352788804,
+    full_name: "alexbeavs-ps1-ports/armored-core-recomp",
+    archived: false,
+  },
+  release: {
+    id: 382786096,
+    tag_name: "v0.3.6",
+    draft: false,
+    prerelease: false,
+    created_at: "2026-09-04T11:49:26Z",
+    published_at: "2026-09-04T14:48:29Z",
+    assets: [
+      {
+        id: 544444024,
+        name: "Armored-Core-Recomp-0.3.6-linux-x64.zip",
+        size: 28046282,
+        state: "uploaded",
+        digest: "sha256:a8bb86eb739f10653c39f8cb3c83b59d4d8a7b3b837ea7b580667868c6698e6a",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-linux-x64.zip",
+        created_at: "2026-09-04T14:19:50Z",
+        updated_at: "2026-09-04T14:19:52Z",
+      },
+      {
+        id: 544444106,
+        name: "Armored-Core-Recomp-0.3.6-macos-arm64.zip",
+        size: 25791499,
+        state: "uploaded",
+        digest: "sha256:83f4f37a9d35119d00eb8f015f29fb25f2d628977835e4ab04545a8271b45740",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-arm64.zip",
+        created_at: "2026-09-04T14:19:54Z",
+        updated_at: "2026-09-04T14:19:56Z",
+      },
+      {
+        id: 544444221,
+        name: "Armored-Core-Recomp-0.3.6-macos-x64.zip",
+        size: 26135526,
+        state: "uploaded",
+        digest: "sha256:99fe56d964b52d3d5c7fbd17cb8a5c655f76fef30fd4214d87ee212517fb5963",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-x64.zip",
+        created_at: "2026-09-04T14:19:59Z",
+        updated_at: "2026-09-04T14:20:00Z",
+      },
+      {
+        id: 544444321,
+        name: "Armored-Core-Recomp-0.3.6-windows-x64.zip",
+        size: 30152526,
+        state: "uploaded",
+        digest: "sha256:43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
+        created_at: "2026-09-04T14:20:03Z",
+        updated_at: "2026-09-04T14:20:05Z",
+      },
+    ],
+  },
+  assets: [
+    {
+      id: 544444024,
+      name: "Armored-Core-Recomp-0.3.6-linux-x64.zip",
+      size: 28046282,
+      state: "uploaded",
+      digest: "sha256:a8bb86eb739f10653c39f8cb3c83b59d4d8a7b3b837ea7b580667868c6698e6a",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-linux-x64.zip",
+      created_at: "2026-09-04T14:19:50Z",
+      updated_at: "2026-09-04T14:19:52Z",
+    },
+    {
+      id: 544444106,
+      name: "Armored-Core-Recomp-0.3.6-macos-arm64.zip",
+      size: 25791499,
+      state: "uploaded",
+      digest: "sha256:83f4f37a9d35119d00eb8f015f29fb25f2d628977835e4ab04545a8271b45740",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-arm64.zip",
+      created_at: "2026-09-04T14:19:54Z",
+      updated_at: "2026-09-04T14:19:56Z",
+    },
+    {
+      id: 544444221,
+      name: "Armored-Core-Recomp-0.3.6-macos-x64.zip",
+      size: 26135526,
+      state: "uploaded",
+      digest: "sha256:99fe56d964b52d3d5c7fbd17cb8a5c655f76fef30fd4214d87ee212517fb5963",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-macos-x64.zip",
+      created_at: "2026-09-04T14:19:59Z",
+      updated_at: "2026-09-04T14:20:00Z",
+    },
+    {
+      id: 544444321,
+      name: "Armored-Core-Recomp-0.3.6-windows-x64.zip",
+      size: 30152526,
+      state: "uploaded",
+      digest: "sha256:43575a4795e5af42c3f545c245a073224d4e1a4643eaa59b3b2dba79c46e231e",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/releases/download/v0.3.6/Armored-Core-Recomp-0.3.6-windows-x64.zip",
+      created_at: "2026-09-04T14:20:03Z",
+      updated_at: "2026-09-04T14:20:05Z",
+    },
+  ],
+});
+// Independently retained Blood Omen v0.3.6 provider metadata; no accepted-byte claim.
+pinMetadata.push({
+  repository: {
+    id: 1352791125,
+    full_name: "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
+    archived: false,
+  },
+  release: {
+    id: 382786113,
+    tag_name: "v0.3.6",
+    draft: false,
+    prerelease: false,
+    created_at: "2026-09-04T11:49:26Z",
+    published_at: "2026-09-04T14:48:30Z",
+    assets: [
+      {
+        id: 544444045,
+        name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+        size: 28049902,
+        state: "uploaded",
+        digest: "sha256:7cbef94c5fc72a1dd1ecaad2afe48a40faf2381e3bb579b2f7bbdfb3a74f80fc",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+        created_at: "2026-09-04T14:19:51Z",
+        updated_at: "2026-09-04T14:19:53Z",
+      },
+      {
+        id: 544444163,
+        name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip",
+        size: 25793743,
+        state: "uploaded",
+        digest: "sha256:2554274350a93468cc7e120cfafb64553bc266d661aca56118989310898b369a",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip",
+        created_at: "2026-09-04T14:19:56Z",
+        updated_at: "2026-09-04T14:19:58Z",
+      },
+      {
+        id: 544444256,
+        name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip",
+        size: 26139194,
+        state: "uploaded",
+        digest: "sha256:e126de5019ba1937a166912bde5f577be256429d8cabb219910f87e6d5c1887c",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip",
+        created_at: "2026-09-04T14:20:01Z",
+        updated_at: "2026-09-04T14:20:02Z",
+      },
+      {
+        id: 544444399,
+        name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+        size: 30156064,
+        state: "uploaded",
+        digest: "sha256:8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+        created_at: "2026-09-04T14:20:06Z",
+        updated_at: "2026-09-04T14:20:07Z",
+      },
+    ],
+  },
+  assets: [
+    {
+      id: 544444045,
+      name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+      size: 28049902,
+      state: "uploaded",
+      digest: "sha256:7cbef94c5fc72a1dd1ecaad2afe48a40faf2381e3bb579b2f7bbdfb3a74f80fc",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-linux-x64.zip",
+      created_at: "2026-09-04T14:19:51Z",
+      updated_at: "2026-09-04T14:19:53Z",
+    },
+    {
+      id: 544444163,
+      name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip",
+      size: 25793743,
+      state: "uploaded",
+      digest: "sha256:2554274350a93468cc7e120cfafb64553bc266d661aca56118989310898b369a",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-arm64.zip",
+      created_at: "2026-09-04T14:19:56Z",
+      updated_at: "2026-09-04T14:19:58Z",
+    },
+    {
+      id: 544444256,
+      name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip",
+      size: 26139194,
+      state: "uploaded",
+      digest: "sha256:e126de5019ba1937a166912bde5f577be256429d8cabb219910f87e6d5c1887c",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-macos-x64.zip",
+      created_at: "2026-09-04T14:20:01Z",
+      updated_at: "2026-09-04T14:20:02Z",
+    },
+    {
+      id: 544444399,
+      name: "Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+      size: 30156064,
+      state: "uploaded",
+      digest: "sha256:8a829e5913943b45cf086416e15a4a614ad8ce5b8ca407bfb70736a4c68b1759",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/releases/download/v0.3.6/Blood-Omen-Legacy-of-Kain-Recomp-0.3.6-windows-x64.zip",
+      created_at: "2026-09-04T14:20:06Z",
+      updated_at: "2026-09-04T14:20:07Z",
+    },
+  ],
+});
+// Independently retained Digimon World 2003 v0.3.6 provider metadata; no accepted-byte claim.
+pinMetadata.push({
+  repository: {
+    id: 1352789057,
+    full_name: "alexbeavs-ps1-ports/digimon-world-2003-recomp",
+    archived: false,
+  },
+  release: {
+    id: 382786572,
+    tag_name: "v0.3.6",
+    draft: false,
+    prerelease: false,
+    created_at: "2026-09-04T11:49:29Z",
+    published_at: "2026-09-04T14:48:39Z",
+    assets: [
+      {
+        id: 544445063,
+        name: "Digimon-World-2003-Recomp-0.3.6-linux-x64.zip",
+        size: 28046744,
+        state: "uploaded",
+        digest: "sha256:0538611d06da652482d035a5b97f356bc4bbae18728a34d27712772bb557bae8",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-linux-x64.zip",
+        created_at: "2026-09-04T14:20:33Z",
+        updated_at: "2026-09-04T14:20:37Z",
+      },
+      {
+        id: 544445200,
+        name: "Digimon-World-2003-Recomp-0.3.6-macos-arm64.zip",
+        size: 25790678,
+        state: "uploaded",
+        digest: "sha256:d8c7adc1ae1737e76c625b46df1d3eab68de2f5cc33a94aff081c45ac1a97bb2",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-macos-arm64.zip",
+        created_at: "2026-09-04T14:20:40Z",
+        updated_at: "2026-09-04T14:20:42Z",
+      },
+      {
+        id: 544445334,
+        name: "Digimon-World-2003-Recomp-0.3.6-macos-x64.zip",
+        size: 26136022,
+        state: "uploaded",
+        digest: "sha256:364cb136d8e435016b559feae8ecf0b895406897269263b8644b45954d13cfc3",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-macos-x64.zip",
+        created_at: "2026-09-04T14:20:45Z",
+        updated_at: "2026-09-04T14:20:46Z",
+      },
+      {
+        id: 544445450,
+        name: "Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+        size: 30152631,
+        state: "uploaded",
+        digest: "sha256:71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+        created_at: "2026-09-04T14:20:49Z",
+        updated_at: "2026-09-04T14:20:51Z",
+      },
+    ],
+  },
+  assets: [
+    {
+      id: 544445063,
+      name: "Digimon-World-2003-Recomp-0.3.6-linux-x64.zip",
+      size: 28046744,
+      state: "uploaded",
+      digest: "sha256:0538611d06da652482d035a5b97f356bc4bbae18728a34d27712772bb557bae8",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-linux-x64.zip",
+      created_at: "2026-09-04T14:20:33Z",
+      updated_at: "2026-09-04T14:20:37Z",
+    },
+    {
+      id: 544445200,
+      name: "Digimon-World-2003-Recomp-0.3.6-macos-arm64.zip",
+      size: 25790678,
+      state: "uploaded",
+      digest: "sha256:d8c7adc1ae1737e76c625b46df1d3eab68de2f5cc33a94aff081c45ac1a97bb2",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-macos-arm64.zip",
+      created_at: "2026-09-04T14:20:40Z",
+      updated_at: "2026-09-04T14:20:42Z",
+    },
+    {
+      id: 544445334,
+      name: "Digimon-World-2003-Recomp-0.3.6-macos-x64.zip",
+      size: 26136022,
+      state: "uploaded",
+      digest: "sha256:364cb136d8e435016b559feae8ecf0b895406897269263b8644b45954d13cfc3",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-macos-x64.zip",
+      created_at: "2026-09-04T14:20:45Z",
+      updated_at: "2026-09-04T14:20:46Z",
+    },
+    {
+      id: 544445450,
+      name: "Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+      size: 30152631,
+      state: "uploaded",
+      digest: "sha256:71f0fe285fe0d6cd34d61e3b286bbdda55eecd551487b8ee33648301a99c249b",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/releases/download/v0.3.6/Digimon-World-2003-Recomp-0.3.6-windows-x64.zip",
+      created_at: "2026-09-04T14:20:49Z",
+      updated_at: "2026-09-04T14:20:51Z",
+    },
+  ],
+});
+// Independently retained Duke Nukem: Land of the Babes v0.3.6 provider metadata; no accepted-byte claim.
+pinMetadata.push({
+  repository: {
+    id: 1352788290,
+    full_name: "alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
+    archived: false,
+  },
+  release: {
+    id: 382786775,
+    tag_name: "v0.3.6",
+    draft: false,
+    prerelease: false,
+    created_at: "2026-09-04T11:49:30Z",
+    published_at: "2026-09-04T14:48:44Z",
+    assets: [
+      {
+        id: 544445523,
+        name: "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-linux-x64.zip",
+        size: 28048314,
+        state: "uploaded",
+        digest: "sha256:46a9b69d869bb7ae868e1d8b9943ae6902b7ba81733f0afc957da8ae9692ebad",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-linux-x64.zip",
+        created_at: "2026-09-04T14:20:53Z",
+        updated_at: "2026-09-04T14:20:54Z",
+      },
+      {
+        id: 544445636,
+        name: "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-arm64.zip",
+        size: 25792070,
+        state: "uploaded",
+        digest: "sha256:89c1649003e66032bc44ff5ac60d1d6ae9b4bccaddf58b4156a16d71cbe4d8cb",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-arm64.zip",
+        created_at: "2026-09-04T14:20:57Z",
+        updated_at: "2026-09-04T14:20:58Z",
+      },
+      {
+        id: 544445706,
+        name: "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-x64.zip",
+        size: 26137531,
+        state: "uploaded",
+        digest: "sha256:5fc535897799e593c45090431f2c49da4c54e6fa194c9b8001ed0d41e95266e2",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-x64.zip",
+        created_at: "2026-09-04T14:21:01Z",
+        updated_at: "2026-09-04T14:21:02Z",
+      },
+      {
+        id: 544445831,
+        name: "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+        size: 30154371,
+        state: "uploaded",
+        digest: "sha256:33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+        created_at: "2026-09-04T14:21:05Z",
+        updated_at: "2026-09-04T14:21:07Z",
+      },
+    ],
+  },
+  assets: [
+    {
+      id: 544445523,
+      name: "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-linux-x64.zip",
+      size: 28048314,
+      state: "uploaded",
+      digest: "sha256:46a9b69d869bb7ae868e1d8b9943ae6902b7ba81733f0afc957da8ae9692ebad",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-linux-x64.zip",
+      created_at: "2026-09-04T14:20:53Z",
+      updated_at: "2026-09-04T14:20:54Z",
+    },
+    {
+      id: 544445636,
+      name: "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-arm64.zip",
+      size: 25792070,
+      state: "uploaded",
+      digest: "sha256:89c1649003e66032bc44ff5ac60d1d6ae9b4bccaddf58b4156a16d71cbe4d8cb",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-arm64.zip",
+      created_at: "2026-09-04T14:20:57Z",
+      updated_at: "2026-09-04T14:20:58Z",
+    },
+    {
+      id: 544445706,
+      name: "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-x64.zip",
+      size: 26137531,
+      state: "uploaded",
+      digest: "sha256:5fc535897799e593c45090431f2c49da4c54e6fa194c9b8001ed0d41e95266e2",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-macos-x64.zip",
+      created_at: "2026-09-04T14:21:01Z",
+      updated_at: "2026-09-04T14:21:02Z",
+    },
+    {
+      id: 544445831,
+      name: "Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+      size: 30154371,
+      state: "uploaded",
+      digest: "sha256:33a2bf033dd610b8f6d8afab2373b609b536a1253f15b78138fc6d37a2831c5b",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/releases/download/v0.3.6/Duke-Nukem-Land-of-the-Babes-Recomp-0.3.6-windows-x64.zip",
+      created_at: "2026-09-04T14:21:05Z",
+      updated_at: "2026-09-04T14:21:07Z",
+    },
+  ],
+});
+// Independently retained Driver v0.3.6 provider metadata; no accepted-byte claim.
+pinMetadata.push({
+  repository: {
+    id: 1352790121,
+    full_name: "alexbeavs-ps1-ports/driver-recomp",
+    archived: false,
+  },
+  release: {
+    id: 382786594,
+    tag_name: "v0.3.6",
+    draft: false,
+    prerelease: false,
+    created_at: "2026-09-04T11:49:29Z",
+    published_at: "2026-09-04T14:48:39Z",
+    assets: [
+      {
+        id: 544445102,
+        name: "Driver-Recomp-0.3.6-linux-x64.zip",
+        size: 28047869,
+        state: "uploaded",
+        digest: "sha256:35bb94181910a9fed63e48ef0e0bcc1e569befc9e19925c0bf29f12b0fabc7cd",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-linux-x64.zip",
+        created_at: "2026-09-04T14:20:35Z",
+        updated_at: "2026-09-04T14:20:37Z",
+      },
+      {
+        id: 544445190,
+        name: "Driver-Recomp-0.3.6-macos-arm64.zip",
+        size: 25793364,
+        state: "uploaded",
+        digest: "sha256:b89e64216bc74505762eb9bf79cffe21415080aeb086ec70126f8bb965b64180",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-macos-arm64.zip",
+        created_at: "2026-09-04T14:20:40Z",
+        updated_at: "2026-09-04T14:20:41Z",
+      },
+      {
+        id: 544445319,
+        name: "Driver-Recomp-0.3.6-macos-x64.zip",
+        size: 26138386,
+        state: "uploaded",
+        digest: "sha256:4ec37fa02646e44787ea0c4b2c8fe857fc0d0caa501615f0301b01f0d7b9b14b",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-macos-x64.zip",
+        created_at: "2026-09-04T14:20:44Z",
+        updated_at: "2026-09-04T14:20:46Z",
+      },
+      {
+        id: 544445443,
+        name: "Driver-Recomp-0.3.6-windows-x64.zip",
+        size: 30154093,
+        state: "uploaded",
+        digest: "sha256:57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip",
+        created_at: "2026-09-04T14:20:48Z",
+        updated_at: "2026-09-04T14:20:50Z",
+      },
+    ],
+  },
+  assets: [
+    {
+      id: 544445102,
+      name: "Driver-Recomp-0.3.6-linux-x64.zip",
+      size: 28047869,
+      state: "uploaded",
+      digest: "sha256:35bb94181910a9fed63e48ef0e0bcc1e569befc9e19925c0bf29f12b0fabc7cd",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-linux-x64.zip",
+      created_at: "2026-09-04T14:20:35Z",
+      updated_at: "2026-09-04T14:20:37Z",
+    },
+    {
+      id: 544445190,
+      name: "Driver-Recomp-0.3.6-macos-arm64.zip",
+      size: 25793364,
+      state: "uploaded",
+      digest: "sha256:b89e64216bc74505762eb9bf79cffe21415080aeb086ec70126f8bb965b64180",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-macos-arm64.zip",
+      created_at: "2026-09-04T14:20:40Z",
+      updated_at: "2026-09-04T14:20:41Z",
+    },
+    {
+      id: 544445319,
+      name: "Driver-Recomp-0.3.6-macos-x64.zip",
+      size: 26138386,
+      state: "uploaded",
+      digest: "sha256:4ec37fa02646e44787ea0c4b2c8fe857fc0d0caa501615f0301b01f0d7b9b14b",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-macos-x64.zip",
+      created_at: "2026-09-04T14:20:44Z",
+      updated_at: "2026-09-04T14:20:46Z",
+    },
+    {
+      id: 544445443,
+      name: "Driver-Recomp-0.3.6-windows-x64.zip",
+      size: 30154093,
+      state: "uploaded",
+      digest: "sha256:57d50b4065b1b680cb660029bb14db3f53d911516342e58fc16f59386aeba2ab",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/driver-recomp/releases/download/v0.3.6/Driver-Recomp-0.3.6-windows-x64.zip",
+      created_at: "2026-09-04T14:20:48Z",
+      updated_at: "2026-09-04T14:20:50Z",
+    },
+  ],
+});
+// Independently retained Duke Nukem: Time to Kill v0.3.6 provider metadata; no accepted-byte claim.
+pinMetadata.push({
+  repository: {
+    id: 1350730805,
+    full_name: "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
+    archived: false,
+  },
+  release: {
+    id: 382786779,
+    tag_name: "v0.3.6",
+    draft: false,
+    prerelease: false,
+    created_at: "2026-09-04T11:49:31Z",
+    published_at: "2026-09-04T14:48:44Z",
+    assets: [
+      {
+        id: 544445527,
+        name: "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-linux-x64.zip",
+        size: 28051653,
+        state: "uploaded",
+        digest: "sha256:c2b421fe2214efecd6736d3f95636b44a6562f459965c7aee098b5cdebaeb1f3",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-linux-x64.zip",
+        created_at: "2026-09-04T14:20:53Z",
+        updated_at: "2026-09-04T14:20:54Z",
+      },
+      {
+        id: 544445640,
+        name: "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-arm64.zip",
+        size: 25795533,
+        state: "uploaded",
+        digest: "sha256:71481804b16e433688c43625556222fe79561e956bc5ed905911cb23644ee1d5",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-arm64.zip",
+        created_at: "2026-09-04T14:20:57Z",
+        updated_at: "2026-09-04T14:20:59Z",
+      },
+      {
+        id: 544445718,
+        name: "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-x64.zip",
+        size: 26140959,
+        state: "uploaded",
+        digest: "sha256:e41aa8968e70c12c993561a671ccc08d64c2ff7d17fd6c1a0d3980389f86708f",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-x64.zip",
+        created_at: "2026-09-04T14:21:01Z",
+        updated_at: "2026-09-04T14:21:03Z",
+      },
+      {
+        id: 544445845,
+        name: "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+        size: 30158026,
+        state: "uploaded",
+        digest: "sha256:6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
+        browser_download_url:
+          "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+        created_at: "2026-09-04T14:21:05Z",
+        updated_at: "2026-09-04T14:21:07Z",
+      },
+    ],
+  },
+  assets: [
+    {
+      id: 544445527,
+      name: "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-linux-x64.zip",
+      size: 28051653,
+      state: "uploaded",
+      digest: "sha256:c2b421fe2214efecd6736d3f95636b44a6562f459965c7aee098b5cdebaeb1f3",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-linux-x64.zip",
+      created_at: "2026-09-04T14:20:53Z",
+      updated_at: "2026-09-04T14:20:54Z",
+    },
+    {
+      id: 544445640,
+      name: "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-arm64.zip",
+      size: 25795533,
+      state: "uploaded",
+      digest: "sha256:71481804b16e433688c43625556222fe79561e956bc5ed905911cb23644ee1d5",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-arm64.zip",
+      created_at: "2026-09-04T14:20:57Z",
+      updated_at: "2026-09-04T14:20:59Z",
+    },
+    {
+      id: 544445718,
+      name: "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-x64.zip",
+      size: 26140959,
+      state: "uploaded",
+      digest: "sha256:e41aa8968e70c12c993561a671ccc08d64c2ff7d17fd6c1a0d3980389f86708f",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-macos-x64.zip",
+      created_at: "2026-09-04T14:21:01Z",
+      updated_at: "2026-09-04T14:21:03Z",
+    },
+    {
+      id: 544445845,
+      name: "Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+      size: 30158026,
+      state: "uploaded",
+      digest: "sha256:6ac51ddf4db437fd10ec8ec1de73b66e34904b9b30bbcaf813266dba2997c662",
+      browser_download_url:
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/releases/download/v0.3.6/Duke-Nukem-Time-to-Kill-Recomp-0.3.6-windows-x64.zip",
+      created_at: "2026-09-04T14:21:05Z",
+      updated_at: "2026-09-04T14:21:07Z",
+    },
+  ],
+});
+pinMetadata.push(
+  JSON.parse(
+    await readFile(
+      new URL("./fixtures/upstream-health-fade-to-black.json", import.meta.url),
+      "utf8",
+    ),
+  ),
+);
+const currentHealthCatalog = JSON.parse(
+  await readFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
+);
+const accountingCatalog = () => ({
+  ports: structuredClone(
+    currentHealthCatalog.ports.filter((port) =>
+      [...reviewedAccounting.pins, ...reviewedAccounting.original_conditions].some(
+        (rule) => rule.port_id === port.id,
+      ),
+    ),
+  ),
+});
+
+function accountingFetch(calls, mutate = (_url, response) => response) {
+  return async (url, options) => {
+    calls.push({ url, options });
+    let response;
+    const pin = reviewedAccounting.pins.find((rule) => rule.url === url);
+    const condition = reviewedAccounting.original_conditions.find(
+      (rule) => url === `https://api.github.com/repos/${rule.repository}`,
+    );
+    if (pin)
+      response = {
+        status: 302,
+        data: null,
+        headers: { location: "https://example.invalid/signed?secret=synthetic-private-value" },
+      };
+    else if (condition)
+      response = {
+        status: condition.http_status,
+        data:
+          condition.http_status === 301
+            ? {
+                message: "Moved Permanently",
+                url: `https://api.github.com/repositories/${condition.redirect_repository_id}`,
+              }
+            : { message: "Not Found" },
+      };
+    else {
+      for (let i = 0; i < reviewedAccounting.pins.length; i++) {
+        const rule = reviewedAccounting.pins[i],
+          fixture = pinMetadata[i],
+          prefix = `https://api.github.com/repos/${rule.repository}`;
+        if (url === prefix) response = { data: structuredClone(fixture.repository) };
+        else if (url === `${prefix}/releases/tags/${encodeURIComponent(rule.tag)}`)
+          response = { data: structuredClone(fixture.release) };
+        else if (url === `${prefix}/releases/${rule.release_id}/assets?per_page=100`)
+          response = { data: structuredClone(fixture.assets) };
+      }
+    }
+    assert.ok(response, `unexpected fixed request ${url}`);
+    response = mutate(url, response);
+    return new Response(response.data === null ? null : JSON.stringify(response.data), {
+      status: response.status ?? 200,
+      headers: { "content-type": "application/json", ...response.headers },
+    });
+  };
+}
+
+test("reviewed exact metadata and original conditions remain degraded without granting bytes or lineage", async () => {
+  const calls = [],
+    catalog = accountingCatalog();
+  const report = await collectRepositoryHealth(catalog, {
+    fetch: accountingFetch(calls),
+    githubToken: "synthetic-token",
+  });
+  assert.equal(report.outcome, "complete");
+  assert.equal(report.degradation, true);
+  assert.equal(report.coverage.repositories, 22);
+  assert.equal(report.coverage.attempted_repositories, 14);
+  assert.equal(report.coverage.reused_repositories, 8);
+  assert.equal(report.coverage.reachable_repositories, 8);
+  assert.equal(report.coverage.unknown_repositories, 14);
+  assert.equal(report.consumed.requests, 44);
+  assert.equal(calls.length, 44);
+  for (const call of calls) {
+    assert.equal(call.options.redirect, "manual");
+    if (call.url.startsWith("https://api.github.com/"))
+      assert.equal(call.options.headers.Authorization, "Bearer synthetic-token");
+    else {
+      assert.equal(call.options.method, "HEAD");
+      assert.equal(call.options.headers.Authorization, undefined);
+    }
+  }
+  for (const record of report.observations.filter((record) => record.pin_assessment)) {
+    assert.equal(record.http_status, 302);
+    assert.equal(record.status, "unknown");
+    assert.equal(record.reason, "provider-redirect");
+    assert.equal(record.pin_assessment.status, "provider-reported-pin-present");
+    assert.equal(record.pin_assessment.destination_availability, "unknown");
+    assert.equal(record.pin_assessment.accepted_bytes, "unverified");
+  }
+  for (const port of report.port_health) {
+    assert.equal(port.lineage.status, "unresolved");
+    assert.equal(port.accepted_artifact_obtainability.status, "unknown");
+  }
+  assert.ok(report.port_health.every((port) => port.lineage.catalog_upstream_status === "active"));
+  assert.ok(!JSON.stringify(report).includes("synthetic-private-value"));
+  assert.match(renderRepositoryHealth(report), /provider-reported-pin-present/);
+  assert.match(renderRepositoryHealth(report), /reviewed-original-condition/);
+  const original = JSON.stringify(catalog);
+  const comparison = await collectRepositoryHealth(catalog, {
+    fetch: accountingFetch([]),
+    previousReport: report,
+  });
+  assert.equal(comparison.outcome, "complete");
+  assert.equal(comparison.material_changes.length, 0);
+  assert.equal(original, JSON.stringify(catalog));
+});
+
+test("full catalog retains every location and pin check with eight fewer actual requests", async () => {
+  const calls = [];
+  const inventory = await collectRepositoryHealth(currentHealthCatalog, {
+    fetch: async () => {
+      throw new Error("offline inventory only");
+    },
+    now: () => 0,
+  });
+  const fixed = accountingFetch(calls);
+  const fixedPrefixes = reviewedAccounting.pins.map(
+    (pin) => `https://api.github.com/repos/${pin.repository}`,
+  );
+  const fixedUrls = new Set([
+    ...reviewedAccounting.pins.map((pin) => pin.url),
+    ...reviewedAccounting.original_conditions.map(
+      (rule) => `https://api.github.com/repos/${rule.repository}`,
+    ),
+  ]);
+  const report = await collectRepositoryHealth(currentHealthCatalog, {
+    fetch: async (url, options) => {
+      if (
+        fixedUrls.has(url) ||
+        fixedPrefixes.some((prefix) => url === prefix || url.startsWith(`${prefix}/`))
+      )
+        return fixed(url, options);
+      calls.push({ url, options });
+      if (options.method === "HEAD") {
+        const artifact = currentHealthCatalog.ports
+          .flatMap((port) => Object.values(port.release?.direct ?? {}))
+          .find((artifact) => artifact.url === url);
+        return new Response(null, { headers: { "content-length": String(artifact?.size ?? 0) } });
+      }
+      const record = inventory.observations.find((record) => {
+        const base =
+          record.provider === "github"
+            ? `https://api.github.com/repos/${record.repository}`
+            : `https://gitlab.com/api/v4/projects/${encodeURIComponent(record.repository)}`;
+        return (
+          url ===
+          (record.release_ref
+            ? `${base}/releases/${record.provider === "github" ? "tags/" : ""}${encodeURIComponent(record.release_ref)}`
+            : base)
+        );
+      });
+      assert.ok(record, url);
+      const assets = (record.historical_artifact_identities ?? []).map((identity) => ({
+        digest: `sha256:${identity.artifact_sha256}`,
+      }));
+      const facts = record.release_ref
+        ? {
+            id: 1,
+            tag_name: record.release_ref,
+            assets: record.provider === "github" ? assets : { links: assets },
+          }
+        : {
+            id: 1,
+            full_name: record.repository,
+            path_with_namespace: record.repository,
+            archived: false,
+          };
+      return new Response(JSON.stringify(facts), {
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+  assert.equal(
+    report.outcome,
+    "complete",
+    JSON.stringify(report.observations.filter((r) => !r.accounted_for)),
+  );
+  assert.equal(report.coverage.monitored_ports, 89);
+  assert.equal(report.coverage.repositories, 103);
+  assert.equal(report.coverage.attempted_repositories, 95);
+  assert.equal(report.coverage.reused_repositories, 8);
+  assert.equal(report.consumed.requests, 125);
+  assert.equal(calls.length, 125);
+  assert.equal(report.limits.requests, 128);
+  assert.equal(report.observations.filter((record) => record.pin_assessment).length, 10);
+  for (const pin of reviewedAccounting.pins) {
+    const prefix = `https://api.github.com/repos/${pin.repository}`;
+    assert.equal(calls.filter((call) => call.url === prefix).length, 1);
+    for (const endpoint of [
+      `${prefix}/releases/tags/${encodeURIComponent(pin.tag)}`,
+      `${prefix}/releases/${pin.release_id}/assets?per_page=100`,
+    ])
+      assert.equal(calls.filter((call) => call.url === endpoint).length, 1);
+  }
+  for (const original of reviewedAccounting.original_conditions)
+    assert.equal(
+      calls.filter((call) => call.url === `https://api.github.com/repos/${original.repository}`)
+        .length,
+      1,
+    );
+});
+
+test("repository reuse stays in one collection and failed or partial reads are never cached", async () => {
+  const catalog = accountingCatalog();
+  const first = await collectRepositoryHealth(catalog, { fetch: accountingFetch([]) });
+  const prefix = `https://api.github.com/repos/${reviewedAccounting.pins[0].repository}`;
+  for (const status of [301, 401, 404, 503]) {
+    const calls = [];
+    const report = await collectRepositoryHealth(catalog, {
+      previousReport: first,
+      fetch: accountingFetch(calls, (url, response) =>
+        url === prefix ? { ...response, status } : response,
+      ),
+    });
+    assert.equal(report.outcome, "incomplete", String(status));
+    assert.equal(calls.filter((call) => call.url === prefix).length, 2);
+    assert.equal(
+      report.observations.find(
+        (record) => record.repository === prefix.replace("https://api.github.com/repos/", ""),
+      ).metadata_reused,
+      false,
+    );
+    assert.equal(
+      report.observations.find((record) => record.repository === reviewedAccounting.pins[0].url)
+        .pin_assessment.status,
+      "unknown",
+    );
+  }
+  for (const invalid of [
+    () => new Response("{", { headers: { "content-type": "application/json" } }),
+    () => new Response("{}", { headers: { "content-type": "text/html" } }),
+    () =>
+      new Response("{}", {
+        headers: {
+          "content-type": "application/json",
+          link: '<https://example.invalid>; rel="next"',
+        },
+      }),
+  ]) {
+    const calls = [],
+      ordinary = accountingFetch(calls);
+    const report = await collectRepositoryHealth(catalog, {
+      fetch: (url, options) => {
+        if (url !== prefix) return ordinary(url, options);
+        calls.push({ url, options });
+        return invalid();
+      },
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(calls.filter((call) => call.url === prefix).length, 2);
+    assert.equal(
+      report.observations.find((record) => record.repository === reviewedAccounting.pins[0].url)
+        .pin_assessment.status,
+      "unknown",
+    );
+  }
+  const calls = [];
+  const fresh = await collectRepositoryHealth(catalog, {
+    previousReport: first,
+    fetch: accountingFetch(calls),
+  });
+  assert.equal(fresh.outcome, "complete");
+  assert.equal(calls.length, 44);
+});
+
+test("reused repository facts still fail pin and original-location identity checks", async () => {
+  const pin = reviewedAccounting.pins[0],
+    prefix = `https://api.github.com/repos/${pin.repository}`;
+  const calls = [];
+  const report = await collectRepositoryHealth(accountingCatalog(), {
+    fetch: accountingFetch(calls, (url, response) =>
+      url === prefix
+        ? { ...response, data: { ...response.data, full_name: "wrong/repository" } }
+        : response,
+    ),
+  });
+  assert.equal(calls.filter((call) => call.url === prefix).length, 1);
+  assert.equal(report.outcome, "incomplete");
+  const original = report.observations.find((record) => record.repository === pin.repository);
+  assert.equal(original.metadata_reused, true);
+  assert.equal(original.reason, "identity-mismatch");
+  assert.equal(original.accounted_for, false);
+  assert.equal(
+    report.observations.find((record) => record.repository === pin.url).pin_assessment.status,
+    "unknown",
+  );
+});
+
+test("captured repository metadata cannot bypass deadline or historical numeric identity", async () => {
+  const pin = reviewedAccounting.pins[0];
+  const catalog = { ports: accountingCatalog().ports.filter((port) => port.id === pin.port_id) };
+  const original = await collectRepositoryHealth(catalog, { fetch: accountingFetch([]) });
+  const baseline = structuredClone(original);
+  baseline.observations.find(
+    (record) => record.repository === pin.repository,
+  ).baseline_repository_id = 1;
+  const mismatch = await collectRepositoryHealth(catalog, {
+    previousReport: baseline,
+    fetch: accountingFetch([]),
+  });
+  const record = mismatch.observations.find((record) => record.repository === pin.repository);
+  assert.equal(record.metadata_reused, true);
+  assert.equal(record.reason, "identity-mismatch");
+  assert.equal(record.accounted_for, false);
+  assert.equal(mismatch.outcome, "incomplete");
+
+  let clock = 0;
+  const calls = [],
+    fixed = accountingFetch(calls);
+  const expired = await collectRepositoryHealth(catalog, {
+    now: () => clock,
+    fetch: async (url, options) => {
+      const response = await fixed(url, options);
+      if (url.endsWith("/assets?per_page=100")) clock = 180_001;
+      return response;
+    },
+  });
+  const unattempted = expired.observations.find((record) => record.repository === pin.repository);
+  assert.equal(unattempted.reason, "budget");
+  assert.equal(unattempted.attempted, false);
+  assert.equal(unattempted.metadata_reused, false);
+  assert.equal(expired.outcome, "incomplete");
+  assert.equal(calls.length, 4);
+});
+
+test("shared metadata validators require exact declared provider facts and complete collections", () => {
+  for (let i = 0; i < reviewedAccounting.pins.length; i++) {
+    const pin = reviewedAccounting.pins[i],
+      fixture = pinMetadata[i];
+    assert.deepEqual(githubDirectPin(pin.url), {
+      repository: pin.repository,
+      tag: pin.tag,
+      name: pin.name,
+    });
+    assert.equal(
+      validateGithubPinMetadata(fixture.repository, fixture.release, fixture.assets, pin).asset.id,
+      pin.asset_id,
+    );
+  }
+  for (const url of [
+    "https://example.org/a/b/releases/download/v1/a.zip",
+    "https://github.com/a/b/releases/download/v1/a.zip?token=x",
+    "https://github.com/a/b/releases/download/v1/a%2fzip",
+  ]) {
+    assert.throws(() => githubDirectPin(url));
+  }
+});
+
+test("missing or changed pin metadata remains unaccounted while retaining the original302", async () => {
+  const first = reviewedAccounting.pins[0];
+  const prefix = `https://api.github.com/repos/${first.repository}`;
+  const changes = [
+    [prefix, (response) => ({ ...response, data: { ...response.data, id: 1 } })],
+    [
+      prefix,
+      (response) => ({ ...response, data: { ...response.data, full_name: "other/reused" } }),
+    ],
+    [prefix, (response) => ({ ...response, data: { ...response.data, archived: true } })],
+    [
+      `${prefix}/releases/tags/${first.tag}`,
+      (response) => ({ ...response, status: 302, data: null }),
+    ],
+    [
+      `${prefix}/releases/tags/${first.tag}`,
+      (response) => ({ ...response, data: { ...response.data, id: 1 } }),
+    ],
+    [
+      `${prefix}/releases/tags/${first.tag}`,
+      (response) => ({ ...response, data: { ...response.data, draft: true } }),
+    ],
+    [
+      `${prefix}/releases/${first.release_id}/assets?per_page=100`,
+      (response) => ({ ...response, data: [] }),
+    ],
+    [
+      `${prefix}/releases/${first.release_id}/assets?per_page=100`,
+      (response) => ({
+        ...response,
+        headers: { link: '<https://example.invalid/next>; rel="next"' },
+      }),
+    ],
+  ];
+  for (const field of ["id", "size", "digest", "browser_download_url", "updated_at"])
+    changes.push([
+      `${prefix}/releases/${first.release_id}/assets?per_page=100`,
+      (response) => ({
+        ...response,
+        data: response.data.map((asset) =>
+          asset.id === first.asset_id
+            ? {
+                ...asset,
+                [field]:
+                  field === "id" || field === "size"
+                    ? 1
+                    : field === "digest"
+                      ? null
+                      : field === "updated_at"
+                        ? "2026-10-09T12:00:00Z"
+                        : "https://example.invalid/asset",
+              }
+            : asset,
+        ),
+      }),
+    ]);
+  for (const [endpoint, mutate] of changes) {
+    const calls = [];
+    const report = await collectRepositoryHealth(accountingCatalog(), {
+      fetch: accountingFetch(calls, (url, response) =>
+        url === endpoint ? mutate(response) : response,
+      ),
+    });
+    const record = report.observations.find((record) => record.repository === first.url);
+    assert.equal(report.outcome, "incomplete", endpoint);
+    assert.equal(record.http_status, 302);
+    assert.equal(record.pin_assessment.status, "unknown");
+    assert.equal(record.accounted_for, false);
+    assert.ok(calls.every((call) => !call.url.includes("example.invalid")));
+  }
+});
+
+test("reviewed original conditions cannot hide changed status, redirect identity or port contracts", async () => {
+  const original = reviewedAccounting.original_conditions[0];
+  const endpoint = `https://api.github.com/repos/${original.repository}`;
+  for (const change of [
+    (response) => ({ ...response, status: 302 }),
+    (response) => ({ ...response, status: 401 }),
+    (response) => ({ ...response, status: 503 }),
+    (response) => ({
+      ...response,
+      data: { message: "Moved Permanently", url: "https://api.github.com/repositories/1" },
+    }),
+    (response) => ({
+      ...response,
+      data: { message: "Moved Permanently", url: "https://example.invalid/redirect" },
+    }),
+  ]) {
+    const report = await collectRepositoryHealth(accountingCatalog(), {
+      fetch: accountingFetch([], (url, response) =>
+        url === endpoint ? change(response) : response,
+      ),
+    });
+    assert.equal(report.outcome, "incomplete");
+    assert.equal(
+      report.observations.find((record) => record.repository === original.repository).accounted_for,
+      false,
+    );
+  }
+  const changed = accountingCatalog();
+  changed.ports.find((port) => port.id === original.port_id).name += " changed";
+  assert.equal(
+    (await collectRepositoryHealth(changed, { fetch: accountingFetch([]) })).outcome,
+    "incomplete",
+  );
+  const summary = accountingCatalog();
+  summary.ports.forEach((port) => (port.summary += " clarified"));
+  assert.equal(
+    (await collectRepositoryHealth(summary, { fetch: accountingFetch([]) })).outcome,
+    "complete",
+  );
+  const shared = accountingCatalog();
+  const extra = structuredClone(shared.ports.find((port) => port.id === original.port_id));
+  extra.id = "unreviewed-shared-port";
+  shared.ports.push(extra);
+  assert.equal(
+    (
+      await collectRepositoryHealth(shared, {
+        fetch: accountingFetch([]),
+        portIds: [original.port_id],
+      })
+    ).outcome,
+    "incomplete",
+  );
+});
+
+test("missing pin scopes, malformed accounting rules and unclassified failures cannot authorize a pass", async () => {
+  const missing = structuredClone(reviewedAccounting);
+  missing.pins = [];
+  assert.equal(
+    (
+      await collectRepositoryHealth(accountingCatalog(), {
+        fetch: accountingFetch([]),
+        reviewedAccounting: missing,
+      })
+    ).outcome,
+    "incomplete",
+  );
+  const missingOriginal = structuredClone(reviewedAccounting);
+  missingOriginal.original_conditions = [];
+  assert.equal(
+    (
+      await collectRepositoryHealth(accountingCatalog(), {
+        fetch: accountingFetch([]),
+        reviewedAccounting: missingOriginal,
+      })
+    ).outcome,
+    "incomplete",
+  );
+  for (const mutate of [
+    (policy) => (policy.extra = true),
+    (policy) => (policy.pins[0].repository_id = 0),
+    (policy) => (policy.original_conditions[0].http_status = 302),
+    (policy) => policy.original_conditions.push(policy.original_conditions[0]),
+  ]) {
+    const invalid = structuredClone(reviewedAccounting);
+    mutate(invalid);
+    assert.throws(() => validateHealthAccountingPolicy(invalid));
+    let calls = 0;
+    await assert.rejects(
+      collectRepositoryHealth(accountingCatalog(), {
+        reviewedAccounting: invalid,
+        fetch: () => {
+          calls++;
+          throw Error("must not request");
+        },
+      }),
+    );
+    assert.equal(calls, 0);
+  }
+  const catalog = accountingCatalog();
+  const extra = structuredClone(catalog.ports[0]);
+  extra.id = "new-unclassified-port";
+  extra.project_url = "https://github.com/unclassified/project";
+  extra.release = { provider: "github", repository: "unclassified/project" };
+  catalog.ports.push(extra);
+  const ordinary = accountingFetch([]);
+  assert.equal(
+    (
+      await collectRepositoryHealth(catalog, {
+        fetch: (url, options) =>
+          url.includes("unclassified/project")
+            ? Promise.resolve(new Response(null, { status: 404 }))
+            : ordinary(url, options),
+      })
+    ).outcome,
+    "incomplete",
+  );
+});
+
+test("same-ID contradictory release and asset collections never account an exact pin", () => {
+  const pin = reviewedAccounting.pins[0],
+    fixture = pinMetadata[0];
+  for (const field of ["digest", "size", "browser_download_url", "state", "updated_at"]) {
+    const release = structuredClone(fixture.release);
+    const asset = release.assets.find((asset) => asset.id === pin.asset_id);
+    asset[field] =
+      field === "digest"
+        ? "sha256:" + "0".repeat(64)
+        : field === "size"
+          ? 1
+          : field === "state"
+            ? "new"
+            : field === "updated_at"
+              ? "2026-10-09T12:00:00Z"
+              : "https://github.com/" +
+                pin.repository +
+                "/releases/download/" +
+                pin.tag +
+                "/different.zip";
+    assert.throws(
+      () => validateGithubPinMetadata(fixture.repository, release, fixture.assets, pin),
+      field,
+    );
+  }
+});
+
+test("changed release classification or publication facts cannot inherit reviewed pin accounting", () => {
+  const pin = reviewedAccounting.pins[0],
+    fixture = pinMetadata[0];
+  for (const patch of [
+    { prerelease: !fixture.release.prerelease },
+    { published_at: "2026-10-09T12:00:00Z" },
+    { created_at: "2026-10-09T12:00:00Z" },
+  ]) {
+    assert.throws(() =>
+      validateGithubPinMetadata(
+        fixture.repository,
+        { ...fixture.release, ...patch },
+        fixture.assets,
+        pin,
+      ),
+    );
+  }
 });

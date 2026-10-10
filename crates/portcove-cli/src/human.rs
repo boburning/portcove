@@ -710,6 +710,25 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
     } else {
         output.push_str("\nRecorded scan limits: not recorded.");
     }
+    if let Some(coverage) = &snapshot.coverage {
+        output.push_str(&format!(
+            "\nScan batches: {}; this batch examined {} entries, re-listed {} entries, and made {} metadata checks.\nPrior-batch file-set members rehashed: {}.\nPending directories: {}. Remaining entries: {}.",
+            coverage.batches, coverage.batch_entries_examined, coverage.entries_relisted,
+            coverage.metadata_checks, coverage.prior_member_rechecks, coverage.pending_directories,
+            coverage.remaining_entries.map_or_else(|| "unknown".into(), |count| count.to_string()),
+        ));
+        output.push_str(if coverage.restart_required {
+            "\nContinuation was refused. Repeat source roots scan to start fresh."
+        } else if coverage.can_resume {
+            "\nRepeat source roots scan with the same limits to resume the saved checkpoint."
+        } else if coverage.frontier_exhausted {
+            "\nRecorded directory frontier exhausted; limits and issues may still leave coverage incomplete."
+        } else {
+            "\nScan stopped at a terminal safety limit; a new scan starts fresh."
+        });
+    } else {
+        output.push_str("\nContinuation coverage: not recorded; a new scan starts fresh.");
+    }
     if snapshot.report.limits_reached.is_empty() {
         output.push_str("\nNo recorded scan limits reached.");
     } else {
@@ -2123,6 +2142,8 @@ mod tests {
             },
             completed_at: 2,
             freshness: GameFileScanFreshness::InputsMatch,
+            coverage: None,
+            continuation: None,
         }
     }
 
@@ -2200,6 +2221,39 @@ mod tests {
         let output = super::game_file_scan_snapshot(&Some(legacy));
         assert!(output.contains("Recorded scan limits: not recorded."));
         assert!(!output.contains("Recorded scan limits: entries="));
+    }
+
+    #[test]
+    fn saved_scan_readback_distinguishes_resume_restart_and_exhausted_frontier() {
+        let mut snapshot = scan_snapshot_fixture();
+        snapshot.coverage = Some(portcove_core::GameFileScanCoverage {
+            batches: 2,
+            batch_entries_examined: 1,
+            entries_relisted: 3,
+            metadata_checks: 8,
+            prior_member_rechecks: 1,
+            pending_directories: 2,
+            can_resume: true,
+            ..Default::default()
+        });
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Scan batches: 2; this batch examined 1 entries"));
+        assert!(output.contains("Remaining entries: unknown"));
+        assert!(output.contains("same limits to resume"));
+        let coverage = snapshot.coverage.as_mut().unwrap();
+        coverage.can_resume = false;
+        coverage.restart_required = true;
+        snapshot.freshness = portcove_core::GameFileScanFreshness::InputsChanged;
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Continuation was refused"));
+        assert!(!output.contains("same limits to resume"));
+        let coverage = snapshot.coverage.as_mut().unwrap();
+        coverage.restart_required = false;
+        coverage.frontier_exhausted = true;
+        coverage.remaining_entries = Some(0);
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Remaining entries: 0"));
+        assert!(output.contains("issues may still leave coverage incomplete"));
     }
 
     #[test]

@@ -1,0 +1,99 @@
+{
+  "repository": {
+    "id": 1352790254,
+    "full_name": "alexbeavs-ps1-ports/fade-to-black-recomp",
+    "archived": false
+  },
+  "release": {
+    "id": 382786811,
+    "tag_name": "v0.3.6",
+    "draft": false,
+    "prerelease": false,
+    "created_at": "2026-09-04T11:49:31Z",
+    "published_at": "2026-09-04T14:48:44Z",
+    "assets": [
+      {
+        "id": 544445625,
+        "name": "Fade-to-Black-Recomp-0.3.6-linux-x64.zip",
+        "size": 28045594,
+        "state": "uploaded",
+        "digest": "sha256:fadb05389a6db767d04046bb095ec3fc14aacf665a876dd52fa81e0125c4cd72",
+        "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-linux-x64.zip",
+        "created_at": "2026-09-04T14:20:56Z",
+        "updated_at": "2026-09-04T14:20:58Z"
+      },
+      {
+        "id": 544445697,
+        "name": "Fade-to-Black-Recomp-0.3.6-macos-arm64.zip",
+        "size": 25789409,
+        "state": "uploaded",
+        "digest": "sha256:747ac3d435f4f57087e2206279b2b080810195907b3f7536995b221fc7ca42c7",
+        "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-macos-arm64.zip",
+        "created_at": "2026-09-04T14:21:00Z",
+        "updated_at": "2026-09-04T14:21:02Z"
+      },
+      {
+        "id": 544445822,
+        "name": "Fade-to-Black-Recomp-0.3.6-macos-x64.zip",
+        "size": 26134861,
+        "state": "uploaded",
+        "digest": "sha256:3c15ec6e006fea6140b9aac99536acebb5ad6194bbf8a6d62202296321ba6788",
+        "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-macos-x64.zip",
+        "created_at": "2026-09-04T14:21:05Z",
+        "updated_at": "2026-09-04T14:21:06Z"
+      },
+      {
+        "id": 544445910,
+        "name": "Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+        "size": 30151839,
+        "state": "uploaded",
+        "digest": "sha256:5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
+        "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+        "created_at": "2026-09-04T14:21:09Z",
+        "updated_at": "2026-09-04T14:21:11Z"
+      }
+    ]
+  },
+  "assets": [
+    {
+      "id": 544445625,
+      "name": "Fade-to-Black-Recomp-0.3.6-linux-x64.zip",
+      "size": 28045594,
+      "state": "uploaded",
+      "digest": "sha256:fadb05389a6db767d04046bb095ec3fc14aacf665a876dd52fa81e0125c4cd72",
+      "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-linux-x64.zip",
+      "created_at": "2026-09-04T14:20:56Z",
+      "updated_at": "2026-09-04T14:20:58Z"
+    },
+    {
+      "id": 544445697,
+      "name": "Fade-to-Black-Recomp-0.3.6-macos-arm64.zip",
+      "size": 25789409,
+      "state": "uploaded",
+      "digest": "sha256:747ac3d435f4f57087e2206279b2b080810195907b3f7536995b221fc7ca42c7",
+      "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-macos-arm64.zip",
+      "created_at": "2026-09-04T14:21:00Z",
+      "updated_at": "2026-09-04T14:21:02Z"
+    },
+    {
+      "id": 544445822,
+      "name": "Fade-to-Black-Recomp-0.3.6-macos-x64.zip",
+      "size": 26134861,
+      "state": "uploaded",
+      "digest": "sha256:3c15ec6e006fea6140b9aac99536acebb5ad6194bbf8a6d62202296321ba6788",
+      "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-macos-x64.zip",
+      "created_at": "2026-09-04T14:21:05Z",
+      "updated_at": "2026-09-04T14:21:06Z"
+    },
+    {
+      "id": 544445910,
+      "name": "Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+      "size": 30151839,
+      "state": "uploaded",
+      "digest": "sha256:5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3",
+      "browser_download_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/releases/download/v0.3.6/Fade-to-Black-Recomp-0.3.6-windows-x64.zip",
+      "created_at": "2026-09-04T14:21:09Z",
+      "updated_at": "2026-09-04T14:21:11Z"
+    }
+  ]
+}

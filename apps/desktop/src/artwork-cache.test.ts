@@ -7,6 +7,181 @@ import type { ArtworkState } from "./types";
 afterEach(() => vi.restoreAllMocks());
 
 describe("disposable artwork display cache", () => {
+  it("retains a slot's usable display after metadata refresh fails, then accepts current replacement", async () => {
+    const selected = artworkState("sample", "cover", 1, true);
+    const read = vi.spyOn(desktopApi, "artwork").mockResolvedValue(selected);
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    const previous = cache.read("sample", "cover");
+    read.mockRejectedValueOnce(new Error("Artwork read unavailable."));
+    await cache.load("sample", "cover", true);
+    expect(cache.read("sample", "cover")).toMatchObject({
+      state: selected,
+      image: previous.image,
+      stale: true,
+      loading: false,
+      error: "Artwork read unavailable.",
+    });
+    const mutation = vi.spyOn(desktopApi, "resetArtwork");
+    expect(await cache.change("sample", "cover", 1, null, () => true)).toBeUndefined();
+    expect(mutation).not.toHaveBeenCalled();
+    const replacement = artworkState("sample", "cover", 2);
+    read.mockResolvedValueOnce(replacement);
+    await cache.load("sample", "cover", true);
+    expect(cache.read("sample", "cover")).toMatchObject({ state: replacement, loading: false });
+    expect(cache.read("sample", "cover").image).toBeUndefined();
+    expect(cache.read("sample", "cover").stale).toBeUndefined();
+    expect(cache.read("sample", "cover").error).toBeUndefined();
+  });
+
+  it("holds a queued mutation after a failing read and keeps the other slot independent", async () => {
+    const read = vi
+      .spyOn(desktopApi, "artwork")
+      .mockImplementation(async (port, slot) => artworkState(port, slot));
+    const change = vi
+      .spyOn(desktopApi, "importArtwork")
+      .mockResolvedValue(artworkState("sample", "detail", 1, true));
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    await cache.load("sample", "detail");
+    let reject!: (error: Error) => void;
+    read.mockReturnValueOnce(
+      new Promise((_resolve, fail) => {
+        reject = fail;
+      }),
+    );
+    const refresh = cache.load("sample", "cover", true);
+    await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(3));
+    const queued = cache.change("sample", "cover", 0, "owned.png", () => true);
+    reject(new Error("Read failed."));
+    await refresh;
+    expect(await queued).toBeUndefined();
+    expect(change).not.toHaveBeenCalled();
+    expect(await cache.change("sample", "detail", 0, "owned.png", () => true)).toBeDefined();
+    expect(change).toHaveBeenCalledExactlyOnceWith("sample", "detail", "owned.png", 0, 7);
+    expect(cache.read("sample", "cover").stale).toBe(true);
+  });
+
+  it("does not invent prior state on cold failure or restore a renderer-rejected image", async () => {
+    const read = vi.spyOn(desktopApi, "artwork").mockRejectedValueOnce(new Error("Unavailable."));
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    expect(cache.read("sample", "cover").state).toBeUndefined();
+    expect(cache.read("sample", "cover").image).toBeUndefined();
+    read.mockResolvedValueOnce(artworkState("sample", "cover", 1, true));
+    await cache.load("sample", "cover", true);
+    cache.read("sample", "cover").onImageError?.();
+    read.mockRejectedValueOnce(new Error("Unavailable."));
+    await cache.load("sample", "cover", true);
+    expect(cache.read("sample", "cover").image).toBeUndefined();
+    expect(cache.read("sample", "cover").stale).toBe(true);
+  });
+
+  it("does not let a pending thumbnail erase metadata uncertainty", async () => {
+    const local = artworkState("sample", "cover", 1, true);
+    const state: ArtworkState = {
+      ...local,
+      selection: null,
+      resolved_source: {
+        kind: "igdb_cover",
+        cache_id: "b".repeat(64),
+        artwork: {
+          game_id: 1,
+          cover_id: 2,
+          image_id: "image",
+          image_sha256: "a".repeat(64),
+          game_slug: "game",
+          match_kind: "port",
+        },
+      },
+    };
+    const read = vi
+      .spyOn(desktopApi, "artwork")
+      .mockResolvedValueOnce(state)
+      .mockRejectedValueOnce(new Error("Read failed."));
+    let finish!: (value: {
+      asset_sha256: string;
+      choice_revision: number;
+      png_base64: string;
+    }) => void;
+    vi.spyOn(desktopApi, "artworkThumbnail").mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    await cache.load("sample", "cover", true);
+    finish({ asset_sha256: "b".repeat(64), choice_revision: 1, png_base64: "iVBORw==" });
+    await vi.waitFor(() => expect(cache.read("sample", "cover").image).toBeDefined());
+    expect(cache.read("sample", "cover")).toMatchObject({
+      stale: true,
+      error: "Read failed.",
+      loading: false,
+    });
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  it("discards a choice known obsolete after commit when its readback fails", async () => {
+    const read = vi
+      .spyOn(desktopApi, "artwork")
+      .mockResolvedValueOnce(artworkState("sample", "cover", 1, true))
+      .mockRejectedValueOnce(new Error("Readback unavailable."));
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    await cache.refreshAfterChange("sample", "cover", () => true, 2);
+    expect(cache.read("sample", "cover").state).toBeUndefined();
+    expect(cache.read("sample", "cover").image).toBeUndefined();
+    expect(cache.read("sample", "cover").error).toBe("Readback unavailable.");
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves a newer authoritative choice when delayed commit readback fails", async () => {
+    const newer = artworkState("sample", "cover", 3, true);
+    const read = vi
+      .spyOn(desktopApi, "artwork")
+      .mockResolvedValueOnce(newer)
+      .mockRejectedValueOnce(new Error("Readback unavailable."));
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 3,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    await cache.load("sample", "cover");
+    const image = cache.read("sample", "cover").image;
+    await cache.refreshAfterChange("sample", "cover", () => true, 2);
+    expect(cache.read("sample", "cover")).toMatchObject({
+      state: newer,
+      image,
+      stale: true,
+      loading: false,
+      error: "Readback unavailable.",
+    });
+    expect(image).toBeDefined();
+    expect(read).toHaveBeenCalledTimes(2);
+  });
+
   it("reads post-change state after an earlier pending read completes", async () => {
     let finish!: (value: ArtworkState) => void;
     const selected = artworkState("sample", "cover", 1, true);

@@ -534,10 +534,43 @@ function exportDesktopSchemas(root) {
   return JSON.parse(command.stdout.trim());
 }
 
+export function checkRepositoryDesktopExposure(root) {
+  const failures = [];
+  const desktopRustRoot = path.join(root, "apps", "desktop", "src-tauri", "src");
+  const desktopExporterPath = path.join(
+    root,
+    "apps",
+    "desktop",
+    "src-tauri",
+    "examples",
+    "export_transport.rs",
+  );
+  const declarationSource = fs.readFileSync(path.join(desktopRustRoot, "transport.rs"), "utf8");
+  const declarationSources = rustSources(desktopRustRoot);
+  const frontendSources = shippedFrontendSources(path.join(root, "apps", "desktop", "src"));
+  failures.push(
+    ...checkDesktopCommandContract({
+      registrationSource: fs.readFileSync(path.join(desktopRustRoot, "lib.rs"), "utf8"),
+      declarationSources,
+      frontendSources,
+    }).map((message) => `Desktop commands: ${message}`),
+  );
+  failures.push(
+    ...checkDesktopEventContract({
+      declarationSource,
+      producerSources: declarationSources,
+      exporterSource: fs.readFileSync(desktopExporterPath, "utf8"),
+      frontendSources,
+    }).map((message) => `Desktop events: ${message}`),
+  );
+  return failures;
+}
+
 function main() {
   const { values } = parseArgs({
     options: {
       write: { type: "boolean", default: false },
+      "ipc-only": { type: "boolean", default: false },
       types: { type: "string" },
       "host-types": { type: "string" },
       "host-events": { type: "string" },
@@ -546,6 +579,15 @@ function main() {
   if (values.write && (values.types || values["host-types"] || values["host-events"]))
     throw new Error("--write only updates the repository generated contract");
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  if (values["ipc-only"]) {
+    if (values.write || values.types || values["host-types"] || values["host-events"])
+      throw new Error("--ipc-only cannot write or substitute schema inputs");
+    const failures = checkRepositoryDesktopExposure(root);
+    if (failures.length)
+      throw new Error(`Desktop command/event exposure drift:\n- ${failures.join("\n- ")}`);
+    console.log("Desktop command/event exposure matches Rust.");
+    return;
+  }
   const schemas = exportSchemas(root, "output");
   const typesPath = values.types
     ? path.resolve(values.types)
@@ -594,33 +636,7 @@ function main() {
       (message) => `Desktop events: ${message}`,
     ),
   );
-  const desktopRustRoot = path.join(root, "apps", "desktop", "src-tauri", "src");
-  const desktopExporterPath = path.join(
-    root,
-    "apps",
-    "desktop",
-    "src-tauri",
-    "examples",
-    "export_transport.rs",
-  );
-  const declarationSource = fs.readFileSync(path.join(desktopRustRoot, "transport.rs"), "utf8");
-  const declarationSources = rustSources(desktopRustRoot);
-  const frontendSources = shippedFrontendSources(path.join(root, "apps", "desktop", "src"));
-  failures.push(
-    ...checkDesktopCommandContract({
-      registrationSource: fs.readFileSync(path.join(desktopRustRoot, "lib.rs"), "utf8"),
-      declarationSources,
-      frontendSources,
-    }).map((message) => `Desktop commands: ${message}`),
-  );
-  failures.push(
-    ...checkDesktopEventContract({
-      declarationSource,
-      producerSources: declarationSources,
-      exporterSource: fs.readFileSync(desktopExporterPath, "utf8"),
-      frontendSources,
-    }).map((message) => `Desktop events: ${message}`),
-  );
+  failures.push(...checkRepositoryDesktopExposure(root));
   if (failures.length > 0) {
     process.stderr.write(`Transport contract drift:\n- ${failures.join("\n- ")}\n`);
     process.exit(1);

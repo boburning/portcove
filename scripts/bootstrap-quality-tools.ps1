@@ -1,7 +1,7 @@
 param(
     [switch]$IncludeDeep,
     [switch]$Desktop,
-    [ValidateSet("standard", "frontend", "core", "daily", "native-desktop")][string]$Profile = "standard",
+    [Alias("Profile")][ValidateSet("standard", "frontend", "core", "daily", "native-desktop")][string]$CapabilityProfile = "standard",
     [Alias("h")][switch]$Help
 )
 
@@ -35,9 +35,9 @@ $aquaRoot = [IO.Path]::GetFullPath([string]$toolPaths.aquaRoot)
 $aquaExecutable = [IO.Path]::GetFullPath([string]$toolPaths.aquaExecutable)
 
 $capabilityPlan = $null
-if ($Profile -ne "standard") {
+if ($CapabilityProfile -ne "standard") {
     if ($Desktop -or $IncludeDeep) { throw "Selective profiles cannot be combined with legacy -Desktop or -IncludeDeep" }
-    $planJson = & node (Join-Path $PSScriptRoot "development-capabilities.mjs") --profile $Profile
+    $planJson = & node (Join-Path $PSScriptRoot "development-capabilities.mjs") --profile $CapabilityProfile
     if ($LASTEXITCODE -ne 0) { throw "Could not select requested development capabilities" }
     $capabilityPlan = $planJson | ConvertFrom-Json
     if ($capabilityPlan.setup.native -and -not $runningOnWindows) {
@@ -48,9 +48,11 @@ function Install-SelectedFrontend {
     if ((& node --version) -ne "v$requiredNodeVersion") { throw "Node $requiredNodeVersion is required for frontend setup" }
     & corepack ([string]$toolPaths.pins.packageManager) install --frozen-lockfile
     if ($LASTEXITCODE -ne 0) { throw "Requested frontend dependency provisioning failed" }
+    & node (Join-Path $PSScriptRoot "hooks-install.mjs")
+    if ($LASTEXITCODE -ne 0) { throw "Explicit development hook setup failed; existing hooks were preserved" }
 }
 if ($capabilityPlan -and $capabilityPlan.setup.frontend) { Install-SelectedFrontend }
-if ($Profile -eq "frontend") {
+if ($CapabilityProfile -eq "frontend") {
     & node (Join-Path $PSScriptRoot "dev-doctor.mjs") --profile frontend
     if ($LASTEXITCODE -ne 0) { throw "Requested frontend profile remains incomplete" }
     exit 0
@@ -527,8 +529,8 @@ finally {
 }
 
 if ($capabilityPlan) {
-    & node (Join-Path $PSScriptRoot "dev-doctor.mjs") --profile $Profile
-    if ($LASTEXITCODE -ne 0) { throw "Requested $Profile profile remains incomplete" }
+    & node (Join-Path $PSScriptRoot "dev-doctor.mjs") --profile $CapabilityProfile
+    if ($LASTEXITCODE -ne 0) { throw "Requested $CapabilityProfile profile remains incomplete" }
 }
 Write-Output "Pinned Portcove tools are ready in $sharedRoot."
 Write-Output "Checkout shims are ready in $shimDirectory."

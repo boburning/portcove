@@ -36,9 +36,11 @@ export function ArtworkImage({
       ) : (
         <span>{fallback?.initials ?? "PC"}</span>
       )}
-      {(display.error || display.state?.availability === "unavailable") && (
+      {display.stale ? (
+        <small className="artwork-image-note">Previously loaded artwork</small>
+      ) : display.error || display.state?.availability === "unavailable" ? (
         <small className="artwork-image-note">Image unavailable</small>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -111,13 +113,14 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
     currentIdentity.current.slot === slot &&
     currentIdentity.current.cache?.generation === cache?.generation;
   const stillCurrent = () => stillInView() && currentIdentity.current.cache === cache;
-  const refreshCurrent = async () => {
+  const refreshCurrent = async (committedRevision?: number) => {
     const current = currentIdentity.current.cache;
     if (!stillInView() || !current) return;
     await current.refreshAfterChange(
       port.id,
       slot,
       () => stillInView() && currentIdentity.current.cache === current,
+      committedRevision,
     );
   };
   const finishChange = (pick: boolean) => {
@@ -143,7 +146,7 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
       changeRequested = true;
       const result = await cache.change(port.id, slot, revision, path, stillCurrent);
       if (result && stillInView()) {
-        if (currentIdentity.current.cache !== cache) await refreshCurrent();
+        if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
         if (!stillInView()) return;
         setMessage(
           pick
@@ -175,7 +178,7 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
           ref={pickerButton}
           data-focusable
           variant="outline"
-          disabled={pending || !display.state}
+          disabled={pending || !display.state || display.stale}
           onClick={() => void change(true)}
         >
           Choose local image
@@ -184,7 +187,7 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
           ref={resetButton}
           data-focusable
           variant="outline"
-          disabled={pending || !display.state?.selection}
+          disabled={pending || !display.state?.selection || display.stale}
           onClick={() => void change(false)}
         >
           Reset to default
@@ -207,6 +210,9 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
       <p role="status">
         {pending ? "Updating artwork…" : (message ?? (display.loading ? "Loading artwork…" : ""))}
       </p>
+      {display.stale && (
+        <p role="status">Showing previously loaded artwork. Refresh to check the current choice.</p>
+      )}
       {(error || display.error) && <p role="alert">{error ?? display.error}</p>}
       <details className="artwork-source">
         <summary data-focusable>View source / author information</summary>

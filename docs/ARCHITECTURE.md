@@ -717,6 +717,12 @@ request's progress, provisional matches and cancellation target, and does not
 start another scan. Settled or disposed-workspace callbacks cannot populate a
 new observer. Library replacement disposes observation without automatically
 cancelling core work; this is not a durable scan intent or restart guarantee.
+Desktop presents core's optional completed-scan coverage with cumulative batch
+counts and explicit unknown remaining-entry counts. A refreshed, matching
+snapshot with a resumable frontier offers Continue scan; a required restart
+offers Start new scan. Both use the existing bounded scan command and limits.
+Exhausting the folder frontier does not erase skipped files or imply gameplay
+support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently
 from API schema and validates candidate fields without changing lifecycle state.
 
@@ -1518,6 +1524,27 @@ disc sets before a source record becomes usable.
 `HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
 
 Preference writers serialize through a process lock keyed by the exact preference path before taking the persistent sibling operating-system lock, then publish a flushed sibling atomically using the shared durability helper. The process lock closes platforms where operating-system file locks do not serialize handles owned by one process; the sibling lock preserves the cross-process boundary. Reads never create files. Setting or clearing a library preserves compatible unknown JSON fields and unrelated host preferences; explicit recovery reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
+
+Favorites use the compatible `favorites_by_library` extension in that same
+format-1 host preference document. `HostPreferenceStore::favorite_ports` and
+`set_favorite` read or change independent canonical port IDs under a selected
+library's canonical 32-character lowercase hexadecimal ID obtained from `Library::identity_record`. Display-name
+corrections and managed library moves preserve that identity; importing into a
+different library does not inherit its favorites. Temporarily absent or retired
+catalog IDs remain stored until explicitly unset. The existing locks, atomic
+publication and 64 KiB document limit apply, and unrelated preferences and unknown
+extensions survive a change. Removing the last choice removes the empty extension;
+explicit preference reset clears it with the rest of the document.
+
+Only favorites operations decode this extension. A malformed favorite map reports
+an actionable preference error without preventing ordinary library selection,
+locale or host-tool preference operations, and those writers preserve it as JSON
+data rather than silently deleting it. Reads create no storage, and favorite
+changes neither open a library nor confer installation, source or catalog
+ownership. These private host choices do not enter public catalog data or trigger
+networking or scanning. This is the Core preference foundation for #1552; Desktop
+toggles, filter composition, counts and navigation remain separate implementation
+and acceptance work under that issue.
 
 For a live desktop switch, the adapter makes its current state unavailable and drops its cached library/providers. Core then acquires an exclusive lease on the old root; an already-dispatched operation retains a shared lease and makes the switch fail, after which the adapter reopens the old state. Only a successfully opened target is persisted and published as current. A monotonically increasing bootstrap generation remounts React's library-owned state so results from the old workspace cannot populate the new one. This introduces no second library authority or database/catalog migration.
 

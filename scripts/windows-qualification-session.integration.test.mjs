@@ -31,6 +31,74 @@ const installerLifecycleTool = fileURLToPath(
 const csc = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe";
 const sha256 = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 
+function unverifiedChildCaptureFailed(evidence) {
+  const value = evidence.unverified_child_capture_failed;
+  return typeof value === "boolean" ? value : null;
+}
+
+function unverifiedChildProjection(evidence) {
+  const records = evidence.unverified_child_observations;
+  if (!Array.isArray(records)) return [];
+  return records.slice(0, 1).map((record) => {
+    const projected = {};
+    for (const key of ["cim_pid", "cim_parent_pid", "retained_pid"]) {
+      const value = record?.[key];
+      projected[key] = Number.isSafeInteger(value) && value >= 0 ? value : null;
+    }
+    for (const key of ["cim_creation_time", "retained_start_time"]) {
+      const value = record?.[key];
+      projected[key] =
+        typeof value === "string" &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{1,7}(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+          ? value
+          : null;
+    }
+    for (const key of ["initial_has_exited", "refusal_has_exited", "cim_path_present"]) {
+      projected[key] = typeof record?.[key] === "boolean" ? record[key] : null;
+    }
+    projected.image_read_state = ["null", "blank"].includes(record?.image_read_state)
+      ? record.image_read_state
+      : null;
+    return projected;
+  });
+}
+
+test("unverified child failure projection bounds and sanitizes diagnostic scalars", () => {
+  const record = {
+    cim_pid: 42,
+    cim_parent_pid: Infinity,
+    retained_pid: "private process text",
+    cim_creation_time: "2026-10-09T04:00:00.0000000Z",
+    retained_start_time: "private path",
+    initial_has_exited: false,
+    refusal_has_exited: "private text",
+    cim_path_present: true,
+    image_read_state: "blank",
+    executable_path: "private path",
+  };
+  assert.deepEqual(unverifiedChildProjection({ unverified_child_observations: [record, record] }), [
+    {
+      cim_pid: 42,
+      cim_parent_pid: null,
+      retained_pid: null,
+      cim_creation_time: "2026-10-09T04:00:00.0000000Z",
+      retained_start_time: null,
+      initial_has_exited: false,
+      refusal_has_exited: null,
+      cim_path_present: true,
+      image_read_state: "blank",
+    },
+  ]);
+  assert.deepEqual(unverifiedChildProjection({}), []);
+  assert.equal(unverifiedChildCaptureFailed({ unverified_child_capture_failed: true }), true);
+  assert.equal(unverifiedChildCaptureFailed({ unverified_child_capture_failed: false }), false);
+  assert.equal(
+    unverifiedChildCaptureFailed({ unverified_child_capture_failed: "private text" }),
+    null,
+  );
+  assert.equal(unverifiedChildCaptureFailed({}), null);
+});
+
 function runPowerShell(args, options = {}) {
   return spawnSync("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", script, ...args], {
     encoding: "utf8",
@@ -485,6 +553,14 @@ writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.st
         assert.ok(existsSync(observed.app));
         removeInstallerLifecycleRegistration(item);
       } else {
+        if (result.status !== 0) {
+          t.diagnostic(
+            JSON.stringify({
+              unverified_child_observations: unverifiedChildProjection(evidence),
+              unverified_child_capture_failed: unverifiedChildCaptureFailed(evidence),
+            }),
+          );
+        }
         assert.equal(result.status, 0, result.stderr);
         assert.equal(evidence.phase, "complete");
         assert.equal(
