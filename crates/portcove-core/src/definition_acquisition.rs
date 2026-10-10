@@ -6,6 +6,19 @@ use crate::{AdapterKind, PortDefinition, PortcoveError, ReleaseSource, ResolvedR
 pub(crate) const MANAGED_GRANT_PREFIX: &str = "managed-github-v1-";
 pub(crate) const MANAGED_OPERATIONS: [&str; 4] = ["install", "update", "prepare", "launch"];
 
+pub(crate) fn valid_github_repository(repository: &str) -> bool {
+    let segments = repository.split('/').collect::<Vec<_>>();
+    segments.len() == 2
+        && repository.len() <= 255
+        && segments.iter().all(|segment| {
+            !segment.is_empty()
+                && !matches!(*segment, "." | "..")
+                && segment
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
+        })
+}
+
 pub(crate) fn restricted_grant(grant_id: &str) -> bool {
     grant_id.starts_with(MANAGED_GRANT_PREFIX)
 }
@@ -139,18 +152,8 @@ impl DefinitionAcquisitionScope {
 
     pub(crate) fn validate_port(port: &PortDefinition) -> Result<()> {
         crate::curated_acquisition::require_runtime_authority(port)?;
-        let segments = port.release.repository.split('/').collect::<Vec<_>>();
-        let repository_valid = segments.len() == 2
-            && port.release.repository.len() <= 255
-            && segments.iter().all(|segment| {
-                !segment.is_empty()
-                    && !matches!(*segment, "." | "..")
-                    && segment.bytes().all(|byte| {
-                        byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')
-                    })
-            });
         if port.release.provider != ReleaseSource::Github
-            || !repository_valid
+            || !valid_github_repository(&port.release.repository)
             || !port.bundled_runtime.is_empty()
             || !matches!(
                 port.adapter,

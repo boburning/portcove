@@ -1130,6 +1130,15 @@ export interface ReleaseSpec {
     "macos-x86-64"?: string[];
     "windows-x86-64"?: string[];
   };
+  /**
+   * Inert exact-byte proposal records; runtime authority is separately admitted.
+   */
+  curated?: {
+    "linux-x86-64"?: CuratedAcquisitionRecord;
+    "macos-aarch64"?: CuratedAcquisitionRecord;
+    "macos-x86-64"?: CuratedAcquisitionRecord;
+    "windows-x86-64"?: CuratedAcquisitionRecord;
+  };
   direct: {
     "linux-x86-64"?: DirectReleaseSpec;
     "macos-aarch64"?: DirectReleaseSpec;
@@ -1146,6 +1155,31 @@ export interface ReleaseSpec {
     "windows-x86-64"?: UserPreparedRuntimeSpec;
   };
   [k: string]: unknown;
+}
+export interface CuratedAcquisitionRecord {
+  acquisition_evidence: CuratedEvidenceReference;
+  acquisition_host: string;
+  acquisition_url: string;
+  asset_id: number;
+  commit_sha1: string;
+  distribution_basis: string;
+  distribution_evidence: CuratedEvidenceReference;
+  filename: string;
+  independent_review: CuratedEvidenceReference;
+  platform: Platform;
+  protected_acceptance: CuratedEvidenceReference;
+  record_version: number;
+  release_id: number;
+  repository: string;
+  route: string;
+  sha256: string;
+  size: number;
+  tag: string;
+  upstream_url: string;
+}
+export interface CuratedEvidenceReference {
+  sha256: string;
+  url: string;
 }
 export interface DirectReleaseSpec {
   published_at: string | null;

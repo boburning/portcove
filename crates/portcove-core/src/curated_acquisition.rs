@@ -66,6 +66,11 @@ impl CuratedAcquisitionRecord {
     /// Checks declared identity and attribution only. No URL is fetched and
     /// neither digest equality nor a claimed acceptance reference grants trust.
     pub(crate) fn validate(&self, repository: &str, platform: Platform) -> Result<()> {
+        if !crate::definition_acquisition::valid_github_repository(repository) {
+            return Err(PortcoveError::usage(
+                "invalid curated repository coordinates",
+            ));
+        }
         let upstream = format!("https://github.com/{repository}");
         let acquisition = https_reference(&self.acquisition_url);
         let mut expected_acquisition = https_reference(&upstream)
@@ -278,6 +283,32 @@ mod tests {
         assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
         let parsed = crate::Catalog::from_json(std::str::from_utf8(&bytes).unwrap()).unwrap();
         assert!(require_runtime_authority(parsed.port("dkr-r").unwrap()).is_err());
+        for repository in [
+            "owner/..",
+            "../project",
+            "owner/project?alias",
+            "owner/project#alias",
+            "owner/%2e%2e",
+        ] {
+            let mut invalid = value.clone();
+            let port = invalid["ports"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|port| port["id"] == "dkr-r")
+                .unwrap();
+            port["release"]["repository"] = serde_json::json!(repository);
+            let record = &mut port["release"]["curated"]["windows-x86-64"];
+            record["repository"] = serde_json::json!(repository);
+            record["upstream_url"] = serde_json::json!(format!("https://github.com/{repository}"));
+            record["acquisition_url"] =
+                serde_json::json!("https://github.com/releases/download/fixture/game.zip");
+            std::fs::write(&input, serde_json::to_vec(&invalid).unwrap()).unwrap();
+            assert!(
+                crate::Catalog::inspect_proposal(&input).is_err(),
+                "{repository}"
+            );
+        }
         value["schema_version"] = serde_json::json!(1);
         assert!(crate::Catalog::from_json(&value.to_string()).is_err());
     }
