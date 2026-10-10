@@ -40,6 +40,47 @@ import { buildValidationPlan } from "./validation-plan.mjs";
 
 const allFilesExist = () => true;
 
+test("source copy fails before expensive stages while preserving valid selected obligations", () => {
+  const selection = classifyChanges([{ status: "M", path: "apps/desktop/tsconfig.json" }], {
+    fileExists: allFilesExist,
+  });
+  const plan = buildPlan(selection);
+  const ids = plan.map((entry) => entry.id);
+  assert.ok(ids.indexOf("ui-copy") < ids.indexOf("ui-build"));
+  assert.ok(ids.indexOf("ui-copy") < ids.indexOf("ui-tests"));
+  assert.ok(ids.includes("ui-transport-types") && ids.includes("ui-ipc-exposure"));
+  const started = [];
+  assert.throws(
+    () =>
+      executePlan(plan, {
+        spawn: (_executable, args) => {
+          const entry = plan.find((item) => item.args === args);
+          started.push(entry.id);
+          return { status: entry.id === "ui-copy" ? 1 : 0 };
+        },
+      }),
+    /ui-copy failed/,
+  );
+  assert.ok(!started.includes("ui-build") && !started.includes("ui-tests"));
+  const successful = [];
+  executePlan(plan, {
+    spawn: (_executable, args) => {
+      successful.push(plan.find((item) => item.args === args).id);
+      return { status: 0 };
+    },
+  });
+  assert.deepEqual(successful, ids);
+  assert.ok(plan.find((entry) => entry.id === "ui-tests").args.includes("test:after-copy"));
+});
+
+test("hook entrypoints have explicit ownership and executable integration coverage", () => {
+  for (const file of [".husky/pre-commit", "lint-staged.config.mjs", "scripts/hooks-install.mjs"]) {
+    const selection = classifyChanges([{ status: "A", path: file }], { fileExists: allFilesExist });
+    assert.equal(selection.unknown.size, 0);
+    assert.ok(selection.nodeTests.has("scripts/precommit-check.test.mjs"));
+  }
+});
+
 test("review inventory keeps command arguments while making candidate-root paths portable", () => {
   const source = fileURLToPath(new URL("../", import.meta.url));
   const entry = {
@@ -360,141 +401,6 @@ test("a missing Windows/MSBuild Playnite capability cannot route to Ubuntu", () 
   assert.ok(report.obligations[0].missing.includes("windows-host"));
 });
 
-test("missing Cargo emits a named JSON planning blocker without pretending to select a complete plan", async (t) => {
-  const previous = process.exitCode;
-  t.after(() => {
-    process.exitCode = previous;
-  });
-  const outputs = [];
-  await main(["check", "--preflight", "--json"], {
-    readContext: () => ({
-      base: "origin/main",
-      baseSha: "b".repeat(40),
-      mergeBase: "b".repeat(40),
-      headSha: "a".repeat(40),
-      changes: [
-        {
-          status: "M",
-          path: "crates/portcove-core/src/lib.rs",
-          oldMode: "100644",
-          newMode: "100644",
-        },
-      ],
-    }),
-    metadataProvider: () => {
-      throw Object.assign(new Error("private output must not leak"), { code: "ENOENT" });
-    },
-    log: (value) => outputs.push(value),
-  });
-  assert.equal(outputs.length, 1);
-  const report = JSON.parse(outputs[0]);
-  assert.equal(report.status, "planning-blocked");
-  assert.equal(report.selected_plan, null);
-  assert.equal(report.blocker.id, "cargo-metadata");
-  assert.match(report.hosted_ci.role, /mandatory exact-head/);
-  assert.ok(!outputs[0].includes("private output"));
-  assert.equal(process.exitCode, 1);
-});
-
-test("missing Cargo in a mixed Playnite change does not recommend an incapable Ubuntu route", async (t) => {
-  const previous = process.exitCode;
-  t.after(() => {
-    process.exitCode = previous;
-  });
-  const outputs = [];
-  await main(["check", "--preflight", "--json"], {
-    readContext: () => ({
-      base: "origin/main",
-      baseSha: "b".repeat(40),
-      mergeBase: "b".repeat(40),
-      headSha: "a".repeat(40),
-      changes: [
-        "crates/portcove-core/src/lib.rs",
-        "integrations/playnite/Portcove.Playnite.csproj",
-      ].map((path) => ({ status: "M", path, oldMode: "100644", newMode: "100644" })),
-    }),
-    metadataProvider: () => {
-      throw Error("unavailable");
-    },
-    hostedInspector: () => ({ status: "eligible", command: "incapable Ubuntu dispatch" }),
-    log: (value) => outputs.push(value),
-  });
-  const report = JSON.parse(outputs[0]);
-  assert.equal(report.selected_plan, null);
-  assert.ok(!report.blocker.next_action.includes("Ubuntu dispatch"));
-  assert.equal(report.status, "planning-blocked");
-});
-
-test("Cargo planning refusal preserves safe observed failure facts without acquiring dependencies", async (t) => {
-  const previous = process.exitCode;
-  t.after(() => {
-    process.exitCode = previous;
-  });
-  const secret = "private-error Ω https://signed.invalid/?token=cookie-secret";
-  const cases = [
-    ["spawn-error", { error: Object.assign(new Error(secret), { code: "ENOENT" }), status: null }],
-    [
-      "spawn-error",
-      {
-        error: Object.assign(new Error(secret), { code: "ETIMEDOUT" }),
-        status: null,
-        signal: "SIGTERM",
-      },
-    ],
-    ["spawn-error", { error: Object.assign(new Error(secret), { code: "ENOBUFS" }), status: null }],
-    ["cargo-exit", { status: 101, stdout: "", stderr: secret }],
-    ["metadata-json", { status: 0, stdout: secret }],
-    ["package-inventory", { status: 0, stdout: JSON.stringify({ packages: secret }) }],
-  ];
-  for (const [reason, result] of cases) {
-    const logs = [];
-    await main(["check", "--preflight", "--json"], {
-      readContext: () => ({
-        base: "origin/main",
-        baseSha: "b".repeat(40),
-        mergeBase: "b".repeat(40),
-        headSha: "a".repeat(40),
-        changes: [
-          {
-            status: "M",
-            path: "crates/portcove-core/src/lib.rs",
-            oldMode: "100644",
-            newMode: "100644",
-          },
-        ],
-      }),
-      metadataProvider: (options) =>
-        readDoctestPackages({
-          ...options,
-          spawn: (name, args, settings) => {
-            assert.equal(name, "cargo");
-            assert.deepEqual(args, [
-              "metadata",
-              "--format-version",
-              "1",
-              "--no-deps",
-              "--offline",
-              "--locked",
-            ]);
-            assert.equal(settings.timeout, 15_000);
-            assert.equal(settings.env.CARGO_NET_OFFLINE, "true");
-            return result;
-          },
-        }),
-      hostedInspector: () => ({ status: "blocked" }),
-      log: (line) => logs.push(line),
-    });
-    const report = JSON.parse(logs[0]);
-    assert.equal(report.status, "planning-blocked");
-    assert.equal(report.selected_plan, null);
-    assert.equal(process.exitCode, 1);
-    assert.equal(report.blocker.observation.reason, reason);
-    assert.equal(report.blocker.observation.status, result.status);
-    assert.ok(!logs[0].includes("private-error") && !logs[0].includes("signed.invalid"));
-    assert.ok(Buffer.byteLength(JSON.stringify(report.blocker.observation)) <= 64 * 1024);
-  }
-});
-
 test("normal metadata selection keeps its existing execution contract", () => {
   assert.deepEqual(
     [
@@ -583,18 +489,56 @@ const change = (path, options = {}) => ({ status: "M", path, ...options });
 const ids = (plan) => plan.map((entry) => entry.id);
 
 function planFor(paths) {
-  const selection = classifyChanges(
-    paths.map((path) => (typeof path === "string" ? change(path) : path)),
-    { fileExists: allFilesExist },
-  );
+  const changes = paths.map((path) => (typeof path === "string" ? change(path) : path));
+  const selection = classifyChanges(changes, { fileExists: allFilesExist });
   return {
     selection,
     plan: buildPlan(selection, {
       mergeBase: "base-sha",
+      validationPlan: buildValidationPlan({
+        changes: changes.map((entry) => ({
+          status: entry.status,
+          oldPath: entry.previousPath ?? entry.path,
+          newPath: entry.path,
+          oldMode: entry.status === "A" ? "000000" : "100644",
+          newMode: entry.status === "D" ? "000000" : "100644",
+        })),
+        eventName: "pull_request",
+        base: "b".repeat(40),
+        mergeBase: "b".repeat(40),
+        head: "a".repeat(40),
+        checkout: "a".repeat(40),
+      }),
       doctestPackages: new Set(["portcove-core", "portcove-release-tools", "portcove-desktop"]),
     }),
   };
 }
+
+test("execution planning helper and baseline changes select their preservation contracts", () => {
+  const files = [
+    "scripts/desktop-execution-plan.mjs",
+    "scripts/desktop-execution-plan.test.mjs",
+    "scripts/testdata/desktop-execution-baseline.json",
+    "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+  ];
+  for (const file of files) {
+    for (const status of ["A", "M", "D"]) {
+      const { selection, plan } = planFor([{ status, path: file }]);
+      assert.deepEqual([...selection.unknown], []);
+      assert(
+        selection.nodeTests.has(
+          file.endsWith(".test.mjs") && status === "D"
+            ? "scripts/desktop-scenarios.test.mjs"
+            : "scripts/desktop-execution-plan.test.mjs",
+        ),
+      );
+      assert(ids(plan).includes("node-tests"));
+      assert(!ids(plan).some((id) => id === "rust-workspace-tests"));
+    }
+  }
+  const mixed = planFor([files[0], "crates/portcove-core/src/artwork.rs"]);
+  assert(ids(mixed.plan).some((id) => id === "rust-workspace-tests"));
+});
 
 test("the maintained default-cover harness selects native scenario contracts without Rust execution", () => {
   const cover = "apps/desktop/scripts/desktop-default-cover-test.mjs";
@@ -602,11 +546,11 @@ test("the maintained default-cover harness selects native scenario contracts wit
     const { selection, plan } = planFor([{ status, path: cover }]);
     assert.ok(selection.nodeTests.has("scripts/desktop-scenarios.test.mjs"));
     assert.ok(ids(plan).includes("node-tests"));
-    assert.ok(!ids(plan).some((id) => id.startsWith("rust-tests")));
+    assert.ok(!ids(plan).some((id) => id === "rust-workspace-tests"));
     assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
   }
   const mixed = planFor([cover, "crates/portcove-core/src/artwork.rs"]);
-  assert.ok(ids(mixed.plan).some((id) => id.startsWith("rust-tests")));
+  assert.ok(ids(mixed.plan).some((id) => id === "rust-workspace-tests"));
 });
 
 test("source-dialog consumer selects scenario contracts without running native or Rust acceptance", () => {
@@ -615,11 +559,11 @@ test("source-dialog consumer selects scenario contracts without running native o
     const { selection, plan } = planFor([{ status, path: consumer }]);
     assert.ok(selection.nodeTests.has("scripts/desktop-scenarios.test.mjs"));
     assert.ok(ids(plan).includes("node-tests"));
-    assert.ok(!ids(plan).some((id) => id.startsWith("rust-tests")));
+    assert.ok(!ids(plan).some((id) => id === "rust-workspace-tests"));
     assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
   }
   const mixed = planFor([consumer, "crates/portcove-core/src/game_file_roots.rs"]);
-  assert.ok(ids(mixed.plan).some((id) => id.startsWith("rust-tests")));
+  assert.ok(ids(mixed.plan).some((id) => id === "rust-workspace-tests"));
 });
 
 test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
@@ -789,243 +733,9 @@ test("repository skill changes run the dynamic skill contract", () => {
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
-test("a Rust source change checks and tests only its affected package", () => {
-  const { selection, plan } = planFor(["crates/portcove-core/src/database.rs"]);
-  assert.deepEqual([...selection.packages], ["portcove-core"]);
-  assert.deepEqual(ids(plan), [
-    "diff-check",
-    "rustfmt",
-    "rust-clippy:portcove-core",
-    "rust-tests:portcove-core",
-    "rust-docs:portcove-core",
-  ]);
-});
-
-test("mapped module-local Rust changes run the owned focused group", () => {
-  const { plan } = planFor(["crates/portcove-core/src/source_report.rs"]);
-  assert.deepEqual(ids(plan), [
-    "diff-check",
-    "rustfmt",
-    "rust-clippy:portcove-core",
-    "rust-tests:portcove-core:source-inspection",
-    "rust-docs:portcove-core",
-  ]);
-  const tests = plan.find((entry) => entry.id.endsWith(":source-inspection"));
-  assert.equal(tests.args.at(-2), "-E");
-  assert.match(tests.args.at(-1), /source_report/u);
-  assert.match(tests.reason, /explicit test-impact ownership/u);
-});
-
-test("mapped Rust responsibilities run one attributable guarded union", () => {
-  const { plan } = planFor([
-    "crates/portcove-core/src/source_report.rs",
-    "crates/portcove-core/src/release/observation.rs",
-  ]);
-  const union = plan.find((entry) => entry.id === "rust-tests:portcove-core:union");
-  assert.deepEqual(union.args, [
-    "scripts/run-rust-tests.mjs",
-    "--impact-union",
-    "portcove-core",
-    "release-discovery",
-    "source-inspection",
-  ]);
-  assert.match(union.reason, /release-discovery/u);
-  assert.match(union.reason, /source-inspection/u);
-  assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
-});
-
-test("private backup fixture feedback keeps complete family, Clippy and doctests", () => {
-  const path = "crates/portcove-core/src/service/tests/backups.rs";
-  const { plan } = planFor([path]);
-  const tests = plan.find((entry) => entry.id === "rust-tests:portcove-core:backup-fixtures");
-  assert.ok(tests);
-  assert.equal(tests.args.at(-1), "test(/^service::tests::backups::/)");
-  assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
-  assert.ok(ids(plan).includes("rust-docs:portcove-core"));
-  assert.ok(!ids(plan).includes("rust-tests:portcove-core"));
-  for (const shared of [
-    "service/backups.rs",
-    "recovery.rs",
-    "service.rs",
-    "database.rs",
-    "lib.rs",
-  ]) {
-    assert.ok(
-      ids(planFor([path, `crates/portcove-core/src/${shared}`]).plan).includes(
-        "rust-tests:portcove-core",
-      ),
-      shared,
-    );
-  }
-});
-
-test("artwork fixture edits select their families but storage and decoding stay broad", () => {
-  for (const [file, packageName, filter] of [
-    ["crates/portcove-core/src/artwork_tests.rs", "portcove-core", "artwork_tests"],
-    ["crates/portcove-cli/tests/machine_contract/artwork.rs", "portcove-cli", "artwork_contract"],
-  ]) {
-    const { plan } = planFor([file]);
-    const stage = plan.find((entry) => entry.id === `rust-tests:${packageName}:artwork-fixtures`);
-    assert.ok(stage, file);
-    assert.ok(stage.args.at(-1).includes(filter));
-    assert.ok(!ids(plan).includes(`rust-tests:${packageName}`));
-  }
-  for (const file of [
-    "crates/portcove-core/src/artwork_store.rs",
-    "crates/portcove-core/src/artwork_image.rs",
-    "crates/portcove-cli/src/main.rs",
-  ]) {
-    const { plan } = planFor([file]);
-    const packageName = file.includes("portcove-cli") ? "portcove-cli" : "portcove-core";
-    assert.ok(ids(plan).includes(`rust-tests:${packageName}`), file);
-  }
-});
-
-test("artwork resolution selects complete transfer families and the public CLI consumer", () => {
-  const { plan } = planFor(["crates/portcove-core/src/artwork.rs"]);
-  const core = plan.find((entry) => entry.id === "rust-tests:portcove-core:artwork-resolution");
-  assert.ok(core);
-  for (const family of ["artwork_tests", "import_execution", "library_move", "library_transfer"])
-    assert.ok(core.args.at(-1).includes(family), family);
-  assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
-  assert.ok(ids(plan).includes("rust-docs:portcove-core"));
-  const cli = plan.find((entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer");
-  assert.ok(cli);
-  assert.match(cli.args.at(-1), /artwork_contract/u);
-});
-
-test("embedded catalog feedback includes both core artwork and the public CLI consumer", () => {
-  for (const file of [
-    "crates/portcove-core/catalog/catalog-current-authoring.json",
-    "crates/portcove-core/catalog/catalog.json",
-  ]) {
-    const { plan } = planFor([file]);
-    const core = plan.find((entry) => entry.id === "rust-tests:portcove-core:catalog-contract");
-    assert.match(core.args.at(-1), /artwork_tests/);
-    const cli = plan.find(
-      (entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer",
-    );
-    assert.deepEqual(cli.args.slice(0, -2), [
-      "scripts/run-rust-tests.mjs",
-      "--locked",
-      "-p",
-      "portcove-cli",
-    ]);
-    assert.equal(cli.args.at(-2), "-E");
-    assert.match(cli.args.at(-1), /artwork_contract/);
-    assert.equal(storageScopeForPlan(plan), "rust");
-    assert.ok(!plan.some((entry) => entry.id.startsWith("ui-")));
-  }
-});
-
-test("uncertain artwork module changes preserve broad core and CLI evidence", () => {
-  const path = "crates/portcove-core/src/artwork.rs";
-  for (const change of [
-    { status: "D", path },
-    { status: "R100", path, previousPath: "crates/portcove-core/src/old_artwork.rs" },
-    { status: "R100", path: "crates/portcove-core/src/new_artwork.rs", previousPath: path },
-  ]) {
-    const { plan } = planFor([change]);
-    assert.ok(ids(plan).includes("rust-tests:portcove-core"));
-    const cli = plan.find(
-      (entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer",
-    );
-    assert.ok(cli);
-    assert.ok(!cli.args.includes("-E"));
-  }
-  const { selection } = planFor([path]);
-  const unavailable = buildPlan(selection, { rustTestImpactMap: null });
-  assert.ok(ids(unavailable).includes("rust-tests:portcove-core"));
-  assert.ok(
-    !unavailable
-      .find((entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer")
-      .args.includes("-E"),
-  );
-  for (const cliPath of [
-    "crates/portcove-cli/tests/machine_contract/artwork.rs",
-    "crates/portcove-cli/src/main.rs",
-  ]) {
-    const { plan } = planFor([path, cliPath]);
-    assert.equal(plan.filter((entry) => entry.id.startsWith("rust-tests:portcove-cli")).length, 1);
-  }
-});
-
-test("catalog consumer coverage coalesces with an existing CLI family or broad run", () => {
-  for (const cliPath of [
-    "crates/portcove-cli/tests/machine_contract/artwork.rs",
-    "crates/portcove-cli/src/main.rs",
-  ]) {
-    const { plan } = planFor(["crates/portcove-core/catalog/catalog.json", cliPath]);
-    const cliTests = plan.filter(
-      (entry) =>
-        entry.id.startsWith("rust-tests:portcove-cli:") || entry.id === "rust-tests:portcove-cli",
-    );
-    assert.equal(cliTests.length, 1);
-    assert.ok(!ids(plan).includes("rust-tests:portcove-cli:catalog-artwork-consumer"));
-  }
-});
-
-test("uncertain catalog changes and unavailable impact maps keep the broad CLI fallback", () => {
-  const file = "crates/portcove-core/catalog/catalog.json";
-  for (const input of [
-    { status: "D", path: file },
-    { status: "R100", previousPath: file, path: "crates/portcove-core/catalog/renamed.json" },
-  ]) {
-    const { plan } = planFor([input]);
-    const cli = plan.find(
-      (entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer",
-    );
-    assert.ok(cli);
-    assert.ok(!cli.args.includes("-E"));
-    for (const cliPath of [
-      "crates/portcove-cli/tests/machine_contract/artwork.rs",
-      "crates/portcove-cli/src/main.rs",
-    ]) {
-      const mixed = planFor([input, cliPath]).plan.filter((entry) =>
-        entry.id.startsWith("rust-tests:portcove-cli"),
-      );
-      assert.equal(mixed.length, 1);
-      assert.equal(mixed[0].id, "rust-tests:portcove-cli");
-      assert.ok(!mixed[0].args.includes("-E"));
-      assert.ok(!mixed[0].args.includes("--impact-union"));
-    }
-  }
-  const selection = classifyChanges([change(file)], { fileExists: allFilesExist });
-  const plan = buildPlan(selection, { mergeBase: "base-sha", rustTestImpactMap: null });
-  const cli = plan.find((entry) => entry.id === "rust-tests:portcove-cli:catalog-artwork-consumer");
-  assert.ok(!cli.args.includes("-E"));
-  const workspace = planFor(["Cargo.toml", file]).plan;
-  assert.ok(ids(workspace).includes("rust-workspace-tests"));
-  assert.ok(!ids(workspace).includes("rust-tests:portcove-cli:catalog-artwork-consumer"));
-});
-
-test("mapped renames and an unavailable impact contract use the broad package fallback", () => {
-  const renamed = planFor([
-    change("crates/portcove-core/src/source_report.rs", {
-      status: "R100",
-      previousPath: "crates/portcove-core/src/source_summary.rs",
-    }),
-  ]).plan;
-  assert.ok(ids(renamed).includes("rust-tests:portcove-core"));
-  assert.ok(!ids(renamed).some((id) => id.endsWith(":source-inspection")));
-
-  const selection = classifyChanges([change("crates/portcove-core/src/source_report.rs")], {
-    fileExists: allFilesExist,
-  });
-  const unavailable = buildPlan(selection, {
-    mergeBase: "base-sha",
-    rustTestImpactMap: null,
-    rustTestImpactLoadError: "impact map could not be read",
-  });
-  const tests = unavailable.find((entry) => entry.id === "rust-tests:portcove-core");
-  assert.ok(tests);
-  assert.match(tests.reason, /complete portcove-core test inventory/u);
-  assert.match(tests.reason, /impact map could not be read/u);
-});
-
 test("bin-only Rust packages do not schedule an invalid doctest command", () => {
   const { plan } = planFor(["crates/portcove-cli/src/main.rs"]);
-  assert.ok(ids(plan).includes("rust-tests:portcove-cli"));
+  assert.ok(ids(plan).includes("rust-workspace-tests"));
   assert.ok(!ids(plan).includes("rust-docs:portcove-cli"));
 });
 
@@ -1039,138 +749,30 @@ test("doctest capability comes from Cargo target metadata", () => {
   assert.deepEqual([...packages], ["library"]);
 });
 
-test("Clippy owns equivalent Rust compilation before the broad workspace test fallback", () => {
-  const { plan } = planFor(["Cargo.toml"]);
-  assert.deepEqual(ids(plan), [
-    "diff-check",
-    "toml-format",
-    "rustfmt",
-    "node-tests",
-    "rust-workspace-clippy",
-    "dependency-policy",
-    "rust-workspace-tests",
-  ]);
+test("all optional workspace Rust execution remains behind the existing admission runner", () => {
+  for (const file of ["crates/portcove-core/src/database.rs", "Cargo.toml"]) {
+    const commands = planFor([file]).plan;
+    const rust = commands.find((entry) => entry.id === "rust-workspace-tests");
+    assert.ok(rust);
+    assert.equal(rust.executable, process.execPath);
+    assert.deepEqual(rust.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--guard-command"]);
+    assert.ok(!commands.some((entry) => /clippy|rust-docs|rust-workspace-check/u.test(entry.id)));
+  }
 });
 
-test("supported local Rust compilation and tests acquire admission before starting work", () => {
-  const focused = planFor(["crates/portcove-core/src/database.rs"]).plan;
-  assert.ok(!ids(focused).includes("rust-check:portcove-core"));
-  for (const id of ["rust-clippy:portcove-core", "rust-docs:portcove-core"]) {
-    const entry = focused.find((candidate) => candidate.id === id);
-    assert.ok(entry, `missing ${id}`);
-    assert.equal(entry.executable, process.execPath);
-    assert.deepEqual(entry.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--guard-command"]);
-  }
-  const focusedTests = focused.find((candidate) => candidate.id === "rust-tests:portcove-core");
-  assert.ok(focusedTests);
-  assert.equal(focusedTests.executable, process.execPath);
-  assert.deepEqual(focusedTests.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--locked"]);
-
-  const workspace = planFor(["Cargo.toml"]).plan;
-  assert.ok(!ids(workspace).includes("rust-workspace-check"));
-  for (const id of ["rust-workspace-clippy"]) {
-    const entry = workspace.find((candidate) => candidate.id === id);
-    assert.ok(entry, `missing ${id}`);
-    assert.equal(entry.executable, process.execPath);
-    assert.deepEqual(entry.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--guard-command"]);
-  }
-  const workspaceTests = workspace.find((candidate) => candidate.id === "rust-workspace-tests");
-  assert.ok(workspaceTests);
-  assert.equal(workspaceTests.executable, process.execPath);
-  assert.deepEqual(workspaceTests.args.slice(0, 2), ["scripts/run-rust-tests.mjs", "--locked"]);
-});
-
-test("lockfile edits retain workspace compilation and policy while CI owns dependency-wide tests", () => {
-  const { plan } = planFor(["Cargo.lock"]);
-  assert.deepEqual(ids(plan), [
-    "diff-check",
-    "rustfmt",
-    "rust-workspace-clippy",
-    "dependency-policy",
-  ]);
-  const mixed = planFor(["Cargo.lock", "apps/desktop/src-tauri/Cargo.toml"]).plan;
-  assert.ok(ids(mixed).includes("rust-tests:portcove-desktop"));
-  assert.ok(!ids(mixed).includes("rust-workspace-tests"));
-  assert.ok(!ids(mixed).includes("rust-tests:portcove-core"));
-  assert.ok(!ids(mixed).includes("rust-clippy:portcove-desktop"));
-  for (const root of ["Cargo.toml", "rust-toolchain.toml", "deny.toml", ".config/nextest.toml"]) {
-    assert.ok(ids(planFor(["Cargo.lock", root]).plan).includes("rust-workspace-tests"), root);
-  }
-  assert.ok(
-    ids(planFor([{ path: "Cargo.lock", status: "D" }]).plan).includes("rust-workspace-tests"),
-  );
-});
-
-test("UI sources build, lint, and run import-related tests", () => {
-  const { selection, plan } = planFor(["apps/desktop/src/view-model.ts"]);
-  assert.equal(selection.uiFullTests, false);
-  assert.equal(selection.fallow, true);
+test("UI sources build and run import-related units in optional feedback", () => {
+  const { plan } = planFor(["apps/desktop/src/view-model.ts"]);
   assert.deepEqual(ids(plan), [
     "diff-check",
     "oxfmt",
+    "ui-copy",
+    "ui-transport-types",
+    "ui-ipc-exposure",
     "ui-build",
-    "ui-oxlint",
     "ui-related-tests",
     "ui-related-durations",
-    "ui-browser-tests",
-    "ui-theme-copy",
-    "ui-copy",
-    "fallow",
   ]);
-  const uiBuild = plan.find((entry) => entry.id === "ui-build");
-  assert.equal(uiBuild.executable, "corepack");
-  assert.equal(uiBuild.args[0], "pnpm");
-  const durations = plan.find((entry) => entry.id === "ui-related-durations");
-  assert.ok(durations.args.includes("--allow-empty"));
-});
-
-test("browser composition, transport, and config changes select the real-browser stage", () => {
-  for (const file of [
-    "apps/desktop/src/browser/adoption.browser.test.tsx",
-    "apps/desktop/src/components/AdoptionModal.tsx",
-    "apps/desktop/src/components/ui.tsx",
-    "apps/desktop/src/features/installation/use-installation-planning.ts",
-    "apps/desktop/src/shared/concurrency-state.ts",
-    "apps/desktop/src/components/ui/dialog.tsx",
-    "apps/desktop/src/api.ts",
-    "apps/desktop/src/view-model.ts",
-    "apps/desktop/vitest.browser.config.ts",
-    "apps/desktop/scripts/browser-runtime.mjs",
-    "apps/desktop/package.json",
-    "pnpm-lock.yaml",
-  ]) {
-    const { selection, plan } = planFor([file]);
-    assert.deepEqual([...selection.unknown], [], file);
-    assert.equal(selection.browser, true, file);
-    assert.ok(ids(plan).includes("ui-browser-tests"), file);
-  }
-  const { selection, plan } = planFor(["apps/desktop/src/artwork-cache.ts"]);
-  assert.equal(selection.browser, false);
-  assert.ok(!ids(plan).includes("ui-browser-tests"));
-});
-
-test("frontend script and test changes retain the same analyzer as frontend source", () => {
-  for (const path of [
-    "apps/desktop/scripts/desktop-install-fixture.test.mjs",
-    "apps/desktop/scripts/desktop-install-fixture.mjs",
-    "apps/desktop/test/process-fixture.test.mjs",
-  ]) {
-    for (const status of ["A", "M", "D"]) {
-      const { plan } = planFor([{ status, path }]);
-      assert.ok(ids(plan).includes("fallow"), `${status} ${path}`);
-      assert.equal(storageScopeForPlan(plan), "frontend");
-      assert.ok(!ids(plan).some((id) => id.startsWith("rust-")));
-    }
-  }
-  const renamed = planFor([
-    {
-      status: "R100",
-      previousPath: "apps/desktop/scripts/desktop-install-fixture.test.mjs",
-      path: "docs/former-fixture.md",
-    },
-  ]).plan;
-  assert.ok(ids(renamed).includes("fallow"));
-  assert.ok(!ids(planFor(["docs/README.md"]).plan).includes("fallow"));
+  assert.equal(plan.find((entry) => entry.id === "ui-build").executable, "corepack");
 });
 
 test("frontend configuration changes use the complete small UI suite", () => {
@@ -1180,17 +782,17 @@ test("frontend configuration changes use the complete small UI suite", () => {
     assert.equal(selection.fallow, true, path);
     assert.ok(selection.nodeTests.has("scripts/check-fallow-report.test.mjs"), path);
     assert.ok(ids(plan).includes("ui-tests"), path);
-    assert.ok(ids(plan).includes("fallow"), path);
+    assert.ok(!ids(plan).includes("fallow"), path);
     assert.ok(!ids(plan).includes("ui-related-tests"), path);
     assert.ok(!ids(plan).includes("ui-theme-copy"), path);
-    assert.ok(!ids(plan).includes("ui-copy"), path);
+    assert.equal(ids(plan).filter((id) => id === "ui-copy").length, 1, path);
   }
   const { selection } = planFor(["package.json"]);
   assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
   const scripts = JSON.parse(
     readFileSync(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
   ).scripts;
-  const aggregateCommands = scripts.test.split(/\s*&&\s*/u);
+  const aggregateCommands = `${scripts.test} && ${scripts["test:after-copy"]}`.split(/\s*&&\s*/u);
   assert.ok(aggregateCommands.includes("node scripts/check-theme.mjs"));
   assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
 });
@@ -1210,9 +812,9 @@ for (const manifest of ["package.json", "apps/desktop/package.json"]) {
     if (manifest === "package.json") {
       assert.ok(selection.nodeTests.has("scripts/dependency-automation.test.mjs"));
       assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
-      assert.ok(ids(plan).includes("fallow"));
+      assert.ok(!ids(plan).includes("fallow"));
     } else {
-      assert.ok(ids(plan).includes("ui-browser-tests"));
+      assert.ok(!ids(plan).includes("ui-browser-tests"));
     }
   });
 }
@@ -1229,8 +831,8 @@ test("manifest consumers coalesce in mixed plans without widening lock-only cont
   const node = plan.find((entry) => entry.id === "node-tests");
   assert.equal(node.args.filter((arg) => arg === "scripts/ci-workflow.test.mjs").length, 1);
   assert.ok(ids(plan).includes("ui-tests"));
-  assert.ok(ids(plan).includes("ui-browser-tests"));
-  assert.ok(ids(plan).includes("fallow"));
+  assert.ok(!ids(plan).includes("ui-browser-tests"));
+  assert.ok(!ids(plan).includes("fallow"));
   for (const lock of ["pnpm-lock.yaml", "apps/desktop/pnpm-lock.yaml"]) {
     const selected = planFor([lock]);
     assert.equal(selected.selection.nodeTests.has("scripts/ci-workflow.test.mjs"), false);
@@ -1270,7 +872,7 @@ test("the exact Fallow boundary configuration selects the complete UI suite", ()
     assert.equal(selection.uiFullTests, true);
     assert.equal(selection.fallow, true);
     assert.ok(ids(plan).includes("ui-tests"));
-    assert.ok(ids(plan).includes("fallow"));
+    assert.ok(!ids(plan).includes("fallow"));
     assert.ok(!ids(plan).includes("ui-related-tests"));
     assert.deepEqual([...selection.unknown], []);
   }
@@ -1369,38 +971,6 @@ test("an exactly repeated stage id retains every selection reason", () => {
   assert.match(plan[0].reason, /first; also selected as same: second/u);
 });
 
-test("Oxc configuration changes retain formatting, lint, UI, fixture, and workflow contracts", () => {
-  for (const config of [".oxfmtrc.json", ".oxlintrc.json"]) {
-    const { selection, plan } = planFor([config]);
-    const selected = ids(plan);
-    assert.equal(selection.uiFullTests, true);
-    assert.ok(selected.includes("oxfmt"));
-    assert.ok(selected.includes("ui-build"));
-    assert.ok(selected.includes("ui-oxlint"));
-    assert.ok(selected.includes("ui-tests"));
-    assert.ok(selected.includes("lint-tool-fixtures"));
-    assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mjs"));
-    const fixtures = plan.find((entry) => entry.id === "lint-tool-fixtures");
-    assert.ok(fixtures.args.includes(config === ".oxfmtrc.json" ? "oxfmt" : "oxlint"));
-  }
-});
-
-test("lint fixture harness changes execute every maintained behavioral fixture", () => {
-  const { plan } = planFor(["scripts/lint-tools.integration.mjs"]);
-  const fixtures = plan.find((entry) => entry.id === "lint-tool-fixtures");
-  assert.ok(fixtures);
-  assert.deepEqual(fixtures.args, [
-    "scripts/lint-tools.integration.mjs",
-    "actionlint",
-    "oxfmt",
-    "oxlint",
-    "psscriptanalyzer",
-    "ruff",
-    "shellcheck",
-    "stylelint",
-  ]);
-});
-
 test("transport changes select both language scopes and contract comparators", () => {
   const { selection, plan } = planFor([
     "apps/desktop/src/transport-types.generated.d.ts",
@@ -1409,8 +979,8 @@ test("transport changes select both language scopes and contract comparators", (
   assert.equal(selection.transport, true);
   assert.ok(selection.packages.has("portcove-core"));
   assert.ok(selection.nodeTests.has("scripts/transport-types.test.mjs"));
-  assert.ok(ids(plan).includes("transport-export"));
-  assert.ok(ids(plan).includes("transport-policy"));
+  assert.ok(!ids(plan).includes("transport-export"));
+  assert.ok(!ids(plan).includes("transport-policy"));
 });
 
 test("workflow and justfile changes select exact contract tests and actionlint", () => {
@@ -1418,7 +988,7 @@ test("workflow and justfile changes select exact contract tests and actionlint",
   assert.ok(selection.nodeTests.has("scripts/ci-workflow.test.mjs"));
   assert.ok(selection.nodeTests.has("scripts/dev-storage.test.mjs"));
   assert.ok(selection.nodeTests.has("scripts/local-validation.test.mjs"));
-  assert.ok(ids(plan).includes("actionlint"));
+  assert.ok(!ids(plan).includes("actionlint"));
   const nodeTests = plan.find((entry) => entry.id === "node-tests");
   assert.ok(nodeTests.args.includes("--test-reporter=./scripts/test-duration-reporter.mjs"));
 });
@@ -1428,7 +998,7 @@ test("changed Node implementations select sibling tests and syntax checks", () =
   assert.ok(selection.nodeTests.has("scripts/ci-health.test.mjs"));
   assert.ok(selection.nodeSyntax.has("scripts/ci-health.mjs"));
   assert.ok(ids(plan).includes("node-syntax:scripts/ci-health.mjs"));
-  assert.ok(ids(plan).includes("oxlint"));
+  assert.ok(!ids(plan).includes("oxlint"));
   assert.ok(ids(plan).includes("node-tests"));
 });
 
@@ -1466,15 +1036,6 @@ test("heavy Rust runner and lock changes select both guarded execution contracts
   const hostFixtureOnly = planFor(["crates/portcove-core/src/testdata/host_tool_probe.rs.txt"]);
   assert.ok(hostFixtureOnly.selection.nodeTests.has("scripts/run-rust-tests.test.mjs"));
   assert.ok(hostFixtureOnly.selection.nodeTests.has("scripts/rust-support-cache.test.mjs"));
-});
-
-test("changed shell scripts run shellcheck across the maintained shell set", () => {
-  const { plan } = planFor(["scripts/install-linux-desktop-prerequisites.sh"]);
-  const shellLint = plan.find((entry) => entry.id === "shell-lint");
-  assert.ok(shellLint);
-  assert.ok(shellLint.args.includes("scripts/install-linux-desktop-prerequisites.sh"));
-  assert.ok(shellLint.args.includes("scripts/bootstrap-quality-tools.sh"));
-  assert.ok(shellLint.args.includes("scripts/test-linux-package-ownership.sh"));
 });
 
 test("release-script changes select deterministic release contracts without packaged qualification", () => {
@@ -1636,42 +1197,6 @@ function fallbackContext(changes) {
   };
 }
 
-test("safe complete unknown input impact selects one fresh full-debug fallback rather than requiring another selector", () => {
-  for (const changes of [
-    [change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" })],
-    [change("new-subsystem/new.dat", { status: "A", oldMode: "000000", newMode: "100644" })],
-    [change("new-subsystem/local.bin", { status: "?", oldMode: "000000", newMode: "100644" })],
-    [change("new-subsystem/old.txt", { status: "D", oldMode: "100644", newMode: "000000" })],
-    [
-      change("new-subsystem/new.png", {
-        status: "R100",
-        previousPath: "old-input/image.png",
-        oldMode: "100644",
-        newMode: "100644",
-      }),
-    ],
-    [
-      change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
-      change("crates/portcove-core/src/adapter.rs", { oldMode: "100644", newMode: "100644" }),
-    ],
-    [
-      change("README.md", { oldMode: "100644", newMode: "100644" }),
-      change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
-    ],
-  ]) {
-    const plan = buildPlan(
-      classifyChanges(changes, { fileExists: allFilesExist }),
-      fallbackContext(changes),
-    );
-    assert.equal(plan[0].id, "diff-check");
-    assert.equal(plan.at(-1).id, "conservative-audit");
-    assert.deepEqual(plan.at(-1).args, ["audit", "--fresh"]);
-    if (changes.some(({ path }) => path.endsWith("adapter.rs")))
-      assert.ok(ids(plan).includes("rust-clippy:portcove-core"));
-    assert.equal(storageScopeForPlan(plan), "all");
-  }
-});
-
 test("untracked modes preserve executable/type facts rather than treating every non-symlink as regular", () => {
   const file = { isSymbolicLink: () => false, isFile: () => true, mode: 0o100755 };
   assert.equal(untrackedFileMode(file, "linux"), "100755");
@@ -1696,99 +1221,6 @@ test("untracked modes preserve executable/type facts rather than treating every 
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
-});
-
-test("unknown fallback preserves known specialist consumers rather than assuming aggregate equivalence", () => {
-  const changes = [
-    change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" }),
-    change("integrations/playnite/PortcoveLibrary/Library.cs", {
-      oldMode: "100644",
-      newMode: "100644",
-    }),
-  ];
-  const selection = classifyChanges(changes, { fileExists: allFilesExist });
-  const ordinary = buildPlan({ ...selection, unknown: new Set() }, fallbackContext(changes));
-  const fallback = buildPlan(selection, fallbackContext(changes));
-  assert.deepEqual(fallback.slice(0, -1), ordinary);
-  assert.ok(ids(fallback).includes("playnite-contract"));
-  assert.equal(fallback.at(-1).id, "conservative-audit");
-});
-
-test("unknown impact cannot use incomplete, stale, non-regular or untrusted executable/configuration discovery", () => {
-  const ordinary = change("new-subsystem/input.bin", { oldMode: "100644", newMode: "100644" });
-  const selection = classifyChanges([ordinary], { fileExists: allFilesExist });
-  assert.throws(() => buildPlan(selection), /validation plan/);
-  for (const altered of [
-    { headSha: "c".repeat(40) },
-    { baseSha: "c".repeat(40) },
-    { mergeBase: "c".repeat(40) },
-    { changes: [] },
-    { changes: [{ ...ordinary, oldMode: undefined }] },
-    { changes: [{ ...ordinary, oldMode: "000000" }] },
-    { changes: [{ ...ordinary, newMode: "100755" }] },
-    { changes: [{ ...ordinary, newMode: "120000" }] },
-    { changes: [{ ...ordinary, newMode: "160000" }] },
-    { changes: [{ ...ordinary, status: "C100" }] },
-    { changes: [{ ...ordinary, path: "other/input.bin" }] },
-  ])
-    assert.throws(() => buildPlan(selection, { ...fallbackContext([ordinary]), ...altered }));
-  const failed = {
-    ...fallbackContext([ordinary]),
-    validationPlan: buildValidationPlan({
-      changes: [ordinary],
-      checkout: "a".repeat(40),
-      discovery: "failed",
-      blockedReason: "missing comparison authority",
-    }),
-  };
-  assert.throws(() => buildPlan(selection, failed), /complete bound/);
-  const wrongCheckout = {
-    ...fallbackContext([ordinary]),
-    validationPlan: buildValidationPlan({
-      changes: [ordinary],
-      eventName: "pull_request",
-      base: "b".repeat(40),
-      mergeBase: "b".repeat(40),
-      head: "a".repeat(40),
-      checkout: "c".repeat(40),
-    }),
-  };
-  assert.throws(() => buildPlan(selection, wrongCheckout), /complete bound/);
-  const executable = [
-    change("new-subsystem/local.bin", {
-      status: "?",
-      oldMode: "000000",
-      newMode: untrackedFileMode(
-        { isSymbolicLink: () => false, isFile: () => true, mode: 0o100755 },
-        "linux",
-      ),
-    }),
-  ];
-  assert.throws(
-    () =>
-      buildPlan(
-        classifyChanges(executable, { fileExists: allFilesExist }),
-        fallbackContext(executable),
-      ),
-    /regular-file modes/,
-  );
-  for (const file of [
-    "new-subsystem/program.rs",
-    "new-subsystem/script.py",
-    "new-subsystem/settings.json",
-    ".untrusted/input.bin",
-  ]) {
-    const changes = [change(file, { oldMode: "100644", newMode: "100644" })];
-    assert.throws(
-      () =>
-        buildPlan(
-          classifyChanges(changes, { fileExists: allFilesExist }),
-          fallbackContext(changes),
-        ),
-      /ownership blocks/,
-    );
-  }
-  assert.throws(() => fallbackContext([change("../input.bin")]), /path/);
 });
 
 test("ordinary plans never invoke aggregate, deep, release, installer, or native gates", () => {
@@ -2083,13 +1515,11 @@ test("containment inputs select every execution contract and preserve unknown re
         assert.ok(selection.nodeTests.has(consumer), `${input} -> ${consumer}`);
       if (entry.previousPath) {
         assert.ok(selection.unknown.has(future));
-        // Mixed unknown/platform paths may be refused by the unchanged bound
-        // inventory validator before the executable-ownership guard. Neither
-        // refusal permits the renamed executable to run.
-        assert.throws(
-          () => buildPlan(selection, fallbackContext([entry])),
-          /unknown executable or configuration ownership|routed validation plan does not match its path inventory/,
-        );
+        const bound = fallbackContext([entry]);
+        const commands = buildPlan(selection, bound);
+        assert.ok(commands.some((command) => command.id === "rust-workspace-tests"));
+        assert.ok(commands.some((command) => command.id === "ui-tests"));
+        assert.ok(!commands.some((command) => command.id === "conservative-audit"));
       } else {
         const selected = buildPlan(selection);
         const contracts = selected.find((command) => command.id === "node-tests");
@@ -2101,11 +1531,6 @@ test("containment inputs select every execution contract and preserve unknown re
   const mixed = planFor([...inputs, "docs/QUALITY.md"]);
   assert.ok(mixed.selection.nodeTests.has("scripts/repository-settings.test.mjs"));
   for (const consumer of consumers) assert.ok(mixed.selection.nodeTests.has(consumer));
-  const unknown = [change(future, { oldMode: "100644", newMode: "100644" })];
-  assert.throws(
-    () => buildPlan(classifyChanges(unknown), fallbackContext(unknown)),
-    /unknown executable or configuration ownership/,
-  );
 });
 
 test("containment selector changes retain their dependent audit and hosted contracts", () => {
@@ -2126,5 +1551,108 @@ test("containment selector changes retain their dependent audit and hosted contr
       for (const consumer of consumers)
         assert.ok(selection.nodeTests.has(consumer), `${input} -> ${consumer}`);
     }
+  }
+});
+
+test("reviewed upstream accounting has an exact health-test owner without admitting other configuration", () => {
+  const owned = planFor([".github/upstream-health-accounting.json"]);
+  assert.equal(owned.selection.unknown.size, 0);
+  assert.ok(owned.selection.nodeTests.has("scripts/upstream-observer.test.mjs"));
+  assert.ok(ids(owned.plan).includes("node-tests"));
+  const other = classifyChanges(
+    [{ status: "M", path: ".github/unreviewed-health-accounting.json" }],
+    { fileExists: allFilesExist },
+  );
+  assert.ok(other.unknown.has(".github/unreviewed-health-accounting.json"));
+});
+
+test("optional local baseline compiles workspace tests once without duplicate lint/build stages", () => {
+  for (const file of [
+    "crates/portcove-core/src/source_report.rs",
+    "Cargo.lock",
+    "crates/portcove-cli/src/main.rs",
+  ]) {
+    const p = planFor([file]).plan;
+    assert.equal(p.filter((entry) => entry.id === "rust-workspace-tests").length, 1);
+    assert.ok(
+      p.find((entry) => entry.id === "rust-workspace-tests").args.includes("--guard-command"),
+    );
+    assert.ok(!p.some((entry) => /clippy|rust-docs|audit|fallow/.test(entry.id)));
+  }
+});
+test("optional frontend baseline retains build and related units without browser/analyzers", () => {
+  const p = buildPlan(classifyChanges([{ status: "M", path: "apps/desktop/src/App.tsx" }]));
+  assert.ok(p.some((entry) => entry.id === "ui-build"));
+  assert.ok(p.some((entry) => entry.id === "ui-related-tests"));
+  assert.ok(!p.some((entry) => /browser|lint|fallow|theme/.test(entry.id)));
+  assert.equal(p.filter((entry) => entry.id === "ui-copy").length, 1);
+});
+
+test("Rust receipts bind narrower or broader selection even when source inventory is identical", () => {
+  const narrow = planFor(["crates/portcove-core/src/source_report.rs"]).plan.find(
+    (e) => e.id === "rust-workspace-tests",
+  );
+  const broad = planFor([
+    "crates/portcove-core/src/source_report.rs",
+    "crates/portcove-core/src/types.rs",
+  ]).plan.find((e) => e.id === "rust-workspace-tests");
+  assert.deepEqual(narrow.args, broad.args);
+  assert.notEqual(
+    fingerprintLocalStage(narrow, receiptInventory(), receiptRuntime),
+    fingerprintLocalStage(broad, receiptInventory(), receiptRuntime),
+  );
+  assert.throws(
+    () =>
+      fingerprintLocalStage(
+        { ...narrow, rustCoverage: undefined },
+        receiptInventory(),
+        receiptRuntime,
+      ),
+    /exact selected coverage/,
+  );
+});
+
+test("live transport stages invalidate receipts when comparator and consumer inputs change", async () => {
+  const { domainsForPath } = await import("./audit.mjs");
+  const stage = planFor(["crates/portcove-core/src/types.rs"]).plan.find(
+    (e) => e.id === "rust-workspace-tests",
+  );
+  for (const input of [
+    "scripts/check-transport-contract.mjs",
+    "scripts/rust-test-impact.mjs",
+    "apps/desktop/src/App.tsx",
+    "apps/desktop/src/transport-host-output.generated.json",
+  ]) {
+    const inventory = receiptInventory();
+    inventory.files.push({
+      path: input,
+      kind: "file",
+      headBlob: "a",
+      indexBlob: "a",
+      gitBlob: "a",
+      sha256: "a",
+      headMode: "100644",
+      indexMode: "100644",
+      worktreeMode: "100644",
+      domains: [...domainsForPath(input).domains],
+      ambiguous: false,
+    });
+    const changed = structuredClone(inventory);
+    Object.assign(changed.files.at(-1), {
+      headBlob: "b",
+      indexBlob: "b",
+      gitBlob: "b",
+      sha256: "b",
+    });
+    assert.notEqual(
+      fingerprintLocalStage(stage, inventory, receiptRuntime),
+      fingerprintLocalStage(stage, changed, receiptRuntime),
+      input,
+    );
+    assert.notEqual(
+      fingerprintLocalStage({ ...stage, id: "ui-ipc-exposure" }, inventory, receiptRuntime),
+      fingerprintLocalStage({ ...stage, id: "ui-ipc-exposure" }, changed, receiptRuntime),
+      input,
+    );
   }
 });

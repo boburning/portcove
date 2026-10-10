@@ -1342,7 +1342,7 @@ test("manual local-check transport preserves the audit and has no mutable execut
   );
   const local = workflow.split("\n  local_check:\n")[1];
   assert.ok(local);
-  assert.match(workflow, /options: \[audit, local-check\]/);
+  assert.match(workflow, /default: audit\n {8}options: \[audit, audit-reuse, local-check\]/);
   assert.match(workflow, /contents: read/);
   assert.match(workflow, /just audit --fresh/);
   assert.match(local, /runs-on: ubuntu-24\.04/);
@@ -1351,8 +1351,14 @@ test("manual local-check transport preserves the audit and has no mutable execut
     local,
     /hosted-local-check controller[\s\S]*path: source[\s\S]*hosted-local-check prepare[\s\S]*bootstrap-quality-tools\.sh[\s\S]*hosted-local-check run/,
   );
-  assert.match(local, /pnpm install --frozen-lockfile/);
-  const install = local.indexOf("pnpm install --frozen-lockfile");
+  // Preflight observes Corepack's contained exact-version cache, never PATH pnpm.
+  // Standalone action-setup installation cannot prepare that provider.
+  assert.match(
+    local,
+    /working-directory: source\n        run: corepack pnpm install --frozen-lockfile/u,
+  );
+  assert.doesNotMatch(local, /run: pnpm install --frozen-lockfile/u);
+  const install = local.indexOf("corepack pnpm install --frozen-lockfile");
   const provision = local.indexOf("hosted-local-check provision");
   const run = local.indexOf("hosted-local-check run");
   assert.ok(provision > install && run > provision);

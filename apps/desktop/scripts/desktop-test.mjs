@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mjs";
+import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mjs";
+import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mjs";
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -18,15 +21,15 @@ import {
 import { OwnedNativeSession } from "./desktop-owned-native-session.mjs";
 import { observeStartupNetwork } from "./desktop-startup-network-diagnostic.mjs";
 import {
-  librarySwitchRecoverySelection,
   prepareLibrarySwitchRecoveryFixture,
+  librarySwitchRecoverySelection,
   librarySwitchRecoveryScenario,
 } from "./desktop-library-switch-recovery-test.mjs";
 import {
   bootstrapRecoveryEnvironment,
   bootstrapRecoverySelection,
-  bootstrapRecoveryScenario,
   preferencesRecoverySelection,
+  bootstrapRecoveryScenario,
   preparePreferencesRecoveryFixture,
   preferencesRecoveryScenario,
   prepareBootstrapRecoveryFixture,
@@ -132,160 +135,47 @@ const selection = resolveDesktopSelection({
   reloadCycles,
   defaultProfile: values["preparation-cli"] ? "full" : "smoke",
 });
-const bootstrapRecoverySession = bootstrapRecoverySelection(selection, process.platform);
-const librarySwitchRecoverySession = librarySwitchRecoverySelection(selection, process.platform);
-const preferencesRecoverySession = preferencesRecoverySelection(selection, process.platform);
+// Admission stays with the existing native owners; planning never grants it.
+bootstrapRecoverySelection(selection, process.platform);
+librarySwitchRecoverySelection(selection, process.platform);
+preferencesRecoverySelection(selection, process.platform);
+const executionPlan = planDesktopExecution(selection);
+const {
+  bootstrapRecoverySession,
+  librarySwitchRecoverySession,
+  preferencesRecoverySession,
+  historySession,
+  backupFocusSession,
+  hostInterruptionSession,
+  ordinaryCloseSession,
+  minimizedPreparationSession,
+  normalPackageSession,
+  identityBoundSession,
+  cleanupName,
+} = executionPlan.session;
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cli"])
   throw new Error("Selected fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
   throw new Error("--port must be 1024..65533");
-const inputs = await Promise.all(
-  ["app", "driver", "native-driver"].map((name) => fileIdentity(values[name])),
-);
-inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
-if (selection.selected_scenarios.includes("native-saved-folder-selected-setup"))
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-source-dialog-test.mjs", import.meta.url))),
-  );
-if (selection.selected_scenarios.includes("native-selected-setup-completion"))
-  for (const name of [
-    "desktop-selected-setup-completion-test.mjs",
-    "desktop-source-dialog-test.mjs",
-    "../../../crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
-  ])
-    inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
-if (bootstrapRecoverySession || preferencesRecoverySession)
-  for (const name of [
-    "desktop-bootstrap-recovery-test.mjs",
-    "desktop-native-confirmation.mjs",
-    "native-confirmation.ps1",
-  ])
-    inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
-if (librarySwitchRecoverySession)
-  for (const name of [
-    "desktop-library-switch-recovery-test.mjs",
-    "desktop-bootstrap-recovery-test.mjs",
-    "desktop-native-confirmation.mjs",
-    "native-confirmation.ps1",
-  ])
-    inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
-inputs.push(
-  await fileIdentity(fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url))),
-);
-for (const name of [
-  "native-session.ps1",
-  "native-process-tree.ps1",
-  "native-startup-observation.ps1",
-  "desktop-startup-observation.mjs",
-  "desktop-owned-native-session.mjs",
-])
-  inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
-inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url))));
-inputs.push(
-  await fileIdentity(fileURLToPath(new URL("desktop-workspace-refresh-test.mjs", import.meta.url))),
-);
-if (selection.selected_scenarios.includes("native-qualification-history"))
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("desktop-qualification-history-test.mjs", import.meta.url)),
-    ),
-  );
-inputs.push(
-  await fileIdentity(fileURLToPath(new URL("desktop-catalog-update-test.mjs", import.meta.url))),
-  await fileIdentity(fileURLToPath(new URL("desktop-default-cover-test.mjs", import.meta.url))),
-);
-if (selection.prerequisites.includes("owned-fixture")) {
-  if (selection.selected_scenarios.includes("native-artwork-catalog-correction"))
-    for (const name of [
-      "desktop-artwork-correction-test.mjs",
-      "testdata/catalog-artwork-red.jpg",
-      "testdata/catalog-artwork-blue.jpg",
-      "../../../scripts/sign-catalog.mjs",
-      "../../../crates/portcove-core/catalog/catalog.json",
-    ])
-      inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
+if (executionPlan.fixtures.owned) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
     if (!values[name] || !path.isAbsolute(values[name]))
       throw new Error(`--${name} requires an absolute path`);
-    inputs.push(await fileIdentity(values[name]));
   }
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-preparation-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-readiness-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-artwork-observations.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-preparation-recovery-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-backup-review-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-removal-review-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-steam-entry-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-source-removal-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-adoption-review-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-library-handoff-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-cli-handoff-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-review-controls.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-native-confirmation.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url))),
-  );
 }
-if (selection.prerequisites.includes("install-fixture")) {
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-install-fixture.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-install-test.mjs", import.meta.url))),
-  );
-}
-inputs.push(
-  await fileIdentity(
-    fileURLToPath(new URL("../../../scripts/desktop-scenarios.mjs", import.meta.url)),
+const inputs = await Promise.all(
+  executionPlan.receiptInputs.map((input) =>
+    fileIdentity(input.kind === "executable" ? values[input.name] : path.join(root, input.path)),
   ),
 );
-inputs.push(
-  await fileIdentity(
-    fileURLToPath(new URL("../../../scripts/native-session-lock.mjs", import.meta.url)),
-  ),
-);
+for (const name of [
+  "scripts/desktop-execution-plan.mjs",
+  "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+  "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
+])
+  inputs.push(await fileIdentity(path.join(root, name)));
 let runnerMetadata = {};
 if (values["run-metadata"]) {
   if (!path.isAbsolute(values["run-metadata"]))
@@ -314,51 +204,7 @@ let driver;
 let browser;
 let driverLog = "";
 let startupAttempt = 0;
-const historySession = selection.selected_scenarios.includes("native-qualification-history");
 let historyInventory;
-const backupFocusSession = selection.selected_scenarios.includes("native-backup-delete-focus");
-const hostInterruptionSession = selection.selected_scenarios.includes(
-  "native-host-interrupted-preparation",
-);
-const ordinaryCloseSession = selection.selected_scenarios.includes(
-  "native-closed-preparation-recovery",
-);
-const minimizedPreparationSession = selection.selected_scenarios.includes(
-  "native-minimized-preparation-continuity",
-);
-const normalPackageSession = selection.selected_scenarios.includes(
-  "native-normal-package-webview-boundary",
-);
-const identityBoundSession =
-  selection.selected_scenarios.includes("native-startup-network-diagnostic") ||
-  selection.selected_scenarios.includes("native-external-runtime-review") ||
-  backupFocusSession ||
-  hostInterruptionSession ||
-  ordinaryCloseSession ||
-  minimizedPreparationSession ||
-  normalPackageSession ||
-  preferencesRecoverySession ||
-  bootstrapRecoverySession ||
-  librarySwitchRecoverySession;
-const cleanupName = selection.selected_scenarios.includes("native-external-runtime-review")
-  ? "external-runtime-review"
-  : selection.selected_scenarios.includes("native-startup-network-diagnostic")
-    ? "startup-network-diagnostic"
-    : preferencesRecoverySession
-      ? "startup-preferences-recovery"
-      : librarySwitchRecoverySession
-        ? "library-switch-recovery"
-        : bootstrapRecoverySession
-          ? "startup-library-recovery"
-          : normalPackageSession
-            ? "normal-package-boundary"
-            : ordinaryCloseSession
-              ? "ordinary-close-preparation"
-              : hostInterruptionSession
-                ? "host-interruption"
-                : minimizedPreparationSession
-                  ? "minimized-preparation"
-                  : "backup-focus";
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -1042,6 +888,7 @@ async function scenario(name, action) {
     recordScenario(target, name, "failed", { message: error.message });
     await captureScenarioDiagnostics(name, target.setup);
     process.exitCode = 1;
+    if (isUntrustworthyProbeError(error)) throw error;
   }
   if (!target.setup) await captureScenarioScreenshot(name);
 }
@@ -1558,9 +1405,9 @@ try {
       root,
       output,
       revision,
-      sourceJourney: selection.selected_scenarios.includes("native-saved-folder-selected-setup"),
-      completionJourney: selection.selected_scenarios.includes("native-selected-setup-completion"),
-      holdFirstDownload: selection.selected_scenarios.includes("native-selected-setup-completion"),
+      sourceJourney: executionPlan.fixtures.sourceJourney,
+      completionJourney: executionPlan.fixtures.completionJourney,
+      holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       preparationTool: values["preparation-tool"],
     });
     if (installFixture.sourceJourney) {
@@ -2941,61 +2788,44 @@ try {
     artifacts,
     captureScreenshot: captureScenarioScreenshot,
   });
-  await installScenarios({
-    browser,
-    invoke,
-    scenario,
-    library,
-    output,
-    artifacts,
-    inputs,
-    fixture: installFixture,
-    restartApplication,
-  });
-  await selectedSetupScenario({
-    browser,
-    invoke,
-    scenario,
-    library,
-    output,
-    artifacts,
-    cli: values["preparation-cli"],
-    fixture: installFixture,
-  });
-  await selectedSetupCompletionScenario({
-    browser,
-    invoke,
-    scenario,
-    library,
-    output,
-    artifacts,
-    cli: values["preparation-cli"],
-    fixture: installFixture,
-  });
-  for (const gap of selection.known_gaps)
-    checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason });
-  if (selection.prerequisites.includes("owned-fixture")) {
-    await preparationScenarios({
-      browser,
-      invoke,
-      scenario,
-      library,
-      output,
-      artifacts,
-      confirmNative: nativeConfirmation({
-        application: values.app,
-        getDriverPid: () => driver.pid,
-        output,
-        artifacts,
-      }),
-      restartApplication,
-      cli: values["preparation-cli"],
-      interruptApplication,
-      closeApplication,
-      captureLivePreparation,
-      tool: values["preparation-tool"],
-    });
-  }
+  await runOwnedFixtureJourneys(
+    {
+      plan: executionPlan,
+      runtime: {
+        context: () => ({
+          browser,
+          invoke,
+          scenario,
+          library,
+          output,
+          artifacts,
+          inputs,
+          installFixture,
+          restartApplication,
+          cli: values["preparation-cli"],
+          tool: values["preparation-tool"],
+          interruptApplication,
+          closeApplication,
+          captureLivePreparation,
+        }),
+        confirmNative: () =>
+          nativeConfirmation({
+            application: values.app,
+            getDriverPid: () => driver.pid,
+            output,
+            artifacts,
+          }),
+        recordKnownGap: (gap) =>
+          checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason }),
+      },
+    },
+    {
+      install: installScenarios,
+      selectedSetup: selectedSetupScenario,
+      selectedSetupCompletion: selectedSetupCompletionScenario,
+      preparation: preparationScenarios,
+    },
+  );
   if (selection.selected_scenarios.includes("native-repeated-library-reload"))
     await reloadScenario({
       browser,

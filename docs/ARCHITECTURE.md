@@ -1525,6 +1525,27 @@ disc sets before a source record becomes usable.
 
 Preference writers serialize through a process lock keyed by the exact preference path before taking the persistent sibling operating-system lock, then publish a flushed sibling atomically using the shared durability helper. The process lock closes platforms where operating-system file locks do not serialize handles owned by one process; the sibling lock preserves the cross-process boundary. Reads never create files. Setting or clearing a library preserves compatible unknown JSON fields and unrelated host preferences; explicit recovery reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
 
+Favorites use the compatible `favorites_by_library` extension in that same
+format-1 host preference document. `HostPreferenceStore::favorite_ports` and
+`set_favorite` read or change independent canonical port IDs under a selected
+library's canonical 32-character lowercase hexadecimal ID obtained from `Library::identity_record`. Display-name
+corrections and managed library moves preserve that identity; importing into a
+different library does not inherit its favorites. Temporarily absent or retired
+catalog IDs remain stored until explicitly unset. The existing locks, atomic
+publication and 64 KiB document limit apply, and unrelated preferences and unknown
+extensions survive a change. Removing the last choice removes the empty extension;
+explicit preference reset clears it with the rest of the document.
+
+Only favorites operations decode this extension. A malformed favorite map reports
+an actionable preference error without preventing ordinary library selection,
+locale or host-tool preference operations, and those writers preserve it as JSON
+data rather than silently deleting it. Reads create no storage, and favorite
+changes neither open a library nor confer installation, source or catalog
+ownership. These private host choices do not enter public catalog data or trigger
+networking or scanning. This is the Core preference foundation for #1552; Desktop
+toggles, filter composition, counts and navigation remain separate implementation
+and acceptance work under that issue.
+
 For a live desktop switch, the adapter makes its current state unavailable and drops its cached library/providers. Core then acquires an exclusive lease on the old root; an already-dispatched operation retains a shared lease and makes the switch fail, after which the adapter reopens the old state. Only a successfully opened target is persisted and published as current. A monotonically increasing bootstrap generation remounts React's library-owned state so results from the old workspace cannot populate the new one. This introduces no second library authority or database/catalog migration.
 
 Core resolves newly opened library roots and validated source references to absolute paths before they produce durable records. Relative CLI arguments therefore do not tie a new installation or source to that process's working directory. Existing ambiguous relative records are not guessed or silently rebased; they require qualification from their original base and explicit reinstallation or source relinking.

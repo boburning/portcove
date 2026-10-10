@@ -12,7 +12,7 @@ import { createInstallFixture, INSTALL_FIXTURE_PORT_ID } from "./desktop-install
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const DEFINITION_FIXTURE_PORT_ID = "opengoal-jak1";
 
-function runSync(command, args, { env = process.env, timeout = 600_000 } = {}) {
+export function runSync(command, args, { env = process.env, timeout = 600_000 } = {}) {
   const result = spawnSync(command, args, {
     cwd: root,
     encoding: "utf8",
@@ -21,7 +21,19 @@ function runSync(command, args, { env = process.env, timeout = 600_000 } = {}) {
     timeout,
     windowsHide: true,
   });
-  if (result.error) throw result.error;
+  if (result.error) {
+    try {
+      if (result.stdout) process.stdout.write(result.stdout);
+    } catch {
+      // Diagnostic emission must not replace the original subprocess failure.
+    }
+    try {
+      if (result.stderr) process.stderr.write(result.stderr);
+    } catch {
+      // Attempt both streams while keeping the original failure authoritative.
+    }
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error(
       `${command} ${args.join(" ")} exited ${result.status ?? "without a status"}\n${result.stderr || result.stdout}`,
@@ -123,7 +135,7 @@ async function main() {
     "-p",
     "portcove-cli",
     "--features",
-    "portcove-core/qualification-fixtures",
+    "qualification-fixtures",
   ]);
   runSync("cargo", [
     "build",

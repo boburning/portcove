@@ -78,41 +78,22 @@ separately authorized implementation ships.
 ## Pull request and commit conventions
 
 Follow [Contribution conventions](docs/CONTRIBUTION-CONVENTIONS.md) for branch
-names, authored commit subjects, pull request titles and the five-section pull
+names, authored commit subjects, pull request titles and the four-section pull
 request description. The short form is `type(scope): imperative summary`, with
 an optional lowercase scope and a descriptive project-purpose branch such as
 `feature/source-review` or `chore/pr-conventions`.
 
-Open incomplete work as a draft, keep one description current as evidence
-changes, and run the advisory checker after creating or updating it:
+Open incomplete work as a draft and keep one description current. The advisory
+`just pr-check <number-or-url>` is optional. Required hosted checks and actual
+separate review are defined by [QUALITY](docs/QUALITY.md#required-hosted-baseline)
+and [Contribution conventions](docs/CONTRIBUTION-CONVENTIONS.md#review-and-merge).
+Local checks and general engineering techniques are optional feedback.
 
-```powershell
-just pr-check <number-or-url>
-```
-
-Style findings do not block merge and do not replace the linked issue,
-acceptance evidence, distinct review, required CI, or merge-authority checks.
-
-Before submitting a change:
-
-Use the focused edit loop and complete diff-selected `just local-check` described
-in [Quality](docs/QUALITY.md). Bootstrap only missing prerequisites reported by
-[Development tools](docs/DEVELOPMENT-TOOLS.md); storage and cleanup remain in
-[Development storage](docs/DEVELOPMENT-STORAGE.md). Required GitHub CI validates
-the exact frozen head, and release or packaged qualification runs only when its
-own acceptance contract requires it.
-
-Do not suppress deterministic findings without a narrow, reviewable reason.
-Treat structural findings as evidence rather than instructions for speculative
-refactors. Follow [AGENTS.md](AGENTS.md) and [docs/QUALITY.md](docs/QUALITY.md).
-Catalog changes must pass the live repository audit and record upstream
-maintenance status without treating archival alone as an admission veto.
-
-Frontend work is checked by type-aware Oxlint, Oxfmt, and Stylelint. Python asset scripts,
-the shell bootstrap, GitHub Actions workflows and PowerShell scripts are checked
-by the pinned tools installed by the quality bootstrap. The Playnite C# projects
-retain their SDK compiler warnings-as-errors gate through `just playnite-check`;
-no additional Roslyn analyzer package is required.
+Bootstrap only missing prerequisites through [Development tools](docs/DEVELOPMENT-TOOLS.md).
+Native, installer and gameplay observations apply when explicitly required by
+the owning issue or release contract. Catalog admission still follows its
+specialist qualification route. Analyzer and full platform suites remain
+nightly/manual/release coverage; avoid suppressing deterministic defects.
 
 Keep commits free of source game data, signing secrets, generated build output, local libraries, and Fallow caches.
 
@@ -127,7 +108,7 @@ comprehension.
 After a successful Windows Tauri build, `scripts/package-local.ps1` refreshes the local installer, versioned standalone CLI archive, source archive, and prints their SHA-256 hashes. It smoke-tests the CLI from the final ZIP, refuses an output path outside the workspace, and excludes build, dependency, test-library, and generated-schema directories from the source archive.
 
 Link every pull request to its durable issue, describe the user outcome and
-non-goals, list exact validation commands, and move the Project item to In
+scope, link required CI/review and explicit acceptance, and move the Project item to In
 progress or Validating. Use Blocked or Deferred only when a real prerequisite
 or capable execution route is unavailable, with its exact resume condition.
 Automated evidence must not close an

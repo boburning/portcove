@@ -2,7 +2,11 @@ import { readFile, open } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { observationHash } from "./upstream-observer.mjs";
+import {
+  observationHash,
+  githubDirectPin,
+  validateGithubPinMetadata,
+} from "./upstream-observer.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 class HealthFailure extends Error {
@@ -18,6 +22,130 @@ const limits = Object.freeze({
   response_bytes: 1024 * 1024,
   total_bytes: 16 * 1024 * 1024,
 });
+
+const accountingPolicy = JSON.parse(
+  await readFile(new URL("../.github/upstream-health-accounting.json", import.meta.url), "utf8"),
+);
+
+export function validateHealthAccountingPolicy(policy) {
+  const objectKeys = (value, expected) =>
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === expected.length &&
+    expected.every((key) => Object.hasOwn(value, key));
+  const positive = (value) => Number.isSafeInteger(value) && value > 0;
+  const hash = (value) => /^[a-f0-9]{64}$/u.test(value ?? "");
+  const port = (value) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value ?? "");
+  const repository = (value) =>
+    typeof value === "string" &&
+    value.length <= 200 &&
+    /^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/u.test(value);
+  if (
+    !objectKeys(policy, [
+      "format_version",
+      "authority",
+      "decision",
+      "pins",
+      "original_conditions",
+    ]) ||
+    policy.format_version !== 1 ||
+    typeof policy.authority !== "string" ||
+    !policy.authority ||
+    typeof policy.decision !== "string" ||
+    !policy.decision ||
+    !Array.isArray(policy.pins) ||
+    !Array.isArray(policy.original_conditions) ||
+    policy.pins.length + policy.original_conditions.length > 32
+  )
+    throw new Error("Invalid reviewed health accounting policy");
+  const identities = new Set();
+  for (const pin of policy.pins) {
+    if (
+      !objectKeys(pin, [
+        "port_id",
+        "port_contract_sha256",
+        "platform",
+        "repository",
+        "tag",
+        "name",
+        "url",
+        "size",
+        "sha256",
+        "repository_id",
+        "archived",
+        "release_id",
+        "release_facts_sha256",
+        "asset_id",
+        "asset_facts_sha256",
+      ]) ||
+      !port(pin.port_id) ||
+      !hash(pin.port_contract_sha256) ||
+      !hash(pin.sha256) ||
+      !hash(pin.asset_facts_sha256) ||
+      !hash(pin.release_facts_sha256) ||
+      !repository(pin.repository) ||
+      typeof pin.platform !== "string" ||
+      !pin.platform ||
+      !positive(pin.size) ||
+      !positive(pin.repository_id) ||
+      !positive(pin.release_id) ||
+      !positive(pin.asset_id) ||
+      typeof pin.archived !== "boolean"
+    )
+      throw new Error("Invalid reviewed pin scope");
+    const parsed = githubDirectPin(pin.url);
+    if (["repository", "tag", "name"].some((key) => pin[key] !== parsed[key]))
+      throw new Error("Reviewed pin URL scope differs");
+    const key = `pin:${pin.port_id}:${pin.platform}`;
+    if (identities.has(key)) throw new Error("Duplicate reviewed pin scope");
+    identities.add(key);
+  }
+  for (const condition of policy.original_conditions) {
+    if (
+      !objectKeys(condition, [
+        "port_id",
+        "port_contract_sha256",
+        "provider",
+        "repository",
+        "operation",
+        "http_status",
+        "reason",
+        "redirect_repository_id",
+        "evidence",
+        "resume_condition",
+      ]) ||
+      !port(condition.port_id) ||
+      !hash(condition.port_contract_sha256) ||
+      condition.provider !== "github" ||
+      !repository(condition.repository) ||
+      condition.operation !== "observe-availability" ||
+      !(
+        (condition.http_status === 301 &&
+          condition.reason === "provider-redirect" &&
+          positive(condition.redirect_repository_id)) ||
+        (condition.http_status === 404 &&
+          condition.reason === "inaccessible-or-missing" &&
+          condition.redirect_repository_id === null)
+      ) ||
+      !/^https:\/\/github\.com\/boburning\/portcove\/issues\/247#issuecomment-[1-9]\d*$/u.test(
+        condition.evidence ?? "",
+      ) ||
+      typeof condition.resume_condition !== "string" ||
+      !condition.resume_condition
+    )
+      throw new Error("Invalid reviewed original-location scope");
+    const key = `original:${condition.port_id}:${condition.provider}:${condition.repository}`;
+    if (identities.has(key)) throw new Error("Duplicate reviewed original-location scope");
+    identities.add(key);
+  }
+  return policy;
+}
+
+function portContract(port) {
+  const { summary: _summary, ...contract } = port;
+  return observationHash(contract);
+}
 const resume = {
   "inaccessible-or-missing":
     "Recheck original access/location; a 404 does not establish deletion or succession.",
@@ -27,6 +155,8 @@ const resume = {
   "rate-limit":
     "Wait until the provider retry time, or at least one minute if unknown, before rechecking.",
   "provider-error": "Recheck after the provider recovers; artifact health is unassessed.",
+  "provider-redirect":
+    "Review the original location and redirect identity separately; no redirect was followed and destination availability or continuity is unassessed.",
   transport: "Recheck provider transport; this attempt did not establish reachability.",
   timeout: "Recheck within the fixed time budget; this attempt did not establish reachability.",
   "invalid-metadata":
@@ -278,6 +408,7 @@ function retryAt(headers, now) {
 }
 
 function statusReason(response) {
+  if ([301, 302, 303, 307, 308].includes(response.status)) return "provider-redirect";
   if (
     response.status === 429 ||
     (response.status === 403 &&
@@ -327,9 +458,36 @@ async function metadata(response, budget, now, deadline) {
 // pinned repository identity, complete release/asset pages or Core projection.
 export async function collectRepositoryHealth(
   catalog,
-  { fetch: fetcher = fetch, now = Date.now, githubToken, gitlabToken, previousReport = null } = {},
+  {
+    fetch: fetcher = fetch,
+    now = Date.now,
+    githubToken,
+    gitlabToken,
+    previousReport = null,
+    portIds = null,
+    reviewedAccounting = accountingPolicy,
+  } = {},
 ) {
-  const { records, directPorts } = inventory(catalog);
+  validateHealthAccountingPolicy(reviewedAccounting);
+  const completeInventory = inventory(catalog);
+  if (
+    portIds !== null &&
+    (!Array.isArray(portIds) ||
+      new Set(portIds).size !== portIds.length ||
+      portIds.some((id) => !catalog.ports.some((port) => port.id === id)))
+  )
+    throw new Error("Scoped health requires unique existing port IDs");
+  const selectedPorts = catalog.ports.filter(
+    (port) => portIds === null || portIds.includes(port.id),
+  );
+  // Keep all shared-location identities and maintenance declarations in a probe.
+  // Selecting one port must not erase another port's unaccounted condition.
+  const records = completeInventory.records.filter(
+    (record) => portIds === null || record.port_ids.some((id) => portIds.includes(id)),
+  );
+  const directPorts = completeInventory.directPorts.filter(
+    (id) => portIds === null || portIds.includes(id),
+  );
   const catalogHash = observationHash(catalog);
   const started = now();
   const previousScopeValid =
@@ -363,8 +521,87 @@ export async function collectRepositoryHealth(
   );
   const deadline = started + limits.duration_ms;
   const consumed = { requests: 0, response_bytes: 0 };
+  // This collection's complete 200 repository response can serve both the
+  // pin validator and the identical original-location observation. Never
+  // import prior reports or equate old and relocated repository endpoints.
+  const repositoryMetadata = new Map();
   const deferred = new Map();
   const observations = [];
+  const contractMatches = (rule, id) =>
+    rule.port_id === id &&
+    rule.port_contract_sha256 === portContract(catalog.ports.find((port) => port.id === id));
+  const originalRules = (record) => {
+    if (
+      record.release_ref !== undefined ||
+      !record.port_ids.every((id) => record.original_upstream_port_ids?.includes(id))
+    )
+      return [];
+    const rules = record.port_ids.map((id) =>
+      reviewedAccounting.original_conditions.find(
+        (rule) =>
+          contractMatches(rule, id) &&
+          rule.provider === record.provider &&
+          rule.repository === record.repository,
+      ),
+    );
+    return rules.every(Boolean) ? rules : [];
+  };
+  const pinRules = (record) => {
+    if (record.provider !== "direct-manifest") return [];
+    const rules = record.artifact_identities.map((identity) =>
+      reviewedAccounting.pins.find(
+        (rule) =>
+          contractMatches(rule, identity.port_id) &&
+          rule.platform === identity.platform &&
+          rule.url === record.repository &&
+          rule.size === identity.size &&
+          rule.sha256 === identity.sha256 &&
+          rule.tag === identity.version,
+      ),
+    );
+    return rules.every(Boolean) ? rules : [];
+  };
+  const readGithubMetadata = async (endpoint) => {
+    const remaining = deadline - now();
+    if (
+      remaining <= 0 ||
+      consumed.requests >= limits.requests ||
+      consumed.response_bytes >= limits.total_bytes
+    )
+      throw new HealthFailure("budget");
+    if (deferred.has("github")) throw new HealthFailure("rate-limit");
+    const headers = {
+      "User-Agent": "Portcove-catalog-audit",
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
+    };
+    const signal = AbortSignal.timeout(Math.min(limits.request_ms, remaining));
+    let response;
+    consumed.requests++;
+    try {
+      response = await fetcher(`https://api.github.com/repos/${endpoint}`, {
+        headers,
+        redirect: "manual",
+        signal,
+      });
+      if (response.status !== 200) {
+        const reason = statusReason(response);
+        if (reason === "rate-limit") deferred.set("github", retryAt(response.headers, now()));
+        throw new HealthFailure(reason);
+      }
+      if (response.headers.has("link")) throw new HealthFailure("invalid-metadata");
+      const facts = await metadata(response, consumed, now, deadline);
+      if (!endpoint.includes("/releases/"))
+        repositoryMetadata.set(`https://api.github.com/repos/${endpoint}`, facts);
+      return facts;
+    } catch (error) {
+      if (error instanceof HealthFailure) throw error;
+      throw new HealthFailure(signal.aborted ? "timeout" : "transport");
+    } finally {
+      await cancelBody(response);
+    }
+  };
   for (const record of records) {
     const budgetProvider = ["direct-manifest", "project-page"].includes(record.provider)
       ? new URL(record.repository).origin
@@ -378,6 +615,7 @@ export async function collectRepositoryHealth(
     const result = {
       ...record,
       attempted: false,
+      metadata_reused: false,
       status: "unknown",
       reason: null,
       http_status: null,
@@ -393,6 +631,9 @@ export async function collectRepositoryHealth(
       comparison_observed_at: null,
       retry_at: null,
       resume_condition: null,
+      pin_assessment: null,
+      reviewed_condition_sha256: null,
+      observed_redirect_repository_id: null,
     };
     const fail = (reason) => {
       result.reason = reason;
@@ -472,19 +713,83 @@ export async function collectRepositoryHealth(
       if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
     } else if (record.provider === "gitlab" && gitlabToken) headers["PRIVATE-TOKEN"] = gitlabToken;
     const signal = AbortSignal.timeout(Math.min(limits.request_ms, remaining));
-    consumed.requests++;
-    result.attempted = true;
+    const reused = github && !record.release_ref && repositoryMetadata.has(requestUrl);
+    if (!reused) consumed.requests++;
+    result.attempted = !reused;
+    result.metadata_reused = Boolean(reused);
     let response;
     try {
-      response = await fetcher(requestUrl, {
-        headers,
-        redirect: "error",
-        signal,
-        ...(plain ? { method: "HEAD" } : {}),
-      });
+      response = reused
+        ? { status: 200 }
+        : await fetcher(requestUrl, {
+            headers,
+            // Observe a redirect as an HTTP fact rather than losing it in a fetch
+            // exception. Never follow it or retain a potentially signed Location.
+            redirect: "manual",
+            signal,
+            ...(plain ? { method: "HEAD" } : {}),
+          });
       result.http_status = response.status;
       if (response.status !== 200) {
         fail(statusReason(response));
+        const conditions = originalRules(record);
+        if (
+          conditions.length &&
+          conditions.every(
+            (rule) => rule.http_status === response.status && rule.reason === result.reason,
+          )
+        ) {
+          let match = true;
+          if (response.status === 301) {
+            const facts = await metadata(response, consumed, now, deadline);
+            const expectedId = conditions[0].redirect_repository_id;
+            match =
+              facts?.message === "Moved Permanently" &&
+              facts.url === `https://api.github.com/repositories/${expectedId}` &&
+              conditions.every((rule) => rule.redirect_repository_id === expectedId) &&
+              (result.baseline_repository_id === null ||
+                result.baseline_repository_id === expectedId);
+            if (match) result.observed_redirect_repository_id = expectedId;
+          }
+          if (match) {
+            result.reviewed_condition_sha256 = observationHash(conditions);
+            result.resume_condition = conditions[0].resume_condition;
+          }
+        }
+        const pins = pinRules(record);
+        if (plain && direct && response.status === 302 && pins.length) {
+          result.pin_assessment = { status: "unknown", reason: null };
+          try {
+            const pin = pins[0];
+            const repo = await readGithubMetadata(pin.repository);
+            const release = await readGithubMetadata(
+              `${pin.repository}/releases/tags/${encodeURIComponent(pin.tag)}`,
+            );
+            if (release?.id !== pin.release_id) throw new HealthFailure("invalid-metadata");
+            const assets = await readGithubMetadata(
+              `${pin.repository}/releases/${pin.release_id}/assets?per_page=100`,
+            );
+            let facts;
+            for (const scope of pins)
+              facts = validateGithubPinMetadata(repo, release, assets, scope);
+            result.pin_assessment = {
+              status: "provider-reported-pin-present",
+              repository_id: facts.repository.id,
+              release_id: facts.release.id,
+              asset_id: facts.asset.id,
+              asset_facts_sha256: observationHash(facts.asset),
+              provider_digest: facts.asset.digest,
+              destination_availability: "unknown",
+              accepted_bytes: "unverified",
+              accounting_scope_sha256: observationHash(pins),
+            };
+          } catch (error) {
+            result.pin_assessment.reason =
+              error instanceof HealthFailure ? error.reason : "invalid-or-changed-pin-metadata";
+            result.resume_condition =
+              "Reassess exact declared pin metadata; changed, unavailable, ambiguous or incomplete facts remain unaccounted. No redirect destination or bytes were inspected.";
+          }
+        }
         if (result.reason === "rate-limit") {
           result.retry_at = retryAt(response.headers, now());
           deferred.set(budgetProvider, result.retry_at);
@@ -517,7 +822,9 @@ export async function collectRepositoryHealth(
       }
       let facts;
       try {
-        facts = await metadata(response, consumed, now, deadline);
+        facts = reused
+          ? repositoryMetadata.get(requestUrl)
+          : await metadata(response, consumed, now, deadline);
       } catch (error) {
         fail(
           error instanceof HealthFailure ? error.reason : signal.aborted ? "timeout" : "transport",
@@ -581,8 +888,10 @@ export async function collectRepositoryHealth(
       result.status = "reachable";
       result.archived = typeof facts.archived === "boolean" ? facts.archived : null;
       result.observed_repository_id = facts.id;
-    } catch {
-      fail(signal.aborted ? "timeout" : "transport");
+    } catch (error) {
+      fail(
+        error instanceof HealthFailure ? error.reason : signal.aborted ? "timeout" : "transport",
+      );
     } finally {
       await cancelBody(response);
     }
@@ -598,14 +907,23 @@ export async function collectRepositoryHealth(
             catalog.ports.find((port) => port.id === id)?.upstream_status,
           ),
       );
-    record.accounted_for = record.status === "reachable" || knownMaintenance;
-    record.classification = knownMaintenance
-      ? "catalog-declared-unavailable-original"
-      : record.status === "reachable"
-        ? "location-reachable; exact-bytes-unverified"
-        : "unclassified-or-actionable";
+    const pinPresent = record.pin_assessment?.status === "provider-reported-pin-present";
+    record.accounted_for =
+      record.status === "reachable" ||
+      knownMaintenance ||
+      record.reviewed_condition_sha256 !== null ||
+      pinPresent;
+    record.classification = pinPresent
+      ? "provider-reported-pin-present; destination-unknown; bytes-unverified"
+      : record.reviewed_condition_sha256 !== null
+        ? "reviewed-original-condition; availability-and-lineage-unresolved"
+        : knownMaintenance
+          ? "catalog-declared-unavailable-original"
+          : record.status === "reachable"
+            ? "location-reachable; exact-bytes-unverified"
+            : "unclassified-or-actionable";
   }
-  const portHealth = catalog.ports.map((port) => {
+  const portHealth = selectedPorts.map((port) => {
     const locations = observations.filter((record) => record.port_ids.includes(port.id));
     const original = locations.filter((record) =>
       record.original_upstream_port_ids?.includes(port.id),
@@ -691,6 +1009,9 @@ export async function collectRepositoryHealth(
             asset_digests: (record.observed_asset_digests ?? []).toSorted(),
             size: record.observed_size ?? null,
             classification: record.classification,
+            pin_assessment: record.pin_assessment,
+            reviewed_condition_sha256: record.reviewed_condition_sha256,
+            observed_redirect_repository_id: record.observed_redirect_repository_id,
           });
           const priorValid =
             prior &&
@@ -740,17 +1061,31 @@ export async function collectRepositoryHealth(
     authority:
       "read-only-location-observation; no lineage, artifact, hold or qualification authority",
     catalog_sha256: catalogHash,
+    accounting_policy_sha256: observationHash(reviewedAccounting),
+    scope: {
+      mode: portIds === null ? "full" : portIds.length ? "affected" : "none",
+      selected_port_ids: selectedPorts.map((port) => port.id),
+      unassessed_port_ids: catalog.ports
+        .filter((port) => !selectedPorts.includes(port))
+        .map((port) => port.id),
+      global_health:
+        portIds === null ? "collection attempted; not an installability claim" : "not assessed",
+    },
     port_health: portHealth,
     started_at: new Date(started).toISOString(),
     completed_at: new Date(now()).toISOString(),
     collection_method:
-      "one metadata request per hosted location or HEAD per exact direct location; no redirects or retries; accepted bytes unverified",
+      "metadata per hosted location or HEAD per direct location; reviewed GitHub pins may add three fixed metadata reads; identical successful repository metadata reused only within this collection; no redirects or retries; accepted bytes unverified",
     resolved_incidents: resolvedIncidents,
     material_changes: portHealth
       .flatMap((port) => port.canonical_incidents)
       .filter((incident) => incident.notify)
       .map((incident) => incident.key),
-    outcome: observations.every((record) => record.accounted_for) ? "complete" : "incomplete",
+    outcome: !selectedPorts.length
+      ? "not-applicable"
+      : observations.every((record) => record.accounted_for)
+        ? "complete"
+        : "incomplete",
     degradation: observations.some((record) => record.status !== "reachable"),
     previous_report:
       previousReport === null
@@ -760,11 +1095,12 @@ export async function collectRepositoryHealth(
           : "stale, mismatched or incomplete; not reused",
     coverage: {
       ports: catalog.ports.length,
-      hosted_ports: catalog.ports.length - directPorts.length,
+      hosted_ports: selectedPorts.length - directPorts.length,
       direct_manifest_port_ids: directPorts,
-      monitored_ports: catalog.ports.length,
+      monitored_ports: selectedPorts.length,
       repositories: records.length,
-      attempted_repositories: consumed.requests,
+      attempted_repositories: observations.filter((record) => record.attempted).length,
+      reused_repositories: observations.filter((record) => record.metadata_reused).length,
       reachable_repositories: reachable,
       unknown_repositories: records.length - reachable,
     },
@@ -784,7 +1120,11 @@ export async function collectRepositoryHealth(
 export function renderRepositoryHealth(report) {
   const { coverage } = report;
   const lines = [
+    ...(report.scope?.mode === "none"
+      ? ["No selected upstream health inputs; no live requests. Global health is not assessed."]
+      : []),
     `Repository reachability: ${coverage.reachable_repositories}/${coverage.repositories} reachable; ${coverage.unknown_repositories} unknown; ${coverage.attempted_repositories} attempted.`,
+    `Repository metadata reused within this collection: ${coverage.reused_repositories}; network requests: ${report.consumed.requests}/${report.limits.requests}.`,
     `Coverage: ${coverage.monitored_ports}/${coverage.ports} ports; ${coverage.direct_manifest_port_ids.length} direct-manifest ports included. Accepted bytes remain unverified.`,
     `Observed ${report.started_at} through ${report.completed_at}.`,
   ];
@@ -804,6 +1144,10 @@ export function renderRepositoryHealth(report) {
       lines.push(
         `  Resume: ${record.resume_condition}${record.retry_at ? ` Retry at ${record.retry_at}.` : ""}`,
       );
+    if (record.pin_assessment)
+      lines.push(
+        `  Pin metadata: ${record.pin_assessment.status}${record.pin_assessment.reason ? ` (${record.pin_assessment.reason})` : ""}; destination unknown; bytes unverified.`,
+      );
   }
   for (const health of report.port_health) {
     lines.push(
@@ -817,10 +1161,21 @@ export function renderRepositoryHealth(report) {
 async function main() {
   const args = process.argv.slice(2);
   if (
-    args.some((arg) => arg !== "--json" && !arg.startsWith("--previous-report=")) ||
-    args.filter((arg) => arg.startsWith("--previous-report=")).length > 1
+    args.some(
+      (arg) =>
+        arg !== "--json" && !arg.startsWith("--previous-report=") && !arg.startsWith("--port-ids="),
+    ) ||
+    args.filter((arg) => arg.startsWith("--previous-report=")).length > 1 ||
+    args.filter((arg) => arg.startsWith("--port-ids=")).length > 1
   )
-    throw new Error("Usage: check-catalog-repositories.mjs [--json] [--previous-report=PATH]");
+    throw new Error(
+      "Usage: check-catalog-repositories.mjs [--json] [--previous-report=PATH] [--port-ids=IDS]",
+    );
+  const portArgument = args
+    .find((arg) => arg.startsWith("--port-ids="))
+    ?.slice("--port-ids=".length);
+  const portIds =
+    portArgument === undefined ? null : portArgument === "" ? [] : portArgument.split(",");
   const previousPath = args
     .find((arg) => arg.startsWith("--previous-report="))
     ?.slice("--previous-report=".length);
@@ -853,6 +1208,7 @@ async function main() {
     githubToken: process.env.GITHUB_TOKEN,
     gitlabToken: process.env.GITLAB_TOKEN,
     previousReport,
+    portIds,
   });
   if (
     process.argv.includes("--json") ||
@@ -867,7 +1223,7 @@ async function main() {
         ? JSON.stringify(report, null, 2)
         : renderRepositoryHealth(report),
     );
-  process.exitCode = report.outcome === "complete" ? 0 : 1;
+  process.exitCode = ["complete", "not-applicable"].includes(report.outcome) ? 0 : 1;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {

@@ -2,11 +2,9 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
+import { isOwnedOxfmtPath } from "./oxfmt-ownership.mjs";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
-const supportedExtension =
-  /\.(?:astro|cjs|css|html|js|json|json5|jsonc|jsx|less|md|mdx|mjs|mts|scss|svelte|ts|tsx|vue|ya?ml)$/i;
 const inventory = spawnSync(
   "git",
   ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
@@ -21,7 +19,7 @@ const files = inventory.stdout
   .split("\0")
   .filter(Boolean)
   .map((file) => file.replaceAll("\\", "/"))
-  .filter((file) => supportedExtension.test(file) && !isExcludedOxfmtPath(file));
+  .filter(isOwnedOxfmtPath);
 if (files.length === 0) {
   throw new Error("Oxfmt inventory is empty; refusing to report a vacuous formatting pass.");
 }
