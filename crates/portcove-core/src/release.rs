@@ -1456,6 +1456,14 @@ fn is_beta_release(release: &GithubRelease) -> bool {
     ]
     .iter()
     .any(|marker| tag.contains(marker))
+        // Some upstreams publish tags such as Version1.0.5beta12 with the
+        // GitHub prerelease flag unset. Recognize a numbered beta suffix,
+        // without treating unrelated words containing "beta" as prereleases.
+        || tag.match_indices("beta").any(|(offset, _)| {
+            offset > 0
+                && tag.as_bytes()[offset - 1].is_ascii_digit()
+                && tag.as_bytes().get(offset + 4).is_some_and(u8::is_ascii_digit)
+        })
 }
 
 fn parse_digest(value: &str) -> Option<String> {
@@ -2257,6 +2265,70 @@ mod tests {
         };
 
         assert!(!is_beta_release(&release));
+    }
+
+    #[test]
+    fn numbered_beta_suffix_is_not_a_stable_release() {
+        for tag in ["Version1.0.5beta12", "v2.0BETA3"] {
+            let release: GithubRelease =
+                serde_json::from_value(github_release(tag, false, "game-windows.zip")).unwrap();
+            assert!(is_beta_release(&release), "{tag}");
+        }
+        for tag in ["betamax1.0", "v1.0alphabetagamma", "Version1.0.4"] {
+            let release: GithubRelease =
+                serde_json::from_value(github_release(tag, false, "game-windows.zip")).unwrap();
+            assert!(!is_beta_release(&release), "{tag}");
+        }
+    }
+
+    #[tokio::test]
+    async fn dkr_numbered_beta_does_not_replace_the_stable_release() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("dkr-r").unwrap();
+        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+            let asset = |version: &str| match platform {
+                Platform::WindowsX86_64 => format!("DKR-R-{version}-Windows-x64.zip"),
+                Platform::LinuxX86_64 => format!("DKR-R-{version}-Linux-x86_64.AppImage"),
+                _ => unreachable!(),
+            };
+            let releases = vec![
+                github_release("Version1.0.5beta12", false, &asset("1.0.5-beta.12")),
+                github_release("Version1.0.4", false, &asset("1.0.4")),
+            ];
+            let (api_root, _, server) = serve_http(vec![
+                ok_json(r#"{"archived":false}"#, ""),
+                ok_json(&serde_json::to_string(&releases).unwrap(), ""),
+            ]);
+            let stable = GithubReleaseProvider::with_api_root(api_root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap();
+            server.join().unwrap();
+            assert_eq!(stable.version, "Version1.0.4");
+            assert_eq!(stable.asset.name, asset("1.0.4"));
+
+            // The unchanged catalog does not offer Beta. Classification must
+            // not silently grant that channel or make a network request.
+            let beta = GithubReleaseProvider::with_api_root("http://127.0.0.1:9")
+                .unwrap()
+                .resolve(port, ReleaseChannel::Beta, platform)
+                .await
+                .unwrap_err();
+            assert_eq!(beta.code, crate::ErrorCode::Unsupported);
+
+            let (api_root, _, server) = serve_http(vec![
+                ok_json(r#"{"archived":false}"#, ""),
+                ok_json(&serde_json::to_string(&releases[..1]).unwrap(), ""),
+            ]);
+            let unavailable = GithubReleaseProvider::with_api_root(api_root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, platform)
+                .await
+                .unwrap_err();
+            server.join().unwrap();
+            assert_eq!(unavailable.code, crate::ErrorCode::NotFound);
+        }
     }
 
     #[test]

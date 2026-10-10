@@ -212,6 +212,13 @@ shared acquisition, transaction, persistence and lifecycle owners when catalog
 data or a shared adapter cannot express the useful route. A bare upstream link
 or placeholder is not an integration.
 
+GitHub Stable selection excludes provider-declared prereleases, existing
+hyphenated development markers, and case-insensitive numbered beta suffixes
+such as `Version1.0.5beta12`, even when upstream leaves its prerelease flag unset.
+Beta selection still requires the catalog to declare that channel; classification
+does not grant compatibility or installation authority. No selectable stable
+release produces an unavailable result, rather than falling through to a beta.
+
 Catalog schema 1/2 supports hosted or exact direct-manifest package installation
 through its existing adapters. The `user-prepared` release route is separate:
 an official definition pins the package's exact archive identity and the
