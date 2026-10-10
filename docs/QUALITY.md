@@ -306,7 +306,32 @@ independently; the absence of `.github/dependabot.yml` retires scheduled
 Dependabot version-update jobs without disabling those repository security
 capabilities.
 
-Current Tauri Linux dependencies transitively include the unmaintained GTK3 binding family; other transitive build paths include `proc-macro-error` and the `unic-*` family. `cargo deny check --hide-inclusion-graph -W unmaintained` keeps these visible while continuing to deny security advisories, while omitting thousands of lines of repeated transitive paths from the normal audit. There is no safe direct Portcove upgrade that removes the GTK3 set without changing Tauri's Linux webview architecture.
+Current Tauri Linux dependencies transitively include the unmaintained GTK3 binding family; other transitive build paths include `proc-macro-error` and the `unic-*` family. `cargo deny check --hide-inclusion-graph -W unmaintained` reports those warnings and denies advisories within its configured coverage, while omitting repeated inclusion paths. There is no safe direct Portcove upgrade that removes the GTK3 set without changing Tauri's Linux webview architecture.
+
+The pinned `cargo-deny 0.20.2` defaults informational `unsound` coverage to
+[`workspace`](https://github.com/EmbarkStudios/cargo-deny/blob/0.20.2/src/advisories/cfg.rs).
+Its [dependency predicate](https://github.com/EmbarkStudios/cargo-deny/blob/0.20.2/src/advisories.rs#L119-L124)
+selects direct dependencies of workspace members; it does not cover every indirect
+dependency. Our empty advisory ignore list adds no exclusions but does not widen
+that default. `-D unsound` changes severity, not dependency coverage. A successful
+`just deny`, dependency-policy audit stage or hosted scan using this configuration
+therefore does not establish clearance of indirect unsoundness.
+
+[#706](https://github.com/boburning/portcove/issues/706) retains the executed
+October 1 discriminator: with the same pinned tool, locked graph, workspace,
+Linux target and offline database revision, the default configuration exited 0;
+adding only `unsound = "all"` under `[advisories]` exited 1 and reported
+[RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429.html).
+The same unmaintained warnings remained. This historical reproduction establishes
+the coverage gap, not a fresh database scan or complete cross-platform clearance.
+
+The recommended indirect-unsoundness scanner treatment is `unsound = "all"`.
+Before activating it in maintained validation, the separately reviewed protected
+change must preserve the known failing GLib result, record member/target/database
+coverage and an adverse control, and account explicitly for the Required Linux
+release blocker. It must not turn the failure into an advisory exception or a
+passing release result. Coverage correction and production remediation remain
+separate obligations under #706; this guidance does not activate a new gate.
 
 GitHub also reports GHSA-wrw7-89jp-8q8g for Tauri's Linux-only `glib 0.18.5` graph. Dependabot confirms that `0.18.5` is the newest version compatible with Tauri's GTK3 stack while the advisory declares `0.20.0` as the first fixed release. Keep that alert open in its durable issue and live Project item; do not conceal it with a version-only dismissal, an unreviewed fork, or a broad advisory exception. Re-evaluate when Tauri adopts a compatible maintained GTK stack.
 
