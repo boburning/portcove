@@ -329,6 +329,8 @@ if (-not $window) {
     throw "Owned native confirmation did not appear. Owned window observations: $observed"
 }
 $windowScope = 'owned-exact-target'
+$nativeLibraryButton = $null
+$nativeLibraryWindowHandle = $null
 if ($FilePath -and $DirectoryPath) { throw 'Choose only one native picker input.' }
 if ($FilePath) {
     Assert-ExactConfirmationWindow $window
@@ -349,7 +351,8 @@ if ($DirectoryPath) {
     if ($fields.Count -eq 0 -and $folderPanes.Count -eq 1) {
         # This host's UIA provider exposes the native filename Edit as a Pane.
         # Bind input to the observed common-dialog control, never an arbitrary edit.
-        Set-NativeFolderText $window $selected
+        $nativeLibraryWindowHandle = [IntPtr]$window.Current.NativeWindowHandle
+        $nativeLibraryButton = Set-NativeFolderText $window $selected
     } elseif ($fields.Count -eq 1 -and $fields[0].Current.ProcessId -eq $applicationId) {
         $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
     } else {
@@ -357,8 +360,8 @@ if ($DirectoryPath) {
         throw 'Expected one exact owned folder field in the library picker.'
     }
 }
-$selectedWindowHandle = $window.Current.NativeWindowHandle
-if ($Button -ne '__observe__') {
+$selectedWindowHandle = if ($nativeLibraryButton) { $nativeLibraryWindowHandle } else { $window.Current.NativeWindowHandle }
+if ($Button -ne '__observe__' -and -not $nativeLibraryButton) {
     $buttonDeadline = [DateTime]::UtcNow.AddSeconds(10)
     $buttons = @()
     $children = @()
@@ -451,8 +454,12 @@ public static class PortcoveConsentWindow {
 }
 Write-ObservationProgress 'observation-complete'
 if ($Button -ne '__observe__') {
-    Assert-ExactConfirmationWindow $window
-    if ($DirectoryPath -and $buttons[0].Current.ProcessId -ne $applicationId) { throw 'Owned library picker button identity changed; no input permitted.' }
-    $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if ($nativeLibraryButton) {
+        Invoke-NativeLibraryPickerButton $nativeLibraryWindowHandle $nativeLibraryButton
+    } else {
+        Assert-ExactConfirmationWindow $window
+        if ($DirectoryPath -and $buttons[0].Current.ProcessId -ne $applicationId) { throw 'Owned library picker button identity changed; no input permitted.' }
+        $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    }
 }
 [pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath; screenshot = $screenshotObservation } | ConvertTo-Json -Depth 4 -Compress
