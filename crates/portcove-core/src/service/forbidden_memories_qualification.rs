@@ -36,6 +36,14 @@ fn create_owned_root(root: &Path, catalog_override_present: bool) -> Result<Path
             "historical producer root must be absolute",
         ));
     }
+    #[cfg(windows)]
+    if !matches!(root.components().next(), Some(std::path::Component::Prefix(prefix))
+        if matches!(prefix.kind(), std::path::Prefix::Disk(_) | std::path::Prefix::UNC(_, _)))
+    {
+        return Err(PortcoveError::unsupported(
+            "historical producer requires an ordinary Windows path",
+        ));
+    }
     refuse_symlink_ancestors(root)?;
     let parent = root
         .parent()
@@ -48,11 +56,20 @@ fn create_owned_root(root: &Path, catalog_override_present: bool) -> Result<Path
     let name = root
         .file_name()
         .ok_or_else(|| PortcoveError::usage("historical producer root needs a directory name"))?;
-    let root = fs::canonicalize(parent)?.join(name);
+    let owned = fs::canonicalize(parent)?.join(name);
     // Exclusive creation refuses retained libraries and concurrent claims.
-    fs::create_dir(&root)?;
-    refuse_symlink_ancestors(&root)?;
-    Ok(root)
+    fs::create_dir(&owned)?;
+    refuse_symlink_ancestors(&owned)?;
+    refuse_symlink_ancestors(root)?;
+    if fs::canonicalize(root)? != fs::canonicalize(&owned)? {
+        return Err(PortcoveError::verification(
+            "producer root identity changed",
+        ));
+    }
+    // Canonicalization is an identity check, not a new caller coordinate.
+    // On Windows its verbatim prefix makes upstream mixed-slash paths invalid.
+    // Preserve the ordinary absolute path used by normal Library::open callers.
+    Ok(root.to_path_buf())
 }
 
 #[cfg(feature = "qualification-fixtures")]
@@ -320,13 +337,53 @@ mod tests {
             "override refusal must precede directory creation"
         );
         assert!(create_owned_root(Path::new("relative-library"), false).is_err());
-        create_owned_root(&root, false).unwrap();
+        assert_eq!(create_owned_root(&root, false).unwrap(), root);
         fs::write(root.join("retained-evidence"), b"preserve").unwrap();
         assert!(create_owned_root(&root, false).is_err());
         assert_eq!(
             fs::read(root.join("retained-evidence")).unwrap(),
             b"preserve"
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn historical_producer_root_preserves_windows_upstream_coordinates() {
+        let parent = tempfile::tempdir().unwrap();
+        let root = parent.path().join("producer");
+        let expected_identity = fs::canonicalize(parent.path()).unwrap().join("producer");
+        assert_eq!(create_owned_root(&root, false).unwrap(), root);
+        assert_eq!(fs::canonicalize(&root).unwrap(), expected_identity);
+        fs::create_dir(root.join("bios")).unwrap();
+        fs::write(
+            root.join("bios").join("OpenBIOS.toml"),
+            b"owned inert fixture",
+        )
+        .unwrap();
+        assert!(root.join("bios/OpenBIOS.toml").is_file());
+        // PathBuf::join normalizes verbatim components. The upstream combines
+        // raw strings, so exercise the literal native lookup instead.
+        use std::os::windows::ffi::OsStrExt;
+        let attributes = |base: &Path| {
+            let mut literal = base.as_os_str().to_os_string();
+            literal.push("\\bios/OpenBIOS.toml");
+            let wide = literal.encode_wide().chain(Some(0)).collect::<Vec<_>>();
+            unsafe { windows_sys::Win32::Storage::FileSystem::GetFileAttributesW(wide.as_ptr()) }
+        };
+        assert_ne!(
+            attributes(&root),
+            windows_sys::Win32::Storage::FileSystem::INVALID_FILE_ATTRIBUTES
+        );
+        assert_eq!(
+            attributes(&expected_identity),
+            windows_sys::Win32::Storage::FileSystem::INVALID_FILE_ATTRIBUTES
+        );
+        let verbatim = fs::canonicalize(parent.path()).unwrap().join("refused");
+        assert_eq!(
+            create_owned_root(&verbatim, false).unwrap_err().code,
+            crate::ErrorCode::Unsupported
+        );
+        assert!(!verbatim.exists());
     }
 
     #[cfg(windows)]

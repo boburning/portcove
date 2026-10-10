@@ -4,6 +4,7 @@ use std::{
     fs::File,
     io::{Read, Write},
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -54,6 +55,17 @@ fn capture_root_activity(id: &Mutex<Option<String>>, event: &portcove_core::Oper
     }
 }
 
+fn retain_boundary_event(event: &portcove_core::OperationEvent, emitted: u64) -> bool {
+    if matches!(
+        event.event,
+        OperationEventKind::Started | OperationEventKind::Finished { .. }
+    ) {
+        return event.parent_operation_id.is_none() || emitted < 32;
+    }
+    matches!(&event.event, OperationEventKind::Message { level, .. } if level == "error")
+        && emitted < 32
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
@@ -98,9 +110,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output_error = Arc::new(Mutex::new(None::<std::io::Error>));
     let event_id = Arc::clone(&operation_id);
     let event_error = Arc::clone(&output_error);
+    let seen_events = Arc::new(AtomicU64::new(0));
+    let emitted_events = Arc::new(AtomicU64::new(0));
+    let event_seen = Arc::clone(&seen_events);
+    let event_emitted = Arc::clone(&emitted_events);
     let operation =
         PortcoveService::qualification_forbidden_memories_baseline(&root, &source, move |event| {
             capture_root_activity(&event_id, &event);
+            event_seen.fetch_add(1, Ordering::Relaxed);
+            // Core owns activity and bounded diagnostic evidence.
+            // Keep this child's bounded output for boundaries and final result;
+            // per-chunk download progress must not displace the terminal receipt.
+            if !retain_boundary_event(&event, event_emitted.load(Ordering::Relaxed)) {
+                return;
+            }
+            event_emitted.fetch_add(1, Ordering::Relaxed);
             if let Err(error) = emit(json!({"kind": "operation", "event": event})) {
                 *event_error.lock().expect("output error lock poisoned") = Some(error);
             }
@@ -130,6 +154,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "source_container_sha256": SOURCE_SHA256,
         "expected_normalized_track_sha256": "6e22494a45bf50fa2d239cd3819a57163a5f9b91e0365babc3e101509b5c3a7c",
         "normalized_track_validation_requirement": "existing Core source inspection and validation; not observed by this field",
+        "events_observed": seen_events.load(Ordering::Relaxed),
+        "events_emitted": emitted_events.load(Ordering::Relaxed),
+        "events_omitted": seen_events.load(Ordering::Relaxed) - emitted_events.load(Ordering::Relaxed),
+        "retained_operation_evidence": "Core activity and bounded diagnostics; event stream deliberately sampled",
         "process_tree_exit": "requires outer owned-session receipt"}),
     )?;
     if let Some(error) = output_error
@@ -169,5 +197,35 @@ mod tests {
         capture_root_activity(&id, &event("nested-tool", Some("managed-build")));
         capture_root_activity(&id, &event("another-root", None));
         assert_eq!(id.lock().unwrap().as_deref(), Some("root"));
+    }
+
+    #[test]
+    fn capped_child_boundaries_preserve_root_terminal_evidence() {
+        let mut event: portcove_core::OperationEvent = serde_json::from_value(json!({
+            "schema_version": 3, "operation_id": "child",
+            "parent_operation_id": "root", "sequence": 1,
+            "timestamp_ms": 0, "operation": "install", "target": null,
+            "type": "started"
+        }))
+        .unwrap();
+        assert!(retain_boundary_event(&event, 31));
+        assert!(!retain_boundary_event(&event, 32));
+        event.parent_operation_id = None;
+        event.event = OperationEventKind::Finished {
+            result: portcove_core::OperationResult::Failed,
+        };
+        assert!(retain_boundary_event(&event, 32));
+        event.event = OperationEventKind::Progress {
+            phase: "download".into(),
+            completed: 100,
+            total: Some(200),
+        };
+        assert!(!retain_boundary_event(&event, 0));
+        event.event = OperationEventKind::Message {
+            level: "error".into(),
+            message: "owned failure".into(),
+        };
+        assert!(retain_boundary_event(&event, 0));
+        assert!(!retain_boundary_event(&event, 32));
     }
 }
