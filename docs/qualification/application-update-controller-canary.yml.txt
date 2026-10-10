@@ -1,0 +1,76 @@
+# INERT TEMPLATE. #534 owner authorization is required before activation.
+# No production environment, signing key, write token or candidate checkout.
+name: Application update controller disposable canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      request:
+        description: Schema1 probe-only JSON with a fresh 32-character hex nonce
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-update-controller-canary
+  cancel-in-progress: false
+
+env:
+  CANARY_REQUEST: ${{ inputs.request }}
+
+jobs:
+  admission:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Refuse unreviewed source before checkout
+        shell: bash
+        run: |
+          test "$GITHUB_REPOSITORY" = boburning/portcove
+          test "$GITHUB_REF" = refs/tags/portcove-controller-canary-20261010
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - name: Admit only the inert disposable request
+        run: node scripts/controller-canary.mjs admit
+
+  canary:
+    needs: admission
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    # Platform enforcement must admit only the exact typed controller tag.
+    environment: portcove-controller-canary
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.21.0
+          package-manager-cache: false
+      - name: Prove disposable canary reachability only
+        env:
+          PORTCOVE_CONTROLLER_CANARY: ${{ secrets.PORTCOVE_CONTROLLER_CANARY }}
+          CANARY_EXPECTED_SHA256: ${{ vars.PORTCOVE_CONTROLLER_CANARY_DIGEST }}
+          CANARY_EXPECTED_CONTROLLER_SHA: ${{ vars.PORTCOVE_CONTROLLER_CANARY_SHA }}
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/controller-canary.mjs prove | tee "$RUNNER_TEMP/controller-canary.json"
+      - name: Retain only the nonsecret identity receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: controller-canary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/controller-canary.json
+          if-no-files-found: error
+          retention-days: 7
