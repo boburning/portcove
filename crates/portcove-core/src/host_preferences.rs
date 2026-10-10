@@ -202,17 +202,22 @@ impl HostPreferenceStore {
     }
 
     pub fn set_library(&self, root: &Path) -> Result<()> {
-        let root = crate::Library::validate_selection_target(root)?;
-        let preference_path = crate::path::resolve_existing_ancestor(&self.path)?;
+        let root = crate::Library::validate_selection_target(root)
+            .map_err(|error| selection_phase(error, "selected-target-validation"))?;
+        let preference_path = crate::path::resolve_existing_ancestor(&self.path)
+            .map_err(|error| selection_phase(error, "preference-path-resolution"))?;
         if preference_path.starts_with(&root) {
             return Err(PortcoveError::conflict(
                 "host preferences must remain outside the selected library",
             ));
         }
-        let _lock = self.lock()?;
-        let mut preferences = self.load()?;
+        let _lock = self
+            .lock()
+            .map_err(|error| selection_phase(error, "preference-lock"))?;
+        let mut preferences = self.load().map_err(|error| selection_phase(error, "load"))?;
         preferences.library_root = Some(root);
         self.publish(&preferences)
+            .map_err(|error| selection_phase(error, "publication"))
     }
 
     /// Clear only the library choice while retaining other compatible settings.
@@ -421,6 +426,12 @@ impl HostPreferenceStore {
         }
         crate::durability::write_bytes_atomically(&self.path, &bytes, true)
     }
+}
+
+fn selection_phase(error: PortcoveError, phase: &'static str) -> PortcoveError {
+    error
+        .detail("host_preference_operation", "set_library")
+        .detail("host_preference_phase", phase)
 }
 
 fn process_preference_lock(path: &Path) -> Result<ProcessPreferenceLock> {

@@ -407,6 +407,45 @@ fn concurrent_set_and_reset_publish_complete_documents() {
 }
 
 #[test]
+fn poisoned_process_lock_stops_selection_before_preference_path_inspection() {
+    let temp = tempfile::tempdir().unwrap();
+    let selected = temp.path().join("selected");
+    fs::create_dir(&selected).unwrap();
+    // This Unicode path passes store construction but every host rejects its NUL
+    // at filesystem inspection. It distinguishes inspection from the poisoned
+    // writer boundary without a scheduler race or a Windows-only permission probe.
+    let store = HostPreferenceStore::new(temp.path().join("preferences\0.json")).unwrap();
+    let process_lock = store.process_lock.clone();
+    assert!(
+        std::thread::spawn(move || {
+            let _guard = process_lock.lock().unwrap();
+            panic!("poison preference process lock");
+        })
+        .join()
+        .is_err()
+    );
+
+    let error = store.set_library(&selected).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::State);
+    assert!(error.message.contains("process lock poisoned"), "{error:?}");
+    assert_eq!(error.details["host_preference_operation"], "set_library");
+    assert!(fs::read_dir(&selected).unwrap().next().is_none());
+}
+
+#[test]
+fn rejected_library_overlap_creates_no_preference_storage() {
+    let temp = tempfile::tempdir().unwrap();
+    let selected = temp.path().join("selected");
+    fs::create_dir(&selected).unwrap();
+    for relative in ["preferences.json", "missing/config/preferences.json"] {
+        let store = HostPreferenceStore::new(selected.join(relative)).unwrap();
+        let error = store.set_library(&selected).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(fs::read_dir(&selected).unwrap().next().is_none());
+    }
+}
+
+#[test]
 fn separately_opened_stores_share_only_the_same_path_lock() {
     let temp = tempfile::tempdir().unwrap();
     let first_path = temp.path().join("first.json");
