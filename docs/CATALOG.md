@@ -499,7 +499,7 @@ methods, and remaining boundaries are recorded in
 The optional `n64_windows_initial_d3d12` declaration seeds only
 `{"api_option":"D3D12"}` in a fresh Windows N64 portable working directory.
 Both `graphics.json` and `graphics.json.bak` must be declared persistent at that
-runtime coordinate. Core initializes them only when both are absent, after
+runtime coordinate. Core initializes `graphics.json` only when both are absent, after
 source preparation and persistent restoration, using synchronized no-replace
 publication. Existing regular settings, malformed bytes and backup-only recovery
 remain untouched; symlinks, nonregular files and unreadable metadata are refused.
