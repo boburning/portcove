@@ -64,12 +64,52 @@ export function renderBoundedSummary(
 
 export function summarizeReport(kind, report, reference) {
   if (!report || typeof report !== "object") throw new Error("Report must be a JSON object");
+  if (kind === "timings" && Array.isArray(report.records)) {
+    return renderBoundedSummary(
+      "CI diagnostic timings (not acceptance evidence)",
+      report.records.map(
+        (entry) =>
+          `${entry.context?.job ?? "unknown job"}/${entry.context?.run ?? "unknown run"}/${entry.context?.attempt ?? "unknown attempt"} ${entry.phase}: ${entry.elapsed_ms ?? "unmeasured"}ms; ${entry.outcome ?? "observed"}; cache ${entry.cache_outcome ?? "unknown"}${entry.selected_tests === undefined ? "" : `; tests ${entry.selected_tests}/${entry.complete_tests}`}`,
+      ),
+      { reference },
+    );
+  }
+  if (
+    kind === "watch" &&
+    (report.evidence?.watch || report.evidence?.contexts || report.kind?.startsWith("delivery-"))
+  ) {
+    const watch = report.evidence?.watch ?? report.evidence ?? report;
+    return renderBoundedSummary(
+      report.summary ?? "Delivery watch",
+      [
+        `Source: ${report.evidence?.head ?? watch.head}; run: ${watch.run}; attempt: ${watch.attempt}; status: ${report.status ?? watch.workflow?.status ?? "unknown"}`,
+        `Queue: ${watch.timings?.queue_ms ?? "unmeasured"}ms; required baseline: ${watch.timings?.baseline_elapsed_ms ?? "unmeasured"}ms`,
+        ...(watch.contexts ?? []).map(
+          (entry) => `${entry.context}: ${entry.outcome ?? entry.conclusion ?? "unknown"}`,
+        ),
+      ],
+      { reference },
+    );
+  }
+  if (kind === "doctor" && report.context) {
+    return renderBoundedSummary(
+      `Roadmap doctor: ${report.status}`,
+      [
+        `Checkout: ${report.context.root}; HEAD: ${report.context.head}; branch: ${report.context.branch}`,
+        `Catalog: ${report.context.catalog}; SHA-256: ${report.context.catalog_sha256}; modified inputs: ${report.context.input_dirty}`,
+        ...Object.entries(report.counts ?? {}).map(([key, value]) => `${key}: ${value}`),
+        ...(report.errors ?? []),
+        ...(report.warnings ?? []),
+      ],
+      { reference },
+    );
+  }
   if (kind === "ci" && Array.isArray(report.jobs)) {
     const entries = report.jobs
       .filter((job) => job.conclusion !== "success" && job.conclusion !== "skipped")
       .map(
         (job) =>
-          `${job.id}: ${job.name}; ${job.status ?? "unknown"}/${job.conclusion ?? "pending"}`,
+          `${job.id ?? job.databaseId ?? "unknown ID"}: ${job.name}; ${job.status ?? "unknown"}/${job.conclusion ?? "pending"}`,
       );
     return renderBoundedSummary(
       `CI jobs: observed ${report.jobs.length}; provider total ${report.total_count ?? "unknown"}; inventory completeness must be verified separately`,
@@ -107,10 +147,15 @@ export function summarizeReport(kind, report, reference) {
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   try {
     const [kind, file, ...rest] = process.argv.slice(2);
-    if (!file || rest.length) throw new Error("usage: report-summary.mjs ci|roadmap|fallow FILE");
+    if (!file || rest.length)
+      throw new Error("usage: report-summary.mjs ci|roadmap|fallow|watch|doctor|timings FILE");
     if (statSync(file).size > 32 * 1024 * 1024)
       throw new Error("Report exceeds 32 MiB input limit");
-    const result = summarizeReport(kind, JSON.parse(readFileSync(file, "utf8")), file);
+    const result = summarizeReport(
+      kind,
+      JSON.parse(readFileSync(file, "utf8").replace(/^\uFEFF/u, "")),
+      file,
+    );
     process.stdout.write(`${result.text}\n`);
   } catch (error) {
     console.error(error.message);

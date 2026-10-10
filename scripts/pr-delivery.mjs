@@ -1,4 +1,7 @@
 import { readFile } from "node:fs/promises";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { renderBoundedSummary, summarizeReport } from "./report-summary.mjs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +23,29 @@ import {
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
+
+export function baselineTimingWindow(workflow, jobs, contexts) {
+  const start = Date.parse(workflow.run_started_at);
+  const created = Date.parse(workflow.created_at);
+  const completed = contexts
+    .map((context) => jobs.find((job) => job.name === context.context)?.completed_at)
+    .map(Date.parse);
+  const valid =
+    Number.isFinite(start) &&
+    Number.isFinite(created) &&
+    start >= created &&
+    completed.length > 0 &&
+    completed.every((end) => Number.isFinite(end) && end >= start);
+  return {
+    queue_ms:
+      Number.isFinite(start) && Number.isFinite(created) && start >= created
+        ? start - created
+        : null,
+    baseline_elapsed_ms: valid ? Math.max(...completed) - start : null,
+    measurement: valid ? "observed" : "unavailable",
+    boundary: "workflow start to last required context completion",
+  };
+}
 
 function deliveryOutcomeError(status, message, evidence = {}, cause = null) {
   const error = new Error(message, cause ? { cause } : undefined);
@@ -374,7 +400,17 @@ export function createWatchClient({ now = Date.now, spawn = spawnSync } = {}) {
 
 export async function watchRequiredChecks(
   client,
-  { number, head, requiredContexts, run, attempt, deadline, sleep, now = Date.now },
+  {
+    number,
+    head,
+    requiredContexts,
+    run,
+    attempt,
+    deadline,
+    sleep,
+    now = Date.now,
+    observe = () => {},
+  },
 ) {
   if (!Number.isSafeInteger(run) || run < 1 || !Number.isSafeInteger(attempt) || attempt < 1)
     throw new Error("watch requires a positive run and attempt");
@@ -415,6 +451,11 @@ export async function watchRequiredChecks(
       client.beginObservation?.();
       observed = client.workflowRun(run);
       state = client.requiredCheckState(number, head, requiredContexts);
+      try {
+        observe({ format: 1, kind: "delivery-observation", ...evidence() });
+      } catch {
+        /* Diagnostics cannot change monitoring. */
+      }
     } catch (error) {
       throw deliveryOutcomeError(
         "failed",
@@ -468,6 +509,11 @@ export async function watchRequiredChecks(
         let jobs;
         try {
           jobs = client.workflowJobs(run, attempt);
+          try {
+            observe({ format: 1, kind: "delivery-jobs", ...evidence(), jobs });
+          } catch {
+            /* Diagnostics cannot change monitoring. */
+          }
         } catch (error) {
           throw deliveryOutcomeError(
             "failed",
@@ -537,6 +583,11 @@ export async function watchRequiredChecks(
           ...state,
           watch: {
             ...evidence(),
+            timings: baselineTimingWindow(
+              observed,
+              state.contexts.map((context) => checks.get(context.check_run_id)),
+              state.contexts,
+            ),
             next_action:
               "Complete outstanding acceptance and independent review, then use the existing exact-head guarded merge.",
           },
@@ -819,6 +870,20 @@ async function main(argv) {
     return;
   }
   if (command === "watch") {
+    const directory = path.join(projectRoot, "work/pr-delivery");
+    const references = [];
+    const retain = (observation) => {
+      try {
+        mkdirSync(directory, { recursive: true });
+        const file = path.join(directory, `${randomUUID()}.json`);
+        writeFileSync(file, JSON.stringify(observation), { flag: "wx" });
+        references.push(file);
+      } catch {
+        console.error(
+          "pr-delivery: observation retention unavailable; monitoring remains authoritative",
+        );
+      }
+    };
     const state = await watchRequiredChecks(client, {
       number,
       head,
@@ -826,7 +891,9 @@ async function main(argv) {
       run: Number(options["--run"]),
       attempt: Number(options["--attempt"]),
       deadline: options["--deadline"],
+      observe: retain,
     });
+    retain({ format: 1, kind: "delivery-result", ...state.watch });
     const summary = `Pull request #${number} exact head ${head} passed required checks: ${state.contexts
       .map((context) => context.context)
       .join(", ")}.`;
@@ -850,7 +917,13 @@ async function main(argv) {
         ),
       );
     } else {
-      console.log(summary);
+      console.log(
+        summarizeReport(
+          "watch",
+          { summary, status: "succeeded", evidence: { head, watch: state.watch } },
+          references.at(-1) ?? "retention unavailable",
+        ).text,
+      );
     }
     return;
   }
@@ -905,7 +978,22 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
         ),
       );
     }
-    console.error(`pr-delivery: ${safeError.message}`);
+    let reference = null;
+    try {
+      const directory = path.join(projectRoot, "work/pr-delivery");
+      mkdirSync(directory, { recursive: true });
+      reference = path.join(directory, `${randomUUID()}.json`);
+      writeFileSync(
+        reference,
+        JSON.stringify({ error: safeError, evidence: error.operationEvidence ?? {} }),
+        { flag: "wx" },
+      );
+    } catch {
+      /* Preserve the original operation failure. */
+    }
+    console.error(
+      renderBoundedSummary("pr-delivery failed", [safeError.message], { reference }).text,
+    );
     process.exitCode = 1;
   }
 }

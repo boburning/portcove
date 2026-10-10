@@ -580,6 +580,14 @@ Use `node scripts/roadmap.mjs capture-port` for direct maintainer port intake,
 `capture-feature` for feature intake, `promote` for draft-to-issue conversion,
 `set` and `move` for planning changes, `next` for the ordered work queue, and
 `readiness --release <stage>` for dependency-derived release evaluation.
+`doctor` exposes the actual checkout root, HEAD/branch and catalog hash before
+reading GitHub. After delivery, use verified current main containing the merge
+and pass `doctor --expected-head <verified-main-sha>`; a different HEAD or modified
+catalog/configuration stops before network checks. Input changes during the check
+invalidate success. `--json` returns the context and diagnostic report; raw reports
+remain under ignored `work/roadmap-doctor`. Checkout mismatches are distinct from
+Project drift.
+
 `doctor` verifies machine-readable identity, visibility, repository linkage,
 field types/options, view layout/filter/visible fields, the one-port/one-issue
 coverage contract across both repository issues and Project items, honest

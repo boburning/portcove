@@ -5,6 +5,7 @@ import {
   baselineContractTests,
   baselineFrontendPlan,
   baselineIntegrityCommands,
+  baselineBootstrapTests,
 } from "./ci-baseline.mjs";
 const make = (files) =>
   buildValidationPlan({
@@ -21,6 +22,25 @@ const make = (files) =>
     head: "b".repeat(40),
     checkout: "b".repeat(40),
   });
+test("bootstrap regressions are limited to infrastructure, including old rename paths", () => {
+  assert.deepEqual(baselineBootstrapTests(make(["crates/portcove-core/src/lib.rs"])), []);
+  assert.deepEqual(baselineBootstrapTests(make([".github/workflows/ci.yml"])), [
+    "scripts/rust-support-cache.test.mjs",
+  ]);
+  const renamed = make(["scripts/new-runner.mjs"]);
+  renamed.changes[0].oldPath = "scripts/run-rust-tests.mjs";
+  renamed.changes[0].status = "R100";
+  // Rebuild the validated plan so its digest and discovery stay coherent.
+  const plan = buildValidationPlan({
+    changes: renamed.changes,
+    eventName: "pull_request",
+    base: "a".repeat(40),
+    mergeBase: "a".repeat(40),
+    head: "b".repeat(40),
+    checkout: "b".repeat(40),
+  });
+  assert.deepEqual(baselineBootstrapTests(plan), ["scripts/rust-support-cache.test.mjs"]);
+});
 test("hosted contracts retain relevant script/docs/schema tests without stateful qualification", () => {
   const p = make(["scripts/run-rust-tests.mjs", "docs/QUALITY.md"]);
   const tests = baselineContractTests(p);

@@ -27,7 +27,8 @@ tracker, mutable status mirror, or competing planning authority.
   than relying on the default issue-list limit.
 - Use `gh issue comment`, `gh issue edit`, and `gh issue close` only
   within the user's authorized scope.
-- Put multiline bodies in UTF-8 files and pass `--body-file`.
+- Use the [guarded body operations](../DEVELOPMENT-TOOLS.md#generated-github-text)
+  for file-based issue/PR bodies, exact edit preimages and remote readback.
 - Use native sub-issues and blocking relationships through the Roadmap
   workflow. Preserve existing parentage; sub-issues alone are not blockers.
 - Read back mutations and finish applicable Roadmap integrity checks.

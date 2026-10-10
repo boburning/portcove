@@ -58,6 +58,11 @@ ready candidates carry final evidence in one current description. The advisory
 
 ## Review and merge
 
+For manually requested workflow qualification, complete substantive review and
+the affected ordinary hosted jobs on the candidate before dispatching the full
+run. Repair setup/producer failures first and repeat only invalidated work.
+Nightly and release qualification keep their existing triggers.
+
 Read requirements at pickup/resume and reuse them until material source or
 requirements changes; refresh relevant authority before final merge or writes
 under the [pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).

@@ -15,11 +15,63 @@ the sequence. Resolve source/target/tree identities before mutation; conflicts
 stay visible for explicit resolution. Other PowerShell callers still check each
 native exit immediately.
 
-Retain raw JSON, then use `node scripts/report-summary.mjs ci|roadmap|fallow FILE`
+Retain raw JSON, then use `node scripts/report-summary.mjs KIND FILE`
 to inspect decision-relevant fields within 16 KiB, with omission counts and raw
-evidence references. CI summaries never claim complete pagination. Fallow retains
+evidence references. `--help`/usage lists supported report kinds. CI summaries
+accept REST and `gh` job IDs and never claim complete pagination. Delivery watch
+retains its existing observations under ignored `work/pr-delivery`; inspect those
+snapshots instead of issuing duplicate status queries. Fetch logs for the identified
+failed job rather than an entire multi-job workflow. Fallow retains
 original analyzer bytes below `work/fallow-reports`. Selected static gates run
 before compilation and tests; complete selected and hosted obligations remain.
+
+## CI timing diagnostics
+
+Ordinary Rust, frontend and contract jobs publish diagnostic timing artifacts and
+bounded job summaries. `PORTCOVE_CI_METRICS_DIR` enables versioned per-phase JSON;
+without it the helper writes nothing. Reports retain source/checkout, run/attempt,
+job/runner, selected test counts and observed cache outcomes. Setup action timings
+remain in the saved job step inventory. Rust's first inventory includes workspace
+compilation; filter discovery, selected tests and live transport checks have
+separate phases. Measurement does not add another compilation or acceptance gate.
+
+Use `node scripts/ci-metrics.mjs summarize DIRECTORY` for downloaded reports.
+The delivery watcher records initial queue delay separately from workflow start
+through completion of the five required contexts. Missing measurements stay
+unavailable. Cache warmth comes from reported restore/reuse outcomes, not attempt
+numbers or short duration. Failed diagnostics preserve the original command exit.
+
+Assess the five-minute goal on the next three genuine focused hosted changes with
+observed relevant cache hits. Keep cold, broad and unknown-cache observations
+separate and link evidence on #1104. Instrumentation delivery alone proves no
+hosted speedup.
+
+## Generated GitHub text
+
+Use `node scripts/github-body.mjs --help` for guarded file-based issue/PR edits,
+comments and PR creation. Issue intake continues through Roadmap. For example:
+
+```powershell
+node scripts/github-body.mjs issue-edit --target 1685 --body-file work/candidate.md --previous-body-file work/original.md
+```
+
+The preimage file must be an exact UTF-8 copy of the fetched remote body. The
+helper reads the candidate once, rejects malformed UTF-8, lone CR and unexpected
+control characters, then submits structured JSON through stdin and verifies the
+returned identity and body. Markdown, Unicode, tabs and LF/CRLF are preserved;
+an encoding BOM is consumed. Candidate, preimage, mutation and readback evidence
+remain under `work/github-body`. A changed preimage stops the edit; ambiguous
+writes require remote reconciliation before any retry. Specification rewrites
+still preserve dated linked history through the owning Roadmap workflow.
+
+For generated JavaScript, save an owned `.mjs` file or pass source through stdin.
+PowerShell's literal here-string preserves backticks and dollar signs:
+
+```powershell
+@'
+console.log('Literal `roadmap` and $(text)');
+'@ | node --input-type=module
+```
 
 For update/scan harness engineering, read [native IPC probes](reference/desktop-ipc-probes.md).
 

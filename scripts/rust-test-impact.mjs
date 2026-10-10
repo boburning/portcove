@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateValidationPlan } from "./validation-plan.mjs";
+import { createCiMetrics } from "./ci-metrics.mjs";
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 export const rustTestImpactPath = path.join(projectRoot, ".config", "rust-test-impact.json");
@@ -363,13 +364,20 @@ export function runWorkspaceRustImpact(plan, dependencies = {}) {
   const groups = selectWorkspaceRustImpact(plan, map);
   const run = dependencies.spawnSync ?? spawnSync;
   const report = dependencies.report ?? console.log;
+  const metrics = dependencies.metrics ?? createCiMetrics();
+  let initialInventory = true;
   const scope = ["--locked", "--workspace", "--all-targets"];
   const list = (filter) => {
-    const result = run(
-      "cargo-nextest",
-      ["nextest", "list", ...scope, "-E", filter, "--message-format", "json"],
-      { cwd: projectRoot, encoding: "utf8", maxBuffer: 32 * 1024 * 1024, windowsHide: true },
+    const result = metrics.measure(
+      initialInventory ? "workspace-build-and-initial-inventory" : "filter-inventory",
+      () =>
+        run(
+          "cargo-nextest",
+          ["nextest", "list", ...scope, "-E", filter, "--message-format", "json"],
+          { cwd: projectRoot, encoding: "utf8", maxBuffer: 32 * 1024 * 1024, windowsHide: true },
+        ),
     );
+    initialInventory = false;
     if (result.error) throw result.error;
     if (result.status !== 0)
       throw new Error(`Nextest workspace inventory failed: ${result.stderr}`);
@@ -400,20 +408,29 @@ export function runWorkspaceRustImpact(plan, dependencies = {}) {
   report(
     `[rust-impact] union: ${union.size} of ${complete.size} runnable workspace tests; Windows baseline`,
   );
-  const result = run("cargo-nextest", ["nextest", "run", ...scope, "-E", filter], {
-    cwd: projectRoot,
-    stdio: "inherit",
-    windowsHide: true,
+  metrics.record("rust-selection", {
+    selected_tests: union.size,
+    complete_tests: complete.size,
+    groups: groups.map((group) => group.id),
   });
+  const result = metrics.measure("selected-rust-tests", () =>
+    run("cargo-nextest", ["nextest", "run", ...scope, "-E", filter], {
+      cwd: projectRoot,
+      stdio: "inherit",
+      windowsHide: true,
+    }),
+  );
   if (result.error) throw result.error;
   if (result.status !== 0) return result.status ?? 1;
   // This stays inside the caller's heavyweight reservation. Cargo reuses the
   // workspace build; compare live Rust serialization with committed snapshots.
-  const contract = run(process.execPath, ["scripts/check-transport-contract.mjs"], {
-    cwd: projectRoot,
-    stdio: "inherit",
-    windowsHide: true,
-  });
+  const contract = metrics.measure("live-transport-contracts", () =>
+    run(process.execPath, ["scripts/check-transport-contract.mjs"], {
+      cwd: projectRoot,
+      stdio: "inherit",
+      windowsHide: true,
+    }),
+  );
   if (contract.error) throw contract.error;
   return contract.status ?? 1;
 }
