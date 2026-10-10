@@ -766,6 +766,7 @@ impl Catalog {
                 }
             }
             crate::runtime::validate(port)?;
+            crate::n64_graphics::validate(port)?;
             for pattern in &port.persistent_file_patterns {
                 pattern.validate()?;
             }
@@ -1844,6 +1845,8 @@ mod tests {
             .find(|port| port.id == "dr-mario-64-recomp")
             .unwrap();
         dr_mario.project_url = "https://github.com/theboy181/drmario64_recomp_plus".into();
+        dr_mario.summary = "Native Dr. Mario 64 recompilation. Fresh Windows settings use the qualified D3D12 route; existing settings are preserved. Auto/Vulkan failed on AMD RX 9070 XT driver 32.0.31041.1004; select D3D12 in graphics.json on that configuration.".into();
+        dr_mario.n64_windows_initial_d3d12 = true;
         dr_mario.support_tier = crate::SupportTier::Beta;
         dr_mario.release.repository = "theboy181/drmario64_recomp_plus".into();
         dr_mario.release.asset_hints.insert(

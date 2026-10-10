@@ -27,6 +27,10 @@ impl EngineTemplateCapability {
             })
             .collect();
         supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: 2,
+        });
+        supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 2,
         });
@@ -198,23 +202,25 @@ mod tests {
     }
 
     #[test]
-    fn prepared_private_data_negotiates_highest_version_inside_the_window() {
-        for (minimum, maximum, selected, compatible) in [
-            (1, 1, 1, true),
-            (1, 2, 2, true),
-            (2, 2, 2, true),
-            (3, 3, 2, false),
-        ] {
-            let report =
-                check_definition_capabilities(&request("staged-source-portable", minimum, maximum))
-                    .unwrap();
-            assert_eq!(report.compatible, compatible);
-            assert_eq!(report.checks[0].installed_version, Some(selected));
+    fn n64_windows_initial_renderer_preserves_v1_negotiation() {
+        for template in ["n64-recomp-portable", "staged-source-portable"] {
+            for (minimum, maximum, selected, compatible) in [
+                (1, 1, 1, true),
+                (2, 2, 2, true),
+                (1, 2, 2, true),
+                (3, 3, 2, false),
+            ] {
+                let report =
+                    check_definition_capabilities(&request(template, minimum, maximum)).unwrap();
+                assert_eq!(report.compatible, compatible);
+                assert_eq!(report.checks[0].installed_version, Some(selected));
+            }
         }
-        let mut identities = HashSet::new();
-        for capability in EngineTemplateCapability::current() {
-            assert!(identities.insert((capability.template, capability.contract_version)));
-        }
+        let pairs: HashSet<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .map(|entry| (entry.template, entry.contract_version))
+            .collect();
+        assert_eq!(pairs.len(), EngineTemplateCapability::current().len());
     }
 
     #[test]

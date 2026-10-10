@@ -1060,6 +1060,10 @@ export interface PortDefinition {
   };
   launch_from_install_root: boolean;
   manually_validated_platforms: Platform[];
+  /**
+   * Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
+   */
+  n64_windows_initial_d3d12?: boolean;
   name: string;
   persistent_file_patterns: PersistentFilePattern[];
   persistent_paths: string[];

@@ -78,10 +78,21 @@ fn generic_projection() -> Value {
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let port = &document["catalog"]["ports"][port_index];
     let reference = target(contract);
+    // Renderer initialization is a v2 engine contract, including in a
+    // synthetic entry used to verify the complete catalog projection.
+    let version = if port
+        .get("n64_windows_initial_d3d12")
+        .and_then(Value::as_bool)
+        == Some(true)
+    {
+        2
+    } else {
+        1
+    };
     json!({
         "definition_schema": 1, "namespace": "official", "stable_id": port["id"],
         "revision": 1, "port": port,
-        "required_capabilities": [{"template":port["adapter"],"minimum_version":1,"maximum_version":1}],
+        "required_capabilities": [{"template":port["adapter"],"minimum_version":version,"maximum_version":version}],
         "source_contracts": [reference], "execution_contract": reference,
         "persistence_contract": reference, "artifact_bindings": [], "evidence_references": []
     })

@@ -11404,7 +11404,7 @@
     {
       "id": "dr-mario-64-recomp",
       "name": "Dr. Mario 64 Recompiled",
-      "summary": "Native Dr. Mario 64 recompilation.",
+      "summary": "Native Dr. Mario 64 recompilation. Fresh Windows settings use the qualified D3D12 route; existing settings are preserved. Auto/Vulkan failed on AMD RX 9070 XT driver 32.0.31041.1004; select D3D12 in graphics.json on that configuration.",
       "project_url": "https://github.com/theboy181/drmario64_recomp_plus",
       "support_tier": "beta",
       "channels": [
@@ -11473,7 +11473,8 @@
           "game_slug": "dr-mario-64",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "n64_windows_initial_d3d12": true
     },
     {
       "id": "gen1recomp",

@@ -670,6 +670,13 @@ function useAppModel(data: DataState, ui: UiState) {
       ),
     [data.catalog, statusMap, ui.view, ui.filter, ui.query, ui.catalogSort],
   );
+  const catalogFilterCandidates = useMemo(
+    () =>
+      ui.view === "catalog" && data.catalog
+        ? filterPorts(data.catalog.ports, statusMap, "catalog", "all", ui.query)
+        : undefined,
+    [data.catalog, statusMap, ui.view, ui.query],
+  );
   const overview = useMemo(
     () => summarizeLibrary(data.catalog?.ports ?? [], statusMap),
     [data.catalog, statusMap],
@@ -698,7 +705,15 @@ function useAppModel(data: DataState, ui: UiState) {
   useEffect(() => {
     setBiosPath(selection.bios?.path ?? "");
   }, [selectedId, selection.bios?.path, setBiosPath]);
-  return { statusMap, visible, overview, recent, sourceNeeds, ...selection };
+  return {
+    statusMap,
+    visible,
+    catalogFilterCandidates,
+    overview,
+    recent,
+    sourceNeeds,
+    ...selection,
+  };
 }
 
 function selectedPort(
@@ -902,6 +917,7 @@ function CurrentView({
       favorites={favorites}
       view={ui.view}
       ports={model.visible}
+      catalogFilterCandidates={model.catalogFilterCandidates}
       statuses={model.statusMap}
       overview={model.overview}
       recent={model.recent}

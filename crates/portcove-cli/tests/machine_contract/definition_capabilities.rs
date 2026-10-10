@@ -63,10 +63,23 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     let temporary = tempfile::tempdir().unwrap();
     let capabilities = json_stdout(&portcove(temporary.path(), &["--json", "capabilities"]));
     let templates = capabilities["data"]["engine_templates"].as_array().unwrap();
-    assert_eq!(
-        templates.len(),
-        capabilities["data"]["adapters"].as_array().unwrap().len() + 1
-    );
+    let pairs: std::collections::HashSet<_> = templates
+        .iter()
+        .map(|entry| {
+            (
+                entry["template"].as_str().unwrap(),
+                entry["contract_version"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(pairs.len(), templates.len());
+    let adapters = capabilities["data"]["adapters"].as_array().unwrap();
+    for adapter in adapters {
+        assert!(pairs.contains(&(adapter.as_str().unwrap(), 1)));
+    }
+    assert!(pairs.contains(&("n64-recomp-portable", 2)));
+    assert!(pairs.contains(&("staged-source-portable", 2)));
+    assert_eq!(templates.len(), adapters.len() + 2);
     let mut identities = std::collections::HashSet::new();
     for template in templates {
         assert!(identities.insert((

@@ -1,0 +1,167 @@
+import { useRef, type Dispatch, type SetStateAction } from "react";
+import { ListFilter, X } from "lucide-react";
+import type { PortDefinition } from "../../types";
+import { platformLabel, releaseChannelPresentation, type Filter } from "../../view-model";
+import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
+import { evaluateCatalogQuery, type CatalogQuery } from "./catalog-query";
+
+const groups = [
+  {
+    key: "platforms",
+    label: "Declared platforms",
+    values: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+  },
+  { key: "channels", label: "Release channels", values: ["stable", "beta", "rolling"] },
+] as const;
+type Group = (typeof groups)[number]["key"];
+
+function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
+  return typeof filter === "string"
+    ? {
+        version: ["all", "stable", "beta", "rolling"].includes(filter) ? 1 : 0,
+        channels: ["stable", "beta", "rolling"].includes(filter) ? [filter] : [],
+      }
+    : filter;
+}
+function label(group: Group, value: string) {
+  return group === "platforms" ? platformLabel(value) : releaseChannelPresentation(value).label;
+}
+
+/** Presentation of declared facts only; the existing evaluator owns matching/counts. */
+export function CatalogFilters({
+  candidates,
+  filter,
+  setFilter,
+}: {
+  candidates: readonly PortDefinition[];
+  filter: Filter | CatalogQuery;
+  setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
+}) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const query = queryFromFilter(filter);
+  const result = evaluateCatalogQuery(candidates, query);
+  const editable = result.state === "matched";
+  const selected = editable
+    ? groups.flatMap((group) =>
+        group.values
+          .filter((value) => query[group.key]?.includes(value))
+          .map((value) => ({ group: group.key, value })),
+      )
+    : [];
+  const additionalCount = !editable
+    ? 0
+    : Object.entries(query).reduce(
+        (count, [key, values]) =>
+          count +
+          (!["version", "platforms", "channels"].includes(key) && Array.isArray(values)
+            ? new Set(values).size
+            : 0),
+        0,
+      );
+  const additional = additionalCount > 0;
+  const activeCount = selected.length + additionalCount;
+  const remove = (group: Group, value: string) =>
+    setFilter((current) => {
+      const next = queryFromFilter(current);
+      if (evaluateCatalogQuery([], next).state !== "matched") return current;
+      return { ...next, [group]: (next[group] ?? []).filter((item) => item !== value) };
+    });
+  const toggle = (group: Group, value: string) =>
+    setFilter((current) => {
+      const next = queryFromFilter(current);
+      if (evaluateCatalogQuery([], next).state !== "matched") return current;
+      const values = next[group] ?? [];
+      return {
+        ...next,
+        [group]: values.includes(value)
+          ? values.filter((item) => item !== value)
+          : [...values, value],
+      };
+    });
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2" data-focus-group>
+      <Dialog>
+        <DialogTrigger render={<Button ref={trigger} data-focusable variant="outline" size="sm" />}>
+          <ListFilter /> Filters ({activeCount})
+        </DialogTrigger>
+        <DialogContent finalFocus={trigger}>
+          <DialogTitle>Catalog filters</DialogTitle>
+          <DialogDescription>
+            Match any selected value in each group and both groups together. Platforms describe
+            catalog targets; they do not confirm installation compatibility.
+          </DialogDescription>
+          {!editable && (
+            <p role="alert">
+              {result.state === "unresolved"
+                ? "These restored filters are not supported."
+                : "These restored filters need unavailable local context."}{" "}
+              Reset catalog filters to choose a supported query.
+            </p>
+          )}
+          {additional && (
+            <p role="status">
+              Additional restored filters remain active. Reset catalog filters to remove them.
+            </p>
+          )}
+          {groups.map((group) => (
+            <fieldset key={group.key} className="grid gap-2">
+              <legend className="mb-2 font-medium">{group.label}</legend>
+              <div className="flex flex-wrap gap-2">
+                {group.values.map((value) => (
+                  <Button
+                    key={value}
+                    data-focusable
+                    size="sm"
+                    variant={editable && query[group.key]?.includes(value) ? "selected" : "outline"}
+                    aria-pressed={editable && query[group.key]?.includes(value) === true}
+                    disabled={!editable}
+                    onClick={() => toggle(group.key, value)}
+                  >
+                    {label(group.key, value)} ({result.counts[group.key][value] ?? "unavailable"})
+                  </Button>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+          <Button data-focusable variant="outline" onClick={() => setFilter("all")}>
+            Reset catalog filters
+          </Button>
+        </DialogContent>
+      </Dialog>
+      {editable &&
+        selected.map(({ group, value }) => (
+          <Button
+            key={`${group}:${value}`}
+            data-focusable
+            size="sm"
+            variant="selected"
+            aria-label={`Remove ${label(group, value)} filter`}
+            onClick={(event) => {
+              const ownedFocus = document.activeElement === event.currentTarget;
+              remove(group, value);
+              if (ownedFocus) trigger.current?.focus();
+            }}
+          >
+            {label(group, value)} <X />
+          </Button>
+        ))}
+      {!editable && (
+        <p role="status" className="text-sm text-pc-muted-foreground">
+          Open Filters to review or reset the restored query.
+        </p>
+      )}
+      {additional && (
+        <p role="status" className="text-sm text-pc-muted-foreground">
+          Additional restored filters are active; open Filters to review or reset them.
+        </p>
+      )}
+    </div>
+  );
+}

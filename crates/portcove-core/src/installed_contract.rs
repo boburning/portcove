@@ -128,6 +128,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn retained_initial_renderer_does_not_follow_later_catalog_choices() {
+        let current = Catalog::embedded().unwrap();
+        let mut legacy_document = current.authoritative_document();
+        legacy_document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "dr-mario-64-recomp")
+            .unwrap()
+            .n64_windows_initial_d3d12 = false;
+        let legacy = Catalog::from_json(&serde_json::to_string(&legacy_document).unwrap()).unwrap();
+        for (catalog, expected) in [(&legacy, false), (&current, true)] {
+            let captured = InstalledContract::capture(catalog, "dr-mario-64-recomp").unwrap();
+            let restored: InstalledContract =
+                serde_json::from_slice(&serde_json::to_vec(&captured).unwrap()).unwrap();
+            assert_eq!(
+                restored
+                    .catalog("dr-mario-64-recomp")
+                    .unwrap()
+                    .port("dr-mario-64-recomp")
+                    .unwrap()
+                    .n64_windows_initial_d3d12,
+                expected
+            );
+        }
+    }
+
+    #[test]
     fn exact_successor_bytes_survive_decode_and_recapture_without_canonical_replacement() {
         let original = Catalog::embedded().unwrap();
         let catalog = crate::test_fixture::indexed_catalog(&original, "zelda64-recomp");

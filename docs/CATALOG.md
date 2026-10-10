@@ -507,6 +507,20 @@ cross-version update/rollback, or non-Windows behavior. The exact identities,
 methods, and remaining boundaries are recorded in
 [`docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md`](qualification/dr-mario-64-recompiled-windows-2026-09-15.md).
 
+The optional `n64_windows_initial_d3d12` declaration seeds only
+`{"api_option":"D3D12"}` in a fresh Windows N64 portable working directory.
+Both `graphics.json` and `graphics.json.bak` must be declared persistent at that
+runtime coordinate. Core initializes `graphics.json` only when both are absent, after
+source preparation and persistent restoration, using synchronized no-replace
+publication. Existing regular settings, malformed bytes and backup-only recovery
+remain untouched; symlinks, nonregular files and unreadable metadata are refused.
+Initialization is not a repair of an existing configuration or a qualification
+claim for its selected renderer. Dr. Mario's catalog summary retains the specific
+AMD RX 9070 XT / driver 32.0.31041.1004 Auto/Vulkan failure and D3D12 remedy.
+Other Windows hardware and newly created settings require their own applicable
+evidence. Retained installation contracts preserve their original declaration;
+indexed definitions require the N64 version 2 capability for this behavior.
+
 Duke Nukem: Zero Hour Recompiled 0.0.3 has exact Windows structural and
 bounded automated lifecycle records for the checksum-qualified USA source and
 GitLab artifact. They cover mismatch refusal, archive-member normalization,
