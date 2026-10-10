@@ -180,7 +180,11 @@ impl PortcoveService {
                 "output_truncated": output.truncated,
                 "failure": null,
             }),
-            Err(error) => serde_json::json!({"failure": error.to_string()}),
+            Err(error) => serde_json::json!({
+                "failure": error.to_string(),
+                "failure_code": error.code,
+                "process_tree_proof": crate::tool_process::copy_proof_details(&error),
+            }),
         };
         Ok(serde_json::json!({
             "schema_version": 1,

@@ -2178,6 +2178,15 @@ closing the job or zero active accounting alone is not exit evidence. Unix
 process-group containment retains its conservative rule because descendants can
 escape the group.
 
+Unproven Windows closure retains bounded structured diagnostics: the first
+membership, termination, retained-handle wait or accounting failure, its actual
+Win32 error when available, retained member count, membership completeness,
+deadline state, and available active/lifetime counts and wait result. Unavailable
+observations stay absent. Cancellation cleanup refusal and the historical producer
+qualification receipt preserve only these named proof fields. These diagnostics
+never grant cleanup authority or extend the existing deadline; a missed child
+lifetime remains a hold even after active accounting reaches zero.
+
 ## Child-process boundary
 
 `portcove-core::ChildProcessPolicy` is the single construction path for every production child process. Callers select a typed class for games, upstream setup, host tools such as `chdman` and DolphinTool, managed builders, or operating-system integration. All classes begin from the same reviewed session allowlist rather than inheriting the complete Portcove environment. The allowlist preserves cross-platform process discovery, profile/home, temporary-directory, locale, desktop/display, audio/graphics, Steam/Proton, Wine, and dynamic-runtime variables needed by native ports. GitHub variables and other credential-shaped token, secret, password, API-key, cloud-key, SSH-agent, and askpass variables are removed centrally. Catalog/adapter overlays are checked by the same policy and cannot reintroduce a credential-shaped variable.

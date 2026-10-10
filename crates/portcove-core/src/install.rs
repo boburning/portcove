@@ -519,9 +519,14 @@ impl Installer {
                         &self.library,
                         &lifecycle.record,
                     ) {
-                        return Err(PortcoveError::new(crate::ErrorCode::Cancelled,
+                        let mut refusal = PortcoveError::new(crate::ErrorCode::Cancelled,
                             "Publication was cancelled; private preparation cleanup requires review")
-                            .detail("operation_id", lifecycle.record.id).detail("cleanup_error", cleanup.message));
+                            .detail("operation_id", lifecycle.record.id).detail("cleanup_error", cleanup.message);
+                        // Retain bounded native proof diagnostics without changing cleanup authority.
+                        refusal
+                            .details
+                            .extend(crate::tool_process::copy_proof_details(error));
+                        return Err(refusal);
                     }
                     return result;
                 }
@@ -537,13 +542,17 @@ impl Installer {
                         error.message, cleanup.message
                     ));
                     if let Err(persist) = lifecycle.store.put(&mut lifecycle.record) {
-                        return Err(PortcoveError::state(
+                        let mut refusal = PortcoveError::state(
                             "install failed and private cleanup state could not be retained",
                         )
                         .detail("operation_id", &lifecycle.record.id)
                         .detail("install_error", &error.message)
                         .detail("cleanup_error", cleanup.message)
-                        .detail("persistence_error", persist.message));
+                        .detail("persistence_error", persist.message);
+                        refusal
+                            .details
+                            .extend(crate::tool_process::copy_proof_details(error));
+                        return Err(refusal);
                     }
                     error
                         .details

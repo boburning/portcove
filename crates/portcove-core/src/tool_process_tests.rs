@@ -3,6 +3,187 @@ use std::{collections::BTreeMap, fs, io::Write, time::Instant};
 
 const CHILD_TEST: &str = "tool_process::tests::setup_fixture_child";
 
+#[cfg(windows)]
+fn wait_nested_file(path: &Path) {
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !path.is_file() {
+        assert!(
+            Instant::now() < deadline,
+            "nested handshake did not complete"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "owned child fixture selected explicitly by the nested-supervision test"]
+fn nested_supervision_fixture_child() {
+    let program = std::env::var_os("PORTCOVE_NESTED_PROBE").unwrap();
+    let short = std::env::var("PORTCOVE_NESTED_MODE").unwrap() == "short";
+    let working = std::env::current_dir().unwrap();
+    let args = if short {
+        vec!["--setup-unobserved-child".into()]
+    } else {
+        vec![
+            "--setup-tree".into(),
+            working.join("orphan-output").display().to_string(),
+            "observed-exit".into(),
+        ]
+    };
+    let observations = std::cell::Cell::new(0);
+    let mut inner_quiesced = false;
+    let result = run_setup(
+        Path::new(&program),
+        &args,
+        &working.join("owned.iso"),
+        &working,
+        &Default::default(),
+        &|| {
+            let ready = working.join(if short {
+                "leader-ready"
+            } else {
+                "descendant-pid"
+            });
+            if ready.is_file() {
+                // A second callback follows another actual membership observation.
+                observations.set(observations.get() + 1);
+                if observations.get() >= 2 {
+                    fs::write(working.join("inner-observing"), b"paused after observation")
+                        .unwrap();
+                    wait_nested_file(&working.join("allow-inner-release"));
+                    fs::write(
+                        working.join(if short {
+                            "spawn-child"
+                        } else {
+                            "descendant-observed"
+                        }),
+                        b"release",
+                    )
+                    .unwrap();
+                    if short {
+                        wait_nested_file(&working.join("child-finished"));
+                    }
+                }
+            }
+            Ok(())
+        },
+        ToolProcessObserver {
+            diagnostics: None,
+            quiesced: Some(&mut || {
+                inner_quiesced = true;
+                Ok(())
+            }),
+        },
+    );
+    let details = result.as_ref().err().map(copy_proof_details);
+    fs::write(
+        working.join("inner-result.pending"),
+        serde_json::to_vec(&serde_json::json!({
+            "quiesced": inner_quiesced, "error": details,
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    fs::rename(
+        working.join("inner-result.pending"),
+        working.join("inner-result.json"),
+    )
+    .unwrap();
+    wait_nested_file(&working.join("allow-worker-exit"));
+    assert_eq!(inner_quiesced, !short);
+    assert_eq!(result.is_ok(), !short);
+}
+
+#[cfg(windows)]
+#[test]
+fn nested_windows_supervisors_distinguish_held_and_unobserved_child_lifetimes() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    for short in [false, true] {
+        let working = tempfile::tempdir().unwrap();
+        fs::write(working.path().join("private-sentinel"), b"retained").unwrap();
+        let environment = BTreeMap::from([
+            (
+                "PORTCOVE_NESTED_PROBE".into(),
+                program.display().to_string(),
+            ),
+            (
+                "PORTCOVE_NESTED_MODE".into(),
+                if short { "short" } else { "held" }.into(),
+            ),
+        ]);
+        let observations = std::cell::Cell::new(0);
+        let mut outer_quiesced = false;
+        let result = run_setup(
+            &std::env::current_exe().unwrap(),
+            &[
+                "--ignored".into(),
+                "--exact".into(),
+                "tool_process::tests::nested_supervision_fixture_child".into(),
+                "--nocapture".into(),
+            ],
+            &working.path().join("owned.iso"),
+            working.path(),
+            &environment,
+            &|| {
+                if working.path().join("inner-observing").is_file() {
+                    observations.set(observations.get() + 1);
+                    if observations.get() >= 2 {
+                        // Both jobs have observed the held members. In the short case,
+                        // freeze both observers while the one new child finishes.
+                        fs::write(working.path().join("allow-inner-release"), b"release").unwrap();
+                        wait_nested_file(&working.path().join("inner-result.json"));
+                        fs::write(
+                            working.path().join("allow-worker-exit"),
+                            b"joined inner worker",
+                        )
+                        .unwrap();
+                    }
+                }
+                Ok(())
+            },
+            ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    outer_quiesced = true;
+                    Ok(())
+                }),
+            },
+        );
+        let inner: serde_json::Value =
+            serde_json::from_slice(&fs::read(working.path().join("inner-result.json")).unwrap())
+                .unwrap();
+        assert_eq!(outer_quiesced, !short);
+        assert_eq!(inner["quiesced"], !short);
+        if short {
+            let error = result
+                .err()
+                .expect("both observers missed the short lifetime");
+            assert_eq!(
+                error.details["process_tree_first_failure"],
+                "lifetime_count_gap"
+            );
+            assert_eq!(error.details["process_tree_total"], "3");
+            assert_eq!(error.details["process_tree_retained_members"], "2");
+            assert_eq!(
+                inner["error"]["process_tree_first_failure"],
+                "lifetime_count_gap"
+            );
+            assert_eq!(inner["error"]["process_tree_total"], "2");
+            assert_eq!(inner["error"]["process_tree_retained_members"], "1");
+        } else {
+            assert!(result.unwrap().status.success());
+            assert!(inner["error"].is_null());
+        }
+        assert_eq!(
+            fs::read(working.path().join("private-sentinel")).unwrap(),
+            b"retained"
+        );
+        assert!(!working.path().join("orphan-output").exists());
+    }
+}
+
 // The test executable is a redistributable native fixture. The extra source
 // argument is another libtest filter and never selects any repository test.
 fn fixture(mode: &str) -> tempfile::TempDir {
@@ -448,6 +629,13 @@ fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
         !confirmed,
         "successful leader exit cannot grant cleanup authority"
     );
+    assert_eq!(
+        error.details["process_tree_first_failure"],
+        "lifetime_count_gap"
+    );
+    assert_eq!(error.details["process_tree_active"], "0");
+    assert_eq!(error.details["process_tree_retained_members"], "1");
+    assert_eq!(error.details["process_tree_total"], "2");
     assert!(working.path().join("child-finished").is_file());
 }
 
@@ -455,12 +643,24 @@ fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
 #[test]
 fn windows_quiescence_refuses_invalid_job_observation() {
     let group = ToolProcessGroup {
-        job: std::ptr::null_mut(),
+        // NULL queries the caller's current job; use an actually invalid handle.
+        job: windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE,
         members: Default::default(),
         complete: std::cell::Cell::new(true),
         termination_deadline: Default::default(),
+        proof_failure: Default::default(),
+        accounting: Default::default(),
+        wait_result: Default::default(),
     };
+    group.observe_members();
     assert!(!group.proves_tree_quiescence());
+    let error = group.with_proof_details(PortcoveError::state("retained"));
+    assert_eq!(
+        error.details["process_tree_first_failure"],
+        "membership_query"
+    );
+    assert!(error.details.contains_key("process_tree_api_error"));
+    assert!(!error.details.contains_key("process_tree_active"));
 }
 
 #[cfg(unix)]
