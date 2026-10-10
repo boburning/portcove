@@ -36,7 +36,6 @@ if $want_frontend; then
   [[ "$(node --version)" == "v$node_pin" ]] || { printf 'Node %s is required for frontend setup.\n' "$node_pin" >&2; exit 1; }
   package_spec="$(node -p 'JSON.parse(require("node:fs").readFileSync("package.json","utf8")).packageManager')"
   corepack "$package_spec" install --frozen-lockfile
-  node scripts/hooks-install.mjs
 fi
 if $want_rust && [[ "$profile" != standard ]]; then
   rust_pin="$(node -e 'console.log(JSON.parse(process.argv[1]).pins.rust)' "$capability_plan")"

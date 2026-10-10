@@ -28,7 +28,8 @@ before compilation and tests; complete selected and hosted obligations remain.
 ## Early commit feedback
 
 After the pinned frozen frontend dependency install, run `pnpm run hooks:install`.
-Selective frontend setup also runs this explicit step. Repeat it in each linked
+Windows selective frontend setup also runs this explicit step. On Linux, run the
+same install command after frontend setup. Repeat it in each linked
 worktree and after replacing dependencies or the hook entrypoint. Setup verifies
 the installed Husky/lint-staged versions and actual generated entrypoint, keeps
 hook configuration local to that worktree, and refuses an existing unrelated
