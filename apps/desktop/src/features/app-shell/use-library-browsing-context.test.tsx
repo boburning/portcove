@@ -112,7 +112,8 @@ it("restores independent section query/search/sort on restart without transient 
   await remount();
   expect(browsing.ui).toMatchObject({
     view: "library",
-    filter: "ready",
+    filter: "all",
+    libraryReadiness: "ready",
     query: "installed search",
     catalogSort: "name",
     selectedId: undefined,
@@ -159,7 +160,11 @@ it("keeps in-memory browsing inputs ahead of the persisted copy", async () => {
     positions: {},
   };
   await remount();
-  expect(browsing.ui).toMatchObject({ filter: "setup", query: "current memory" });
+  expect(browsing.ui).toMatchObject({
+    filter: "all",
+    libraryReadiness: "setup",
+    query: "current memory",
+  });
 });
 
 it("keeps an unreadable preference held after switching away and returning with memory inputs", async () => {
@@ -211,7 +216,7 @@ it("migrates compatible legacy shortcuts and retains an unknown legacy identifie
   await act(async () => browsing.ui.setView("catalog"));
   await act(async () => browsing.ui.setFilter("retired-channel" as never));
   await remount();
-  expect(browsing.ui.filter).toBe("ready");
+  expect(browsing.ui.libraryReadiness).toBe("ready");
   await act(async () => browsing.ui.setView("catalog"));
   expect(browsing.ui.filter).toEqual({ version: 1, channels: ["retired-channel"] });
   expect(evaluateCatalogQuery([], browsing.ui.filter).state).toBe("unresolved");
@@ -284,7 +289,11 @@ it("keeps browsing and library switching available when preference access is den
   });
   await act(async () => browsing.resetLibraryWithContext());
   expect(resetLibrary).toHaveBeenCalledOnce();
-  expect(browsing.ui).toMatchObject({ query: "session only", filter: "ready" });
+  expect(browsing.ui).toMatchObject({
+    query: "session only",
+    filter: "all",
+    libraryReadiness: "ready",
+  });
   await act(async () => {
     expect(browsing.saveBrowsingPreferences()).toBe(false);
   });
@@ -367,7 +376,11 @@ it("captures browsing context for its own library and resets transient UI on ano
   expect(remember).toHaveBeenCalledTimes(1);
   expect(remember.mock.calls[0][0]).toBe("E:/first");
   const saved = remember.mock.calls[0][1];
-  expect(saved.inputs.sections.library).toEqual({ filter: "ready", query: "saved search" });
+  expect(saved.inputs.sections.library).toEqual({
+    filter: "all",
+    readiness: "ready",
+    query: "saved search",
+  });
   expect(saved.positions.library).toEqual({ focus: undefined, scrollTop: 72 });
   libraryRoot = "E:/second";
   await remount();
@@ -378,11 +391,65 @@ it("captures browsing context for its own library and resets transient UI on ano
   await remount();
   expect(browsing.ui).toMatchObject({
     query: "saved search",
-    filter: "ready",
+    filter: "all",
+    libraryReadiness: "ready",
     selectedId: undefined,
     adoptOpen: false,
   });
   await act(async () => browsing.resetLibraryWithContext());
   expect(resetLibrary).toHaveBeenCalledTimes(1);
   expect(remember.mock.lastCall?.[0]).toBe("E:/first");
+});
+
+it.each(["ready", "setup"])(
+  "migrates v1 Library %s without losing other section intent",
+  async (readiness) => {
+    const key = libraryBrowsingPreferenceKey(libraryRoot);
+    const inputs = browsing.ui.browsingInputs;
+    inputs.sections.library = { filter: readiness as "ready" | "setup", query: "kept search" };
+    inputs.sections.catalog = { filter: "beta", query: "other search" };
+    localStorage.setItem(key, JSON.stringify({ version: 1, library: libraryRoot, inputs }));
+    await remount();
+    expect(browsing.ui).toMatchObject({
+      filter: "all",
+      libraryReadiness: readiness,
+      query: "kept search",
+    });
+    await act(async () => browsing.ui.setFilter({ version: 1, platforms: ["linux-x86-64"] }));
+    await remount();
+    expect(browsing.ui).toMatchObject({
+      libraryReadiness: readiness,
+      filter: { version: 1, platforms: ["linux-x86-64"] },
+    });
+    const saved = JSON.parse(localStorage.getItem(key)!);
+    expect(saved.version).toBe(2);
+    expect(saved.inputs.sections.catalog).toEqual({ filter: "beta", query: "other search" });
+  },
+);
+
+it("retains unknown readiness and unsupported declared predicates across restart until separate corrections", async () => {
+  await act(async () => {
+    browsing.ui.setLibraryReadiness("future-readiness");
+    browsing.ui.setFilter({ version: 99, platforms: ["future-platform"] });
+  });
+  await remount();
+  expect(browsing.ui).toMatchObject({
+    libraryReadiness: "future-readiness",
+    filter: { version: 99, platforms: ["future-platform"] },
+  });
+  await act(async () => browsing.ui.setLibraryReadiness("all"));
+  expect(browsing.ui.filter).toEqual({ version: 99, platforms: ["future-platform"] });
+  await act(async () => browsing.ui.setFilter("all"));
+  expect(browsing.ui.libraryReadiness).toBe("all");
+});
+
+it("holds malformed query objects with conversion-shaped keys without coercing or throwing", async () => {
+  const filter = { version: 1, toString: 42, platforms: ["linux-x86-64"] };
+  await act(async () => browsing.ui.setFilter(filter));
+  await remount();
+  expect(browsing.ui.filter).toEqual(filter);
+  expect(evaluateCatalogQuery([], browsing.ui.filter).state).toBe("unresolved");
+  expect(browsing.preferenceFailure).toBeUndefined();
+  await act(async () => browsing.ui.setFilter("all"));
+  expect(browsing.ui.filter).toBe("all");
 });

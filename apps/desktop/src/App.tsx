@@ -661,19 +661,36 @@ function useAppModel(data: DataState, ui: UiState) {
   const visible = useMemo(
     () =>
       filterPorts(
-        data.catalog?.ports ?? [],
+        ui.view === "library"
+          ? ["all", "ready", "setup"].includes(ui.libraryReadiness)
+            ? filterPorts(
+                data.catalog?.ports ?? [],
+                statusMap,
+                "library",
+                ui.libraryReadiness as "all" | "ready" | "setup",
+                "",
+              )
+            : []
+          : (data.catalog?.ports ?? []),
         statusMap,
         ui.view,
         ui.filter,
         ui.query,
         ui.catalogSort,
       ),
-    [data.catalog, statusMap, ui.view, ui.filter, ui.query, ui.catalogSort],
+    [data.catalog, statusMap, ui.view, ui.filter, ui.libraryReadiness, ui.query, ui.catalogSort],
   );
   const catalogFilterCandidates = useMemo(
     () =>
       ui.view === "catalog" && data.catalog
         ? filterPorts(data.catalog.ports, statusMap, "catalog", "all", ui.query)
+        : undefined,
+    [data.catalog, statusMap, ui.view, ui.query],
+  );
+  const libraryFilterCandidates = useMemo(
+    () =>
+      ui.view === "library" && data.catalog
+        ? filterPorts(data.catalog.ports, statusMap, "library", "all", ui.query)
         : undefined,
     [data.catalog, statusMap, ui.view, ui.query],
   );
@@ -709,6 +726,7 @@ function useAppModel(data: DataState, ui: UiState) {
     statusMap,
     visible,
     catalogFilterCandidates,
+    libraryFilterCandidates,
     overview,
     recent,
     sourceNeeds,
@@ -918,6 +936,9 @@ function CurrentView({
       view={ui.view}
       ports={model.visible}
       catalogFilterCandidates={model.catalogFilterCandidates}
+      libraryFilterCandidates={model.libraryFilterCandidates}
+      libraryReadiness={ui.libraryReadiness}
+      setLibraryReadiness={ui.setLibraryReadiness}
       statuses={model.statusMap}
       overview={model.overview}
       recent={model.recent}
@@ -941,6 +962,7 @@ function CurrentView({
       }}
       clearFilters={() => {
         ui.setFilter("all");
+        if (ui.view === "library") ui.setLibraryReadiness("all");
         ui.setQuery("");
       }}
       loading={!data.catalog}

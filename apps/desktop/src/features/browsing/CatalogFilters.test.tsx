@@ -146,3 +146,20 @@ it("preserves established extra predicates visibly on edit and clears only query
   expect(button("Windows (1)")).toBeDefined();
   expect(button("Linux (1)")).toBeDefined();
 });
+
+it("keeps selections editable when candidate facts are unavailable instead of claiming zero counts", async () => {
+  await act(async () =>
+    root.render(
+      <CatalogFilters
+        view="library"
+        filter={{ version: 1, platforms: ["linux-x86-64"] }}
+        setFilter={vi.fn()}
+      />,
+    ),
+  );
+  await click("Filters (1)");
+  expect(button("Linux (unavailable)").disabled).toBe(false);
+  expect(button("Linux (unavailable)").getAttribute("aria-pressed")).toBe("true");
+  expect(document.body.textContent).toContain("not a ready Linux installation");
+  expect(button("Remove Linux filter")).toBeDefined();
+});
