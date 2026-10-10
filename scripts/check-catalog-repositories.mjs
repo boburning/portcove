@@ -654,9 +654,13 @@ export async function collectRepositoryHealth(
       continue;
     }
     const remaining = deadline - now();
+    const reused =
+      record.provider === "github" &&
+      !record.release_ref &&
+      repositoryMetadata.has(`https://api.github.com/repos/${record.repository}`);
     if (
       remaining <= 0 ||
-      consumed.requests >= limits.requests ||
+      (!reused && consumed.requests >= limits.requests) ||
       consumed.response_bytes >= limits.total_bytes
     ) {
       fail("budget");
@@ -713,7 +717,6 @@ export async function collectRepositoryHealth(
       if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
     } else if (record.provider === "gitlab" && gitlabToken) headers["PRIVATE-TOKEN"] = gitlabToken;
     const signal = AbortSignal.timeout(Math.min(limits.request_ms, remaining));
-    const reused = github && !record.release_ref && repositoryMetadata.has(requestUrl);
     if (!reused) consumed.requests++;
     result.attempted = !reused;
     result.metadata_reused = Boolean(reused);
