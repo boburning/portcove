@@ -293,8 +293,13 @@ test("initial commit, renames, deletions, modes and unusual literal paths", () =
   git(cwd, "rm", "--", names[1], names[2]);
   assert.equal(check(cwd).status, 0);
   git(cwd, "commit", "-qm", "rename and delete");
-  git(cwd, "rm", "--", "renamed ü.mjs");
+  // The initial chmod is intentionally index-only. On Unix its preserved
+  // unstaged mode difference makes ordinary rm refuse; stage deletion without
+  // discarding that working file and prove the hook leaves it untracked.
+  git(cwd, "rm", "--cached", "--", "renamed ü.mjs");
+  const deleted = state(cwd);
   assert.equal(check(cwd).status, 0);
+  assert.deepEqual(state(cwd), deleted);
 });
 
 test("frozen/generated content and empty applicable sets do not invoke whole-repository tools", () => {
