@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { Boxes, Library } from "lucide-react";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -329,7 +329,7 @@ describe("command search transitions", () => {
 describe("command input ownership", () => {
   let host: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
-  let close: ReturnType<typeof vi.fn>;
+  let close: Mock<() => void>;
   let available: PaletteCommand[];
   const search = () => document.body.querySelector<HTMLInputElement>('[role="combobox"]')!;
   const key = async (value: string, options: KeyboardEventInit = {}) => {
