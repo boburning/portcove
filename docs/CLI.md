@@ -837,7 +837,7 @@ Machine schema version 5 introduced `move_library` to the activity operation enu
 ### Idempotent automation
 
 ```text
-portcove --library <path> --json --non-interactive ensure <port-id> [--channel stable|beta|rolling] [--source <path>]
+portcove --library <path> --json --non-interactive ensure <port-id> [--channel stable|preview|rolling] [--source <path>]
 portcove --library <path> --json status [port-id]
 portcove --library <path> --json check <port-id>
 portcove --library <path> --json check --all
@@ -921,7 +921,7 @@ The response contains the resolved `library_root` plus `volume_total_bytes` and 
 Before presenting an install or update confirmation, a frontend can resolve Portcove's intended work without mutating installed state:
 
 ```bash
-portcove --library <path> --json plan <port-id> [--channel stable|beta|rolling]
+portcove --library <path> --json plan <port-id> [--channel stable|preview|rolling]
 ```
 
 The plan reports the resolved release and asset size, current platform and channel, registered game-source and BIOS requirements, containing-volume capacity, and one typed action: `already_active`, `use_staged`, `reuse_retained`, `blocked_unverified`, or `download`. These actions compare immutable artifact identity, not display version, so an upstream republish under the same tag is still an update. Planning may perform a normal conditional network lookup and update Portcove's HTTP response cache, but it does not download a release, change source registrations, switch versions, or create an activity record. `use_staged` does not imply activation: the following install's `--stage` choice still controls whether that verified release remains staged. Asset size is the upstream download size; callers must not present it as a guarantee of final extracted footprint.
