@@ -10,7 +10,7 @@ publish definitions, install updates, or execute upstream instructions.
 `release/upstream-observer.json` configures the existing `shipwright` catalog
 entry and GitHub repository `HarbourMasters/Shipwright`, numeric ID `472575717`.
 Changing that repository identity fails closed. The core projection covers
-every platform in the embedded definition and game Stable, Beta and Rolling
+every platform in the embedded definition and game Stable, Preview and Rolling
 channels; unsupported channels remain visible with a hold reason. These game
 channels are distinct from the application's Stable/Preview channels.
 
@@ -53,7 +53,7 @@ and performs no network requests. The format-1 result is exported by
 Each platform/channel projection retains the latest observed release, its
 channel candidate, latest metadata-eligible asset, and hold reasons. Core's
 existing prerelease policy recognizes RC/preview tags even when the provider's
-prerelease flag is false; Beta retains its existing stable fallback, while
+prerelease flag is false; Preview (`beta`) retains its existing stable fallback, while
 Rolling requires the catalog's explicit rolling tag. A held newest candidate
 does not fall through to an older release and call it current. Missing or
 ambiguous platform assets and absent provider SHA-256 claims remain held.

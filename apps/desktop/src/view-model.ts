@@ -268,7 +268,7 @@ export function installationMethodLabel(port: PortDefinition) {
 
 const channelLabels: Record<string, string> = {
   stable: "Stable",
-  beta: "Beta",
+  beta: "Preview",
   rolling: "Rolling",
 };
 

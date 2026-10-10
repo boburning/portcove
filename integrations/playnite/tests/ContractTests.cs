@@ -123,6 +123,15 @@ internal static class ContractTests
         Reject(() => InstallationReview.Read(negative, "shape-a", library), "negative download size rejected");
         var channel = fresh(); Json.Object(Json.Field(Json.Field(channel, "plan"), "release"))["channel"] = "beta";
         Reject(() => InstallationReview.Read(channel, "shape-a", library), "inconsistent release channel rejected");
+        var preview = fresh(); var previewPlan = Json.Object(Json.Field(preview, "plan"));
+        previewPlan["channel"] = "beta"; Json.Object(Json.Field(previewPlan, "release"))["channel"] = "beta";
+        Json.Object(Json.Field(previewPlan, "release"))["version"] = "Version1.0.5beta12";
+        var beforePreview = Json.Print(preview);
+        var previewDescription = InstallationReview.Read(preview, "shape-a", library).Description;
+        Check(previewDescription.Contains("Requested channel: Preview") && previewDescription.Contains("Version1.0.5beta12") &&
+            Json.Print(preview) == beforePreview, "Preview changes presentation without changing beta data or upstream version");
+        previewPlan["channel"] = "preview"; Json.Object(Json.Field(previewPlan, "release"))["channel"] = "preview";
+        Reject(() => InstallationReview.Read(preview, "shape-a", library), "Preview is not an accepted transport channel");
         var platform = fresh(); Json.Object(Json.Field(platform, "plan"))["platform"] = "linux-x86-64";
         Reject(() => InstallationReview.Read(platform, "shape-a", library), "other-platform installation rejected");
         var duplicate = fresh(); var plan = Json.Object(Json.Field(duplicate, "plan"));
@@ -141,7 +150,7 @@ internal static class ContractTests
             var presentation = InstallationReview.Read(reuse, "shape-a", library).Description;
             Check(presentation.Contains(@"H:\Earlier output\exact-copy") && !presentation.Contains(@"versions\shape-a") &&
                 presentation.Contains("No artifact download") && presentation.Contains("Existing copy version: original-v1") &&
-                presentation.Contains("Existing copy channel: beta") && presentation.Contains("Requested release version: v2"),
+                presentation.Contains("Existing copy channel: Preview") && presentation.Contains("Requested release version: v2"),
                 "reuse presents actual retained path, metadata and download boundary for " + reuseAction);
             var selected = Json.Object(Json.Parse(Json.Print(Json.Field(reuse, "selected_install"))));
             reuse["selected_install"] = selected; selected["port_id"] = "other";

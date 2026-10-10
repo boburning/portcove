@@ -1,5 +1,7 @@
 # Desktop localization
 
+Game-port release channels display as **Stable / Preview / Rolling**. The compatible CLI, JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; Preview is the display name for `beta`, not a new value or alias. Changing a label does not select a different release or migrate saved choices. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
 Portcove's desktop localization foundation is an offline presentation concern. React owns translated copy and live direction; the Tauri adapter persists the user's optional locale choice through `HostPreferenceStore`. Core and CLI machine-readable output remain English and unchanged unless their owning contracts are revised separately.
 
 ## Selected stack and boundary

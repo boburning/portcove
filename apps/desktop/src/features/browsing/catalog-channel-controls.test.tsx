@@ -76,7 +76,7 @@ async function click(name: string) {
 function channelButton(name: string) {
   const button = [
     ...host.querySelectorAll<HTMLButtonElement>('[aria-label="Release channel filters"] button'),
-  ].find((item) => item.textContent?.trim().toLowerCase() === name);
+  ].find((item) => item.textContent?.trim().toLowerCase() === (name === "beta" ? "preview" : name));
   expect(button).toBeDefined();
   return button!;
 }
@@ -207,7 +207,7 @@ describe("Catalog channel controls", () => {
     ).singleNodeValue;
     expect(connection?.textContent).toContain("Connection status unavailable");
   });
-  it("keeps Stable and Beta selected and displays their union once", async () => {
+  it("keeps Stable and Preview selected with compatible beta query values", async () => {
     await act(async () => channelButton("stable").click());
     expect(visibleIds()).toEqual(["stable", "both"]);
     await act(async () => channelButton("beta").click());
