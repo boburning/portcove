@@ -14,7 +14,7 @@ function freeze(value) {
 }
 
 /** Private planning facts; never execution, consent, or process authority. */
-export function planDesktopExecution(selectionInput) {
+export function planDesktopExecution(selectionInput, { platform = process.platform } = {}) {
   const selection = structuredClone(selectionInput);
   const bootstrapRecoverySession = selection.selected_scenarios.includes(
     "native-startup-library-recovery",
@@ -40,7 +40,8 @@ export function planDesktopExecution(selectionInput) {
     "native-normal-package-webview-boundary",
   );
   const identityBoundSession =
-    selection.selected_scenarios.includes("native-retained-contract-repair-state") ||
+    (platform === "win32" &&
+      selection.selected_scenarios.includes("native-retained-contract-repair-state")) ||
     selection.selected_scenarios.includes("native-selected-setup-completion") ||
     selection.selected_scenarios.includes("native-startup-network-diagnostic") ||
     selection.selected_scenarios.includes("native-external-runtime-review") ||
@@ -72,7 +73,8 @@ export function planDesktopExecution(selectionInput) {
                     ? "minimized-preparation"
                     : selection.selected_scenarios.includes("native-selected-setup-completion")
                       ? "selected-setup-completion"
-                      : selection.selected_scenarios.includes(
+                      : platform === "win32" &&
+                          selection.selected_scenarios.includes(
                             "native-retained-contract-repair-state",
                           )
                         ? "retained-contract-repair"

@@ -32,7 +32,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
     }
     const selection = resolveDesktopSelection({ ...row.options, platform: row.platform });
     assert.deepEqual(selection, row.selection);
-    const plan = planDesktopExecution(selection);
+    const plan = planDesktopExecution(selection, { platform: row.platform });
     assert.deepEqual(plan.selection, row.selection);
     assert.deepEqual(
       plan.receiptInputs
@@ -62,7 +62,10 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       }
       // #1168's retained rollback witness also requires the existing positive
       // exit owner. This intentional delta does not rewrite historical bytes.
-      if (selection.selected_scenarios.includes("native-retained-contract-repair-state")) {
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-retained-contract-repair-state")
+      ) {
         expectedSession.identityBoundSession = true;
         if (expectedSession.cleanupName === "backup-focus")
           expectedSession.cleanupName = "retained-contract-repair";
@@ -163,9 +166,21 @@ test("retained rollback repair requires identity-bound cleanup without changing 
     scenarios: ["native-retained-contract-repair-state"],
     platform: "win32",
   });
-  const plan = planDesktopExecution(selection);
+  const plan = planDesktopExecution(selection, { platform: "win32" });
   assert.equal(plan.session.identityBoundSession, true);
   assert.equal(plan.session.cleanupName, "retained-contract-repair");
+  assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+});
+
+test("retained rollback Linux coverage keeps its existing portable session", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-retained-contract-repair-state"],
+    platform: "linux",
+  });
+  const plan = planDesktopExecution(selection, { platform: "linux" });
+  assert.deepEqual(selection.selected_scenarios, ["native-retained-contract-repair-state"]);
+  assert.equal(plan.session.identityBoundSession, false);
+  assert.equal(plan.session.cleanupName, "backup-focus");
   assert.equal(desktopHarnessDeadlineMs(selection), 180000);
 });
 
