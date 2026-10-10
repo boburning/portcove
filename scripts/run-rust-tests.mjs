@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { acquireHeavyRustTestLock, readProcessIdentity } from "./heavy-rust-test-lock.mjs";
 import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mjs";
+import { createCiMetrics } from "./ci-metrics.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -294,6 +295,7 @@ async function waitForUnixCleanupReceipt(receiptPath, dependencies) {
 
 export async function runRustTests(args, dependencies = {}) {
   const environment = dependencies.environment ?? process.env;
+  const metrics = dependencies.metrics ?? createCiMetrics({ environment });
   const runSync = dependencies.spawnSync ?? spawnSync;
   const start = dependencies.spawn ?? spawn;
   const acquireLock = dependencies.acquireLock ?? acquireHeavyRustTestLock;
@@ -323,16 +325,25 @@ export async function runRustTests(args, dependencies = {}) {
   let cancellation = null;
   let compiler = null;
   const prepareSupportProduct = (definition) => {
-    compiler ??= readCompilerIdentity({ runSync, environment, platform });
-    const result = prepareSupport({
-      root,
-      output: definition.output,
-      environment,
-      platform,
-      architecture: dependencies.architecture ?? process.arch,
-      runSync,
-      compiler,
-      ...definition,
+    compiler ??= metrics.measure("compiler-identity", () =>
+      readCompilerIdentity({ runSync, environment, platform }),
+    );
+    const result = metrics.measure(`support-setup:${definition.product}`, () =>
+      prepareSupport({
+        root,
+        output: definition.output,
+        environment,
+        platform,
+        architecture: dependencies.architecture ?? process.arch,
+        runSync,
+        compiler,
+        ...definition,
+      }),
+    );
+    metrics.record(`support-cache:${definition.product}`, {
+      cache_outcome: result.outcome,
+      fingerprint: result.fingerprint,
+      elapsed_ms: result.elapsed_ms,
     });
     console.error(
       `[rust-support] ${definition.product} ${result.outcome} ` +
@@ -341,10 +352,12 @@ export async function runRustTests(args, dependencies = {}) {
   };
   try {
     if (!prepareOnly) {
-      lock = await acquireLock({
-        workspace: root,
-        command: mode.description,
-      });
+      lock = await metrics.measureAsync("rust-reservation-wait", () =>
+        acquireLock({
+          workspace: root,
+          command: mode.description,
+        }),
+      );
     }
     if (mode.kind !== "guarded-command") {
       prepareSupportProduct({

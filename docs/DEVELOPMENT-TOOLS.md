@@ -1,5 +1,80 @@
 # Development tools
 
+Before overlapping local Rust or native commands, use `just resource-status` for
+a passive snapshot of existing guard records. It reports recorded identities and
+unknown coverage; the guards still own admission. Sequence conflicting owned
+commands, including focused Rust tests and `local-check`; independent work may
+continue. Missing records do not prove the machine is idle.
+
+Use `node scripts/checked-git.mjs -- <git arguments>` for a checked call, or
+`node scripts/checked-git.mjs --sequence <owned-json-file>` for dependent calls.
+The JSON is an ordered array of argument arrays, for example
+`[["rev-parse", "--verify", "HEAD^{tree}"], ["diff", "--check"]]`.
+Git receives literal arguments and the first failed exit, timeout or spawn stops
+the sequence. Resolve source/target/tree identities before mutation; conflicts
+stay visible for explicit resolution. Other PowerShell callers still check each
+native exit immediately.
+
+Retain raw JSON, then use `node scripts/report-summary.mjs KIND FILE`
+to inspect decision-relevant fields within 16 KiB, with omission counts and raw
+evidence references. `--help`/usage lists supported report kinds. CI summaries
+accept REST and `gh` job IDs and never claim complete pagination. Delivery watch
+retains its existing observations under ignored `work/pr-delivery`; inspect those
+snapshots instead of issuing duplicate status queries. Fetch logs for the identified
+failed job rather than an entire multi-job workflow. Fallow retains
+original analyzer bytes below `work/fallow-reports`. Selected static gates run
+before compilation and tests; complete selected and hosted obligations remain.
+
+## CI timing diagnostics
+
+Ordinary Rust, frontend and contract jobs publish diagnostic timing artifacts and
+bounded job summaries. `PORTCOVE_CI_METRICS_DIR` enables versioned per-phase JSON;
+without it the helper writes nothing. Reports retain source/checkout, run/attempt,
+job/runner, selected test counts and observed cache outcomes. Setup action timings
+remain in the saved job step inventory. Rust's first inventory includes workspace
+compilation; filter discovery, selected tests and live transport checks have
+separate phases. Measurement does not add another compilation or acceptance gate.
+
+Use `node scripts/ci-metrics.mjs summarize DIRECTORY` for downloaded reports.
+The delivery watcher records initial queue delay separately from workflow start
+through completion of the five required contexts. Missing measurements stay
+unavailable. Cache warmth comes from reported restore/reuse outcomes, not attempt
+numbers or short duration. Failed diagnostics preserve the original command exit.
+
+Assess the five-minute goal on the next three genuine focused hosted changes with
+observed relevant cache hits. Keep cold, broad and unknown-cache observations
+separate and link evidence on #1104. Instrumentation delivery alone proves no
+hosted speedup.
+
+## Generated GitHub text
+
+Use `node scripts/github-body.mjs --help` for guarded file-based issue/PR edits,
+comments and PR creation. Issue intake continues through Roadmap. For example:
+
+```powershell
+node scripts/github-body.mjs issue-edit --target 1685 --body-file work/candidate.md --previous-body-file work/original.md
+```
+
+The preimage file must be an exact UTF-8 copy of the fetched remote body. The
+helper reads the candidate once, rejects malformed UTF-8, lone CR and unexpected
+control characters, then submits structured JSON through stdin and verifies the
+returned identity and body. Markdown, Unicode, tabs and LF/CRLF are preserved;
+an encoding BOM is consumed. Candidate, preimage, mutation and readback evidence
+remain under `work/github-body`. A changed preimage stops the edit; ambiguous
+writes require remote reconciliation before any retry. Specification rewrites
+still preserve dated linked history through the owning Roadmap workflow.
+
+For generated JavaScript, save an owned `.mjs` file or pass source through stdin.
+PowerShell's literal here-string preserves backticks and dollar signs:
+
+```powershell
+@'
+console.log('Literal `roadmap` and $(text)');
+'@ | node --input-type=module
+```
+
+For update/scan harness engineering, read [native IPC probes](reference/desktop-ipc-probes.md).
+
 ## Bounded GitHub subprocess collection
 
 The shared GitHub API runner limits each ordinary `gh` subprocess to 15 seconds
@@ -184,150 +259,36 @@ self-tests through one batched fixture invocation per group.
 
 ## Validation tiers and resumable audits
 
-Use focused `just test-*` commands while editing and `just local-check` before a
-coherent push. Bare `just` invokes that same focused selector; exhaustive
-investigation remains explicit through `just check` or its narrower aggregate
-recipes. The local selector reads the complete branch and working-tree diff;
-unknown paths fail until a tested routing rule exists. Tooling-only edits do not
-pull in native desktop or packaged Windows qualification. Oxc configuration edits
-retain formatting, typed lint, UI build/tests, rejection fixtures, and hosted
-workflow contracts.
+[QUALITY](QUALITY.md#required-hosted-baseline) owns the required hosted baseline,
+optional local feedback, qualification selection and receipt rules. This file
+owns operation syntax and resource handling. [Development storage](DEVELOPMENT-STORAGE.md)
+owns workspace, cache and cleanup operations.
 
-The local planner executes one warnings-denied Clippy command, rather than an
-equivalent Cargo check immediately followed by Clippy, for each selected package
-or workspace target set. It coalesces the same Oxlint invocation selected by both
-tooling and UI only because both declare the same semantic obligation; command
-text alone cannot merge distinct evidence roles. Complete UI tests own their
-included theme and copy checks, while related-test plans retain the standalone
-checks. The printed reason lists every coalesced selector so reduced process count
-does not hide why an obligation ran.
-
-`just check` is exhaustive for Rust, UI, script lint and their tool-fixture
-contracts, generic repository tooling, Roadmap, and development-tool contracts,
-but deliberately excludes release and packaged qualification. Use
-`just release-check` for deterministic release units and
-`just windows-qualification-check` for the stateful packaged Windows session.
-Required CI executes the complete selected hosted plan on every exact pull-request
-head. Focused and prose plans do not imply that the aggregate, release, or
-packaged Windows contracts ran; qualification executes its documented hosted
-coverage, while packaged acceptance remains a separate obligation when required.
-
-`just audit --plan` explains which named formatting, Rust, UI, script-lint,
-repository-tooling, Roadmap, development-tool, dependency-policy, rscheck,
-release-unit, and applicable Windows-qualification stages would execute or reuse prior
-success. A normal `just audit` reuses only integrity-checked deterministic receipts
-whose complete content, tool, platform, and environment fingerprint still matches.
-Receipts are stored under ignored `work/validation-receipts`; they are disposable
-execution evidence and never release or merge authority. Dependency/advisory and
-Windows qualification stages always execute. Use `just audit --fresh` for release
-preflight, validation-contract changes, and acceptance that explicitly requires a
-single no-reuse run.
+Use `just local-check --plan` to inspect optional complete-diff feedback,
+`--preflight --json` to observe selected prerequisites, and `--fresh` to execute
+without local receipts. Use `just audit --plan` for explicit audit selection;
+`just audit --fresh` for a required fresh complete audit. Hosted selected routes
+still require exact trusted authority/controller revisions; changed authority
+cannot qualify itself. See [fixed hosted validation](#fixed-reviewed-hosted-validation)
+only when that transport is needed.
 
 ### Warm single-session workflow
 
-Start or resume one cohesive outcome in the existing healthy, owned checkout.
-A new task context does not require a new worktree, reinstall, Cargo cleanup,
-bootstrap or exhaustive validation. Keep installed dependencies and incremental
-artifacts. A new isolated checkout is justified by actual concurrent ownership,
-an unsafe preserved checkout, or a measured isolation requirement; follow
-[Development storage](DEVELOPMENT-STORAGE.md) only for that case.
-
-1. Read the canonical issue's unmet acceptance, current PR and latest relevant
-   live requirements and actual writer/handoff evidence. Resolve `git rev-parse --show-toplevel`, then inspect
-   `git status --short --branch --untracked-files=all`, `git rev-parse HEAD` and
-   `git worktree list --porcelain`. Reconcile them with the recorded owner,
-   branch and evidence; process absence alone is not an ownership transfer.
-2. Resume the current branch and failed obligation before selecting another
-   task when locally actionable; preserve blockers and select independent work
-   when waiting. Before any branch transition, require a clean checkout, known ownership,
-   terminal owned build/native operations, and preserved relevant ignored evidence.
-   If any condition is unknown or false, refuse the transition. Do not stash,
-   reset, delete or overwrite work to make it possible. After a confirmed merge,
-   fetch the target, inspect relevant drift and create the next branch in this
-   same checkout only when those conditions hold.
-3. Keep a compact task contract in the owning issue/PR: **outcome and
-   acceptance; checkout, branch and head; reserved files and owning references;
-   boundaries/non-goals; narrow edit-test command; coherent pre-push plan;
-   resources; completed/failed evidence; exact next action**. Link existing
-   evidence instead of copying the initiative or creating a local status ledger.
-   Include the consumed requirements revision, actual delta disposition, capable
-   execution/validation route and discovery/update handoff. Use the derived
-   `roadmap-context` pickup and owning issue/PR evidence path described in
-   [Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
-   Context does not grant or dispatch work; no coordinator acknowledgment is required.
-4. Run the smallest relevant `just test-rust`, `just test-ui-related` or
-   `just test-node` loop, then `just local-check` before the coherent push and
-   after substantive repair. Integrity-matched deterministic stages may be reused;
-   `just local-check --plan` explains selection and `just local-check --fresh`
-   disables reuse only when acceptance requires it. Use `just doctor` when prerequisite health is unknown or changed;
-   install/bootstrap only the reported missing or mismatched prerequisite.
-   [Quality](QUALITY.md) still governs protected changes and exhaustive acceptance.
-5. Review one coherent candidate before expensive final qualification. An exact
-   local commit/diff may be reviewed before a PR exists; use a draft PR when a
-   transition contract requires one. Follow [Contribution conventions](CONTRIBUTION-CONVENTIONS.md) for review,
-   required exact-head CI, target interaction checks and guarded merge. The
-   helper may inspect retained evidence and run discriminating tests; it must not
-   bootstrap a second full environment or duplicate a complete suite without an
-   identified need. Respect each machine's existing heavyweight-work admission
-   and resource window; separate authorized hosts retain their own guards.
-
-One local runner owns implementation and delivery, with one actively edited
-candidate at a time. Clean candidates waiting for CI, review or external
-prerequisites permit independent work. Preserve existing writers, candidates,
-evidence and host resource guards. Actual writer overlap blocks conflicting
-work; Dot grants and old coordination paperwork do not gate unrelated delivery.
-Independent non-writing review remains required. Do not create a replacement
-coordinator, persistent cloud implementers or a new dispatch/reporting service.
-
-The reviewer brief supplies **PR when available and owning issue; source head, target tip and
-merge-base; complete changed-file list and relevant surrounding code; acceptance
-and boundaries; exact commands/results and retained evidence paths; unrun coverage
-and target interactions**. Record the actual task identifier, reviewed revisions,
-findings and limitations. The implementer batches coherent repairs and returns the
-delta plus affected interactions to the same reviewer where practical. Widen review
-only when a repair changes architecture, assumptions, or risk. Implementer
-self-review is not independent review. A completed PR is a
-checkpoint, not permission to close broader unmet acceptance.
+Pick up the owning specification once, implement with useful focused feedback,
+then freeze a coherent commit for separate review and exact-head CI in parallel.
+Supply the reviewer exact head/base/diff, relevant acceptance/contracts and known
+risks. Repair blocking findings and return the delta/affected interactions to the
+same reviewer. [Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
+owns review and merge; [pickup](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)
+owns requirement refresh and interrupted-work preservation. Do not add a routine
+task-contract matrix or duplicate status narrative.
 
 #### Resume and diagnosis decisions
 
-| Observed case             | Next safe action                                                                                                                                                                                                        |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| New task                  | Verify issue, checkout and ownership; reuse healthy dependencies and run the narrow loop.                                                                                                                               |
-| Resumed task              | Read the compact contract, preserve failed evidence, and resume the exact next action before picking new work.                                                                                                          |
-| Dirty or unowned checkout | Refuse branch transition; preserve all changes and resolve ownership without stash, reset or overwrite.                                                                                                                 |
-| Active editor/compiler    | Inspect the reported PID, creation time, parent chain and command; an editor check is not the guarded test runner. Wait, or stop only your proven-owned operation through its originating editor/terminal if safe.      |
-| Duplicate owned server    | Identify each Vite/native server's workspace, parent and listening port; reuse the correct healthy server or stop only a proven-owned duplicate through its originating terminal. Unknown ownership blocks that action. |
-| Shared guard queue        | Retain owner and elapsed diagnostics; wait or cancel only your queued command. Never delete a lock or bypass admission with direct Cargo/nextest.                                                                       |
-| Repeated bootstrap        | Compare the doctor result and pinned tool/dependency identity; repair the reported mismatch instead of reinstalling healthy dependencies.                                                                               |
-| Changed source head       | Freeze the new candidate and obtain applicable current-head checks and independent re-review.                                                                                                                           |
-| Target-only advance       | Fetch and inspect target-only changes for relevant interactions; an unchanged source does not automatically require rebase or full rerun.                                                                               |
-| Reviewer finding          | Preserve the finding, repair it, and return the changed candidate to that reviewer for applicable re-review.                                                                                                            |
-| Unavailable delegation    | Record REVIEW READY with PR/head and the concrete limitation; pause that merge and continue authorized nonconflicting work.                                                                                             |
-
-For a named Windows PID, `Get-CimInstance Win32_Process -Filter "ProcessId = 1234"`
-reports `ProcessId`, `ParentProcessId`, `CreationDate`, `ExecutablePath` and
-`CommandLine`; replace 1234 with the observed PID and inspect its parent identities.
-For a suspected server, `Get-NetTCPConnection -State Listen -OwningProcess 1234`
-can identify its ports. These are read-only clues, not ownership proof by name or
-PID alone. Missing paths, stale identities or unreadable ancestry mean unknown.
-Retain only relevant sanitized diagnostics, not full environment or command dumps.
-Never kill unrelated processes or change global editor, antivirus or storage settings
-automatically. Existing [Rust admission](#rust-test-runner) and native-session guards
-remain authoritative; separate worktrees keep separate mutable Cargo targets.
-
-The single-local-runner pickup contract uses owning issue/PR evidence and live
-Project requirements. Historical handoff planners are retired; no coordinator
-ACK is needed. Verify actual source-owner release before overlapping work, then
-complete remaining validation, repairs, independent review and guarded merge.
-See [Project governance](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
-
-At a handoff, record current head and dirty state, active owned process/session
-identities or confirmed terminal state, evidence locations, unresolved findings or
-external boundaries, and the exact resume command/condition. Put it on the current
-issue/PR. Report material changes and genuine owner actions. No second ledger, scheduler or daemon is
-needed. Choose a cohesive independently verifiable outcome, not setup-heavy trivial
-fragments or an unrelated mega-refactor.
+Refresh material source/requirements changes and verify actual writers/resources
+before overlapping work. Preserve failures and use the smallest discriminating
+reproduction. An unchanged retry is not a repair. Historical operation evidence
+is [conditional](reference/validation-operations-history.md).
 
 #### Static component scenarios
 
@@ -434,11 +395,24 @@ just desktop-verify --profile presentation
 ```
 
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
-flags are repeatable and mutually exclusive with `--profile`; execution follows
-catalog order so fixture transitions stay deterministic. Use `--list-scenarios`
+flags are repeatable and mutually exclusive with `--profile`; selection is normalized
+in catalog order. The pure `scripts/desktop-execution-plan.mjs` supplies fixture
+requirements, build features, initial receipt sources and ordered family entries.
+The harness consumes that order after workspace refresh/history and before reload;
+its existing scenario attempt remains responsible for dependency gating and
+selected/setup attribution. Preparation retains its nested traversal and browser
+reassignment. The coordinator obtains the current browser at each family call.
+Use `--list-scenarios`
 to see stable IDs, descriptions, profile membership, prerequisites and host-impact
 metadata. `--plan --json` and `--list-scenarios --json` provide machine-readable
-output without building or launching.
+output without building or launching. Their serialized format remains unchanged.
+The independently reviewed pre-change oracle in
+`scripts/testdata/desktop-execution-baseline.json` is pinned to main
+`a9e3db4e6cd9fd41111b58705e4fa54790eb57d7`; its 222 cases cover selection,
+admission, receipt source order and verifier serialization with inert adapters.
+It is not native acceptance. Preserve its provenance rather than deriving expected
+results from the planner. Runtime receipt inputs remain with their existing owners;
+the harness hashes current bytes, including the planner and coordinator helpers.
 
 `just desktop-verify --scenario native-startup-library-recovery --require-clean`
 selects one Windows-only initial-startup recovery journey, outside every routine

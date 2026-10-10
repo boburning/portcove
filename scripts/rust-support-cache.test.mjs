@@ -351,3 +351,27 @@ test("resolved compiler and linker bytes invalidate the reusable artifact identi
   );
   assert.ok(changedLinkerIdentity.commands.every(({ resolved }) => resolved !== null));
 });
+
+test("existing cache entries with missing manifest or artifact are quarantined before publication", async (t) => {
+  for (const missing of ["manifest.json", "artifact"]) {
+    const state = await fixture();
+    t.after(() => rm(state.root, { recursive: true, force: true }));
+    const events = [];
+    const runSync = compilerRun(events);
+    const initial = prepare(state, { runSync });
+    const entry = path.join(
+      state.target,
+      "portcove-rust-support",
+      "v1",
+      "host-tool-probe",
+      initial.fingerprint,
+    );
+    await rm(path.join(entry, missing));
+    const rebuilt = prepare(state, { runSync, outputName: `rebuilt-${missing}.exe` });
+    assert.equal(rebuilt.outcome, "built");
+    assert.equal(rebuilt.reason, "incomplete-cache-entry");
+    assert.equal(events.length, 2);
+    assert.equal(prepare(state, { runSync }).outcome, "hit");
+    assert.equal(events.length, 2);
+  }
+});

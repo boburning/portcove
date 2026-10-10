@@ -198,6 +198,9 @@ async function readOwner(lockPath) {
   return owner;
 }
 
+// Passive observation only; admission and stale-record handling stay with the guard.
+export const readHeavyRustLockOwner = readOwner;
+
 function inspectRecord(record, inspectProcessIdentity) {
   return inspectProcessIdentity(record.pid, { processToken: record.process_token });
 }

@@ -372,10 +372,11 @@ coordinator, dispatcher, approval gate or intermediary. This decision changes
 execution ownership; release commitments, acceptance, trust, signing/provenance,
 branch protection, data protection and resource guards remain in force.
 
-At startup/resume, selection, clean handoffs, review and final acceptance, refresh
-the relevant owner instructions, issue specification, live Project fields, typed
-relationships, actual writers and exact source. Share reads within an unchanged
-stage; compare material deltas and repeat only affected obligations.
+At pickup/resume, read the relevant owner instructions, issue specification,
+live Project fields, typed relationships, actual writers and exact source once.
+Reuse that context until material requirements or source changes; refresh the
+relevant authority before final merge or a remote write. Compare actual deltas
+and repeat only affected obligations, without ceremonial stage-by-stage reads.
 Use `roadmap.mjs next` for the common Required/Planned queue and
 `roadmap.mjs context --issue <number> --runner <reported-instance> --json`
 for full current task requirements. The configured `delivery_mode` is
@@ -412,8 +413,9 @@ empty PRs or claim an unavailable upload succeeded. Then select the highest-valu
 independent eligible work in the same active session. An owner-only action is
 reported once with its effect; it does not suspend safe independent work.
 
-Preserve actual separate non-writing review and diff-selected local validation,
-exact-head CI and distinct acceptance. Reuse evidence only at permitted matching
+Preserve actual separate non-writing review, required exact-head hosted CI and
+explicit acceptance. Local validation is optional under
+[QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
 inputs and scope. A bounded reviewer receives the exact diff/head, relevant
 acceptance/contracts, risks and existing evidence; implementers handle findings
 directly. Missing independent review leaves a candidate awaiting review, never
@@ -578,6 +580,14 @@ Use `node scripts/roadmap.mjs capture-port` for direct maintainer port intake,
 `capture-feature` for feature intake, `promote` for draft-to-issue conversion,
 `set` and `move` for planning changes, `next` for the ordered work queue, and
 `readiness --release <stage>` for dependency-derived release evaluation.
+`doctor` exposes the actual checkout root, HEAD/branch and catalog hash before
+reading GitHub. After delivery, use verified current main containing the merge
+and pass `doctor --expected-head <verified-main-sha>`; a different HEAD or modified
+catalog/configuration stops before network checks. Input changes during the check
+invalidate success. `--json` returns the context and diagnostic report; raw reports
+remain under ignored `work/roadmap-doctor`. Checkout mismatches are distinct from
+Project drift.
+
 `doctor` verifies machine-readable identity, visibility, repository linkage,
 field types/options, view layout/filter/visible fields, the one-port/one-issue
 coverage contract across both repository issues and Project items, honest

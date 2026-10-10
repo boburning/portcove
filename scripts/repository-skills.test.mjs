@@ -165,11 +165,23 @@ test("active instruction entrypoints have valid local links and anchors", async 
     new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
     new URL("../docs/DEVELOPMENT-TOOLS.md", import.meta.url),
     new URL("../docs/DEVELOPMENT-STORAGE.md", import.meta.url),
+    new URL("../docs/QUALITY.md", import.meta.url),
   ];
   const skillDirectories = (await readdir(skillsRoot, { withFileTypes: true })).filter((entry) =>
     entry.isDirectory(),
   );
   files.push(...skillDirectories.map((entry) => new URL(`${entry.name}/SKILL.md`, skillsRoot)));
+  files.push(
+    ...skillDirectories.map(
+      (entry) => new URL(`${entry.name}/references/operation-notes.md`, skillsRoot),
+    ),
+  );
+  const referenceRoot = new URL("../docs/reference/", import.meta.url);
+  files.push(
+    ...(await readdir(referenceRoot))
+      .filter((name) => name.endsWith(".md"))
+      .map((name) => new URL(name, referenceRoot)),
+  );
 
   for (const file of files) await assertLocalLinksResolve(file);
 });
@@ -303,7 +315,7 @@ test("documented repository-skill and PR-delivery commands exist", async () => {
   const deliveryScript = await readFile(new URL("./pr-delivery.mjs", import.meta.url), "utf8");
 
   const catalogTest = /`just test-rust -p portcove-core ([a-z0-9_]+)`/iu.exec(portSkill)?.[1];
-  assert.ok(catalogTest, "port qualification must name its focused catalog test");
+  assert.ok(catalogTest, "optional focused catalog command must name a real test");
   assert.match(
     catalogSource,
     new RegExp(`fn ${catalogTest}\\(\\)`, "u"),
