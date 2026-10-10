@@ -4,7 +4,43 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { renderBoundedSummary } from "./report-summary.mjs";
+import { renderBoundedSummary, summarizeReport } from "./report-summary.mjs";
+
+test("REST and gh IDs remain visible without claiming complete inventories", () => {
+  for (const job of [{ id: 12 }, { databaseId: 12 }]) {
+    const result = summarizeReport(
+      "ci",
+      { jobs: [{ ...job, name: "rust", status: "completed", conclusion: "failure" }] },
+      "raw.json",
+    );
+    assert.match(result.text, /12: rust/);
+    assert.match(result.text, /completeness must be verified separately/);
+  }
+});
+test("timing and raw watch snapshots stay bounded and report unknown measurements", () => {
+  const report = {
+    records: Array.from({ length: 1000 }, () => ({
+      phase: "🎮".repeat(500),
+      context: { job: "rust", run: "12", attempt: "2" },
+    })),
+  };
+  const summary = summarizeReport("timings", report, "metrics");
+  assert.ok(Buffer.byteLength(summary.text) <= 16 * 1024);
+  assert.ok(summary.omitted > 0);
+  const watch = summarizeReport(
+    "watch",
+    {
+      kind: "delivery-observation",
+      head: "a".repeat(40),
+      run: 12,
+      attempt: 2,
+      contexts: [{ context: "rust", outcome: "pending" }],
+    },
+    "raw.json",
+  );
+  assert.match(watch.text, /unmeasured/);
+  assert.match(watch.text, /rust: pending/);
+});
 
 test("oversized Unicode findings retain truthful omission counts within the byte budget", () => {
   const entries = ["small", "🌍".repeat(100_000), "later"];

@@ -5,8 +5,22 @@ import { fileURLToPath } from "node:url";
 import { classifyChanges, buildPlan, executePlan } from "./local-validation.mjs";
 import { validateValidationPlan } from "./validation-plan.mjs";
 import { spawnCommand } from "./dev-storage.mjs";
+import { createCiMetrics } from "./ci-metrics.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+export function baselineBootstrapTests(plan) {
+  validateValidationPlan(plan);
+  const infrastructure = plan.changes.some((change) =>
+    [change.oldPath, change.newPath].some(
+      (file) =>
+        /^\.github\/(?:workflows\/ci\.yml|actions\/setup-rust\/|quality-tools\.json)/u.test(file) ||
+        /^(?:rust-toolchain\.toml|scripts\/(?:rust-support-cache|run-rust-tests|ci-baseline|ci-metrics|heavy-rust-test-lock|process-lock))(?:\.|\/|$)/u.test(
+          file,
+        ),
+    ),
+  );
+  return infrastructure ? ["scripts/rust-support-cache.test.mjs"] : [];
+}
 export function baselineSelection(plan, options = {}) {
   validateValidationPlan(plan);
   if (!["fast", "prose"].includes(plan.mode))
@@ -90,38 +104,64 @@ export function baselineFrontendPlan(plan, options) {
 }
 
 function main() {
+  const metrics = createCiMetrics();
   const plan = validateValidationPlan(JSON.parse(process.env.PORTCOVE_PLAN_JSON ?? ""));
   const checkout = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: root,
     encoding: "utf8",
   }).trim();
   if (checkout !== plan.identities.checkout) throw new Error("Baseline plan checkout mismatch");
-  if (process.argv[2] === "contracts") {
-    if (!plan.groups.includes("catalog")) throw new Error("Plan omitted repository contracts");
-    const tests = baselineContractTests(plan);
-    console.log(`[ci-baseline] ${tests.length} relevant repository contract files`);
-    const result = spawnSync(
-      process.execPath,
-      [
-        "--test",
-        "--test-timeout=30000",
-        "--test-skip-pattern=pnpm uses|direct just recipes",
-        "--test-reporter=./scripts/test-duration-reporter.mjs",
-        ...tests,
-      ],
-      { cwd: root, stdio: "inherit", windowsHide: true },
-    );
-    if (result.error) throw result.error;
-    if (result.status !== 0) {
-      process.exitCode = result.status ?? 1;
-      return;
-    }
-    for (const args of baselineIntegrityCommands(plan)) {
-      const check = spawnSync(process.execPath, args, {
+  if (process.argv[2] === "bootstrap") {
+    const tests = baselineBootstrapTests(plan);
+    if (!tests.length) return;
+    const result = metrics.measure("bootstrap-regressions", () =>
+      spawnSync(process.execPath, ["--test", "--test-timeout=30000", ...tests], {
         cwd: root,
         stdio: "inherit",
         windowsHide: true,
-      });
+      }),
+    );
+    if (result.error) throw result.error;
+    process.exitCode = result.status ?? 1;
+  } else if (process.argv[2] === "contracts") {
+    if (!plan.groups.includes("catalog")) throw new Error("Plan omitted repository contracts");
+    const bootstrap = baselineBootstrapTests(plan);
+    const selected = baselineContractTests(plan);
+    const early = bootstrap.filter((file) => selected.includes(file));
+    const remaining = selected.filter((file) => !early.includes(file));
+    const batches = [early, remaining].filter((files) => files.length);
+    const tests = selected;
+    console.log(`[ci-baseline] ${tests.length} relevant repository contract files`);
+    for (const batch of batches) {
+      const result = metrics.measure(
+        batch === early ? "bootstrap-regressions" : "repository-contract-tests",
+        () =>
+          spawnSync(
+            process.execPath,
+            [
+              "--test",
+              "--test-timeout=30000",
+              "--test-skip-pattern=pnpm uses|direct just recipes",
+              "--test-reporter=./scripts/test-duration-reporter.mjs",
+              ...batch,
+            ],
+            { cwd: root, stdio: "inherit", windowsHide: true },
+          ),
+      );
+      if (result.error) throw result.error;
+      if (result.status !== 0) {
+        process.exitCode = result.status ?? 1;
+        return;
+      }
+    }
+    for (const args of baselineIntegrityCommands(plan)) {
+      const check = metrics.measure(`integrity:${args[0]}`, () =>
+        spawnSync(process.execPath, args, {
+          cwd: root,
+          stdio: "inherit",
+          windowsHide: true,
+        }),
+      );
       if (check.error) throw check.error;
       if (check.status !== 0) {
         process.exitCode = check.status ?? 1;
@@ -130,8 +170,17 @@ function main() {
     }
   } else if (process.argv[2] === "frontend") {
     const commands = baselineFrontendPlan(plan);
-    executePlan(commands, { spawn: spawnCommand });
-  } else throw new Error("Expected frontend or contracts");
+    executePlan(commands, {
+      spawn: (executable, args, options) => {
+        const entry = commands.find(
+          (command) => command.executable === executable && command.args === args,
+        );
+        return metrics.measure(entry?.id ?? "frontend-command", () =>
+          spawnCommand(executable, args, options),
+        );
+      },
+    });
+  } else throw new Error("Expected bootstrap, frontend or contracts");
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {

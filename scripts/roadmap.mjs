@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { access, readFile } from "node:fs/promises";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,9 @@ import {
   sanitizeOperationError,
 } from "./github-api.mjs";
 import { acquireOwnedProcessLock } from "./process-lock.mjs";
+import { validateGitHubBody } from "./github-body.mjs";
+import { captureCheckoutContext, checkContextualDoctor } from "./checkout-context.mjs";
+import { summarizeReport } from "./report-summary.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -499,6 +502,7 @@ export function materializeViews(config) {
 
 export function validateDurableIssueBody(body) {
   ensureString(body, "durable issue body");
+  validateGitHubBody(body);
   const missing = durableIssueHeadings.filter((heading) => {
     const match = body.match(
       new RegExp(`^## ${heading.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s*$`, "im"),
@@ -1198,7 +1202,7 @@ export const roadmapHelp = `Portcove Roadmap maintainer tool
 
 usage:
   node scripts/roadmap.mjs check
-  node scripts/roadmap.mjs doctor
+  node scripts/roadmap.mjs doctor [--expected-head <sha>] [--json]
   node scripts/roadmap.mjs capture-port --title <title> --url <https-url> (--port-key <key> | --catalog-id <id>)
   node scripts/roadmap.mjs normalize-port --issue <number>
   node scripts/roadmap.mjs capture-feature --title <title> [planning field options]
@@ -4874,6 +4878,7 @@ export class RoadmapClient {
   }
 
   capture({ title, body, fields }) {
+    validateGitHubBody(body);
     const number = this.config.project.number;
     const item = this.json([
       "project",
@@ -5229,9 +5234,11 @@ async function runDoctor(config, client, { quiet = false } = {}) {
     ),
   ];
   if (drift.length || roadmapErrors.length) {
-    throw new Error(
+    const error = new Error(
       `Project drift:\n${[...drift, ...roadmapErrors].map((value) => `- ${value}`).join("\n")}`,
     );
+    error.doctorErrors = [...drift, ...roadmapErrors];
+    throw error;
   }
   log(`Portcove Roadmap #${number} is reachable at ${details.url}.`);
   log(
@@ -5252,7 +5259,16 @@ async function runDoctor(config, client, { quiet = false } = {}) {
   log(
     `Grouping and sorting were read back; UI changes are required if they drift. Confirm built-in auto-add and completion workflows separately:\n${manualUiChecklist(config).slice(-2).join("\n")}`,
   );
-  return { number, details, fields, views, repositoryIssues, items };
+  return {
+    number,
+    details,
+    fields,
+    views,
+    repositoryIssues,
+    items,
+    warnings: stage.warnings,
+    diagnostics: stage.diagnostics,
+  };
 }
 
 async function main(argv) {
@@ -5265,10 +5281,13 @@ async function main(argv) {
     await offlineCheck();
     return;
   }
-  const config = await loadConfig({
-    requireProjectNumber: parsed.command !== "bootstrap",
-  });
-  const client = new RoadmapClient(config);
+  const config =
+    parsed.command === "doctor"
+      ? null
+      : await loadConfig({
+          requireProjectNumber: parsed.command !== "bootstrap",
+        });
+  const client = config ? new RoadmapClient(config) : null;
   const lock = await acquireOwnedProcessLock(
     roadmapLockPath(),
     { workspace: projectRoot, command: parsed.command },
@@ -5290,7 +5309,65 @@ async function main(argv) {
       return;
     }
     if (parsed.command === "doctor") {
-      await runDoctor(config, client);
+      if (
+        parsed.positionals.length ||
+        Object.keys(parsed.options).some((key) => !["--expected-head", "--json"].includes(key))
+      )
+        throw new Error("usage: roadmap.mjs doctor [--expected-head SHA] [--json]");
+      let context;
+      let report;
+      try {
+        const checked = await checkContextualDoctor({
+          capture: () => captureCheckoutContext(projectRoot),
+          expectedHead: parsed.options["--expected-head"],
+          report: (observed) => {
+            context = observed;
+            if (!parsed.options["--json"])
+              console.log(
+                `Roadmap checkout: ${observed.root}; HEAD: ${observed.head}; branch: ${observed.branch}; catalog SHA-256: ${observed.catalog_sha256}; modified inputs: ${observed.input_dirty}`,
+              );
+          },
+          check: async () => {
+            const doctorConfig = await loadConfig({ requireProjectNumber: true });
+            return runDoctor(doctorConfig, new RoadmapClient(doctorConfig), { quiet: true });
+          },
+        });
+        report = {
+          format: 1,
+          kind: "roadmap-doctor",
+          status: "passed",
+          context: checked.context,
+          counts: {
+            fields: checked.result.fields.length,
+            views: checked.result.views.length,
+            issues: checked.result.repositoryIssues.length,
+            items: checked.result.items.length,
+          },
+          warnings: checked.result.warnings,
+          diagnostics: checked.result.diagnostics,
+        };
+      } catch (error) {
+        report = {
+          format: 1,
+          kind: "roadmap-doctor",
+          status: "failed",
+          context,
+          errors: error.doctorErrors ?? [sanitizeOperationError(error).message],
+        };
+        process.exitCode = 1;
+      }
+      const directory = path.join(projectRoot, "work/roadmap-doctor");
+      let reference;
+      try {
+        mkdirSync(directory, { recursive: true });
+        reference = path.join(directory, `${randomUUID()}.json`);
+        writeFileSync(reference, JSON.stringify(report), { flag: "wx" });
+      } catch {
+        reference = "retention unavailable";
+      }
+      if (parsed.options["--json"]) console.log(JSON.stringify({ ...report, evidence: reference }));
+      else if (context) console.log(summarizeReport("doctor", report, reference).text);
+      else console.error(report.errors.join("\n"));
       return;
     }
     if (parsed.command === "bootstrap") {

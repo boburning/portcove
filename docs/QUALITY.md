@@ -48,6 +48,9 @@ Warm focused PR required CI targets five minutes. This is a measurement goal,
 not a timeout or permission to omit coverage. Report cold builds, broad/unmapped
 changes and root dependencies separately. Preserve nextest's two slots,
 heavyweight reservations, 30-second test budgets and process/resource/storage guards.
+Use the [CI timing diagnostics](DEVELOPMENT-TOOLS.md#ci-timing-diagnostics) to
+assess the next three genuine warm focused hosted runs; instrumentation alone
+does not establish the target or add another gate.
 
 The October 9 baseline cutover (#1682) qualifies once under its pre-change
 policy: independent review, complete fresh audit, exhaustive exact-head hosted
