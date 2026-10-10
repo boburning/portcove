@@ -302,20 +302,27 @@ function Workspace({
   });
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
-  const { ui, switchView, workspace, switchLibraryWithContext, resetLibraryWithContext } =
-    useLibraryBrowsingContext({
-      root: bootstrap.library_root,
-      initial: initialBrowsingContext,
-      returnToSelection,
-      remember: rememberBrowsingContext,
-      switchLibrary,
-      resetLibrary,
-      ready: Boolean(data.catalog),
-      installedCount: data.catalog
-        ? data.statuses.filter((status) => status.active || status.external_runtime).length
-        : undefined,
-      catalogCount: data.catalog?.ports.length,
-    });
+  const {
+    ui,
+    switchView,
+    workspace,
+    switchLibraryWithContext,
+    resetLibraryWithContext,
+    preferenceFailure,
+    saveBrowsingPreferences,
+  } = useLibraryBrowsingContext({
+    root: bootstrap.library_root,
+    initial: initialBrowsingContext,
+    returnToSelection,
+    remember: rememberBrowsingContext,
+    switchLibrary,
+    resetLibrary,
+    ready: Boolean(data.catalog),
+    installedCount: data.catalog
+      ? data.statuses.filter((status) => status.active || status.external_runtime).length
+      : undefined,
+    catalogCount: data.catalog?.ports.length,
+  });
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
     if (
@@ -536,6 +543,28 @@ function Workspace({
             retryRecovery={data.retryRecovery}
             subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
           />
+          {preferenceFailure && (
+            <section className="error-banner" role="alert">
+              <div>
+                <strong>Browsing choices are not saved</strong>
+                <p>
+                  {preferenceFailure === "read"
+                    ? "Saved browsing choices for this library could not be read. The saved data has been kept. Save your current choices to replace these browsing preferences."
+                    : "Your browsing choices work for this session, but could not be saved for a restart."}
+                </p>
+                <Button
+                  data-focusable
+                  variant="outline"
+                  onClick={() => {
+                    if (saveBrowsingPreferences())
+                      window.requestAnimationFrame(() => focusRegion("workspace"));
+                  }}
+                >
+                  {preferenceFailure === "read" ? "Save current browsing choices" : "Retry saving"}
+                </Button>
+              </div>
+            </section>
+          )}
           {model.port ? (
             <SelectedPortPanel
               model={model}
