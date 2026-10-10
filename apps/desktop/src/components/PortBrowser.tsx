@@ -36,6 +36,7 @@ import { Menu } from "@base-ui/react/menu";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { SteamBatchEntryDialog } from "./SteamEntry";
 import { evaluateCatalogQuery, type CatalogQuery } from "../features/browsing/catalog-query";
+import { CatalogFilters } from "../features/browsing/CatalogFilters";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
   { value: "catalog", label: "Catalog order" },
@@ -47,6 +48,7 @@ export function PortBrowser({
   favorites,
   view,
   ports,
+  catalogFilterCandidates,
   statuses,
   overview,
   recent,
@@ -67,6 +69,8 @@ export function PortBrowser({
   favorites?: ReturnType<typeof useFavorites>;
   view: View;
   ports: PortDefinition[];
+  /** Search/view narrowed candidates, before either editable Catalog group. */
+  catalogFilterCandidates?: PortDefinition[];
   statuses: Map<string, PortStatus>;
   overview: LibraryOverview;
   filter: Filter | CatalogQuery;
@@ -236,6 +240,17 @@ export function PortBrowser({
             onChange={setCatalogSort}
           />
         </div>
+      )}
+      {view === "catalog" && catalogFilterCandidates && (
+        <CatalogFilters
+          candidates={
+            favorites?.only
+              ? catalogFilterCandidates.filter((port) => favorites.ids?.has(port.id))
+              : catalogFilterCandidates
+          }
+          filter={filter}
+          setFilter={setFilter}
+        />
       )}
       <BrowserResults
         view={view}

@@ -97,7 +97,11 @@ it("restores independent section query/search/sort on restart without transient 
     browsing.ui.setSelectedId("selected-detail");
   });
   await act(async () => browsing.ui.setView("catalog"));
-  const filter = { version: 1, channels: ["stable", "beta"] };
+  const filter = {
+    version: 1,
+    platforms: ["windows-x86-64", "linux-x86-64"],
+    channels: ["stable", "beta"],
+  };
   await act(async () => {
     browsing.ui.setFilter(filter);
     browsing.ui.setQuery("catalog search");
