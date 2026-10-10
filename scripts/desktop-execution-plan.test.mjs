@@ -51,7 +51,17 @@ test("execution planning preserves the independently reviewed pre-change oracle"
         .map((input) => (input.kind === "executable" ? executableNames[input.name] : input.path)),
       row.initial_receipt_inputs,
     );
-    if (!row.harness_admission.error) assert.deepEqual(plan.session, row.harness_admission);
+    if (!row.harness_admission.error) {
+      const expectedSession = structuredClone(row.harness_admission);
+      // The retained oracle stays immutable; #244 deliberately adds positive
+      // owned exit proof to the completion journey through the existing owner.
+      if (selection.selected_scenarios.includes("native-selected-setup-completion")) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "selected-setup-completion";
+      }
+      assert.deepEqual(plan.session, expectedSession);
+    }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
     assert.deepEqual(
       plan.build.qualificationFeatures,
@@ -123,6 +133,22 @@ test("setup-only requirements and membership belong to the execution plan", () =
   const copy = structuredClone(selection);
   planDesktopExecution(selection);
   assert.deepEqual(selection, copy);
+});
+
+test("selected setup completion requires identity-bound positive exit evidence", () => {
+  const completion = planDesktopExecution(
+    resolveDesktopSelection({ scenarios: ["native-selected-setup-completion"], platform: "win32" }),
+  );
+  assert.equal(completion.session.identityBoundSession, true);
+  assert.equal(completion.session.cleanupName, "selected-setup-completion");
+  assert.equal(desktopHarnessDeadlineMs(completion.selection), 180000);
+  const discovery = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-saved-folder-selected-setup"],
+      platform: "win32",
+    }),
+  );
+  assert.equal(discovery.session.identityBoundSession, false);
 });
 
 test("coordinator consumes supplied order and obtains browser at each invocation", async () => {

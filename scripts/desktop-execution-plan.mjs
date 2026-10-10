@@ -40,6 +40,7 @@ export function planDesktopExecution(selectionInput) {
     "native-normal-package-webview-boundary",
   );
   const identityBoundSession =
+    selection.selected_scenarios.includes("native-selected-setup-completion") ||
     selection.selected_scenarios.includes("native-startup-network-diagnostic") ||
     selection.selected_scenarios.includes("native-external-runtime-review") ||
     backupFocusSession ||
@@ -68,7 +69,9 @@ export function planDesktopExecution(selectionInput) {
                   ? "host-interruption"
                   : minimizedPreparationSession
                     ? "minimized-preparation"
-                    : "backup-focus";
+                    : selection.selected_scenarios.includes("native-selected-setup-completion")
+                      ? "selected-setup-completion"
+                      : "backup-focus";
   const inputs = ["app", "driver", "native-driver"].map((name) => ({ kind: "executable", name }));
   inputs.push(receiptSource(harnessUrl));
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup"))

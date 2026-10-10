@@ -165,6 +165,36 @@ it("continues Core's saved frontier without discarding matches or changing scan 
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+it("preserves a CLI-created bounded scan budget when continuing through Desktop", async () => {
+  const continued = resumableSnapshot();
+  continued.limits = { ...snapshot.limits!, max_entries: 2 };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
+  await click("Refresh folders");
+  await click("Continue scan");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(continued.limits, expect.any(Function));
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("refuses continuation that would widen Desktop's scan resource caps", async () => {
+  const continued = resumableSnapshot();
+  continued.limits = { ...snapshot.limits!, max_entries: 100_000 };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
+  await click("Refresh folders");
+  await click("Continue scan");
+  expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+  expect(document.body.textContent).toContain("exceeds Desktop's scan budgets");
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("keeps Core's bounded fresh-scan recovery available when the prior snapshot cannot be read", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot)
+    .mockResolvedValueOnce(null)
+    .mockRejectedValueOnce(new Error("Unreadable old report"));
+  await click("Scan saved folders");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
 it("keeps stale resumable results from advertising continuation", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
     ...resumableSnapshot(),
