@@ -189,6 +189,39 @@ function projectFailureDiagnostic(value) {
     },
     exceptions: value.exceptions.map(({ type, hresult }) => ({ type, hresult })),
     exceptions_truncated: value.exceptions_truncated,
+    ...(value.picker_fields == null
+      ? {}
+      : { picker_fields: projectPickerFields(value.picker_fields) }),
+  };
+}
+
+function projectPickerFields(value) {
+  if (
+    !Number.isSafeInteger(value?.edit_count) ||
+    value.edit_count < 0 ||
+    value.edit_count > 1_000_000 ||
+    !Array.isArray(value.samples) ||
+    value.samples.length !== Math.min(value.edit_count, 32) ||
+    value.truncated !== value.edit_count > 32 ||
+    !value.samples.every(
+      (entry) =>
+        ["folder", "file-name", "other"].includes(entry?.name_kind) &&
+        typeof entry.automation_id === "string" &&
+        /^(?:[0-9]{1,8}|other)$/u.test(entry.automation_id) &&
+        typeof entry.owned === "boolean" &&
+        typeof entry.enabled === "boolean",
+    )
+  )
+    return null;
+  return {
+    edit_count: value.edit_count,
+    truncated: value.truncated,
+    samples: value.samples.map(({ name_kind, automation_id, owned, enabled }) => ({
+      name_kind,
+      automation_id,
+      owned,
+      enabled,
+    })),
   };
 }
 

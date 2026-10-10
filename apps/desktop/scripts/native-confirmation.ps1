@@ -15,6 +15,20 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $script:lastNativeStage = 'setup'
+$script:pickerFieldEvidence = $null
+function Get-PickerFieldEvidence($Children) {
+    $edits = @($Children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit })
+    $samples = @($edits | Select-Object -First 32 | ForEach-Object {
+        $current = $_.Current
+        [pscustomobject]@{
+            name_kind = $(if ($current.Name -ceq 'Folder:') { 'folder' } elseif ($current.Name -ceq 'File name:') { 'file-name' } else { 'other' })
+            automation_id = $(if ($current.AutomationId -cmatch '^[0-9]{1,8}$') { $current.AutomationId } else { 'other' })
+            owned = ($current.ProcessId -eq $applicationId)
+            enabled = [bool]$current.IsEnabled
+        }
+    })
+    [pscustomobject]@{ edit_count = $edits.Count; samples = $samples; truncated = ($edits.Count -gt 32) }
+}
 function Get-NativeFailureEvidence([Management.Automation.ErrorRecord]$Record) {
     # Only fixed identifiers and numeric locations/codes leave the helper.
     # Exception messages, source lines, target objects and full paths are private.
@@ -53,12 +67,13 @@ function Get-NativeFailureEvidence([Management.Automation.ErrorRecord]$Record) {
         }
     }
     [pscustomobject]@{ format_version = 1; stage = $stage; location = $location
-        exceptions = $details; exceptions_truncated = [bool]$exception }
+        exceptions = $details; exceptions_truncated = [bool]$exception
+        picker_fields = $script:pickerFieldEvidence }
 }
 trap {
     $nativeFailure = $_
     try {
-        $diagnostic = Get-NativeFailureEvidence $nativeFailure | ConvertTo-Json -Depth 5 -Compress
+        $diagnostic = Get-NativeFailureEvidence $nativeFailure | ConvertTo-Json -Depth 7 -Compress
         [Console]::Error.WriteLine("PORTCOVE_NATIVE_FAILURE $diagnostic")
     } catch { $null = $_ } # Secondary diagnostics must never replace the original error.
     break
@@ -316,7 +331,10 @@ if ($DirectoryPath) {
     $selected = (Resolve-Path -LiteralPath $DirectoryPath).Path
     if (-not [IO.Directory]::Exists($selected)) { throw 'Owned picker fixture is not a directory.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
-    if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId) { throw 'Expected one exact owned folder field in the library picker.' }
+    if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId) {
+        try { $script:pickerFieldEvidence = Get-PickerFieldEvidence $children } catch { $null = $_ }
+        throw 'Expected one exact owned folder field in the library picker.'
+    }
     $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
 }
 $selectedWindowHandle = $window.Current.NativeWindowHandle

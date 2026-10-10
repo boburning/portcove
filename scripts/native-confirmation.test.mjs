@@ -22,7 +22,7 @@ Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 $ast = [Management.Automation.Language.Parser]::ParseFile('${confirmationPath.replaceAll("'", "''")}', [ref]$null, [ref]$null)
 $discoveryAst = [Management.Automation.Language.Parser]::ParseFile('${discoveryPath.replaceAll("'", "''")}', [ref]$null, [ref]$null)
-foreach ($entry in @(@($ast, 'Assert-LiveApplication'), @($ast, 'Get-OwnedConfirmationWindows'), @($discoveryAst, 'Assert-ExactConfirmationWindow'), @($discoveryAst, 'Get-OwnedLibraryPickerWindows'))) {
+foreach ($entry in @(@($ast, 'Get-PickerFieldEvidence'), @($ast, 'Assert-LiveApplication'), @($ast, 'Get-OwnedConfirmationWindows'), @($discoveryAst, 'Assert-ExactConfirmationWindow'), @($discoveryAst, 'Get-OwnedLibraryPickerWindows'))) {
     $definition = $entry[0].Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $entry[1] }, $true)
     . ([scriptblock]::Create($definition.Extent.Text))
 }
@@ -46,6 +46,7 @@ function New-FakeControl($name, $type, $process) {
     $control | Add-Member ScriptMethod Invoke { $script:invocations++ }
     return $control
 }
+function Get-PickerFieldEvidence { throw 'secondary picker capture failure' }
 function Get-NativePickerElement {
     param($handle)
     $window = [pscustomobject]@{ Current = [pscustomobject]@{ Name = $Title; ControlType = [System.Windows.Automation.ControlType]::Window; ProcessId = 42; NativeWindowHandle = [int]$handle } }
@@ -80,6 +81,7 @@ foreach ($script:case in @('valid', 'app-birth', 'app-image', 'app-pid', 'driver
     } else {
         $expectedValues = if ($script:case -in @('foreign-button', 'replaced-window')) { 1 } else { 0 }
         if (-not $rejected -or $script:values -ne $expectedValues -or $script:invocations -ne 0) { throw "Unsafe actual input on $script:case" }
+        if ($script:case -eq 'foreign-field' -and $script:failureReason -cne 'Expected one exact owned folder field in the library picker.') { throw 'Secondary picker capture replaced guard failure' }
     }
 }
 'actual-input-contract-passed'
@@ -256,9 +258,11 @@ async function isolatedPowerShell(t, fixture, { trap = false } = {}) {
 $ErrorActionPreference = 'Stop'
 $ast = [Management.Automation.Language.Parser]::ParseFile('${helper.replaceAll("'", "''")}', [ref]$null, [ref]$null)
 $projection = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-NativeFailureEvidence' }, $false).Extent.Text
+$pickerProjection = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-PickerFieldEvidence' }, $false).Extent.Text
 $progress = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Write-ObservationProgress' }, $false).Extent.Text
 $trapText = $ast.Find({ param($node) $node -is [Management.Automation.Language.TrapStatementAst] }, $false).Extent.Text
 $fixture = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(fixture).toString("base64")}'))
+. ([scriptblock]::Create($pickerProjection))
 # Evaluate only diagnostic definitions and controlled exceptions: no assemblies,
 # process discovery, picker enumeration or input from the production script.
 & ([scriptblock]::Create($projection + "\n" + $progress + "\n" + ${trap ? "$trapText + [Environment]::NewLine +" : ""} $fixture))
@@ -292,6 +296,34 @@ Get-NativeFailureEvidence $record | ConvertTo-Json -Depth 5 -Compress
     { type: "System.InvalidOperationException", hresult: "0x80131509" },
     { type: "System.Runtime.InteropServices.COMException", hresult: "0x80004005" },
   ]);
+});
+
+test("picker field diagnostics distinguish absence, ambiguity and ownership without private text", async (t) => {
+  const result = await isolatedPowerShell(
+    t,
+    `
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$applicationId = 42
+function New-Field($name, $id, $process) {
+    [pscustomobject]@{ Current = [pscustomobject]@{ ControlType = [System.Windows.Automation.ControlType]::Edit; Name = $name; AutomationId = $id; ProcessId = $process; IsEnabled = $true; Value = 'secret-path' } }
+}
+$foreign = New-Field 'Folder:' '1152' 99
+$private = New-Field 'secret-name' 'secret-id' 42
+@(Get-PickerFieldEvidence @(); Get-PickerFieldEvidence @($foreign, $private); Get-PickerFieldEvidence @(1..33 | ForEach-Object { $foreign })) | ConvertTo-Json -Depth 7 -Compress
+`,
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(result.stdout, /secret/);
+  const [absent, mixed, bounded] = JSON.parse(result.stdout);
+  assert.deepEqual(absent, { edit_count: 0, samples: [], truncated: false });
+  assert.deepEqual(mixed.samples, [
+    { name_kind: "folder", automation_id: "1152", owned: false, enabled: true },
+    { name_kind: "other", automation_id: "other", owned: true, enabled: true },
+  ]);
+  assert.equal(bounded.edit_count, 33);
+  assert.equal(bounded.samples.length, 32);
+  assert.equal(bounded.truncated, true);
 });
 
 test("projection bounds chains and treats absent or unknown details explicitly", async (t) => {
@@ -356,13 +388,14 @@ test(
     const { result } = await isolatedConsumer(
       t,
       `
-const payload = { format_version: 1, stage: 'nested-discovery-start', location: { script: 'native-confirmation.ps1', line: 250, column: 4, path: 'secret' }, exceptions: [{ type: 'System.Exception', hresult: '0x80131500', message: 'secret' }], exceptions_truncated: false, secret: 'private' };
+const payload = { format_version: 1, stage: 'nested-discovery-start', location: { script: 'native-confirmation.ps1', line: 250, column: 4, path: 'secret' }, exceptions: [{ type: 'System.Exception', hresult: '0x80131500', message: 'secret' }], exceptions_truncated: false, secret: 'private', picker_fields: { edit_count: 1, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true, value: 'secret' }], truncated: false, path: 'secret' } };
 for (const [index, stderr] of ['PORTCOVE_NATIVE_FAILURE {bad', 'PORTCOVE_NATIVE_FAILURE ' + 'x'.repeat(5000), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify(payload), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify({ ...payload, stage: 'secret' })].entries()) {
   globalThis.result = { status: 1, signal: null, stdout: 'private', stderr };
   await assert.rejects(nativeConfirmation({ application: 'owned', getDriverPid: () => 1, output, artifacts })('fixture', '__observe__', 'fixture', 'case-' + index), error => error.actual === 1);
   const receipt = await readFile(path.join(output, 'case-' + index + '-helper-result.json'), 'utf8');
   assert.doesNotMatch(receipt, /private|secret/);
   assert.equal(JSON.parse(receipt).diagnostic === null, index !== 2);
+  if (index === 2) assert.deepEqual(JSON.parse(receipt).diagnostic.picker_fields, { edit_count: 1, truncated: false, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true }] });
 }
 `,
     );
