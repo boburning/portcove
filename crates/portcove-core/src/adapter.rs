@@ -304,12 +304,16 @@ impl Adapter for StandardAdapter {
                 let config = managed_psx_runtime_config.ok_or_else(|| {
                     PortcoveError::state("managed PS1 launch configuration was not prepared")
                 })?;
-                vec![
+                let mut arguments = vec![
                     "--game".into(),
                     psx_launch_path(&config)?,
                     "--memcard-dir".into(),
                     psx_launch_path(&working_directory.join("saves"))?,
-                ]
+                ];
+                if let Some(bios) = managed_psx_bios(library, port, install_root, checkpoint)? {
+                    arguments.extend(["--bios".into(), psx_launch_path(&bios.path)?]);
+                }
+                arguments
             }
             _ => Vec::new(),
         };
@@ -345,6 +349,9 @@ impl Adapter for StandardAdapter {
             ));
         }
         let executable = selected_executable.to_path_buf();
+        if self.0 == AdapterKind::PsxRecompManaged {
+            managed_psx_bios(library, port, install_root, checkpoint)?;
+        }
         let user_data = library.user_dir(&port.id);
         std::fs::create_dir_all(&user_data)?;
         crate::path::unicode(library.root(), "library root")?;
@@ -445,6 +452,26 @@ impl Adapter for StandardAdapter {
         }
         self.launch_spec_with_executable(request, checkpoint)
     }
+}
+
+fn managed_psx_bios(
+    library: &Library,
+    port: &PortDefinition,
+    root: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<Option<SourceRecord>> {
+    if port.bios_source_profile.is_none() {
+        return Ok(None);
+    }
+    let status = library.status(&port.id, crate::ReleaseChannel::Stable)?;
+    let install = [status.active, status.previous, status.staged]
+        .into_iter()
+        .flatten()
+        .find(|install| install.path == root)
+        .ok_or_else(|| {
+            PortcoveError::verification("PS1 BIOS binding requires a registered installation")
+        })?;
+    crate::psx::verified_launch_bios(library, port, &install, checkpoint)
 }
 
 fn has_generated_archive(
@@ -3587,6 +3614,81 @@ mod tests {
         let error = psx_launch_path(&canonical.join("alias.").join("saves")).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Unsupported);
         assert!(error.message.contains("identity"));
+    }
+
+    #[test]
+    fn managed_psx_retail_bios_binds_read_only_and_repeated_preparation_to_generation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, catalog, install, bios) = crate::psx::bios_launch_fixture(temporary.path());
+        let port = catalog.port(&install.port_id).unwrap();
+        let source = temporary.path().join("owned-disc.chd");
+        std::fs::write(&source, b"inert disc fixture").unwrap();
+        let executable = install.path.join(&install.selected_executable);
+        let request = LaunchSpecRequest {
+            library: &library,
+            port,
+            platform: Platform::WindowsX86_64,
+            install_root: &install.path,
+            selected_executable: &executable,
+            source: Some(&source),
+            source_record: None,
+        };
+        let adapter = AdapterRegistry.get(AdapterKind::PsxRecompManaged);
+        let before = launch_fixture_inventory(temporary.path());
+        let planned = adapter
+            .launch_spec_with_executable(request, &|| Ok(()))
+            .unwrap();
+        assert_eq!(launch_fixture_inventory(temporary.path()), before);
+        assert_eq!(
+            &planned.arguments[4..],
+            &["--bios", psx_launch_path(&bios.path).unwrap().as_str()]
+        );
+        for _ in 0..2 {
+            let prepared = adapter
+                .prepare_launch_with_executable(request, &|| Ok(()))
+                .unwrap();
+            assert_eq!(prepared.arguments, planned.arguments);
+            assert_eq!(
+                std::fs::read(&bios.path).unwrap(),
+                b"inert owned BIOS fixture"
+            );
+        }
+        std::fs::write(&bios.path, b"replaced").unwrap();
+        let before = launch_fixture_inventory(temporary.path());
+        assert!(
+            adapter
+                .prepare_launch_with_executable(request, &|| Ok(()))
+                .is_err()
+        );
+        assert_eq!(launch_fixture_inventory(temporary.path()), before);
+    }
+
+    #[test]
+    fn managed_psx_retail_bios_refuses_stale_registration_and_forged_generation_marker() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, catalog, install, mut bios) =
+            crate::psx::bios_launch_fixture(temporary.path());
+        let port = catalog.port(&install.port_id).unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "DELETE FROM sources WHERE profile_id=?1",
+                [&bios.profile_id],
+            )
+            .unwrap();
+        let missing = managed_psx_bios(&library, port, &install.path, &|| Ok(())).unwrap_err();
+        assert_eq!(missing.code, crate::ErrorCode::SourceInvalid);
+        library.register_source(&bios).unwrap();
+        bios.sha256 = "0".repeat(64);
+        library.register_source(&bios).unwrap();
+        assert!(managed_psx_bios(&library, port, &install.path, &|| Ok(())).is_err());
+        std::fs::write(install.path.join(".portcove-managed.json"), serde_json::to_vec(&serde_json::json!({
+            "schema_version": 1, "adapter": "psx-recomp-managed", "bios_source_sha256": bios.sha256,
+        })).unwrap()).unwrap();
+        let error = managed_psx_bios(&library, port, &install.path, &|| Ok(())).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("manifest"));
     }
 
     #[test]

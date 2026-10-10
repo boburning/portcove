@@ -18,6 +18,7 @@ pub(super) struct ManagedLaunchInputs {
     catalog: Catalog,
     qualification: InstallQualification,
     source: Option<SourceRecord>,
+    bios: Option<SourceRecord>,
 }
 
 impl PortcoveService {
@@ -84,6 +85,15 @@ impl PortcoveService {
         } else {
             None
         };
+        let bios = if port.adapter == crate::AdapterKind::PsxRecompManaged {
+            let bios = crate::psx::verified_launch_bios(&self.library, port, active, &checkpoint)?;
+            if let Some(bios) = &bios {
+                Self::verify_source_record_with_checkpoint(&catalog, bios, &checkpoint)?;
+            }
+            bios
+        } else {
+            None
+        };
         self.require_definition_operation(
             &catalog,
             port,
@@ -104,6 +114,7 @@ impl PortcoveService {
             catalog,
             qualification,
             source,
+            bios,
         })
     }
 
@@ -118,6 +129,7 @@ impl PortcoveService {
             catalog,
             qualification,
             source,
+            bios,
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
@@ -127,6 +139,7 @@ impl PortcoveService {
         }
         self.restore_user_data_to(port, &active.path)?;
         checkpoint()?;
+        self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         let selected_executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
         checkpoint()?;
@@ -151,8 +164,95 @@ impl PortcoveService {
             Self::verify_source_record_with_checkpoint(&catalog, source, &checkpoint)?;
         }
         checkpoint()?;
+        self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
         checkpoint()?;
         Ok(spec)
+    }
+    fn recheck_launch_bios(
+        &self,
+        catalog: &Catalog,
+        port: &PortDefinition,
+        active: &InstallRecord,
+        observed: Option<&SourceRecord>,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        if port.adapter != crate::AdapterKind::PsxRecompManaged {
+            return Ok(());
+        }
+        let current = crate::psx::verified_launch_bios(&self.library, port, active, checkpoint)?;
+        if serde_json::to_value(&current)? != serde_json::to_value(observed)? {
+            return Err(PortcoveError::conflict(
+                "registered PS1 BIOS changed during launch preparation",
+            ));
+        }
+        if let Some(bios) = observed {
+            Self::verify_source_record_with_checkpoint(catalog, bios, checkpoint)?;
+            let current =
+                crate::psx::verified_launch_bios(&self.library, port, active, &|| Ok(()))?;
+            if serde_json::to_value(&current)? != serde_json::to_value(observed)? {
+                return Err(PortcoveError::conflict(
+                    "registered PS1 BIOS changed during launch preparation",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn managed_bios_checkpoint_recheck_rejects_changed_registration_and_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, catalog, install, bios) = crate::psx::bios_launch_fixture(temporary.path());
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let port = catalog.port(&install.port_id).unwrap();
+        service
+            .recheck_launch_bios(&catalog, port, &install, Some(&bios), &|| Ok(()))
+            .unwrap();
+        let mut stale = bios.clone();
+        stale.updated_at += 1;
+        library.register_source(&stale).unwrap();
+        let error = service
+            .recheck_launch_bios(&catalog, port, &install, Some(&bios), &|| Ok(()))
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        library.register_source(&bios).unwrap();
+        let calls = std::cell::Cell::new(0);
+        let checkpoint = || {
+            calls.set(calls.get() + 1);
+            // helper has three callbacks; admission has four more. Change the
+            // registration at admission's final checkpoint after its last hash.
+            if calls.get() == 7 {
+                library.register_source(&stale)?;
+            }
+            Ok(())
+        };
+        assert!(
+            service
+                .recheck_launch_bios(&catalog, port, &install, Some(&bios), &checkpoint)
+                .is_err()
+        );
+        assert_eq!(calls.get(), 7);
+        library.register_source(&bios).unwrap();
+        let changed = std::cell::Cell::new(false);
+        let checkpoint = || {
+            if !changed.replace(true) {
+                std::fs::write(&bios.path, b"changed at launch checkpoint")?;
+            }
+            Ok(())
+        };
+        assert!(
+            service
+                .recheck_launch_bios(&catalog, port, &install, Some(&bios), &checkpoint)
+                .is_err()
+        );
+        assert_eq!(
+            std::fs::read(&bios.path).unwrap(),
+            b"changed at launch checkpoint"
+        );
     }
 }

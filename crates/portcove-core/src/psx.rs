@@ -116,6 +116,257 @@ struct ManagedMarker<'a> {
     toolchain_version: &'a str,
 }
 
+// The marker is immutable generation evidence, not mutable runtime state.
+#[derive(Deserialize)]
+struct GenerationBios {
+    schema_version: u32,
+    adapter: String,
+    bios_source_sha256: Option<String>,
+}
+
+pub(crate) fn verify_raw_bios(
+    bios: &SourceRecord,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
+    if bios.sha256 != bios.storage_sha256 || bios.size != bios.storage_size {
+        return Err(PortcoveError::unsupported(
+            "managed PS1 setup and launch require raw BIOS bytes; register the extracted BIOS file",
+        ));
+    }
+    crate::path::refuse_symlink_ancestors(&bios.path)?;
+    if !fs::symlink_metadata(&bios.path)?.is_file() {
+        return Err(PortcoveError::source("PS1 BIOS must be a regular raw file"));
+    }
+    crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
+    checkpoint()
+}
+
+pub(crate) fn verified_launch_bios(
+    library: &Library,
+    port: &crate::PortDefinition,
+    install: &crate::InstallRecord,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<Option<SourceRecord>> {
+    let Some(profile) = &port.bios_source_profile else {
+        return Ok(None);
+    };
+    checkpoint()?;
+    let marker: GenerationBios = serde_json::from_slice(
+        &crate::Installer::new(library.clone())?.read_verified_member(
+            install,
+            ".portcove-managed.json",
+            16 * 1024,
+        )?,
+    )?;
+    let bios = library
+        .source(profile)?
+        .ok_or_else(|| PortcoveError::source("managed PS1 launch requires its registered BIOS"))?;
+    if marker.schema_version != 1
+        || marker.adapter != "psx-recomp-managed"
+        || marker.bios_source_sha256.as_deref() != Some(bios.sha256.as_str())
+    {
+        return Err(PortcoveError::conflict(
+            "PS1 BIOS differs from generation; restore the original BIOS or prepare game data again",
+        ));
+    }
+    verify_raw_bios(&bios, checkpoint)?;
+    if serde_json::to_value(library.source(profile)?)? != serde_json::to_value(&bios)? {
+        return Err(PortcoveError::conflict(
+            "registered PS1 BIOS changed during verification",
+        ));
+    }
+    verify_raw_bios(&bios, &|| Ok(()))?;
+    crate::Installer::new(library.clone())?.read_verified_member(
+        install,
+        ".portcove-managed.json",
+        16 * 1024,
+    )?;
+    Ok(Some(bios))
+}
+
+/// Read only the fixed table/string coordinates supported by the selected kits.
+/// Ambiguous or unsupported representations fail closed instead of choosing a
+/// default cleanup target. Reuse the disc editor's tokenizer and string escapes.
+fn bios_config_string(path: &Path, table: &str, field: &str) -> Result<Option<String>> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    let bytes = crate::path::read_bounded_regular(path, 256 * 1024)?;
+    let body = std::str::from_utf8(&bytes)
+        .map_err(|_| PortcoveError::install("PS1 BIOS configuration is not UTF-8"))?;
+    let (tokens, _) = config_tokens(body)?;
+    let mut section = Vec::new();
+    let mut seen_table = false;
+    let mut found = None;
+    let mut cursor = 0;
+    while cursor < tokens.len() {
+        if tokens[cursor].kind == ConfigTokenKind::Newline {
+            cursor += 1;
+            continue;
+        }
+        if tokens[cursor].kind == ConfigTokenKind::Symbol(b'[') {
+            let end = tokens[cursor..]
+                .iter()
+                .position(|token| token.kind == ConfigTokenKind::Newline)
+                .map_or(tokens.len(), |offset| cursor + offset);
+            let array = tokens
+                .get(cursor + 1)
+                .is_some_and(|token| token.kind == ConfigTokenKind::Symbol(b'['));
+            let delimiters = if array { 2 } else { 1 };
+            if end <= cursor + delimiters * 2
+                || !tokens[end - delimiters..end]
+                    .iter()
+                    .all(|token| token.kind == ConfigTokenKind::Symbol(b']'))
+            {
+                return Err(config_error("invalid BIOS table"));
+            }
+            section = config_key(body, &tokens[cursor + delimiters..end - delimiters])?;
+            if section == [table] {
+                if array || seen_table {
+                    return Err(config_error("ambiguous BIOS table"));
+                }
+                seen_table = true;
+            } else if section.starts_with(&[table.to_owned(), field.to_owned()]) {
+                return Err(config_error("BIOS string coordinate is a table"));
+            }
+            cursor = end;
+            continue;
+        }
+        let start = cursor;
+        while cursor < tokens.len()
+            && !matches!(
+                tokens[cursor].kind,
+                ConfigTokenKind::Symbol(b'=') | ConfigTokenKind::Newline
+            )
+        {
+            cursor += 1;
+        }
+        if tokens
+            .get(cursor)
+            .is_none_or(|token| token.kind != ConfigTokenKind::Symbol(b'='))
+        {
+            return Err(config_error("missing BIOS configuration assignment"));
+        }
+        let key = config_key(body, &tokens[start..cursor])?;
+        cursor += 1;
+        let value_start = cursor;
+        cursor = bios_config_value_end(&tokens, cursor)?;
+        if section.is_empty() && key.first().is_some_and(|name| name == table) {
+            return Err(config_error("BIOS coordinates require a fixed table"));
+        }
+        if section != [table] || key.first().is_none_or(|name| name != field) {
+            continue;
+        }
+        let value = &tokens[value_start..cursor];
+        if key.len() != 1
+            || found.is_some()
+            || value.len() != 1
+            || value[0].kind != ConfigTokenKind::String
+        {
+            return Err(config_error("ambiguous BIOS string coordinate"));
+        }
+        found = Some(config_key(body, value)?.remove(0));
+    }
+    Ok(found)
+}
+
+fn bios_config_value_end(tokens: &[ConfigToken], start: usize) -> Result<usize> {
+    let mut cursor = start;
+    let mut nesting = Vec::new();
+    while cursor < tokens.len() {
+        match tokens[cursor].kind {
+            ConfigTokenKind::Newline if nesting.is_empty() => break,
+            ConfigTokenKind::Symbol(b'[') => nesting.push(b']'),
+            ConfigTokenKind::Symbol(b'{') => nesting.push(b'}'),
+            ConfigTokenKind::Symbol(close @ (b']' | b'}')) if nesting.pop() != Some(close) => {
+                return Err(config_error("mismatched BIOS value delimiter"));
+            }
+            _ => {}
+        }
+        cursor += 1;
+    }
+    if !nesting.is_empty() || cursor == start {
+        return Err(config_error("unfinished BIOS value"));
+    }
+    Ok(cursor)
+}
+
+fn staged_bios_path(root: &Path) -> Result<PathBuf> {
+    let profile = bios_config_string(&root.join("game.toml"), "recompiler", "bios_config")?
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "psxrecomp/bios/SCPH1001.toml".into());
+    crate::archive::validate_relative_path(&profile, false)?;
+    let profile_path = root.join(&profile);
+    let bios_root = root.join("psxrecomp/bios");
+    if !profile_path.starts_with(&bios_root) {
+        return Err(PortcoveError::install(
+            "PS1 BIOS profile must be inside the package BIOS directory",
+        ));
+    }
+    let stem = bios_config_string(&profile_path, "recompiler", "out_stem")?
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            profile_path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .map(str::to_owned)
+        })
+        .ok_or_else(|| PortcoveError::install("PS1 BIOS profile has no output stem"))?;
+    crate::archive::validate_relative_path(&stem, false)?;
+    if stem.contains('/') {
+        return Err(config_error("BIOS output stem must be a single component"));
+    }
+    let rom = bios_config_string(&profile_path, "program", "rom")?
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| format!("bios/{stem}.BIN"));
+    crate::archive::validate_relative_path(&rom, false)?;
+    let staged = root.join("psxrecomp").join(rom);
+    if !staged.starts_with(&bios_root) || staged == bios_root {
+        return Err(PortcoveError::install(
+            "staged PS1 BIOS must be inside the package BIOS directory",
+        ));
+    }
+    crate::path::refuse_symlink_ancestors(&staged)?;
+    Ok(staged)
+}
+
+fn remove_staged_bios(
+    staged: &Path,
+    bios: &SourceRecord,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    verify_raw_bios(bios, checkpoint)?;
+    crate::path::refuse_symlink_ancestors(staged)?;
+    let metadata = fs::symlink_metadata(staged)?;
+    if !metadata.is_file() || fs::canonicalize(staged)? == fs::canonicalize(&bios.path)? {
+        return Err(PortcoveError::verification(
+            "staged PS1 BIOS aliases its original or is not a regular copy",
+        ));
+    }
+    let (digest, size) = hash_file(staged)?;
+    if digest != bios.storage_sha256 || size != bios.storage_size {
+        return Err(PortcoveError::verification(
+            "staged PS1 BIOS differs from the verified generation input",
+        ));
+    }
+    checkpoint()?;
+    verify_raw_bios(bios, &|| Ok(()))?;
+    crate::path::refuse_symlink_ancestors(staged)?;
+    let (current_digest, current_size) = hash_file(staged)?;
+    if current_digest != digest
+        || current_size != size
+        || fs::canonicalize(staged)? == fs::canonicalize(&bios.path)?
+    {
+        return Err(PortcoveError::verification(
+            "staged PS1 BIOS changed before cleanup",
+        ));
+    }
+    fs::remove_file(staged)?;
+    Ok(())
+}
+
 struct DirectoryGuard(PathBuf);
 
 impl Drop for DirectoryGuard {
@@ -264,7 +515,7 @@ fn prepare_install_inner(
     operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     if let Some(bios) = &preparation.bios {
-        crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
+        verify_raw_bios(bios, &|| operation.checkpoint())?;
     }
     let configuration = PreparationConfiguration::from_preparation(preparation)?;
     let cli = root.join("psxrecomp").join("psxrecomp_cli.py");
@@ -274,6 +525,19 @@ fn prepare_install_inner(
             "PS1 setup package is missing its fixed psxrecomp CLI contract",
         ));
     }
+    let staged_bios = preparation
+        .bios
+        .as_ref()
+        .map(|bios| {
+            let staged = staged_bios_path(root)?;
+            if crate::path::resolve_existing_ancestor(&staged)? == fs::canonicalize(&bios.path)? {
+                return Err(PortcoveError::verification(
+                    "staged PS1 BIOS aliases its original",
+                ));
+            }
+            Ok(staged)
+        })
+        .transpose()?;
     let python = toolchain_python(&preparation.toolchain_root)?;
     operation.checkpoint()?;
     let temporary = retained_source_workspace(root)?;
@@ -311,7 +575,7 @@ fn prepare_install_inner(
         quiesced,
     )?;
     if let Some(bios) = &preparation.bios {
-        crate::adapter::verify_source_storage_identity(bios, "PS1 BIOS")?;
+        verify_raw_bios(bios, &|| operation.checkpoint())?;
     }
     rewrite_game_discs(&config, configuration.source_paths)?;
     let build_dir = root.join("build-portcove");
@@ -367,9 +631,8 @@ fn prepare_install_inner(
     if prepared_disc.is_dir() {
         fs::remove_dir_all(prepared_disc)?;
     }
-    let staged_bios = root.join("psxrecomp").join("bios").join("SCPH1001.BIN");
-    if staged_bios.is_file() {
-        fs::remove_file(staged_bios)?;
+    if let (Some(staged), Some(bios)) = (&staged_bios, &preparation.bios) {
+        remove_staged_bios(staged, bios, &|| operation.checkpoint())?;
     }
     fs::write(
         root.join(".portcove-managed.json"),
@@ -1132,6 +1395,98 @@ fn locate_pack_root(unpacked: &Path) -> Result<PathBuf> {
     Ok(candidate)
 }
 
+// Inert first-party fixture shared only by this repair's three inline suites.
+#[cfg(test)]
+pub(crate) fn bios_launch_fixture(
+    root: &Path,
+) -> (Library, crate::Catalog, crate::InstallRecord, SourceRecord) {
+    let library = Library::open(root.join("library")).unwrap();
+    let path = root.join("original.BIN");
+    fs::write(&path, b"inert owned BIOS fixture").unwrap();
+    let (digest, size) = hash_file(&path).unwrap();
+    let bios = SourceRecord {
+        profile_id: "psx-scph-1001-bios".into(),
+        path,
+        sha256: digest.clone(),
+        size,
+        storage_sha256: digest.clone(),
+        storage_size: size,
+        updated_at: Library::now(),
+        observed_identity: None,
+    };
+    let mut document =
+        serde_json::to_value(crate::Catalog::embedded().unwrap().authoritative_document()).unwrap();
+    let asset = document["source_catalog"]["identities"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|asset| asset["id"] == bios.profile_id)
+        .unwrap();
+    let identity = &mut asset["variants"][0]["representations"][0]["identities"][0];
+    identity["sha1"] = serde_json::Value::Null;
+    identity["sha256"] = digest.into();
+    let catalog = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let port = catalog.port("mortal-kombat-4-recompiled").unwrap();
+    let install_root = root.join("install");
+    let runtime = install_root.join("build-portcove");
+    fs::create_dir_all(&runtime).unwrap();
+    fs::write(
+        runtime.join("Mortal_Kombat_4.exe"),
+        b"inert executable bytes",
+    )
+    .unwrap();
+    fs::write(runtime.join("game.toml"), "[game]\nname = 'fixture'\n").unwrap();
+    fs::write(
+        install_root.join(".portcove-managed.json"),
+        serde_json::to_vec(&ManagedMarker {
+            schema_version: 1,
+            adapter: "psx-recomp-managed",
+            source_sha256: "unused-fixture-disc",
+            source_storage_sha256: "unused-fixture-disc",
+            bios_source_sha256: Some(&bios.sha256),
+            toolchain_version: TOOLCHAIN_VERSION,
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    let artifact = crate::ArtifactIdentity {
+        asset_name: "owned-fixture.zip".into(),
+        sha256: "0".repeat(64),
+        size: 16,
+    };
+    let qualification =
+        crate::InstallQualification::from_catalog(&catalog, &port.id, Platform::WindowsX86_64)
+            .unwrap();
+    let (manifest_sha256, selected_executable, runtime) = crate::Installer::new(library.clone())
+        .unwrap()
+        .create_manifest(
+            "bios-fixture-install",
+            &port.id,
+            "fixture",
+            &artifact,
+            &qualification,
+            &install_root,
+        )
+        .unwrap();
+    let install = crate::InstallRecord {
+        id: "bios-fixture-install".into(),
+        port_id: port.id.clone(),
+        version: "fixture".into(),
+        path: install_root,
+        channel: crate::ReleaseChannel::Stable,
+        installed_at: Library::now(),
+        verified: true,
+        staged: false,
+        artifact,
+        runtime,
+        manifest_sha256,
+        selected_executable,
+    };
+    library.register_install(&install, true).unwrap();
+    library.register_source(&bios).unwrap();
+    (library, catalog, install, bios)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1141,6 +1496,200 @@ mod tests {
     };
 
     const BUILDER_FIXTURE: &str = "psx::tests::managed_builder_fixture_child";
+
+    fn bios_fixture(path: &Path) -> SourceRecord {
+        fs::write(path, b"inert owned BIOS fixture").unwrap();
+        let (digest, size) = hash_file(path).unwrap();
+        SourceRecord {
+            profile_id: "owned-bios".into(),
+            path: path.into(),
+            sha256: digest.clone(),
+            size,
+            storage_sha256: digest,
+            storage_size: size,
+            updated_at: Library::now(),
+            observed_identity: None,
+        }
+    }
+
+    #[test]
+    fn managed_bios_cleanup_uses_regional_profile_and_preserves_originals() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("package");
+        let directory = root.join("psxrecomp/bios");
+        fs::create_dir_all(&directory).unwrap();
+        let original = bios_fixture(&temporary.path().join("original.BIN"));
+        for (game, profile, expected) in [
+            (
+                "offsets = [\n [1, 2],\n [3, 4]\n]\n[[unrelated]]\nname = 'fixture'\n[recompiler]\nbios_config = 'psxrecomp/bios/SCPH5552.toml'\n",
+                "SCPH5552.toml",
+                "SCPH5552.BIN",
+            ),
+            (
+                "[game]\nname = 'default'\n",
+                "SCPH1001.toml",
+                "SCPH1001.BIN",
+            ),
+            (
+                "[recompiler]\nbios_config = 'psxrecomp/bios/custom.toml'\n",
+                "custom.toml",
+                "regional.BIN",
+            ),
+        ] {
+            fs::write(root.join("game.toml"), game).unwrap();
+            let body = if profile == "custom.toml" {
+                "[recompiler]\nout_stem = 'ignored'\n[recompiler.address_model]\nmask = 'fixture'\n[[recompiler.address_model.copy]]\nname = 'one'\n[[recompiler.address_model.copy]]\nname = 'two'\n[program]\nrom = 'bios/regional.BIN'\n"
+            } else {
+                "[program]\nid = 'fixture'\n"
+            };
+            fs::write(directory.join(profile), body).unwrap();
+            let staged = staged_bios_path(&root).unwrap();
+            assert_eq!(staged, directory.join(expected));
+            fs::copy(&original.path, &staged).unwrap();
+            fs::write(directory.join("unrelated.BIN"), b"unrelated").unwrap();
+            remove_staged_bios(&staged, &original, &|| Ok(())).unwrap();
+            assert!(!staged.exists());
+            assert_eq!(
+                fs::read(&original.path).unwrap(),
+                b"inert owned BIOS fixture"
+            );
+            assert_eq!(
+                fs::read(directory.join("unrelated.BIN")).unwrap(),
+                b"unrelated"
+            );
+        }
+        assert!(remove_staged_bios(&original.path, &original, &|| Ok(())).is_err());
+        assert!(original.path.is_file());
+    }
+
+    #[test]
+    fn managed_bios_cleanup_refuses_wrong_copy_replaced_original_and_cancellation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let original = bios_fixture(&temporary.path().join("original.BIN"));
+        let staged = temporary.path().join("staged.BIN");
+        fs::write(&staged, b"wrong").unwrap();
+        assert!(remove_staged_bios(&staged, &original, &|| Ok(())).is_err());
+        fs::copy(&original.path, &staged).unwrap();
+        let cancelled = || {
+            Err(PortcoveError::new(
+                crate::ErrorCode::Cancelled,
+                "fixture cancellation",
+            ))
+        };
+        assert_eq!(
+            remove_staged_bios(&staged, &original, &cancelled)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Cancelled
+        );
+        fs::write(&original.path, b"replaced").unwrap();
+        assert!(remove_staged_bios(&staged, &original, &|| Ok(())).is_err());
+        assert!(staged.is_file());
+        assert_eq!(fs::read(&original.path).unwrap(), b"replaced");
+    }
+
+    #[test]
+    fn managed_bios_cleanup_rechecks_the_copy_after_final_checkpoint() {
+        let temporary = tempfile::tempdir().unwrap();
+        let original = bios_fixture(&temporary.path().join("original.BIN"));
+        let staged = temporary.path().join("staged.BIN");
+        fs::copy(&original.path, &staged).unwrap();
+        let calls = std::cell::Cell::new(0);
+        let checkpoint = || {
+            calls.set(calls.get() + 1);
+            if calls.get() == 3 {
+                fs::write(&staged, b"replacement at cleanup checkpoint")?;
+            }
+            Ok(())
+        };
+        assert!(remove_staged_bios(&staged, &original, &checkpoint).is_err());
+        assert_eq!(
+            fs::read(&staged).unwrap(),
+            b"replacement at cleanup checkpoint"
+        );
+        assert_eq!(
+            fs::read(&original.path).unwrap(),
+            b"inert owned BIOS fixture"
+        );
+    }
+
+    #[test]
+    fn managed_bios_coordinates_reject_unsafe_and_ambiguous_paths() {
+        let temporary = tempfile::tempdir().unwrap();
+        let directory = temporary.path().join("psxrecomp/bios");
+        fs::create_dir_all(&directory).unwrap();
+        for game in [
+            "[recompiler]\nbios_config = '../original.toml'\n",
+            "[recompiler]\nbios_config = 'psxrecomp/other.toml'\n",
+            "[recompiler]\nbios_config = 'psxrecomp/bios/a.toml'\nbios_config = 'psxrecomp/bios/b.toml'\n",
+            "recompiler.bios_config = 'psxrecomp/bios/a.toml'\n",
+        ] {
+            fs::write(temporary.path().join("game.toml"), game).unwrap();
+            assert!(staged_bios_path(temporary.path()).is_err());
+        }
+        fs::write(
+            temporary.path().join("game.toml"),
+            "[game]\nname = 'fixture'\n",
+        )
+        .unwrap();
+        for rom in [
+            "../original.BIN",
+            "bios/../original.BIN",
+            "/original.BIN",
+            "other/original.BIN",
+        ] {
+            fs::write(
+                directory.join("SCPH1001.toml"),
+                format!("[program]\nrom = '{rom}'\n"),
+            )
+            .unwrap();
+            assert!(staged_bios_path(temporary.path()).is_err());
+        }
+    }
+
+    #[test]
+    fn managed_bios_refuses_containers_and_missing_or_replaced_files() {
+        let temporary = tempfile::tempdir().unwrap();
+        let original = bios_fixture(&temporary.path().join("original.BIN"));
+        let mut container = original.clone();
+        container.storage_sha256 = "0".repeat(64);
+        assert_eq!(
+            verify_raw_bios(&container, &|| Ok(())).unwrap_err().code,
+            crate::ErrorCode::Unsupported
+        );
+        fs::write(&original.path, b"replaced").unwrap();
+        assert!(verify_raw_bios(&original, &|| Ok(())).is_err());
+        fs::remove_file(&original.path).unwrap();
+        assert!(verify_raw_bios(&original, &|| Ok(())).is_err());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn managed_bios_refuses_symlinked_cleanup_and_source_coordinates() {
+        use std::os::unix::fs::symlink;
+        let temporary = tempfile::tempdir().unwrap();
+        let original = bios_fixture(&temporary.path().join("original.BIN"));
+        let link = temporary.path().join("link.BIN");
+        symlink(&original.path, &link).unwrap();
+        assert!(remove_staged_bios(&link, &original, &|| Ok(())).is_err());
+        let mut aliased = original.clone();
+        aliased.path = link;
+        assert!(verify_raw_bios(&aliased, &|| Ok(())).is_err());
+        let root = temporary.path().join("package");
+        fs::create_dir_all(root.join("psxrecomp")).unwrap();
+        symlink(temporary.path(), root.join("psxrecomp/bios")).unwrap();
+        fs::write(root.join("game.toml"), "[game]\nname = 'fixture'\n").unwrap();
+        fs::write(
+            temporary.path().join("SCPH1001.toml"),
+            "[program]\nid = 'fixture'\n",
+        )
+        .unwrap();
+        assert!(staged_bios_path(&root).is_err());
+        assert_eq!(
+            fs::read(&original.path).unwrap(),
+            b"inert owned BIOS fixture"
+        );
+    }
 
     fn preparation_input_fixture(root: &Path, multi_disc: bool) -> PsxManagedPreparation {
         let source_path = if multi_disc {
