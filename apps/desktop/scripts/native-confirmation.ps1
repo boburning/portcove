@@ -16,18 +16,27 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:lastNativeStage = 'setup'
 $script:pickerFieldEvidence = $null
-function Get-PickerFieldEvidence($Children) {
+function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1) {
+    $all = @($Children)
     $edits = @($Children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit })
     $samples = @($edits | Select-Object -First 32 | ForEach-Object {
         $current = $_.Current
         [pscustomobject]@{
-            name_kind = $(if ($current.Name -ceq 'Folder:') { 'folder' } elseif ($current.Name -ceq 'File name:') { 'file-name' } else { 'other' })
+            name_kind = $(if ($current.Name -eq 'Folder:') { 'folder' } elseif ($current.Name -eq 'File name:') { 'file-name' } elseif ($current.Name -eq 'Folder name:') { 'folder-name' } elseif ([string]::IsNullOrEmpty($current.Name)) { 'empty' } else { 'other' })
             automation_id = $(if ($current.AutomationId -cmatch '^[0-9]{1,8}$') { $current.AutomationId } else { 'other' })
             owned = ($current.ProcessId -eq $applicationId)
             enabled = [bool]$current.IsEnabled
         }
     })
-    [pscustomobject]@{ edit_count = $edits.Count; samples = $samples; truncated = ($edits.Count -gt 32) }
+    [pscustomobject]@{ edit_count = $edits.Count; samples = $samples; truncated = ($edits.Count -gt 32)
+        folder_matches = $FolderMatches
+        total_count = $all.Count
+        automation_element_count = @($all | Where-Object { $_ -is [System.Windows.Automation.AutomationElement] }).Count
+        folder_label_count = @($all | Where-Object { $_.Current.Name -eq 'Folder:' }).Count
+        owned_folder_matches = @($edits | Where-Object { $_.Current.Name -eq 'Folder:' -and $_.Current.ProcessId -eq $applicationId }).Count
+        folder_name_matches = @($edits | Where-Object { $_.Current.Name -eq 'Folder name:' }).Count
+        file_name_matches = @($edits | Where-Object { $_.Current.Name -eq 'File name:' }).Count
+        empty_name_matches = @($edits | Where-Object { [string]::IsNullOrEmpty($_.Current.Name) }).Count }
 }
 function Get-NativeFailureEvidence([Management.Automation.ErrorRecord]$Record) {
     # Only fixed identifiers and numeric locations/codes leave the helper.
@@ -332,7 +341,7 @@ if ($DirectoryPath) {
     if (-not [IO.Directory]::Exists($selected)) { throw 'Owned picker fixture is not a directory.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
     if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId) {
-        try { $script:pickerFieldEvidence = Get-PickerFieldEvidence $children } catch { $null = $_ }
+        try { $script:pickerFieldEvidence = Get-PickerFieldEvidence $children $fields.Count } catch { $null = $_ }
         throw 'Expected one exact owned folder field in the library picker.'
     }
     $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)

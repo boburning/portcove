@@ -196,6 +196,16 @@ function projectFailureDiagnostic(value) {
 }
 
 function projectPickerFields(value) {
+  const counters = [
+    "folder_matches",
+    "total_count",
+    "automation_element_count",
+    "folder_label_count",
+    "owned_folder_matches",
+    "folder_name_matches",
+    "file_name_matches",
+    "empty_name_matches",
+  ];
   if (
     !Number.isSafeInteger(value?.edit_count) ||
     value.edit_count < 0 ||
@@ -205,7 +215,7 @@ function projectPickerFields(value) {
     value.truncated !== value.edit_count > 32 ||
     !value.samples.every(
       (entry) =>
-        ["folder", "file-name", "other"].includes(entry?.name_kind) &&
+        ["folder", "file-name", "folder-name", "empty", "other"].includes(entry?.name_kind) &&
         typeof entry.automation_id === "string" &&
         /^(?:[0-9]{1,8}|other)$/u.test(entry.automation_id) &&
         typeof entry.owned === "boolean" &&
@@ -213,9 +223,19 @@ function projectPickerFields(value) {
     )
   )
     return null;
+  if (
+    !counters.every(
+      (key) =>
+        Number.isSafeInteger(value[key]) &&
+        value[key] >= (key === "folder_matches" ? -1 : 0) &&
+        value[key] <= 1_000_000,
+    )
+  )
+    return null;
   return {
     edit_count: value.edit_count,
     truncated: value.truncated,
+    ...Object.fromEntries(counters.map((key) => [key, value[key]])),
     samples: value.samples.map(({ name_kind, automation_id, owned, enabled }) => ({
       name_kind,
       automation_id,

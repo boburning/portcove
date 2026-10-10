@@ -316,7 +316,11 @@ $private = New-Field 'secret-name' 'secret-id' 42
   assert.equal(result.status, 0, result.stderr);
   assert.doesNotMatch(result.stdout, /secret/);
   const [absent, mixed, bounded] = JSON.parse(result.stdout);
-  assert.deepEqual(absent, { edit_count: 0, samples: [], truncated: false });
+  assert.equal(absent.edit_count, 0);
+  assert.deepEqual(absent.samples, []);
+  assert.equal(absent.total_count, 0);
+  assert.equal(mixed.owned_folder_matches, 0);
+  assert.equal(mixed.folder_label_count, 1);
   assert.deepEqual(mixed.samples, [
     { name_kind: "folder", automation_id: "1152", owned: false, enabled: true },
     { name_kind: "other", automation_id: "other", owned: true, enabled: true },
@@ -388,14 +392,14 @@ test(
     const { result } = await isolatedConsumer(
       t,
       `
-const payload = { format_version: 1, stage: 'nested-discovery-start', location: { script: 'native-confirmation.ps1', line: 250, column: 4, path: 'secret' }, exceptions: [{ type: 'System.Exception', hresult: '0x80131500', message: 'secret' }], exceptions_truncated: false, secret: 'private', picker_fields: { edit_count: 1, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true, value: 'secret' }], truncated: false, path: 'secret' } };
+const payload = { format_version: 1, stage: 'nested-discovery-start', location: { script: 'native-confirmation.ps1', line: 250, column: 4, path: 'secret' }, exceptions: [{ type: 'System.Exception', hresult: '0x80131500', message: 'secret' }], exceptions_truncated: false, secret: 'private', picker_fields: { folder_matches: 1, total_count: 1, automation_element_count: 1, folder_label_count: 1, owned_folder_matches: 0, folder_name_matches: 0, file_name_matches: 0, empty_name_matches: 0, edit_count: 1, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true, value: 'secret' }], truncated: false, path: 'secret' } };
 for (const [index, stderr] of ['PORTCOVE_NATIVE_FAILURE {bad', 'PORTCOVE_NATIVE_FAILURE ' + 'x'.repeat(5000), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify(payload), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify({ ...payload, stage: 'secret' })].entries()) {
   globalThis.result = { status: 1, signal: null, stdout: 'private', stderr };
   await assert.rejects(nativeConfirmation({ application: 'owned', getDriverPid: () => 1, output, artifacts })('fixture', '__observe__', 'fixture', 'case-' + index), error => error.actual === 1);
   const receipt = await readFile(path.join(output, 'case-' + index + '-helper-result.json'), 'utf8');
   assert.doesNotMatch(receipt, /private|secret/);
   assert.equal(JSON.parse(receipt).diagnostic === null, index !== 2);
-  if (index === 2) assert.deepEqual(JSON.parse(receipt).diagnostic.picker_fields, { edit_count: 1, truncated: false, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true }] });
+  if (index === 2) assert.deepEqual(JSON.parse(receipt).diagnostic.picker_fields, { folder_matches: 1, total_count: 1, automation_element_count: 1, folder_label_count: 1, owned_folder_matches: 0, folder_name_matches: 0, file_name_matches: 0, empty_name_matches: 0, edit_count: 1, truncated: false, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true }] });
 }
 `,
     );
