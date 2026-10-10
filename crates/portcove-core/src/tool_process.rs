@@ -137,6 +137,8 @@ pub(crate) fn run_tool(
     );
     let mut last_snapshot = Instant::now();
     let (result, process_quiesced) = loop {
+        #[cfg(windows)]
+        group.observe_members();
         let observation = checkpoint().and_then(|()| {
             if last_snapshot.elapsed() >= Duration::from_millis(500) {
                 snapshot(false, false)?;
@@ -150,13 +152,26 @@ pub(crate) fn run_tool(
             break (Err(error), stopped);
         }
         match poll_setup(&mut child, &group) {
-            Ok(Some(status)) => break (Ok(status), group.proves_tree_quiescence()),
+            Ok(Some(status)) => {
+                let quiesced = group.proves_tree_quiescence();
+                #[cfg(windows)]
+                if !quiesced {
+                    break (
+                        Err(PortcoveError::state(
+                            "native tool process-tree exit could not be verified; retain private preparation",
+                        )),
+                        false,
+                    );
+                }
+                break (Ok(status), quiesced);
+            }
             Ok(None) => std::thread::sleep(Duration::from_millis(25)),
             Err(error) => {
                 // On Unix an unexpected reaper can invalidate PID ownership.
                 // Retain private work rather than signal an unverified PID.
                 #[cfg(windows)]
-                let stopped = group.terminate_and_wait(&mut child).is_ok();
+                let stopped =
+                    group.terminate_and_wait(&mut child).is_ok() && group.proves_tree_quiescence();
                 #[cfg(unix)]
                 let stopped = false;
                 break (
@@ -365,6 +380,9 @@ fn wait_for_unreaped_exit(child: &std::process::Child) -> std::io::Result<()> {
 #[cfg(windows)]
 pub(crate) struct ToolProcessGroup {
     job: windows_sys::Win32::Foundation::HANDLE,
+    members: std::cell::RefCell<BTreeMap<u32, std::os::windows::io::OwnedHandle>>,
+    complete: std::cell::Cell<bool>,
+    termination_deadline: std::cell::Cell<Option<Instant>>,
 }
 
 #[cfg(windows)]
@@ -380,7 +398,7 @@ impl ToolProcessGroup {
     }
 
     pub(crate) fn attach(child: &std::process::Child) -> Result<Self> {
-        use std::os::windows::io::AsRawHandle;
+        use std::os::windows::io::{AsRawHandle, BorrowedHandle};
         use windows_sys::Win32::System::JobObjects::{
             AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
             JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
@@ -414,7 +432,22 @@ impl ToolProcessGroup {
                 windows_sys::Win32::Foundation::CloseHandle(candidate);
                 return Err(failure);
             }
-            let group = Self { job: candidate };
+            let leader =
+                match BorrowedHandle::borrow_raw(child.as_raw_handle()).try_clone_to_owned() {
+                    Ok(handle) => handle,
+                    Err(error) => {
+                        windows_sys::Win32::Foundation::CloseHandle(candidate);
+                        return Err(PortcoveError::state(format!(
+                            "could not retain native leader identity: {error}"
+                        )));
+                    }
+                };
+            let group = Self {
+                job: candidate,
+                members: std::cell::RefCell::new(BTreeMap::from([(child.id(), leader)])),
+                complete: std::cell::Cell::new(true),
+                termination_deadline: std::cell::Cell::new(None),
+            };
             if let Err(error) = resume_primary_thread(child.id()) {
                 // Closing this configured job terminates the still-suspended
                 // leader. No admitted tool code has executed on this path.
@@ -425,11 +458,141 @@ impl ToolProcessGroup {
         }
     }
 
+    fn observe_members(&self) {
+        use std::os::windows::io::{FromRawHandle, OwnedHandle};
+        use windows_sys::Win32::System::{
+            JobObjects::{
+                IsProcessInJob, JOBOBJECT_BASIC_PROCESS_ID_LIST, JobObjectBasicProcessIdList,
+                QueryInformationJobObject,
+            },
+            Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE},
+        };
+        // Bounded storage; a truncated snapshot or lifetime count gap is held.
+        let mut buffer = [0_usize; 513];
+        let queried = unsafe {
+            QueryInformationJobObject(
+                self.job,
+                JobObjectBasicProcessIdList,
+                buffer.as_mut_ptr().cast(),
+                std::mem::size_of_val(&buffer) as u32,
+                std::ptr::null_mut(),
+            )
+        };
+        if queried == 0 {
+            self.complete.set(false);
+            return;
+        }
+        let list = unsafe { &*buffer.as_ptr().cast::<JOBOBJECT_BASIC_PROCESS_ID_LIST>() };
+        if list.NumberOfAssignedProcesses != list.NumberOfProcessIdsInList
+            || list.NumberOfProcessIdsInList > 512
+        {
+            self.complete.set(false);
+            return;
+        }
+        let ids = unsafe {
+            std::slice::from_raw_parts(
+                list.ProcessIdList.as_ptr(),
+                list.NumberOfProcessIdsInList as usize,
+            )
+        };
+        let mut members = self.members.borrow_mut();
+        for &pid in ids {
+            let Ok(pid) = u32::try_from(pid) else {
+                self.complete.set(false);
+                return;
+            };
+            if members.contains_key(&pid) {
+                continue;
+            }
+            if members.len() >= 512 {
+                self.complete.set(false);
+                return;
+            }
+            let raw = unsafe {
+                OpenProcess(
+                    PROCESS_SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
+                    0,
+                    pid,
+                )
+            };
+            if raw.is_null() {
+                self.complete.set(false);
+                return;
+            }
+            let handle = unsafe { OwnedHandle::from_raw_handle(raw) };
+            let mut in_job = 0;
+            if unsafe { IsProcessInJob(raw, self.job, &raw mut in_job) } == 0 || in_job == 0 {
+                self.complete.set(false);
+                return;
+            }
+            members.insert(pid, handle);
+        }
+    }
+
+    fn deadline(&self) -> Instant {
+        if let Some(deadline) = self.termination_deadline.get() {
+            return deadline;
+        }
+        let deadline = Instant::now() + Duration::from_secs(2);
+        self.termination_deadline.set(Some(deadline));
+        deadline
+    }
+
     fn proves_tree_quiescence(&self) -> bool {
-        true
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::System::JobObjects::{
+            JOBOBJECT_BASIC_ACCOUNTING_INFORMATION, JobObjectBasicAccountingInformation,
+            QueryInformationJobObject, TerminateJobObject,
+        };
+        use windows_sys::Win32::{
+            Foundation::WAIT_OBJECT_0, System::Threading::WaitForSingleObject,
+        };
+        self.observe_members();
+        let deadline = self.deadline();
+        // Retain handles across the job's asynchronous termination accounting.
+        if unsafe { TerminateJobObject(self.job, 1) } == 0 {
+            return false;
+        }
+        let members = self.members.borrow();
+        for handle in members.values() {
+            let remaining = deadline
+                .saturating_duration_since(Instant::now())
+                .as_millis()
+                .min(u32::MAX as u128) as u32;
+            if unsafe { WaitForSingleObject(handle.as_raw_handle(), remaining) } != WAIT_OBJECT_0 {
+                return false;
+            }
+        }
+        if !self.complete.get() {
+            return false;
+        }
+        loop {
+            let mut accounting = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+            let queried = unsafe {
+                QueryInformationJobObject(
+                    self.job,
+                    JobObjectBasicAccountingInformation,
+                    (&raw mut accounting).cast(),
+                    std::mem::size_of_val(&accounting) as u32,
+                    std::ptr::null_mut(),
+                )
+            };
+            if queried == 0 {
+                return false;
+            }
+            if accounting.ActiveProcesses == 0 {
+                return accounting.TotalProcesses as usize == members.len();
+            }
+            if Instant::now() >= deadline {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
     }
 
     pub(crate) fn terminate(&self, _child: &std::process::Child) {
+        self.observe_members();
+        self.deadline();
         if !self.job.is_null() {
             unsafe {
                 windows_sys::Win32::System::JobObjects::TerminateJobObject(self.job, 1);
@@ -443,7 +606,18 @@ impl ToolProcessGroup {
     ) -> std::io::Result<ExitStatus> {
         self.terminate(child);
         let _ = child.kill();
-        child.wait()
+        loop {
+            if let Some(status) = child.try_wait()? {
+                return Ok(status);
+            }
+            if Instant::now() >= self.deadline() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "native tool leader did not exit within the owned-tree bound",
+                ));
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
     }
 }
 

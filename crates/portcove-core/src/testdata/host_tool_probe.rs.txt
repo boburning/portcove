@@ -45,13 +45,37 @@ fn main() {
             thread::sleep(Duration::from_secs(2));
         }
         Some("--setup-tree") => {
-            let child = Command::new(env::current_exe().unwrap())
-                .args(["--grandchild", &args[1]])
-                .spawn().unwrap();
+            let observed = args.get(2).is_some_and(|arg| arg.starts_with("observed-"));
+            let mut command = Command::new(env::current_exe().unwrap());
+            if observed {
+                command.args(["--grandchild-held", &args[1], "descendant-release"]);
+            } else {
+                command.args(["--grandchild", &args[1]]);
+            }
+            let child = command.spawn().unwrap();
             fs::write("descendant-pid", child.id().to_string()).unwrap();
-            if args.get(2).is_some_and(|arg| arg == "wait") {
+            if observed {
+                let deadline = std::time::Instant::now() + Duration::from_secs(5);
+                while !std::path::Path::new("descendant-observed").is_file() {
+                    if std::time::Instant::now() >= deadline { std::process::exit(9); }
+                    thread::sleep(Duration::from_millis(10));
+                }
+            }
+            if args.get(2).is_some_and(|arg| arg == "wait" || arg == "observed-wait") {
                 thread::sleep(Duration::from_secs(8));
             }
+        }
+        Some("--setup-unobserved-child") => {
+            fs::write("leader-ready", b"ready").unwrap();
+            let deadline = std::time::Instant::now() + Duration::from_secs(5);
+            while !std::path::Path::new("spawn-child").is_file() {
+                if std::time::Instant::now() >= deadline { std::process::exit(9); }
+                thread::sleep(Duration::from_millis(10));
+            }
+            let status = Command::new(env::current_exe().unwrap())
+                .arg("--success").status().unwrap();
+            assert!(status.success());
+            fs::write("child-finished", b"exited before the next membership snapshot").unwrap();
         }
         #[cfg(unix)]
         Some("--setup-tree-escape") => {
@@ -83,6 +107,14 @@ fn main() {
         }
         Some("--grandchild") => {
             thread::sleep(Duration::from_secs(1));
+            fs::write(&args[1], b"orphaned").unwrap();
+        }
+        Some("--grandchild-held") => {
+            let deadline = std::time::Instant::now() + Duration::from_secs(8);
+            while !std::path::Path::new(&args[2]).is_file() {
+                if std::time::Instant::now() >= deadline { std::process::exit(8); }
+                thread::sleep(Duration::from_millis(10));
+            }
             fs::write(&args[1], b"orphaned").unwrap();
         }
         _ => println!("wrong program"),
@@ -153,8 +185,22 @@ fn owned_conversion(args: &[String]) {
 }
 
 fn owned_psx_conversion(args: &[String]) {
+    let source = std::path::Path::new(args.windows(2).find(|pair| pair[0] == "-i").unwrap()[1].as_str());
     let cue = std::path::Path::new(args.windows(2).find(|pair| pair[0] == "-o").unwrap()[1].as_str());
     let bins = args.windows(2).find(|pair| pair[0] == "-ob").unwrap()[1].replace("%t", "1");
     fs::write(cue, b"FILE \"disc1.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n").unwrap();
     fs::write(bins, b"owned psx track").unwrap();
+    let mode = fs::read_to_string(source.with_extension("conversion-mode")).unwrap_or_else(|_| "success".into());
+    match mode.as_str() {
+        "success" => {},
+        "failure" => std::process::exit(29),
+        "wait" => {
+            let child = Command::new(env::current_exe().unwrap()).args(["--grandchild-held", source.with_extension("orphan-output").to_str().unwrap(), source.with_extension("conversion-release").to_str().unwrap()]).spawn().unwrap();
+            fs::write(source.with_extension("conversion-child-pid"), child.id().to_string()).unwrap();
+            fs::write(source.with_extension("conversion-ready"), b"owned helper and descendant started").unwrap();
+            thread::sleep(Duration::from_secs(8));
+            fs::write(source.with_extension("conversion-unexpected-completion"), b"unexpected").unwrap();
+        },
+        _ => panic!("unknown owned PSX conversion mode"),
+    }
 }

@@ -2141,6 +2141,27 @@ The managed PS1 adapter downloads a platform-specific, fixed-version toolchain a
 
 V1 deliberately avoids automating arbitrary build scripts or installers. A new adapter is warranted only when several active projects share a deterministic, reviewable workflow.
 
+Initial managed PS1 CHD generation forwards the operation cancellation checkpoint
+to the supervised host tool and consumes its positive process-tree quiescence
+observer. Each helper's proof is combined with prior preparation quiescence;
+later successful builders cannot clear earlier uncertainty. Private extracted
+inputs remain retained on cancellation or failure. Multi-disc runtime extraction
+retains its existing conservative uncertainty and is not qualified by this
+initial-generation boundary.
+
+The Windows tool supervisor retains the leader handle before resuming it and
+collects handles for verified members of its exact containment job during execution.
+Membership storage is bounded to 512 processes. After requesting termination it
+waits for every retained handle to signal exit, within one shared two-second bound,
+and requires zero active processes plus a lifetime process count matching its
+complete handle coverage. Only this proof permits its quiescence callback.
+Truncated or failed membership queries, missed short-lived children, failed
+termination or accounting, and expired waits leave quiescence unproven. A successful
+leader exit with incomplete proof holds preparation before further mutation;
+closing the job or zero active accounting alone is not exit evidence. Unix
+process-group containment retains its conservative rule because descendants can
+escape the group.
+
 ## Child-process boundary
 
 `portcove-core::ChildProcessPolicy` is the single construction path for every production child process. Callers select a typed class for games, upstream setup, host tools such as `chdman` and DolphinTool, managed builders, or operating-system integration. All classes begin from the same reviewed session allowlist rather than inheriting the complete Portcove environment. The allowlist preserves cross-platform process discovery, profile/home, temporary-directory, locale, desktop/display, audio/graphics, Steam/Proton, Wine, and dynamic-runtime variables needed by native ports. GitHub variables and other credential-shaped token, secret, password, API-key, cloud-key, SSH-agent, and askpass variables are removed centrally. Catalog/adapter overlays are checked by the same policy and cannot reintroduce a credential-shaped variable.
