@@ -98,6 +98,9 @@ export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "c
 };
 
 export const desktopApi = {
+  favoritePorts: (generation: number) => invoke<string[]>("get_favorite_ports", { generation }),
+  setPortFavorite: (portId: string, favorite: boolean, generation: number) =>
+    invoke<void>("set_port_favorite", { portId, favorite, generation }),
   localePreference: () => invoke<LocalePreferenceSnapshot>("get_locale_preference"),
   setLocalePreference: (locale: string | null) =>
     invoke<LocalePreferenceSnapshot>("set_locale_preference", { locale }),
