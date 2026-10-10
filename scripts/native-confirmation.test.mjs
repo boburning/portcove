@@ -306,10 +306,13 @@ Get-NativeFailureEvidence $record | ConvertTo-Json -Depth 5 -Compress
   ]);
 });
 
-test("picker field diagnostics distinguish absence, ambiguity and ownership without private text", async (t) => {
-  const result = await isolatedPowerShell(
-    t,
-    `
+test(
+  "picker field diagnostics distinguish absence, ambiguity and ownership without private text",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const result = await isolatedPowerShell(
+      t,
+      `
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 $applicationId = 42
@@ -323,23 +326,24 @@ $foreign = New-Field 'Folder:' '1152' 99
 $private = New-Field 'secret-name' 'secret-id' 42
 @(Get-PickerFieldEvidence @(); Get-PickerFieldEvidence @($foreign, $private); Get-PickerFieldEvidence @(1..33 | ForEach-Object { $foreign })) | ConvertTo-Json -Depth 7 -Compress
 `,
-  );
-  assert.equal(result.status, 0, result.stderr);
-  assert.doesNotMatch(result.stdout, /secret/);
-  const [absent, mixed, bounded] = JSON.parse(result.stdout);
-  assert.equal(absent.edit_count, 0);
-  assert.deepEqual(absent.samples, []);
-  assert.equal(absent.total_count, 0);
-  assert.equal(mixed.owned_folder_matches, 0);
-  assert.equal(mixed.folder_label_count, 1);
-  assert.deepEqual(mixed.samples, [
-    { name_kind: "folder", automation_id: "1152", owned: false, enabled: true },
-    { name_kind: "other", automation_id: "other", owned: true, enabled: true },
-  ]);
-  assert.equal(bounded.edit_count, 33);
-  assert.equal(bounded.samples.length, 16);
-  assert.equal(bounded.truncated, true);
-});
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.doesNotMatch(result.stdout, /secret/);
+    const [absent, mixed, bounded] = JSON.parse(result.stdout);
+    assert.equal(absent.edit_count, 0);
+    assert.deepEqual(absent.samples, []);
+    assert.equal(absent.total_count, 0);
+    assert.equal(mixed.owned_folder_matches, 0);
+    assert.equal(mixed.folder_label_count, 1);
+    assert.deepEqual(mixed.samples, [
+      { name_kind: "folder", automation_id: "1152", owned: false, enabled: true },
+      { name_kind: "other", automation_id: "other", owned: true, enabled: true },
+    ]);
+    assert.equal(bounded.edit_count, 33);
+    assert.equal(bounded.samples.length, 16);
+    assert.equal(bounded.truncated, true);
+  },
+);
 
 test("projection bounds chains and treats absent or unknown details explicitly", async (t) => {
   const result = await isolatedPowerShell(
