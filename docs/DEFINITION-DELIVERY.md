@@ -9,11 +9,22 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 
 ## Implemented engine capability negotiation
 
-Core advertises each of the seven installed `AdapterKind` templates with contract
-version 1. These versions describe the implemented combinations below; they do
+Core advertises each installed `AdapterKind` template with contract version 1.
+The N64 portable template also advertises version 2, which implements the
+catalog-declared fresh Windows D3D12 default. Inventory identities are unique
+`(template, contract_version)` pairs; a template may implement several versions.
+Negotiation selects the highest supported version inside the requested inclusive
+window, or reports the highest installed version with `UnsupportedVersion` if
+none fits. Version 1 remains available for unchanged definitions. These versions
+describe the implemented combinations below; they do
 not imply support for loading successor definition bundles. A new incompatible
 template contract must receive a new version alongside its implementation and
 compatibility evidence. Definitions cannot supply engine implementations.
+
+An indexed entry using `n64_windows_initial_d3d12` must require N64 portable
+version 2 or later as its minimum. A `[1,2]` window is refused for that entry:
+version 1 engines could otherwise silently ignore the safety-relevant default.
+This compatibility check supplies no admission, signing or execution authority.
 
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`

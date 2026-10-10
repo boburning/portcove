@@ -19,13 +19,18 @@ pub struct EngineTemplateCapability {
 
 impl EngineTemplateCapability {
     pub fn current() -> Vec<Self> {
-        AdapterKind::ALL
+        let mut supported: Vec<_> = AdapterKind::ALL
             .into_iter()
             .map(|template| Self {
                 template,
                 contract_version: 1,
             })
-            .collect()
+            .collect();
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: 2,
+        });
+        supported
     }
 }
 
@@ -117,8 +122,19 @@ pub fn check_definition_capabilities(
         .ok();
         let installed_version = supported
             .iter()
-            .find(|entry| Some(entry.template) == template)
-            .map(|entry| entry.contract_version);
+            .filter(|entry| Some(entry.template) == template)
+            .map(|entry| entry.contract_version)
+            .filter(|version| {
+                *version >= requirement.minimum_version && *version <= requirement.maximum_version
+            })
+            .max()
+            .or_else(|| {
+                supported
+                    .iter()
+                    .filter(|entry| Some(entry.template) == template)
+                    .map(|entry| entry.contract_version)
+                    .max()
+            });
         let outcome = match installed_version {
             None => DefinitionCapabilityOutcome::UnsupportedTemplate,
             Some(version)
@@ -167,14 +183,39 @@ mod tests {
     fn every_installed_template_negotiates_its_exact_version() {
         for installed in EngineTemplateCapability::current() {
             let template = serde_json::to_value(installed.template).unwrap();
-            let report =
-                check_definition_capabilities(&request(template.as_str().unwrap(), 1, 1)).unwrap();
+            let report = check_definition_capabilities(&request(
+                template.as_str().unwrap(),
+                installed.contract_version,
+                installed.contract_version,
+            ))
+            .unwrap();
             assert!(report.compatible);
             assert_eq!(
                 report.checks[0].installed_version,
                 Some(installed.contract_version)
             );
         }
+    }
+
+    #[test]
+    fn n64_windows_initial_renderer_preserves_v1_negotiation() {
+        for (minimum, maximum, selected, compatible) in [
+            (1, 1, 1, true),
+            (2, 2, 2, true),
+            (1, 2, 2, true),
+            (3, 3, 2, false),
+        ] {
+            let report =
+                check_definition_capabilities(&request("n64-recomp-portable", minimum, maximum))
+                    .unwrap();
+            assert_eq!(report.compatible, compatible);
+            assert_eq!(report.checks[0].installed_version, Some(selected));
+        }
+        let pairs: HashSet<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .map(|entry| (entry.template, entry.contract_version))
+            .collect();
+        assert_eq!(pairs.len(), EngineTemplateCapability::current().len());
     }
 
     #[test]

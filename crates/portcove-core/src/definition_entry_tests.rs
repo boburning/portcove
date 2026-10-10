@@ -119,12 +119,26 @@ fn exact_bytes_and_existing_port_projection_survive_inspection() {
 }
 
 #[test]
+fn initial_renderer_requires_an_entry_window_that_excludes_v1() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut entry = entry_for_port(catalog.port("dr-mario-64-recomp").unwrap());
+    assert!(inspect(&entry).is_err());
+    entry["required_capabilities"][0]["maximum_version"] = 2.into();
+    assert!(inspect(&entry).is_err());
+    entry["required_capabilities"][0]["minimum_version"] = 2.into();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn every_existing_official_projection_keeps_its_complete_fields() {
     let mut value = fixture();
     for port in crate::Catalog::embedded().unwrap().ports() {
         value["stable_id"] = json!(port.id);
         value["port"] = serde_json::to_value(port).unwrap();
         value["required_capabilities"][0]["template"] = json!(port.adapter);
+        let version = if port.n64_windows_initial_d3d12 { 2 } else { 1 };
+        value["required_capabilities"][0]["minimum_version"] = json!(version);
+        value["required_capabilities"][0]["maximum_version"] = json!(version);
         let entry = inspect(&value).unwrap();
         assert_eq!(serde_json::to_value(entry.port()).unwrap(), value["port"]);
         assert!(entry.capabilities().compatible);

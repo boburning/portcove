@@ -63,10 +63,21 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     let temporary = tempfile::tempdir().unwrap();
     let capabilities = json_stdout(&portcove(temporary.path(), &["--json", "capabilities"]));
     let templates = capabilities["data"]["engine_templates"].as_array().unwrap();
-    assert_eq!(
-        templates.len(),
-        capabilities["data"]["adapters"].as_array().unwrap().len()
-    );
+    let pairs: std::collections::HashSet<_> = templates
+        .iter()
+        .map(|entry| {
+            (
+                entry["template"].as_str().unwrap(),
+                entry["contract_version"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(pairs.len(), templates.len());
+    let adapters = capabilities["data"]["adapters"].as_array().unwrap();
+    for adapter in adapters {
+        assert!(pairs.contains(&(adapter.as_str().unwrap(), 1)));
+    }
+    assert!(pairs.contains(&("n64-recomp-portable", 2)));
     for template in templates {
         let request = serde_json::from_value(json!({
             "capability_contract_schema": 1,

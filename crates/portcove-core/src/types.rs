@@ -408,6 +408,9 @@ pub struct PortDefinition {
     pub runtime_mutable_file_patterns: Vec<PersistentFilePattern>,
     #[serde(default)]
     pub portable_marker: bool,
+    /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub n64_windows_initial_d3d12: bool,
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]
