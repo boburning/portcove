@@ -355,7 +355,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "public rollback schema accepted by explicit supported membership");
         bad["schema_version"] = 61;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond rollback rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "curated artifact status schema negotiated with exact reader support");
+        bad["schema_version"] = 62;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond curated status rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -443,9 +446,9 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
-            Check(real.ApiSchemaVersion == 60 && statuses.All(status =>
+            Check(real.ApiSchemaVersion == 61 && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1),
-                "compiled schema60 producer and actual reader preserve one rollback assessment per catalog status");
+                "compiled schema61 producer and actual reader preserve one rollback assessment per catalog status");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -1424,6 +1427,31 @@ internal static class ContractTests
         };
         consume(57, status);
         consume(42, legacy);
+        foreach (var artifactReason in new[] { "curated_artifact_revoked", "curated_distribution_withdrawn" }) {
+            var curatedStatus = Json.Parse(Json.Print(new {
+                definition_operations = new[] { new { operation = "install", eligibility = new { outcome = "hold", reason = artifactReason }, retained = false } },
+                port_actions = new object[] {
+                    new { action = "install", availability = "held", reason = "definition_ineligible", definition = new { outcome = "hold", reason = artifactReason } },
+                    new { action = "rollback", availability = "not_offered", reason = "not_installed" }
+                }
+            }));
+            Check(PortActions.Summary(consume(61, curatedStatus)).Contains(artifactReason.Replace('_', ' ')), "schema61 actual presentation consumes exact artifact hold");
+            Reject(() => consume(60, curatedStatus), "schema60 cannot carry schema61 artifact holds");
+        }
+        var revokedRollback = Json.Parse(Json.Print(new { port_actions = new[] {
+            new { action = "rollback", availability = "held", reason = "definition_ineligible", definition = new { outcome = "hold", reason = "curated_artifact_revoked" } }
+        } }));
+        Check(PortActions.Summary(consume(61, revokedRollback)).Contains("curated artifact revoked"), "schema61 retained rollback revocation is presented");
+        Reject(() => consume(60, revokedRollback), "schema60 cannot carry exact artifact rollback restriction");
+        foreach (var tuple in new[] { new[] { "launch", "hold", "curated_distribution_withdrawn" }, new[] { "install", "escalate", "curated_artifact_revoked" }, new[] { "install", "hold", "future_artifact_reason" } })
+            Reject(() => consume(61, Json.Parse(Json.Print(new {
+                definition_operations = new[] { new { operation = tuple[0], eligibility = new { outcome = tuple[1], reason = tuple[2] }, retained = false } },
+                port_actions = new[] { new { action = "rollback", availability = "not_offered", reason = "not_installed" } }
+            }))), "schema61 actual reader refuses invalid definition operations despite valid actions");
+        foreach (var tuple in new[] { new[] { "hold", "curated_distribution_withdrawn" }, new[] { "escalate", "curated_artifact_revoked" }, new[] { "eligible", "curated_artifact_revoked" }, new[] { "hold", "future_artifact_reason" } })
+            Reject(() => consume(61, Json.Parse(Json.Print(new { port_actions = new[] {
+                new { action = "rollback", availability = "held", reason = "definition_ineligible", definition = new { outcome = tuple[0], reason = tuple[1] } }
+            } }))), "contradictory or unknown exact artifact rollback is refused");
         Reject(() => consume(60, status), "schema60 status cannot omit rollback assessment");
         Reject(() => consume(60, legacy), "schema60 cannot use legacy missing actions");
         foreach (var tuple in new[] {

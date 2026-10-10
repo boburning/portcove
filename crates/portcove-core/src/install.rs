@@ -34,6 +34,12 @@ pub struct InstallRequest {
     pub qualification: InstallQualification,
 }
 
+/// Cache eligibility belongs to the exact qualified platform, not the grant alone.
+struct AssetAcquisition<'a> {
+    scope: &'a crate::DefinitionAcquisitionScope,
+    curated: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
     acquisition: Option<crate::ScopedResolvedRelease>,
@@ -335,6 +341,8 @@ pub struct Installer {
     faults: Arc<dyn LifecycleFaultInjector>,
     #[cfg(test)]
     archive_worker_test_hook: Option<ArchiveWorkerTestHook>,
+    #[cfg(test)]
+    cache_worker_test_hook: Option<crate::curated_cache::CacheWorkerTestHook>,
 }
 
 #[cfg(test)]
@@ -400,6 +408,8 @@ impl Installer {
             faults: Arc::new(NoLifecycleFaults),
             #[cfg(test)]
             archive_worker_test_hook: None,
+            #[cfg(test)]
+            cache_worker_test_hook: None,
         })
     }
 
@@ -415,12 +425,22 @@ impl Installer {
             network_bounds: (connect_timeout, read_idle_timeout),
             faults: Arc::new(NoLifecycleFaults),
             archive_worker_test_hook: None,
+            cache_worker_test_hook: None,
         })
     }
 
     #[cfg(test)]
     pub(crate) fn with_archive_worker_test_hook(mut self, hook: ArchiveWorkerTestHook) -> Self {
         self.archive_worker_test_hook = Some(hook);
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_cache_worker_test_hook(
+        mut self,
+        hook: crate::curated_cache::CacheWorkerTestHook,
+    ) -> Self {
+        self.cache_worker_test_hook = Some(hook);
         self
     }
 
@@ -573,12 +593,63 @@ impl Installer {
                 }
                 scope.require_current()?;
                 scope.require_asset_url(&request.release.asset.url)?;
+                if let Some(record) = catalog
+                    .port(&request.port_id)?
+                    .release
+                    .curated
+                    .get(&request.qualification.platform)
+                {
+                    crate::definition_repository::publisher_policy::require_curated_artifact_operation(
+                        &self.library.connection()?, scope.repository_id, record,
+                        crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+                    )?;
+                }
                 Ok(Some(scope.clone()))
             }
             _ => Err(PortcoveError::unsupported(
                 "installation requires an exact qualified acquisition resolution",
             )),
         }
+    }
+
+    async fn refresh_curated_acquisition(
+        &self,
+        request: &InstallRequest,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        use crate::ReleaseProvider;
+        let Some(scope) = scope.filter(|scope| scope.curated_checks == Some(1)) else {
+            return Ok(());
+        };
+        let contract = request
+            .qualification
+            .retained_contract
+            .as_ref()
+            .ok_or_else(|| {
+                PortcoveError::state("curated acquisition lost its retained definition")
+            })?;
+        let catalog = contract.catalog(&request.port_id)?;
+        let port = catalog.port(&request.port_id)?;
+        let provider = crate::GithubReleaseProvider::for_acquisition_scope(scope)?;
+        let refreshed = operation
+            .interruptible(provider.resolve_scoped(
+                port,
+                request.release.channel,
+                request.qualification.platform,
+                Some(scope),
+            ))
+            .await?;
+        if refreshed.release.asset != request.release.asset
+            || refreshed.release.version != request.release.version
+            || refreshed.release.channel != request.release.channel
+        {
+            return Err(PortcoveError::conflict(
+                "curated acquisition resolution changed",
+            ));
+        }
+        scope.require_current()?;
+        Ok(())
     }
 
     async fn install_inner<F>(
@@ -592,6 +663,30 @@ impl Installer {
         F: FnMut(OperationEvent),
     {
         let scope = self.require_acquisition(&request)?;
+        // A retained resolution is provenance, not reusable upstream freshness.
+        // Re-observe mutable identities before touching the artifact bytes.
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let acquisition = match scope.as_ref() {
+            Some(scope) => {
+                let contract = request
+                    .qualification
+                    .retained_contract
+                    .as_ref()
+                    .ok_or_else(|| {
+                        PortcoveError::state("scoped acquisition lost its retained definition")
+                    })?;
+                let catalog = contract.catalog(&request.port_id)?;
+                let curated = scope.curated_checks == Some(1)
+                    && catalog
+                        .port(&request.port_id)?
+                        .release
+                        .curated
+                        .contains_key(&request.qualification.platform);
+                Some(AssetAcquisition { scope, curated })
+            }
+            None => None,
+        };
         let operation_id = operation.operation_id().to_owned();
         let payload_root = lifecycle.operation_root.join("payload");
         fs::create_dir_all(&payload_root)?;
@@ -602,7 +697,7 @@ impl Installer {
                 &payload_root,
                 operation,
                 emit,
-                scope.as_ref(),
+                acquisition,
             )
             .await?;
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
@@ -711,20 +806,49 @@ impl Installer {
         payload_root: &Path,
         operation: &OperationCoordinator,
         emit: &mut F,
-        scope: Option<&crate::DefinitionAcquisitionScope>,
+        acquisition: Option<AssetAcquisition<'_>>,
     ) -> Result<ArtifactIdentity>
     where
         F: FnMut(OperationEvent),
     {
-        match scope {
-            Some(scope) => {
-                self.download_scoped(asset, download_path, operation, emit, Some(scope))
-                    .await?
+        let scope = acquisition.as_ref().map(|acquisition| acquisition.scope);
+        let curated = acquisition
+            .as_ref()
+            .filter(|acquisition| acquisition.curated)
+            .map(|acquisition| acquisition.scope);
+        let cache_worker = curated.map(|scope| {
+            #[allow(unused_mut)]
+            let mut worker = crate::curated_cache::CacheWorker::new(scope, asset, operation);
+            #[cfg(test)]
+            {
+                worker.hook = self.cache_worker_test_hook.clone();
             }
-            None => self.download(asset, download_path, operation, emit).await?,
+            worker
+        });
+        let restored = match cache_worker.as_ref() {
+            Some(worker) => worker.restore(download_path).await?,
+            None => false,
+        };
+        if !restored {
+            match scope {
+                Some(scope) => {
+                    self.download_scoped(asset, download_path, operation, emit, Some(scope))
+                        .await?
+                }
+                None => self.download(asset, download_path, operation, emit).await?,
+            }
         }
-        let (actual_hash, actual_size) =
-            crate::adapter::hash_file_with_checkpoint(download_path, || operation.checkpoint())?;
+        let (actual_hash, actual_size) = if curated.is_some() {
+            let identity = crate::adapter::hash_file_bounded_with_checkpoint(
+                download_path,
+                asset.size,
+                || operation.checkpoint(),
+            )?;
+            validate_download_size(identity.1, asset.size)?;
+            identity
+        } else {
+            crate::adapter::hash_file_with_checkpoint(download_path, || operation.checkpoint())?
+        };
         if !actual_hash.eq_ignore_ascii_case(&asset.sha256) {
             return Err(PortcoveError::verification(
                 "downloaded asset failed SHA-256 verification",
@@ -765,6 +889,17 @@ impl Installer {
         .await
         .map_err(|error| PortcoveError::install(error.to_string()))??;
         operation.checkpoint()?;
+        if let Some(worker) = cache_worker {
+            let retained = worker.retain(download_path).await?;
+            emit(operation.message(
+                "info",
+                if retained {
+                    "Verified curated artifact cache retained"
+                } else {
+                    "Verified artifact acquired; cache capacity unavailable"
+                },
+            ));
+        }
         Ok(ArtifactIdentity {
             asset_name: asset.name.clone(),
             sha256: actual_hash.to_ascii_lowercase(),
@@ -1004,14 +1139,100 @@ impl Installer {
         })
     }
 
+    pub(crate) fn require_curated_operation(
+        &self,
+        install: &InstallRecord,
+        operation: crate::definition_repository::publisher_policy::CuratedArtifactOperation,
+    ) -> Result<()> {
+        let manifest = verified_manifest(install)?;
+        self.require_curated_manifest_operation(install, &manifest, operation)
+    }
+
+    fn require_curated_manifest_operation(
+        &self,
+        install: &InstallRecord,
+        manifest: &InstallManifest,
+        operation: crate::definition_repository::publisher_policy::CuratedArtifactOperation,
+    ) -> Result<()> {
+        if let Some((repository_id, record)) = self.curated_manifest_identity(install, manifest)? {
+            crate::definition_repository::publisher_policy::require_curated_artifact_operation(
+                &self.library.connection()?,
+                repository_id,
+                &record,
+                operation,
+            )?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn assess_curated_operation(
+        &self,
+        install: &InstallRecord,
+        operation: crate::definition_repository::publisher_policy::CuratedArtifactOperation,
+    ) -> Result<crate::DefinitionEligibility> {
+        let manifest = verified_manifest(install)?;
+        if let Some((repository_id, record)) = self.curated_manifest_identity(install, &manifest)? {
+            return crate::definition_repository::publisher_policy::assess_curated_artifact_operation(
+                &self.library.connection()?, repository_id, &record, operation,
+            );
+        }
+        Ok(crate::DefinitionEligibility {
+            outcome: crate::DefinitionEligibilityOutcome::Eligible,
+            reason: crate::DefinitionEligibilityReason::MandatoryChecksPassed,
+        })
+    }
+
+    fn curated_manifest_identity(
+        &self,
+        install: &InstallRecord,
+        manifest: &InstallManifest,
+    ) -> Result<Option<(u64, crate::CuratedAcquisitionRecord)>> {
+        if let Some(contract) = &manifest.retained_contract {
+            let catalog = contract.catalog(&install.port_id)?;
+            let platform = manifest.platform.ok_or_else(|| {
+                PortcoveError::state("retained artifact has no manifest platform")
+            })?;
+            if let Some(record) = catalog
+                .port(&install.port_id)?
+                .release
+                .curated
+                .get(&platform)
+            {
+                if record.filename != install.artifact.asset_name
+                    || record.sha256 != install.artifact.sha256
+                    || record.size != install.artifact.size
+                {
+                    return Err(PortcoveError::verification(
+                        "retained install differs from its exact curated artifact",
+                    ));
+                }
+                let connection = self.library.connection()?;
+                let repository_id = crate::curated_acquisition::repository_for_retained_record(
+                    &connection,
+                    record,
+                )?;
+                return Ok(Some((repository_id, record.clone())));
+            }
+        }
+        Ok(None)
+    }
+
     pub(crate) fn verify_critical(
         &self,
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<PathBuf> {
+        let manifest = verified_manifest(install)?;
+        // Mutable verification projections may intentionally omit the retained
+        // contract. Artifact authority comes from the authenticated manifest,
+        // never from the caller's current or mutability-only projection.
+        self.require_curated_manifest_operation(
+            install,
+            &manifest,
+            crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse,
+        )?;
         let mut current_mutable = qualification.current_mutable_paths(install)?;
         current_mutable.extend(qualification.generated_metadata_paths(install)?);
-        let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
         failures.extend(mutable_file_pattern_failures(&install.path, &manifest)?);
         if let Some(root) = &manifest.runtime_root {

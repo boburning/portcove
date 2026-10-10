@@ -224,12 +224,21 @@ referenced evidence, publisher, build or distribution permission.
 The existing Core proposal inspector includes each record's declaration hash
 alongside its port hash without fetching or changing anything. Empty maps are
 omitted from serialized definitions, preserving existing declaration identities.
-Schema-1 and non-GitHub curated proposals are refused. Existing runtime
-acquisition, custom providers and managed GitHub grants refuse curated
-declarations until a separately admitted capability, exact upstream metadata
-and byte verifier, scoped holds and recovery integration are implemented under
-[#315](https://github.com/boburning/portcove/issues/315). No provider digest fallback
-or client-observed self-hash acceptance is introduced by record preparation.
+Schema-1 and non-GitHub curated proposals are refused. Custom providers and
+legacy managed GitHub grants refuse curated declarations. The explicit
+[schema-4 capability](DEFINITION-DELIVERY.md#exact-definition-availability-policy)
+requires independent policy admission, exact fresh upstream identity and the
+shared byte verifier; library schema 36 retains immutable accepted identities
+against silent repinning and authenticated scoped transition receipts. Exact
+artifact revocation holds acquisition and critical installed use; distribution
+withdrawal holds acquisition while permitting local use under existing guards.
+Future-acceptance loss is a separate fact and does not revoke historical bytes.
+Neither expiry nor omitted transitions erase a recorded hold. Record preparation
+still grants no runtime authority.
+[#315](https://github.com/boburning/portcove/issues/315) remains incomplete until
+verified cache reuse, scoped holds, recovery and lawful canary qualification
+establish the full offered route. No client-observed self-hash acceptance is
+introduced by record preparation.
 
 GitHub Stable selection excludes provider-declared prereleases, existing
 hyphenated development markers, and case-insensitive numbered beta suffixes

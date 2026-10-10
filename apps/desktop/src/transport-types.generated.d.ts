@@ -53,6 +53,8 @@ export type DefinitionEligibilityOutcome = "eligible" | "hold" | "escalate";
 export type DefinitionEligibilityReason =
   | "mandatory_checks_passed"
   | "publisher_revoked"
+  | "curated_artifact_revoked"
+  | "curated_distribution_withdrawn"
   | "unknown_safety_semantics"
   | "publisher_scope_required"
   | "engine_capability_required"

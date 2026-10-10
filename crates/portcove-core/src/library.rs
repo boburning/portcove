@@ -715,6 +715,13 @@ impl Library {
         })
     }
 
+    pub(crate) fn try_lock_curated_cache(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(&self.locks_dir().join("curated-cache.lock"))?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock("curated-cache", "curated artifact cache", "verify-cache")?,
+        })
+    }
+
     pub(crate) fn try_lock_port_for_launch_recovery(
         &self,
         port_id: &str,

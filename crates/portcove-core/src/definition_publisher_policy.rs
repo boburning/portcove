@@ -1,5 +1,5 @@
-//! Independently authenticated exact-definition availability policy.
-//! This first policy schema grants no acquisition or lifecycle operation.
+//! Independently authenticated exact-definition availability and managed policy.
+//! Explicit supported schemas bind acquisition and launch checks to exact inputs.
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
@@ -225,6 +225,37 @@ struct PolicyDocument {
     policy_revision: u64,
     grant_id: String,
     decision: PolicyDecision,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    curated_transitions: Option<CuratedTransitions>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CuratedTransitions {
+    future_acceptance_lost: bool,
+    artifacts: Vec<CuratedArtifactTransition>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CuratedArtifactTransition {
+    asset_id: u64,
+    sha256: String,
+    status: CuratedArtifactStatus,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum CuratedArtifactStatus {
+    Revoked,
+    DistributionWithdrawn,
+    Cleared,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CuratedArtifactOperation {
+    Acquisition,
+    LocalUse,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -251,6 +282,12 @@ enum PolicyDecision {
             skip_serializing_if = "Option::is_none"
         )]
         launch_checks: Option<u32>,
+        #[serde(
+            rename = "curated_acquisition_checks",
+            default,
+            skip_serializing_if = "Option::is_none"
+        )]
+        curated_checks: Option<u32>,
     },
     Revoked,
 }
@@ -318,6 +355,7 @@ impl PolicyDocument {
                     artifact_hosts,
                     max_redirects,
                     operations,
+                    curated_checks,
                     ..
                 },
                 PolicyDecision::ManagedGithub {
@@ -326,6 +364,7 @@ impl PolicyDocument {
                     artifact_hosts: old_hosts,
                     max_redirects: old_redirects,
                     operations: old_operations,
+                    curated_checks: old_curated_checks,
                     ..
                 },
             ) => {
@@ -337,6 +376,7 @@ impl PolicyDocument {
                     && same_set(artifact_hosts, old_hosts)
                     && max_redirects == old_redirects
                     && same_set(operations, old_operations)
+                    && curated_checks == old_curated_checks
             }
             _ => false,
         }
@@ -350,7 +390,42 @@ impl PolicyDocument {
         }
         let raw: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(bytes)?;
         let value: Self = serde_json::from_slice(bytes)?;
-        if value.policy_schema != 3
+        if raw
+            .0
+            .as_object()
+            .is_some_and(|document| document.contains_key("curated_transitions"))
+            && (value.policy_schema != 4 || value.curated_transitions.is_none())
+        {
+            return Err(PortcoveError::unsupported(
+                "curated transitions require an explicit schema-4 fact",
+            ));
+        }
+        if let Some(transitions) = &value.curated_transitions {
+            if !matches!(
+                value.decision,
+                PolicyDecision::ManagedGithub {
+                    curated_checks: Some(1),
+                    ..
+                }
+            ) || transitions.artifacts.len() > 64
+            {
+                return Err(PortcoveError::unsupported(
+                    "curated transitions exceed their exact managed scope",
+                ));
+            }
+            let mut identities = std::collections::BTreeSet::new();
+            for artifact in &transitions.artifacts {
+                if artifact.asset_id == 0
+                    || !valid_sha256(&artifact.sha256)
+                    || !identities.insert(artifact.asset_id)
+                {
+                    return Err(PortcoveError::verification(
+                        "curated transitions contain an invalid or repeated artifact",
+                    ));
+                }
+            }
+        }
+        if !matches!(value.policy_schema, 3 | 4)
             && raw
                 .0
                 .get("decision")
@@ -361,7 +436,18 @@ impl PolicyDocument {
                 "legacy policy has an unknown safety field",
             ));
         }
-        if !matches!(value.policy_schema, 1..=3) {
+        if value.policy_schema != 4
+            && raw
+                .0
+                .get("decision")
+                .and_then(serde_json::Value::as_object)
+                .is_some_and(|decision| decision.contains_key("curated_acquisition_checks"))
+        {
+            return Err(PortcoveError::unsupported(
+                "legacy policy has an unknown curated safety field",
+            ));
+        }
+        if !matches!(value.policy_schema, 1..=4) {
             return Err(PortcoveError::unsupported(
                 "unsupported publisher policy schema",
             ));
@@ -369,7 +455,7 @@ impl PolicyDocument {
         let restricted = crate::definition_acquisition::restricted_grant(&value.grant_id);
         if (value.policy_schema == 1
             && (restricted || matches!(value.decision, PolicyDecision::ManagedGithub { .. })))
-            || (matches!(value.policy_schema, 2 | 3)
+            || (matches!(value.policy_schema, 2 | 3 | 4)
                 && (!restricted || matches!(value.decision, PolicyDecision::Availability { .. })))
         {
             return Err(PortcoveError::unsupported(
@@ -382,11 +468,14 @@ impl PolicyDocument {
             max_redirects,
             operations,
             launch_checks,
+            curated_checks,
             ..
         } = &value.decision
         {
-            if (value.policy_schema == 3 && *launch_checks != Some(1))
-                || (value.policy_schema != 3 && launch_checks.is_some())
+            if (matches!(value.policy_schema, 3 | 4) && *launch_checks != Some(1))
+                || (!matches!(value.policy_schema, 3 | 4) && launch_checks.is_some())
+                || (value.policy_schema == 4 && *curated_checks != Some(1))
+                || (value.policy_schema != 4 && curated_checks.is_some())
             {
                 return Err(PortcoveError::unsupported(
                     "publisher policy requires unsupported launch checks",
@@ -488,7 +577,23 @@ impl PolicyDocument {
         };
         let entry = projection.entry();
         if matches!(self.decision, PolicyDecision::ManagedGithub { .. }) {
-            crate::DefinitionAcquisitionScope::validate_port(entry.port())?;
+            match self.decision {
+                PolicyDecision::ManagedGithub {
+                    curated_checks: Some(1),
+                    ..
+                } => {
+                    crate::DefinitionAcquisitionScope::validate_port_contract(entry.port())?;
+                    if entry.port().release.curated.is_empty() {
+                        return Err(PortcoveError::verification(
+                            "curated policy has no exact records",
+                        ));
+                    }
+                    for (platform, record) in &entry.port().release.curated {
+                        record.validate(&entry.port().release.repository, *platform)?;
+                    }
+                }
+                _ => crate::DefinitionAcquisitionScope::validate_port(entry.port())?,
+            }
         }
         Ok(entry.namespace() == self.namespace
             && entry.port().id == self.stable_id
@@ -689,6 +794,139 @@ pub(crate) fn validate_stored_admissions(connection: &Connection) -> Result<()> 
     Ok(())
 }
 
+fn retained_curated_transitions(
+    connection: &Connection,
+) -> Result<Vec<(PolicyDocument, PolicyProvenance)>> {
+    let mut result = Vec::new();
+    for (sha256, bytes, provenance) in
+        crate::curated_acquisition::retained_transition_receipts(connection)?
+    {
+        if bytes.len() > MAX_POLICY_BYTES as usize
+            || provenance.len() > 16 * 1024
+            || digest(bytes.as_bytes()) != sha256
+        {
+            return Err(PortcoveError::verification(
+                "retained curated transition receipt is invalid",
+            ));
+        }
+        let document = PolicyDocument::parse(bytes.as_bytes())?;
+        let provenance: PolicyProvenance = serde_json::from_str(&provenance)?;
+        provenance.validate()?;
+        if provenance.target_sha256 != sha256
+            || document.curated_transitions.is_none()
+            || installed_authority_floor(connection, &provenance.anchor_sha256)?.is_none()
+        {
+            return Err(PortcoveError::state(
+                "retained curated transition lost its admitted authority",
+            ));
+        }
+        // Expiry stops new acceptance; it cannot silently erase an observed hold.
+        result.push((document, provenance));
+    }
+    Ok(result)
+}
+
+fn future_curated_acceptance_lost(
+    connection: &Connection,
+    namespace: &str,
+    stable_id: &str,
+    repository_id: u64,
+) -> Result<bool> {
+    Ok(retained_curated_transitions(connection)?.into_iter()
+        .filter(|(document,_)| document.namespace == namespace && document.stable_id == stable_id && matches!(document.decision, PolicyDecision::ManagedGithub { repository_id: id, .. } if id == repository_id))
+        .max_by_key(|(document,_)| document.policy_revision)
+        .is_some_and(|(document,_)| document.curated_transitions.is_some_and(|transitions| transitions.future_acceptance_lost)))
+}
+
+pub(crate) fn require_curated_artifact_operation(
+    connection: &Connection,
+    repository_id: u64,
+    record: &crate::CuratedAcquisitionRecord,
+    operation: CuratedArtifactOperation,
+) -> Result<()> {
+    let assessment =
+        assess_curated_artifact_operation(connection, repository_id, record, operation)?;
+    if assessment.outcome == crate::DefinitionEligibilityOutcome::Hold {
+        return Err(PortcoveError::conflict(match assessment.reason {
+            crate::DefinitionEligibilityReason::CuratedArtifactRevoked => {
+                "accepted curated artifact is revoked"
+            }
+            _ => "curated artifact distribution is withdrawn",
+        })
+        .detail("repository_id", repository_id.to_string())
+        .detail("asset_id", record.asset_id.to_string())
+        .detail("sha256", &record.sha256));
+    }
+    Ok(())
+}
+
+/// Read-only projection of the same exact-history guard used by execution.
+pub(crate) fn assess_curated_artifact_operation(
+    connection: &Connection,
+    repository_id: u64,
+    record: &crate::CuratedAcquisitionRecord,
+    operation: CuratedArtifactOperation,
+) -> Result<crate::DefinitionEligibility> {
+    crate::curated_acquisition::require_retained_identity(connection, repository_id, record)?;
+    let mut latest = std::collections::BTreeMap::new();
+    for (document, provenance) in retained_curated_transitions(connection)? {
+        if !matches!(document.decision, PolicyDecision::ManagedGithub { repository_id: id, .. } if id == repository_id)
+        {
+            continue;
+        }
+        let transitions = document
+            .curated_transitions
+            .as_ref()
+            .expect("validated transition receipt");
+        for artifact in &transitions.artifacts {
+            if artifact.asset_id == record.asset_id && artifact.sha256 == record.sha256 {
+                crate::curated_acquisition::require_scoped_artifact(
+                    connection,
+                    repository_id,
+                    artifact.asset_id,
+                    &artifact.sha256,
+                    &document.namespace,
+                    &document.stable_id,
+                    &provenance.anchor_sha256,
+                )?;
+                let key = (
+                    document.namespace.clone(),
+                    document.stable_id.clone(),
+                    provenance.anchor_sha256.clone(),
+                );
+                let previous = latest
+                    .entry(key)
+                    .or_insert((0, CuratedArtifactStatus::Cleared));
+                if document.policy_revision > previous.0 {
+                    *previous = (document.policy_revision, artifact.status);
+                }
+            }
+        }
+    }
+    let reason = if latest
+        .values()
+        .any(|(_, status)| *status == CuratedArtifactStatus::Revoked)
+    {
+        crate::DefinitionEligibilityReason::CuratedArtifactRevoked
+    } else if operation == CuratedArtifactOperation::Acquisition
+        && latest
+            .values()
+            .any(|(_, status)| *status == CuratedArtifactStatus::DistributionWithdrawn)
+    {
+        crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn
+    } else {
+        crate::DefinitionEligibilityReason::MandatoryChecksPassed
+    };
+    Ok(crate::DefinitionEligibility {
+        outcome: if reason == crate::DefinitionEligibilityReason::MandatoryChecksPassed {
+            crate::DefinitionEligibilityOutcome::Eligible
+        } else {
+            crate::DefinitionEligibilityOutcome::Hold
+        },
+        reason,
+    })
+}
+
 impl Library {
     /// Admit exact availability bytes or revoke a grant under installed independent authority.
     /// No incoming root or policy can create that authority. Returns false for an exact retry.
@@ -740,7 +978,7 @@ impl Library {
                 &policy.document.namespace,
                 &policy.document.stable_id,
             )? > 0
-                && policy.document.policy_schema != 3
+                && !matches!(policy.document.policy_schema, 3 | 4)
                 && !matches!(policy.document.decision, PolicyDecision::Revoked)
             {
                 return Err(PortcoveError::unsupported(
@@ -806,6 +1044,76 @@ impl Library {
                 }
             },
         );
+        if let PolicyDecision::ManagedGithub {
+            repository_id,
+            curated_checks: Some(1),
+            ..
+        } = &policy.document.decision
+        {
+            let candidate = candidate
+                .ok_or_else(|| PortcoveError::state("curated admission lost its candidate"))?;
+            let projection = candidate.inspect_catalog_projection(
+                &policy.document.namespace,
+                &policy.document.stable_id,
+            )?;
+            if let Some(transitions) = &policy.document.curated_transitions {
+                for artifact in &transitions.artifacts {
+                    crate::curated_acquisition::require_scoped_artifact(
+                        &transaction,
+                        *repository_id,
+                        artifact.asset_id,
+                        &artifact.sha256,
+                        &policy.document.namespace,
+                        &policy.document.stable_id,
+                        &policy.provenance.anchor_sha256,
+                    )?;
+                }
+            }
+            let acceptance_lost = match &policy.document.curated_transitions {
+                Some(transitions) => transitions.future_acceptance_lost,
+                None => future_curated_acceptance_lost(
+                    &transaction,
+                    &policy.document.namespace,
+                    &policy.document.stable_id,
+                    *repository_id,
+                )?,
+            };
+            for record in projection.entry().port().release.curated.values() {
+                if acceptance_lost {
+                    crate::curated_acquisition::require_retained_identity(
+                        &transaction,
+                        *repository_id,
+                        record,
+                    )?;
+                    crate::curated_acquisition::require_scoped_artifact(
+                        &transaction,
+                        *repository_id,
+                        record.asset_id,
+                        &record.sha256,
+                        &policy.document.namespace,
+                        &policy.document.stable_id,
+                        &policy.provenance.anchor_sha256,
+                    )?;
+                }
+                crate::curated_acquisition::retain_scoped_admission(
+                    &transaction,
+                    *repository_id,
+                    record,
+                    &policy.document.namespace,
+                    &policy.document.stable_id,
+                    &policy.provenance.anchor_sha256,
+                    &policy.provenance.target_sha256,
+                )?;
+            }
+            if policy.document.curated_transitions.is_some() {
+                crate::curated_acquisition::retain_transition_receipt(
+                    &transaction,
+                    &policy.provenance.target_sha256,
+                    document,
+                    &provenance,
+                )?;
+            }
+        }
         let status = if matches!(policy.document.decision, PolicyDecision::Revoked) {
             "revoked"
         } else {
@@ -920,6 +1228,7 @@ pub(crate) fn acquisition_scope(
         repository_id,
         artifact_hosts,
         max_redirects,
+        curated_checks,
         ..
     } = document.decision
     else {
@@ -940,6 +1249,7 @@ pub(crate) fn acquisition_scope(
         max_redirects,
         grant_id: document.grant_id,
         policy_revision: document.policy_revision,
+        curated_checks,
         #[cfg(any(test, feature = "qualification-fixtures"))]
         fixture_origin: None,
     };
@@ -1129,9 +1439,97 @@ mod continuity_tests {
     use super::*;
 
     #[test]
+    fn curated_policy_capability_is_explicit_and_unknown_to_legacy_schemas() {
+        let mut supported = serde_json::json!({
+            "policy_schema": 4, "namespace": "official", "stable_id": "fixture",
+            "policy_revision": 1, "grant_id": "managed-github-v1-fixture",
+            "decision": { "status": "managed_github", "definition_revision": 1,
+                "index_sha256": "a".repeat(64), "definition_sha256": "b".repeat(64),
+                "template": "n64recomp", "repository_id": 1,
+                "artifact_hosts": ["github.com"], "max_redirects": 5,
+                "operations": ["install", "update", "prepare", "launch"],
+                "scoped_launch_checks": 1
+            }
+        });
+        supported["policy_schema"] = 4.into();
+        supported["decision"]["curated_acquisition_checks"] = 1.into();
+        PolicyDocument::parse(&serde_json::to_vec(&supported).unwrap()).unwrap();
+        let transitions = serde_json::json!({
+            "future_acceptance_lost": false,
+            "artifacts": [{"asset_id": 7, "sha256": "c".repeat(64), "status": "revoked"}]
+        });
+        let mut transitioned = supported.clone();
+        transitioned["curated_transitions"] = transitions.clone();
+        PolicyDocument::parse(&serde_json::to_vec(&transitioned).unwrap()).unwrap();
+        for value in [
+            serde_json::Value::Null,
+            serde_json::json!({"artifacts": []}),
+            serde_json::json!({"future_acceptance_lost": false, "artifacts": [], "extra": true}),
+            serde_json::json!({"future_acceptance_lost": false, "artifacts": [
+                {"asset_id": 7, "sha256": "c".repeat(64), "status": "unknown"}]}),
+            serde_json::json!({"future_acceptance_lost": false, "artifacts": [
+                {"asset_id": 0, "sha256": "c".repeat(64), "status": "revoked"}]}),
+            serde_json::json!({"future_acceptance_lost": false, "artifacts": [
+                {"asset_id": 7, "sha256": "C".repeat(64), "status": "revoked"}]}),
+            serde_json::json!({"future_acceptance_lost": false, "artifacts": [
+                transitions["artifacts"][0].clone(), transitions["artifacts"][0].clone()]}),
+            serde_json::json!({"future_acceptance_lost": false, "artifacts":
+                (1..=65).map(|id| serde_json::json!({"asset_id": id,
+                    "sha256": "c".repeat(64), "status": "revoked"})).collect::<Vec<_>>()}),
+        ] {
+            let mut malformed = supported.clone();
+            malformed["curated_transitions"] = value;
+            assert!(PolicyDocument::parse(&serde_json::to_vec(&malformed).unwrap()).is_err());
+        }
+        // Isolate the transition field from the other schema-4 capability.
+        for schema in [1, 2, 3] {
+            let mut legacy = supported.clone();
+            legacy["policy_schema"] = schema.into();
+            legacy["decision"]
+                .as_object_mut()
+                .unwrap()
+                .remove("curated_acquisition_checks");
+            if schema == 1 {
+                legacy["grant_id"] = "availability-v1-fixture".into();
+                legacy["decision"] = serde_json::json!({"status":"availability",
+                    "definition_revision":1, "index_sha256":"a".repeat(64),
+                    "definition_sha256":"b".repeat(64), "template":"n64recomp"});
+            }
+            if schema < 3 {
+                legacy["decision"]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("scoped_launch_checks");
+            }
+            PolicyDocument::parse(&serde_json::to_vec(&legacy).unwrap()).unwrap();
+            legacy["curated_transitions"] = transitions.clone();
+            assert!(PolicyDocument::parse(&serde_json::to_vec(&legacy).unwrap()).is_err());
+            legacy["curated_transitions"] = serde_json::Value::Null;
+            assert!(PolicyDocument::parse(&serde_json::to_vec(&legacy).unwrap()).is_err());
+        }
+        for schema in [1, 2, 3] {
+            let mut legacy = supported.clone();
+            legacy["policy_schema"] = schema.into();
+            assert!(PolicyDocument::parse(&serde_json::to_vec(&legacy).unwrap()).is_err());
+        }
+        for value in [serde_json::Value::Null, 0.into(), 2.into()] {
+            let mut unsupported = supported.clone();
+            unsupported["decision"]["curated_acquisition_checks"] = value;
+            assert!(PolicyDocument::parse(&serde_json::to_vec(&unsupported).unwrap()).is_err());
+        }
+        let mut missing = supported.clone();
+        missing["decision"]
+            .as_object_mut()
+            .unwrap()
+            .remove("curated_acquisition_checks");
+        assert!(PolicyDocument::parse(&serde_json::to_vec(&missing).unwrap()).is_err());
+    }
+
+    #[test]
     fn authorization_continuity_excludes_only_definition_bindings_and_revision() {
         let baseline = PolicyDocument {
             policy_schema: 2,
+            curated_transitions: None,
             namespace: "official".into(),
             stable_id: "owned-fixture".into(),
             policy_revision: 1,
@@ -1154,6 +1552,7 @@ mod continuity_tests {
                     "launch".into(),
                 ],
                 launch_checks: None,
+                curated_checks: None,
             },
         };
         let encoded = serde_json::to_value(&baseline).unwrap();

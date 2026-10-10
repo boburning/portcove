@@ -68,7 +68,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57 or 60 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57 or 60–61 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -85,7 +85,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57 or schema-60 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60 or schema-61 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -98,6 +98,13 @@ duplicate, unknown or contradictory rollback assessments are refused. Schemas
 The reference does not offer a rollback command button or infer permission from
 the assessment. Event schemas remain independently 2–3. These source contracts
 do not establish a published CLI or installed client update.
+
+Schema 61 consumes exact curated artifact revocation and distribution withdrawal
+from the shared Core assessment. Withdrawal holds acquisition while permitted
+installed use remains distinct. Revoked retained rollback is accepted only as
+the exact held/revoked-artifact tuple. The actual reader validates definition
+operations even when action records are otherwise valid and rejects these new
+meanings in schema-60 or legacy envelopes. No unknown-value refusal is relaxed.
 
 Schema 47 status can include core-owned definition decisions for install,
 preparation and launch. The client shows the exact stable reason and whether the

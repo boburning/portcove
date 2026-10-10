@@ -188,6 +188,16 @@ Private paired candidates used schemas 58 and 59; they are not included in this
 public reference client's compatibility declaration. This contract does not
 establish a published standalone schema-60 release.
 
+Schema 61 adds exact artifact eligibility reasons `curated_artifact_revoked` and
+`curated_distribution_withdrawn`. They project independently admitted immutable
+artifact history and the same current hold guard used by execution. Existing
+publisher, freshness and launch-baseline failures retain precedence. Revocation
+holds affected acquisition and retained local use; withdrawal holds acquisition
+without revoking permitted installed use. Retained rollback adds only
+`held/definition_ineligible` with `hold/curated_artifact_revoked`; this is an exact
+target-artifact refusal, not current-definition permission. Status does not
+delete files or saves and still grants no execution authority.
+
 Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
 `source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
 exported schema. Scan uses core's bounded limits and emits the existing

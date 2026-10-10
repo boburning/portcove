@@ -180,7 +180,16 @@ fn require_install_publication_authority(
     ) {
         return Ok(());
     }
-    if let Some(catalog) = Installer::new(service.library.clone())?.retained_catalog(install)? {
+    let installer = Installer::new(service.library.clone())?;
+    installer.require_curated_operation(
+        install,
+        if operation.kind == LifecycleOperationKind::Install {
+            crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition
+        } else {
+            crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse
+        },
+    )?;
+    if let Some(catalog) = installer.retained_catalog(install)? {
         let port = catalog.port(&install.port_id)?;
         if operation.kind == LifecycleOperationKind::Prepare
             && !catalog

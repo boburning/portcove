@@ -17,7 +17,11 @@ impl crate::operation::LifecycleFaultInjector for AdmitLaunchHold {
     }
 }
 
-fn assessment_document(policy_sha256: &str, revision: u64, assessments: Vec<Value>) -> Value {
+pub(super) fn assessment_document(
+    policy_sha256: &str,
+    revision: u64,
+    assessments: Vec<Value>,
+) -> Value {
     serde_json::json!({
         "assessment_schema":1, "namespace":"official", "stable_id":ID,
         "policy_sha256":policy_sha256, "revision":revision, "assessments":assessments,
@@ -52,7 +56,7 @@ async fn publish_assessment(
     publish_assessment_for_targets(fixture, key, root, targets, metadata_version, document).await
 }
 
-async fn publish_assessment_for_targets(
+pub(super) async fn publish_assessment_for_targets(
     fixture: &RepositoryFixture,
     key: &Key,
     root: &[u8],

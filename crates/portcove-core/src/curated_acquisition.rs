@@ -2,8 +2,310 @@
 //! construct an acquisition capability or authenticate their evidence claims.
 
 use crate::{Platform, PortDefinition, PortcoveError, Result};
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+pub(crate) fn migrate(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE curated_artifact_admissions (
+            repository_id TEXT NOT NULL CHECK(length(repository_id) BETWEEN 1 AND 20),
+            asset_id TEXT NOT NULL CHECK(length(asset_id) BETWEEN 1 AND 20),
+            identity_json TEXT NOT NULL CHECK(length(identity_json)<=8192),
+            policy_sha256 TEXT NOT NULL CHECK(length(policy_sha256)=64),
+            PRIMARY KEY(repository_id,asset_id)
+        );
+        CREATE TABLE curated_artifact_history (
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+            admission_count INTEGER NOT NULL CHECK(admission_count>=0),
+            transition_count INTEGER NOT NULL CHECK(transition_count>=0),
+            scope_count INTEGER NOT NULL CHECK(scope_count>=0)
+        );
+        CREATE TABLE curated_artifact_scopes (
+            repository_id TEXT NOT NULL,
+            asset_id TEXT NOT NULL,
+            namespace TEXT NOT NULL,
+            stable_id TEXT NOT NULL,
+            anchor_sha256 TEXT NOT NULL CHECK(length(anchor_sha256)=64),
+            policy_sha256 TEXT NOT NULL CHECK(length(policy_sha256)=64),
+            PRIMARY KEY(repository_id,asset_id,namespace,stable_id,anchor_sha256),
+            FOREIGN KEY(repository_id,asset_id) REFERENCES curated_artifact_admissions(repository_id,asset_id)
+        );
+        CREATE TABLE curated_transition_receipts (
+            policy_sha256 TEXT PRIMARY KEY CHECK(length(policy_sha256)=64),
+            policy_json TEXT NOT NULL CHECK(length(policy_json)<=65536),
+            provenance_json TEXT NOT NULL CHECK(length(provenance_json)<=16384)
+        );
+        INSERT INTO curated_artifact_history VALUES(1,0,0,0);",
+    )?;
+    Ok(())
+}
+
+fn require_complete_history(connection: &Connection) -> Result<i64> {
+    let expected: Option<i64> = connection
+        .query_row(
+            "SELECT admission_count FROM curated_artifact_history WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let actual: i64 = connection.query_row(
+        "SELECT count(*) FROM curated_artifact_admissions",
+        [],
+        |row| row.get(0),
+    )?;
+    if expected != Some(actual) {
+        return Err(PortcoveError::state(
+            "curated accepted identity history is incomplete",
+        ));
+    }
+    let transitions: i64 = connection.query_row(
+        "SELECT transition_count FROM curated_artifact_history WHERE singleton=1",
+        [],
+        |row| row.get(0),
+    )?;
+    let receipts: i64 = connection.query_row(
+        "SELECT count(*) FROM curated_transition_receipts",
+        [],
+        |row| row.get(0),
+    )?;
+    if transitions != receipts || receipts > 256 {
+        return Err(PortcoveError::state(
+            "curated transition history is incomplete or exceeds its bound",
+        ));
+    }
+    let expected_scopes: i64 = connection.query_row(
+        "SELECT scope_count FROM curated_artifact_history WHERE singleton=1",
+        [],
+        |row| row.get(0),
+    )?;
+    let actual_scopes: i64 =
+        connection.query_row("SELECT count(*) FROM curated_artifact_scopes", [], |row| {
+            row.get(0)
+        })?;
+    if expected_scopes != actual_scopes {
+        return Err(PortcoveError::state(
+            "curated artifact scope history is incomplete",
+        ));
+    }
+    Ok(actual)
+}
+
+/// Membership is created only by the authenticated candidate-admission transaction.
+/// It survives later omission of this artifact from a definition.
+pub(crate) fn retain_scoped_admission(
+    connection: &Connection,
+    repository_id: u64,
+    record: &CuratedAcquisitionRecord,
+    namespace: &str,
+    stable_id: &str,
+    anchor_sha256: &str,
+    policy_sha256: &str,
+) -> Result<()> {
+    retain_admission(connection, repository_id, record, policy_sha256)?;
+    let inserted = connection.execute(
+        "INSERT INTO curated_artifact_scopes VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(repository_id,asset_id,namespace,stable_id,anchor_sha256) DO NOTHING",
+        params![repository_id.to_string(), record.asset_id.to_string(), namespace, stable_id, anchor_sha256, policy_sha256],
+    )?;
+    if inserted == 1 {
+        connection.execute(
+            "UPDATE curated_artifact_history SET scope_count=scope_count+1 WHERE singleton=1",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+pub(crate) fn require_scoped_artifact(
+    connection: &Connection,
+    repository_id: u64,
+    asset_id: u64,
+    sha256: &str,
+    namespace: &str,
+    stable_id: &str,
+    anchor_sha256: &str,
+) -> Result<()> {
+    require_known_artifact(connection, repository_id, asset_id, sha256)?;
+    let admitted: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM curated_artifact_scopes WHERE repository_id=?1 AND asset_id=?2 AND namespace=?3 AND stable_id=?4 AND anchor_sha256=?5)",
+        params![repository_id.to_string(), asset_id.to_string(), namespace, stable_id, anchor_sha256],
+        |row| row.get(0),
+    )?;
+    if !admitted {
+        return Err(PortcoveError::verification(
+            "curated transition has no artifact admission in its authority scope",
+        ));
+    }
+    Ok(())
+}
+
+/// Only the independently authenticated policy-admission transaction calls this.
+pub(crate) fn retain_transition_receipt(
+    connection: &Connection,
+    policy_sha256: &str,
+    policy_json: &str,
+    provenance_json: &str,
+) -> Result<()> {
+    require_complete_history(connection)?;
+    let existing: Option<(String, String)> = connection.query_row("SELECT policy_json,provenance_json FROM curated_transition_receipts WHERE policy_sha256=?1", [policy_sha256], |row| Ok((row.get(0)?, row.get(1)?))).optional()?;
+    if let Some(existing) = existing {
+        let original: serde_json::Value = serde_json::from_str(&existing.1)?;
+        let renewed: serde_json::Value = serde_json::from_str(provenance_json)?;
+        if existing.0 != policy_json
+            || original.get("anchor_sha256") != renewed.get("anchor_sha256")
+        {
+            return Err(PortcoveError::verification(
+                "curated transition receipt changed at its accepted identity",
+            ));
+        }
+        return Ok(());
+    }
+    let count: i64 = connection.query_row(
+        "SELECT transition_count FROM curated_artifact_history WHERE singleton=1",
+        [],
+        |row| row.get(0),
+    )?;
+    if count == 256 {
+        return Err(PortcoveError::conflict(
+            "curated transition receipt capacity requires review; evidence retained",
+        ));
+    }
+    connection.execute(
+        "INSERT INTO curated_transition_receipts VALUES(?1,?2,?3)",
+        params![policy_sha256, policy_json, provenance_json],
+    )?;
+    if connection.execute("UPDATE curated_artifact_history SET transition_count=transition_count+1 WHERE singleton=1 AND transition_count=?1", [count])? != 1 {
+        return Err(PortcoveError::conflict("curated transition history changed during admission"));
+    }
+    Ok(())
+}
+
+pub(crate) fn retained_transition_receipts(
+    connection: &Connection,
+) -> Result<Vec<(String, String, String)>> {
+    require_complete_history(connection)?;
+    let mut statement = connection.prepare("SELECT policy_sha256,policy_json,provenance_json FROM curated_transition_receipts ORDER BY policy_sha256")?;
+    Ok(statement
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+        .collect::<std::result::Result<Vec<_>, _>>()?)
+}
+
+pub(crate) fn require_known_artifact(
+    connection: &Connection,
+    repository_id: u64,
+    asset_id: u64,
+    sha256: &str,
+) -> Result<()> {
+    require_complete_history(connection)?;
+    let identity: Option<String> = connection.query_row("SELECT identity_json FROM curated_artifact_admissions WHERE repository_id=?1 AND asset_id=?2", params![repository_id.to_string(),asset_id.to_string()], |row| row.get(0)).optional()?;
+    let identity = identity.ok_or_else(|| {
+        PortcoveError::verification("curated transition has no previously admitted artifact")
+    })?;
+    let identity: serde_json::Value = serde_json::from_str(&identity)?;
+    if identity.get("sha256").and_then(serde_json::Value::as_str) != Some(sha256) {
+        return Err(PortcoveError::verification(
+            "curated transition differs from the admitted artifact",
+        ));
+    }
+    Ok(())
+}
+
+fn immutable_identity(record: &CuratedAcquisitionRecord) -> Result<String> {
+    // An asset can serve multiple platforms, but its immutable upstream and byte
+    // identities cannot vary by title, policy revision, grant or platform.
+    let identity = serde_json::to_string(&serde_json::json!({
+        "repository": record.repository,
+        "release_id": record.release_id,
+        "asset_id": record.asset_id,
+        "tag": record.tag,
+        "commit_sha1": record.commit_sha1,
+        "route": record.route,
+        "acquisition_url": record.acquisition_url,
+        "filename": record.filename,
+        "size": record.size,
+        "sha256": record.sha256,
+    }))?;
+    if identity.len() > 8192 {
+        return Err(PortcoveError::verification(
+            "curated identity exceeds its bound",
+        ));
+    }
+    Ok(identity)
+}
+
+pub(crate) fn retain_admission(
+    connection: &Connection,
+    repository_id: u64,
+    record: &CuratedAcquisitionRecord,
+    policy_sha256: &str,
+) -> Result<()> {
+    let retained_count = require_complete_history(connection)?;
+    let identity = immutable_identity(record)?;
+    let existing: Option<String> = connection.query_row(
+        "SELECT identity_json FROM curated_artifact_admissions WHERE repository_id=?1 AND asset_id=?2",
+        params![repository_id.to_string(), record.asset_id.to_string()],
+        |row| row.get(0),
+    ).optional()?;
+    if existing
+        .as_ref()
+        .is_some_and(|existing| existing != &identity)
+    {
+        return Err(PortcoveError::verification(
+            "curated asset identity cannot replace its previously accepted bytes",
+        ));
+    }
+    if existing.is_none() {
+        connection.execute(
+            "INSERT INTO curated_artifact_admissions(repository_id,asset_id,identity_json,policy_sha256) VALUES(?1,?2,?3,?4)",
+            params![repository_id.to_string(), record.asset_id.to_string(), identity, policy_sha256],
+        )?;
+        if connection.execute("UPDATE curated_artifact_history SET admission_count=admission_count+1 WHERE singleton=1 AND admission_count=?1", [retained_count])? != 1 {
+            return Err(PortcoveError::conflict("curated identity history changed during admission"));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn require_retained_identity(
+    connection: &Connection,
+    repository_id: u64,
+    record: &CuratedAcquisitionRecord,
+) -> Result<()> {
+    require_complete_history(connection)?;
+    let existing: Option<String> = connection.query_row(
+        "SELECT identity_json FROM curated_artifact_admissions WHERE repository_id=?1 AND asset_id=?2",
+        params![repository_id.to_string(), record.asset_id.to_string()],
+        |row| row.get(0),
+    ).optional()?;
+    if existing.as_deref() != Some(immutable_identity(record)?.as_str()) {
+        return Err(PortcoveError::verification(
+            "curated acquisition lost its accepted immutable identity",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn repository_for_retained_record(
+    connection: &Connection,
+    record: &CuratedAcquisitionRecord,
+) -> Result<u64> {
+    require_complete_history(connection)?;
+    let mut statement = connection.prepare("SELECT repository_id FROM curated_artifact_admissions WHERE asset_id=?1 AND identity_json=?2")?;
+    let matches = statement
+        .query_map(
+            params![record.asset_id.to_string(), immutable_identity(record)?],
+            |row| row.get::<_, String>(0),
+        )?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if matches.len() != 1 {
+        return Err(PortcoveError::verification(
+            "retained curated record has no unique admitted repository identity",
+        ));
+    }
+    matches[0]
+        .parse()
+        .map_err(|_| PortcoveError::state("retained curated repository identity is invalid"))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -63,6 +365,24 @@ fn https_reference(value: &str) -> Option<reqwest::Url> {
 }
 
 impl CuratedAcquisitionRecord {
+    pub(crate) fn verify_metadata(&self, observed: CuratedReleaseMetadata<'_>) -> Result<String> {
+        if observed.release_id != Some(self.release_id)
+            || observed.asset_id != Some(self.asset_id)
+            || observed.tag != self.tag
+            || observed.commit_sha1 != self.commit_sha1
+            || observed.filename != self.filename
+            || observed.url != self.acquisition_url
+            || observed.size != self.size
+            || observed
+                .publisher_sha256
+                .is_some_and(|digest| digest != self.sha256)
+        {
+            return Err(PortcoveError::verification(
+                "upstream metadata differs from the accepted curated identity",
+            ));
+        }
+        Ok(self.sha256.clone())
+    }
     /// Checks declared identity and attribution only. No URL is fetched and
     /// neither digest equality nor a claimed acceptance reference grants trust.
     pub(crate) fn validate(&self, repository: &str, platform: Platform) -> Result<()> {
@@ -136,6 +456,34 @@ impl CuratedAcquisitionRecord {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct CuratedReleaseMetadata<'a> {
+    pub(crate) release_id: Option<u64>,
+    pub(crate) asset_id: Option<u64>,
+    pub(crate) tag: &'a str,
+    pub(crate) commit_sha1: &'a str,
+    pub(crate) filename: &'a str,
+    pub(crate) url: &'a str,
+    pub(crate) size: u64,
+    pub(crate) publisher_sha256: Option<&'a str>,
+}
+
+pub(crate) fn require_runtime_scope(
+    port: &PortDefinition,
+    scope: Option<&crate::DefinitionAcquisitionScope>,
+) -> Result<()> {
+    if port.release.curated.is_empty() {
+        return Ok(());
+    }
+    let scope = scope.ok_or_else(|| {
+        PortcoveError::unsupported(
+            "curated acquisition requires independently admitted capability support",
+        )
+    })?;
+    scope.require_current()?;
+    scope.require_port(port)
+}
+
 /// Existing publisher-digest grants do not admit curated claims. Every Core
 /// acquisition caller must fail before a provider or cached selection can run.
 pub(crate) fn require_runtime_authority(port: &PortDefinition) -> Result<()> {
@@ -180,6 +528,233 @@ pub(crate) fn fixture_record() -> CuratedAcquisitionRecord {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn curated_transition_receipts_preserve_renewal_capacity_and_incomplete_history() {
+        let directory = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(directory.path()).unwrap();
+        let mut connection = library.connection().unwrap();
+        let original =
+            serde_json::json!({"anchor_sha256": "a".repeat(64), "renewal": 1}).to_string();
+        let renewed =
+            serde_json::json!({"anchor_sha256": "a".repeat(64), "renewal": 2}).to_string();
+        let other = serde_json::json!({"anchor_sha256": "b".repeat(64)}).to_string();
+        // Storage-only fixtures do not stand in for authenticated admission.
+        let transaction = connection.transaction().unwrap();
+        for index in 0..256 {
+            retain_transition_receipt(&transaction, &format!("{index:064x}"), "{}", &original)
+                .unwrap();
+        }
+        transaction.commit().unwrap();
+        retain_transition_receipt(&connection, &format!("{:064x}", 0), "{}", &renewed).unwrap();
+        let retained = retained_transition_receipts(&connection).unwrap();
+        assert_eq!(retained.len(), 256);
+        assert_eq!(retained[0].2, original);
+        assert!(
+            retain_transition_receipt(&connection, &format!("{:064x}", 0), "{}", &other).is_err()
+        );
+        assert!(
+            retain_transition_receipt(
+                &connection,
+                &format!("{:064x}", 0),
+                "{\"changed\":true}",
+                &original
+            )
+            .is_err()
+        );
+        let error =
+            retain_transition_receipt(&connection, &format!("{:064x}", 256), "{}", &original)
+                .unwrap_err();
+        assert!(error.to_string().contains("capacity"));
+        assert_eq!(retained_transition_receipts(&connection).unwrap(), retained);
+        connection
+            .execute(
+                "DELETE FROM curated_transition_receipts WHERE policy_sha256=?1",
+                [format!("{:064x}", 0)],
+            )
+            .unwrap();
+        assert!(retained_transition_receipts(&connection).is_err());
+        assert!(
+            retain_transition_receipt(&connection, &format!("{:064x}", 0), "{}", &original)
+                .is_err()
+        );
+        let count: i64 = connection
+            .query_row(
+                "SELECT count(*) FROM curated_transition_receipts",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 255);
+    }
+
+    #[test]
+    fn curated_admitted_identity_survives_reopen_and_refuses_silent_repin() {
+        let directory = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(directory.path()).unwrap();
+        let record = fixture_record();
+        retain_admission(&library.connection().unwrap(), 7, &record, &"a".repeat(64)).unwrap();
+        // Independent review/protected evidence can advance without silently
+        // replacing the first accepted immutable identity.
+        let mut reviewed = record.clone();
+        reviewed.independent_review.sha256 = "e".repeat(64);
+        retain_admission(
+            &library.connection().unwrap(),
+            7,
+            &reviewed,
+            &"b".repeat(64),
+        )
+        .unwrap();
+        drop(library);
+        let reopened = crate::Library::open(directory.path()).unwrap();
+        let connection = reopened.connection().unwrap();
+        require_retained_identity(&connection, 7, &record).unwrap();
+        for changed in [
+            CuratedAcquisitionRecord {
+                sha256: "d".repeat(64),
+                ..record.clone()
+            },
+            CuratedAcquisitionRecord {
+                size: record.size + 1,
+                ..record.clone()
+            },
+            CuratedAcquisitionRecord {
+                commit_sha1: "d".repeat(40),
+                ..record.clone()
+            },
+        ] {
+            assert!(retain_admission(&connection, 7, &changed, &"c".repeat(64)).is_err());
+            assert!(require_retained_identity(&connection, 7, &changed).is_err());
+        }
+        // Distinct upstream assets can receive their own exact admissions.
+        let next = CuratedAcquisitionRecord {
+            asset_id: record.asset_id + 1,
+            sha256: "d".repeat(64),
+            ..record.clone()
+        };
+        retain_admission(&connection, 7, &next, &"c".repeat(64)).unwrap();
+        require_retained_identity(&connection, 7, &next).unwrap();
+        let first_policy: String = connection.query_row(
+            "SELECT policy_sha256 FROM curated_artifact_admissions WHERE repository_id='7' AND asset_id=?1",
+            [record.asset_id.to_string()], |row| row.get(0),
+        ).unwrap();
+        assert_eq!(first_policy, "a".repeat(64));
+        // A missing or inconsistent completeness marker is not an empty new
+        // library. Neither reads nor policy retries may initialize it again.
+        connection
+            .execute("UPDATE curated_artifact_history SET admission_count=3", [])
+            .unwrap();
+        assert!(require_retained_identity(&connection, 7, &record).is_err());
+        assert!(retain_admission(&connection, 7, &record, &"c".repeat(64)).is_err());
+        connection
+            .execute("DELETE FROM curated_artifact_history", [])
+            .unwrap();
+        assert!(require_retained_identity(&connection, 7, &record).is_err());
+        assert!(retain_admission(&connection, 7, &next, &"d".repeat(64)).is_err());
+        let retained: i64 = connection
+            .query_row(
+                "SELECT count(*) FROM curated_artifact_admissions",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(retained, 2);
+        // Restore only the owned fixture marker to exercise row loss below;
+        // production has no automatic history repair or initialization path.
+        connection
+            .execute("INSERT INTO curated_artifact_history VALUES(1,2,0,0)", [])
+            .unwrap();
+        connection
+            .execute(
+                "DELETE FROM curated_artifact_admissions WHERE repository_id='7' AND asset_id=?1",
+                [record.asset_id.to_string()],
+            )
+            .unwrap();
+        assert!(
+            require_retained_identity(&connection, 7, &record).is_err(),
+            "missing history cannot fall back to a proposal"
+        );
+        assert!(
+            retain_admission(&connection, 7, &record, &"a".repeat(64)).is_err(),
+            "an exact retry cannot manufacture missing history"
+        );
+        assert!(
+            retain_admission(&connection, 7, &next, &"d".repeat(64)).is_err(),
+            "even a new asset cannot renew an incomplete history"
+        );
+    }
+
+    #[test]
+    fn curated_metadata_never_replaces_the_exact_expected_identity() {
+        let record = fixture_record();
+        let baseline = CuratedReleaseMetadata {
+            release_id: Some(record.release_id),
+            asset_id: Some(record.asset_id),
+            tag: &record.tag,
+            commit_sha1: &record.commit_sha1,
+            filename: &record.filename,
+            url: &record.acquisition_url,
+            size: record.size,
+            publisher_sha256: None,
+        };
+        assert_eq!(record.verify_metadata(baseline).unwrap(), record.sha256);
+        assert!(
+            record
+                .verify_metadata(CuratedReleaseMetadata {
+                    publisher_sha256: Some(&record.sha256),
+                    ..baseline
+                })
+                .is_ok()
+        );
+        for changed in [
+            CuratedReleaseMetadata {
+                release_id: None,
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                release_id: Some(99),
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                asset_id: None,
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                asset_id: Some(99),
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                tag: "other",
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                commit_sha1: "different",
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                filename: "different.zip",
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                url: "https://other.invalid/game.zip",
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                size: 0,
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                size: record.size + 1,
+                ..baseline
+            },
+            CuratedReleaseMetadata {
+                publisher_sha256: Some("different"),
+                ..baseline
+            },
+        ] {
+            assert!(record.verify_metadata(changed).is_err());
+        }
+    }
 
     #[test]
     fn curated_record_validation_binds_identity_and_bounded_evidence() {
