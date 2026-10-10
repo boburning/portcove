@@ -197,6 +197,9 @@ function projectFailureDiagnostic(value) {
 
 function projectPickerFields(value) {
   const counters = [
+    "folder_label_type",
+    "folder_descendant_owned_edits",
+    "owned_labeled_folder_edits",
     "folder_matches",
     "total_count",
     "automation_element_count",
