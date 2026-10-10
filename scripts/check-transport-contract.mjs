@@ -516,36 +516,56 @@ function exportSchemas(root, contract) {
   return envelope.data;
 }
 
-function exportDesktopSchemas(root) {
-  const command = spawnSync(
-    "cargo",
-    ["run", "--locked", "--quiet", "-p", "portcove-desktop", "--example", "export_transport"],
-    {
+export function desktopSchemaExporterCommands(platform, verifyNative = false) {
+  const commands = [
+    ["run", "--locked", "--quiet", "-p", "portcove-cli", "--example", "export_desktop_transport"],
+  ];
+  if (platform === "win32" || verifyNative)
+    commands.push([
+      "run",
+      "--locked",
+      "--quiet",
+      "-p",
+      "portcove-desktop",
+      "--example",
+      "export_transport",
+    ]);
+  return commands;
+}
+
+export function checkDesktopExporterParity(headless, native) {
+  return renderTransportSchemas(headless) === renderTransportSchemas(native)
+    ? []
+    : ["Headless Desktop schemas differ from the compiled native host"];
+}
+
+function exportDesktopSchemas(root, verifyNative) {
+  const results = desktopSchemaExporterCommands(process.platform, verifyNative).map((args) => {
+    const command = spawnSync("cargo", args, {
       cwd: root,
       encoding: "utf8",
       maxBuffer: 16 * 1024 * 1024,
       windowsHide: true,
-    },
-  );
-  if (command.status !== 0) {
-    process.stderr.write(command.stderr || command.stdout);
-    process.exit(command.status ?? 1);
+    });
+    if (command.status !== 0) {
+      process.stderr.write(command.stderr || command.stdout);
+      process.exit(command.status ?? 1);
+    }
+    return JSON.parse(command.stdout.trim());
+  });
+  if (results.length === 2) {
+    const failures = checkDesktopExporterParity(...results);
+    if (failures.length) throw new Error(failures.join("\n"));
+    console.log("Headless Desktop contracts match the compiled native host.");
   }
-  return JSON.parse(command.stdout.trim());
+  return results[0];
 }
 
 export function checkRepositoryDesktopExposure(root) {
   const failures = [];
   const desktopRustRoot = path.join(root, "apps", "desktop", "src-tauri", "src");
-  const desktopExporterPath = path.join(
-    root,
-    "apps",
-    "desktop",
-    "src-tauri",
-    "examples",
-    "export_transport.rs",
-  );
-  const declarationSource = fs.readFileSync(path.join(desktopRustRoot, "transport.rs"), "utf8");
+  const desktopExporterPath = path.join(desktopRustRoot, "desktop_contract.rs");
+  const declarationSource = fs.readFileSync(desktopExporterPath, "utf8");
   const declarationSources = rustSources(desktopRustRoot);
   const frontendSources = shippedFrontendSources(path.join(root, "apps", "desktop", "src"));
   failures.push(
@@ -571,6 +591,7 @@ function main() {
     options: {
       write: { type: "boolean", default: false },
       "ipc-only": { type: "boolean", default: false },
+      "native-parity": { type: "boolean", default: false },
       types: { type: "string" },
       "host-types": { type: "string" },
       "host-events": { type: "string" },
@@ -580,7 +601,13 @@ function main() {
     throw new Error("--write only updates the repository generated contract");
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   if (values["ipc-only"]) {
-    if (values.write || values.types || values["host-types"] || values["host-events"])
+    if (
+      values.write ||
+      values.types ||
+      values["host-types"] ||
+      values["host-events"] ||
+      values["native-parity"]
+    )
       throw new Error("--ipc-only cannot write or substitute schema inputs");
     const failures = checkRepositoryDesktopExposure(root);
     if (failures.length)
@@ -614,7 +641,7 @@ function main() {
       (message) => `Request inputs: ${message}`,
     ),
   );
-  const desktop = exportDesktopSchemas(root);
+  const desktop = exportDesktopSchemas(root, values["native-parity"]);
   for (const contract of ["input", "output"]) {
     const target =
       contract === "output" && values["host-types"]

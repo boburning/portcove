@@ -6,6 +6,7 @@
 //! release record. It does not fetch metadata, persist trust state, download
 //! payloads, or apply an update.
 
+pub use crate::desktop_contract::{ApplicationChannel, ApplicationUpdateCandidateSummary};
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
@@ -37,13 +38,6 @@ pub enum UpdateMetadataError {
     PromotionMismatch,
     #[error("ambiguous candidates have equal SemVer precedence")]
     AmbiguousPrecedence,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum ApplicationChannel {
-    Preview,
-    Stable,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -225,14 +219,6 @@ pub struct CandidateSelection {
     pub state: CandidateState,
     pub candidate: Option<SelectedCandidate>,
     pub reasons: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateCandidateSummary {
-    pub version: String,
-    pub channel: ApplicationChannel,
-    pub bytes: u64,
 }
 
 impl From<&SelectedCandidate> for ApplicationUpdateCandidateSummary {

@@ -5,6 +5,8 @@ import {
   checkDesktopCommandContract,
   checkDesktopEventContract,
   checkTransportContract,
+  checkDesktopExporterParity,
+  desktopSchemaExporterCommands,
   extractDeclaredDesktopCommands,
   extractDeclaredDesktopEvents,
   extractExportedDesktopEvents,
@@ -32,6 +34,47 @@ const schemas = {
     },
   },
 };
+
+test("headless export retains required Windows native parity and explicit capable-host parity", () => {
+  const headless = [
+    "run",
+    "--locked",
+    "--quiet",
+    "-p",
+    "portcove-cli",
+    "--example",
+    "export_desktop_transport",
+  ];
+  const native = [
+    "run",
+    "--locked",
+    "--quiet",
+    "-p",
+    "portcove-desktop",
+    "--example",
+    "export_transport",
+  ];
+  assert.deepEqual(desktopSchemaExporterCommands("linux"), [headless]);
+  assert.deepEqual(desktopSchemaExporterCommands("darwin"), [headless]);
+  assert.deepEqual(desktopSchemaExporterCommands("win32"), [headless, native]);
+  assert.deepEqual(desktopSchemaExporterCommands("linux", true), [headless, native]);
+});
+
+test("native parity compares the complete Rust envelope without depending on key order", () => {
+  const contracts = { output: schemas, input: {}, events: { changed: { type: "null" } } };
+  assert.deepEqual(
+    checkDesktopExporterParity(contracts, { events: contracts.events, input: {}, output: schemas }),
+    [],
+  );
+  for (const section of ["output", "input", "events"]) {
+    const changed = structuredClone(contracts);
+    changed[section].fixture = { type: "integer" };
+    assert.match(
+      checkDesktopExporterParity(contracts, changed)[0],
+      /differ from the compiled native host/,
+    );
+  }
+});
 
 test("the complete contract is canonical and line-ending independent", () => {
   const rendered = renderTransportSchemas(schemas);

@@ -3,13 +3,17 @@
 //! This module persists consent and policy only. Reading or saving a choice
 //! cannot check, download, stage, or apply an update.
 
+pub use crate::desktop_contract::{
+    ApplicationUpdateChoice, ApplicationUpdateMode, ApplicationUpdatePreferences,
+    ApplicationUpdateProductionDecision, ApplicationUpdateProductionTransition,
+    ApplicationUpdateProductionTransitionResult,
+};
 use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
 use fs2::FileExt;
-use schemars::JsonSchema;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -43,57 +47,12 @@ pub enum ApplicationUpdatePreferenceError {
     Serialization(#[from] serde_json::Error),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateMode {
-    Automatic,
-    NotifyOnly,
-    Manual,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdateChoice {
-    pub channel: ApplicationChannel,
-    pub mode: ApplicationUpdateMode,
-    pub paused: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(deny_unknown_fields)]
-pub struct ApplicationUpdatePreferences {
-    pub schema_version: u32,
-    pub revision: u64,
-    /// `None` means the user has not completed the one-time choice.
-    pub choice: Option<ApplicationUpdateChoice>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateProductionDecision {
-    UseStable,
-    KeepPreview,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ApplicationUpdateProductionTransitionMarker {
     schema_version: u32,
     decision: ApplicationUpdateProductionDecision,
     completed_preference_revision: u64,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateProductionTransition {
-    pub schema_version: u32,
-    pub preference_revision: u64,
-    pub offer_required: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateProductionTransitionResult {
-    pub preferences: ApplicationUpdatePreferences,
-    pub transition: ApplicationUpdateProductionTransition,
 }
 
 impl Default for ApplicationUpdatePreferences {

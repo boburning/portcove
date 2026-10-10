@@ -32,6 +32,8 @@ mod artwork;
 mod backup_review;
 mod catalog;
 mod cli_context;
+#[doc(hidden)]
+pub mod desktop_contract;
 mod diagnostics;
 mod external_runtime_commands;
 mod game_updates;

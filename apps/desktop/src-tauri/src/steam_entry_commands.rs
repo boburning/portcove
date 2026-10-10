@@ -4,85 +4,22 @@
 //! identity from the active Portcove library and observes Steam itself rather
 //! than trusting renderer-provided process or library state.
 
+pub use crate::desktop_contract::{
+    SteamBatchReview, SteamBatchSelection, SteamEntryOperation, SteamEntryReview,
+    SteamEntrySelection,
+};
 use crate::steam_entries::{
-    SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryChange, SteamEntryError,
-    SteamEntryPlan, SteamEntryPlanRequest, SteamGameEntryTarget, apply_steam_entry_plan,
-    local_steam_profiles, plan_steam_entries,
+    SteamCliIdentity, SteamClientState, SteamEntryApplyResult, SteamEntryError, SteamEntryPlan,
+    SteamEntryPlanRequest, SteamGameEntryTarget, apply_steam_entry_plan, local_steam_profiles,
+    plan_steam_entries,
 };
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_worker, cli_context, confirm_destructive,
     service_at_generation,
 };
 use portcove_core::{PortcoveError, PortcoveService};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SteamEntryOperation {
-    AddOrRepair,
-    Remove,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct SteamEntrySelection {
-    pub port_id: String,
-    pub steam_root: PathBuf,
-    pub steam_user_id: String,
-    pub operation: SteamEntryOperation,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct SteamBatchSelection {
-    pub port_ids: Vec<String>,
-    pub steam_root: PathBuf,
-    pub steam_user_id: String,
-}
-
-#[derive(Debug, Clone, Serialize, JsonSchema)]
-pub struct SteamBatchReview {
-    pub schema_version: u32,
-    pub selected_games: Vec<SteamGameEntryTarget>,
-    pub steam_root: PathBuf,
-    pub steam_user_id: String,
-    pub library_root: PathBuf,
-    pub cli_path: PathBuf,
-    pub cli_sha256: String,
-    pub cli_product_version: String,
-    pub shortcuts_path: PathBuf,
-    pub snapshot_sha256: Option<String>,
-    pub proposed_sha256: String,
-    pub review_sha256: String,
-    pub writer_plan_sha256: String,
-    pub changes: Vec<SteamEntryChange>,
-    pub steam_client_state: SteamClientState,
-    pub writes_required: bool,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct SteamEntryReview {
-    pub schema_version: u32,
-    pub operation: SteamEntryOperation,
-    pub port_id: String,
-    pub display_name: String,
-    pub steam_root: PathBuf,
-    pub steam_user_id: String,
-    pub library_root: PathBuf,
-    pub cli_path: Option<PathBuf>,
-    pub cli_sha256: Option<String>,
-    pub cli_product_version: Option<String>,
-    pub shortcuts_path: PathBuf,
-    pub snapshot_sha256: Option<String>,
-    pub proposed_sha256: String,
-    pub plan_sha256: String,
-    pub changes: Vec<SteamEntryChange>,
-    pub steam_client_state: SteamClientState,
-    pub writes_required: bool,
-}
 
 #[derive(Debug, Clone)]
 struct SteamEntryContext {
