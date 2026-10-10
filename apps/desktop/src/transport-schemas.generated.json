@@ -4503,6 +4503,10 @@
             "description": "Digest of the bounded, sorted immutable file inventory after extraction.",
             "type": "string"
           },
+          "library_user_data": {
+            "description": "Opt in to a library-private directory through the port's reviewed environment binding.",
+            "type": "boolean"
+          },
           "mutable_paths": {
             "default": [],
             "items": {
@@ -12149,6 +12153,10 @@
             "description": "Digest of the bounded, sorted immutable file inventory after extraction.",
             "type": "string"
           },
+          "library_user_data": {
+            "description": "Opt in to a library-private directory through the port's reviewed environment binding.",
+            "type": "boolean"
+          },
           "mutable_paths": {
             "default": [],
             "items": {
@@ -17735,6 +17743,10 @@
           "immutable_tree_sha256": {
             "description": "Digest of the bounded, sorted immutable file inventory after extraction.",
             "type": "string"
+          },
+          "library_user_data": {
+            "description": "Opt in to a library-private directory through the port's reviewed environment binding.",
+            "type": "boolean"
           },
           "mutable_paths": {
             "default": [],

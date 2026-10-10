@@ -714,6 +714,9 @@ impl Catalog {
                             || runtime.archive_size == 0
                             || !is_sha256(&runtime.archive_sha256)
                             || !is_sha256(&runtime.immutable_tree_sha256)
+                            || (runtime.library_user_data
+                                && (port.adapter != AdapterKind::StagedSourcePortable
+                                    || port.user_data_environment.is_none()))
                             || !is_safe_executable_hint(&runtime.executable, *platform)
                             || port.executable_hints.get(platform).is_none_or(|hints| {
                                 hints.len() != 1

@@ -347,8 +347,7 @@ export function OutputLocationControl({
         </Button>
       </div>
       <small id={`output-location-note-${portId}`}>
-        Review checks the resolved path, volume, capacity, ownership, markers, and affected installs
-        without creating the folder.
+        Portcove will check whether this folder can be used. Checking does not create or move files.
       </small>
       <div className="button-row">
         <Button
@@ -731,10 +730,8 @@ function OutputRelocationReview({
               : `${formatBytes(plan.available_bytes)} available`}
           </OutputFact>
           <OutputFact label="Ownership">{outputOwnershipLabel(plan.ownership)}</OutputFact>
-          <OutputFact label="Sources">
-            {plan.sources_will_move
-              ? "Unexpected move requested"
-              : "Stay in the central source library"}
+          <OutputFact label="Original game files">
+            {plan.sources_will_move ? "Unexpected move requested" : "Stay at their saved locations"}
           </OutputFact>
           <OutputFact label="Saves and backups">
             {plan.user_data_will_move || plan.backups_will_move
@@ -809,9 +806,9 @@ function outputOwnershipLabel(value: OutputDestinationPreview["ownership"]) {
   const labels: Record<OutputDestinationPreview["ownership"], string> = {
     library_default: "Portcove library default",
     unclaimed: "Empty or not yet created",
-    owned_by_port: "Owned by this game",
-    owned_by_another_port: "Owned by another game",
-    unrelated_content: "Contains unrelated content",
+    owned_by_port: "Used by this game",
+    owned_by_another_port: "Used by another game",
+    unrelated_content: "Contains unrelated files",
     invalid: "Invalid destination",
     unknown: "Unknown",
   };

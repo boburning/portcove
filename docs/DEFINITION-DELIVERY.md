@@ -15,7 +15,11 @@ catalog-declared fresh Windows D3D12 default. Inventory identities are unique
 `(template, contract_version)` pairs; a template may implement several versions.
 Negotiation selects the highest supported version inside the requested inclusive
 window, or reports the highest installed version with `UnsupportedVersion` if
-none fits. Version 1 remains available for unchanged definitions. These versions
+none fits. Version 1 remains available for unchanged definitions. The staged-source portable
+template also advertises version 2 for explicit prepared `library_user_data`
+bindings. An indexed entry opting into either behavior must require its template
+minimum version 2. Capability contract schema remains 1; parsing a flag alone
+does not implement its directory, environment or renderer behavior. These versions
 describe the implemented combinations below; they do
 not imply support for loading successor definition bundles. A new incompatible
 template contract must receive a new version alongside its implementation and

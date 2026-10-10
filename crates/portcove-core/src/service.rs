@@ -4518,11 +4518,30 @@ impl PortcoveService {
             ));
         }
         operation.checkpoint()?;
+        let mut environment = retained_port.launch_environment.clone();
+        if spec.library_user_data {
+            let variable = retained_port
+                .user_data_environment
+                .as_ref()
+                .ok_or_else(|| {
+                    PortcoveError::verification(
+                        "prepared private user data has no retained binding",
+                    )
+                })?;
+            let directory = self
+                .library
+                .prepare_user_directory(&record.port_id, &|| operation.checkpoint())?;
+            environment.insert(
+                variable.clone(),
+                crate::path::unicode(&directory, "private user data")?,
+            );
+        }
+        operation.checkpoint()?;
         Ok(crate::LaunchSpec {
             executable: record.executable.clone(),
             install_root: record.path.clone(),
             working_directory: record.path.clone(),
-            environment: retained_port.launch_environment.clone(),
+            environment,
             arguments,
             launch_kind,
         })
@@ -9273,6 +9292,19 @@ fn main() {
     // Admit an inert regular-file runtime through the production review path;
     // these status tests grant no executable or gameplay qualification.
     fn external_location_fixture() -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
+        external_location_fixture_with_private_data(false)
+    }
+
+    fn external_location_fixture_with_private_data(
+        private: bool,
+    ) -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
+        external_location_fixture_with_flags(private, None)
+    }
+
+    fn external_location_fixture_with_flags(
+        private: bool,
+        other: Option<bool>,
+    ) -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
         let temporary = tempfile::tempdir().unwrap();
         let library_root = temporary.path().join("library");
         let library = Library::open(&library_root).unwrap();
@@ -9288,13 +9320,34 @@ fn main() {
             executable: "game.exe".into(),
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
+            library_user_data: private,
             mutable_paths: vec!["player-save".into()],
         };
         let mismatch =
             crate::external_runtime::inspect(&external, &runtime, &library_root).unwrap_err();
         runtime.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
         let mut service = service_with_release(library, "v1");
-        service.replace_catalog_for_test(external_location_catalog(platform, runtime));
+        let mut document = external_location_catalog(platform, runtime).authoritative_document();
+        if let Some(other_private) = other {
+            let alternate = if platform == Platform::WindowsX86_64 {
+                Platform::LinuxX86_64
+            } else {
+                Platform::WindowsX86_64
+            };
+            let port = &mut document.ports[0];
+            let mut runtime = port.release.user_prepared[&platform].clone();
+            runtime.library_user_data = other_private;
+            port.platforms.push(alternate);
+            port.release.user_prepared.insert(alternate, runtime);
+            port.executable_hints
+                .insert(alternate, vec!["game.exe".into()]);
+            if private || other_private {
+                port.adapter = AdapterKind::StagedSourcePortable;
+            }
+        }
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
         let preview = service
             .preview_external_runtime("external-location-probe", &external)
             .unwrap();
@@ -9333,7 +9386,8 @@ fn main() {
                 "support_tier": "stable",
                 "channels": ["stable"],
                 "platforms": [platform],
-                "adapter": "n64-recomp-portable",
+                "adapter": if runtime.library_user_data { "staged-source-portable" } else { "n64-recomp-portable" },
+                "user_data_environment": "FIXTURE_USER_DIR",
                 "release": {
                     "provider": "user-prepared",
                     "user_prepared": { (platform_key): runtime }
@@ -9358,6 +9412,112 @@ fn main() {
             None,
             &OperationCoordinator::new("launch", None),
         )
+    }
+
+    #[test]
+    fn prepared_private_data_is_opt_in_and_bound_to_the_retained_library() {
+        let (_legacy_root, legacy, record) = external_location_fixture();
+        assert!(!legacy.library.user_dir(&record.port_id).exists());
+        let launch = prepare_external_location_fixture_launch(&legacy, &record).unwrap();
+        assert!(!launch.environment.contains_key("FIXTURE_USER_DIR"));
+        assert!(!legacy.library.user_dir(&record.port_id).exists());
+        let (_root, mut service, record) = external_location_fixture_with_private_data(true);
+        let private = service.library.user_dir(&record.port_id);
+        assert!(!private.exists());
+        // Changing the current declaration cannot replace retained launch authority.
+        let mut changed = service.catalog.authoritative_document();
+        changed.ports[0]
+            .release
+            .user_prepared
+            .values_mut()
+            .for_each(|runtime| runtime.library_user_data = false);
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&changed).unwrap()).unwrap(),
+        );
+        let launch = prepare_external_location_fixture_launch(&service, &record).unwrap();
+        assert_eq!(
+            launch.environment["FIXTURE_USER_DIR"],
+            private.to_str().unwrap()
+        );
+        assert!(private.is_dir());
+        assert_ne!(private, record.path);
+        fs::write(private.join("unknown-save.dat"), b"private save").unwrap();
+        let library_root = service.library.root().to_path_buf();
+        drop(service);
+        let reopened = service_with_release(Library::open(&library_root).unwrap(), "v1");
+        let launch = prepare_external_location_fixture_launch(&reopened, &record).unwrap();
+        assert_eq!(
+            launch.environment["FIXTURE_USER_DIR"],
+            private.to_str().unwrap()
+        );
+        let preview = reopened.preview_external_removal(&record.port_id).unwrap();
+        let authorization = reopened
+            .authorize_external_removal(&record.port_id, &preview.preview_sha256)
+            .unwrap();
+        reopened
+            .remove_external_runtime(&record.port_id, &authorization.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(private.join("unknown-save.dat")).unwrap(),
+            b"private save"
+        );
+        assert_eq!(fs::read(&record.executable).unwrap(), b"accepted runtime");
+    }
+
+    #[test]
+    fn prepared_private_data_revalidates_package_before_directory_creation() {
+        let (_root, service, record) = external_location_fixture_with_private_data(true);
+        let private = service.library.user_dir(&record.port_id);
+        fs::write(&record.executable, b"changed immutable runtime").unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        assert!(!private.exists());
+    }
+
+    #[test]
+    fn prepared_private_data_refuses_non_directory_without_replacing_it() {
+        let (_root, service, record) = external_location_fixture_with_private_data(true);
+        let private = service.library.user_dir(&record.port_id);
+        fs::write(&private, b"retained unknown file").unwrap();
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        assert_eq!(fs::read(&private).unwrap(), b"retained unknown file");
+    }
+
+    #[test]
+    fn prepared_private_data_contract_rejects_missing_binding_wrong_adapter_and_reserved_names() {
+        let (_root, service, _) = external_location_fixture_with_private_data(true);
+        let document = serde_json::to_value(service.catalog.authoritative_document()).unwrap();
+        for (key, value) in [
+            ("user_data_environment", serde_json::Value::Null),
+            ("user_data_environment", "PORTCOVE_PREFERENCES".into()),
+            ("adapter", "n64-recomp-portable".into()),
+        ] {
+            let mut malformed = document.clone();
+            malformed["ports"][0][key] = value;
+            assert!(Catalog::from_json(&malformed.to_string()).is_err());
+        }
+        let runtime =
+            &service.catalog.ports()[0].release.user_prepared[&Platform::current().unwrap()];
+        let mut legacy = runtime.clone();
+        legacy.library_user_data = false;
+        let projection = serde_json::to_value(&legacy).unwrap();
+        assert!(projection.get("library_user_data").is_none());
+        assert!(
+            !serde_json::from_value::<crate::UserPreparedRuntimeSpec>(projection)
+                .unwrap()
+                .library_user_data
+        );
+    }
+
+    #[test]
+    fn prepared_private_data_selects_only_the_current_platform_contract() {
+        for private in [false, true] {
+            let (_root, service, record) =
+                external_location_fixture_with_flags(private, Some(!private));
+            let path = service.library.user_dir(&record.port_id);
+            let launch = prepare_external_location_fixture_launch(&service, &record).unwrap();
+            assert_eq!(launch.environment.contains_key("FIXTURE_USER_DIR"), private);
+            assert_eq!(path.exists(), private);
+        }
     }
 
     fn assert_external_location_readiness(service: &PortcoveService, held: bool) {
@@ -9585,6 +9745,16 @@ fn main() {
 
     #[test]
     fn dkc3_prepared_positional_source_preflight_and_removal_preserve_external_files() {
+        prepared_positional_source_fixture(false);
+    }
+
+    #[test]
+    fn prepared_private_data_source_refusal_precedes_directory_creation() {
+        // Synthetic private binding is not an upstream DKC3 capability claim.
+        prepared_positional_source_fixture(true);
+    }
+
+    fn prepared_positional_source_fixture(private: bool) {
         // Redistributable inert bytes exercise the real admitted definition and
         // Core operation path. No upstream executable or game source is run.
         let temporary = tempfile::tempdir().unwrap();
@@ -9602,6 +9772,23 @@ fn main() {
         fs::write(&source, source_bytes).unwrap();
         let mut service = service_with_release(library.clone(), "v1");
         let mut document = Catalog::embedded().unwrap().authoritative_document();
+        // Preserve the real port/source contract, excluding unrelated catalog work
+        // from this bounded inert preflight/removal control.
+        document.ports.retain(|port| port.id == "dkc3-recomp");
+        let source_catalog = document.source_catalog.as_mut().unwrap();
+        source_catalog
+            .contracts
+            .retain(|contract| contract.port_id == "dkc3-recomp");
+        source_catalog
+            .qualification
+            .retain(|record| record.scope.port_id == "dkc3-recomp");
+        source_catalog
+            .identities
+            .retain(|profile| profile.id == "dkc3-na-en-fr");
+        document
+            .source_profiles
+            .retain(|profile| profile.id == "dkc3-na-en-fr");
+
         let profile = document
             .source_catalog
             .as_mut()
@@ -9623,6 +9810,10 @@ fn main() {
             .find(|port| port.id == "dkc3-recomp")
             .unwrap();
         let mut runtime = port.release.user_prepared[&Platform::WindowsX86_64].clone();
+        runtime.library_user_data = private;
+        if private {
+            port.user_data_environment = Some("FIXTURE_USER_DIR".into());
+        }
         // Only fixture bytes/platform replace the accepted real-package pin.
         let mismatch =
             crate::external_runtime::inspect(&external, &runtime, &library_root).unwrap_err();
@@ -9684,14 +9875,26 @@ fn main() {
                 &OperationCoordinator::new("launch", None),
             )
         };
+        let private_path = reopened.library.user_dir("dkc3-recomp");
+        assert!(!private_path.exists());
+        fs::write(&source, b"wrong original source").unwrap();
+        assert!(prepare(None).is_err());
+        assert!(!private_path.exists());
+        fs::write(&source, source_bytes).unwrap();
         let launch = prepare(None).unwrap();
         assert_eq!(launch.arguments, [source.to_str().unwrap()]);
         assert_eq!(launch.executable, expected_external.join("DKC3Recomp.exe"));
         assert_eq!(launch.working_directory, expected_external);
-        assert_eq!(
-            launch.environment,
-            [("SNESRECOMP_NO_LAUNCHER".into(), "1".into())].into()
-        );
+        let mut expected_environment = [("SNESRECOMP_NO_LAUNCHER".into(), "1".into())]
+            .into_iter()
+            .collect::<std::collections::BTreeMap<String, String>>();
+        if private {
+            expected_environment.insert(
+                "FIXTURE_USER_DIR".into(),
+                private_path.to_str().unwrap().into(),
+            );
+        }
+        assert_eq!(launch.environment, expected_environment);
         assert_eq!(launch.launch_kind, crate::LaunchKind::Native);
         let command = ChildProcessPolicy::game_command(&launch.process_spec(), &[]).unwrap();
         assert_eq!(command.get_args().collect::<Vec<_>>(), [source.as_os_str()]);
@@ -9780,6 +9983,7 @@ fn main() {
             executable: executable_name.into(),
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
+            library_user_data: false,
             mutable_paths: vec!["general.json".into()],
         };
         let mismatch =

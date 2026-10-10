@@ -259,6 +259,17 @@ An optional `presentation.manual_preparation` gives the exact player-created
 steps for a user-prepared runtime; the short port summary remains an outcome
 description. The Wave Race pilot requires an empty `portable.txt` beside its
 executable, in addition to the extracted upstream ZIP files.
+A platform-specific prepared spec may opt into `library_user_data: true` for
+`staged-source-portable`, with a safe `user_data_environment` name on the port.
+After retained-package and original-source revalidation, Core creates only the
+private `<library>/user/<port>` directory and binds its absolute path for launch.
+Existing private contents are preserved; missing parents, links and non-directory
+paths are refused. Omitted or false flags create no directory and bind no variable.
+This declaration requires staged-source template contract version 2. It does not
+migrate AppData, qualify an upstream package, or grant update/backup ownership.
+Removing the external registration preserves both the external folder and private
+user files. No current title is admitted by this generic engine component.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and
@@ -360,7 +371,7 @@ blocker.
 
 ## Channels, support, and qualification
 
-Game-port release channels display as **Stable / Preview / Rolling**. The compatible CLI, JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; Preview is the display name for `beta`, not a new value or alias. Changing a label does not select a different release or migrate saved choices. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
 Stable, Preview, and Rolling are user-selected release channels, not qualification
 claims. Preview is the human label for the unchanged `beta` machine value. An entry may offer Preview or Rolling, be platform-limited, lack qualification

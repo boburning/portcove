@@ -30,6 +30,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::N64RecompPortable,
             contract_version: 2,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 2,
+        });
         supported
     }
 }
@@ -199,17 +203,18 @@ mod tests {
 
     #[test]
     fn n64_windows_initial_renderer_preserves_v1_negotiation() {
-        for (minimum, maximum, selected, compatible) in [
-            (1, 1, 1, true),
-            (2, 2, 2, true),
-            (1, 2, 2, true),
-            (3, 3, 2, false),
-        ] {
-            let report =
-                check_definition_capabilities(&request("n64-recomp-portable", minimum, maximum))
-                    .unwrap();
-            assert_eq!(report.compatible, compatible);
-            assert_eq!(report.checks[0].installed_version, Some(selected));
+        for template in ["n64-recomp-portable", "staged-source-portable"] {
+            for (minimum, maximum, selected, compatible) in [
+                (1, 1, 1, true),
+                (2, 2, 2, true),
+                (1, 2, 2, true),
+                (3, 3, 2, false),
+            ] {
+                let report =
+                    check_definition_capabilities(&request(template, minimum, maximum)).unwrap();
+                assert_eq!(report.compatible, compatible);
+                assert_eq!(report.checks[0].installed_version, Some(selected));
+            }
         }
         let pairs: HashSet<_> = EngineTemplateCapability::current()
             .into_iter()

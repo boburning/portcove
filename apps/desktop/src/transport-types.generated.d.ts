@@ -1208,6 +1208,10 @@ export interface UserPreparedRuntimeSpec {
    * Digest of the bounded, sorted immutable file inventory after extraction.
    */
   immutable_tree_sha256: string;
+  /**
+   * Opt in to a library-private directory through the port's reviewed environment binding.
+   */
+  library_user_data?: boolean;
   mutable_paths: string[];
   source_argument_extension: string | null;
   version: string;

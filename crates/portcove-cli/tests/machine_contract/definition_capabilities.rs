@@ -78,7 +78,14 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         assert!(pairs.contains(&(adapter.as_str().unwrap(), 1)));
     }
     assert!(pairs.contains(&("n64-recomp-portable", 2)));
+    assert!(pairs.contains(&("staged-source-portable", 2)));
+    assert_eq!(templates.len(), adapters.len() + 2);
+    let mut identities = std::collections::HashSet::new();
     for template in templates {
+        assert!(identities.insert((
+            template["template"].to_string(),
+            template["contract_version"].as_u64().unwrap()
+        )));
         let request = serde_json::from_value(json!({
             "capability_contract_schema": 1,
             "required_capabilities": [{"template":template["template"], "minimum_version":template["contract_version"], "maximum_version":template["contract_version"]}]

@@ -380,3 +380,25 @@ fn unrelated_catalog_port_does_not_change_generic_entry_or_index_bytes() {
     );
     assert_eq!(fixture(), original);
 }
+
+#[test]
+fn prepared_private_data_requires_version_two_without_widening_legacy_entries() {
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("dkc3-recomp")
+        .unwrap()
+        .clone();
+    let legacy = entry_for_port(&port);
+    assert!(inspect(&legacy).is_ok());
+    port.user_data_environment = Some("FIXTURE_USER_DIR".into());
+    port.release
+        .user_prepared
+        .values_mut()
+        .for_each(|runtime| runtime.library_user_data = true);
+    let mut entry = entry_for_port(&port);
+    assert!(inspect(&entry).is_err());
+    entry["required_capabilities"][0]["maximum_version"] = json!(2);
+    assert!(inspect(&entry).is_err());
+    entry["required_capabilities"][0]["minimum_version"] = json!(2);
+    assert!(inspect(&entry).is_ok());
+}
