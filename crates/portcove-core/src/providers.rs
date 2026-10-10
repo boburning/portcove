@@ -141,6 +141,7 @@ mod tests {
             manually_validated_platforms: vec![],
             adapter: AdapterKind::N64RecompPortable,
             release: ReleaseSpec {
+                curated: BTreeMap::new(),
                 provider: ReleaseSource::DirectManifest,
                 repository: String::new(),
                 rolling_tag: None,

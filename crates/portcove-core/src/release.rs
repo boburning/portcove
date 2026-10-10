@@ -985,6 +985,7 @@ impl GithubReleaseProvider {
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<ResolvedRelease> {
+        crate::curated_acquisition::require_runtime_authority(port)?;
         if let Some(scope) = scope {
             scope.require_current()?;
             scope.require_port(port)?;

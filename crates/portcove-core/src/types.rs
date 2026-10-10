@@ -352,6 +352,9 @@ pub struct UserPreparedRuntimeSpec {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReleaseSpec {
+    /// Inert exact-byte proposal records; runtime authority is separately admitted.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub curated: BTreeMap<Platform, crate::CuratedAcquisitionRecord>,
     #[serde(default)]
     pub provider: ReleaseSource,
     #[serde(default)]
