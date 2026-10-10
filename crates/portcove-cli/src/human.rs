@@ -119,7 +119,7 @@ pub(crate) fn activity_diagnostic(captures: &[portcove_core::ActivityDiagnostic]
 
 fn diagnostic_phase(capture: &portcove_core::ActivityDiagnostic) -> String {
     let status = if capture.complete {
-        "The saved log includes both output streams through their end."
+        "Both output streams ended. Saved output is shown below."
     } else {
         "Only the output saved before the last observation is available. Later output may be missing."
     };
@@ -2392,6 +2392,14 @@ mod tests {
         assert!(rendered.contains("password=[REDACTED]"));
         assert!(!rendered.contains("owned-private-value"));
         assert!(rendered.contains("Later output may be missing."));
+        let ended_with_omissions = ActivityDiagnostic {
+            complete: true,
+            ..capture.clone()
+        };
+        let ended = super::activity_diagnostic(std::slice::from_ref(&ended_with_omissions));
+        assert!(ended.contains("Both output streams ended. Saved output is shown below."));
+        assert!(ended.contains("Output exceeded the capture limit; some output was omitted."));
+        assert!(!ended.contains("Preparation completed"));
         assert!(rendered.contains("Output exceeded the capture limit; some output was omitted."));
         assert_eq!(serde_json::to_value(&capture).unwrap(), stored);
         assert!(
@@ -2442,7 +2450,7 @@ mod tests {
         assert!(rendered.contains("Activity: owned-id[31m header\nPhase: preparation.setup phase"));
         assert_eq!(
             rendered
-                .matches("The saved log includes both output streams through their end.")
+                .matches("Both output streams ended. Saved output is shown below.")
                 .count(),
             2
         );

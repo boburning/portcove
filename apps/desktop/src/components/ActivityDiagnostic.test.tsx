@@ -62,9 +62,7 @@ it("loads only on request, names complete capture and copies the retained redact
   expect(read).not.toHaveBeenCalled();
   await open();
   expect(read).toHaveBeenCalledWith("owned", 12);
-  expect(host.textContent).toContain(
-    "The saved log includes both output streams through their end.",
-  );
+  expect(host.textContent).toContain("Both output streams ended. Saved output is shown below.");
   expect(host.textContent).toContain("owned failure details");
   expect(
     [...host.querySelectorAll("pre")].every(
@@ -91,9 +89,19 @@ it("keeps interrupted and truncated output visibly distinct from a complete log"
     "Only the output saved before the last observation is available. Later output may be missing.",
   );
   expect(host.textContent).toContain("Some output was omitted");
-  expect(host.textContent).not.toContain(
-    "The saved log includes both output streams through their end",
-  );
+  expect(host.textContent).not.toContain("Both output streams ended. Saved output is shown below");
+});
+
+it("separates ended streams from omitted output without asserting operation success", async () => {
+  const capture = fixture();
+  capture[0].stdout.truncated = true;
+  vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(capture);
+  await act(async () => root.render(<ActivityDiagnostic activityId="owned" generation={1} />));
+  await open();
+  expect(host.textContent).toContain("Both output streams ended. Saved output is shown below.");
+  expect(host.textContent).toContain("Some output was omitted");
+  expect(host.textContent).not.toContain("includes both output streams through their end");
+  expect(host.textContent).not.toContain("Preparation completed");
 });
 
 it("keeps completed conversion output beside an interrupted setup phase", async () => {
@@ -109,9 +117,7 @@ it("keeps completed conversion output beside an interrupted setup phase", async 
   expect(phases).toHaveLength(2);
   expect(phases[0].textContent).toContain("Preparing source data");
   expect(phases[0].textContent).toContain("earlier conversion output");
-  expect(phases[0].textContent).toContain(
-    "The saved log includes both output streams through their end",
-  );
+  expect(phases[0].textContent).toContain("Both output streams ended. Saved output is shown below");
   expect(phases[1].textContent).toContain("Running game setup");
   expect(phases[1].textContent).toContain(
     "Only the output saved before the last observation is available",
