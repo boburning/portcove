@@ -346,6 +346,9 @@ pub struct UserPreparedRuntimeSpec {
     pub immutable_tree_sha256: String,
     #[serde(default)]
     pub source_argument_extension: Option<String>,
+    /// Opt in to a library-private directory through the port's reviewed environment binding.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub library_user_data: bool,
     #[serde(default)]
     pub mutable_paths: Vec<String>,
 }

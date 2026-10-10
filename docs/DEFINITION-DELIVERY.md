@@ -10,7 +10,12 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 ## Implemented engine capability negotiation
 
 Core advertises each of the seven installed `AdapterKind` templates with contract
-version 1. These versions describe the implemented combinations below; they do
+version 1. `staged-source-portable` also advertises version 2 for explicit prepared
+`library_user_data` bindings. Negotiation selects the highest installed version
+inside the requested inclusive window; legacy version 1 remains available. An
+indexed entry opting into this binding must require a minimum version of 2.
+Capability contract schema remains 1; parsing the new flag alone is insufficient
+for consuming its directory and environment behavior. These versions describe the implemented combinations below; they do
 not imply support for loading successor definition bundles. A new incompatible
 template contract must receive a new version alongside its implementation and
 compatibility evidence. Definitions cannot supply engine implementations.
