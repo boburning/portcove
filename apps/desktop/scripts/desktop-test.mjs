@@ -292,6 +292,8 @@ function validateBackupFocusInventory(captured) {
     checks.some(
       (check) =>
         [
+          "native-selected-setup-completion",
+          "native-retained-contract-repair-state",
           "native-backup-delete-focus",
           "native-host-interrupted-preparation",
           "native-closed-preparation-recovery",
@@ -1726,8 +1728,44 @@ try {
     const alternate = path.join(output, "browsing-alternate-library");
     await mkdir(alternate);
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
-    const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    await search.sendKeys("zelda");
+    let search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    const catalog = await invoke("get_catalog");
+    assert.equal(catalog.ok, true);
+    const channelButton = (channel) =>
+      browser.findElement(
+        By.xpath(
+          `//div[@aria-label="Release channel filters"]//button[normalize-space(.)="${channel}"]`,
+        ),
+      );
+    const expectChannels = async (channels) => {
+      const expected = catalog.value.ports
+        .filter(
+          (port) =>
+            channels.length === 0 || port.channels.some((channel) => channels.includes(channel)),
+        )
+        .map((port) => port.id)
+        .sort();
+      assert.ok(expected.length > 0, "Channel fixture must contain matching ports");
+      await browser.wait(
+        async () => {
+          const ids = await browser.executeScript(() =>
+            [...document.querySelectorAll('[data-detail-origin^="catalog:card:"]')]
+              .map((card) => card.getAttribute("data-detail-origin").slice("catalog:card:".length))
+              .sort(),
+          );
+          return JSON.stringify(ids) === JSON.stringify(expected);
+        },
+        5_000,
+        `Catalog did not display the exact ${channels.join("+") || "All"} union once`,
+      );
+      for (const channel of ["stable", "beta", "rolling"])
+        assert.equal(
+          await (await channelButton(channel)).getAttribute("aria-pressed"),
+          String(channels.includes(channel)),
+        );
+    };
+    await (await channelButton("stable")).click();
+    await expectChannels(["stable"]);
     const beta = await browser.wait(
       until.elementLocated(
         By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
@@ -1735,7 +1773,58 @@ try {
       15_000,
     );
     await beta.click();
-    assert.equal(await beta.getAttribute("aria-pressed"), "true");
+    await expectChannels(["stable", "beta"]);
+    await (await channelButton("stable")).click();
+    await expectChannels(["beta"]);
+    await beta.click();
+    await expectChannels([]);
+    await (await channelButton("rolling")).click();
+    await expectChannels(["rolling"]);
+    await (await channelButton("All")).click();
+    await expectChannels([]);
+    await (await channelButton("stable")).click();
+    await beta.click();
+    await expectChannels(["stable", "beta"]);
+    await search.sendKeys("zelda");
+    await browser.wait(
+      async () =>
+        (await browser.findElements(By.css('[data-detail-origin^="catalog:card:"]'))).length > 0,
+      5_000,
+    );
+    const sort = By.xpath('//button[@role="combobox"][contains(., "Sort")]');
+    await browser.findElement(sort).click();
+    await browser
+      .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Name A–Z")]')), 5_000)
+      .click();
+    const card = await browser.findElement(By.css('[data-detail-origin^="catalog:card:"]'));
+    await browser.executeScript("arguments[0].scrollIntoView({block:'center'});", card);
+    const origin = await browser.executeScript(
+      (card) => ({
+        key: card.getAttribute("data-detail-origin"),
+        scroll: document.querySelector("main").scrollTop,
+      }),
+      card,
+    );
+    await card.click();
+    await browser.wait(until.elementLocated(By.css(".detail-back")), 15_000).click();
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          (key) => document.activeElement?.getAttribute("data-detail-origin") === key,
+          origin.key,
+        ),
+      5_000,
+    );
+    search = await browser.findElement(By.id("port-search"));
+    assert.equal(await search.getAttribute("value"), "zelda");
+    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
+    assert.ok(
+      Math.abs(
+        (await browser.executeScript("return document.querySelector('main').scrollTop")) -
+          origin.scroll,
+      ) <= 1,
+    );
+    await captureScenarioScreenshot("native-catalog-composed-channels");
     await search.click();
     assert.equal(await browser.executeScript("return document.activeElement.id"), "port-search");
     await browser.actions().keyDown(Key.CONTROL).sendKeys("4").keyUp(Key.CONTROL).perform();
@@ -1752,7 +1841,9 @@ try {
       );
       await browser.wait(
         async () => {
-          const connection = await browser.findElement(By.css(".github-auth"));
+          const connection = await browser.findElement(
+            By.xpath('//article[.//h2[normalize-space(.)="GitHub connection"]]'),
+          );
           const text = await connection.getText();
           return (
             !text.includes("Connection status unavailable") ||
@@ -1780,9 +1871,7 @@ try {
       );
       await browser.wait(until.elementIsVisible(review), 5_000);
       assert.ok((await review.getText()).includes(target));
-      await review
-        .findElement(By.xpath('.//button[normalize-space(.)="Switch whole library"]'))
-        .click();
+      await review.findElement(By.xpath('.//button[normalize-space(.)="Switch library"]')).click();
       const outcome = await browser.wait(
         async () => {
           const status = await invoke("get_bootstrap_status");
@@ -1801,6 +1890,39 @@ try {
         15_000,
         "Owned library switch did not advance bootstrap generation",
       );
+      if (outcome !== "switched") {
+        const diagnostic = { outcome };
+        try {
+          diagnostic.technical_text = await browser.executeScript(() => {
+            const article = [...document.querySelectorAll("article")].find((element) =>
+              [...element.querySelectorAll("h2")].some(
+                (heading) => heading.textContent.trim() === "Library at startup",
+              ),
+            );
+            return (
+              article?.querySelector('[role="alert"] .failure-details pre')?.textContent ?? null
+            );
+          });
+          if (diagnostic.technical_text) {
+            try {
+              diagnostic.technical_projection = JSON.parse(diagnostic.technical_text);
+            } catch (error) {
+              diagnostic.parse_error = String(error);
+            }
+          } else {
+            diagnostic.capture_error = "Library switch technical projection is absent";
+          }
+        } catch (error) {
+          diagnostic.capture_error = String(error);
+        }
+        const report = path.join(output, `${artifactName}-switch-failure.json`);
+        try {
+          await writeFile(report, JSON.stringify(diagnostic, null, 2), { flag: "wx" });
+          artifacts.push(report);
+        } catch (error) {
+          console.error("Library switch diagnostic write failed", String(error), diagnostic);
+        }
+      }
       assert.equal(outcome, "switched", `Library switch failed: ${JSON.stringify(outcome)}`);
       await browser.wait(
         until.elementLocated(By.xpath('//button[normalize-space(.)="Choose another library"]')),
@@ -1815,6 +1937,7 @@ try {
       By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
     );
     assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
+    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
     const alternateStatus = (await invoke("get_bootstrap_status")).value;
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
@@ -1824,6 +1947,8 @@ try {
       By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
     );
     assert.equal(await restoredBeta.getAttribute("aria-pressed"), "true");
+    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "true");
+    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
     assert.equal((await browser.findElements(By.css('[role="dialog"]'))).length, 0);
     await browser.wait(
       async () => (await browser.findElements(By.css(".loading-state"))).length === 0,

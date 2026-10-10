@@ -631,6 +631,18 @@ export function seedSelectedSetup(context) {
   assert.deepEqual(command(["source", "list"]), []);
   assert.deepEqual(command(["source", "roots", "list"]), []);
   const root = command(["source", "roots", "add", context.fixture.sourceJourney.directory]);
+  if (context.fixture.completionJourney) {
+    const initial = command(["source", "roots", "scan", "--max-entries", "2"]);
+    assert.equal(initial.coverage.batches, 1);
+    assert.equal(initial.coverage.can_resume, true);
+    assert.equal(initial.coverage.restart_required, false);
+    assert.equal(initial.report.entries_examined, 2);
+    assert.ok(
+      !initial.report.candidates.some(
+        (item) => item.profile_id === context.fixture.sourceJourney.profiles[0],
+      ),
+    );
+  }
   assert.deepEqual(command(["source", "list"]), []);
   return root;
 }

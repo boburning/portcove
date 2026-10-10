@@ -15,6 +15,34 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $script:lastNativeStage = 'setup'
+$script:pickerFieldEvidence = $null
+function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1) {
+    $all = @($Children)
+    $folderLabels = @($all | Where-Object { $_.Current.Name -eq 'Folder:' })
+    $edits = @($Children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit })
+    $samples = @($edits | Select-Object -First 16 | ForEach-Object {
+        $current = $_.Current
+        [pscustomobject]@{
+            name_kind = $(if ($current.Name -eq 'Folder:') { 'folder' } elseif ($current.Name -eq 'File name:') { 'file-name' } elseif ($current.Name -eq 'Folder name:') { 'folder-name' } elseif ([string]::IsNullOrEmpty($current.Name)) { 'empty' } else { 'other' })
+            automation_id = $(if ($current.AutomationId -cmatch '^[0-9]{1,8}$') { $current.AutomationId } else { 'other' })
+            owned = ($current.ProcessId -eq $applicationId)
+            enabled = [bool]$current.IsEnabled
+        }
+    })
+    [pscustomobject]@{ edit_count = $edits.Count; samples = $samples; truncated = ($edits.Count -gt 16)
+        native_edits = @(Get-NativePickerEditEvidence $window)
+        folder_matches = $FolderMatches
+        total_count = $all.Count
+        automation_element_count = @($all | Where-Object { $_ -is [System.Windows.Automation.AutomationElement] }).Count
+        folder_label_count = $folderLabels.Count
+        folder_label_type = $(if ($folderLabels.Count -eq 1) { $folderLabels[0].Current.ControlType.Id } else { 0 })
+        folder_descendant_owned_edits = $(if ($folderLabels.Count -eq 1) { @($folderLabels[0].FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.ProcessId -eq $applicationId }).Count } else { 0 })
+        owned_labeled_folder_edits = @($edits | Where-Object { $_.Current.ProcessId -eq $applicationId -and $_.Current.LabeledBy -and $_.Current.LabeledBy.Current.Name -eq 'Folder:' }).Count
+        owned_folder_matches = @($edits | Where-Object { $_.Current.Name -eq 'Folder:' -and $_.Current.ProcessId -eq $applicationId }).Count
+        folder_name_matches = @($edits | Where-Object { $_.Current.Name -eq 'Folder name:' }).Count
+        file_name_matches = @($edits | Where-Object { $_.Current.Name -eq 'File name:' }).Count
+        empty_name_matches = @($edits | Where-Object { [string]::IsNullOrEmpty($_.Current.Name) }).Count }
+}
 function Get-NativeFailureEvidence([Management.Automation.ErrorRecord]$Record) {
     # Only fixed identifiers and numeric locations/codes leave the helper.
     # Exception messages, source lines, target objects and full paths are private.
@@ -53,12 +81,13 @@ function Get-NativeFailureEvidence([Management.Automation.ErrorRecord]$Record) {
         }
     }
     [pscustomobject]@{ format_version = 1; stage = $stage; location = $location
-        exceptions = $details; exceptions_truncated = [bool]$exception }
+        exceptions = $details; exceptions_truncated = [bool]$exception
+        picker_fields = $script:pickerFieldEvidence }
 }
 trap {
     $nativeFailure = $_
     try {
-        $diagnostic = Get-NativeFailureEvidence $nativeFailure | ConvertTo-Json -Depth 5 -Compress
+        $diagnostic = Get-NativeFailureEvidence $nativeFailure | ConvertTo-Json -Depth 7 -Compress
         [Console]::Error.WriteLine("PORTCOVE_NATIVE_FAILURE $diagnostic")
     } catch { $null = $_ } # Secondary diagnostics must never replace the original error.
     break
@@ -115,6 +144,8 @@ $applicationId = [int]$application.ProcessId
 function Assert-LiveApplication {
     $live = Get-CimInstance Win32_Process -Filter "ProcessId = $applicationId"
     if (-not $live -or $live.CreationDate -ne $application.CreationDate -or $live.ExecutablePath -ne $application.ExecutablePath) { throw 'Owned application identity changed while waiting for confirmation.' }
+    $liveDriver = Get-CimInstance Win32_Process -Filter "ProcessId = $DriverProcessId"
+    if (-not $liveDriver -or $liveDriver.CreationDate -ne $tree.driver.CreationDate -or $liveDriver.ExecutablePath -ne $tree.driver.ExecutablePath) { throw 'Owned driver identity changed while waiting for confirmation.' }
 }
 if ($ObservePicker) {
     # Observation cancels without input. Prepared selection is separately limited
@@ -237,12 +268,14 @@ if ($ObservePicker) {
     $observation | ConvertTo-Json -Depth 5 -Compress
     exit 0
 }
+. (Join-Path $PSScriptRoot 'native-window-discovery.ps1')
 $condition = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@(
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId),
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $Title),
     [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)
 ))
 function Get-OwnedConfirmationWindows {
+    if ($DirectoryPath) { return Get-OwnedLibraryPickerWindows }
     $ownedWindows = @()
     $seen = [Collections.Generic.HashSet[string]]::new()
     Write-ObservationProgress 'exact-root-discovery-start'
@@ -290,22 +323,17 @@ while ([DateTime]::UtcNow -lt $deadline) {
     Start-Sleep -Milliseconds 100
 }
 if (-not $window) {
-    $ownedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $applicationId)
-    Write-ObservationProgress 'timeout-roots-start'
-    $roots = [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $ownedCondition)
-    $observed = @($roots | ForEach-Object {
+    $observed = @(Get-OwnedConfirmationWindows | ForEach-Object {
         [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; process = $_.Current.ProcessId }
-        Write-ObservationProgress 'timeout-nested-start'
-        $_.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Window)) | ForEach-Object {
-            [pscustomobject]@{ name = $_.Current.Name; class = $_.Current.ClassName; process = $_.Current.ProcessId }
-        }
     }) | ConvertTo-Json -Compress
     throw "Owned native confirmation did not appear. Owned window observations: $observed"
 }
 $windowScope = 'owned-exact-target'
+$nativeLibraryButton = $null
+$nativeLibraryWindowHandle = $null
 if ($FilePath -and $DirectoryPath) { throw 'Choose only one native picker input.' }
 if ($FilePath) {
-    Assert-LiveApplication
+    Assert-ExactConfirmationWindow $window
     if ($Button -ne 'Open' -or $Title -notin @('Choose local artwork', 'Choose game files', 'Choose ZIP file', 'Choose BIOS file')) { throw 'File input is limited to artwork, game-file, and BIOS pickers.' }
     $selected = (Resolve-Path -LiteralPath $FilePath).Path
     if (-not [IO.File]::Exists($selected)) { throw 'Owned picker fixture is not a file.' }
@@ -314,15 +342,26 @@ if ($FilePath) {
     $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
 }
 if ($DirectoryPath) {
-    Assert-LiveApplication
+    Assert-ExactConfirmationWindow $window
     if ($Button -ne 'Select Folder' -or $Title -ne 'Choose Portcove library') { throw 'Directory input is limited to the owned library picker.' }
     $selected = (Resolve-Path -LiteralPath $DirectoryPath).Path
     if (-not [IO.Directory]::Exists($selected)) { throw 'Owned picker fixture is not a directory.' }
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
-    if ($fields.Count -ne 1) { throw 'Expected one exact folder field in the owned library picker.' }
-    $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
+    $folderPanes = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Pane -and $_.Current.Name -eq 'Folder:' -and $_.Current.ProcessId -eq $applicationId })
+    if ($fields.Count -eq 0 -and $folderPanes.Count -eq 1) {
+        # This host's UIA provider exposes the native filename Edit as a Pane.
+        # Bind input to the observed common-dialog control, never an arbitrary edit.
+        $nativeLibraryWindowHandle = [IntPtr]$window.Current.NativeWindowHandle
+        $nativeLibraryButton = Set-NativeFolderText $window $selected
+    } elseif ($fields.Count -eq 1 -and $fields[0].Current.ProcessId -eq $applicationId) {
+        $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($selected)
+    } else {
+        try { $script:pickerFieldEvidence = Get-PickerFieldEvidence $children $fields.Count } catch { $null = $_ }
+        throw 'Expected one exact owned folder field in the library picker.'
+    }
 }
-if ($Button -ne '__observe__') {
+$selectedWindowHandle = if ($nativeLibraryButton) { $nativeLibraryWindowHandle } else { $window.Current.NativeWindowHandle }
+if ($Button -ne '__observe__' -and -not $nativeLibraryButton) {
     $buttonDeadline = [DateTime]::UtcNow.AddSeconds(10)
     $buttons = @()
     $children = @()
@@ -346,6 +385,9 @@ if ($Button -ne '__observe__') {
             continue
         }
         $window = $freshTargets[0].window
+        if ($DirectoryPath -and $window.Current.NativeWindowHandle -ne $selectedWindowHandle) {
+            throw 'Owned picker window changed after selection; no input permitted.'
+        }
         $children = $freshTargets[0].children
         $text = $freshTargets[0].text
         $buttons = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $_.Current.Name -eq $Button })
@@ -412,6 +454,12 @@ public static class PortcoveConsentWindow {
 }
 Write-ObservationProgress 'observation-complete'
 if ($Button -ne '__observe__') {
-    $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if ($nativeLibraryButton) {
+        Invoke-NativeLibraryPickerButton $nativeLibraryWindowHandle $nativeLibraryButton
+    } else {
+        Assert-ExactConfirmationWindow $window
+        if ($DirectoryPath -and $buttons[0].Current.ProcessId -ne $applicationId) { throw 'Owned library picker button identity changed; no input permitted.' }
+        $buttons[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    }
 }
 [pscustomobject]@{ application_pid = $applicationId; driver_pid = $DriverProcessId; application_path = $applicationFull; title = $Title; window_scope = $windowScope; button = $Button; text = $text; selected_file = $FilePath; selected_directory = $DirectoryPath; screenshot = $screenshotObservation } | ConvertTo-Json -Depth 4 -Compress

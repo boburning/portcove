@@ -5,6 +5,106 @@ import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
 
+test(
+  "actual library picker input paths refuse foreign controls and changed process/window identities",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-picker-input-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const confirmationPath = path.resolve("apps/desktop/scripts/native-confirmation.ps1");
+    const discoveryPath = path.resolve("apps/desktop/scripts/native-window-discovery.ps1");
+    const script = path.join(root, "input.ps1");
+    await writeFile(
+      script,
+      `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$ast = [Management.Automation.Language.Parser]::ParseFile('${confirmationPath.replaceAll("'", "''")}', [ref]$null, [ref]$null)
+$discoveryAst = [Management.Automation.Language.Parser]::ParseFile('${discoveryPath.replaceAll("'", "''")}', [ref]$null, [ref]$null)
+foreach ($entry in @(@($ast, 'Get-PickerFieldEvidence'), @($ast, 'Assert-LiveApplication'), @($ast, 'Get-OwnedConfirmationWindows'), @($discoveryAst, 'Assert-ExactConfirmationWindow'), @($discoveryAst, 'Get-OwnedLibraryPickerWindows'))) {
+    $definition = $entry[0].Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $entry[1] }, $true)
+    . ([scriptblock]::Create($definition.Extent.Text))
+}
+$discoveryLoop = $ast.Find({ param($node) $node -is [Management.Automation.Language.WhileStatementAst] -and $node.Body.Extent.Text.Contains('$targets = @()') }, $true).Extent.Text
+$directoryInput = $ast.Find({ param($node) $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.StartsWith('if ($DirectoryPath)') -and $node.Extent.Text.Contains('.SetValue($selected)') }, $true).Extent.Text
+$buttonSelection = $ast.Find({ param($node) $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.Contains('$buttonDeadline =') }, $true).Extent.Text
+$buttonInput = $ast.Find({ param($node) $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.StartsWith('if ($Button -ne') -and $node.Extent.Text.Contains("GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()") }, $true).Extent.Text
+if (-not $discoveryLoop -or -not $directoryInput -or -not $buttonSelection -or -not $buttonInput) { throw 'Production input inventory changed' }
+function Get-CimInstance {
+    param($ClassName, $Filter)
+    if ($Filter -ceq 'ProcessId = 42' -and $script:liveApp.ProcessId -eq 42) { $script:liveApp }
+    if ($Filter -ceq 'ProcessId = 43' -and $script:liveDriver.ProcessId -eq 43) { $script:liveDriver }
+}
+function Write-ObservationProgress { param($stage) }
+function Get-NativePickerHandles { if ($script:case -eq 'ambiguous') { 7; 8 } elseif ($script:replaceWindow) { 8 } else { 7 } }
+function Test-NativePickerWindow { param($handle) $true }
+function New-FakeControl($name, $type, $process) {
+    $control = [pscustomobject]@{ Current = [pscustomobject]@{ Name = $name; ControlType = $type; ProcessId = $process; IsEnabled = $true } }
+    $control | Add-Member ScriptMethod GetCurrentPattern { param($pattern) $this }
+    $control | Add-Member ScriptMethod SetValue { param($value) $script:values++; $script:selected = $value; if ($script:case -eq 'replaced-window') { $script:replaceWindow = $true } }
+    $control | Add-Member ScriptMethod Invoke { $script:invocations++ }
+    return $control
+}
+function Get-PickerFieldEvidence { throw 'secondary picker capture failure' }
+function Set-NativeFolderText { param($window, $value) Assert-ExactConfirmationWindow $window; $script:values++; $script:selected = $value; if ($script:case -eq 'native-late-driver') { $script:liveDriver.CreationDate = 'changed' }; [IntPtr]9 }
+function Invoke-NativeLibraryPickerButton { param($window, $buttonHandle) Assert-LiveApplication; if ($window -ne 7 -or $buttonHandle -ne 9) { throw 'wrong captured native target' }; $script:invocations++ }
+function Get-NativePickerElement {
+    param($handle)
+    $window = [pscustomobject]@{ Current = [pscustomobject]@{ Name = $Title; ControlType = [System.Windows.Automation.ControlType]::Window; ProcessId = 42; NativeWindowHandle = [int]$handle } }
+    $window | Add-Member ScriptMethod FindAll { param($scope, $condition) $script:controls }
+    return $window
+}
+$applicationId = 42; $DriverProcessId = 43; $Title = 'Choose Portcove library'; $ExpectedText = 'Folder'; $Button = 'Select Folder'
+$DirectoryPath = '${root.replaceAll("'", "''")}'; $FilePath = $null
+$application = [pscustomobject]@{ ProcessId = 42; CreationDate = 'app-birth'; ExecutablePath = 'owned-app' }
+$tree = [pscustomobject]@{ driver = [pscustomobject]@{ ProcessId = 43; CreationDate = 'driver-birth'; ExecutablePath = 'owned-driver' } }
+foreach ($script:case in @('valid', 'native-pane', 'native-late-driver', 'foreign-pane', 'duplicate-pane', 'app-birth', 'app-image', 'app-pid', 'driver-birth', 'driver-image', 'driver-pid', 'foreign-field', 'foreign-button', 'replaced-window', 'ambiguous')) {
+    $script:values = 0; $script:invocations = 0; $script:selected = $null; $script:replaceWindow = $false
+    $nativeLibraryButton = $null; $nativeLibraryWindowHandle = $null
+    $script:liveApp = [pscustomobject]@{ ProcessId = 42; CreationDate = 'app-birth'; ExecutablePath = 'owned-app' }
+    $script:liveDriver = [pscustomobject]@{ ProcessId = 43; CreationDate = 'driver-birth'; ExecutablePath = 'owned-driver' }
+    switch ($script:case) {
+        app-birth { $script:liveApp.CreationDate = 'changed' } app-image { $script:liveApp.ExecutablePath = 'changed' } app-pid { $script:liveApp.ProcessId = 99 }
+        driver-birth { $script:liveDriver.CreationDate = 'changed' } driver-image { $script:liveDriver.ExecutablePath = 'changed' } driver-pid { $script:liveDriver.ProcessId = 99 }
+    }
+    $fieldProcess = if ($script:case -eq 'foreign-field') { 99 } else { 42 }
+    $buttonProcess = if ($script:case -eq 'foreign-button') { 99 } else { 42 }
+    $script:controls = @((New-FakeControl 'Folder:' ([System.Windows.Automation.ControlType]::Edit) $fieldProcess), (New-FakeControl 'Select Folder' ([System.Windows.Automation.ControlType]::Button) $buttonProcess))
+    if ($script:case -in @('native-pane', 'native-late-driver', 'foreign-pane', 'duplicate-pane')) {
+        $script:controls[0].Current.ControlType = [System.Windows.Automation.ControlType]::Pane
+        if ($script:case -eq 'foreign-pane') { $script:controls[0].Current.ProcessId = 99 }
+        if ($script:case -eq 'duplicate-pane') { $script:controls += New-FakeControl 'Folder:' ([System.Windows.Automation.ControlType]::Pane) 42 }
+    }
+    $window = $null; $children = @(); $deadline = [DateTime]::UtcNow.AddSeconds(1); $rejected = $false
+    try {
+        . ([scriptblock]::Create($discoveryLoop))
+        . ([scriptblock]::Create($directoryInput))
+        $selectedWindowHandle = $window.Current.NativeWindowHandle
+        . ([scriptblock]::Create($buttonSelection))
+        . ([scriptblock]::Create($buttonInput))
+    } catch { $rejected = $true; $script:failureReason = $_.Exception.Message }
+    if ($script:case -in @('valid', 'native-pane')) {
+        if ($rejected -or $script:values -ne 1 -or $script:invocations -ne 1 -or $script:selected -cne $DirectoryPath) { throw "Valid actual mutation path failed: values=$script:values invocations=$script:invocations reason=$script:failureReason" }
+    } else {
+        $expectedValues = if ($script:case -in @('foreign-button', 'replaced-window', 'native-late-driver')) { 1 } else { 0 }
+        if (-not $rejected -or $script:values -ne $expectedValues -or $script:invocations -ne 0) { throw "Unsafe actual input on $script:case" }
+        if ($script:case -eq 'foreign-field' -and $script:failureReason -cne 'Expected one exact owned folder field in the library picker.') { throw 'Secondary picker capture replaced guard failure' }
+    }
+}
+'actual-input-contract-passed'
+`,
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /actual-input-contract-passed/);
+  },
+);
+
 const helper = path.resolve("apps/desktop/scripts/native-confirmation.ps1");
 
 test("bootstrap legacy Profile binding retains choices and default without acquiring tools", async (t) => {
@@ -166,9 +266,11 @@ async function isolatedPowerShell(t, fixture, { trap = false } = {}) {
 $ErrorActionPreference = 'Stop'
 $ast = [Management.Automation.Language.Parser]::ParseFile('${helper.replaceAll("'", "''")}', [ref]$null, [ref]$null)
 $projection = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-NativeFailureEvidence' }, $false).Extent.Text
+$pickerProjection = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-PickerFieldEvidence' }, $false).Extent.Text
 $progress = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Write-ObservationProgress' }, $false).Extent.Text
 $trapText = $ast.Find({ param($node) $node -is [Management.Automation.Language.TrapStatementAst] }, $false).Extent.Text
 $fixture = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(fixture).toString("base64")}'))
+. ([scriptblock]::Create($pickerProjection))
 # Evaluate only diagnostic definitions and controlled exceptions: no assemblies,
 # process discovery, picker enumeration or input from the production script.
 & ([scriptblock]::Create($projection + "\n" + $progress + "\n" + ${trap ? "$trapText + [Environment]::NewLine +" : ""} $fixture))
@@ -203,6 +305,45 @@ Get-NativeFailureEvidence $record | ConvertTo-Json -Depth 5 -Compress
     { type: "System.Runtime.InteropServices.COMException", hresult: "0x80004005" },
   ]);
 });
+
+test(
+  "picker field diagnostics distinguish absence, ambiguity and ownership without private text",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const result = await isolatedPowerShell(
+      t,
+      `
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$applicationId = 42
+function Get-NativePickerEditEvidence { @() }
+function New-Field($name, $id, $process) {
+    $field = [pscustomobject]@{ Current = [pscustomobject]@{ ControlType = [System.Windows.Automation.ControlType]::Edit; Name = $name; AutomationId = $id; ProcessId = $process; IsEnabled = $true; Value = 'secret-path' } }
+    $field | Add-Member ScriptMethod FindAll { param($scope, $condition) @() }
+    $field
+}
+$foreign = New-Field 'Folder:' '1152' 99
+$private = New-Field 'secret-name' 'secret-id' 42
+@(Get-PickerFieldEvidence @(); Get-PickerFieldEvidence @($foreign, $private); Get-PickerFieldEvidence @(1..33 | ForEach-Object { $foreign })) | ConvertTo-Json -Depth 7 -Compress
+`,
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.doesNotMatch(result.stdout, /secret/);
+    const [absent, mixed, bounded] = JSON.parse(result.stdout);
+    assert.equal(absent.edit_count, 0);
+    assert.deepEqual(absent.samples, []);
+    assert.equal(absent.total_count, 0);
+    assert.equal(mixed.owned_folder_matches, 0);
+    assert.equal(mixed.folder_label_count, 1);
+    assert.deepEqual(mixed.samples, [
+      { name_kind: "folder", automation_id: "1152", owned: false, enabled: true },
+      { name_kind: "other", automation_id: "other", owned: true, enabled: true },
+    ]);
+    assert.equal(bounded.edit_count, 33);
+    assert.equal(bounded.samples.length, 16);
+    assert.equal(bounded.truncated, true);
+  },
+);
 
 test("projection bounds chains and treats absent or unknown details explicitly", async (t) => {
   const result = await isolatedPowerShell(
@@ -266,13 +407,14 @@ test(
     const { result } = await isolatedConsumer(
       t,
       `
-const payload = { format_version: 1, stage: 'nested-discovery-start', location: { script: 'native-confirmation.ps1', line: 250, column: 4, path: 'secret' }, exceptions: [{ type: 'System.Exception', hresult: '0x80131500', message: 'secret' }], exceptions_truncated: false, secret: 'private' };
+const payload = { format_version: 1, stage: 'nested-discovery-start', location: { script: 'native-confirmation.ps1', line: 250, column: 4, path: 'secret' }, exceptions: [{ type: 'System.Exception', hresult: '0x80131500', message: 'secret' }], exceptions_truncated: false, secret: 'private', picker_fields: { native_edits: [{ control_id: 1152, parent_id: 1148, parent_class: "other", uia_control_type: 0, owned: null, value_pattern: null }], folder_label_type: 50004, folder_descendant_owned_edits: 0, owned_labeled_folder_edits: 0, folder_matches: 1, total_count: 1, automation_element_count: 1, folder_label_count: 1, owned_folder_matches: 0, folder_name_matches: 0, file_name_matches: 0, empty_name_matches: 0, edit_count: 1, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true, value: 'secret' }], truncated: false, path: 'secret' } };
 for (const [index, stderr] of ['PORTCOVE_NATIVE_FAILURE {bad', 'PORTCOVE_NATIVE_FAILURE ' + 'x'.repeat(5000), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify(payload), 'PORTCOVE_NATIVE_FAILURE ' + JSON.stringify({ ...payload, stage: 'secret' })].entries()) {
   globalThis.result = { status: 1, signal: null, stdout: 'private', stderr };
   await assert.rejects(nativeConfirmation({ application: 'owned', getDriverPid: () => 1, output, artifacts })('fixture', '__observe__', 'fixture', 'case-' + index), error => error.actual === 1);
   const receipt = await readFile(path.join(output, 'case-' + index + '-helper-result.json'), 'utf8');
   assert.doesNotMatch(receipt, /private|secret/);
   assert.equal(JSON.parse(receipt).diagnostic === null, index !== 2);
+  if (index === 2) assert.deepEqual(JSON.parse(receipt).diagnostic.picker_fields, { native_edits: [{ control_id: 1152, parent_id: 1148, parent_class: "other", uia_control_type: 0, owned: null, value_pattern: null }], folder_label_type: 50004, folder_descendant_owned_edits: 0, owned_labeled_folder_edits: 0, folder_matches: 1, total_count: 1, automation_element_count: 1, folder_label_count: 1, owned_folder_matches: 0, folder_name_matches: 0, file_name_matches: 0, empty_name_matches: 0, edit_count: 1, truncated: false, samples: [{ name_kind: 'folder', automation_id: '1152', owned: false, enabled: true }] });
 }
 `,
     );
@@ -319,5 +461,188 @@ assert.equal(artifacts.length, 1);
 `,
     );
     assert.equal(result.status, 0, result.stderr);
+  },
+);
+
+test(
+  "library picker discovery excludes unrelated providers and refuses changed identities",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-native-discovery-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const helper = path.resolve("apps/desktop/scripts/native-window-discovery.ps1");
+    const script = path.join(root, "probe.ps1");
+    await writeFile(
+      script,
+      `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationTypes
+$ast = [Management.Automation.Language.Parser]::ParseFile('${helper.replaceAll("'", "''")}', [ref]$null, [ref]$null)
+foreach ($name in @('Assert-ExactConfirmationWindow', 'Get-OwnedLibraryPickerWindows')) {
+    $definition = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name }, $true)
+    . ([scriptblock]::Create($definition.Extent.Text))
+}
+$applicationId = 42; $Title = 'Choose Portcove library'; $DirectoryPath = 'owned-fixture'
+$script:live = $true; $script:validHandle = $true; $script:visited = @(); $script:handles = @(7)
+function Assert-LiveApplication { if (-not $script:live) { throw 'application identity changed' } }
+function Write-ObservationProgress { param($stage) $script:lastStage = $stage }
+function Get-NativePickerHandles { $script:handles }
+function Test-NativePickerWindow { param($handle) $script:validHandle }
+function Get-NativePickerElement {
+    param($handle)
+    $script:visited += [int]$handle
+    if ($handle -eq 99) { throw 'unrelated WebView provider visited' }
+    if ($script:providerFailure) { throw [Runtime.InteropServices.COMException]::new('exact candidate provider failed', -2147467259) }
+    [pscustomobject]@{ Current = [pscustomobject]@{ NativeWindowHandle = $handle; ProcessId = $script:candidatePid; Name = $script:candidateTitle; ControlType = [System.Windows.Automation.ControlType]::Window } }
+}
+$script:candidatePid = 42; $script:candidateTitle = $Title
+$found = @(Get-OwnedLibraryPickerWindows)
+if ($found.Count -ne 1 -or $script:visited.Count -ne 1 -or $script:visited[0] -ne 7) { throw 'exact picker discovery failed' }
+# Both candidates must reach the caller; discovery must never silently choose one.
+$script:handles = @(7, 8)
+if (@(Get-OwnedLibraryPickerWindows).Count -ne 2) { throw 'ambiguity hidden' }
+$script:handles = @()
+if (@(Get-OwnedLibraryPickerWindows).Count -ne 0) { throw 'absent picker accepted' }
+$script:handles = @(7)
+foreach ($case in @('pid', 'title', 'handle', 'application')) {
+    $script:candidatePid = 42; $script:candidateTitle = $Title; $script:validHandle = $true; $script:live = $true
+    switch ($case) { pid { $script:candidatePid = 43 } title { $script:candidateTitle = 'other' } handle { $script:validHandle = $false } application { $script:live = $false } }
+    $rejected = $false
+    try { Get-OwnedLibraryPickerWindows } catch { $rejected = $true }
+    if (-not $rejected) { throw "changed $case identity accepted" }
+}
+$script:live = $true; $script:candidatePid = 42; $script:candidateTitle = $Title; $script:validHandle = $true; $script:providerFailure = $true
+$rejected = $false
+try { Get-OwnedLibraryPickerWindows } catch {
+    $rejected = $_.Exception -is [Runtime.InteropServices.COMException] -and $_.Exception.HResult -eq -2147467259
+}
+if (-not $rejected -or $script:lastStage -ne 'exact-root-discovery-ready') { throw 'exact provider failure lost' }
+'discovery-contract-passed'
+`,
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /discovery-contract-passed/);
+  },
+);
+
+test(
+  "actual HWND selection algorithm filters, deduplicates and bounds enumeration",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-hwnd-selection-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const helper = path.resolve("apps/desktop/scripts/native-window-discovery.ps1");
+    const script = path.join(root, "algorithm.ps1");
+    await writeFile(
+      script,
+      `
+$ErrorActionPreference = 'Stop'
+$source = [IO.File]::ReadAllText('${helper.replaceAll("'", "''")}')
+$code = [regex]::Match($source, "(?s)Add-Type -TypeDefinition @'\\r?\\n(.*?)\\r?\\n'@").Groups[1].Value
+if (-not $code) { throw 'production algorithm absent' }
+# Replace only the five OS boundaries; compile the production Matches/Find bodies.
+$pattern = '(?m)^    \\[DllImport[^\\r\\n]+private static extern[^\\r\\n]+;'
+if ([regex]::Matches($code, $pattern).Count -ne 15) { throw 'OS boundary inventory changed' }
+$code = [regex]::Replace($code, $pattern, '')
+$boundary = @'
+    public static bool overflow = false, failed = false, disappeared = false;
+    public static string fieldCase = "valid", sentText = null;
+    public static int sends = 0, itemCalls = 0;
+    public static int clicks = 0;
+    public static int reads = 0;
+    private static bool EnumWindows(Visitor visit, IntPtr state) {
+        if (failed) return false;
+        int limit = overflow ? 5000 : 4;
+        for (int i = 1; i <= limit; i++) if (!visit(new IntPtr(i), state)) return false;
+        return true;
+    }
+    private static bool EnumChildWindows(IntPtr parent, Visitor visit, IntPtr state) {
+        if (parent.ToInt32() == 1) { visit(new IntPtr(2), state); visit(new IntPtr(5), state); }
+        if (parent.ToInt32() == 2) { visit(new IntPtr(5), state); visit(new IntPtr(3), state); }
+        return true;
+    }
+    private static uint GetWindowThreadProcessId(IntPtr handle, out uint process) {
+        process = handle.ToInt32() == 3 || (handle.ToInt32() == 11 && (fieldCase == "button-foreign" || (fieldCase == "late-button-foreign" && reads > 0))) || (handle.ToInt32() == 9 && (fieldCase == "foreign" || (fieldCase == "late-foreign" && itemCalls > 1))) ? 99u : 42u; return 1;
+    }
+    private static int GetWindowText(IntPtr handle, StringBuilder text, int capacity) {
+        string title = handle.ToInt32() == 11 ? (fieldCase == "button-caption" ? "other" : "Select Folder") : handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : "Choose Portcove library";
+        text.Append(title); return title.Length;
+    }
+    private static bool IsWindow(IntPtr handle) { return !disappeared; }
+    private static int GetClassName(IntPtr handle, StringBuilder name, int capacity) {
+        name.Append(handle.ToInt32() == 11 ? (fieldCase == "button-class" ? "other" : "Button") : handle.ToInt32() == 2 ? (fieldCase == "root-class" ? "other" : "#32770") : handle.ToInt32() == 6 ? "ComboBox" : handle.ToInt32() == 9 && fieldCase == "field-class" ? "other" : "Edit"); return name.Length;
+    }
+    private static int GetDlgCtrlID(IntPtr handle) { return handle.ToInt32() == 11 ? (fieldCase == "button-id" ? 99 : 1) : handle.ToInt32() == 9 && fieldCase == "field-id" ? 99 : handle.ToInt32() == 6 ? 1148 : 1152; }
+    private static IntPtr GetParent(IntPtr handle) { return new IntPtr(handle.ToInt32() == 11 ? (fieldCase == "button-parent" ? 6 : 2) : handle.ToInt32() == 9 && fieldCase != "parent" ? 2 : 6); }
+    private static IntPtr GetDlgItem(IntPtr window, int id) { if (id == 1) return new IntPtr(fieldCase == "button-replacement" ? 12 : 11); itemCalls++; return new IntPtr(fieldCase == "replacement" && itemCalls > 1 ? 10 : fieldCase == "absent" ? 0 : 9); }
+    private static bool IsWindowEnabled(IntPtr window) { return !(window.ToInt32() == 11 && fieldCase == "button-disabled") && fieldCase != "disabled" && !(fieldCase == "late-disabled" && itemCalls > 1) && !(window.ToInt32() == 2 && (fieldCase == "root-disabled" || (fieldCase == "late-root-disabled" && itemCalls > 0))); }
+    private static int GetWindowStyle(IntPtr window, int index) {
+        if (index != -16) throw new Exception("wrong style index");
+        return fieldCase == "readonly" || (fieldCase == "late-readonly" && itemCalls > 1) ? 0x0800 : 0;
+    }
+    private static IntPtr SendText(IntPtr window, uint message, UIntPtr parameter, string text, uint flags, uint timeout, out UIntPtr result) {
+        if (window.ToInt32() != 9 || message != 12 || flags != 34 || timeout != 5000) throw new Exception("wrong native text target");
+        sends++; sentText = text; result = new UIntPtr(1); return fieldCase == "timeout" ? IntPtr.Zero : new IntPtr(1);
+    }
+    private static IntPtr GetForegroundWindow() { return new IntPtr(fieldCase == "background" || (fieldCase == "late-background" && reads > 0) ? 8 : 2); }
+    private static IntPtr SendClick(IntPtr window, uint message, UIntPtr parameter, IntPtr data, uint flags, uint timeout, out UIntPtr result) {
+        if (window.ToInt32() != 11 || message != 245 || flags != 34 || timeout != 5000 || data != IntPtr.Zero || parameter != UIntPtr.Zero) throw new Exception("wrong native click target");
+        clicks++; result = UIntPtr.Zero; return fieldCase == "click-timeout" ? IntPtr.Zero : new IntPtr(1);
+    }
+    private static IntPtr ReadCaption(IntPtr window, uint message, UIntPtr capacity, StringBuilder text, uint flags, uint timeout, out UIntPtr result) {
+        if (window.ToInt32() != 11 || message != 13 || capacity.ToUInt64() != 512 || flags != 34 || timeout != 1000) throw new Exception("wrong native caption read");
+        reads++;
+        text.Append(fieldCase == "button-caption" ? "other" : "Select Folder");
+        result = new UIntPtr((uint)text.Length); return fieldCase == "read-timeout" ? IntPtr.Zero : new IntPtr(1);
+    }
+'@
+$insertion = $code.IndexOf('    public static bool Matches')
+$code = $code.Insert($insertion, $boundary + [Environment]::NewLine)
+Add-Type -TypeDefinition $code
+$handles = @([PortcoveNativeWindows]::Find(42, 'Choose Portcove library') | ForEach-Object { $_.ToInt32() } | Sort-Object)
+if (($handles -join ',') -cne '2,5') { throw 'PID/title/child filtering or deduplication changed' }
+$edits = @([PortcoveNativeWindows]::InspectEdits([IntPtr]2, 42, 'Choose Portcove library'))
+if ($edits.Count -ne 1 -or $edits[0].handle.ToInt32() -ne 5 -or $edits[0].control_id -ne 1152 -or $edits[0].parent_id -ne 1148 -or $edits[0].parent_class -cne 'ComboBox') { throw 'Owned structural edit inspection changed' }
+foreach ($case in @('valid', 'foreign', 'root-class', 'field-class', 'field-id', 'parent', 'replacement', 'absent', 'disabled', 'readonly', 'root-disabled', 'late-root-disabled', 'late-foreign', 'late-disabled', 'late-readonly', 'timeout')) {
+    [PortcoveNativeWindows]::fieldCase = $case; [PortcoveNativeWindows]::sends = 0; [PortcoveNativeWindows]::itemCalls = 0
+    $rejected = $false
+    try { [PortcoveNativeWindows]::SetFolderText([IntPtr]2, 42, 'Choose Portcove library', 'owned-fixture') } catch { $rejected = $true }
+    $expectedSends = if ($case -in @('valid', 'timeout')) { 1 } else { 0 }
+    if ([PortcoveNativeWindows]::sends -ne $expectedSends -or $rejected -ne ($case -ne 'valid')) { throw "Native text boundary failed $case" }
+    if ($case -eq 'valid' -and [PortcoveNativeWindows]::sentText -cne 'owned-fixture') { throw 'Native text value changed' }
+}
+[PortcoveNativeWindows]::fieldCase = 'valid'
+foreach ($case in @('valid', 'button-foreign', 'late-button-foreign', 'button-class', 'button-id', 'button-parent', 'button-caption', 'button-disabled', 'button-replacement', 'background', 'late-background', 'root-class', 'root-disabled', 'read-timeout', 'click-timeout')) {
+    [PortcoveNativeWindows]::fieldCase = $case; [PortcoveNativeWindows]::clicks = 0; [PortcoveNativeWindows]::reads = 0
+    $rejected = $false
+    try { [PortcoveNativeWindows]::PressFolderButton([IntPtr]2, [IntPtr]11, 42, 'Choose Portcove library') } catch { $rejected = $true }
+    $expectedClicks = if ($case -in @('valid', 'click-timeout')) { 1 } else { 0 }
+    if ([PortcoveNativeWindows]::clicks -ne $expectedClicks -or $rejected -ne ($case -ne 'valid')) { throw "Native click boundary failed $case" }
+}
+[PortcoveNativeWindows]::fieldCase = 'valid'
+[PortcoveNativeWindows]::disappeared = $true
+if ([PortcoveNativeWindows]::Matches([IntPtr]2, 42, 'Choose Portcove library')) { throw 'disappeared HWND accepted' }
+[PortcoveNativeWindows]::disappeared = $false
+foreach ($case in @('overflow', 'failed')) {
+    if ($case -eq 'overflow') { [PortcoveNativeWindows]::overflow = $true } else { [PortcoveNativeWindows]::overflow = $false; [PortcoveNativeWindows]::failed = $true }
+    $rejected = $false
+    try { [PortcoveNativeWindows]::Find(42, 'Choose Portcove library') } catch { $rejected = $true }
+    if (-not $rejected) { throw "incomplete $case enumeration accepted" }
+}
+'hwnd-contract-passed'
+`,
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15_000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /hwnd-contract-passed/);
   },
 );

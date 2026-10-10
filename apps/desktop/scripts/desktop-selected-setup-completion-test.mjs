@@ -155,12 +155,22 @@ export async function selectedSetupCompletionScenario({
       await click(By.xpath('//nav//button[contains(., "Settings")]'));
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
+      const initialSnapshot = await read("get_game_file_scan_snapshot");
+      assert.equal(initialSnapshot.coverage.batches, 1);
+      assert.equal(initialSnapshot.coverage.can_resume, true);
+      assert.equal(initialSnapshot.coverage.restart_required, false);
+      assert.equal(initialSnapshot.limits.max_entries, 2);
+      assert.ok(
+        !initialSnapshot.report.candidates.some((item) => item.profile_id === owned.profiles[0]),
+      );
+      assert.deepEqual(core(["source", "roots", "snapshot"]), initialSnapshot);
+      report.observations.initial_bounded_scan = initialSnapshot;
       const priorScans = new Set(
         (await read("get_activities")).records
           .filter((item) => item.operation === "discover_sources")
           .map((item) => item.id),
       );
-      await click(button("Scan saved folders"));
+      await click(button("Continue scan"));
       await browser.wait(
         async () =>
           (await read("get_activities")).records.some(
@@ -174,6 +184,15 @@ export async function selectedSetupCompletionScenario({
       );
       const snapshot = await read("get_game_file_scan_snapshot");
       assert.equal(snapshot.freshness, "inputs_match");
+      assert.equal(snapshot.coverage.batches, 2);
+      assert.equal(snapshot.coverage.frontier_exhausted, true);
+      assert.equal(snapshot.coverage.can_resume, false);
+      assert.equal(snapshot.coverage.restart_required, false);
+      assert.ok(snapshot.report.entries_examined > initialSnapshot.report.entries_examined);
+      assert.ok(snapshot.report.files_hashed > initialSnapshot.report.files_hashed);
+      assert.deepEqual(snapshot.limits, initialSnapshot.limits);
+      assert.deepEqual(core(["source", "roots", "snapshot"]), snapshot);
+      report.observations.continued_scan = snapshot;
       assert.deepEqual(
         snapshot.report.candidates.map((item) => item.profile_id).sort(),
         [...owned.profiles].sort(),

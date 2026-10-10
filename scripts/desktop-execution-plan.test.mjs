@@ -35,12 +35,40 @@ test("execution planning preserves the independently reviewed pre-change oracle"
     const plan = planDesktopExecution(selection);
     assert.deepEqual(plan.selection, row.selection);
     assert.deepEqual(
-      plan.receiptInputs.map((input) =>
-        input.kind === "executable" ? executableNames[input.name] : input.path,
-      ),
+      plan.receiptInputs
+        .filter((input) => {
+          if (input.path === "apps/desktop/scripts/native-window-discovery.ps1") return false;
+          // Keep the historical oracle immutable; only these explicit missing
+          // browsing-helper receipts supplement it, without changing execution.
+          return (
+            row.initial_receipt_inputs.includes(input.path) ||
+            ![
+              "apps/desktop/scripts/desktop-native-confirmation.mjs",
+              "apps/desktop/scripts/native-confirmation.ps1",
+            ].includes(input.path)
+          );
+        })
+        .map((input) => (input.kind === "executable" ? executableNames[input.name] : input.path)),
       row.initial_receipt_inputs,
     );
-    if (!row.harness_admission.error) assert.deepEqual(plan.session, row.harness_admission);
+    if (!row.harness_admission.error) {
+      const expectedSession = structuredClone(row.harness_admission);
+      // The retained oracle stays immutable; #244 deliberately adds positive
+      // owned exit proof to the completion journey through the existing owner.
+      if (selection.selected_scenarios.includes("native-selected-setup-completion")) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "selected-setup-completion";
+      }
+      // #1168's retained rollback witness also requires the existing positive
+      // exit owner. This intentional delta does not rewrite historical bytes.
+      if (selection.selected_scenarios.includes("native-retained-contract-repair-state")) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "retained-contract-repair";
+      }
+      assert.deepEqual(plan.session, expectedSession);
+    }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
     assert.deepEqual(
       plan.build.qualificationFeatures,
@@ -69,6 +97,35 @@ test("execution planning preserves the independently reviewed pre-change oracle"
   }
 });
 
+test("library browsing receipts bind every confirmation helper exactly once", () => {
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-library-browsing-context"],
+      platform: "win32",
+    }),
+  );
+  for (const name of [
+    "desktop-native-confirmation.mjs",
+    "native-confirmation.ps1",
+    "native-window-discovery.ps1",
+  ])
+    assert.equal(
+      plan.receiptInputs.filter((input) => input.path === `apps/desktop/scripts/${name}`).length,
+      1,
+    );
+  for (const row of baseline.rows.filter((row) => !row.selection_error)) {
+    const inputs = planDesktopExecution(
+      resolveDesktopSelection({ ...row.options, platform: row.platform }),
+    ).receiptInputs;
+    if (inputs.some((input) => input.path === "apps/desktop/scripts/native-confirmation.ps1"))
+      assert.equal(
+        inputs.filter((input) => input.path === "apps/desktop/scripts/native-window-discovery.ps1")
+          .length,
+        1,
+      );
+  }
+});
+
 test("setup-only requirements and membership belong to the execution plan", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-reviewed-installed-game-removal"],
@@ -83,6 +140,33 @@ test("setup-only requirements and membership belong to the execution plan", () =
   const copy = structuredClone(selection);
   planDesktopExecution(selection);
   assert.deepEqual(selection, copy);
+});
+
+test("selected setup completion requires identity-bound positive exit evidence", () => {
+  const completion = planDesktopExecution(
+    resolveDesktopSelection({ scenarios: ["native-selected-setup-completion"], platform: "win32" }),
+  );
+  assert.equal(completion.session.identityBoundSession, true);
+  assert.equal(completion.session.cleanupName, "selected-setup-completion");
+  assert.equal(desktopHarnessDeadlineMs(completion.selection), 180000);
+  const discovery = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-saved-folder-selected-setup"],
+      platform: "win32",
+    }),
+  );
+  assert.equal(discovery.session.identityBoundSession, false);
+});
+
+test("retained rollback repair requires identity-bound cleanup without changing its deadline", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-retained-contract-repair-state"],
+    platform: "win32",
+  });
+  const plan = planDesktopExecution(selection);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "retained-contract-repair");
+  assert.equal(desktopHarnessDeadlineMs(selection), 180000);
 });
 
 test("coordinator consumes supplied order and obtains browser at each invocation", async () => {

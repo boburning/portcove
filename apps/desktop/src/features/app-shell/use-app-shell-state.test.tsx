@@ -43,6 +43,39 @@ describe("app shell state", () => {
     });
   });
 
+  it("isolates structured Catalog selections from Library shortcuts across remounts", async () => {
+    await act(async () => state.setFilter("setup"));
+    await act(async () => state.setView("catalog"));
+    const filter = { version: 1, channels: ["stable", "beta"], platforms: ["windows-x86-64"] };
+    await act(async () => state.setFilter(filter));
+    initialInputs = state.browsingInputs;
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () => root.render(createElement(Fixture)));
+    expect(state.filter).toBe("setup");
+    await act(async () => state.setFilter("ready"));
+    await act(async () => state.setView("catalog"));
+    expect(state.filter).toEqual(filter);
+    expect(state.selectedId).toBeUndefined();
+    await act(async () => state.setView("library"));
+    expect(state.filter).toBe("ready");
+  });
+
+  it("retains unsupported legacy restored values as constrained queries", async () => {
+    initialInputs = {
+      ...state.browsingInputs,
+      sections: {
+        ...state.browsingInputs.sections,
+        catalog: { filter: "retired-channel" as never, query: "" },
+      },
+    };
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () => root.render(createElement(Fixture)));
+    await act(async () => state.setView("catalog"));
+    expect(state.filter).toEqual({ version: 1, channels: ["retired-channel"] });
+  });
+
   it("preserves independent Library and Catalog browsing inputs", async () => {
     await act(async () => {
       state.setFilter("ready");

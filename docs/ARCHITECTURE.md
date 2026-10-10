@@ -720,7 +720,11 @@ cancelling core work; this is not a durable scan intent or restart guarantee.
 Desktop presents core's optional completed-scan coverage with cumulative batch
 counts and explicit unknown remaining-entry counts. A refreshed, matching
 snapshot with a resumable frontier offers Continue scan; a required restart
-offers Start new scan. Both use the existing bounded scan command and limits.
+offers Start new scan. Both use the existing bounded scan command. Continuation
+preserves the fresh saved snapshot's limits, including a smaller CLI-created
+batch budget. Limits above Desktop's existing caps are refused with CLI/narrower
+folder guidance; a new scan retains Desktop's default budgets. Core revalidates
+the actual input and continuation fingerprints before execution.
 Exhausting the folder frontier does not erase skipped files or imply gameplay
 support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently
