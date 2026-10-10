@@ -133,6 +133,78 @@ it("scans only after a player asks and keeps exact results as reviewed candidate
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+function resumableSnapshot(): GameFileScanSnapshot {
+  return {
+    ...snapshot,
+    coverage: {
+      batch_entries_examined: 1,
+      batches: 2,
+      can_resume: true,
+      entries_relisted: 1,
+      frontier_exhausted: false,
+      metadata_checks: 2,
+      pending_directories: 1,
+      prior_member_rechecks: 1,
+      remaining_entries: null,
+      restart_required: false,
+    },
+  };
+}
+
+it("continues Core's saved frontier without discarding matches or changing scan budgets", async () => {
+  const continued = resumableSnapshot();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("These totals cover 2 scan batches.");
+  expect(document.body.textContent).toContain("The number of remaining entries is unknown.");
+  expect(document.body.textContent).toContain("Earlier matches were kept.");
+  expect(document.body.textContent).not.toContain("Remove or update saved folders");
+  expect(document.body.textContent).toContain("D:/Games/game.z64");
+  await click("Continue scan");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("keeps stale resumable results from advertising continuation", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+    ...resumableSnapshot(),
+    freshness: "inputs_changed",
+  });
+  await click("Refresh folders");
+  expect(button("Scan saved folders")).toBeDefined();
+  expect(document.body.textContent).not.toContain("Continue the scan to check another");
+  expect(document.body.textContent).toContain("Scan again before using these results.");
+});
+
+it("presents a required restart separately from another resumable batch", async () => {
+  const restarted = resumableSnapshot();
+  restarted.freshness = "inputs_changed";
+  restarted.coverage = { ...restarted.coverage!, can_resume: false, restart_required: true };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(restarted);
+  await click("Refresh folders");
+  expect(button("Start new scan")).toBeDefined();
+  expect(document.body.textContent).toContain("The saved scan cannot continue.");
+  await click("Start new scan");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledTimes(1);
+});
+
+it("keeps exhausted coverage distinct from skipped files and gameplay support", async () => {
+  const exhausted = resumableSnapshot();
+  exhausted.coverage = {
+    ...exhausted.coverage!,
+    can_resume: false,
+    frontier_exhausted: true,
+    remaining_entries: 0,
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(exhausted);
+  await click("Refresh folders");
+  expect(button("Scan saved folders")).toBeDefined();
+  expect(document.body.textContent).toContain("Skipped files and search limits still apply.");
+  expect(document.body.textContent).toContain(
+    "does not assess every source format or establish gameplay support",
+  );
+});
+
 it("marks matching registered candidates without claiming installation and keeps each port distinct", async () => {
   const source = snapshot.report.candidates[0];
   const onOpenPort = vi.fn();

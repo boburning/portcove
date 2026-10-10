@@ -736,6 +736,161 @@ async function recordSelectedSetupFailure(browser, report, error) {
   }
 }
 
+async function scanCoveragePresentation({ browser, snapshot, output, artifacts }) {
+  const { button, click } = reviewControls(browser);
+  let presentationFailure;
+  let cleanupFailure;
+  const observations = {
+    scope:
+      "controlled completed-snapshot presentation in actual Tauri; not backend resume execution",
+  };
+  await browser.executeScript((snapshot) => {
+    const native = window.__TAURI_INTERNALS__;
+    const original = window.fetch;
+    const readTarget = native.convertFileSrc("get_game_file_scan_snapshot", "ipc");
+    const scanTarget = native.convertFileSrc("scan_game_file_roots", "ipc");
+    const probe = { original, reads: 0, scans: 0, snapshot: structuredClone(snapshot) };
+    probe.snapshot.coverage = {
+      ...snapshot.coverage,
+      batches: 2,
+      can_resume: true,
+      frontier_exhausted: false,
+      remaining_entries: null,
+      restart_required: false,
+    };
+    probe.snapshot.report.limits_reached = ["entries"];
+    window.__portcoveCoverageProbe = probe;
+    window.fetch = function (input, ...args) {
+      const url = typeof input === "string" ? input : input.url;
+      if (url !== readTarget && url !== scanTarget) return original.call(window, input, ...args);
+      if (url === readTarget) probe.reads++;
+      else {
+        probe.scans++;
+        const body = args[0].body;
+        const payload = JSON.parse(
+          typeof body === "string" ? body : new TextDecoder().decode(body),
+        );
+        probe.limits = payload.limits;
+        if (!/^__CHANNEL__:\d+$/.test(payload.onEvent)) throw new Error("Unexpected scan Channel");
+        native.runCallback(Number(payload.onEvent.slice("__CHANNEL__:".length)), {
+          index: 0,
+          end: true,
+        });
+        Object.assign(probe.snapshot.coverage, {
+          batches: 3,
+          can_resume: false,
+          frontier_exhausted: true,
+          remaining_entries: 0,
+        });
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify(probe.snapshot), {
+          headers: { "Content-Type": "application/json", "Tauri-Response": "ok" },
+        }),
+      );
+    };
+  }, snapshot);
+  try {
+    await click(button("Refresh folders"));
+    const continueButton = await browser.wait(until.elementLocated(button("Continue scan")), 5_000);
+    assert.equal(await continueButton.isEnabled(), true);
+    const coverage = await browser.wait(
+      until.elementLocated(
+        By.xpath(
+          '//section[@aria-label="Saved folder scan results"]//p[contains(., "These totals cover 2 scan batches.") and contains(., "The number of remaining entries is unknown.")]',
+        ),
+      ),
+      5_000,
+    );
+    await browser.executeScript(
+      (element) => element.scrollIntoView({ block: "center", behavior: "instant" }),
+      coverage,
+    );
+    observations.presentation = await browser.wait(
+      () =>
+        browser.executeScript((element) => {
+          const bounds = element.getBoundingClientRect().toJSON();
+          const style = getComputedStyle(element);
+          if (
+            !element.isConnected ||
+            style.visibility !== "visible" ||
+            Number(style.opacity) === 0 ||
+            bounds.width <= 0 ||
+            bounds.height <= 0 ||
+            bounds.top < 0 ||
+            bounds.bottom > innerHeight ||
+            bounds.left < 0 ||
+            bounds.right > document.documentElement.clientWidth ||
+            element.getAnimations().some((animation) => animation.playState === "running")
+          )
+            return null;
+          return {
+            text: element.textContent.trim(),
+            bounds,
+            viewport: { width: innerWidth, height: innerHeight },
+          };
+        }, coverage),
+      5_000,
+      "Coverage copy must be settled and framed",
+    );
+    const screenshot = path.join(output, "selected-setup-scan-coverage.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(screenshot);
+    await click(button("Continue scan"));
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//p[contains(., "Skipped files and search limits still apply.")]'),
+      ),
+      5_000,
+    );
+    await browser.wait(until.elementLocated(button("Scan saved folders")), 5_000);
+    await browser.executeScript(() => {
+      window.__portcoveCoverageProbe.snapshot.freshness = "inputs_changed";
+      Object.assign(window.__portcoveCoverageProbe.snapshot.coverage, {
+        restart_required: true,
+        frontier_exhausted: false,
+      });
+    });
+    await click(button("Refresh folders"));
+    assert.equal(
+      await (await browser.wait(until.elementLocated(button("Start new scan")), 5_000)).isEnabled(),
+      true,
+    );
+  } catch (error) {
+    presentationFailure = error;
+    observations.failure = String(error);
+  } finally {
+    try {
+      Object.assign(
+        observations,
+        await browser.executeScript(() => {
+          const probe = window.__portcoveCoverageProbe;
+          window.fetch = probe.original;
+          return {
+            reads: probe.reads,
+            scans: probe.scans,
+            limits: probe.limits,
+            restored: window.fetch === probe.original,
+          };
+        }),
+      );
+      const report = path.join(output, "selected-setup-scan-coverage.json");
+      await writeFile(report, `${JSON.stringify(observations, null, 2)}\n`, { flag: "wx" });
+      artifacts.push(report);
+    } catch (error) {
+      cleanupFailure = error;
+      console.error(JSON.stringify({ observations, cleanup_failure: String(error) }));
+    }
+  }
+  if (presentationFailure) throw presentationFailure;
+  if (cleanupFailure) throw cleanupFailure;
+  assert.equal(observations.scans, 1);
+  assert.deepEqual(observations.limits, snapshot.limits);
+  assert.equal(observations.restored, true);
+  await click(button("Refresh folders"));
+  await browser.wait(until.elementLocated(button("Scan saved folders")), 5_000);
+}
+
 export async function selectedSetupScenario({
   browser,
   invoke,
@@ -1115,6 +1270,15 @@ export async function selectedSetupScenario({
         5_000,
         "Selected setup: return continuation after registered BIOS details",
       );
+      report.checkpoint = "controlled-coverage-presentation";
+      const registrationsBeforeCoverage = command(["source", "list"]);
+      await scanCoveragePresentation({
+        browser,
+        snapshot: await nativeRead("get_game_file_scan_snapshot"),
+        output,
+        artifacts,
+      });
+      assert.deepEqual(command(["source", "list"]), registrationsBeforeCoverage);
       report.checkpoint = "unavailable-root-refresh";
       await rename(owned.directory, missingRoot);
       rootMoved = true;

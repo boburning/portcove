@@ -717,6 +717,12 @@ request's progress, provisional matches and cancellation target, and does not
 start another scan. Settled or disposed-workspace callbacks cannot populate a
 new observer. Library replacement disposes observation without automatically
 cancelling core work; this is not a durable scan intent or restart guarantee.
+Desktop presents core's optional completed-scan coverage with cumulative batch
+counts and explicit unknown remaining-entry counts. A refreshed, matching
+snapshot with a resumable frontier offers Continue scan; a required restart
+offers Start new scan. Both use the existing bounded scan command and limits.
+Exhausting the folder frontier does not erase skipped files or imply gameplay
+support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently
 from API schema and validates candidate fields without changing lifecycle state.
 
