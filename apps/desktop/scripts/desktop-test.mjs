@@ -295,6 +295,7 @@ function validateBackupFocusInventory(captured) {
           "native-reviewed-backup-restore-and-delete",
           "native-game-update-review",
           "native-selected-setup-completion",
+          "native-preliminary-source-review",
           "native-retained-contract-repair-state",
           "native-backup-delete-focus",
           "native-host-interrupted-preparation",
