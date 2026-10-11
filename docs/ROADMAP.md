@@ -142,7 +142,7 @@ proceed before protected production execution. Use existing proposal/completion
 reports for reused/new work and observed costs, keeping unknown baselines explicit.
 Intended tooling stays in issue specifications until shipped.
 
-## Planned browsing enhancements
+## Required beta browsing
 
 [Composable catalog/library queries #1550](https://github.com/boburning/portcove/issues/1550)
 retain small, explainable filters and current browsing state. Separate owners cover
@@ -151,7 +151,11 @@ retain small, explainable filters and current browsing state. Separate owners co
 [later metadata, feature and recency browsing #1553](https://github.com/boburning/portcove/issues/1553).
 [Saved queries/sharing #1554](https://github.com/boburning/portcove/issues/1554) and
 [exact evidence browsing #1555](https://github.com/boburning/portcove/issues/1555) remain later independent additions.
-These Planned enhancements do not expand the Required Desktop/discovery boundary.
+Composable queries, local snapshots and Favorites are Required Public beta
+outcomes under the owner's October 10 commitment decision. The later metadata,
+saved-query and evidence-browsing owners retain their existing later targets and
+commitments. Live Project fields determine release readiness; this decision does
+not establish completion or qualification for any browsing component.
 Unknown facts remain visible in unfiltered browsing; operational filters reuse
 Core snapshots and do not authorize work or establish qualification. See the
 [dated reconciliation](archive/2026-10-05-browsing-reconciliation.md).
