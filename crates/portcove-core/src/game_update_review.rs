@@ -234,6 +234,46 @@ mod tests {
         assert_eq!(previous.status(PORT).unwrap().active.unwrap().version, "v2");
     }
 
+    #[tokio::test]
+    async fn an_unverified_matching_staged_update_is_held() {
+        let (_temporary, service) = fixture();
+        service
+            .library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE installs SET verified=0 WHERE port_id=?1 AND version='v2'",
+                [PORT],
+            )
+            .unwrap();
+        let before = service.status(PORT).unwrap();
+        let review = service.plan_game_update(PORT, false).await.unwrap();
+        assert_eq!(
+            review.plan.action,
+            crate::InstallPlanAction::BlockedUnverified
+        );
+        assert_eq!(
+            review.assessment.availability,
+            crate::PortActionAvailability::Held
+        );
+        assert_eq!(
+            review.assessment.reason,
+            crate::PortActionReason::InvalidInstallation
+        );
+        assert_eq!(
+            service
+                .authorize_game_update(PORT, false, &review.plan_sha256)
+                .await
+                .unwrap_err()
+                .code,
+            ErrorCode::Verification
+        );
+        let after = service.status(PORT).unwrap();
+        assert_eq!(after.active.unwrap().id, before.active.unwrap().id);
+        assert_eq!(after.staged.unwrap().id, before.staged.unwrap().id);
+        assert!(service.library.activities(100).unwrap().is_empty());
+    }
+
     #[test]
     fn staged_activation_needs_no_release_request_and_refuses_replaced_versions() {
         let (_temporary, service) = fixture();

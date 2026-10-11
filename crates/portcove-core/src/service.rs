@@ -1281,12 +1281,16 @@ impl PortcoveService {
         {
             return Ok(InstallPlanAction::AlreadyActive);
         }
-        if status
+        if let Some(staged) = status
             .staged
             .as_ref()
-            .is_some_and(|install| artifact_matches_release(install, release, runtime.as_ref()))
+            .filter(|install| artifact_matches_release(install, release, runtime.as_ref()))
         {
-            return Ok(InstallPlanAction::UseStaged);
+            return Ok(if staged.verified {
+                InstallPlanAction::UseStaged
+            } else {
+                InstallPlanAction::BlockedUnverified
+            });
         }
         let Some(retained) = self.library.install_by_artifact(
             &status.port_id,

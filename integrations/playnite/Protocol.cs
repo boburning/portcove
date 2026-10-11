@@ -221,7 +221,7 @@ namespace Portcove.ReferenceClient
                     throw new InvalidOperationException("Portcove action lacks a valid definition restriction. Refresh state.");
                 var parsed = DefinitionOperationDecision.Read(new Dictionary<string, object>
                 {
-                    { "operation", action }, { "eligibility", definition }, { "retained", action == "launch" }
+                    { "operation", action == "update" ? "install" : action }, { "eligibility", definition }, { "retained", action == "launch" }
                 });
                 if (parsed.Outcome == "eligible")
                     throw new InvalidOperationException("Portcove action has an eligible definition restriction. Refresh state.");
