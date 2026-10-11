@@ -149,6 +149,7 @@ mod probe {
         fs::create_dir(root)?;
         fs::create_dir(root.join("temp"))?;
         fs::create_dir(root.join("cache"))?;
+        fs::create_dir(root.join("profile"))?;
         write_new(&root.join("probe.c"), INPUT)?;
         let bin = tools.join("bin");
         let command = format!(
@@ -182,6 +183,7 @@ mod probe {
             )
             .env("TEMP", root.join("temp"))
             .env("TMP", root.join("temp"))
+            .env("USERPROFILE", root.join("profile"))
             .env("CCACHE_DIR", root.join("cache"))
             .env("CCACHE_TEMPDIR", root.join("temp"))
             .env("CCACHE_CONFIGPATH", root.join("ccache.conf"))

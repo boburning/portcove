@@ -31,7 +31,7 @@ mixed-slash failure.
 Only one first-party C source is compiled to one object. No game code, ROM, CMake
 regeneration, download, linker, executable output or full-build replay is used.
 Ninja has one worker. ccache receives fresh private configuration/cache/temp/log
-paths, a 16 MiB cache maximum and disabled remote storage. Its environment is
+paths, a fresh private `USERPROFILE`, a 16 MiB cache maximum and disabled remote storage. Its environment is
 explicitly rebuilt from the checked Windows root and selected tool bin; caller
 compiler/cache configuration is not inherited.
 
@@ -69,6 +69,13 @@ available API/wait/accounting facts; do not relabel a compiler result as quiesce
 Even a positive tiny result cannot establish full producer resource fit, all
 compiler/image lifetimes, historical cleanup, installed behavior or game setup.
 
-At source preparation, actual tool payload execution is **Not run**. Subsequent
-observations belong to the canonical owning issues and must name their literal
-source/binary/platform/packet rather than inheriting this document as acceptance.
+The first separately admitted attempt at `e74e60827b3252f647b8d078781c6299b5972b1a`
+failed at ccache's missing-`USERPROFILE` prerequisite; compiler/object success was
+not observed. Current owned-tree closure passed with complete three-member
+accounting and positive outer exit. Its packet and scratch are preserved; see
+[the owning receipt](https://github.com/boburning/portcove/issues/141#issuecomment-6104505321).
+The repaired source creates a fresh private profile rather than inheriting the
+player's profile. Actual execution of that repair is **Not run** at preparation.
+Subsequent observations belong to the canonical owning issues and must name
+their literal source/binary/platform/packet rather than inheriting this document
+as acceptance. Historical producer cleanup remains unknown.
