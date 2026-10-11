@@ -2909,7 +2909,7 @@ mod tests {
             PortActionReason as Reason,
         };
         let decision = |availability, reason| {
-            status_action(&PortActionAssessment {
+            super::status_action(&PortActionAssessment {
                 action: PortAction::Update,
                 availability,
                 reason,

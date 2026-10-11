@@ -4157,7 +4157,10 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, API_SCHEMA_VERSION);
+        assert_eq!(
+            capabilities.schema_version,
+            portcove_core::API_SCHEMA_VERSION
+        );
         assert!(
             capabilities
                 .commands
