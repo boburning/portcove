@@ -1,4 +1,4 @@
-//! Bounded, transient registered-input observations. No registration or acceptance writes.
+//! Bounded, transient registered-input observations. No source registration or acceptance writes.
 
 use std::{
     collections::HashMap,
@@ -41,6 +41,7 @@ pub struct RegisteredSourceInspectionBatch {
     pub schema_version: u32,
     pub library: crate::LibraryIdentity,
     pub catalog_sha256: String,
+    pub catalog_binding_sha256: String,
     pub registration_sha256: String,
     pub profile_ids: Vec<String>,
     pub limits: RegisteredSourceInspectionLimits,
@@ -52,6 +53,7 @@ pub struct RegisteredSourceInspectionBatch {
 impl PortcoveService {
     /// Explicit work outside query evaluation. Callers must await the blocking worker
     /// before terminal settlement and bind their request/library generation on acceptance.
+    /// Supply this batch's own coordinator: final return admits publication of its transient result.
     /// Only ordinary raw files are supported here; other readers remain NotChecked.
     pub fn inspect_registered_sources_bounded(
         &self,
@@ -102,6 +104,12 @@ impl PortcoveService {
         checkpoint(operation, started, limits)?;
         let library = self.library().identity_record()?;
         let catalog_sha256 = fingerprint(&self.catalog().authoritative_document())?;
+        let (effective, catalog_binding_sha256) = effective_binding(self.library())?;
+        if matcher_binding(self.catalog())? != matcher_binding(&effective)? {
+            return Err(PortcoveError::conflict(
+                "registered-source inspection service has a stale catalog",
+            ));
+        }
         let registrations = self.library().sources_for(&ids)?;
         let registration_sha256 = fingerprint(&registrations)?;
         let mut budget = HashBudget {
@@ -190,9 +198,10 @@ impl PortcoveService {
                 &observed.metadata,
             )?;
         }
+        let (_, current_catalog_binding) = effective_binding(self.library())?;
         if library != self.library().identity_record()?
             || registration_sha256 != fingerprint(&self.library().sources_for(&ids)?)?
-            || catalog_sha256 != fingerprint(&self.catalog().authoritative_document())?
+            || catalog_binding_sha256 != current_catalog_binding
         {
             return Err(PortcoveError::conflict(
                 "registered-source inspection inputs changed",
@@ -203,6 +212,7 @@ impl PortcoveService {
             schema_version: 1,
             library,
             catalog_sha256,
+            catalog_binding_sha256,
             registration_sha256,
             profile_ids: ids,
             limits: limits.clone(),
@@ -216,12 +226,38 @@ impl PortcoveService {
             ));
         }
         checkpoint(operation, started, limits)?;
+        // Atomically settle cancellation versus returning this transient observation set.
+        // A throttled chunk checkpoint alone cannot establish that a late request lost.
+        operation.begin_publication()?;
         Ok(batch)
     }
 }
 
 fn fingerprint(value: &impl Serialize) -> Result<String> {
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(value)?)))
+}
+
+fn matcher_binding(catalog: &crate::Catalog) -> Result<String> {
+    let document = catalog.authoritative_document();
+    let selections = document
+        .ports
+        .iter()
+        .map(|port| catalog.definition_selection(&port.id))
+        .collect::<Vec<_>>();
+    fingerprint(&(document, selections))
+}
+
+fn effective_binding(library: &crate::Library) -> Result<(crate::Catalog, String)> {
+    let before = library.catalog_status()?.state_sha256;
+    let (catalog, provenance) = library.load_catalog()?;
+    let after = library.catalog_status()?.state_sha256;
+    if before != after {
+        return Err(PortcoveError::conflict(
+            "catalog selection changed during inspection binding",
+        ));
+    }
+    let binding = fingerprint(&(matcher_binding(&catalog)?, provenance, after))?;
+    Ok((catalog, binding))
 }
 
 fn checkpoint(
@@ -276,8 +312,18 @@ fn inspect_raw(
     }
     let (raw_extensions, _) =
         crate::source_inspection::file_scan_extensions(service.catalog(), profile);
-    if !raw_extensions.is_empty()
-        && !raw_extensions
+    if service.catalog().source_catalog().is_some() && raw_extensions.is_empty() {
+        return Err(PortcoveError::unsupported(
+            "this profile has no bounded raw representation",
+        ));
+    }
+    let supported_extensions = if service.catalog().source_catalog().is_none() {
+        &profile.accepted_extensions
+    } else {
+        &raw_extensions
+    };
+    if !supported_extensions.is_empty()
+        && !supported_extensions
             .iter()
             .any(|accepted| accepted.eq_ignore_ascii_case(extension))
     {
@@ -294,7 +340,13 @@ fn inspect_raw(
     );
     if !cache.contains_key(&key) {
         let path = std::fs::canonicalize(&record.path)?;
-        let mut file = File::open(&path)?;
+        if !std::fs::symlink_metadata(&path)?.is_file() {
+            return Err(PortcoveError::unsupported(
+                "registered source is not an ordinary raw file",
+            ));
+        }
+        // The maintained identity opener refuses leaf redirects and cannot block on a raced FIFO.
+        let mut file = crate::external_runtime::open_identity_handle(&path)?;
         let metadata = file.metadata()?;
         crate::source_inspection::verify_open_source_location(&path, &file, &metadata)?;
         if !metadata.is_file() {
