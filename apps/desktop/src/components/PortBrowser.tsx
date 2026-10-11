@@ -40,7 +40,11 @@ import { Button } from "./ui/button";
 import { Menu } from "@base-ui/react/menu";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { SteamBatchEntryDialog } from "./SteamEntry";
-import { evaluateCatalogQuery, type CatalogQuery } from "../features/browsing/catalog-query";
+import {
+  evaluateCatalogQuery,
+  type CatalogQuery,
+  type CatalogQueryContext,
+} from "../features/browsing/catalog-query";
 import { CatalogFilters } from "../features/browsing/CatalogFilters";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
@@ -55,6 +59,7 @@ export function PortBrowser({
   ports,
   catalogFilterCandidates,
   libraryFilterCandidates,
+  queryContext,
   libraryReadiness = "all",
   setLibraryReadiness,
   statuses,
@@ -81,6 +86,7 @@ export function PortBrowser({
   catalogFilterCandidates?: PortDefinition[];
   /** Search and canonical Library membership, before readiness and declared query. */
   libraryFilterCandidates?: PortDefinition[];
+  queryContext?: CatalogQueryContext;
   libraryReadiness?: string;
   setLibraryReadiness?: (readiness: string) => void;
   statuses: Map<string, PortStatus>;
@@ -149,6 +155,7 @@ export function PortBrowser({
             : typeof filter === "string"
               ? { version: 1, channels: [filter] }
               : filter,
+          queryContext,
         );
   const readinessCount = (readiness: "all" | "ready" | "setup") =>
     declaredMatches?.state === "matched"
@@ -166,9 +173,13 @@ export function PortBrowser({
         )
     : countCandidates;
   const favoritesUnavailable = favorites?.only === true && !favorites.ids;
-  const resultsUnavailable = favoritesUnavailable || (composedLibrary && candidates === undefined);
-  const unresolvedFilter =
-    typeof filter !== "string" && evaluateCatalogQuery([], filter).state === "unresolved";
+  const queryState =
+    typeof filter === "string" ? "matched" : evaluateCatalogQuery([], filter, queryContext).state;
+  const resultsUnavailable =
+    favoritesUnavailable ||
+    queryState === "unavailable" ||
+    (composedLibrary && candidates === undefined);
+  const unresolvedFilter = queryState === "unresolved";
   const favoriteCount = favorites?.ids
     ? ports.filter((port) => favorites.ids?.has(port.id)).length
     : undefined;
@@ -269,7 +280,7 @@ export function PortBrowser({
                 composedLibrary
                   ? setLibraryReadiness?.(item)
                   : setFilter((current) =>
-                      view === "catalog" ? toggleCatalogChannel(current, item) : item,
+                      view === "catalog" ? toggleCatalogChannel(current, item, queryContext) : item,
                     )
               }
             >
@@ -314,10 +325,11 @@ export function PortBrowser({
           />
         </div>
       )}
-      {((view === "catalog" && catalogFilterCandidates) || composedLibrary) && (
+      {(view === "catalog" || composedLibrary) && (
         <CatalogFilters
           view={view === "library" ? "library" : "catalog"}
           candidates={declaredCandidates}
+          context={queryContext}
           filter={filter}
           setFilter={setFilter}
         />
@@ -356,8 +368,15 @@ function filterConstrained(filter: Filter | CatalogQuery) {
   );
 }
 
-function toggleCatalogChannel(filter: Filter | CatalogQuery, item: Filter): Filter | CatalogQuery {
-  if (typeof filter !== "string" && evaluateCatalogQuery([], filter).state === "unresolved")
+function toggleCatalogChannel(
+  filter: Filter | CatalogQuery,
+  item: Filter,
+  context?: CatalogQueryContext,
+): Filter | CatalogQuery {
+  if (
+    typeof filter !== "string" &&
+    evaluateCatalogQuery([], filter, context).state === "unresolved"
+  )
     return item === "all" ? "all" : filter;
   const current: CatalogQuery =
     typeof filter === "string"
