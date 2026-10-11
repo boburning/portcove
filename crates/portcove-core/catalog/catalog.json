@@ -449,6 +449,16 @@
         "claim": "Pinned v0.3.6 game.toml declares the exact single-data-track identity for Fade to Black (USA, SLUS-00236); exact Windows package and fixed CLI statically fit the existing managed route with bundled OpenBIOS. Package bytes, paths and pinned source were inspected; generation, native operation, lifecycle and gameplay were not run. Title GPL-3.0, framework PolyForm Noncommercial 1.0.0 and separate UI/OpenBIOS notices retain their own scope; no retail or generated-retail content rights are inferred.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/blob/25df871d2185eb45ec0e9253b96a2667e2feca6b/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "dkc3-prepared-windows-2026-10-10",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "5bc7acecc80f3104b8a03f018f9069295bd6c0db",
+        "reviewed_at": "2026-10-10",
+        "claim": "Exact DKC3 v0.0.6 Windows prepared registration, positional launch, responsive owned window, ordinary close and external-file-preserving removal; retains the observed upstream skipped-handler semantic gap without gameplay or managed-operation claims",
+        "immutable_url": "https://github.com/boburning/portcove/blob/5bc7acecc80f3104b8a03f018f9069295bd6c0db/docs/qualification/dkc3-prepared-windows-2026-10-10.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/dkc3-prepared-windows-2026-10-10.md"
       }
     ],
     "identities": [
@@ -7898,6 +7908,60 @@
         "evidence_ids": [
           "mega-man-x5-recompiled-windows-lifecycle-2026-09-16"
         ]
+      },
+      {
+        "scope": {
+          "port_id": "dkc3-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "upstream_ref": "v0.0.6",
+          "contract_id": "dkc3-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dkc3-na-en-fr",
+              "variant_id": "north-america-en-fr",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "dkc3-prepared-windows-qualification-v1"
+        },
+        "observed_at": 1791676246,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "33f553d0d069e9cb9fa13f43bf7a4e30ad4b05bf",
+        "evidence_ids": [
+          "dkc3-prepared-windows-2026-10-10"
+        ],
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Exact prepared package/source registration, use-time positional launch, responsive owned SDL/OpenGL window, ordinary close with positive captured-process wait, and registration removal preserving all 26 external files and original inputs; no managed acquisition/update/backup/rollback, gameplay, visual, controller, audio, save/load or macOS claim"
+      },
+      {
+        "scope": {
+          "port_id": "dkc3-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "upstream_ref": "v0.0.6",
+          "contract_id": "dkc3-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dkc3-na-en-fr",
+              "variant_id": "north-america-en-fr",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "dkc3-prepared-windows-qualification-v1"
+        },
+        "observed_at": 1791676246,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "33f553d0d069e9cb9fa13f43bf7a4e30ad4b05bf",
+        "evidence_ids": [
+          "dkc3-prepared-windows-2026-10-10"
+        ],
+        "kind": "known_failure",
+        "outcome": "failed",
+        "method": "Actual v0.0.6 Windows stderr reported an interpreter cap and unresolved-abandon at guest site $808CAD frame 58; pinned source confirms stack balancing skips handler side effects. Known guest semantic gap retained independently of passed Portcove operations; no dispatch authorization, cap change or gameplay-correctness claim"
       }
     ]
   },
@@ -14345,7 +14409,7 @@
           }
         ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the official v0.0.6 Windows ZIP outside your Portcove library. Choose its DKC3Recomp-v0.0.6-windows-x64 folder for exact-file review and register your original headerless North American En/Fr DKC3 .sfc separately. Portcove passes that verified source directly and skips the upstream launcher; in-game settings remain available. Keep package and ROM paths short and representable in the Windows system code page. Windows runtime and gameplay are not tested. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not update, back up or delete this folder or its saves."
+        "manual_preparation": "Extract the official v0.0.6 Windows ZIP outside your Portcove library. Choose its DKC3Recomp-v0.0.6-windows-x64 folder for exact-file review and register your original headerless North American En/Fr DKC3 .sfc separately. Portcove passes that verified source directly and skips the upstream launcher; in-game settings remain available. Keep package and ROM paths short and representable in the Windows system code page. Windows registration, startup, ordinary close and external-file preservation were observed. Upstream reports skipped game logic during startup; gameplay, visual correctness and save/load remain unqualified. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not update, back up or delete this folder or its saves."
       },
       "launch_environment": {
         "SNESRECOMP_NO_LAUNCHER": "1"

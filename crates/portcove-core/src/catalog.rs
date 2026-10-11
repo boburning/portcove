@@ -1562,13 +1562,47 @@ mod tests {
                 ".snesrecomp_write_probe"
             ]
         );
-        assert!(
-            catalog
-                .source_catalog()
-                .unwrap()
-                .qualification
-                .iter()
-                .all(|record| record.scope.port_id != port.id)
+        let source_catalog = catalog.source_catalog().unwrap();
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(runtime.archive_sha256.clone()),
+            upstream_ref: Some(runtime.version.clone()),
+            contract_id: Some("dkc3-recomp-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "dkc3-na-en-fr".into(),
+                    variant_id: "north-america-en-fr".into(),
+                    representation_id: "headerless-sfc".into(),
+                },
+            },
+            check_version: Some("dkc3-prepared-windows-qualification-v1".into()),
+        };
+        let qualification = source_catalog.assess_qualification(&scope);
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.known_failure,
+            crate::QualificationEvidenceState::Failed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        let different_artifact = crate::SourceEvidenceScope {
+            artifact_sha256: Some("0".repeat(64)),
+            ..scope
+        };
+        let unqualified = source_catalog.assess_qualification(&different_artifact);
+        assert_eq!(
+            unqualified.automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            unqualified.known_failure,
+            crate::QualificationEvidenceState::Missing
         );
         let profile = catalog.source_profile("dkc3-na-en-fr").unwrap();
         assert_eq!(port.source_profile.as_deref(), Some(profile.id.as_str()));
@@ -1944,7 +1978,14 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 18);
+        assert_eq!(qualification.len(), 20);
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "dkc3-recomp")
+                .count(),
+            2
+        );
         assert_eq!(
             qualification
                 .iter()
