@@ -527,3 +527,34 @@ it("persists attention independently by section/library and retains future reaso
   await act(async () => browsing.ui.setFilter("all"));
   expect(browsing.ui.filter).toBe("all");
 });
+
+it("persists version1 update choices by section/library and retains unknown candidates", async () => {
+  await act(async () =>
+    browsing.ui.setFilter({ version: 1, updates: ["staged"], attention: ["finish-setup"] }),
+  );
+  await act(async () => browsing.ui.setLibraryReadiness("ready"));
+  await act(async () => browsing.ui.setView("catalog"));
+  await act(async () =>
+    browsing.ui.setFilter({ version: 1, updates: ["available"], channels: ["beta"] }),
+  );
+  await remount();
+  await act(async () => browsing.ui.setView("library"));
+  expect(browsing.ui).toMatchObject({
+    libraryReadiness: "ready",
+    filter: { updates: ["staged"], attention: ["finish-setup"] },
+  });
+  libraryRoot = "E:/other";
+  await remount();
+  expect(browsing.ui.filter).toBe("all");
+  libraryRoot = "E:/first";
+  await remount();
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(browsing.ui.filter).toMatchObject({ updates: ["available"], channels: ["beta"] });
+  await act(async () => browsing.ui.setFilter({ version: 1, updates: ["future-candidate"] }));
+  await remount();
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(evaluateCatalogQuery([], browsing.ui.filter).state).toBe("unresolved");
+  expect(browsing.ui.filter).toMatchObject({ updates: ["future-candidate"] });
+  await act(async () => browsing.ui.setFilter("all"));
+  expect(browsing.ui.filter).toBe("all");
+});

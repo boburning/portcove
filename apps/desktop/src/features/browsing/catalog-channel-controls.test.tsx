@@ -445,3 +445,75 @@ it("composes raw Core attention with readiness/channel counts and keeps unavaila
   expect(invoke).not.toHaveBeenCalled();
   expect(fetchSpy).not.toHaveBeenCalled();
 });
+
+it("feeds identity-matched staged updates into results/counts without update checks or mutation", async () => {
+  const active = {
+    id: "active",
+    port_id: "both",
+    version: "1",
+    path: "/fixture",
+    channel: "stable" as const,
+    installed_at: 1,
+    verified: true,
+    staged: false,
+    artifact: { asset_name: "game.zip", sha256: "a".repeat(64), size: 1 },
+    manifest_sha256: "b".repeat(64),
+    selected_executable: "game.exe",
+    runtime: null,
+  };
+  const staged = {
+    ...active,
+    id: "staged",
+    version: "2",
+    staged: true,
+    artifact: { ...active.artifact, sha256: "c".repeat(64) },
+  };
+  statuses.set("both", {
+    ...portStatus(),
+    port_id: "both",
+    active,
+    staged,
+    readiness: { launchable: true, pending_setup: false, blockers: [] },
+    last_update_check: {
+      checked_at: 10,
+      check: {
+        port_id: "both",
+        channel: "stable",
+        installed_version: "1",
+        installed_artifact: { ...active.artifact },
+        installed_runtime: null,
+        required_runtime: null,
+        update_available: true,
+        release: {
+          version: "2",
+          channel: "stable",
+          published_at: null,
+          asset: {
+            name: "game.zip",
+            sha256: "c".repeat(64),
+            size: 1,
+            url: "https://example.com/game.zip",
+          },
+        },
+      },
+    },
+  });
+  membershipFacts = true;
+  await act(async () => root.render(<Fixture />));
+  const control = (name: string) =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+      (b) => b.getAttribute("aria-label") === name || b.textContent?.trim() === name,
+    )!;
+  await act(async () => control("Filters (0)").click());
+  await act(async () => control("Matching update staged (1)").click());
+  expect(visibleIds()).toEqual(["both"]);
+  expect(control("Available at last check (0)")).toBeDefined();
+  await act(async () => control("Preview (1)").click());
+  membershipFacts = false;
+  await act(async () => root.render(<Fixture />));
+  expect(document.body.textContent).toContain("Ports unavailable");
+  await act(async () => control("Remove Matching update staged filter").click());
+  expect(visibleIds()).toEqual(["beta", "both"]);
+  expect(invoke).not.toHaveBeenCalled();
+  expect(fetchSpy).not.toHaveBeenCalled();
+});

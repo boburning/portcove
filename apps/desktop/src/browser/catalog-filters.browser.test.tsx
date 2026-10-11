@@ -85,6 +85,37 @@ const statuses = new Map<string, PortStatus>([
     },
   ],
 ]);
+const installed = statuses.get("windows")!.active!;
+const downloadedUpdate = {
+  ...installed,
+  id: "candidate",
+  version: "2",
+  staged: true,
+  artifact: { ...installed.artifact, sha256: "c".repeat(64) },
+};
+const updateSnapshot: NonNullable<PortStatus["last_update_check"]> = {
+  checked_at: 10,
+  check: {
+    port_id: "windows",
+    channel: "stable",
+    installed_version: installed.version,
+    installed_artifact: { ...installed.artifact },
+    installed_runtime: null,
+    required_runtime: null,
+    update_available: true,
+    release: {
+      version: "2",
+      channel: "stable",
+      published_at: null,
+      asset: {
+        name: installed.artifact.asset_name,
+        sha256: "c".repeat(64),
+        size: installed.artifact.size,
+        url: "https://example.com/game.zip",
+      },
+    },
+  },
+};
 const remember = () => {};
 const switchLibrary = async () => {};
 let host: HTMLDivElement;
@@ -100,7 +131,14 @@ function Session({ library }: { library: string }) {
   const ui = browsing.ui;
   const [detail, setDetail] = useState(false);
   const [facts, setFacts] = useState(true);
-  const selectedStatuses = library.endsWith("a") ? statuses : new Map<string, PortStatus>();
+  const [downloaded, setDownloaded] = useState(true);
+  const selectedStatuses = library.endsWith("a")
+    ? new Map(statuses).set("windows", {
+        ...statuses.get("windows")!,
+        staged: downloaded ? downloadedUpdate : null,
+        last_update_check: updateSnapshot,
+      })
+    : new Map<string, PortStatus>();
   const context = facts ? { library: { id: library, statuses: selectedStatuses } } : {};
   useEffect(() => {
     ui.setView("catalog");
@@ -112,6 +150,7 @@ function Session({ library }: { library: string }) {
         <input value={ui.query} onChange={(event) => ui.setQuery(event.target.value)} />
       </label>
       <button onClick={() => setFacts((value) => !value)}>Toggle membership snapshot</button>
+      <button onClick={() => setDownloaded((value) => !value)}>Toggle candidate download</button>
       {detail ? (
         <button onClick={() => setDetail(false)}>Back to catalog</button>
       ) : (
@@ -327,6 +366,54 @@ it.each(["dark", "light"])(
     await userEvent.click(roleButton("Filters (1)"));
     await userEvent.click(roleButton("Reset catalog filters"));
     await userEvent.keyboard("{Escape}");
+    expect(invoke).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["dark", "light"])(
+  "retains exact observed update choices across download changes, return, restart and library isolation in %s",
+  async (theme) => {
+    await page.viewport(1100, 800);
+    document.documentElement.dataset.theme = theme;
+    flushSync(() => root.render(<Fixture />));
+    await userEvent.click(roleButton("Filters (0)"));
+    await userEvent.click(roleButton("Matching update staged (1)"));
+    await expect.element(roleButton("Available at last check (0)")).toBeEnabled();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(page.getByRole("button", { name: /^Windows game\./ }));
+    await userEvent.click(roleButton("Back to catalog"));
+    await expect.element(roleButton("Remove Matching update staged filter")).toBeInTheDocument();
+    flushSync(() => root.unmount());
+    root = createRoot(host);
+    flushSync(() => root.render(<Fixture />));
+    await expect.element(roleButton("Filters (1)")).toBeInTheDocument();
+    await userEvent.click(roleButton("Switch library"));
+    await userEvent.click(roleButton("Filters (0)"));
+    await expect.element(roleButton("Matching update staged (0)")).toBeEnabled();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(roleButton("Switch library"));
+    await userEvent.click(roleButton("Toggle candidate download"));
+    await expect
+      .element(page.getByText("No ports match these filters", { exact: true }))
+      .toBeInTheDocument();
+    await userEvent.click(roleButton("Filters (1)"));
+    await expect
+      .element(roleButton("Matching update staged (0)"))
+      .toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(roleButton("Available at last check (1)"));
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(roleButton("Toggle membership snapshot"));
+    await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
+    document
+      .querySelector<HTMLButtonElement>(
+        'button[aria-label="Remove Matching update staged filter"]',
+      )!
+      .focus();
+    await userEvent.keyboard("{Enter}");
+    expect(document.activeElement?.textContent).toContain("Filters (1)");
+    await userEvent.click(roleButton("Remove Available at last check filter"));
+    await userEvent.click(roleButton("Toggle membership snapshot"));
+    await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
     expect(invoke).not.toHaveBeenCalled();
   },
 );

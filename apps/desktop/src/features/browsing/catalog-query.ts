@@ -1,4 +1,5 @@
 import type { PortDefinition, PortStatus } from "../../types";
+import { observedUpdateCandidate } from "./update-query-context";
 
 // These identifiers describe declared port facts, not installation eligibility.
 const catalogQueryOptions = {
@@ -16,6 +17,7 @@ const catalogQueryOptions = {
   ],
   membership: ["in-library", "not-in-library"],
   attention: ["missing-source", "missing-bios", "missing-runtime", "repair-needed", "finish-setup"],
+  updates: ["available", "staged"],
 } as const;
 
 type Group = keyof typeof catalogQueryOptions;
@@ -50,7 +52,8 @@ function supportedQuery(value: unknown): value is CatalogQuery {
 }
 
 function available(group: Group, value: string, context: CatalogQueryContext): boolean {
-  if (group === "membership" || group === "attention") return Boolean(context.library?.id);
+  if (group === "membership" || group === "attention" || group === "updates")
+    return Boolean(context.library?.id);
   return group !== "platforms" || value !== "this-device" || !!context.devicePlatform;
 }
 
@@ -61,6 +64,12 @@ function matches(
   context: CatalogQueryContext,
 ): boolean {
   switch (group) {
+    case "updates": {
+      const candidate = observedUpdateCandidate(port.id, context.library?.statuses.get(port.id));
+      return value === "available"
+        ? candidate?.availableAtLastCheck === true
+        : candidate?.matchingStaged === true;
+    }
     case "platforms":
       return port.platforms.some(
         (platform) => platform === (value === "this-device" ? context.devicePlatform : value),

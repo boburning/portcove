@@ -1,7 +1,7 @@
 # Catalog and Library declared filters
 
 `CatalogFilters` presents explicit declared platforms, release channels, selected
-Library membership and observed installation attention using `evaluateCatalogQuery`. Alternatives within a group are
+Library membership, observed installation attention and update candidates using `evaluateCatalogQuery`. Alternatives within a group are
 OR; groups are AND. It makes no device, route, setup-method, eligibility or
 qualification inference. Machine `beta` is displayed as Preview.
 
@@ -80,3 +80,28 @@ These observations do not describe complete compatible source sets, install
 eligibility or a ready installation for a declared platform. They perform no I/O
 or lifecycle authorization. Whole #1551 remains open for route-bound game-file
 states and identity-matched available/staged update predicates.
+
+## Observed update candidates
+
+Available at last check and Matching update staged consume Core's saved
+`update_available` decision in the accepted selected-library snapshot. The shared
+`observedUpdateCandidate` helper also supplies the card's available-update badge.
+It validates the expected port/status/active/check, selected channel, installed
+version/full artifact and field-wise runtime before the recorded candidate's
+channel/version/artifact/required runtime. A verified staged record must match
+that candidate; zero candidate size retains Core's unspecified-size convention.
+Available excludes its matching staged candidate. Other downloaded versions do
+not satisfy Matching update staged. The existing generic downloaded badge still
+reports a retained download independently of this exact candidate predicate.
+
+Readiness remains independent: a playable installation can have a staged update,
+and a runtime-only candidate can retain the same game version/artifact. These
+are observations at the last matching check, not a newly checked/latest release,
+installation eligibility or execution authorization. Missing, malformed or
+obsolete observations establish neither positive choice nor up-to-date. Unknown
+entries stay unfiltered; absent library context is unavailable, confirmed empty
+is zero. Query version 1 keeps compatible legacy/absent-group semantics; unknown
+restored choices remain actionable through existing reset/correction. The local
+predicates carry no private path or installation identity in the persisted query.
+No check, scan, hash, network, plan or mutation occurs while matching. Complete
+route-bound game-file acceptance remains with #1551.

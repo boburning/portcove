@@ -66,6 +66,44 @@ const statuses = new Map<string, PortStatus>(
     },
   ]),
 );
+for (const id of ["windows", "linux"]) {
+  const status = statuses.get(id)!;
+  const active = status.active!;
+  const candidate = {
+    ...active,
+    id: "candidate",
+    version: "2",
+    staged: true,
+    artifact: { ...active.artifact, sha256: "c".repeat(64) },
+  };
+  statuses.set(id, {
+    ...status,
+    staged: id === "windows" ? candidate : null,
+    last_update_check: {
+      checked_at: 10,
+      check: {
+        port_id: id,
+        channel: "stable",
+        installed_version: active.version,
+        installed_artifact: { ...active.artifact },
+        installed_runtime: null,
+        required_runtime: null,
+        update_available: true,
+        release: {
+          version: "2",
+          channel: "stable",
+          published_at: null,
+          asset: {
+            name: candidate.artifact.asset_name,
+            sha256: candidate.artifact.sha256,
+            size: candidate.artifact.size,
+            url: "https://example.com/game.zip",
+          },
+        },
+      },
+    },
+  });
+}
 const remember = () => {};
 const switchLibrary = async () => {};
 let host: HTMLDivElement;
@@ -356,5 +394,37 @@ it("retains specific attention with independent Library readiness, zero counts a
   expect(document.activeElement?.textContent).toContain("Filters (0)");
   await userEvent.click(button("Toggle snapshot"));
   await expect.element(button("Needs attention (1)")).toHaveAttribute("aria-pressed", "true");
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("keeps playable plus matching staged updates independent from attention with self-excluding counts and zero IPC", async () => {
+  flushSync(() => root.render(<Fixture />));
+  await userEvent.click(button("Ready (2)"));
+  await userEvent.click(button("Filters (0)"));
+  await userEvent.click(button("Matching update staged (1)"));
+  await expect.element(button("Available at last check (1)")).toBeEnabled();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(button("Ready (1)")).toHaveAttribute("aria-pressed", "true");
+  await expect.element(button("Needs attention (0)")).toBeEnabled();
+  await userEvent.click(button("View details for Windows game"));
+  await userEvent.click(button("Back to library"));
+  await userEvent.click(button("Filters (1)"));
+  await userEvent.click(button("Available at last check (1)"));
+  await userEvent.click(button("Missing game files (0)"));
+  await userEvent.keyboard("{Escape}");
+  await expect.element(button("Ready (0)")).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .element(
+      page.getByText("No ports in your library match your search and filters", { exact: true }),
+    )
+    .toBeInTheDocument();
+  await userEvent.click(button("Remove Missing game files filter"));
+  await expect.element(button("Ready (2)")).toHaveAttribute("aria-pressed", "true");
+  await userEvent.click(button("Toggle snapshot"));
+  await expect.element(button("Ready (unavailable)")).toBeEnabled();
+  await userEvent.click(button("Remove Matching update staged filter"));
+  await userEvent.click(button("Remove Available at last check filter"));
+  await userEvent.click(button("Toggle snapshot"));
+  await expect.element(button("Ready (2)")).toHaveAttribute("aria-pressed", "true");
   expect(invoke).not.toHaveBeenCalled();
 });
