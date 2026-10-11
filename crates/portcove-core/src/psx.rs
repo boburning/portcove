@@ -1669,8 +1669,6 @@ mod tests {
         time::{Duration, Instant},
     };
 
-    const BUILDER_FIXTURE: &str = "psx::tests::managed_builder_fixture_child";
-
     fn bios_fixture(path: &Path) -> SourceRecord {
         fs::write(path, b"inert owned BIOS fixture").unwrap();
         let (digest, size) = hash_file(path).unwrap();
@@ -2099,60 +2097,26 @@ mod tests {
         }
     }
 
-    // Execute this repository's native test binary through the production
+    // Execute this repository's small native probe through the production
     // builder boundary. No upstream Python, compiler, game or source is run.
     fn run_builder_fixture(root: &Path, operation: &OperationCoordinator) -> Result<()> {
         let toolchain = root.join("owned-toolchain");
         let python = if toolchain.join(".portcove-toolchain.json").is_file() {
             toolchain_python(&toolchain).unwrap()
         } else {
-            toolchain_fixture(&toolchain, Some(&std::env::current_exe().unwrap()))
+            let native = tempfile::tempdir().unwrap();
+            let program = crate::test_fixture::build_probe(native.path());
+            toolchain_fixture(&toolchain, Some(&program))
         };
         run_cli(
             &python,
-            Path::new("--exact"),
+            Path::new("--owned-builder-fixture"),
             root,
             &toolchain,
-            [BUILDER_FIXTURE.into(), "--nocapture".into()],
+            [],
             operation,
             &mut true,
         )
-    }
-
-    #[test]
-    fn managed_builder_fixture_child() {
-        let Ok(mode) = fs::read_to_string("owned-builder-mode") else {
-            return;
-        };
-        fs::write("owned-builder-ready", std::process::id().to_string()).unwrap();
-        match mode.as_str() {
-            "generation" | "rebuild" => {
-                // This finite fallback bounds a failing-before run and ensures
-                // an assertion cannot leave a permanent owned fixture process.
-                thread::sleep(Duration::from_secs(3));
-                fs::write("owned-builder-completed", b"unexpected completion").unwrap();
-            }
-            "success" => println!("owned builder success"),
-            "failure" => {
-                eprintln!("owned builder failure detail");
-                std::process::exit(23);
-            }
-            "flood-failure" | "same-stream-flood" | "clip-failure" => {
-                use std::io::Write;
-                let block = [b'x'; 8192];
-                let blocks = if mode == "clip-failure" { 10 } else { 320 };
-                for _ in 0..blocks {
-                    std::io::stdout().write_all(&block).unwrap();
-                }
-                if mode == "same-stream-flood" {
-                    println!("owned late stdout failure omitted by bounded capture");
-                } else {
-                    eprintln!("owned stderr after verbose stdout");
-                }
-                std::process::exit(23);
-            }
-            _ => panic!("unknown owned builder mode"),
-        }
     }
 
     fn assert_builder_cancellation(phase: &str) {
@@ -2160,10 +2124,9 @@ mod tests {
         let root = temporary.path().join("owned-build");
         fs::create_dir(&root).unwrap();
         fs::write(root.join("owned-builder-mode"), phase).unwrap();
-        toolchain_fixture(
-            &root.join("owned-toolchain"),
-            Some(&std::env::current_exe().unwrap()),
-        );
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        toolchain_fixture(&root.join("owned-toolchain"), Some(&program));
         let player_source = temporary.path().join("player-source");
         fs::write(&player_source, b"unchanged external source").unwrap();
         let service =
@@ -2254,7 +2217,7 @@ mod tests {
                 Path::new("--exact"),
                 temporary.path(),
                 temporary.path(),
-                [BUILDER_FIXTURE.into(), "--nocapture".into()],
+                [],
                 &operation,
                 &mut quiesced,
             );
@@ -2636,6 +2599,8 @@ mod tests {
             checkpoints += 1;
             if checkpoints == 3 {
                 service.request_cancellation(&activity.id).unwrap();
+                // Let the existing 50ms cancellation polling interval expire.
+                thread::sleep(Duration::from_millis(60));
             }
             operation.checkpoint()
         })

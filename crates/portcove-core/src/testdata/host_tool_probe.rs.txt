@@ -8,6 +8,31 @@ fn main() {
         Some("extractdvd") => owned_conversion(&args),
         Some("extractcd") => owned_psx_conversion(&args),
         Some("--owned-preparation") => owned_preparation(&args),
+        Some("--owned-builder-fixture") => {
+            let mode = fs::read_to_string("owned-builder-mode").unwrap();
+            fs::write("owned-builder-ready", std::process::id().to_string()).unwrap();
+            match mode.as_str() {
+                "generation" | "rebuild" => {
+                    thread::sleep(Duration::from_secs(3));
+                    fs::write("owned-builder-completed", b"unexpected completion").unwrap();
+                }
+                "success" => println!("owned builder success"),
+                "failure" => {
+                    eprintln!("owned builder failure detail");
+                    std::process::exit(23);
+                }
+                "flood-failure" | "same-stream-flood" | "clip-failure" => {
+                    let block = [b'x'; 8192];
+                    let blocks = if mode == "clip-failure" { 10 } else { 320 };
+                    for _ in 0..blocks { io::stdout().write_all(&block).unwrap(); }
+                    if mode == "same-stream-flood" {
+                        println!("owned late stdout failure omitted by bounded capture");
+                    } else { eprintln!("owned stderr after verbose stdout"); }
+                    std::process::exit(23);
+                }
+                _ => panic!("unknown owned builder mode"),
+            }
+        }
         Some("--psx-builder-contract") => {
             // Independent SDK refusal rule: generation must never enable acquisition.
             assert!(args.iter().any(|argument| argument == "--no-toolchain-download"));
