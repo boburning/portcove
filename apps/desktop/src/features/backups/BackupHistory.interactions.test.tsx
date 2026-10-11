@@ -554,7 +554,7 @@ it("waits for current degraded inventory rather than a pending or failed read no
     browser,
     { css: (selector: string) => selector },
   );
-  const render = async (status: "pending" | "failed" | "idle") =>
+  const render = async (status: "pending" | "failed" | "idle" | "current") =>
     act(async () =>
       root.render(
         <section aria-labelledby="detail-saves-and-storage">
@@ -584,7 +584,30 @@ it("waits for current degraded inventory rather than a pending or failed read no
     expect(await current(1)).toBe(false);
   }
   await render("idle");
+  expect(await current(1)).toBe(false);
+  await render("current");
   expect(await current(2)).toBe(false);
+  expect(await current(1)).toBeTruthy();
+  vi.spyOn(desktopApi, "backups").mockResolvedValueOnce({
+    port_id: "sample",
+    state: "degraded",
+    backups,
+    create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+    problems: [
+      {
+        kind: "missing_manifest",
+        backup_id: "broken",
+        operation_id: null,
+        path: "backups/broken",
+        message: "Missing manifest",
+        proposed_action: "Review this entry.",
+      },
+    ],
+  });
+  await act(async () => root.render(<DetailReadHistory />));
+  expect(container.querySelector(".backup-history")?.getAttribute("data-backup-read-state")).toBe(
+    "current",
+  );
   expect(await current(1)).toBeTruthy();
   expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
 });

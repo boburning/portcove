@@ -13,8 +13,7 @@ import {
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
 const backupSectionSelector = '[aria-labelledby="detail-saves-and-storage"]';
-const degradedInventorySelector = `${backupSectionSelector} .backup-inventory-notice.degraded`;
-const unsettledInventorySelector = `${backupSectionSelector} .backup-inventory-notice:not(.degraded):not(.recovery_required)`;
+const degradedInventorySelector = `${backupSectionSelector} .backup-history[data-backup-read-state="current"] .backup-inventory-notice.degraded`;
 
 export async function backupReviewScenario({
   browser,
@@ -53,7 +52,6 @@ export async function backupReviewScenario({
     const degradedInventory = (problemCount) =>
       browser.wait(
         async () => {
-          if ((await browser.findElements(By.css(unsettledInventorySelector))).length) return false;
           const notices = await browser.findElements(By.css(degradedInventorySelector));
           if (notices.length !== 1) return false;
           const actions = await notices[0].findElements(By.css("ul li"));

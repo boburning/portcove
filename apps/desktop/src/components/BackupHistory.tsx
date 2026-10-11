@@ -43,7 +43,7 @@ export function BackupHistory({
   }>();
   const visible = expanded ? backups : backups.slice(0, 3);
   return (
-    <div ref={history} className="backup-history">
+    <div ref={history} className="backup-history" data-backup-read-state={readState?.status}>
       <div className="backup-heading">
         <span ref={heading} role="heading" aria-level={3} tabIndex={-1}>
           Backups
