@@ -6,7 +6,8 @@ import {
   installationMethodLabels,
 } from "../../view-model";
 import { Button } from "../../components/ui/button";
-import { states, type GameFileFilterContext } from "./game-file-query-context";
+import type { GameFileFilterContext } from "./game-file-query-context";
+import { GameFileFilterObservation } from "../../components/GameFileFilterObservation";
 
 /** Detail intent stays bound to the accepted workspace and exact matching context.
  * Execution still needs its independent fresh Core review.
@@ -92,12 +93,15 @@ export function BrowsingMatchDetails({
               Actions below require their own current Core review.
             </p>
           )}
-          {choice && (
-            <p>
-              Game files for this context:{" "}
-              {matchingObservation ? states[matchingObservation.state] : "observation unavailable"}.
-            </p>
-          )}
+          {choice &&
+            (matchingObservation && gameFiles ? (
+              <GameFileFilterObservation
+                portId={portId}
+                context={{ ...gameFiles, byPort: new Map([[portId, matchingObservation]]) }}
+              />
+            ) : (
+              <p>Game files for this context: observation unavailable.</p>
+            ))}
         </>
       )}
     </section>

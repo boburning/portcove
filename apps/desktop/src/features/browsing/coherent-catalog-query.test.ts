@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type { CatalogBrowsingContext, CatalogBrowsingSnapshot, PortDefinition } from "../../types";
 import { evaluateCatalogQuery, type CatalogQueryContext } from "./catalog-query";
@@ -55,6 +55,61 @@ function context(contexts = [base, installed]): CatalogQueryContext {
 }
 // One port with a Linux setup and a different Windows installed build.
 describe("coherent Core browsing contexts", () => {
+  it("evaluates 317 ports and 1268 cached contexts without requests or snapshot mutation", () => {
+    const ports = Array.from({ length: 317 }, (_, index) => ({ ...port, id: `port-${index}` }));
+    let identity = 0;
+    const contexts = ports.flatMap((entry) =>
+      (["windows-x86-64", "linux-x86-64"] as const).flatMap((platform) =>
+        (["stable", "beta"] as const).map((channel) => ({
+          ...base,
+          port_id: entry.id,
+          platform,
+          channel,
+          port_member: false,
+          context_id: (++identity).toString(16).padStart(64, "0"),
+        })),
+      ),
+    );
+    const facts = context(contexts);
+    facts.library = { id: "selected", statuses: new Map() };
+    const before = JSON.stringify({ ports, browsing: facts.browsing });
+    const fetch = vi.fn(() => {
+      throw new Error("Filtering must not request remote data");
+    });
+    vi.stubGlobal("fetch", fetch);
+    try {
+      const started = performance.now();
+      for (let iteration = 0; iteration < 20; iteration++) {
+        const result = evaluateCatalogQuery(
+          ports,
+          {
+            version: 1,
+            platforms: ["linux-x86-64"],
+            channels: ["beta"],
+            installationMethods: ["portable-package"],
+            membership: ["not-in-library"],
+          },
+          facts,
+        );
+        expect(result.state).toBe("matched");
+        expect(result.ports).toHaveLength(317);
+        expect(result.counts.membership["not-in-library"]).toBe(317);
+        expect(result.counts.platforms["windows-x86-64"]).toBe(317);
+        expect([...result.matchingContexts.values()].every((matches) => matches.length === 1)).toBe(
+          true,
+        );
+      }
+      const averageMs = (performance.now() - started) / 20;
+      console.info(
+        `Cached browsing: 317 synthetic ports / 1268 contexts / 20 evaluations; average ${averageMs.toFixed(3)} ms`,
+      );
+      expect(averageMs).toBeLessThan(500);
+      expect(fetch).not.toHaveBeenCalled();
+      expect(JSON.stringify({ ports, browsing: facts.browsing })).toBe(before);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it("joins game files only to the exact route, retained definition and instance", () => {
     const facts = context();
     facts.gameFiles = {

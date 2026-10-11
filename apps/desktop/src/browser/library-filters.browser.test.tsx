@@ -12,6 +12,7 @@ import {
 import { portDefinition, portStatus } from "../test-fixtures";
 import { filterPorts, summarizeLibrary } from "../view-model";
 import type { PortStatus } from "../types";
+import { browsingContextFixture } from "./browsing-context-fixture";
 import "../styles.css";
 const invoke = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("../api", () => ({ desktopApi: new Proxy({}, { get: () => invoke }) }));
@@ -123,7 +124,7 @@ function Session({ library }: { library: string }) {
   const [favoriteFacts, setFavoriteFacts] = useState(true);
   const [empty, setEmpty] = useState(false);
   const snapshotPorts = empty ? [] : ports;
-  const context = facts ? { library: { id: library, statuses } } : {};
+  const context = facts ? browsingContextFixture(snapshotPorts, statuses, library) : {};
   const candidates = facts
     ? filterPorts(snapshotPorts, statuses, "library", "all", ui.query)
     : undefined;
