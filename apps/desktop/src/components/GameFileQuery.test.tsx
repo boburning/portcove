@@ -199,6 +199,44 @@ it("expires accepted observations without issuing another inspection", async () 
   expect(container.textContent).not.toContain("Files missing");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
 });
+it("rejects a clock jump before timer callbacks, never resurrects the old observation, and allows explicit recheck", async () => {
+  vi.useFakeTimers();
+  await render();
+  await check();
+  expect(container.textContent).toContain("Files missing");
+  const originalTime = Date.now();
+  vi.setSystemTime(originalTime + 300001);
+  await render();
+  expect(container.textContent).toContain("Observation expired");
+  expect(container.textContent).not.toContain("Files missing");
+  vi.setSystemTime(originalTime);
+  await render();
+  expect(container.textContent).not.toContain("Files missing");
+  expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
+  vi.mocked(desktopApi.refreshGameFileQuery).mockResolvedValue(snapshot());
+  await check();
+  expect(container.textContent).toContain("Files missing");
+  expect(container.textContent).not.toContain("Observation expired");
+  expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);
+});
+it("rejects monotonic expiry with unchanged wall time and rejects a wall clock earlier than observation", async () => {
+  const monotonic = vi.spyOn(performance, "now").mockReturnValue(1000);
+  await render();
+  await check();
+  monotonic.mockReturnValue(301001);
+  await render();
+  expect(container.textContent).not.toContain("Files missing");
+  monotonic.mockReturnValue(400000);
+  vi.mocked(desktopApi.refreshGameFileQuery).mockResolvedValue(snapshot());
+  await check();
+  expect(container.textContent).toContain("Files missing");
+  vi.useFakeTimers();
+  vi.setSystemTime(Date.now() - 1000);
+  await render();
+  expect(container.textContent).not.toContain("Files missing");
+  expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);
+  monotonic.mockRestore();
+});
 it("rejects stale, mismatched, duplicated and contradictory producer observations", () => {
   const now = Math.floor(Date.now() / 1000);
   const baseline = snapshot();
