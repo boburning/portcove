@@ -53,6 +53,15 @@ test("execution planning preserves the independently reviewed pre-change oracle"
     );
     if (!row.harness_admission.error) {
       const expectedSession = structuredClone(row.harness_admission);
+      // Preserve the historical oracle while requiring positive cleanup for
+      // #1168's owned retained-data backup creation journey on Windows.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
+      ) {
+        expectedSession.identityBoundSession = true;
+        expectedSession.cleanupName = "backup-review";
+      }
       // The retained oracle stays immutable; #244 deliberately adds positive
       // owned exit proof to the completion journey through the existing owner.
       if (selection.selected_scenarios.includes("native-selected-setup-completion")) {
@@ -159,6 +168,19 @@ test("selected setup completion requires identity-bound positive exit evidence",
     }),
   );
   assert.equal(discovery.session.identityBoundSession, false);
+});
+
+test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {
+  for (const platform of ["win32", "linux"]) {
+    const selection = resolveDesktopSelection({
+      scenarios: ["native-reviewed-backup-restore-and-delete"],
+      platform,
+    });
+    const plan = planDesktopExecution(selection, { platform });
+    assert.equal(plan.session.identityBoundSession, platform === "win32");
+    assert.equal(plan.session.cleanupName, platform === "win32" ? "backup-review" : "backup-focus");
+    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+  }
 });
 
 test("retained rollback repair requires identity-bound cleanup without changing its deadline", () => {

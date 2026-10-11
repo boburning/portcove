@@ -2,6 +2,81 @@
 use super::*;
 
 #[test]
+fn backup_create_assessment_preserves_direct_owned_root_without_runtime_substitution() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let port_id = "snap64-recomp";
+    let install = library.versions_dir().join(port_id).join("fixture");
+    fs::create_dir_all(&install).unwrap();
+    write_host_test_executable_with_contents(&install, port_id, b"test");
+    register_existing_test_install(&library, port_id, "v1.0.5", &install, true);
+    fs::write(install.join(LAUNCH_MARKER), b"1").unwrap();
+    let owned = library.user_dir(port_id).join("pokemonsnap.z64");
+    fs::create_dir_all(owned.parent().unwrap()).unwrap();
+    fs::write(&owned, b"owned fixture source").unwrap();
+    fs::write(install.join("pokemonsnap.z64"), b"different runtime bytes").unwrap();
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::Available
+    );
+    assert_eq!(fs::read(&owned).unwrap(), b"owned fixture source");
+    let backup = service.create_backup(port_id).unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/pokemonsnap.z64")).unwrap(),
+        b"owned fixture source"
+    );
+    assert_eq!(fs::read(&owned).unwrap(), b"owned fixture source");
+    assert_eq!(
+        fs::read(install.join("pokemonsnap.z64")).unwrap(),
+        b"different runtime bytes"
+    );
+}
+
+#[test]
+fn backup_create_assessment_excludes_registered_foreign_saves_and_allows_private_owned_data() {
+    let (_temporary, service, record) = external_location_fixture_with_private_data(true);
+    let port_id = "external-location-probe";
+    let foreign = record.path.join("player-save");
+    fs::write(&foreign, b"player owned save").unwrap();
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::MissingData
+    );
+    assert_eq!(
+        service.create_backup(port_id).unwrap_err().code,
+        crate::ErrorCode::NotFound
+    );
+    let owned = service.library.user_dir(port_id).join("private-save");
+    fs::create_dir_all(owned.parent().unwrap()).unwrap();
+    fs::write(&owned, b"private owned save").unwrap();
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::Available
+    );
+    let backup = service.create_backup(port_id).unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/private-save")).unwrap(),
+        b"private owned save"
+    );
+    assert!(!backup.path.join("data/player-save").exists());
+    assert_eq!(fs::read(&foreign).unwrap(), b"player owned save");
+    assert_eq!(fs::read(&owned).unwrap(), b"private owned save");
+}
+
+#[test]
 fn backup_create_assessment_distinguishes_empty_and_retained_owned_data() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();

@@ -41,6 +41,8 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
   );
   const identityBoundSession =
     (platform === "win32" &&
+      selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")) ||
+    (platform === "win32" &&
       selection.selected_scenarios.includes("native-retained-contract-repair-state")) ||
     selection.selected_scenarios.includes("native-selected-setup-completion") ||
     selection.selected_scenarios.includes("native-startup-network-diagnostic") ||
@@ -53,32 +55,36 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
     preferencesRecoverySession ||
     bootstrapRecoverySession ||
     librarySwitchRecoverySession;
-  const cleanupName = selection.selected_scenarios.includes("native-external-runtime-review")
-    ? "external-runtime-review"
-    : selection.selected_scenarios.includes("native-startup-network-diagnostic")
-      ? "startup-network-diagnostic"
-      : preferencesRecoverySession
-        ? "startup-preferences-recovery"
-        : librarySwitchRecoverySession
-          ? "library-switch-recovery"
-          : bootstrapRecoverySession
-            ? "startup-library-recovery"
-            : normalPackageSession
-              ? "normal-package-boundary"
-              : ordinaryCloseSession
-                ? "ordinary-close-preparation"
-                : hostInterruptionSession
-                  ? "host-interruption"
-                  : minimizedPreparationSession
-                    ? "minimized-preparation"
-                    : selection.selected_scenarios.includes("native-selected-setup-completion")
-                      ? "selected-setup-completion"
-                      : platform === "win32" &&
-                          selection.selected_scenarios.includes(
-                            "native-retained-contract-repair-state",
-                          )
-                        ? "retained-contract-repair"
-                        : "backup-focus";
+  const cleanupName =
+    platform === "win32" &&
+    selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
+      ? "backup-review"
+      : selection.selected_scenarios.includes("native-external-runtime-review")
+        ? "external-runtime-review"
+        : selection.selected_scenarios.includes("native-startup-network-diagnostic")
+          ? "startup-network-diagnostic"
+          : preferencesRecoverySession
+            ? "startup-preferences-recovery"
+            : librarySwitchRecoverySession
+              ? "library-switch-recovery"
+              : bootstrapRecoverySession
+                ? "startup-library-recovery"
+                : normalPackageSession
+                  ? "normal-package-boundary"
+                  : ordinaryCloseSession
+                    ? "ordinary-close-preparation"
+                    : hostInterruptionSession
+                      ? "host-interruption"
+                      : minimizedPreparationSession
+                        ? "minimized-preparation"
+                        : selection.selected_scenarios.includes("native-selected-setup-completion")
+                          ? "selected-setup-completion"
+                          : platform === "win32" &&
+                              selection.selected_scenarios.includes(
+                                "native-retained-contract-repair-state",
+                              )
+                            ? "retained-contract-repair"
+                            : "backup-focus";
   const inputs = ["app", "driver", "native-driver"].map((name) => ({ kind: "executable", name }));
   inputs.push(receiptSource(harnessUrl));
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup"))
