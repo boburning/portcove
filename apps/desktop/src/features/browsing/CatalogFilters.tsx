@@ -20,6 +20,7 @@ const groups = [
   },
   { key: "channels", label: "Release channels", values: ["stable", "beta", "rolling"] },
   { key: "membership", label: "Library membership", values: ["in-library", "not-in-library"] },
+  { key: "updates", label: "Observed updates", values: ["available", "staged"] },
   {
     key: "attention",
     label: "Installation attention",
@@ -37,6 +38,8 @@ function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
     : filter;
 }
 function label(group: Group, value: string) {
+  if (group === "updates")
+    return value === "available" ? "Available at last check" : "Matching update staged";
   if (group === "attention") {
     const labels: Record<string, string> = {
       "missing-source": "Missing game files",
@@ -121,7 +124,10 @@ export function CatalogFilters({
             means an active managed installation or a registered external runtime in the selected
             library; it does not confirm readiness. Installation attention uses observed Core
             reasons for the current installation. Changed or unreadable files are not missing; these
-            choices do not establish game-file compatibility or authorize an action.
+            choices do not establish game-file compatibility or authorize an action. Observed
+            updates match the current managed version and its last checked candidate. Available
+            excludes that candidate when it is verified and staged. Other downloaded versions do not
+            establish a matching staged update. Filtering never checks for a newer release.
             {view === "library" &&
               " Ready with Linux means current Library readiness and a declared Linux target, not a ready Linux installation."}
           </DialogDescription>

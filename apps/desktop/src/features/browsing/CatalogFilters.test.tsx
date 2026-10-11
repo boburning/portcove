@@ -302,3 +302,73 @@ it("keeps unknown restored attention unresolved until reset", async () => {
   await click("Reset catalog filters");
   expect(current).toBe("all");
 });
+
+it("composes observed update choices and removes retained zero/unavailable selections", async () => {
+  const statuses = new Map(membershipContext.library!.statuses);
+  for (const id of ["windows", "both"]) {
+    const active = install(id);
+    const candidate = {
+      ...active,
+      id: "candidate",
+      version: "2",
+      staged: true,
+      artifact: { ...active.artifact, sha256: "d".repeat(64) },
+    };
+    statuses.set(id, {
+      ...portStatus(),
+      port_id: id,
+      active,
+      staged: id === "windows" ? candidate : null,
+      last_update_check: {
+        checked_at: 10,
+        check: {
+          port_id: id,
+          channel: "stable",
+          installed_version: active.version,
+          installed_artifact: { ...active.artifact },
+          installed_runtime: null,
+          required_runtime: null,
+          update_available: true,
+          release: {
+            version: "2",
+            channel: "stable",
+            published_at: null,
+            asset: {
+              name: candidate.artifact.asset_name,
+              sha256: candidate.artifact.sha256,
+              size: candidate.artifact.size,
+              url: "https://example.com/game.zip",
+            },
+          },
+        },
+      },
+    });
+  }
+  const context = { library: { id: "selected", statuses } };
+  await render();
+  await act(async () => setContext(context));
+  await click("Filters (0)");
+  await click("Matching update staged (1)");
+  await click("Available at last check (1)");
+  await click("Preview (1)");
+  expect(
+    filterPorts(ports, statuses, "catalog", current, "", "catalog", context).map((p) => p.id),
+  ).toEqual(["both"]);
+  expect(button("Matching update staged (0)").getAttribute("aria-pressed")).toBe("true");
+  await click("Available at last check (1)");
+  expect(filterPorts(ports, statuses, "catalog", current, "", "catalog", context)).toEqual([]);
+  await act(async () => setContext(undefined));
+  expect(button("Matching update staged (unavailable)").disabled).toBe(true);
+  await click("Remove Matching update staged filter");
+  expect(current).toMatchObject({ updates: [], channels: ["beta"] });
+  await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
+  expect(button("Available at last check (0)").disabled).toBe(false);
+});
+it("retains unsupported restored update values until reset", async () => {
+  await render({ version: 1, updates: ["future-candidate"] });
+  await click("Filters (0)");
+  expect(button("Matching update staged (unavailable)").disabled).toBe(true);
+  expect(current).toMatchObject({ updates: ["future-candidate"] });
+  await click("Reset catalog filters");
+  expect(current).toBe("all");
+});

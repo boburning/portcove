@@ -806,6 +806,11 @@ describe("desktop components", () => {
         "stale installed artifact",
         "stale installed runtime",
         "stale selected channel",
+        "stale active port",
+        "stale checked port",
+        "stale installed name",
+        "stale installed size",
+        "unspecified asset size",
       ].map((difference) => ({ view, difference })),
     ),
   )("matches downloaded attention in $view: $difference", ({ view, difference }) => {
@@ -862,6 +867,13 @@ describe("desktop components", () => {
       check.installed_artifact = { ...install.artifact, sha256: "e".repeat(64) };
     if (difference === "stale installed runtime") check.installed_runtime = runtimeIdentity;
     if (difference === "stale selected channel") status.channel = "beta";
+    if (difference === "stale active port") status.active!.port_id = "other";
+    if (difference === "stale checked port") check.port_id = "other";
+    if (difference === "stale installed name")
+      check.installed_artifact = { ...install.artifact, asset_name: "old.zip" };
+    if (difference === "stale installed size")
+      check.installed_artifact = { ...install.artifact, size: 2 };
+    if (difference === "unspecified asset size") check.release.asset.size = 0;
     const html = renderToStaticMarkup(
       <PortBrowser
         view={view}
@@ -876,7 +888,11 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Ready to play");
     expect(html).toContain("Update downloaded</span>");
-    const expectedAvailable = difference !== "same target" && !difference.startsWith("stale ");
+    const expectedAvailable =
+      difference !== "same target" &&
+      difference !== "unspecified asset size" &&
+      difference !== "unknown artifact" &&
+      !difference.startsWith("stale ");
     expect(html.includes("Update available</span>")).toBe(expectedAvailable);
   });
 
