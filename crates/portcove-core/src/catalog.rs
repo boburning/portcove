@@ -689,6 +689,14 @@ impl Catalog {
                     }
                 }
                 ReleaseSource::UserPrepared => {
+                    if port.runtime_subdirectory.is_some()
+                        && port.adapter != AdapterKind::StagedSourcePortable
+                    {
+                        return Err(PortcoveError::usage(format!(
+                            "{} prepared runtime subdirectory requires staged-source portable",
+                            port.id
+                        )));
+                    }
                     if port.channels != [ReleaseChannel::Stable]
                         || port.release.rolling_tag.is_some()
                         || !port.release.direct.is_empty()

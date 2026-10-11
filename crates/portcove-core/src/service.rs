@@ -4518,6 +4518,16 @@ impl PortcoveService {
             ));
         }
         operation.checkpoint()?;
+        let working_directory = if retained_port.runtime_subdirectory.is_some() {
+            crate::adapter::launch_working_directory(
+                retained_port.adapter,
+                retained_port,
+                &record.path,
+                &record.executable,
+            )?
+        } else {
+            record.path.clone()
+        };
         let mut environment = retained_port.launch_environment.clone();
         if spec.library_user_data {
             let variable = retained_port
@@ -4540,7 +4550,7 @@ impl PortcoveService {
         Ok(crate::LaunchSpec {
             executable: record.executable.clone(),
             install_root: record.path.clone(),
-            working_directory: record.path.clone(),
+            working_directory,
             environment,
             arguments,
             launch_kind,
@@ -9305,19 +9315,34 @@ fn main() {
         private: bool,
         other: Option<bool>,
     ) -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
+        external_location_fixture_with_layout(private, other, None, "game.exe")
+    }
+
+    fn external_location_fixture_with_layout(
+        private: bool,
+        other: Option<bool>,
+        runtime_directory: Option<&str>,
+        executable: &str,
+    ) -> (tempfile::TempDir, PortcoveService, ExternalRuntimeRecord) {
         let temporary = tempfile::tempdir().unwrap();
         let library_root = temporary.path().join("library");
         let library = Library::open(&library_root).unwrap();
         let external = temporary.path().join("player-owned");
         fs::create_dir(&external).unwrap();
-        fs::write(external.join("Game.exe"), b"accepted runtime").unwrap();
+        let physical_executable = if executable == "game.exe" {
+            "Game.exe"
+        } else {
+            executable
+        };
+        fs::create_dir_all(external.join(physical_executable).parent().unwrap()).unwrap();
+        fs::write(external.join(physical_executable), b"accepted runtime").unwrap();
         let platform = Platform::current().unwrap();
         let mut runtime = crate::UserPreparedRuntimeSpec {
             version: "probe-v1".into(),
             archive_name: "probe.zip".into(),
             archive_size: 1,
             archive_sha256: "a".repeat(64),
-            executable: "game.exe".into(),
+            executable: executable.into(),
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: None,
             library_user_data: private,
@@ -9328,6 +9353,13 @@ fn main() {
         runtime.immutable_tree_sha256 = mismatch.details["actual_tree_sha256"].clone();
         let mut service = service_with_release(library, "v1");
         let mut document = external_location_catalog(platform, runtime).authoritative_document();
+        let port = &mut document.ports[0];
+        port.executable_hints
+            .insert(platform, vec![executable.into()]);
+        port.runtime_subdirectory = runtime_directory.map(str::to_owned);
+        if runtime_directory.is_some() {
+            port.adapter = AdapterKind::StagedSourcePortable;
+        }
         if let Some(other_private) = other {
             let alternate = if platform == Platform::WindowsX86_64 {
                 Platform::LinuxX86_64
@@ -9372,6 +9404,7 @@ fn main() {
     ) -> Catalog {
         let platform_key = serde_json::to_value(platform).unwrap();
         let platform_key = platform_key.as_str().unwrap();
+        let executable = runtime.executable.clone();
         let document = serde_json::json!({
             "schema_version": 2,
             "source_catalog": {
@@ -9392,7 +9425,7 @@ fn main() {
                     "provider": "user-prepared",
                     "user_prepared": { (platform_key): runtime }
                 },
-                "executable_hints": { (platform_key): ["game.exe"] }
+                "executable_hints": { (platform_key): [executable] }
             }]
         });
         Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
@@ -9412,6 +9445,81 @@ fn main() {
             None,
             &OperationCoordinator::new("launch", None),
         )
+    }
+
+    #[test]
+    fn prepared_nested_directory_uses_retained_contract_and_whole_tree_root() {
+        let (_root, mut service, record) = external_location_fixture_with_layout(
+            false,
+            None,
+            Some("Install/Base"),
+            "Install/Base/game.exe",
+        );
+        let launch = prepare_external_location_fixture_launch(&service, &record).unwrap();
+        assert_eq!(launch.working_directory, record.path.join("Install/Base"));
+        assert_eq!(launch.install_root, record.path);
+        assert_eq!(launch.executable, record.executable);
+        let mut changed = service.catalog.authoritative_document();
+        changed.ports[0].runtime_subdirectory = None;
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&changed).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            prepare_external_location_fixture_launch(&service, &record)
+                .unwrap()
+                .working_directory,
+            launch.working_directory
+        );
+    }
+
+    #[test]
+    fn prepared_nested_executable_without_declaration_keeps_root_directory() {
+        let (_root, service, record) =
+            external_location_fixture_with_layout(false, None, None, "Install/Base/game.exe");
+        assert_eq!(
+            prepare_external_location_fixture_launch(&service, &record)
+                .unwrap()
+                .working_directory,
+            record.path
+        );
+    }
+
+    #[test]
+    fn prepared_directory_refusals_precede_private_data_creation() {
+        for directory in ["missing", "Other"] {
+            let (_root, service, record) = external_location_fixture_with_layout(
+                true,
+                None,
+                Some(directory),
+                "Install/Base/game.exe",
+            );
+            if directory == "Other" {
+                fs::create_dir(record.path.join(directory)).unwrap();
+            }
+            assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+            assert!(!service.library.user_dir(&record.port_id).exists());
+            assert_eq!(fs::read(&record.executable).unwrap(), b"accepted runtime");
+        }
+    }
+
+    #[test]
+    fn prepared_directory_redirection_refuses_before_private_data_creation() {
+        let (_root, service, record) = external_location_fixture_with_layout(
+            true,
+            None,
+            Some("Install/Base"),
+            "Install/Base/game.exe",
+        );
+        let directory = record.path.join("Install/Base");
+        let retained = record.path.join("retained-base");
+        fs::rename(&directory, &retained).unwrap();
+        create_adoption_test_symlink(&retained, &directory, true);
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        assert!(!service.library.user_dir(&record.port_id).exists());
+        assert_eq!(
+            fs::read(retained.join("game.exe")).unwrap(),
+            b"accepted runtime"
+        );
     }
 
     #[test]
