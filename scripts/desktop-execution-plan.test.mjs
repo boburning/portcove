@@ -183,6 +183,33 @@ test("backup review requires identity-bound Windows cleanup under the existing d
   }
 });
 
+test("successful backup review rejects cleanup inventories missing application, WebView or native driver", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function validateBackupFocusInventory(captured)");
+  const end = source.indexOf("function captureBackupFocusCleanup()", start);
+  assert(start >= 0 && end > start);
+  const validate = runInNewContext(`${source.slice(start, end)}; validateBackupFocusInventory`, {
+    assert,
+    path,
+    savedLibraryRecoverySession: false,
+    checks: [{ scenario: "native-reviewed-backup-restore-and-delete", outcome: "passed" }],
+    values: { app: "/owned/app.exe", "native-driver": "/owned/driver.exe" },
+  });
+  const entries = [
+    { path: "/owned/app.exe" },
+    { path: "/owned/driver.exe" },
+    { path: "/owned/msedgewebview2.exe" },
+  ];
+  validate({ processes: entries });
+  for (let missing = 0; missing < entries.length; missing++) {
+    assert.throws(() => validate({ processes: entries.filter((_, i) => i !== missing) }));
+  }
+  assert.throws(() => validate({ processes: [{ path: "/foreign/app.exe" }, ...entries.slice(1)] }));
+});
+
 test("retained rollback repair requires identity-bound cleanup without changing its deadline", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-retained-contract-repair-state"],
