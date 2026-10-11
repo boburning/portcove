@@ -280,6 +280,13 @@ known safety failure in shipped scope. Reorder or edit Project fields instead
 of rewriting repository documentation. New ports do not automatically expand
 global V1 scope.
 
+The owner's October 10, 2026 decision makes current Public beta commitments
+Required, including work formerly called Opportunistic and then Planned. Consume
+the live Project for each outcome's status and remaining acceptance. Completed
+components remain credited; existing blockers, platform scope, resource guards,
+qualification and protected publication authority remain unchanged. Planned
+retains its general meaning for work assigned to later releases.
+
 ## Keeping current specifications readable
 
 Prefer an existing canonical owner. Create a task only for independently owned,
