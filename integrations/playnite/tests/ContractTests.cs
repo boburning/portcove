@@ -357,7 +357,7 @@ internal static class ContractTests
         bad["schema_version"] = 61;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "curated artifact status schema negotiated with exact reader support");
-        bad["schema_version"] = 62;
+        bad["schema_version"] = 64;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond curated status rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -447,13 +447,15 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
-            Check(real.ApiSchemaVersion == 62 && statuses.All(status =>
+            Check(real.ApiSchemaVersion == 63 && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1),
-                "compiled schema62 producer and actual reader preserve one rollback assessment per catalog status");
+                "compiled schema63 producer and actual reader preserve one rollback assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
-                "compiled schema62 backup producer and actual strict reader consume creation assessment");
+                "compiled schema63 backup producer and actual strict reader consume creation assessment");
+            Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
+                "compiled schema63 backup producer and actual strict reader consume restore assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -1409,6 +1411,31 @@ internal static class ContractTests
         Reject(() => consume(62, new { create_assessment = new { action = "launch", availability = "allowed", reason = "available" } }),
             "inventory rejects a different action masquerading as backup create");
         Reject(() => consume(62, new { create_assessment = (object)null }), "inventory rejects null assessment");
+        foreach (var tuple in new[] {
+            new[] { "allowed", "available" }, new[] { "waiting", "missing_backup" },
+            new[] { "held", "recovery_required" }, new[] { "held", "unsafe_data" },
+            new[] { "held", "unreadable_data" }
+        }) {
+            var inventory = new {
+                create_assessment = new { action = "backup_create", availability = "allowed", reason = "available" },
+                restore_assessment = new { action = "backup_restore", availability = tuple[0], reason = tuple[1] }
+            };
+            var result = consume(63, inventory);
+            Check(PortActionDecision.Read(Json.Field(result, "restore_assessment")).Reason == tuple[1],
+                "schema63 reader consumes restore reason " + tuple[1]);
+            Reject(() => consume(62, inventory), "schema62 cannot carry a restore assessment");
+        }
+        foreach (var tuple in new[] { new[] { "allowed", "missing_backup" }, new[] { "held", "missing_data" }, new[] { "held", "assessment_incomplete" }, new[] { "waiting", "review_required" } })
+            Reject(() => consume(63, new {
+                create_assessment = new { action = "backup_create", availability = "allowed", reason = "available" },
+                restore_assessment = new { action = "backup_restore", availability = tuple[0], reason = tuple[1] }
+            }), "strict restore assessment rejects contradictory or unrelated tuples");
+        Reject(() => consume(63, new { create_assessment = new { action = "backup_create", availability = "allowed", reason = "available" } }), "schema63 requires restore assessment");
+        Reject(() => consume(63, new {
+            create_assessment = new { action = "backup_create", availability = "allowed", reason = "available" },
+            restore_assessment = new { action = "backup_create", availability = "allowed", reason = "available" }
+        }), "wrong restore action is rejected");
+        Reject(() => PortActionDecision.Read(Json.Parse(Json.Print(new { action = "launch", availability = "waiting", reason = "missing_backup" }))), "restore-only reason cannot leak into another action");
     }
 
     private static void PortActionRecords()

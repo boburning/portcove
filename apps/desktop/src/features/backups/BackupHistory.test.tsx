@@ -121,6 +121,11 @@ describe("backup history presentation", () => {
           },
         ]}
         state="degraded"
+        restoreAssessment={{
+          action: "backup_restore",
+          availability: "allowed",
+          reason: "available",
+        }}
         problems={[
           {
             kind: "missing_manifest",

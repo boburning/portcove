@@ -96,6 +96,7 @@ interface DetailPanelProps {
   backupProblems?: BackupProblem[];
   backupState?: BackupInventory["state"];
   backupCreateAssessment?: BackupInventory["create_assessment"];
+  backupRestoreAssessment?: BackupInventory["restore_assessment"];
   backupReadState?: BackupReadState;
   retryBackupRead?: () => Promise<void>;
   source?: SourceRecord;
@@ -131,6 +132,7 @@ export function DetailPanel(props: DetailPanelProps) {
     backupProblems = [],
     backupState = "healthy",
     backupCreateAssessment,
+    backupRestoreAssessment,
     backupReadState,
     retryBackupRead,
     source,
@@ -298,6 +300,7 @@ export function DetailPanel(props: DetailPanelProps) {
         backupProblems={backupProblems}
         backupState={backupState}
         backupCreateAssessment={backupCreateAssessment}
+        backupRestoreAssessment={backupRestoreAssessment}
         backupReadState={backupReadState}
         retryBackupRead={retryBackupRead}
         busy={effectiveBusy}
@@ -379,6 +382,7 @@ function DetailBody({
   backupProblems,
   backupState,
   backupCreateAssessment,
+  backupRestoreAssessment,
   backupReadState,
   retryBackupRead,
   busy,
@@ -411,6 +415,7 @@ function DetailBody({
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
   backupCreateAssessment?: BackupInventory["create_assessment"];
+  backupRestoreAssessment?: BackupInventory["restore_assessment"];
   backupReadState?: BackupReadState;
   retryBackupRead?: () => Promise<void>;
   busy?: string;
@@ -503,6 +508,7 @@ function DetailBody({
           backupProblems={backupProblems}
           backupState={backupState}
           backupCreateAssessment={backupCreateAssessment}
+          backupRestoreAssessment={backupRestoreAssessment}
           backupReadState={backupReadState}
           retryBackupRead={retryBackupRead}
           libraryGeneration={libraryGeneration}
@@ -819,6 +825,7 @@ function SavesStorageGroup({
   backupProblems,
   backupState,
   backupCreateAssessment,
+  backupRestoreAssessment,
   backupReadState,
   retryBackupRead,
   libraryGeneration,
@@ -836,6 +843,7 @@ function SavesStorageGroup({
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
   backupCreateAssessment?: BackupInventory["create_assessment"];
+  backupRestoreAssessment?: BackupInventory["restore_assessment"];
   backupReadState?: BackupReadState;
   retryBackupRead?: () => Promise<void>;
   libraryGeneration: number;
@@ -886,6 +894,7 @@ function SavesStorageGroup({
           backups={backups}
           problems={backupProblems}
           state={backupState}
+          restoreAssessment={backupRestoreAssessment}
           readState={backupReadState}
           retryRead={retryBackupRead}
           busy={busy}

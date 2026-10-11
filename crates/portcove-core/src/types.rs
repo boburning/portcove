@@ -1088,6 +1088,8 @@ pub struct BackupInventory {
     pub port_id: String,
     /// Read-only eligibility to attempt creation; execution rechecks under its lock.
     pub create_assessment: crate::PortActionAssessment,
+    /// Eligibility to review a usable snapshot; consent and execution remain authoritative.
+    pub restore_assessment: crate::PortActionAssessment,
     pub state: BackupInventoryState,
     pub backups: Vec<BackupRecord>,
     pub problems: Vec<BackupProblem>,

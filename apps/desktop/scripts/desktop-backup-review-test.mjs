@@ -1,6 +1,8 @@
 // Reviewed backup actions in the desktop-test harness's owned library.
 import assert from "node:assert/strict";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
 import {
@@ -362,6 +364,116 @@ export async function backupReviewScenario({
     );
     await capture("native-retained-data-backup-created", ".backup-history");
 
+    // Controlled retained-record fixture in this harness's private library.
+    // Do not launch CLI after insertion: its startup recovery could mutate it.
+    const operationId = randomUUID();
+    const recoveryRoot = path.join(library, "recovery", operationId);
+    const stagedSave = path.join(recoveryRoot, "staged-data/owned-review-save.bin");
+    await mkdir(path.dirname(stagedSave), { recursive: true });
+    await writeFile(stagedSave, await readFile(save), { flag: "wx" });
+    const databasePath = path.join(library, "portcove.sqlite3");
+    const database = new DatabaseSync(databasePath);
+    try {
+      database.exec("PRAGMA busy_timeout=1000");
+      const now = Math.floor(Date.now() / 1000);
+      const inserted = database
+        .prepare(
+          "INSERT INTO lifecycle_operations (id,kind,port_id,phase,staging_path,final_path,quarantine_path,activate,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        )
+        .run(
+          operationId,
+          "restore",
+          port.id,
+          "prepared",
+          recoveryRoot,
+          paths.user_data_root,
+          path.join(recoveryRoot, "previous-data"),
+          1,
+          now,
+          now,
+        );
+      assert.equal(inserted.changes, 1);
+    } finally {
+      database.close();
+    }
+    const readJournal = () => {
+      const database = new DatabaseSync(databasePath, { readOnly: true });
+      try {
+        return database.prepare("SELECT * FROM lifecycle_operations WHERE id=?").get(operationId);
+      } finally {
+        database.close();
+      }
+    };
+    const journalBefore = readJournal();
+    const heldFiles = await Promise.all(
+      [save, stagedSave, path.join(createdFromRetainedData.path, "data/owned-review-save.bin")].map(
+        fileIdentity,
+      ),
+    );
+    const heldInventory = await invoke("get_backups", { portId: port.id });
+    assert.equal(heldInventory.ok, true);
+    assert.deepEqual(heldInventory.value.restore_assessment, {
+      action: "backup_restore",
+      availability: "held",
+      reason: "recovery_required",
+    });
+    assert.equal(heldInventory.value.state, "degraded");
+    const currentGeneration = (await invoke("get_bootstrap_status")).value.generation;
+    const rejectedPreview = await invoke("preview_backup_action", {
+      portId: port.id,
+      backupId: createdFromRetainedData.id,
+      action: "restore",
+      generation: currentGeneration,
+    });
+    assert.equal(rejectedPreview.ok, false);
+    assert.equal(rejectedPreview.error.code, "conflict");
+    const deletePreview = await invoke("preview_backup_action", {
+      portId: port.id,
+      backupId: createdFromRetainedData.id,
+      action: "delete",
+      generation: currentGeneration,
+    });
+    assert.equal(deletePreview.ok, true);
+    // WebView refresh keeps the same native host; its service adapter is read-only.
+    await openCatalogPortAfterRefresh(browser, port, port.name);
+    await browser.wait(
+      async () => {
+        const history = await browser.findElements(
+          By.css('.backup-history[data-backup-read-state="current"]'),
+        );
+        return (
+          history.length === 1 &&
+          (await history[0].getText()).includes("Restoring requires recovery to finish")
+        );
+      },
+      15_000,
+      "Fresh native Restore assessment must expose its recovery hold",
+    );
+    const heldRow = await row(createdFromRetainedData.id);
+    assert.equal(
+      await heldRow.findElement(By.css('button[data-backup-action="restore"]')).isEnabled(),
+      false,
+    );
+    assert.equal(
+      await heldRow.findElement(By.css('button[data-backup-action="delete"]')).isEnabled(),
+      true,
+    );
+    await capture("native-restore-assessment-recovery-held", ".backup-history");
+    assert.deepEqual(readJournal(), journalBefore);
+    for (const identity of heldFiles) assert.deepEqual(await fileIdentity(identity.path), identity);
+    const restoreAssessmentEvidence = {
+      setup: "private retained Prepared-record fixture; not an observed interruption",
+      operationId,
+      journalBefore,
+      journalAfter: readJournal(),
+      heldFiles,
+      assessment: heldInventory.value.restore_assessment,
+      restore_preview_refused_before_consent: true,
+      delete_preview_available: true,
+      native_restore_disabled_delete_enabled: true,
+      retained_fixture_preserved: true,
+    };
+
     const report = path.join(output, "backup-review-result.json");
     await writeFile(
       report,
@@ -371,6 +483,7 @@ export async function backupReviewScenario({
           selected,
           other,
           safety,
+          restore_assessment: restoreAssessmentEvidence,
           review_install_id: install.id,
           retained_data_creation: {
             assessment: retainedAssessment,

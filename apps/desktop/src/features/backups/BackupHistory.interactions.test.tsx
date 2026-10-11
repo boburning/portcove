@@ -60,6 +60,7 @@ function History({
   const [current, setCurrent] = useState(initial);
   return (
     <BackupHistory
+      restoreAssessment={{ action: "backup_restore", availability: "allowed", reason: "available" }}
       backups={current}
       generation={7}
       restore={vi.fn()}
@@ -114,6 +115,11 @@ it("restores committed-row focus after operation completion and an awaited inven
     const [busy, setBusy] = useState<string>();
     return (
       <BackupHistory
+        restoreAssessment={{
+          action: "backup_restore",
+          availability: "allowed",
+          reason: "available",
+        }}
         backups={current}
         generation={7}
         busy={busy}
@@ -262,7 +268,17 @@ it("returns focus to the restore opener after cancelling a restore review", asyn
   const restore = vi.fn();
   await act(async () =>
     root.render(
-      <BackupHistory backups={backups} generation={7} restore={restore} remove={vi.fn()} />,
+      <BackupHistory
+        restoreAssessment={{
+          action: "backup_restore",
+          availability: "allowed",
+          reason: "available",
+        }}
+        backups={backups}
+        generation={7}
+        restore={restore}
+        remove={vi.fn()}
+      />,
     ),
   );
   const opener = container.querySelector<HTMLButtonElement>(
@@ -281,7 +297,17 @@ it("returns focus to the restore opener after a successful reviewed restore", as
   const restore = vi.fn().mockResolvedValue(true);
   await act(async () =>
     root.render(
-      <BackupHistory backups={backups} generation={7} restore={restore} remove={vi.fn()} />,
+      <BackupHistory
+        restoreAssessment={{
+          action: "backup_restore",
+          availability: "allowed",
+          reason: "available",
+        }}
+        backups={backups}
+        generation={7}
+        restore={restore}
+        remove={vi.fn()}
+      />,
     ),
   );
   const opener = container.querySelector<HTMLButtonElement>(
@@ -301,6 +327,11 @@ it("does not open a review when recovery requires backup actions to stay disable
   await act(async () =>
     root.render(
       <BackupHistory
+        restoreAssessment={{
+          action: "backup_restore",
+          availability: "allowed",
+          reason: "available",
+        }}
         backups={backups}
         state="recovery_required"
         restore={vi.fn()}
@@ -332,6 +363,7 @@ function ReadHistory({
   const current = usePortBackups("sample", reportReadFailure);
   return (
     <BackupHistory
+      restoreAssessment={current.inventory.restore_assessment}
       backups={current.backups}
       problems={current.inventory.problems}
       state={current.inventory.state}
@@ -357,6 +389,11 @@ it("keeps a failed initial read unknown until a successful read-only retry", asy
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "waiting" as const,
+        reason: "missing_backup" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -384,6 +421,11 @@ it("identifies retained rows after a failed refresh and retries only the invento
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "waiting" as const,
+        reason: "missing_backup" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -396,6 +438,11 @@ it("identifies retained rows after a failed refresh and retries only the invento
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -446,6 +493,11 @@ it("keeps read retry focused and disables repeated clicks while a read is pendin
     finish({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "waiting" as const,
+        reason: "missing_backup" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -487,6 +539,7 @@ function DetailReadHistory({
       backupProblems={current.inventory.problems}
       backupState={current.inventory.state}
       backupCreateAssessment={current.inventory.create_assessment}
+      backupRestoreAssessment={current.inventory.restore_assessment}
       backupReadState={current.readState}
       retryBackupRead={current.refresh}
       libraryGeneration={7}
@@ -497,6 +550,109 @@ function DetailReadHistory({
   );
 }
 
+it("projects restore-only recovery separately from deletion and refuses stale eligibility after a failed read", async () => {
+  let refresh!: () => Promise<void>;
+  const inventory: BackupInventory = {
+    port_id: "sample",
+    state: "healthy",
+    backups,
+    problems: [],
+    create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+    restore_assessment: {
+      action: "backup_restore",
+      availability: "held",
+      reason: "recovery_required",
+    },
+  };
+  vi.spyOn(desktopApi, "backups")
+    .mockResolvedValueOnce(inventory)
+    .mockResolvedValueOnce({
+      ...inventory,
+      restore_assessment: {
+        action: "backup_restore",
+        availability: "allowed",
+        reason: "available",
+      },
+    })
+    .mockRejectedValueOnce(failureReport());
+  await act(async () =>
+    root.render(
+      <DetailReadHistory
+        observe={(value) => {
+          refresh = value;
+        }}
+      />,
+    ),
+  );
+  const restore = () =>
+    container.querySelector<HTMLButtonElement>('button[data-backup-action="restore"]')!;
+  const remove = () =>
+    container.querySelector<HTMLButtonElement>('button[data-backup-action="delete"]')!;
+  expect(restore().disabled).toBe(true);
+  expect(remove().disabled).toBe(false);
+  expect(container.textContent).toContain("Restoring requires recovery to finish");
+  await act(async () => restore().click());
+  expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
+  await act(async () => refresh());
+  expect(restore().disabled).toBe(false);
+  await act(async () => refresh());
+  expect(restore().disabled).toBe(true);
+  expect(remove().disabled).toBe(false);
+  expect(container.textContent).toContain("Restore eligibility is unknown");
+  await act(async () => restore().click());
+  expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
+});
+
+it("holds Restore during a pending refresh and when an assessment is absent", async () => {
+  let refresh!: () => Promise<void>;
+  let finish!: (inventory: BackupInventory) => void;
+  const inventory: BackupInventory = {
+    port_id: "sample",
+    state: "healthy",
+    backups,
+    problems: [],
+    create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+    restore_assessment: { action: "backup_restore", availability: "allowed", reason: "available" },
+  };
+  vi.spyOn(desktopApi, "backups")
+    .mockResolvedValueOnce(inventory)
+    .mockReturnValueOnce(
+      new Promise<BackupInventory>((resolve) => {
+        finish = resolve;
+      }),
+    );
+  await act(async () =>
+    root.render(
+      <DetailReadHistory
+        observe={(value) => {
+          refresh = value;
+        }}
+      />,
+    ),
+  );
+  const restore = () =>
+    container.querySelector<HTMLButtonElement>('button[data-backup-action="restore"]')!;
+  expect(restore().disabled).toBe(false);
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = refresh();
+  });
+  expect(restore().disabled).toBe(true);
+  await act(async () => restore().click());
+  expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
+  await act(async () => {
+    finish(inventory);
+    await pending;
+  });
+  expect(restore().disabled).toBe(false);
+  await act(async () =>
+    root.render(<BackupHistory backups={backups} restore={vi.fn()} remove={vi.fn()} />),
+  );
+  expect(restore().disabled).toBe(true);
+  await act(async () => restore().click());
+  expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
+});
+
 it("offers retained owned-data backup without an install and rejects last-loaded availability after refresh fails", async () => {
   let refresh!: () => Promise<void>;
   vi.spyOn(desktopApi, "backups")
@@ -505,6 +661,11 @@ it("offers retained owned-data backup without an install and rejects last-loaded
       state: "healthy",
       backups: [],
       problems: [],
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "waiting" as const,
+        reason: "missing_backup" as const,
+      },
       create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
     })
     .mockRejectedValueOnce(failureReport());
@@ -559,6 +720,11 @@ it("waits for current degraded inventory rather than a pending or failed read no
       root.render(
         <section aria-labelledby="detail-saves-and-storage">
           <BackupHistory
+            restoreAssessment={{
+              action: "backup_restore",
+              availability: "allowed",
+              reason: "available",
+            }}
             backups={backups}
             state="degraded"
             problems={[
@@ -592,6 +758,11 @@ it("waits for current degraded inventory rather than a pending or failed read no
     port_id: "sample",
     state: "degraded",
     backups,
+    restore_assessment: {
+      action: "backup_restore" as const,
+      availability: "allowed" as const,
+      reason: "available" as const,
+    },
     create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
     problems: [
       {
@@ -622,6 +793,11 @@ it("routes the actual native backup selector to visible owned controls without o
     state: "healthy",
     backups,
     problems: [],
+    restore_assessment: {
+      action: "backup_restore" as const,
+      availability: "allowed" as const,
+      reason: "available" as const,
+    },
     create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
   });
   const apply = vi.spyOn(desktopApi, "restoreBackup");
@@ -666,6 +842,11 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -678,6 +859,11 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -717,6 +903,11 @@ it("keeps the retry control focused when an uninstalled port's unknown list beco
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -744,6 +935,11 @@ it("preserves a completed reviewed restore and its focus when inventory readback
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -756,6 +952,11 @@ it("preserves a completed reviewed restore and its focus when inventory readback
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -781,8 +982,8 @@ it("preserves a completed reviewed restore and its focus when inventory readback
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(container.textContent).toContain("last loaded backup list");
   expect(container.textContent).not.toContain("did not complete");
-  await vi.waitFor(() => expect(document.activeElement).toBe(opener));
-  expect(opener.disabled).toBe(false);
+  await vi.waitFor(() => expect(document.activeElement?.textContent).toBe("Backups"));
+  expect(opener.disabled).toBe(true);
   await click("Retry backup history");
   expect(read).toHaveBeenCalledTimes(3);
   expect(restore).toHaveBeenCalledTimes(1);
@@ -809,6 +1010,11 @@ it("lets the next selected port retry while the old port's retry is still pendin
     .mockResolvedValueOnce({
       port_id: "other",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",
@@ -828,6 +1034,11 @@ it("lets the next selected port retry while the old port's retry is still pendin
     finishOld({
       port_id: "sample",
       state: "healthy",
+      restore_assessment: {
+        action: "backup_restore" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
       create_assessment: {
         action: "backup_create",
         availability: "allowed",

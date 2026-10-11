@@ -407,8 +407,9 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
 
 pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String {
     format!(
-        "{}\n{}",
+        "{}\n{}\n{}",
         status_action(&inventory.create_assessment),
+        status_action(&inventory.restore_assessment),
         backup_history(port_id, inventory)
     )
 }
@@ -1140,6 +1141,9 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
             },
             PortActionReason::MissingData => {
                 "No owned saves or settings are currently available to back up."
+            }
+            PortActionReason::MissingBackup => {
+                "No usable backup is currently available to review for restore."
             }
             PortActionReason::UnreadableData => {
                 "Owned data could not be read; review its location and retry."
@@ -2873,6 +2877,15 @@ mod tests {
         }
     }
 
+    fn backup_restore_fixture_assessment() -> portcove_core::PortActionAssessment {
+        portcove_core::PortActionAssessment {
+            action: portcove_core::PortAction::BackupRestore,
+            availability: portcove_core::PortActionAvailability::Waiting,
+            reason: portcove_core::PortActionReason::MissingBackup,
+            definition: None,
+        }
+    }
+
     #[test]
     fn read_renderers_have_stable_human_snapshots() {
         assert_eq!(
@@ -2881,6 +2894,7 @@ mod tests {
                 &BackupInventory {
                     port_id: "sample".into(),
                     create_assessment: backup_fixture_assessment(),
+                    restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: Vec::new(),
                     problems: Vec::new(),
@@ -2894,6 +2908,7 @@ mod tests {
                 &BackupInventory {
                     port_id: "sample".into(),
                     create_assessment: backup_fixture_assessment(),
+                    restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: vec![BackupRecord {
                         id: "backup-1".into(),
@@ -2913,6 +2928,7 @@ mod tests {
             "sample",
             &BackupInventory {
                 port_id: "sample".into(),
+                restore_assessment: backup_restore_fixture_assessment(),
                 create_assessment: portcove_core::PortActionAssessment {
                     availability: portcove_core::PortActionAvailability::Held,
                     reason: portcove_core::PortActionReason::RecoveryRequired,

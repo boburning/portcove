@@ -1275,7 +1275,8 @@
           "remove_managed",
           "remove_external",
           "rollback",
-          "backup_create"
+          "backup_create",
+          "backup_restore"
         ],
         "type": "string"
       },
@@ -1337,6 +1338,7 @@
           "invalid_installation",
           "definition_ineligible",
           "missing_data",
+          "missing_backup",
           "unreadable_data",
           "unsafe_data",
           "recovery_required",
@@ -2361,7 +2363,8 @@
           "remove_managed",
           "remove_external",
           "rollback",
-          "backup_create"
+          "backup_create",
+          "backup_restore"
         ],
         "type": "string"
       },
@@ -2423,6 +2426,7 @@
           "invalid_installation",
           "definition_ineligible",
           "missing_data",
+          "missing_backup",
           "unreadable_data",
           "unsafe_data",
           "recovery_required",
@@ -2452,6 +2456,10 @@
         },
         "type": "array"
       },
+      "restore_assessment": {
+        "$ref": "#/$defs/PortActionAssessment",
+        "description": "Eligibility to review a usable snapshot; consent and execution remain authoritative."
+      },
       "state": {
         "$ref": "#/$defs/BackupInventoryState"
       }
@@ -2459,6 +2467,7 @@
     "required": [
       "port_id",
       "create_assessment",
+      "restore_assessment",
       "state",
       "backups",
       "problems"
@@ -29477,7 +29486,8 @@
           "remove_managed",
           "remove_external",
           "rollback",
-          "backup_create"
+          "backup_create",
+          "backup_restore"
         ],
         "type": "string"
       },
@@ -29539,6 +29549,7 @@
           "invalid_installation",
           "definition_ineligible",
           "missing_data",
+          "missing_backup",
           "unreadable_data",
           "unsafe_data",
           "recovery_required",
