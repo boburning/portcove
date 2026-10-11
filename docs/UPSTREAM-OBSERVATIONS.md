@@ -204,7 +204,7 @@ The Starfox 404 remains inaccessible-or-missing with unresolved continuity, not
 retirement. Every shared port must have the matching reviewed scope. Changed,
 missing, malformed or unclassified conditions retain a nonzero outcome.
 
-For the three reviewed GitHub direct pins, a HEAD 302 may trigger three bounded
+For each exactly matching reviewed GitHub direct pin record, a HEAD 302 may trigger three bounded
 fixed API metadata reads derived from the declared repository/tag/filename. These
 validate the reviewed repository, release and asset IDs, complete uncapped asset
 collections, exact uploaded asset URL/name/size/provider digest and retained asset
@@ -226,11 +226,13 @@ pin check and identical original-location endpoint within the same collection;
 all per-pin and original-location identity checks still run. Failed, redirected,
 partial or malformed reads are not cached. The map is discarded after collection
 and never imports prior-report metadata. Old and relocated endpoints stay distinct.
-Current 88-port fixture coverage retains all 101 locations and nine pin checks
-with 121 requests instead of 128; adding one equivalent pinned title forecasts
-125 requests, two forecast 129 and exceed the unchanged cap. All existing
-request/time/body bounds, credential routing and source/installation safeguards
-remain in force. A passing monitor means accounted conditions, not installability.
+The dated #1732 89-port observation completed with 125 requests under the former
+128-request bound. Its cache-boundary repair remains valid. After DKC3 historical
+release coverage and Diablo admission, the October 11 inventory contains 90 ports,
+106 locations and eleven matching reviewed pin records. Its successful metadata
+path requires `106 − 9 + 33 = 130` requests; the failed 128-request full collection
+and its two unattempted historical-release records remain retained evidence.
+A passing monitor means accounted conditions, not installability.
 
 An optional bounded `--previous-report=PATH` supplies comparison evidence. A
 matching canonical catalog hash and nonfuture report no older than 24 hours may
@@ -243,14 +245,57 @@ without repeated notification; their unknown status and failure exit remain.
 Fresh recovery is reported separately. Current availability is always observed
 within the attempt, except explicitly deferred rate-limit requests.
 
-Collection makes no retries and permits at most 128 requests, three minutes total,
-fifteen seconds per request, one MiB per response and sixteen MiB of consumed
-response bytes. The stream is bounded before JSON parsing; the chunk crossing a
-byte limit is counted but not retained. A detected rate limit stops requests to
-that provider, records its retry time and leaves deferred identities unattempted
-and unknown. Other providers may continue within the shared budget. Budget
-exhaustion likewise preserves every unattempted identity. These diagnostics write
-no incidents and transfer no authority.
+Before any network I/O, the collector validates the complete inventory, selected
+scope and accounting policy, then derives a conservative request budget. Each
+network-capable location reserves one call; each matching reviewed pin record
+reserves three additional conditional metadata calls. Unlocated historical
+identities require no request and remain unknown. Successful cache reuse,
+redirects, failures and backoff are never speculative budget credits. The report
+separately records conditional reuse opportunities and actual consumption.
+
+Each run receives only that derived budget, bounded by a separately fixed **256
+request hard ceiling** in source. No caller, environment or catalog can override
+or automatically increase the ceiling. Today's conservative forecast is
+`106 + 33 = 139`; the fixed ceiling does not grant today's run 256 calls.
+A forecast above 256 refuses **all** network work before collection, sets the
+admitted-call budget to zero and reports global health unassessed. Every selected
+location and port stays in the complete denominator, unknown and unattempted;
+static missing-release/conflicting-identity reasons remain distinct from deferred
+network obligations marked budget. Outside-scope ports remain explicitly
+unassessed. Overflow requires reducing legitimate obligations or a separately
+reviewed capacity redesign; partial successful collections cannot establish full
+health.
+
+This openly doubles the former 128 ceiling while preserving inventory-sized
+execution. The existing `release/upstream-observer.json` 256-request/three-minute/
+16-MiB envelope supplies a repository resource precedent, not quota proof. Its
+separate four-MiB response and retry allowances are not adopted here. At the dated
+October 11 accounting inventory's fifteen of 32 entries, seventeen additional
+typical pins at five conservative calls each would forecast `139 + 85 = 224`;
+other history/platform/location growth can still overflow. This arithmetic grants
+no admission authority or guaranteed completion.
+
+The fixed ceiling represents at most 25.6% of the documented 1,000-request hourly
+`GITHUB_TOKEN` repository allowance; today's forecast at most 13.9%. Sequential
+GET/HEAD collection remains below the documented concurrency and ordinary-point
+limits, but shared quota and secondary limits can still refuse it. Preserve
+provider backoff rather than acquire credentials, retry or buy capacity. See
+[GitHub REST limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+Existing public standard-runner execution is
+[no-charge](https://docs.github.com/en/billing/concepts/product-billing/github-actions);
+that does not establish storage headroom. No cadence, runner, retention or paid
+service expansion accompanies the request ceiling change.
+
+Collection retains zero retries, three minutes total, fifteen seconds per
+request, one MiB per response and sixteen MiB of consumed response bytes. The
+stream is bounded before JSON parsing; the chunk crossing a byte limit is counted
+but not retained. A detected rate limit stops requests to that provider, records
+its retry time and leaves deferred identities unattempted and unknown. Other
+providers may continue within the admitted shared budget. Budget exhaustion
+preserves every unattempted identity. Prior reports remain bounded independently
+at 512 observations and 512 incident entries per port, with the existing two-MiB
+regular-file admission bound. These diagnostics write no incidents and transfer
+no authority.
 
 ## Pull-request applicability
 

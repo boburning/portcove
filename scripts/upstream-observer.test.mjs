@@ -2074,101 +2074,122 @@ test("reviewed exact metadata and original conditions remain degraded without gr
 });
 
 test("fixed mixed inventory retains every location and pin check with eight fewer actual requests", async () => {
-  const calls = [];
-  const inventory = await collectRepositoryHealth(currentHealthCatalog, {
-    fetch: async () => {
-      throw new Error("offline inventory only");
-    },
-    now: () => 0,
-  });
-  const fixed = accountingFetch(calls);
-  const fixedPrefixes = reviewedAccounting.pins.map(
-    (pin) => `https://api.github.com/repos/${pin.repository}`,
-  );
-  const fixedUrls = new Set([
-    ...reviewedAccounting.pins.map((pin) => pin.url),
-    ...reviewedAccounting.original_conditions.map(
-      (rule) => `https://api.github.com/repos/${rule.repository}`,
-    ),
-  ]);
-  const report = await collectRepositoryHealth(currentHealthCatalog, {
-    fetch: async (url, options) => {
-      if (
-        fixedUrls.has(url) ||
-        fixedPrefixes.some((prefix) => url === prefix || url.startsWith(`${prefix}/`))
-      )
-        return fixed(url, options);
-      calls.push({ url, options });
-      if (options.method === "HEAD") {
-        const artifact = currentHealthCatalog.ports
-          .flatMap((port) => Object.values(port.release?.direct ?? {}))
-          .find((artifact) => artifact.url === url);
-        return new Response(null, { headers: { "content-length": String(artifact?.size ?? 0) } });
-      }
-      const record = inventory.observations.find((record) => {
-        const base =
-          record.provider === "github"
-            ? `https://api.github.com/repos/${record.repository}`
-            : `https://gitlab.com/api/v4/projects/${encodeURIComponent(record.repository)}`;
-        return (
-          url ===
-          (record.release_ref
-            ? `${base}/releases/${record.provider === "github" ? "tags/" : ""}${encodeURIComponent(record.release_ref)}`
-            : base)
-        );
-      });
-      assert.ok(record, url);
-      const assets = (record.historical_artifact_identities ?? []).map((identity) => ({
-        digest: `sha256:${identity.artifact_sha256}`,
-      }));
-      const facts = record.release_ref
-        ? {
-            id: 1,
-            tag_name: record.release_ref,
-            assets: record.provider === "github" ? assets : { links: assets },
-          }
-        : {
-            id: 1,
-            full_name: record.repository,
-            path_with_namespace: record.repository,
-            archived: false,
-          };
-      return new Response(JSON.stringify(facts), {
-        headers: { "content-type": "application/json" },
-      });
-    },
-  });
-  assert.equal(
-    report.outcome,
-    "complete",
-    JSON.stringify(report.observations.filter((r) => !r.accounted_for)),
-  );
-  assert.equal(report.coverage.monitored_ports, 15);
-  assert.equal(report.coverage.repositories, 25);
-  assert.equal(report.coverage.attempted_repositories, 17);
-  assert.equal(report.coverage.reused_repositories, 8);
-  assert.equal(report.consumed.requests, 47);
-  assert.equal(calls.length, 47);
-  assert.equal(report.limits.requests, 128);
-  assert.equal(report.observations.filter((record) => record.pin_assessment).length, 10);
-  for (const pin of reviewedAccounting.pins) {
-    const prefix = `https://api.github.com/repos/${pin.repository}`;
-    assert.equal(calls.filter((call) => call.url === prefix).length, 1);
-    for (const endpoint of [
-      `${prefix}/releases/tags/${encodeURIComponent(pin.tag)}`,
-      `${prefix}/releases/${pin.release_id}/assets?per_page=100`,
-    ])
-      assert.equal(calls.filter((call) => call.url === endpoint).length, 1);
-  }
-  for (const original of reviewedAccounting.original_conditions)
-    assert.equal(
-      calls.filter((call) => call.url === `https://api.github.com/repos/${original.repository}`)
-        .length,
-      1,
+  for (const expanded of [false, true]) {
+    const catalog = structuredClone(currentHealthCatalog);
+    if (expanded)
+      catalog.ports.push(
+        {
+          id: "extra-shared-original",
+          release: {
+            provider: "github",
+            repository: reviewedAccounting.pins.find(
+              (pin) => pin.port_id === "alexbeav-ape-escape-recomp",
+            ).repository,
+          },
+        },
+        ...Array.from({ length: 83 }, (_, i) => ({
+          id: `expanded-${i}`,
+          release: { provider: "github", repository: `fixture/expanded-${i}` },
+        })),
+      );
+    const calls = [];
+    const inventory = await collectRepositoryHealth(catalog, {
+      fetch: async () => {
+        throw new Error("offline inventory only");
+      },
+      now: () => 0,
+    });
+    const fixed = accountingFetch(calls);
+    const fixedPrefixes = reviewedAccounting.pins.map(
+      (pin) => `https://api.github.com/repos/${pin.repository}`,
     );
+    const fixedUrls = new Set([
+      ...reviewedAccounting.pins.map((pin) => pin.url),
+      ...reviewedAccounting.original_conditions.map(
+        (rule) => `https://api.github.com/repos/${rule.repository}`,
+      ),
+    ]);
+    const report = await collectRepositoryHealth(catalog, {
+      fetch: async (url, options) => {
+        if (
+          fixedUrls.has(url) ||
+          fixedPrefixes.some((prefix) => url === prefix || url.startsWith(`${prefix}/`))
+        )
+          return fixed(url, options);
+        calls.push({ url, options });
+        if (options.method === "HEAD") {
+          const artifact = catalog.ports
+            .flatMap((port) => Object.values(port.release?.direct ?? {}))
+            .find((artifact) => artifact.url === url);
+          return new Response(null, { headers: { "content-length": String(artifact?.size ?? 0) } });
+        }
+        const record = inventory.observations.find((record) => {
+          const base =
+            record.provider === "github"
+              ? `https://api.github.com/repos/${record.repository}`
+              : `https://gitlab.com/api/v4/projects/${encodeURIComponent(record.repository)}`;
+          return (
+            url ===
+            (record.release_ref
+              ? `${base}/releases/${record.provider === "github" ? "tags/" : ""}${encodeURIComponent(record.release_ref)}`
+              : base)
+          );
+        });
+        assert.ok(record, url);
+        const assets = (record.historical_artifact_identities ?? []).map((identity) => ({
+          digest: `sha256:${identity.artifact_sha256}`,
+        }));
+        const facts = record.release_ref
+          ? {
+              id: 1,
+              tag_name: record.release_ref,
+              assets: record.provider === "github" ? assets : { links: assets },
+            }
+          : {
+              id: 1,
+              full_name: record.repository,
+              path_with_namespace: record.repository,
+              archived: false,
+            };
+        return new Response(JSON.stringify(facts), {
+          headers: { "content-type": "application/json" },
+        });
+      },
+    });
+    assert.equal(
+      report.outcome,
+      "complete",
+      JSON.stringify(report.observations.filter((r) => !r.accounted_for)),
+    );
+    assert.equal(report.coverage.monitored_ports, expanded ? 99 : 15);
+    assert.equal(report.coverage.repositories, expanded ? 109 : 25);
+    assert.equal(report.coverage.attempted_repositories, expanded ? 100 : 17);
+    assert.equal(report.coverage.reused_repositories, expanded ? 9 : 8);
+    assert.equal(report.consumed.requests, expanded ? 130 : 47);
+    assert.equal(calls.length, expanded ? 130 : 47);
+    assert.equal(report.limits.requests, expanded ? 139 : 55);
+    assert.equal(report.request_plan.conservative_requests, report.limits.requests);
+    assert.equal(report.request_plan.hard_ceiling, 256);
+    assert.equal(report.request_plan.conditional_repository_reuses, expanded ? 9 : 8);
+    assert.equal(report.observations.filter((record) => record.pin_assessment).length, 10);
+    for (const pin of reviewedAccounting.pins) {
+      const prefix = `https://api.github.com/repos/${pin.repository}`;
+      assert.equal(calls.filter((call) => call.url === prefix).length, 1);
+      for (const endpoint of [
+        `${prefix}/releases/tags/${encodeURIComponent(pin.tag)}`,
+        `${prefix}/releases/${pin.release_id}/assets?per_page=100`,
+      ])
+        assert.equal(calls.filter((call) => call.url === endpoint).length, 1);
+    }
+    for (const original of reviewedAccounting.original_conditions)
+      assert.equal(
+        calls.filter((call) => call.url === `https://api.github.com/repos/${original.repository}`)
+          .length,
+        1,
+      );
+  }
 });
-
-test("cached repository observations survive the live-request cap without admitting another request", async () => {
+test("repository reuse retains all obligations across the former cap and near the fixed ceiling", async () => {
   const pin = reviewedAccounting.pins[0];
   const prefix = `https://api.github.com/repos/${pin.repository}`;
   const ordinaryPort = (id) => ({
@@ -2179,6 +2200,7 @@ test("cached repository observations survive the live-request cap without admitt
     [123, false],
     [124, false],
     [124, true],
+    [251, false],
   ]) {
     const catalog = {
       ports: [
@@ -2204,9 +2226,10 @@ test("cached repository observations survive the live-request cap without admitt
         );
       },
     });
-    assert.equal(report.limits.requests, 128);
-    assert.equal(report.consumed.requests, ordinaryCount + 4);
-    assert.equal(calls.length, ordinaryCount + 4);
+    assert.equal(report.limits.requests, ordinaryCount + 5 + Number(nextLive));
+    assert.equal(report.request_plan.hard_ceiling, 256);
+    assert.equal(report.consumed.requests, ordinaryCount + 4 + Number(nextLive));
+    assert.equal(calls.length, ordinaryCount + 4 + Number(nextLive));
     assert.equal(calls.filter((call) => call.url === prefix).length, 1);
     assert.equal(
       report.observations.find((record) => record.repository === pin.url).pin_assessment.status,
@@ -2218,15 +2241,15 @@ test("cached repository observations survive the live-request cap without admitt
     assert.equal(original.reason, null);
     assert.equal(original.status, "reachable");
     assert.equal(original.accounted_for, true);
-    assert.equal(report.outcome, nextLive ? "incomplete" : "complete");
+    assert.equal(report.outcome, "complete");
     if (nextLive) {
       const refused = report.observations.find(
         (record) => record.repository === "fixture/next-live",
       );
-      assert.equal(refused.attempted, false);
+      assert.equal(refused.attempted, true);
       assert.equal(refused.metadata_reused, false);
-      assert.equal(refused.reason, "budget");
-      assert.equal(refused.accounted_for, false);
+      assert.equal(refused.reason, null);
+      assert.equal(refused.accounted_for, true);
     }
   }
 });
@@ -2610,5 +2633,199 @@ test("changed release classification or publication facts cannot inherit reviewe
         pin,
       ),
     );
+  }
+});
+
+const capacityPort = (id) => ({
+  id,
+  release: { provider: "github", repository: `fixture/${id}` },
+});
+const capacityFetch = (calls) => async (url, options) => {
+  calls.push({ url, options });
+  return new Response(
+    JSON.stringify({
+      id: 42,
+      full_name: url.slice("https://api.github.com/repos/".length),
+      archived: false,
+    }),
+    { headers: { "content-type": "application/json" } },
+  );
+};
+
+test("validated forecasts admit 255/256 and refuse 257 before any network I/O", async () => {
+  for (const count of [255, 256, 257]) {
+    const catalog = {
+      ports: Array.from({ length: count }, (_, i) => capacityPort(`boundary-${i}`)),
+    };
+    const calls = [];
+    const report = await collectRepositoryHealth(catalog, {
+      fetch: capacityFetch(calls),
+      now: () => 0,
+    });
+    assert.equal(report.request_plan.conservative_requests, count);
+    assert.equal(report.request_plan.hard_ceiling, 256);
+    assert.equal(report.request_plan.status, count > 256 ? "overflow" : "admitted");
+    assert.equal(report.limits.requests, count > 256 ? 0 : count);
+    assert.equal(calls.length, count > 256 ? 0 : count);
+    assert.equal(report.consumed.requests, calls.length);
+    assert.equal(report.observations.length, count);
+    assert.equal(report.port_health.length, count);
+    assert.equal(report.coverage.repositories, count);
+    assert.equal(report.scope.mode, "full");
+    if (count > 256) {
+      assert.equal(report.outcome, "incomplete");
+      assert.equal(report.scope.global_health, "not assessed");
+      assert.ok(
+        report.observations.every((r) => !r.attempted && !r.accounted_for && r.reason === "budget"),
+      );
+      assert.match(
+        renderRepositoryHealth(report),
+        /Preflight overflow: no live requests permitted/,
+      );
+    } else assert.equal(report.outcome, "complete");
+    const none = await collectRepositoryHealth(catalog, {
+      portIds: [],
+      fetch: () => assert.fail("Empty scope must not fetch"),
+    });
+    assert.equal(none.limits.requests, 0);
+    assert.equal(none.request_plan.conservative_requests, 0);
+    assert.equal(none.outcome, "not-applicable");
+    assert.equal(none.scope.unassessed_port_ids.length, count);
+    const affected = await collectRepositoryHealth(catalog, {
+      portIds: [catalog.ports[0].id],
+      fetch: capacityFetch([]),
+    });
+    assert.equal(affected.limits.requests, 1);
+    assert.equal(affected.scope.global_health, "not assessed");
+    assert.equal(affected.scope.unassessed_port_ids.length, count - 1);
+  }
+});
+
+test("overflow preserves static missing-release and conflicting-identity classifications", async () => {
+  const direct = (id, conflict = false) => ({
+    id,
+    release: {
+      provider: "direct-manifest",
+      direct: {
+        windows: {
+          url: `https://example.invalid/${id}.zip`,
+          sha256: "1".repeat(64),
+          size: 10,
+          version: "v1",
+        },
+        ...(conflict
+          ? {
+              linux: {
+                url: `https://example.invalid/${id}.zip`,
+                sha256: "2".repeat(64),
+                size: 10,
+                version: "v1",
+              },
+            }
+          : {}),
+      },
+    },
+  });
+  const catalog = {
+    ports: [
+      ...Array.from({ length: 255 }, (_, i) => capacityPort(`mixed-${i}`)),
+      direct("unlocated"),
+      direct("conflicting", true),
+    ],
+    source_catalog: {
+      qualification: [
+        {
+          scope: {
+            port_id: "unlocated",
+            upstream_ref: "historical-v0",
+            artifact_sha256: "3".repeat(64),
+          },
+        },
+      ],
+    },
+  };
+  const report = await collectRepositoryHealth(catalog, {
+    fetch: () => assert.fail("Overflow must not fetch"),
+    now: () => 0,
+  });
+  assert.equal(report.request_plan.conservative_requests, 257);
+  assert.equal(report.limits.requests, 0);
+  assert.equal(report.observations.length, 258);
+  assert.equal(report.coverage.monitored_ports, 257);
+  assert.equal(
+    report.observations.find((r) => r.provider === "unlocated-historical").reason,
+    "release-identity-unavailable",
+  );
+  assert.equal(
+    report.observations.find((r) => r.repository.endsWith("conflicting.zip")).reason,
+    "identity-mismatch",
+  );
+  assert.ok(report.observations.every((r) => !r.attempted && !r.accounted_for));
+});
+
+test("malformed inventories refuse before requests and prior-report bounds remain independently 512", async () => {
+  const catalog = { ports: [capacityPort("history-bound")] };
+  for (const bad of [
+    null,
+    { ports: null },
+    { ports: [capacityPort("duplicate"), capacityPort("duplicate")] },
+    {
+      ports: [{ ...capacityPort("bad"), release: { provider: "github", repository: "../escape" } }],
+    },
+  ]) {
+    await assert.rejects(
+      collectRepositoryHealth(bad, {
+        fetch: () => assert.fail("Malformed inventory must not fetch"),
+      }),
+    );
+  }
+  const fetch404 = async () => new Response(null, { status: 404 });
+  const first = await collectRepositoryHealth(catalog, { fetch: fetch404 });
+  assert.equal(first.limits.requests, 1);
+  assert.equal(first.port_health[0].canonical_incidents.length, 1);
+  for (const count of [512, 513]) {
+    for (const field of ["observations", "incidents"]) {
+      const prior = structuredClone(first);
+      if (field === "observations")
+        prior.observations = Array.from({ length: count }, () =>
+          structuredClone(first.observations[0]),
+        );
+      else
+        prior.port_health[0].canonical_incidents = Array.from({ length: count }, () =>
+          structuredClone(first.port_health[0].canonical_incidents[0]),
+        );
+      const report = await collectRepositoryHealth(catalog, {
+        previousReport: prior,
+        fetch: fetch404,
+      });
+      assert.equal(
+        report.previous_report,
+        count === 512 ? "matching recent evidence" : "stale, mismatched or incomplete; not reused",
+        field,
+      );
+      assert.equal(report.observations[0].reason, "inaccessible-or-missing");
+      assert.equal(report.outcome, "incomplete");
+    }
+  }
+});
+
+test("reuse opportunities require the pin read to precede a shared hosted sibling", async () => {
+  const pin = reviewedAccounting.pins[0];
+  const pinnedPort = currentHealthCatalog.ports.find((port) => port.id === pin.port_id);
+  const sibling = {
+    id: "shared-hosted-sibling",
+    release: { provider: "github", repository: pin.repository },
+  };
+  for (const pinFirst of [true, false]) {
+    const calls = [];
+    const report = await collectRepositoryHealth(
+      { ports: pinFirst ? [pinnedPort, sibling] : [sibling, pinnedPort] },
+      { fetch: accountingFetch(calls) },
+    );
+    assert.equal(report.outcome, "complete");
+    assert.equal(report.request_plan.conditional_repository_reuses, pinFirst ? 1 : 0);
+    assert.equal(report.coverage.reused_repositories, pinFirst ? 1 : 0);
+    assert.equal(report.limits.requests, 5);
+    assert.equal(report.consumed.requests, pinFirst ? 4 : 5);
   }
 });

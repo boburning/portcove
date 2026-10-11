@@ -15,8 +15,9 @@ class HealthFailure extends Error {
     this.reason = reason;
   }
 }
-const limits = Object.freeze({
-  requests: 128,
+const HARD_REQUEST_CEILING = 256;
+const PRIOR_REPORT_ENTRIES = 512;
+const resourceLimits = Object.freeze({
   duration_ms: 180_000,
   request_ms: 15_000,
   response_bytes: 1024 * 1024,
@@ -440,8 +441,8 @@ async function metadata(response, budget, now, deadline) {
     bytes += chunk.length;
     budget.response_bytes += chunk.length;
     if (
-      bytes > limits.response_bytes ||
-      budget.response_bytes > limits.total_bytes ||
+      bytes > resourceLimits.response_bytes ||
+      budget.response_bytes > resourceLimits.total_bytes ||
       now() >= deadline
     )
       throw new HealthFailure("budget");
@@ -488,6 +489,52 @@ export async function collectRepositoryHealth(
   const directPorts = completeInventory.directPorts.filter(
     (id) => portIds === null || portIds.includes(id),
   );
+  // Reserve every possible network obligation without assuming redirects,
+  // successful metadata reuse, failures or backoff will save requests.
+  const contractMatches = (rule, id) =>
+    rule.port_id === id &&
+    rule.port_contract_sha256 === portContract(catalog.ports.find((port) => port.id === id));
+  const pinRules = (record) => {
+    if (record.provider !== "direct-manifest") return [];
+    const rules = record.artifact_identities.map((identity) =>
+      reviewedAccounting.pins.find(
+        (rule) =>
+          contractMatches(rule, identity.port_id) &&
+          rule.platform === identity.platform &&
+          rule.url === record.repository &&
+          rule.size === identity.size &&
+          rule.sha256 === identity.sha256 &&
+          rule.tag === identity.version,
+      ),
+    );
+    return rules.every(Boolean) ? rules : [];
+  };
+  const networkRecords = records.filter((record) => record.provider !== "unlocated-historical");
+  const pinnedRecords = records.filter((record) => pinRules(record).length);
+  const conditionalPinRequests = pinnedRecords.length * 3;
+  const conservativeRequests = networkRecords.length + conditionalPinRequests;
+  const overflow = conservativeRequests > HARD_REQUEST_CEILING;
+  const requestPlan = Object.freeze({
+    method: "validated selected inventory; no speculative reuse credit",
+    network_records: networkRecords.length,
+    conditional_pin_requests: conditionalPinRequests,
+    conditional_repository_reuses: records.filter(
+      (record, index) =>
+        record.provider === "github" &&
+        !record.release_ref &&
+        pinnedRecords.some(
+          (pin) =>
+            records.indexOf(pin) < index && pinRules(pin)[0].repository === record.repository,
+        ),
+    ).length,
+    conservative_requests: conservativeRequests,
+    hard_ceiling: HARD_REQUEST_CEILING,
+    status: overflow ? "overflow" : "admitted",
+  });
+  const limits = Object.freeze({
+    ...resourceLimits,
+    requests: overflow ? 0 : conservativeRequests,
+  });
   const catalogHash = observationHash(catalog);
   const started = now();
   const previousScopeValid =
@@ -495,7 +542,7 @@ export async function collectRepositoryHealth(
     previousReport.catalog_sha256 === catalogHash &&
     Array.isArray(previousReport.observations) &&
     Array.isArray(previousReport.port_health) &&
-    previousReport.observations.length <= limits.requests * 4 &&
+    previousReport.observations.length <= PRIOR_REPORT_ENTRIES &&
     previousReport.observations.every(
       (value) =>
         value && typeof value.provider === "string" && typeof value.repository === "string",
@@ -504,7 +551,7 @@ export async function collectRepositoryHealth(
     previousReport.port_health.every(
       (port) =>
         Array.isArray(port?.canonical_incidents) &&
-        port.canonical_incidents.length <= limits.requests * 4 &&
+        port.canonical_incidents.length <= PRIOR_REPORT_ENTRIES &&
         port.canonical_incidents.every((value) => value && typeof value.key === "string"),
     ) &&
     Number.isFinite(Date.parse(previousReport.completed_at)) &&
@@ -527,9 +574,6 @@ export async function collectRepositoryHealth(
   const repositoryMetadata = new Map();
   const deferred = new Map();
   const observations = [];
-  const contractMatches = (rule, id) =>
-    rule.port_id === id &&
-    rule.port_contract_sha256 === portContract(catalog.ports.find((port) => port.id === id));
   const originalRules = (record) => {
     if (
       record.release_ref !== undefined ||
@@ -542,21 +586,6 @@ export async function collectRepositoryHealth(
           contractMatches(rule, id) &&
           rule.provider === record.provider &&
           rule.repository === record.repository,
-      ),
-    );
-    return rules.every(Boolean) ? rules : [];
-  };
-  const pinRules = (record) => {
-    if (record.provider !== "direct-manifest") return [];
-    const rules = record.artifact_identities.map((identity) =>
-      reviewedAccounting.pins.find(
-        (rule) =>
-          contractMatches(rule, identity.port_id) &&
-          rule.platform === identity.platform &&
-          rule.url === record.repository &&
-          rule.size === identity.size &&
-          rule.sha256 === identity.sha256 &&
-          rule.tag === identity.version,
       ),
     );
     return rules.every(Boolean) ? rules : [];
@@ -640,46 +669,13 @@ export async function collectRepositoryHealth(
       result.resume_condition = resume[reason];
     };
     observations.push(result);
-    if (deferred.has(budgetProvider)) {
-      fail("rate-limit");
-      result.retry_at = deferred.get(budgetProvider);
-      if (previousUsable && priorLocation?.reason === "rate-limit") {
-        result.comparison_http_status =
-          priorLocation.http_status ?? priorLocation.comparison_http_status;
-        result.comparison_observed_at =
-          priorLocation.observed_at ??
-          priorLocation.comparison_observed_at ??
-          previousReport.completed_at;
-      }
-      continue;
-    }
     const remaining = deadline - now();
-    const reused =
-      record.provider === "github" &&
-      !record.release_ref &&
-      repositoryMetadata.has(`https://api.github.com/repos/${record.repository}`);
-    if (
-      remaining <= 0 ||
-      (!reused && consumed.requests >= limits.requests) ||
-      consumed.response_bytes >= limits.total_bytes
-    ) {
+    if (remaining <= 0 || consumed.response_bytes >= limits.total_bytes) {
       fail("budget");
       continue;
     }
-    if (
-      previousUsable &&
-      priorLocation?.reason === "rate-limit" &&
-      Number.isFinite(Date.parse(priorLocation.retry_at)) &&
-      Date.parse(priorLocation.retry_at) > started
-    ) {
-      fail("rate-limit");
-      result.retry_at = priorLocation.retry_at;
-      result.comparison_http_status =
-        priorLocation.http_status ?? priorLocation.comparison_http_status;
-      result.comparison_observed_at =
-        priorLocation.comparison_observed_at ?? previousReport.completed_at;
-      continue;
-    }
+    // Static no-request failures retain their reasons even when the selected
+    // inventory needs zero calls or preflight refuses the whole collection.
     if (record.provider === "unlocated-historical") {
       fail("release-identity-unavailable");
       continue;
@@ -700,6 +696,47 @@ export async function collectRepositoryHealth(
       ).size !== 1
     ) {
       fail("identity-mismatch");
+      continue;
+    }
+    if (overflow) {
+      fail("budget");
+      result.resume_condition =
+        "The validated request forecast exceeds the fixed hard ceiling; reduce legitimate obligations or deliver a separately reviewed capacity redesign. Partial collections do not establish full health.";
+      continue;
+    }
+    if (deferred.has(budgetProvider)) {
+      fail("rate-limit");
+      result.retry_at = deferred.get(budgetProvider);
+      if (previousUsable && priorLocation?.reason === "rate-limit") {
+        result.comparison_http_status =
+          priorLocation.http_status ?? priorLocation.comparison_http_status;
+        result.comparison_observed_at =
+          priorLocation.observed_at ??
+          priorLocation.comparison_observed_at ??
+          previousReport.completed_at;
+      }
+      continue;
+    }
+    const reused =
+      record.provider === "github" &&
+      !record.release_ref &&
+      repositoryMetadata.has(`https://api.github.com/repos/${record.repository}`);
+    if (!reused && consumed.requests >= limits.requests) {
+      fail("budget");
+      continue;
+    }
+    if (
+      previousUsable &&
+      priorLocation?.reason === "rate-limit" &&
+      Number.isFinite(Date.parse(priorLocation.retry_at)) &&
+      Date.parse(priorLocation.retry_at) > started
+    ) {
+      fail("rate-limit");
+      result.retry_at = priorLocation.retry_at;
+      result.comparison_http_status =
+        priorLocation.http_status ?? priorLocation.comparison_http_status;
+      result.comparison_observed_at =
+        priorLocation.comparison_observed_at ?? previousReport.completed_at;
       continue;
     }
     const url = plain
@@ -1072,7 +1109,9 @@ export async function collectRepositoryHealth(
         .filter((port) => !selectedPorts.includes(port))
         .map((port) => port.id),
       global_health:
-        portIds === null ? "collection attempted; not an installability claim" : "not assessed",
+        portIds === null && !overflow
+          ? "collection attempted; not an installability claim"
+          : "not assessed",
     },
     port_health: portHealth,
     started_at: new Date(started).toISOString(),
@@ -1114,6 +1153,7 @@ export async function collectRepositoryHealth(
       "distribution-authority",
       "operation-holds",
     ],
+    request_plan: requestPlan,
     limits,
     consumed,
     observations,
@@ -1125,6 +1165,12 @@ export function renderRepositoryHealth(report) {
   const lines = [
     ...(report.scope?.mode === "none"
       ? ["No selected upstream health inputs; no live requests. Global health is not assessed."]
+      : []),
+    `Request plan: ${report.request_plan.conservative_requests} conservative calls; ${report.request_plan.conditional_repository_reuses} conditional repository reuses; fixed ceiling ${report.request_plan.hard_ceiling}; ${report.request_plan.status}.`,
+    ...(report.request_plan.status === "overflow"
+      ? [
+          "Preflight overflow: no live requests permitted; selected scope and global health unassessed.",
+        ]
       : []),
     `Repository reachability: ${coverage.reachable_repositories}/${coverage.repositories} reachable; ${coverage.unknown_repositories} unknown; ${coverage.attempted_repositories} attempted.`,
     `Repository metadata reused within this collection: ${coverage.reused_repositories}; network requests: ${report.consumed.requests}/${report.limits.requests}.`,
