@@ -3,6 +3,7 @@ import { portStatus } from "../../test-fixtures";
 import type { PortStatus } from "../../types";
 import {
   catalogSetupPresentation,
+  installedCardInputPresentation,
   definitionHoldReason,
   portActionPresentation,
 } from "./port-action-presentation";
@@ -379,4 +380,131 @@ it("keeps both unavailable routes separate from unsupported gameplay", () => {
   );
   expect(display.label).toBe("Setup unavailable");
   expect(display.routes[0].reason).toContain("on this platform");
+});
+
+const installedStatus = (
+  blockers: NonNullable<PortStatus["readiness"]>["blockers"],
+): PortStatus => ({
+  ...portStatus(),
+  active: { id: "installed" } as NonNullable<PortStatus["active"]>,
+  readiness: { launchable: false, pending_setup: false, blockers },
+});
+it.each([
+  ["missing_source", "Game files missing", "Required game files are missing"],
+  ["changed_source", "Game files changed", "game files changed"],
+  ["unreadable_source", "Game files unreadable", "cannot read the required game files"],
+  ["missing_bios", "BIOS file missing", "BIOS file is missing"],
+  ["changed_bios", "BIOS file changed", "BIOS file changed"],
+  ["unreadable_bios", "BIOS file unreadable", "cannot read the required BIOS file"],
+] as const)(
+  "displays authoritative installed %s without changing operation presentation",
+  (blocker, label, reason) => {
+    const status = installedStatus([blocker]);
+    const before = JSON.stringify(status);
+    const operation = portActionPresentation(status, "launch");
+    expect(installedCardInputPresentation(status)?.label).toBe(label);
+    expect(installedCardInputPresentation(status)?.reasons[0]).toContain(reason);
+    if (blocker.startsWith("unreadable"))
+      expect(installedCardInputPresentation(status)?.reasons[0]).toContain("restore access");
+    expect(portActionPresentation(status, "launch")).toEqual(operation);
+    expect(JSON.stringify(status)).toBe(before);
+  },
+);
+it("preserves all known compound input problems without manufacturing their completion", () => {
+  const display = installedCardInputPresentation(
+    installedStatus(["changed_source", "missing_bios"]),
+  );
+  expect(display?.label).toBe("Game files and BIOS need review");
+  expect(display?.reasons).toHaveLength(2);
+});
+it("displays only the explicit launch edition mismatch, without attributing it to a BIOS", () => {
+  const status = {
+    ...installedStatus([]),
+    port_actions: [
+      {
+        action: "launch",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "source_identity_mismatch" },
+      },
+    ],
+  } as PortStatus;
+  expect(installedCardInputPresentation(status)?.label).toBe("Input edition mismatch");
+  expect(installedCardInputPresentation(status)?.reasons[0]).toContain(
+    "do not match the required edition",
+  );
+  expect(installedCardInputPresentation(status)?.label).not.toContain("BIOS");
+});
+it.each([
+  undefined,
+  portStatus(),
+  { ...installedStatus([]), readiness: undefined },
+  {
+    ...installedStatus(["changed_source"]),
+    readiness: { launchable: true, pending_setup: false, blockers: [] },
+  },
+  installedStatus(["invalid_installation", "changed_source"]),
+  installedStatus(["future" as NonNullable<PortStatus["readiness"]>["blockers"][number]]),
+  {
+    ...installedStatus([]),
+    readiness: { launchable: false, blockers: null, pending_setup: false },
+  } as unknown as PortStatus,
+])("keeps absent, unknown, Ready and installation-repair semantics: %j", (status) => {
+  expect(installedCardInputPresentation(status)).toBeUndefined();
+});
+it.each(
+  [
+    [
+      {
+        action: "launch",
+        availability: "allowed",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "source_identity_mismatch" },
+      },
+    ],
+    [
+      {
+        action: "launch",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "eligible", reason: "source_identity_mismatch" },
+      },
+    ],
+    [
+      {
+        action: "launch",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "future" },
+      },
+    ],
+    [
+      {
+        action: "launch",
+        availability: "held",
+        reason: "definition_ineligible",
+        definition: { outcome: "hold", reason: "source_identity_mismatch" },
+      },
+      { action: "launch", availability: "allowed", reason: "available" },
+    ],
+  ].map((port_actions) => ({ port_actions })),
+)(
+  "does not invent an edition mismatch from contradictory/future action data: %j",
+  ({ port_actions }) => {
+    expect(
+      installedCardInputPresentation({ ...installedStatus([]), port_actions } as PortStatus),
+    ).toBeUndefined();
+  },
+);
+
+it("ignores malformed input entries without coercing them into reason codes", () => {
+  const status = {
+    ...installedStatus([]),
+    readiness: {
+      launchable: false,
+      pending_setup: false,
+      blockers: [null, ["missing_source"], { toString: 42 }],
+    },
+  } as unknown as PortStatus;
+  expect(installedCardInputPresentation(status)).toBeUndefined();
 });
