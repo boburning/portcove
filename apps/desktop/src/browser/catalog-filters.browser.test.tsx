@@ -9,8 +9,9 @@ import {
   useLibraryBrowsingContext,
   libraryBrowsingPreferenceKey,
 } from "../features/app-shell/use-library-browsing-context";
-import { portDefinition } from "../test-fixtures";
+import { portDefinition, portStatus } from "../test-fixtures";
 import { filterPorts, summarizeLibrary } from "../view-model";
+import type { PortStatus } from "../types";
 import "../styles.css";
 const invoke = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("../api", () => ({ desktopApi: new Proxy({}, { get: () => invoke }) }));
@@ -37,7 +38,47 @@ const ports = [
     channels: ["stable", "beta"] as const,
   },
 ].map((port) => ({ ...port, platforms: [...port.platforms], channels: [...port.channels] }));
-const statuses = new Map();
+const statuses = new Map<string, PortStatus>([
+  [
+    "windows",
+    {
+      ...portStatus(),
+      port_id: "windows",
+      active: {
+        id: "managed",
+        port_id: "windows",
+        version: "1",
+        path: "/fixture",
+        channel: "stable",
+        installed_at: 1,
+        verified: true,
+        staged: false,
+        runtime: null,
+        artifact: { asset_name: "fixture.zip", sha256: "a".repeat(64), size: 1 },
+        manifest_sha256: "b".repeat(64),
+        selected_executable: "game.exe",
+      },
+    },
+  ],
+  [
+    "both",
+    {
+      ...portStatus(),
+      port_id: "both",
+      external_runtime: {
+        id: "external",
+        port_id: "both",
+        path: "/fixture",
+        executable: "game.exe",
+        platform: "windows-x86-64",
+        version: "1",
+        registered_at: 1,
+        archive_sha256: "a".repeat(64),
+        immutable_tree_sha256: "b".repeat(64),
+      },
+    },
+  ],
+]);
 const remember = () => {};
 const switchLibrary = async () => {};
 let host: HTMLDivElement;
@@ -52,6 +93,9 @@ function Session({ library }: { library: string }) {
   });
   const ui = browsing.ui;
   const [detail, setDetail] = useState(false);
+  const [facts, setFacts] = useState(true);
+  const selectedStatuses = library.endsWith("a") ? statuses : new Map<string, PortStatus>();
+  const context = facts ? { library: { id: library, statuses: selectedStatuses } } : {};
   useEffect(() => {
     ui.setView("catalog");
   }, [ui.setView]);
@@ -61,14 +105,26 @@ function Session({ library }: { library: string }) {
         Search catalog
         <input value={ui.query} onChange={(event) => ui.setQuery(event.target.value)} />
       </label>
+      <button onClick={() => setFacts((value) => !value)}>Toggle membership snapshot</button>
       {detail ? (
         <button onClick={() => setDetail(false)}>Back to catalog</button>
       ) : (
         <PortBrowser
           view="catalog"
-          ports={filterPorts(ports, statuses, "catalog", ui.filter, ui.query, ui.catalogSort)}
-          catalogFilterCandidates={filterPorts(ports, statuses, "catalog", "all", ui.query)}
-          statuses={statuses}
+          ports={filterPorts(
+            ports,
+            selectedStatuses,
+            "catalog",
+            ui.filter,
+            ui.query,
+            ui.catalogSort,
+            context,
+          )}
+          catalogFilterCandidates={
+            facts ? filterPorts(ports, selectedStatuses, "catalog", "all", ui.query) : undefined
+          }
+          queryContext={context}
+          statuses={selectedStatuses}
           overview={summarizeLibrary(ports, statuses)}
           filter={ui.filter}
           query={ui.query}
@@ -133,7 +189,7 @@ it.each(["dark", "light"])(
     expect(document.activeElement?.textContent).toContain("Filters (2)");
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
     await expect.element(roleButton("Remove Preview filter")).toBeInTheDocument();
-    await userEvent.click(page.getByRole("button", { name: /^Both game\. Setup/ }));
+    await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Remove Windows filter")).toBeInTheDocument();
     flushSync(() => root.unmount());
@@ -178,3 +234,47 @@ it("retains unsupported persisted intent until explicit reset", async () => {
   await userEvent.keyboard("{Escape}");
   await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
 });
+
+it.each(["dark", "light"])(
+  "composes membership, preserves return/restart/library isolation and makes no requests in %s",
+  async (theme) => {
+    await page.viewport(1100, 800);
+    document.documentElement.dataset.theme = theme;
+    flushSync(() => root.render(<Fixture />));
+    await userEvent.click(roleButton("Filters (0)"));
+    await userEvent.click(roleButton("In my library (2)"));
+    await userEvent.click(roleButton("Preview (1)"));
+    await expect.element(roleButton("Linux (1)")).toBeEnabled();
+    await userEvent.keyboard("{Escape}");
+    expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(1);
+    await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
+    await userEvent.click(roleButton("Back to catalog"));
+    await expect.element(roleButton("Filters (2)")).toBeInTheDocument();
+    flushSync(() => root.unmount());
+    root = createRoot(host);
+    flushSync(() => root.render(<Fixture />));
+    await expect.element(roleButton("Filters (2)")).toBeInTheDocument();
+    await userEvent.click(roleButton("Switch library"));
+    await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
+    await userEvent.click(roleButton("Filters (0)"));
+    await expect.element(roleButton("In my library (0)")).toBeEnabled();
+    await userEvent.click(roleButton("Not in my library (3)"));
+    await userEvent.keyboard("{Escape}");
+    expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(3);
+    await userEvent.click(roleButton("Switch library"));
+    await expect.element(roleButton("Filters (2)")).toBeInTheDocument();
+    await userEvent.click(roleButton("Toggle membership snapshot"));
+    await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
+    const chip = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove In my library filter"]',
+    )!;
+    chip.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(document.activeElement?.textContent).toContain("Filters (1)");
+    await userEvent.click(roleButton("Toggle membership snapshot"));
+    await userEvent.click(roleButton("Filters (1)"));
+    await userEvent.click(roleButton("Reset catalog filters"));
+    await userEvent.keyboard("{Escape}");
+    expect(invoke).not.toHaveBeenCalled();
+  },
+);

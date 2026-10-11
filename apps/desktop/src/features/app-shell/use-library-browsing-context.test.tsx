@@ -453,3 +453,46 @@ it("holds malformed query objects with conversion-shaped keys without coercing o
   await act(async () => browsing.ui.setFilter("all"));
   expect(browsing.ui.filter).toBe("all");
 });
+
+it("restores membership in its section/library without losing legacy or unsupported intent", async () => {
+  await act(async () => browsing.ui.setView("catalog"));
+  await act(async () => {
+    browsing.ui.setFilter({
+      version: 1,
+      membership: ["not-in-library"],
+      platforms: ["linux-x86-64"],
+    });
+    browsing.ui.setQuery("kept search");
+    browsing.ui.setCatalogSort("name");
+  });
+  await act(async () => browsing.ui.setView("library"));
+  await act(async () => browsing.ui.setFilter({ version: 1, membership: ["in-library"] }));
+  await remount();
+  expect(browsing.ui.filter).toEqual({ version: 1, membership: ["in-library"] });
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(browsing.ui).toMatchObject({
+    query: "kept search",
+    catalogSort: "name",
+    filter: { version: 1, membership: ["not-in-library"], platforms: ["linux-x86-64"] },
+  });
+  libraryRoot = "E:/other";
+  await remount();
+  expect(browsing.ui.filter).toBe("all");
+  libraryRoot = "E:/first";
+  await remount();
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(browsing.ui.filter).toMatchObject({ membership: ["not-in-library"] });
+  const key = libraryBrowsingPreferenceKey(libraryRoot);
+  const stored = JSON.parse(localStorage.getItem(key)!);
+  stored.version = 1;
+  stored.inputs.sections.library = { query: "legacy", filter: "setup" };
+  stored.inputs.sections.catalog.filter = { version: 1, membership: ["future-membership"] };
+  localStorage.setItem(key, JSON.stringify(stored));
+  await remount();
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(evaluateCatalogQuery([], browsing.ui.filter).state).toBe("unresolved");
+  expect(browsing.ui.filter).toMatchObject({ membership: ["future-membership"] });
+  await act(async () => browsing.ui.setView("library"));
+  expect(browsing.ui.libraryReadiness).toBe("setup");
+  expect(browsing.ui.query).toBe("legacy");
+});

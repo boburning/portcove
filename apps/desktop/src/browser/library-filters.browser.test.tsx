@@ -85,6 +85,7 @@ function Session({ library }: { library: string }) {
   const [favoriteFacts, setFavoriteFacts] = useState(true);
   const [empty, setEmpty] = useState(false);
   const snapshotPorts = empty ? [] : ports;
+  const context = facts ? { library: { id: library, statuses } } : {};
   const candidates = facts
     ? filterPorts(snapshotPorts, statuses, "library", "all", ui.query)
     : undefined;
@@ -121,8 +122,10 @@ function Session({ library }: { library: string }) {
             ui.filter,
             ui.query,
             ui.catalogSort,
+            context,
           )}
           libraryFilterCandidates={candidates}
+          queryContext={context}
           catalogFilterCandidates={
             facts ? filterPorts(snapshotPorts, statuses, "catalog", "all", ui.query) : undefined
           }
@@ -290,5 +293,35 @@ it("holds unknown migrated readiness and query separately until correction", asy
   await userEvent.click(button("Reset library filters"));
   await expect.element(button("Linux (2)")).toBeEnabled();
   await userEvent.keyboard("{Escape}");
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("retains Library narrowing and readiness counts for membership without relaxing a zero match", async () => {
+  flushSync(() => root.render(<Fixture />));
+  await userEvent.click(button("Filters (0)"));
+  await userEvent.click(button("Not in my library (0)"));
+  await userEvent.keyboard("{Escape}");
+  await expect.element(button("Ready (0)")).toBeEnabled();
+  await expect
+    .element(
+      page.getByText("No ports in your library match your search and filters", { exact: true }),
+    )
+    .toBeInTheDocument();
+  await userEvent.click(button("Filters (1)"));
+  await userEvent.click(button("In my library (3)"));
+  await userEvent.keyboard("{Escape}");
+  await expect.element(button("Ready (2)")).toBeEnabled();
+  await userEvent.click(button("Ready (2)"));
+  await userEvent.click(button("Filters (2)"));
+  await expect.element(button("In my library (2)")).toBeEnabled();
+  await userEvent.click(button("Not in my library (0)"));
+  await userEvent.keyboard("{Escape}");
+  await userEvent.click(button("Toggle snapshot"));
+  await expect.element(button("Ready (unavailable)")).toBeEnabled();
+  await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
+  await expect.element(button("Remove In my library filter")).toBeInTheDocument();
+  await userEvent.click(button("Remove In my library filter"));
+  await userEvent.click(button("Toggle snapshot"));
+  await expect.element(button("Ready (2)")).toBeEnabled();
   expect(invoke).not.toHaveBeenCalled();
 });

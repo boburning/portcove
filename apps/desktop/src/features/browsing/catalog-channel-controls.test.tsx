@@ -25,10 +25,12 @@ const statuses = new Map<string, PortStatus>();
 let host: HTMLDivElement;
 let root: Root;
 let shell: ReturnType<typeof useAppShellState>;
+let membershipFacts = false;
 const fetchSpy = vi.fn();
 
 function Fixture({ initial }: { initial?: BrowsingInputs }) {
   shell = useAppShellState("catalog", initial);
+  const context = membershipFacts ? { library: { id: "selected", statuses } } : {};
   const visible = filterPorts(
     shell.view === "library"
       ? filterPorts(
@@ -44,10 +46,13 @@ function Fixture({ initial }: { initial?: BrowsingInputs }) {
     shell.filter,
     shell.query,
     shell.catalogSort,
+    context,
   );
   return (
     <PortBrowser
       view={shell.view}
+      queryContext={context}
+      catalogFilterCandidates={filterPorts(ports, statuses, "catalog", "all", shell.query)}
       ports={visible}
       libraryReadiness={shell.libraryReadiness}
       setLibraryReadiness={shell.setLibraryReadiness}
@@ -104,6 +109,7 @@ beforeEach(async () => {
   vi.stubGlobal("fetch", fetchSpy);
   vi.clearAllMocks();
   statuses.clear();
+  membershipFacts = false;
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -355,4 +361,47 @@ describe("Catalog channel controls", () => {
     await act(async () => shell.setView("library"));
     expect(libraryButton("Needs attention").getAttribute("aria-pressed")).toBe("true");
   });
+});
+
+it("feeds the accepted membership context consistently into results, counts and unavailable restoration", async () => {
+  statuses.set("both", {
+    ...portStatus(),
+    port_id: "both",
+    external_runtime: {
+      id: "external",
+      port_id: "both",
+      path: "/fixture",
+      executable: "game.exe",
+      platform: "windows-x86-64",
+      version: "1",
+      registered_at: 1,
+      archive_sha256: "a".repeat(64),
+      immutable_tree_sha256: "b".repeat(64),
+    },
+  });
+  membershipFacts = true;
+  await act(async () => root.render(<Fixture />));
+  const control = (name: string) => {
+    const result = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.getAttribute("aria-label") === name || button.textContent?.trim() === name,
+    );
+    expect(result).toBeDefined();
+    return result!;
+  };
+  await act(async () => control("Filters (0)").click());
+  await act(async () => control("In my library (1)").click());
+  expect(visibleIds()).toEqual(["both"]);
+  await act(async () => control("Preview (1)").click());
+  expect(visibleIds()).toEqual(["both"]);
+  expect(control("Not in my library (1)")).toBeDefined();
+  membershipFacts = false;
+  await act(async () => root.render(<Fixture />));
+  expect(document.body.textContent).toContain("Ports unavailable");
+  expect(visibleIds()).toEqual([]);
+  expect(control("Remove In my library filter")).toBeDefined();
+  await act(async () => control("Remove In my library filter").click());
+  expect(visibleIds()).toEqual(["beta", "both"]);
+  expect(shell.filter).toEqual({ version: 1, membership: [], channels: ["beta"] });
+  expect(invoke).not.toHaveBeenCalled();
+  expect(fetchSpy).not.toHaveBeenCalled();
 });

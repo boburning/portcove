@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../../components/ui/dialog";
-import { evaluateCatalogQuery, type CatalogQuery } from "./catalog-query";
+import { evaluateCatalogQuery, type CatalogQuery, type CatalogQueryContext } from "./catalog-query";
 
 const groups = [
   {
@@ -19,6 +19,7 @@ const groups = [
     values: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
   },
   { key: "channels", label: "Release channels", values: ["stable", "beta", "rolling"] },
+  { key: "membership", label: "Library membership", values: ["in-library", "not-in-library"] },
 ] as const;
 type Group = (typeof groups)[number]["key"];
 
@@ -31,38 +32,42 @@ function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
     : filter;
 }
 function label(group: Group, value: string) {
+  if (group === "membership") return value === "in-library" ? "In my library" : "Not in my library";
   return group === "platforms" ? platformLabel(value) : releaseChannelPresentation(value).label;
 }
 
 /** Presentation of declared facts only; the existing evaluator owns matching/counts. */
 export function CatalogFilters({
   candidates,
+  context,
   filter,
   setFilter,
   view = "catalog",
 }: {
   candidates?: readonly PortDefinition[];
+  context?: CatalogQueryContext;
   view?: "catalog" | "library";
   filter: Filter | CatalogQuery;
   setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const query = queryFromFilter(filter);
-  const result = evaluateCatalogQuery(candidates ?? [], query);
+  const result = evaluateCatalogQuery(candidates ?? [], query, context);
   const editable = result.state === "matched";
-  const selected = editable
+  const supported = result.state !== "unresolved";
+  const selected = supported
     ? groups.flatMap((group) =>
         group.values
           .filter((value) => query[group.key]?.includes(value))
           .map((value) => ({ group: group.key, value })),
       )
     : [];
-  const additionalCount = !editable
+  const additionalCount = !supported
     ? 0
     : Object.entries(query).reduce(
         (count, [key, values]) =>
           count +
-          (!["version", "platforms", "channels"].includes(key) && Array.isArray(values)
+          (!["version", ...groups.map((group) => group.key)].includes(key) && Array.isArray(values)
             ? new Set(values).size
             : 0),
         0,
@@ -72,13 +77,13 @@ export function CatalogFilters({
   const remove = (group: Group, value: string) =>
     setFilter((current) => {
       const next = queryFromFilter(current);
-      if (evaluateCatalogQuery([], next).state !== "matched") return current;
+      if (evaluateCatalogQuery([], next, context).state === "unresolved") return current;
       return { ...next, [group]: (next[group] ?? []).filter((item) => item !== value) };
     });
   const toggle = (group: Group, value: string) =>
     setFilter((current) => {
       const next = queryFromFilter(current);
-      if (evaluateCatalogQuery([], next).state !== "matched") return current;
+      if (evaluateCatalogQuery([], next, context).state !== "matched") return current;
       const values = next[group] ?? [];
       return {
         ...next,
@@ -96,8 +101,10 @@ export function CatalogFilters({
         <DialogContent finalFocus={trigger}>
           <DialogTitle>{view === "library" ? "Library" : "Catalog"} filters</DialogTitle>
           <DialogDescription>
-            Match any selected value in each group and both groups together. Platforms describe
-            catalog targets; they do not confirm installation compatibility.
+            Match any selected value in each group and all groups together. Platforms describe
+            catalog targets; they do not confirm installation compatibility. Library membership
+            means an active managed installation or a registered external runtime in the selected
+            library; it does not confirm readiness.
             {view === "library" &&
               " Ready with Linux means current Library readiness and a declared Linux target, not a ready Linux installation."}
           </DialogDescription>
@@ -123,9 +130,14 @@ export function CatalogFilters({
                     key={value}
                     data-focusable
                     size="sm"
-                    variant={editable && query[group.key]?.includes(value) ? "selected" : "outline"}
-                    aria-pressed={editable && query[group.key]?.includes(value) === true}
-                    disabled={!editable}
+                    variant={
+                      supported && query[group.key]?.includes(value) ? "selected" : "outline"
+                    }
+                    aria-pressed={supported && query[group.key]?.includes(value) === true}
+                    disabled={
+                      !editable ||
+                      (group.key === "membership" && result.counts.membership[value] === null)
+                    }
                     onClick={() => toggle(group.key, value)}
                   >
                     {label(group.key, value)} (
@@ -143,7 +155,7 @@ export function CatalogFilters({
           </Button>
         </DialogContent>
       </Dialog>
-      {editable &&
+      {supported &&
         selected.map(({ group, value }) => (
           <Button
             key={`${group}:${value}`}

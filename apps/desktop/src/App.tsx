@@ -50,6 +50,7 @@ import {
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
+import type { CatalogQueryContext } from "./features/browsing/catalog-query";
 import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
@@ -367,7 +368,7 @@ function Workspace({
     JSON.stringify(data.catalog?.source_catalog ?? null),
   );
   const appearance = useThemePreference();
-  const model = useAppModel(data, ui);
+  const model = useAppModel(data, ui, bootstrap.library_root);
   const installPlanning = useInstallPlanning(
     model.port?.id,
     model.status?.channel ?? model.port?.channels[0],
@@ -654,10 +655,15 @@ type AppearanceState = ReturnType<typeof useThemePreference>;
 type InstallPlanningState = ReturnType<typeof useInstallPlanning>;
 type BackupState = ReturnType<typeof usePortBackups>;
 
-function useAppModel(data: DataState, ui: UiState) {
+function useAppModel(data: DataState, ui: UiState, libraryRoot?: string | null) {
   const { selectedId, setBiosPath, setSourcePath } = ui;
   const { catalog, sources, statuses } = data;
   const statusMap = useMemo(() => indexStatuses(statuses), [statuses]);
+  // Catalog and statuses arrive together in the accepted generation-bound snapshot.
+  const queryContext = useMemo<CatalogQueryContext>(
+    () => (catalog && libraryRoot ? { library: { id: libraryRoot, statuses: statusMap } } : {}),
+    [catalog, libraryRoot, statusMap],
+  );
   const visible = useMemo(
     () =>
       filterPorts(
@@ -677,8 +683,18 @@ function useAppModel(data: DataState, ui: UiState) {
         ui.filter,
         ui.query,
         ui.catalogSort,
+        queryContext,
       ),
-    [data.catalog, statusMap, ui.view, ui.filter, ui.libraryReadiness, ui.query, ui.catalogSort],
+    [
+      data.catalog,
+      statusMap,
+      ui.view,
+      ui.filter,
+      ui.libraryReadiness,
+      ui.query,
+      ui.catalogSort,
+      queryContext,
+    ],
   );
   const catalogFilterCandidates = useMemo(
     () =>
@@ -724,6 +740,7 @@ function useAppModel(data: DataState, ui: UiState) {
   }, [selectedId, selection.bios?.path, setBiosPath]);
   return {
     statusMap,
+    queryContext,
     visible,
     catalogFilterCandidates,
     libraryFilterCandidates,
@@ -937,6 +954,7 @@ function CurrentView({
       ports={model.visible}
       catalogFilterCandidates={model.catalogFilterCandidates}
       libraryFilterCandidates={model.libraryFilterCandidates}
+      queryContext={model.queryContext}
       libraryReadiness={ui.libraryReadiness}
       setLibraryReadiness={ui.setLibraryReadiness}
       statuses={model.statusMap}

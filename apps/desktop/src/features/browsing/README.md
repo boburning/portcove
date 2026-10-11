@@ -1,9 +1,19 @@
 # Catalog and Library declared filters
 
-`CatalogFilters` presents explicit declared platforms and release channels using
-the unchanged `evaluateCatalogQuery` contract. Alternatives within a group are
+`CatalogFilters` presents explicit declared platforms, release channels and selected
+Library membership using the unchanged `evaluateCatalogQuery` contract. Alternatives within a group are
 OR; groups are AND. It makes no device, route, setup-method, eligibility or
 qualification inference. Machine `beta` is displayed as Preview.
+
+App supplies one accepted generation-bound workspace status snapshot and canonical
+selected library identity consistently to result filtering and option counts.
+In my library means an active managed installation or registered external runtime;
+previous or staged-only records do not establish membership. Membership does not
+assert readiness or installed-platform compatibility. Missing library context is
+unavailable, never Not in my library; a confirmed empty snapshot is distinct.
+Restored membership selections remain visible/removable while context is absent.
+Library keeps its existing view narrowing: Not in my library can legitimately
+have zero matches there without switching sections or relaxing the query.
 
 App supplies cached candidates after search and the current view's membership,
 before editable groups. Library additionally narrows results using the existing
@@ -14,7 +24,7 @@ current Library readiness and a declared Linux target, not a ready Linux
 installation. Core remains the installation/readiness authority.
 
 PortBrowser applies the session Favorites predicate before option counts.
-Platform/channel counts exclude their own choices and retain readiness plus
+Platform/channel/membership counts exclude their own choices and retain readiness plus
 all other groups. Readiness counts retain the declared query and exclude the
 readiness selection. Counts are distinct ports, may overlap and need not sum.
 Selected zero-count options remain removable. Missing candidate snapshots or
@@ -45,7 +55,7 @@ The shared dialog/button controls provide keyboard dismissal and trigger focus
 return; removing a focused chip returns focus to Filters. Repeated selections use
 functional updates. Closing a panel keeps its already-applied selections.
 
-Contextual device selection, membership/setup-method controls and coherent
+Contextual device selection, setup-method controls and coherent
 route/build/installation/source-set matching remain with #1550. These delivered
 frontend composition components do not complete that owner or establish native,
 physical-controller, human or game execution qualification.
