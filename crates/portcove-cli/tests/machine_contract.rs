@@ -2223,7 +2223,7 @@ fn empty_library_lists_has_human_output_snapshot() {
     );
     assert_eq!(
         human_stdout(&portcove(root.path(), &["backup", "list", "lighthouse"])),
-        "  backup_create: waiting (missing_data): No owned saves or settings are currently available to back up.\nNo backups for lighthouse.\n",
+        "  backup_create: waiting (missing_data): No owned saves or settings are currently available to back up.\n  backup_restore: waiting (missing_backup): No usable backup is currently available to review for restore.\nNo backups for lighthouse.\n",
     );
     assert_eq!(
         human_stdout(&portcove(root.path(), &["activity"])),
