@@ -12,7 +12,7 @@ use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
 use crate::{
-    GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
+    AdapterKind, GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
     GithubDeviceLoginState, GithubRateLimit, Library, Platform, PortDefinition, PortcoveError,
     ReleaseAsset, ReleaseChannel, ResolvedRelease, Result,
     auth::{
@@ -1461,6 +1461,13 @@ fn choose_asset<'a>(
         .get(&platform)
         .cloned()
         .unwrap_or_default();
+    // Managed PSX definitions may distinguish a preparation kit from a competing
+    // ordinary runtime package. That declared class cannot become optional when
+    // the kit is missing; unrelated platform hints remain scoring preferences.
+    let owned_input_hints: Vec<_> = hints
+        .iter()
+        .filter(|hint| hint.to_ascii_lowercase().contains("owned-input"))
+        .collect();
     let mut scored: Vec<(i32, &GithubAsset)> = assets
         .iter()
         .filter_map(|asset| {
@@ -1472,6 +1479,14 @@ fn choose_asset<'a>(
                 return None;
             }
             if conflicts_with_platform(&name, platform) {
+                return None;
+            }
+            if port.adapter == AdapterKind::PsxRecompManaged
+                && !owned_input_hints.is_empty()
+                && !owned_input_hints
+                    .iter()
+                    .any(|hint| name.contains(&hint.to_ascii_lowercase()))
+            {
                 return None;
             }
             let platform_score = platform
