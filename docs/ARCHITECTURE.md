@@ -2433,5 +2433,27 @@ returns to an earlier selection. Expiry removes the displayed observation withou
 another refresh. Positive states require their emitted identity, contract and
 definition context. The control presents Core reasons without private paths or
 an action shortcut; ordinary setup and launch reviews remain authoritative.
-This selected-route consumer does not yet provide the composable game-file filter
-group or establish native UI, game or whole-issue acceptance.
+The composable catalog game-file group requests one explicit Core refresh for the
+complete accepted catalog, capped at 256 unique ports with one request-wide
+resource budget. It never chunks a partial selection into apparently complete
+coverage. Opening the filter group, changing filters, searching, switching views
+or returning from details does not refresh observations. Missing, duplicate,
+foreign, expired or changed-context route results invalidate the whole browsing
+observation. Selected library, catalog, sources, statuses, library generation,
+route, target platform and channel all belong to that context.
+
+Game-file choices compose with OR within their group and AND across other groups.
+Distinct-port facet counts exclude the group's own choices. Unavailable context
+has unknown counts; a zero count requires complete current coverage. Filter
+intent persists per browsing library, while accepted observations do not survive
+context invalidation or remount. Details consume the selected port's Core reason,
+route, target platform, channel and complete-set identity from this same snapshot.
+The independent selected-route check retains its explicitly displayed scope.
+
+Both consumers synchronously enforce observation wall-clock bounds and the
+original monotonic deadline. Once invalidated, an observation cannot become
+current again after clock rollback; a fresh explicit check creates a new
+observation. Timer and visibility notifications refer to their own observation
+and cannot expire a replacement result. These browsing observations provide no
+setup or launch shortcut and do not establish native UI, game or whole-issue
+acceptance.
