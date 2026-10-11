@@ -68,6 +68,7 @@ mod service;
 mod signed_catalog;
 mod source;
 mod source_assessment;
+mod source_batch;
 mod source_catalog;
 mod source_discovery;
 mod source_file;
@@ -191,6 +192,9 @@ pub use signed_catalog::{
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;
+pub use source_batch::{
+    RegisteredSourceInspectionBatch, RegisteredSourceInspectionLimits, RegisteredSourceObservation,
+};
 pub use source_catalog::*;
 pub use source_discovery::{
     SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,

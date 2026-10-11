@@ -397,7 +397,7 @@ fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
     Ok(file)
 }
 
-fn open_identity_handle(path: &Path) -> Result<fs::File> {
+pub(crate) fn open_identity_handle(path: &Path) -> Result<fs::File> {
     let mut options = fs::File::options();
     options.read(true);
     #[cfg(unix)]
