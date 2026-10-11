@@ -293,6 +293,7 @@ function validateBackupFocusInventory(captured) {
       (check) =>
         [
           "native-reviewed-backup-restore-and-delete",
+          "native-game-update-review",
           "native-selected-setup-completion",
           "native-retained-contract-repair-state",
           "native-backup-delete-focus",
