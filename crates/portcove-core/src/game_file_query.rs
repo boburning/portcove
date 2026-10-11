@@ -42,6 +42,27 @@ impl crate::PortcoveService {
         requests: &[GameFileRouteRequest],
         maximum_age_seconds: u32,
     ) -> crate::Result<GameFileQuerySnapshot> {
+        let started = std::time::Instant::now();
+        let elapsed = || started.elapsed();
+        self.game_file_query_snapshot_with_fence(
+            batch,
+            requests,
+            maximum_age_seconds,
+            &QueryFence {
+                elapsed: &elapsed,
+                maximum: std::time::Duration::from_secs(30),
+                operation: None,
+            },
+        )
+    }
+
+    fn game_file_query_snapshot_with_fence(
+        &self,
+        batch: &crate::RegisteredSourceInspectionBatch,
+        requests: &[GameFileRouteRequest],
+        maximum_age_seconds: u32,
+        fence: &QueryFence<'_>,
+    ) -> crate::Result<GameFileQuerySnapshot> {
         use crate::{PortcoveError, source_batch::fingerprint};
         if requests.is_empty()
             || requests.len() > 256
@@ -52,7 +73,6 @@ impl crate::PortcoveService {
                 "game-file projection needs 1-256 unique routes and a bounded observation age",
             ));
         }
-        let started = std::time::Instant::now();
         for request in requests {
             if request.port_id.len() > 128 {
                 return Err(PortcoveError::usage(
@@ -82,11 +102,7 @@ impl crate::PortcoveService {
         let mut routes = Vec::with_capacity(requests.len());
         let mut bindings = Vec::with_capacity(requests.len());
         for request in requests {
-            if started.elapsed() >= std::time::Duration::from_secs(30) {
-                return Err(PortcoveError::unsupported(
-                    "game-file projection cooperative time budget reached",
-                ));
-            }
+            fence.checkpoint()?;
             let selected = resolve_route(self, request)?;
             let context = selected.context(request);
             let observation = match context.requirements {
@@ -118,11 +134,7 @@ impl crate::PortcoveService {
         // Detect changes to current channel, active/external instance and retained
         // definition while constructing this observation. No source reinspection.
         for (request, before) in requests.iter().zip(&bindings) {
-            if started.elapsed() >= std::time::Duration::from_secs(30) {
-                return Err(PortcoveError::unsupported(
-                    "game-file projection cooperative time budget reached",
-                ));
-            }
+            fence.checkpoint()?;
             if resolve_route(self, request)?.binding(request)? != *before {
                 return Err(PortcoveError::conflict(
                     "selected game-file route changed during projection",
@@ -145,11 +157,123 @@ impl crate::PortcoveService {
                 "game-file query response budget reached",
             ));
         }
-        if started.elapsed() >= std::time::Duration::from_secs(30) {
-            return Err(PortcoveError::unsupported(
-                "game-file projection cooperative time budget reached",
+        fence.checkpoint()?;
+        Ok(snapshot)
+    }
+
+    /// Explicit bounded refresh: observations never cross an adapter input boundary.
+    /// Call from one awaited blocking worker. Filtering consumes only its returned snapshot.
+    pub fn refresh_game_file_query(
+        &self,
+        requests: &[GameFileRouteRequest],
+        limits: &crate::RegisteredSourceInspectionLimits,
+        maximum_age_seconds: u32,
+        operation: &crate::OperationCoordinator,
+    ) -> crate::Result<GameFileQuerySnapshot> {
+        let started = std::time::Instant::now();
+        let elapsed = || started.elapsed();
+        self.refresh_game_file_query_with_fence(
+            requests,
+            limits,
+            maximum_age_seconds,
+            &QueryFence {
+                elapsed: &elapsed,
+                maximum: std::time::Duration::from_millis(limits.max_elapsed_ms),
+                operation: Some(operation),
+            },
+            || Ok(()),
+        )
+    }
+
+    fn refresh_game_file_query_with_fence(
+        &self,
+        requests: &[GameFileRouteRequest],
+        limits: &crate::RegisteredSourceInspectionLimits,
+        maximum_age_seconds: u32,
+        fence: &QueryFence<'_>,
+        before_accept: impl FnOnce() -> crate::Result<()>,
+    ) -> crate::Result<GameFileQuerySnapshot> {
+        use crate::PortcoveError;
+        limits.validate()?;
+        if requests.is_empty()
+            || requests.len() > 256
+            || maximum_age_seconds == 0
+            || maximum_age_seconds > 1800
+        {
+            return Err(PortcoveError::usage(
+                "game-file refresh needs 1-256 unique routes and bounded observation age",
             ));
         }
+        fence.checkpoint()?;
+        let mut profiles = std::collections::BTreeSet::new();
+        let mut initial_bindings = Vec::with_capacity(requests.len());
+        let mut unique = std::collections::HashSet::new();
+        for request in requests {
+            fence.checkpoint()?;
+            if request.port_id.len() > 128 {
+                return Err(PortcoveError::usage(
+                    "game-file route identifier exceeds its budget",
+                ));
+            }
+            self.catalog().port(&request.port_id)?;
+            if !unique.insert(crate::source_batch::fingerprint(request)?) {
+                return Err(PortcoveError::usage(
+                    "game-file refresh routes must be unique",
+                ));
+            }
+            let selected = resolve_route(self, request)?;
+            if selected.context_complete
+                && selected.offered
+                && !selected.empty_requirements
+                && !selected.unknown_requirements
+            {
+                if let Some(profile) = &selected.profile_id {
+                    // The current authoritative matcher must know the profile;
+                    // unknown retained facts stay unavailable rather than guessed.
+                    if self.catalog().source_profile(profile).is_ok() {
+                        profiles.insert(profile.clone());
+                    }
+                }
+            }
+            initial_bindings.push(selected.binding(request)?);
+        }
+        fence.checkpoint()?;
+        let mut remaining = limits.clone();
+        remaining.max_elapsed_ms = limits
+            .max_elapsed_ms
+            .saturating_sub((fence.elapsed)().as_millis().min(u128::from(u64::MAX)) as u64);
+        remaining.validate()?;
+        let operation = fence
+            .operation
+            .ok_or_else(|| PortcoveError::usage("game-file refresh needs its own coordinator"))?;
+        let (snapshot, _) = self.inspect_registered_sources_bounded_with_projection(
+            &profiles.into_iter().collect::<Vec<_>>(),
+            &remaining,
+            operation,
+            |batch| {
+                let snapshot = self.game_file_query_snapshot_with_fence(
+                    &batch,
+                    requests,
+                    maximum_age_seconds,
+                    fence,
+                )?;
+                before_accept()?;
+                Ok((snapshot, batch))
+            },
+            |(_, batch)| {
+                fence.checkpoint()?;
+                self.validate_game_file_batch(batch)?;
+                for (request, before) in requests.iter().zip(&initial_bindings) {
+                    fence.checkpoint()?;
+                    if resolve_route(self, request)?.binding(request)? != *before {
+                        return Err(PortcoveError::conflict(
+                            "selected game-file route changed during refresh",
+                        ));
+                    }
+                }
+                fence.checkpoint()
+            },
+        )?;
         Ok(snapshot)
     }
 
@@ -164,7 +288,6 @@ impl crate::PortcoveService {
         let (catalog, binding) = effective_binding(self.library())?;
         let records = self.library().sources_for(&batch.profile_ids)?;
         if batch.schema_version != 1
-            || batch.profile_ids.is_empty()
             || batch.profile_ids.len() > 256
             || batch.observations.len() != batch.profile_ids.len()
             || batch.library != self.library().identity_record()?
@@ -194,6 +317,26 @@ impl crate::PortcoveService {
                     "game-file observation does not match its registered instance",
                 ));
             }
+        }
+        Ok(())
+    }
+}
+
+struct QueryFence<'a> {
+    elapsed: &'a dyn Fn() -> std::time::Duration,
+    maximum: std::time::Duration,
+    operation: Option<&'a crate::OperationCoordinator>,
+}
+
+impl QueryFence<'_> {
+    fn checkpoint(&self) -> crate::Result<()> {
+        if let Some(operation) = self.operation {
+            operation.checkpoint()?;
+        }
+        if (self.elapsed)() >= self.maximum {
+            return Err(crate::PortcoveError::unsupported(
+                "game-file projection cooperative time budget reached",
+            ));
         }
         Ok(())
     }
