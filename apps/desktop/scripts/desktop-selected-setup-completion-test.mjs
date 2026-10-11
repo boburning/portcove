@@ -416,7 +416,9 @@ export async function selectedSetupCompletionScenario({
       const accessibilityFile = path.join(output, "selected-setup-completion-accessibility.json");
       await captureAccessibilityReport(browser, accessibilityFile, artifacts);
       const accessibility = JSON.parse(await readFile(accessibilityFile, "utf8"));
-      assert.ok((await browser.findElements(By.css(".source-result"))).length > 0);
+      const resultBadges = await browser.findElements(By.css(".source-result"));
+      const displayedBadges = await Promise.all(resultBadges.map((badge) => badge.isDisplayed()));
+      assert.ok(displayedBadges.some(Boolean), "An actual source result must be displayed for axe");
       const prohibitedAttributes = [
         ...accessibility.violations,
         ...accessibility.incomplete,
