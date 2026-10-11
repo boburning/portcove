@@ -1778,6 +1778,8 @@ impl PortcoveService {
 
         // Candidate resolution remains explicit: a status snapshot never checks
         // upstream or infers update eligibility from a cached observation.
+        let user_prepared = current_port.release.provider == ReleaseSource::UserPrepared;
+        let on_platform = current_port.platforms.contains(&platform);
         let update = if status.external_runtime.is_some() || user_prepared {
             assessed(
                 Action::Update,
