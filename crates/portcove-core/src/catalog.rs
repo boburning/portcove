@@ -1944,7 +1944,14 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 18);
+        assert_eq!(qualification.len(), 20);
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "dkc3-recomp")
+                .count(),
+            2
+        );
         assert_eq!(
             qualification
                 .iter()
