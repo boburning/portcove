@@ -11,6 +11,7 @@ vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => u
 import { GameUpdateControl, UpdatePolicyControl } from "../../components/GameUpdates";
 
 const plan: GameUpdatePlan = {
+  assessment: { action: "update", availability: "allowed", reason: "available" },
   activate: false,
   plan_sha256: "reviewed-download",
   plan: {
@@ -337,6 +338,10 @@ it.each(["already_active", "blocked_unverified"] as const)(
     vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
       ...plan,
       plan: { ...plan.plan, action },
+      assessment:
+        action === "already_active"
+          ? { action: "update", availability: "not_offered", reason: "already_registered" }
+          : { action: "update", availability: "held", reason: "invalid_installation" },
     });
     const apply = vi.spyOn(desktopApi, "applyGameUpdate");
     await act(async () =>
@@ -355,6 +360,38 @@ it.each(["already_active", "blocked_unverified"] as const)(
     expect(dialog()?.querySelector('[role="status"]')?.textContent).toContain(
       action === "already_active" ? "already active" : "unverified local copy",
     );
+    expect(apply).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["missing_source", "missing_bios"] as const)(
+  "presents Core update prerequisite %s without execution",
+  async (reason) => {
+    vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+      ...plan,
+      assessment: { action: "update", availability: "waiting", reason },
+    });
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+    await act(async () =>
+      root.render(
+        <GameUpdateControl
+          portId="sample"
+          generation={9}
+          policy="notify"
+          busy={false}
+          perform={perform}
+        />,
+      ),
+    );
+    await click("Review game update");
+    expect(dialog()?.textContent).toContain(
+      reason === "missing_source" ? "required game files" : "required BIOS",
+    );
+    expect(
+      Array.from(dialog()?.querySelectorAll("button") ?? []).some(
+        (button) => button.textContent === "Download update for later",
+      ),
+    ).toBe(false);
     expect(apply).not.toHaveBeenCalled();
   },
 );

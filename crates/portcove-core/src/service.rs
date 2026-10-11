@@ -1283,12 +1283,16 @@ impl PortcoveService {
         {
             return Ok(InstallPlanAction::AlreadyActive);
         }
-        if status
+        if let Some(staged) = status
             .staged
             .as_ref()
-            .is_some_and(|install| artifact_matches_release(install, release, runtime.as_ref()))
+            .filter(|install| artifact_matches_release(install, release, runtime.as_ref()))
         {
-            return Ok(InstallPlanAction::UseStaged);
+            return Ok(if staged.verified {
+                InstallPlanAction::UseStaged
+            } else {
+                InstallPlanAction::BlockedUnverified
+            });
         }
         let Some(retained) = self.library.install_by_artifact(
             &status.port_id,
@@ -1774,7 +1778,54 @@ impl PortcoveService {
             )
         };
 
-        status.port_actions = vec![install, register_external, launch, removal, remove_external];
+        // Candidate resolution remains explicit: a status snapshot never checks
+        // upstream or infers update eligibility from a cached observation.
+        let user_prepared = current_port.release.provider == ReleaseSource::UserPrepared;
+        let on_platform = current_port.platforms.contains(&platform);
+        let update = if status.external_runtime.is_some() || user_prepared {
+            assessed(
+                Action::Update,
+                Availability::NotOffered,
+                Reason::RouteNotOffered,
+                None,
+            )
+        } else if status.active.is_none() {
+            assessed(
+                Action::Update,
+                Availability::NotOffered,
+                Reason::NotInstalled,
+                None,
+            )
+        } else if !on_platform {
+            assessed(
+                Action::Update,
+                Availability::NotOffered,
+                Reason::UnsupportedPlatform,
+                None,
+            )
+        } else if let Some(ineligible) = definition(DefinitionOperation::Install) {
+            assessed(
+                Action::Update,
+                Availability::Held,
+                Reason::DefinitionIneligible,
+                Some(ineligible),
+            )
+        } else {
+            assessed(
+                Action::Update,
+                Availability::Waiting,
+                Reason::ReviewRequired,
+                None,
+            )
+        };
+        status.port_actions = vec![
+            install,
+            register_external,
+            launch,
+            removal,
+            remove_external,
+            update,
+        ];
         Ok(status)
     }
 

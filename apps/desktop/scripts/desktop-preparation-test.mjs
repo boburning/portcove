@@ -391,6 +391,62 @@ async function assertReviewedUpdateOutcomes({
   let primaryError;
   let reportError;
   try {
+    for (const [availability, reason, action, explanation] of [
+      ["waiting", "missing_source", "download", "Add the required game files"],
+      ["waiting", "missing_bios", "download", "Add the required BIOS"],
+      ["held", "invalid_installation", "blocked_unverified", "An unverified local copy"],
+    ]) {
+      const observation = { availability, reason, synthetic: true, restored: false };
+      observations.cases.push(observation);
+      const probe = await beginReviewedUpdateProbe(browser, {
+        portId: port.id,
+        generation,
+        plan: {
+          ...candidate,
+          activate: false,
+          plan_sha256: "owned-controlled-update-plan",
+          assessment: { action: "update", availability, reason, definition: null },
+          plan: { ...candidate.plan, action },
+        },
+        failure: controlledUpdateFailure("no_changes"),
+      });
+      let scenarioError;
+      try {
+        await clickVisible(browser, await browser.findElement(button("Review game update")));
+        const review = await browser.wait(until.elementLocated(dialog), 15_000);
+        await browser.wait(async () => (await review.getText()).includes(explanation), 5_000);
+        assert.equal(
+          (
+            await review.findElements(
+              By.xpath(
+                './/button[contains(., "for later") or contains(., "install update") or normalize-space(.)="Use saved update"]',
+              ),
+            )
+          ).length,
+          0,
+          "Held or waiting assessment must offer no update execution action",
+        );
+        const admitted = await probe.capture();
+        assert.equal(admitted.plans, 1);
+        assert.equal(admitted.applies, 0);
+        assert.deepEqual(admitted.mismatches, []);
+        const image = path.join(output, `native-reviewed-update-${reason}.png`);
+        await writeFile(image, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+        artifacts.push(image);
+        await clickVisible(browser, await browser.findElement(button("Cancel review")));
+        await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
+      } catch (error) {
+        scenarioError = error;
+        observation.failure = error.message;
+        throw error;
+      } finally {
+        Object.assign(observation, await probe.restore());
+        requireTrustedProbeCleanup(observation, scenarioError);
+      }
+      assert.equal(observation.plans, 1);
+      assert.equal(observation.applies, 0);
+      assert.equal(observation.restored, true);
+    }
     for (const mutation of ["committed", "unknown", "no_changes"]) {
       const cancelled = mutation === "no_changes";
       const failure = controlledUpdateFailure(mutation);
@@ -400,6 +456,12 @@ async function assertReviewedUpdateOutcomes({
         // A real Core authorization compares a canonical SHA-256 plan digest.
         // Even a later transport fallback cannot authorize this supplied plan.
         plan_sha256: "owned-controlled-update-plan",
+        assessment: {
+          action: "update",
+          availability: "allowed",
+          reason: "available",
+          definition: null,
+        },
         plan: { ...candidate.plan, action: "use_staged" },
       };
       const observation = {

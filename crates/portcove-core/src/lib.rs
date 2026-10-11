@@ -226,9 +226,9 @@ pub use source_report::{
 };
 pub use types::*;
 
-// Private parked 58/59 and the retained, unmerged 64 candidate are not public contracts.
-// Public 65 adds explicit game-file refresh without claiming private 64 update fields.
-pub const API_SCHEMA_VERSION: u32 = 65;
+// Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.
+// Public 66 adds reviewed update assessments while retaining both delivered scopes.
+pub const API_SCHEMA_VERSION: u32 = 66;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

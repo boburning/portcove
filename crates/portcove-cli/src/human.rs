@@ -1141,6 +1141,9 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
             PortActionReason::RouteNotOffered => {
                 "This operation is not offered for this port's route."
             }
+            PortActionReason::AlreadyRegistered if assessment.action == PortAction::Update => {
+                "This exact verified release is already active; no update action is offered."
+            }
             PortActionReason::AlreadyRegistered => {
                 "An installation or external runtime is already registered."
             }
@@ -1151,9 +1154,13 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
                 PortAction::Rollback => "No previous managed version is retained for rollback.",
                 PortAction::RemoveManaged => "No managed installation is registered.",
                 PortAction::RemoveExternal => "No external runtime is registered.",
+                PortAction::Update => "Install a managed release before reviewing its update.",
                 _ => "Install or register the port before launching.",
             },
             PortActionReason::ReviewRequired => match assessment.action {
+                PortAction::Update => {
+                    "Review the current update candidate; saved policy is not consent."
+                }
                 PortAction::RegisterExternal => {
                     "Review the prepared folder with external preview before registration."
                 }
@@ -1214,6 +1221,15 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
         }
     };
     format!("  {action}: {availability} ({reason}): {explanation}")
+}
+
+#[cfg(feature = "qualification-fixtures")]
+pub(crate) fn game_update_plan(review: &portcove_core::GameUpdatePlan) -> String {
+    format!(
+        "{}\nUpdate decision:\n{}",
+        plan(&review.plan),
+        status_action(&review.assessment)
+    )
 }
 
 pub(crate) fn activities(
@@ -2910,6 +2926,33 @@ mod tests {
             reason: portcove_core::PortActionReason::MissingBackup,
             definition: None,
         }
+    }
+
+    #[test]
+    fn update_decisions_explain_review_without_launch_or_registration_instructions() {
+        use portcove_core::{
+            PortAction, PortActionAssessment, PortActionAvailability as Availability,
+            PortActionReason as Reason,
+        };
+        let decision = |availability, reason| {
+            super::status_action(&PortActionAssessment {
+                action: PortAction::Update,
+                availability,
+                reason,
+                definition: None,
+            })
+        };
+        assert!(
+            decision(Availability::Waiting, Reason::ReviewRequired)
+                .contains("saved policy is not consent")
+        );
+        assert!(
+            decision(Availability::NotOffered, Reason::NotInstalled)
+                .contains("managed release before reviewing its update")
+        );
+        let active = decision(Availability::NotOffered, Reason::AlreadyRegistered);
+        assert!(active.contains("exact verified release is already active"));
+        assert!(!active.contains("external runtime"));
     }
 
     #[test]

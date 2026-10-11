@@ -6796,7 +6796,8 @@
           "remove_external",
           "rollback",
           "backup_create",
-          "backup_restore"
+          "backup_restore",
+          "update"
         ],
         "type": "string"
       },

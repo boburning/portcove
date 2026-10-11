@@ -79,6 +79,16 @@ test("execution planning preserves the independently reviewed pre-change oracle"
         if (expectedSession.cleanupName === "backup-focus")
           expectedSession.cleanupName = "retained-contract-repair";
       }
+      // Current-update review uses the same positive Windows exit owner.
+      // Keep the historical oracle unchanged and state the intentional delta.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-game-update-review")
+      ) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "game-update-review";
+      }
       assert.deepEqual(plan.session, expectedSession);
     }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
@@ -168,6 +178,23 @@ test("selected setup completion requires identity-bound positive exit evidence",
     }),
   );
   assert.equal(discovery.session.identityBoundSession, false);
+});
+
+test("game-update review binds Windows cleanup without first-play or wider deadlines", () => {
+  for (const platform of ["win32", "linux"]) {
+    const selection = resolveDesktopSelection({
+      scenarios: ["native-game-update-review"],
+      platform,
+    });
+    const plan = planDesktopExecution(selection, { platform });
+    assert.equal(plan.session.identityBoundSession, platform === "win32");
+    assert.equal(
+      plan.session.cleanupName,
+      platform === "win32" ? "game-update-review" : "backup-focus",
+    );
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+  }
 });
 
 test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {

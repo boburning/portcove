@@ -8,6 +8,9 @@ the existing `verify_source` activity with a Library target and settles it after
 the worker returns. This command does not register sources, plan setup, resolve
 network releases or execute a game. Filtering the returned snapshot performs no
 inspection. API 65 exposes the command without claiming private schema 64.
+API 66 preserves this query contract and adds managed update assessments. Private
+schema 64 remains unclaimed; the reference reader accepts public 65 without an
+update action and requires the new update assessment only in 66.
 
 The observation age defaults to 300 seconds and is bounded to 1–1800 seconds.
 `--max-file-bytes`, `--max-hash-bytes` and `--max-elapsed-ms` may reduce the
@@ -218,6 +221,16 @@ without revoking permitted installed use. Retained rollback adds only
 `held/definition_ineligible` with `hold/curated_artifact_revoked`; this is an exact
 target-artifact refusal, not current-definition permission. Status does not
 delete files or saves and still grants no execution authority.
+
+Schema 66 requires one `update` action in port status: non-owning/user-prepared
+routes and absent managed installs are not offered, current-definition
+restrictions are held, and an eligible managed route waits for explicit candidate
+review. Status performs no update check and supplies no candidate or execution
+authority. An exact `GameUpdatePlan.assessment` reports an already active release
+as not offered, an unverified retained copy as held, missing original files or
+BIOS for a download as waiting, or a usable candidate as allowed. Verified local
+reuse does not reacquire original input bytes. Execution still rechecks critical
+files, reviewed identities and consent under the existing per-port lock.
 
 Schema 62 adds required `create_assessment` to `backup.list` inventory, with the
 shared `backup_create` action. API schema 63 also requires `restore_assessment`

@@ -176,7 +176,7 @@ namespace Portcove.ReferenceClient
         internal static PortActionDecision Read(object value)
         {
             var action = Json.Text(value, "action");
-            if (!new[] { "install", "register_external", "launch", "remove_managed", "remove_external", "rollback", "backup_create", "backup_restore" }.Contains(action))
+            if (!new[] { "install", "register_external", "launch", "remove_managed", "remove_external", "rollback", "backup_create", "backup_restore", "update" }.Contains(action))
                 throw new InvalidOperationException("Unknown Portcove action. Update the client before managing this game.");
             var availability = Json.Text(value, "availability");
             if (!new[] { "not_offered", "waiting", "held", "allowed" }.Contains(availability))
@@ -221,7 +221,7 @@ namespace Portcove.ReferenceClient
                     throw new InvalidOperationException("Portcove action lacks a valid definition restriction. Refresh state.");
                 var parsed = DefinitionOperationDecision.Read(new Dictionary<string, object>
                 {
-                    { "operation", action }, { "eligibility", definition }, { "retained", action == "launch" }
+                    { "operation", action == "update" ? "install" : action }, { "eligibility", definition }, { "retained", action == "launch" }
                 });
                 if (parsed.Outcome == "eligible")
                     throw new InvalidOperationException("Portcove action has an eligible definition restriction. Refresh state.");
@@ -263,6 +263,14 @@ namespace Portcove.ReferenceClient
         {
             var decisions = Read(status);
             var definitions = DefinitionOperations.Read(status);
+            var updates = decisions.Where(value => value.Action == "update").ToArray();
+            if (schema >= 66 ? updates.Length != 1 : updates.Length != 0)
+                throw new InvalidOperationException("Portcove update assessment does not match its API schema. Refresh with a compatible CLI.");
+            if (updates.Any(value => !(
+                (value.Availability == "not_offered" && value.DefinitionReason == null && new[] { "route_not_offered", "not_installed", "unsupported_platform" }.Contains(value.Reason)) ||
+                (value.Availability == "waiting" && value.Reason == "review_required" && value.DefinitionReason == null) ||
+                (value.Availability == "held" && value.Reason == "definition_ineligible" && value.DefinitionReason != null))))
+                throw new InvalidOperationException("Portcove status update decision requires a current reviewed candidate before execution.");
             if (decisions.Any(value => value.Action == "backup_create" || value.Action == "backup_restore"))
                 throw new InvalidOperationException("Backup creation assessment belongs to backup inventory, not port status.");
             var rollbackCount = decisions.Count(value => value.Action == "rollback");
@@ -626,8 +634,8 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 65;
-        private static bool SupportedSchema(long version) => (version >= 42 && version <= 57) || (version >= 60 && version <= 63) || version == Schema;
+        internal const int Schema = 66;
+        private static bool SupportedSchema(long version) => (version >= 42 && version <= 57) || (version >= 60 && version <= 63) || version == 65 || version == Schema;
         private readonly string command;
         private readonly Action<Dictionary<string, object>> progress;
         private readonly long operationEventSchemaVersion;
@@ -653,7 +661,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65 through 66; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -776,7 +784,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65 through 66. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();

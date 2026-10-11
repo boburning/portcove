@@ -1413,7 +1413,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "installation.qualification-update-plan",
                 review,
-                |review| human::plan(&review.plan),
+                human::game_update_plan,
             )?;
         }
         #[cfg(feature = "qualification-fixtures")]
@@ -4220,7 +4220,10 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 65);
+        assert_eq!(
+            capabilities.schema_version,
+            portcove_core::API_SCHEMA_VERSION
+        );
         assert!(
             capabilities
                 .commands
