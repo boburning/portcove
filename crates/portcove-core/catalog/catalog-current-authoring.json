@@ -459,6 +459,26 @@
         "claim": "Exact DKC3 v0.0.6 Windows prepared registration, positional launch, responsive owned window, ordinary close and external-file-preserving removal; retains the observed upstream skipped-handler semantic gap without gameplay or managed-operation claims",
         "immutable_url": "https://github.com/boburning/portcove/blob/5bc7acecc80f3104b8a03f018f9069295bd6c0db/docs/qualification/dkc3-prepared-windows-2026-10-10.md",
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/dkc3-prepared-windows-2026-10-10.md"
+      },
+      {
+        "id": "alexbeav-diablo-recomp-v0-1-4-source-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/diablo-recomp",
+        "authority_ref": "1e71257166f6a2c0e087f7a36e0e3bde984132d4",
+        "reviewed_at": "2026-10-10",
+        "claim": "Pinned v0.1.4 game.toml and the exact Windows package declare Diablo Europe SLES-01156, its complete single-track disc identity and required retail SCPH-5552 BIOS. Package bytes, CLI flags, runtime coordinates, regional BIOS profile and ownership paths statically fit the existing managed adapter. Generation, native operation, lifecycle and gameplay were not run. Project-owned GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices retain their separate scope; no retail or generated-retail rights are inferred. Older release_binding fields in project-manifest.toml are historical and are not current package or qualification authority.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/1e71257166f6a2c0e087f7a36e0e3bde984132d4/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "psx-scph-5552-f7672e5-source-contract",
+        "role": "upstream_support",
+        "authority": "Alexbeav/psxrecomp",
+        "authority_ref": "f7672e53b8504fd20bd2b2ad70e62adc6a87a5de",
+        "reviewed_at": "2026-10-10",
+        "claim": "SCPH5552.toml at the exact Diablo v0.1.4 framework gitlink and in its SHA256-verified Windows package declares the Europe v3.0 01/06/97 retail BIOS identity and staged bios/SCPH5552.BIN path. This is a required use-time raw BIOS input, not redistributed content or a generation/runtime observation.",
+        "immutable_url": "https://github.com/Alexbeav/psxrecomp/blob/f7672e53b8504fd20bd2b2ad70e62adc6a87a5de/bios/SCPH5552.toml",
+        "live_url": "https://github.com/Alexbeav/psxrecomp/blob/main/bios/SCPH5552.toml"
       }
     ],
     "identities": [
@@ -5217,6 +5237,94 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "diablo-europe-psx",
+        "label": "Diablo (Europe) disc",
+        "kind": "optical-disc",
+        "variants": [
+          {
+            "id": "europe",
+            "title": "Diablo (Europe) disc",
+            "region": "Europe",
+            "revision": null,
+            "product_codes": [
+              "SLES-01156"
+            ],
+            "representations": [
+              {
+                "id": "normalized-track-set",
+                "extensions": [
+                  "chd"
+                ],
+                "kind": "optical-track-set",
+                "track_counts": [
+                  1
+                ],
+                "identities": [
+                  {
+                    "scope": "psx-normalized-track-set",
+                    "sha1": "3dcfffb32c962d7ee2b00ea532b044aaeaaeb8ad",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "alexbeav-diablo-recomp-v0-1-4-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "alexbeav-diablo-recomp-v0-1-4-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "psx-scph-5552-bios",
+        "label": "PlayStation SCPH-5552 BIOS (Europe)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "europe-v3-0",
+            "title": "PlayStation SCPH-5552 BIOS (Europe)",
+            "region": "Europe",
+            "revision": "v3.0 01/06/97",
+            "product_codes": [
+              "SCPH-5552"
+            ],
+            "representations": [
+              {
+                "id": "raw-file",
+                "extensions": [
+                  "bin",
+                  "rom"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "normalized-content",
+                    "sha1": null,
+                    "sha256": "1faaa18fa820a0225e488d9f086296b8e6c46df739666093987ff7d8fd352c09",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "psx-scph-5552-f7672e5-source-contract"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "psx-scph-5552-f7672e5-source-contract"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -7382,6 +7490,61 @@
           {
             "upstream_ref": "v0.3.6",
             "artifact_sha256": "5daffc439d2fd33ce0da54e29f297cbf79e54ebecd277539446e2d6781860eb3"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-diablo-recomp-game-source",
+        "port_id": "alexbeav-diablo-recomp",
+        "role": "game",
+        "profile_id": "diablo-europe-psx",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "alexbeav-diablo-recomp-v0-1-4-source-contract"
+        ],
+        "authority_ref": "1e71257166f6a2c0e087f7a36e0e3bde984132d4",
+        "reviewed_at": "2026-10-10",
+        "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/1e71257166f6a2c0e087f7a36e0e3bde984132d4/game.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "alexbeav-diablo-recomp-bios-source",
+        "port_id": "alexbeav-diablo-recomp",
+        "role": "bios",
+        "profile_id": "psx-scph-5552-bios",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "europe-v3-0"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "psx-scph-5552-f7672e5-source-contract",
+          "alexbeav-diablo-recomp-v0-1-4-source-contract"
+        ],
+        "authority_ref": "f7672e53b8504fd20bd2b2ad70e62adc6a87a5de",
+        "reviewed_at": "2026-10-10",
+        "immutable_review_url": "https://github.com/Alexbeav/psxrecomp/blob/f7672e53b8504fd20bd2b2ad70e62adc6a87a5de/bios/SCPH5552.toml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722"
           }
         ],
         "aliases": [],
@@ -15151,6 +15314,92 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching single-track CHD for SLUS-00236. This Windows v0.3.6 route uses bundled OpenBIOS and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS notices; no rights to retail game data or generated retail content are inferred."
       }
+    },
+    {
+      "id": "alexbeav-diablo-recomp",
+      "name": "Diablo / Alexbeav PSXRecomp",
+      "summary": "Native Diablo PlayStation recompilation from Alexbeav’s PSXRecomp project.",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "psx-recomp-managed",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.1.4",
+            "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-windows-x64.zip",
+            "size": 29909581,
+            "sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
+            "published_at": "2026-10-02T15:44:22Z"
+          }
+        }
+      },
+      "source_profile": "diablo-europe-psx",
+      "executable_hints": {
+        "windows-x86-64": [
+          "Diablo_Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [
+        "saves",
+        "settings.toml",
+        "input.ini",
+        "keybinds.ini",
+        "config.ini",
+        "disc.cfg",
+        "bios.cfg",
+        "mods",
+        "overlay-captures"
+      ],
+      "runtime_mutable_paths": [
+        "cache",
+        "psx_freeze_heartbeat.json",
+        "psx_freeze_heartbeat.json.tmp",
+        "psx_last_run_report.json",
+        "psx_cps_exit_trace.json",
+        "netplay_lan_lobby.txt"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "psx_freeze_dump_psx-runtime_",
+          "suffix": ".json"
+        }
+      ],
+      "launch_environment": {
+        "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
+      },
+      "launch_arguments": [
+        "--no-launcher"
+      ],
+      "runtime_subdirectory": "build-portcove",
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "diablo-europe-psx",
+            "label": "Diablo (Europe) disc",
+            "verification": "catalog-identity"
+          },
+          {
+            "role": "bios",
+            "profile_id": "psx-scph-5552-bios",
+            "label": "PlayStation SCPH-5552 BIOS (Europe)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred."
+      },
+      "bios_source_profile": "psx-scph-5552-bios"
     }
   ]
 }

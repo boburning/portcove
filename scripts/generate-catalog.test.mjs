@@ -77,7 +77,7 @@ function proposalDecoderFixture(
   if (editInput) {
     const path = join(fixture.catalogs, "catalog-current-authoring.json");
     const input = JSON.parse(readFileSync(path));
-    editInput(input);
+    editInput(input, fixture.catalogs);
     writeFileSync(path, JSON.stringify(input));
   }
   const helper = join(fixture.scratch, "scripts", "inspect-igdb-artwork.mjs");
@@ -179,11 +179,32 @@ function proposalDecoderFixture(
 }
 
 test("unreviewed proposal identities report required fixture review without editing expectations", () => {
-  const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", (input) => {
-    input.ports.push({ ...input.ports[0], id: "unreviewed-proposal-port" });
-    input.source_catalog.identities = input.source_catalog.identities.filter(
-      ({ id }) => id !== "dkc3-na-en-fr",
+  // Test generic bookkeeping with independently fixed identities, not the live
+  // catalog count. Live accepted-catalog and frozen equality checks are separate.
+  const expectedBytes = Buffer.from(
+    JSON.stringify({ port_ids: ["added-port"], source_profile_ids: ["added-source"] }),
+  );
+  const fixture = proposalDecoderFixture(0, false, "--prepare-proposal", (input, catalogs) => {
+    input.ports = [
+      { id: "frozen-port", name: "Frozen fixture" },
+      { id: "added-port", name: "Reviewed fixture" },
+      { id: "unreviewed-proposal-port", name: "Unreviewed fixture" },
+    ];
+    input.source_catalog = {
+      identities: [{ id: "frozen-source" }],
+      contracts: [],
+      validators: [],
+      evidence: [],
+      qualification: [],
+    };
+    writeFileSync(
+      join(catalogs, "catalog-schema1-fixture.json"),
+      JSON.stringify({
+        ports: [{ id: "frozen-port" }],
+        source_profiles: [{ id: "frozen-source" }],
+      }),
     );
+    writeFileSync(join(catalogs, "catalog-legacy-additions-fixture.json"), expectedBytes);
   });
   assert.equal(fixture.result.status, 0, fixture.result.stderr);
   assert.equal(fixture.processes.filter(({ inspection }) => inspection).length, 3);
@@ -191,14 +212,13 @@ test("unreviewed proposal identities report required fixture review without edit
   const review = report.compatibility_fixture_review;
   assert.equal(review.status, "requires-review");
   assert.deepEqual(review.collections.port_ids.unreviewed_ids, ["unreviewed-proposal-port"]);
-  assert.deepEqual(review.collections.source_profile_ids.missing_expected_ids, ["dkc3-na-en-fr"]);
-  assert.equal(review.collections.port_ids.expected_count, 89);
-  const before = readFileSync(join(catalogRoot, "catalog-legacy-additions-fixture.json"));
+  assert.deepEqual(review.collections.source_profile_ids.missing_expected_ids, ["added-source"]);
+  assert.equal(review.collections.port_ids.expected_count, 2);
   assert.deepEqual(
     readFileSync(join(fixture.catalogs, "catalog-legacy-additions-fixture.json")),
-    before,
+    expectedBytes,
   );
-  assert.equal(review.fixture_sha256, createHash("sha256").update(before).digest("hex"));
+  assert.equal(review.fixture_sha256, createHash("sha256").update(expectedBytes).digest("hex"));
 });
 
 for (const [name, editInput, editExpected] of [
