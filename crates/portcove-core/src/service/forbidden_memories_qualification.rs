@@ -178,6 +178,7 @@ impl PortcoveService {
                 "child_success": output.status.success(),
                 "output": output.output,
                 "output_truncated": output.truncated,
+                "process_tree_proof": output.process_tree_proof,
                 "failure": null,
             }),
             Err(error) => serde_json::json!({

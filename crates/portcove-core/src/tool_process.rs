@@ -41,6 +41,8 @@ pub(crate) struct SetupOutput {
     pub status: ExitStatus,
     pub output: String,
     pub truncated: bool,
+    #[cfg(feature = "qualification-fixtures")]
+    pub process_tree_proof: BTreeMap<String, String>,
 }
 
 /// Run only the admitted native setup executable and its catalog-owned arguments.
@@ -213,6 +215,12 @@ pub(crate) fn run_tool(
     // Windows closes this exact job's descendants. Unix poll_setup stops the
     // group before reaping its leader, while its PID still cannot be reused;
     // its group marker owns no resource that requires a destructor.
+    #[cfg(all(windows, feature = "qualification-fixtures"))]
+    let process_tree_proof = copy_proof_details(
+        &group.with_proof_details(PortcoveError::state("native tool process-tree observation")),
+    );
+    #[cfg(all(not(windows), feature = "qualification-fixtures"))]
+    let process_tree_proof = BTreeMap::new();
     #[cfg(windows)]
     drop(group);
     #[cfg(unix)]
@@ -246,6 +254,8 @@ pub(crate) fn run_tool(
         status,
         output,
         truncated,
+        #[cfg(feature = "qualification-fixtures")]
+        process_tree_proof,
     })
 }
 

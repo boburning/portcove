@@ -575,7 +575,26 @@ fn windows_quiescence_callback_observes_descendant_handle_exit() {
         if cancel {
             assert_eq!(result.err().unwrap().code, crate::ErrorCode::Cancelled);
         } else {
-            assert!(result.unwrap().status.success());
+            let output = result.unwrap();
+            assert!(output.status.success());
+            #[cfg(feature = "qualification-fixtures")]
+            {
+                assert_eq!(
+                    output.process_tree_proof["process_tree_retained_members"],
+                    "2"
+                );
+                assert_eq!(
+                    output.process_tree_proof["process_tree_membership_complete"],
+                    "true"
+                );
+                assert_eq!(output.process_tree_proof["process_tree_active"], "0");
+                assert_eq!(output.process_tree_proof["process_tree_total"], "2");
+                assert!(
+                    !output
+                        .process_tree_proof
+                        .contains_key("process_tree_first_failure")
+                );
+            }
         }
         assert!(!working.path().join("orphan-output").exists());
     }
