@@ -391,7 +391,7 @@ pub(crate) fn observe_compound_file(
     checkpoint()?;
     let mut input = File::open(path)?;
     let initial = input.metadata()?;
-    verify_compound_location(path, &input, &initial)?;
+    verify_open_source_location(path, &input, &initial)?;
     if initial.len() < 4 || initial.len() > maximum_size {
         return Ok(None);
     }
@@ -422,7 +422,7 @@ pub(crate) fn observe_compound_file(
         (None, None)
     };
     checkpoint()?;
-    verify_compound_location(path, &input, &initial)?;
+    verify_open_source_location(path, &input, &initial)?;
     Ok(Some(CompoundObservation {
         identity,
         validated,
@@ -430,7 +430,11 @@ pub(crate) fn observe_compound_file(
     }))
 }
 
-fn verify_compound_location(path: &Path, input: &File, initial: &std::fs::Metadata) -> Result<()> {
+pub(crate) fn verify_open_source_location(
+    path: &Path,
+    input: &File,
+    initial: &std::fs::Metadata,
+) -> Result<()> {
     let metadata = std::fs::symlink_metadata(path)?;
     let current = input.metadata()?;
     if !metadata.is_file()
@@ -441,9 +445,7 @@ fn verify_compound_location(path: &Path, input: &File, initial: &std::fs::Metada
         || initial.modified()? != current.modified()?
         || initial.modified()? != metadata.modified()?
     {
-        return Err(PortcoveError::source(
-            "compound source changed during inspection",
-        ));
+        return Err(PortcoveError::source("source changed during inspection"));
     }
     Ok(())
 }
