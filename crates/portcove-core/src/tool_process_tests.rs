@@ -641,6 +641,97 @@ fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
 
 #[cfg(windows)]
 #[test]
+fn windows_retained_handle_capacity_refuses_one_more_member_without_cleanup_proof() {
+    use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
+    use windows_sys::Win32::{
+        Foundation::WAIT_OBJECT_0,
+        System::Threading::{
+            OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
+            WaitForSingleObject,
+        },
+    };
+
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    for occupied in [511, 512] {
+        let working = tempfile::tempdir().unwrap();
+        let mut command =
+            ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, &program).unwrap();
+        command
+            .args([
+                "--setup-tree",
+                &working.path().join("orphan-output").display().to_string(),
+                "observed-wait",
+            ])
+            .current_dir(working.path())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        ToolProcessGroup::prepare(&mut command);
+        let mut child = command.spawn().unwrap();
+        let group = ToolProcessGroup::attach(&child).unwrap();
+        wait_nested_file(&working.path().join("descendant-pid"));
+        let descendant_pid: u32 = fs::read_to_string(working.path().join("descendant-pid"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        let descendant = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, descendant_pid) };
+        assert!(!descendant.is_null());
+        let descendant = unsafe { OwnedHandle::from_raw_handle(descendant) };
+
+        // Consume actual handle/storage capacity without starting 512 processes.
+        // These synthetic keys deliberately do NOT claim distinct lifetimes:
+        // every added handle names the still-live leader. Both cases must refuse
+        // final coverage, even when there is room to retain the real descendant.
+        let mut members = group.members.borrow_mut();
+        for key in (0..u32::MAX).rev() {
+            if members.len() == occupied {
+                break;
+            }
+            if key == child.id() || key == descendant_pid {
+                continue;
+            }
+            let handle = unsafe {
+                OpenProcess(
+                    PROCESS_SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
+                    0,
+                    child.id(),
+                )
+            };
+            assert!(!handle.is_null());
+            members.insert(key, unsafe { OwnedHandle::from_raw_handle(handle) });
+        }
+        drop(members);
+        group.observe_members();
+        assert_eq!(group.members.borrow().len(), 512);
+        assert_eq!(group.complete.get(), occupied == 511);
+        assert_eq!(
+            group.members.borrow().contains_key(&descendant_pid),
+            occupied == 511
+        );
+        assert!(!group.proves_tree_quiescence());
+        let error = group.with_proof_details(PortcoveError::state("capacity fixture held"));
+        assert_eq!(error.details["process_tree_retained_members"], "512");
+        assert_eq!(
+            error.details["process_tree_first_failure"],
+            if occupied == 512 {
+                "retained_handle_capacity"
+            } else {
+                "lifetime_count_gap"
+            }
+        );
+        assert_eq!(
+            unsafe { WaitForSingleObject(descendant.as_raw_handle(), 1000) },
+            WAIT_OBJECT_0,
+            "held acceptance still positively stops the owned descendant"
+        );
+        child.wait().unwrap();
+        assert!(!working.path().join("orphan-output").exists());
+    }
+}
+
+#[cfg(windows)]
+#[test]
 fn windows_quiescence_refuses_invalid_job_observation() {
     let group = ToolProcessGroup {
         // NULL queries the caller's current job; use an actually invalid handle.
