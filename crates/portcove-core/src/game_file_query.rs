@@ -1,0 +1,626 @@
+//! Pure, route-bound interpretation of previously accepted source observations.
+//! Snapshot construction owns context validation; this evaluator performs no I/O.
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    Catalog, CatalogAdmissionMode, Platform, PortSourceRole, RegisteredSourceObservation,
+    ReleaseChannel, SourceAdmission, SourceAdmissionMode, SourceClassification, SourceHealth,
+    SourceIdentity, SourceInspectionReport,
+};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GameFileRouteRequest {
+    pub port_id: String,
+    pub platform: Platform,
+    pub channel: ReleaseChannel,
+    pub route: GameFileRouteKind,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GameFileQuerySnapshot {
+    pub schema_version: u32,
+    pub library: crate::LibraryIdentity,
+    pub catalog_binding_sha256: String,
+    pub registration_sha256: String,
+    pub selection_sha256: String,
+    pub observed_at: i64,
+    pub expires_at: i64,
+    pub routes: Vec<GameFileRouteProjection>,
+}
+
+impl crate::PortcoveService {
+    /// Build a read-only query snapshot from this service's accepted Core batch.
+    /// This is explicit snapshot construction, never filtering. Host adapters must
+    /// keep the batch in their Core worker; do not accept client-authored reports.
+    /// Current database/retained-definition reads happen here, not in evaluation.
+    pub fn game_file_query_snapshot(
+        &self,
+        batch: &crate::RegisteredSourceInspectionBatch,
+        requests: &[GameFileRouteRequest],
+        maximum_age_seconds: u32,
+    ) -> crate::Result<GameFileQuerySnapshot> {
+        use crate::{PortcoveError, source_batch::fingerprint};
+        if requests.is_empty()
+            || requests.len() > 256
+            || maximum_age_seconds == 0
+            || maximum_age_seconds > 1800
+        {
+            return Err(PortcoveError::usage(
+                "game-file projection needs 1-256 unique routes and a bounded observation age",
+            ));
+        }
+        let started = std::time::Instant::now();
+        for request in requests {
+            if request.port_id.len() > 128 {
+                return Err(PortcoveError::usage(
+                    "game-file route identifier exceeds its budget",
+                ));
+            }
+            self.catalog().port(&request.port_id)?;
+        }
+        let mut selections = requests
+            .iter()
+            .map(fingerprint)
+            .collect::<crate::Result<Vec<_>>>()?;
+        selections.sort_unstable();
+        selections.dedup();
+        if selections.len() != requests.len() {
+            return Err(PortcoveError::usage(
+                "game-file projection routes must be unique",
+            ));
+        }
+        self.validate_game_file_batch(batch)?;
+        let now = crate::Library::now();
+        let expires_at = batch
+            .observed_at
+            .checked_add(i64::from(maximum_age_seconds))
+            .ok_or_else(|| PortcoveError::usage("game-file observation timestamp overflow"))?;
+        let fresh = batch.observed_at > 0 && batch.observed_at <= now && now <= expires_at;
+        let mut routes = Vec::with_capacity(requests.len());
+        let mut bindings = Vec::with_capacity(requests.len());
+        for request in requests {
+            if started.elapsed() >= std::time::Duration::from_secs(30) {
+                return Err(PortcoveError::unsupported(
+                    "game-file projection cooperative time budget reached",
+                ));
+            }
+            let selected = resolve_route(self, request)?;
+            let context = selected.context(request);
+            let observation = match context.requirements {
+                GameInputRequirements::Profile(profile) => {
+                    batch
+                        .observations
+                        .iter()
+                        .find(|observation| match observation {
+                            RegisteredSourceObservation::Unregistered { profile_id } => {
+                                profile_id == profile
+                            }
+                            RegisteredSourceObservation::Inspected { report } => {
+                                report.profile_id == profile
+                            }
+                        })
+                }
+                _ => None,
+            };
+            let mut projection = project(&context, observation, fresh)?;
+            projection.route_definition_sha256 = if selected.context_complete {
+                Some(fingerprint(&selected.catalog.authoritative_document())?)
+            } else {
+                None
+            };
+            projection.route_instance_sha256 = selected.instance_sha256.clone();
+            routes.push(projection);
+            bindings.push(selected.binding(request)?);
+        }
+        // Detect changes to current channel, active/external instance and retained
+        // definition while constructing this observation. No source reinspection.
+        for (request, before) in requests.iter().zip(&bindings) {
+            if started.elapsed() >= std::time::Duration::from_secs(30) {
+                return Err(PortcoveError::unsupported(
+                    "game-file projection cooperative time budget reached",
+                ));
+            }
+            if resolve_route(self, request)?.binding(request)? != *before {
+                return Err(PortcoveError::conflict(
+                    "selected game-file route changed during projection",
+                ));
+            }
+        }
+        self.validate_game_file_batch(batch)?;
+        let snapshot = GameFileQuerySnapshot {
+            schema_version: 1,
+            library: batch.library.clone(),
+            catalog_binding_sha256: batch.catalog_binding_sha256.clone(),
+            registration_sha256: batch.registration_sha256.clone(),
+            selection_sha256: fingerprint(&(requests, bindings))?,
+            observed_at: batch.observed_at,
+            expires_at,
+            routes,
+        };
+        if serde_json::to_vec(&snapshot)?.len() > 4 * 1024 * 1024 {
+            return Err(PortcoveError::unsupported(
+                "game-file query response budget reached",
+            ));
+        }
+        if started.elapsed() >= std::time::Duration::from_secs(30) {
+            return Err(PortcoveError::unsupported(
+                "game-file projection cooperative time budget reached",
+            ));
+        }
+        Ok(snapshot)
+    }
+
+    fn validate_game_file_batch(
+        &self,
+        batch: &crate::RegisteredSourceInspectionBatch,
+    ) -> crate::Result<()> {
+        use crate::{
+            PortcoveError,
+            source_batch::{effective_binding, fingerprint},
+        };
+        let (catalog, binding) = effective_binding(self.library())?;
+        let records = self.library().sources_for(&batch.profile_ids)?;
+        if batch.schema_version != 1
+            || batch.profile_ids.is_empty()
+            || batch.profile_ids.len() > 256
+            || batch.observations.len() != batch.profile_ids.len()
+            || batch.library != self.library().identity_record()?
+            || binding != batch.catalog_binding_sha256
+            || fingerprint(&catalog.authoritative_document())? != batch.catalog_sha256
+            || fingerprint(&self.catalog().authoritative_document())? != batch.catalog_sha256
+            || fingerprint(&records)? != batch.registration_sha256
+        {
+            return Err(PortcoveError::conflict(
+                "game-file projection context does not match the accepted source batch",
+            ));
+        }
+        let mut profiles = std::collections::HashSet::new();
+        for observation in &batch.observations {
+            let (profile, registration) = match observation {
+                RegisteredSourceObservation::Unregistered { profile_id } => (profile_id, None),
+                RegisteredSourceObservation::Inspected { report } => {
+                    (&report.profile_id, report.registered.as_ref())
+                }
+            };
+            if !profiles.insert(profile)
+                || !batch.profile_ids.contains(profile)
+                || fingerprint(&registration)?
+                    != fingerprint(&records.iter().find(|record| &record.profile_id == profile))?
+            {
+                return Err(PortcoveError::conflict(
+                    "game-file observation does not match its registered instance",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+struct ResolvedRoute {
+    catalog: Catalog,
+    context_complete: bool,
+    offered: bool,
+    empty_requirements: bool,
+    unknown_requirements: bool,
+    profile_id: Option<String>,
+    release: Option<(String, String)>,
+    instance_sha256: Option<String>,
+}
+
+impl ResolvedRoute {
+    fn context<'a>(&'a self, request: &'a GameFileRouteRequest) -> GameFileRouteContext<'a> {
+        GameFileRouteContext {
+            catalog: &self.catalog,
+            port_id: &request.port_id,
+            platform: request.platform,
+            channel: request.channel,
+            route: request.route,
+            offered: self.offered,
+            context_complete: self.context_complete,
+            requirements: if self.empty_requirements {
+                GameInputRequirements::Empty
+            } else if self.unknown_requirements {
+                GameInputRequirements::Unknown
+            } else {
+                self.profile_id.as_deref().map_or(
+                    GameInputRequirements::Unknown,
+                    GameInputRequirements::Profile,
+                )
+            },
+            release: self
+                .release
+                .as_ref()
+                .map(|(reference, hash)| (reference.as_str(), hash.as_str())),
+        }
+    }
+
+    fn binding(&self, request: &GameFileRouteRequest) -> crate::Result<String> {
+        crate::source_batch::fingerprint(&(
+            request,
+            self.catalog.authoritative_document(),
+            self.context_complete,
+            self.offered,
+            self.empty_requirements,
+            self.unknown_requirements,
+            &self.profile_id,
+            &self.release,
+            &self.instance_sha256,
+        ))
+    }
+}
+
+fn resolve_route(
+    service: &crate::PortcoveService,
+    request: &GameFileRouteRequest,
+) -> crate::Result<ResolvedRoute> {
+    use crate::source_batch::fingerprint;
+    let current = service.catalog().port(&request.port_id)?;
+    let status = service
+        .library()
+        .status(&request.port_id, current.channels[0])?;
+    let mut selected = ResolvedRoute {
+        catalog: service.catalog().clone(),
+        context_complete: true,
+        offered: false,
+        empty_requirements: false,
+        unknown_requirements: false,
+        profile_id: None,
+        release: None,
+        instance_sha256: None,
+    };
+    match request.route {
+        GameFileRouteKind::ManagedLaunch => {
+            let Some(install) = status.active.as_ref() else {
+                return Ok(selected);
+            };
+            selected.instance_sha256 = Some(fingerprint(install)?);
+            let Ok((Some(catalog), Some(platform))) = crate::output_root::validate_install_path(
+                service.library(),
+                &request.port_id,
+                &install.path,
+            )
+            .and_then(|_| crate::install::retained_query_context(install)) else {
+                selected.context_complete = false;
+                return Ok(selected);
+            };
+            selected.catalog = catalog;
+            selected.release = Some((install.version.clone(), install.artifact.sha256.clone()));
+            selected.offered = install.channel == request.channel && platform == request.platform;
+        }
+        GameFileRouteKind::ExternalLaunch => {
+            let (record, catalog) = match service
+                .library()
+                .external_runtime_with_port(&request.port_id)
+            {
+                Ok(Some(pair)) => pair,
+                Ok(None) => return Ok(selected),
+                Err(_) => {
+                    selected.context_complete = false;
+                    return Ok(selected);
+                }
+            };
+            selected.catalog = catalog;
+            selected.instance_sha256 = Some(fingerprint(&record)?);
+            selected.release = Some((record.version.clone(), record.archive_sha256.clone()));
+            selected.offered =
+                record.platform == request.platform && status.channel == request.channel;
+            let spec = selected
+                .catalog
+                .port(&request.port_id)?
+                .release
+                .user_prepared
+                .get(&request.platform);
+            selected.offered &= spec.is_some_and(|spec| {
+                spec.version == record.version
+                    && spec
+                        .archive_sha256
+                        .eq_ignore_ascii_case(&record.archive_sha256)
+                    && spec
+                        .immutable_tree_sha256
+                        .eq_ignore_ascii_case(&record.immutable_tree_sha256)
+            });
+        }
+        GameFileRouteKind::ManagedInstall => {
+            selected.offered = crate::definition_eligibility::admission_route_exclusion(
+                current,
+                &status,
+                request.platform,
+                crate::PortAction::Install,
+            )
+            .is_none()
+                && status.channel == request.channel;
+            if let Some(release) = current.release.direct.get(&request.platform) {
+                selected.release = Some((release.version.clone(), release.sha256.clone()));
+            } else if let Some(record) = current.release.curated.get(&request.platform) {
+                // A selected declared artifact can be compared to independently
+                // reviewed source applicability. This is not acquisition authority.
+                selected.release = Some((record.tag.clone(), record.sha256.clone()));
+            }
+        }
+        GameFileRouteKind::ExternalRegistration => {
+            selected.offered = crate::definition_eligibility::admission_route_exclusion(
+                current,
+                &status,
+                request.platform,
+                crate::PortAction::RegisterExternal,
+            )
+            .is_none()
+                && current
+                    .release
+                    .user_prepared
+                    .contains_key(&request.platform)
+                && status.channel == request.channel;
+            // Registration validates the package itself and has no game-input
+            // argument. This says nothing about the separate launch route.
+            selected.empty_requirements = selected.offered;
+        }
+    }
+    let port = selected.catalog.port(&request.port_id)?;
+    selected.offered &=
+        port.platforms.contains(&request.platform) && port.channels.contains(&request.channel);
+    selected.profile_id = port.source_profile.clone();
+    if port.source_profile.is_none() && !selected.empty_requirements {
+        // Explicit, complete presentation plus absence of all execution source
+        // bindings establishes empty game requirements; missing legacy metadata
+        // or source-dependent execution fields remains unknown.
+        selected.empty_requirements = port.presentation.as_ref().is_some_and(|presentation| {
+            !presentation
+                .source_requirements
+                .iter()
+                .any(|requirement| requirement.role == PortSourceRole::Game)
+        }) && port.source_environment.is_none()
+            && port.runtime_source_filename.is_none()
+            && port.runtime_source_materialization.is_none()
+            && port.runtime_source_set.is_empty();
+        selected.unknown_requirements = !selected.empty_requirements;
+    }
+    Ok(selected)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GameFileRouteKind {
+    ManagedInstall,
+    ExternalRegistration,
+    ManagedLaunch,
+    ExternalLaunch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GameFileQueryState {
+    FilesAvailable,
+    FilesMissing,
+    NeedsChecking,
+    NoFilesRequired,
+    UnavailableContext,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum GameFileQueryReason {
+    CompleteCompatibleObservation,
+    NoConnectedRegistration,
+    ExplicitEmptyRequirements,
+    ObservationUnavailable,
+    ObservationStale,
+    SourceNeedsChecking,
+    StorageAbsenceUnconfirmed,
+    IdentityNotAdmitted,
+    ContractNotReviewed,
+    VariantNotSupported,
+    ReleaseNotBound,
+    RouteNotOffered,
+    ProfileContextChanged,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct GameFileRouteProjection {
+    pub port_id: String,
+    pub platform: Platform,
+    pub channel: ReleaseChannel,
+    pub route: GameFileRouteKind,
+    pub state: GameFileQueryState,
+    pub reason: GameFileQueryReason,
+    pub contract_id: Option<String>,
+    pub identity: Option<SourceIdentity>,
+    /// Digest of the complete registered instance, never its private path.
+    pub source_instance_sha256: Option<String>,
+    pub route_definition_sha256: Option<String>,
+    pub route_instance_sha256: Option<String>,
+}
+
+/// Constructed by Core from the selected current or retained definition. A
+/// client request cannot supply the requirements, profile or admission facts.
+pub(crate) struct GameFileRouteContext<'a> {
+    pub catalog: &'a Catalog,
+    pub port_id: &'a str,
+    pub platform: Platform,
+    pub channel: ReleaseChannel,
+    pub route: GameFileRouteKind,
+    pub offered: bool,
+    pub context_complete: bool,
+    pub requirements: GameInputRequirements<'a>,
+    pub release: Option<(&'a str, &'a str)>,
+}
+
+pub(crate) enum GameInputRequirements<'a> {
+    /// A complete operation-specific requirement list, not a nullable profile.
+    Empty,
+    Profile(&'a str),
+    Unknown,
+}
+
+pub(crate) fn project(
+    context: &GameFileRouteContext<'_>,
+    observation: Option<&RegisteredSourceObservation>,
+    fresh: bool,
+) -> crate::Result<GameFileRouteProjection> {
+    let mut result = GameFileRouteProjection {
+        port_id: context.port_id.into(),
+        platform: context.platform,
+        channel: context.channel,
+        route: context.route,
+        state: GameFileQueryState::NeedsChecking,
+        reason: GameFileQueryReason::ObservationUnavailable,
+        contract_id: None,
+        identity: None,
+        source_instance_sha256: None,
+        route_definition_sha256: None,
+        route_instance_sha256: None,
+    };
+    if !context.context_complete {
+        result.state = GameFileQueryState::UnavailableContext;
+        return Ok(result);
+    }
+    if !context.offered {
+        result.reason = GameFileQueryReason::RouteNotOffered;
+        return Ok(result);
+    }
+    let profile_id = match context.requirements {
+        GameInputRequirements::Empty => {
+            result.state = GameFileQueryState::NoFilesRequired;
+            result.reason = GameFileQueryReason::ExplicitEmptyRequirements;
+            return Ok(result);
+        }
+        GameInputRequirements::Unknown => return Ok(result),
+        GameInputRequirements::Profile(id) => id,
+    };
+    if !fresh {
+        result.reason = GameFileQueryReason::ObservationStale;
+        return Ok(result);
+    }
+    let report = match observation {
+        Some(RegisteredSourceObservation::Unregistered {
+            profile_id: observed,
+        }) if observed == profile_id => {
+            result.state = GameFileQueryState::FilesMissing;
+            result.reason = GameFileQueryReason::NoConnectedRegistration;
+            return Ok(result);
+        }
+        Some(RegisteredSourceObservation::Inspected { report })
+            if report.profile_id == profile_id =>
+        {
+            report.as_ref()
+        }
+        _ => {
+            result.state = GameFileQueryState::UnavailableContext;
+            return Ok(result);
+        }
+    };
+    evaluate_report(context, profile_id, report, &mut result)?;
+    Ok(result)
+}
+
+fn evaluate_report(
+    context: &GameFileRouteContext<'_>,
+    profile_id: &str,
+    report: &SourceInspectionReport,
+    result: &mut GameFileRouteProjection,
+) -> crate::Result<()> {
+    if report.health != SourceHealth::Current {
+        result.reason = if report.health == SourceHealth::Missing {
+            // A failed path lookup does not establish mounted storage identity.
+            GameFileQueryReason::StorageAbsenceUnconfirmed
+        } else {
+            GameFileQueryReason::SourceNeedsChecking
+        };
+        return Ok(());
+    }
+    let Some(inspection) = report.inspection.as_ref() else {
+        return Ok(());
+    };
+    let Some(registration) = report.registered.as_ref() else {
+        return Ok(());
+    };
+    if inspection.assessment.health != SourceHealth::Current
+        || !matches!(
+            inspection.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity
+            }
+        )
+    {
+        result.reason = GameFileQueryReason::IdentityNotAdmitted;
+        return Ok(());
+    }
+    let SourceClassification::Recognized { identity } = &inspection.assessment.classification
+    else {
+        result.reason = GameFileQueryReason::IdentityNotAdmitted;
+        return Ok(());
+    };
+    let Some(source_catalog) = context.catalog.source_catalog() else {
+        result.reason = GameFileQueryReason::ContractNotReviewed;
+        return Ok(());
+    };
+    let expected = source_catalog
+        .identities
+        .iter()
+        .find(|profile| profile.id == profile_id);
+    if expected.is_none()
+        || expected != report.expected_identity.as_ref()
+        || identity.game_id != profile_id
+        || registration.profile_id != profile_id
+        || inspection.profile_id != profile_id
+        || inspection.path != registration.path
+    {
+        result.reason = GameFileQueryReason::ProfileContextChanged;
+        return Ok(());
+    }
+    let contracts = source_catalog
+        .contracts
+        .iter()
+        .filter(|contract| {
+            contract.port_id == context.port_id
+                && contract.role == PortSourceRole::Game
+                && contract.profile_id == profile_id
+        })
+        .collect::<Vec<_>>();
+    let [contract] = contracts.as_slice() else {
+        result.reason = GameFileQueryReason::ContractNotReviewed;
+        return Ok(());
+    };
+    result.contract_id = Some(contract.id.clone());
+    if contract.admission_mode != CatalogAdmissionMode::Enforced {
+        result.reason = GameFileQueryReason::ContractNotReviewed;
+        return Ok(());
+    }
+    if !contract
+        .supported_variant_ids
+        .contains(&identity.variant_id)
+    {
+        result.reason = GameFileQueryReason::VariantNotSupported;
+        return Ok(());
+    }
+    let Some((upstream_ref, artifact_sha256)) = context.release else {
+        result.reason = GameFileQueryReason::ReleaseNotBound;
+        return Ok(());
+    };
+    if artifact_sha256.len() != 64
+        || !artifact_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+        || !contract.applicability.iter().any(|binding| {
+            binding.upstream_ref == upstream_ref
+                && binding
+                    .artifact_sha256
+                    .as_ref()
+                    .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
+        })
+    {
+        result.reason = GameFileQueryReason::ReleaseNotBound;
+        return Ok(());
+    }
+    result.source_instance_sha256 = Some(crate::signed_catalog::digest(&serde_json::to_vec(
+        registration,
+    )?));
+    result.identity = Some(identity.clone());
+    result.state = GameFileQueryState::FilesAvailable;
+    result.reason = GameFileQueryReason::CompleteCompatibleObservation;
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "game_file_query_tests.rs"]
+mod tests;
