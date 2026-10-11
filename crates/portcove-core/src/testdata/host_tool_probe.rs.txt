@@ -8,6 +8,27 @@ fn main() {
         Some("extractdvd") => owned_conversion(&args),
         Some("extractcd") => owned_psx_conversion(&args),
         Some("--owned-preparation") => owned_preparation(&args),
+        Some("--psx-builder-contract") => {
+            // Independent SDK refusal rule: generation must never enable acquisition.
+            assert!(args.iter().any(|argument| argument == "--no-toolchain-download"));
+            let root = env::current_dir().unwrap();
+            let private = root.join(".portcove-builder-environment");
+            let python = env::current_exe().unwrap();
+            assert_eq!(env::split_paths(&env::var_os("PATH").unwrap()).collect::<Vec<_>>(),
+                vec![root.join("bin"), python.parent().unwrap().to_path_buf()]);
+            for name in ["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CACHE_HOME",
+                         "XDG_DATA_HOME", "XDG_CONFIG_HOME", "RETCOMM_TOOLCHAIN_CACHE",
+                         "RETCOMM_DATA_HOME", "TEMP", "TMP", "TMPDIR"] {
+                assert!(std::path::PathBuf::from(env::var_os(name).unwrap()).starts_with(&private));
+            }
+            for name in ["GH_TOKEN", "GITHUB_TOKEN", "PORTCOVE_GITHUB_TOKEN"] {
+                assert!(env::var_os(name).is_none());
+            }
+            assert!(Command::new("cmake").arg("--success").status().unwrap().success());
+            for name in ["HOME", "TEMP"] {
+                fs::write(std::path::PathBuf::from(env::var_os(name).unwrap()).join("builder-probe"), b"private fixture write").unwrap();
+            }
+        }
         Some("--game") if args.iter().any(|argument| argument == "--extract") => owned_preparation(&args),
         Some("--game") => {
             if let Some(pair) = args.windows(2).find(|pair| pair[0] == "--owned-wait") {

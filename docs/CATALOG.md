@@ -568,6 +568,16 @@ publication are unclaimed. Exact identities and boundaries are recorded in the
 
 ## Adding or changing a port
 
+Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
+file identities are rechecked before each builder process. Both prohibit the kit's
+toolchain download fallback. Builder PATH contains only the owned toolchain and
+bundled Python directories; profile, cache and temporary paths are private to the
+preparation workspace. Missing or changed declared tools refuse before the builder
+starts. Kits must support the generation no-download argument; incompatible CLI
+contracts refuse rather than retrying with weaker arguments. This is builder
+acquisition/environment policy, not title-native qualification or a general OS
+sandbox. Retained workspaces and existing cancellation/closure guards still apply.
+
 Managed PS1 ports pass their reviewed runtime configuration with `--game` and
 an explicit `--memcard-dir` inside the managed runtime's `saves` directory.
 This applies both to referenced discs and to materialized raw disc sets. It

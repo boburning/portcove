@@ -552,22 +552,12 @@ fn prepare_install_inner(
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     let config_path = crate::path::unicode(&config, "managed build config")?;
     let project_root = crate::path::unicode(root, "managed build root")?;
-    let mut generate_arguments = vec![
-        "generate".into(),
-        "--config".into(),
-        config_path.clone(),
-        "--project-root".into(),
-        project_root.clone(),
-        "--disc".into(),
-        crate::path::unicode(&cue, "managed disc")?,
-    ];
-    if let Some(bios) = &preparation.bios {
-        generate_arguments.extend([
-            "--bios".into(),
-            crate::path::unicode(&bios.path, "BIOS source")?,
-        ]);
-    }
-    generate_arguments.push("--json-progress".into());
+    let generate_arguments = generation_arguments(
+        &config,
+        root,
+        &cue,
+        preparation.bios.as_ref().map(|bios| bios.path.as_path()),
+    )?;
     run_cli(
         &python,
         &cli,
@@ -1226,6 +1216,29 @@ fn builder_supervision_error(error: PortcoveError) -> PortcoveError {
     }
 }
 
+fn generation_arguments(
+    config: &Path,
+    root: &Path,
+    disc: &Path,
+    bios: Option<&Path>,
+) -> Result<Vec<String>> {
+    let mut arguments = vec![
+        "generate".into(),
+        "--config".into(),
+        crate::path::unicode(config, "managed build config")?,
+        "--project-root".into(),
+        crate::path::unicode(root, "managed build root")?,
+        "--disc".into(),
+        crate::path::unicode(disc, "managed disc")?,
+        "--json-progress".into(),
+        "--no-toolchain-download".into(),
+    ];
+    if let Some(bios) = bios {
+        arguments.extend(["--bios".into(), crate::path::unicode(bios, "BIOS source")?]);
+    }
+    Ok(arguments)
+}
+
 fn run_cli(
     python: &Path,
     cli: &Path,
@@ -1235,6 +1248,38 @@ fn run_cli(
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
+    operation.checkpoint()?;
+    let platform = Platform::current()?;
+    if !validate_toolchain(toolchain_root, platform, toolchain_artifact(platform)?)?
+        || toolchain_python(toolchain_root)? != python
+    {
+        return Err(PortcoveError::verification(
+            "managed PS1 builder requires its unchanged pinned toolchain",
+        ));
+    }
+    let environment_root = project_root.join(".portcove-builder-environment");
+    crate::path::refuse_symlink_ancestors(&environment_root)?;
+    for directory in [
+        "home",
+        "cache",
+        "data",
+        "config",
+        "temp",
+        "appdata",
+        "localappdata",
+    ] {
+        let path = environment_root.join(directory);
+        crate::path::refuse_symlink_ancestors(&path)?;
+        fs::create_dir_all(path)?;
+    }
+    let path = std::env::join_paths([
+        toolchain_root.join("bin"),
+        python
+            .parent()
+            .expect("bundled Python has a parent")
+            .to_path_buf(),
+    ])
+    .map_err(|_| PortcoveError::verification("pinned PS1 toolchain PATH is invalid"))?;
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?;
     command
@@ -1242,7 +1287,23 @@ fn run_cli(
         .args(arguments)
         .current_dir(project_root)
         .env("RETCOMM_TOOLCHAIN_DIR", toolchain_root)
-        .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root);
+        .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root)
+        .env("PATH", path)
+        .env("HOME", environment_root.join("home"))
+        .env("USERPROFILE", environment_root.join("home"))
+        .env("APPDATA", environment_root.join("appdata"))
+        .env("LOCALAPPDATA", environment_root.join("localappdata"))
+        .env("XDG_CACHE_HOME", environment_root.join("cache"))
+        .env("XDG_DATA_HOME", environment_root.join("data"))
+        .env("XDG_CONFIG_HOME", environment_root.join("config"))
+        .env(
+            "RETCOMM_TOOLCHAIN_CACHE",
+            environment_root.join("cache/retcomm"),
+        )
+        .env("RETCOMM_DATA_HOME", environment_root.join("data/retcomm"))
+        .env("TEMP", environment_root.join("temp"))
+        .env("TMP", environment_root.join("temp"))
+        .env("TMPDIR", environment_root.join("temp"));
     let previous_quiescence = *quiesced;
     *quiesced = false;
     let mut command_quiesced = false;
@@ -2372,9 +2433,10 @@ mod tests {
         let program = crate::test_fixture::build_probe(native.path());
         let root = tempfile::tempdir().unwrap();
         let marker = root.path().join("owned-descendant-output");
+        let python = toolchain_fixture(root.path(), Some(&program));
         let mut quiesced = true;
         run_cli(
-            &program,
+            &python,
             Path::new("--setup-tree"),
             root.path(),
             root.path(),
@@ -2398,8 +2460,9 @@ mod tests {
         let marker = workspace.join("owned-escaped-output");
         let ready = workspace.join("owned-escaped-ready");
         let mut quiesced = true;
+        let python = toolchain_fixture(&workspace, Some(&program));
         run_cli(
-            &program,
+            &python,
             Path::new("--setup-tree-escape"),
             &workspace,
             &workspace,
@@ -2414,10 +2477,7 @@ mod tests {
         assert!(marker.is_file());
     }
 
-    #[test]
-    fn toolchain_marker_is_bound_to_current_critical_file_bytes() {
-        let temporary = tempfile::tempdir().unwrap();
-        let root = temporary.path();
+    fn toolchain_fixture(root: &Path, program: Option<&Path>) -> PathBuf {
         let platform = Platform::current().unwrap();
         let artifact = toolchain_artifact(platform).unwrap();
         let python = if cfg!(windows) {
@@ -2436,6 +2496,11 @@ mod tests {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, bytes).unwrap();
         }
+        if let Some(program) = program {
+            for path in [&python, &cmake, &ninja] {
+                fs::copy(program, path).unwrap();
+            }
+        }
         let marker = ToolchainMarker {
             schema_version: 2,
             version: TOOLCHAIN_VERSION.into(),
@@ -2449,11 +2514,99 @@ mod tests {
             serde_json::to_vec_pretty(&marker).unwrap(),
         )
         .unwrap();
+        python
+    }
+
+    #[test]
+    fn toolchain_marker_is_bound_to_current_critical_file_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        toolchain_fixture(root, None);
+        let platform = Platform::current().unwrap();
+        let artifact = toolchain_artifact(platform).unwrap();
         assert!(validate_toolchain(root, platform, artifact).unwrap());
 
-        fs::write(&cmake, b"tampered cmake").unwrap();
+        fs::write(
+            platform_executable(&root.join("bin"), "cmake"),
+            b"tampered cmake",
+        )
+        .unwrap();
 
         assert!(!validate_toolchain(root, platform, artifact).unwrap());
+    }
+
+    #[test]
+    fn managed_builder_refuses_missing_or_changed_tools_before_spawn() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        for changed in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let python = toolchain_fixture(root.path(), Some(&program));
+            let cmake = platform_executable(&root.path().join("bin"), "cmake");
+            if changed {
+                fs::write(&cmake, b"changed declared tool").unwrap();
+            } else {
+                fs::remove_file(&cmake).unwrap();
+            }
+            let marker = root.path().join("must-not-spawn");
+            let mut quiesced = true;
+            let error = run_cli(
+                &python,
+                Path::new("--grandchild"),
+                root.path(),
+                root.path(),
+                [marker.display().to_string()],
+                &OperationCoordinator::new("owned-builder-refusal", None),
+                &mut quiesced,
+            )
+            .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification);
+            assert!(quiesced);
+            assert!(!marker.exists());
+            assert!(!root.path().join(".portcove-builder-environment").exists());
+        }
+    }
+
+    #[test]
+    fn managed_generation_uses_only_pinned_tools_and_private_profile_paths() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let root = tempfile::tempdir().unwrap();
+        let python = toolchain_fixture(root.path(), Some(&program));
+        let arguments = generation_arguments(
+            &root.path().join("game.toml"),
+            root.path(),
+            &root.path().join("disc.cue"),
+            None,
+        )
+        .unwrap();
+        let mut quiesced = true;
+        run_cli(
+            &python,
+            Path::new("--psx-builder-contract"),
+            root.path(),
+            root.path(),
+            arguments,
+            &OperationCoordinator::new("owned-generation", None),
+            &mut quiesced,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(
+                root.path()
+                    .join(".portcove-builder-environment/home/builder-probe")
+            )
+            .unwrap(),
+            b"private fixture write"
+        );
+        assert_eq!(
+            fs::read(
+                root.path()
+                    .join(".portcove-builder-environment/temp/builder-probe")
+            )
+            .unwrap(),
+            b"private fixture write"
+        );
     }
 
     #[test]
