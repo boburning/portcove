@@ -2399,3 +2399,16 @@ volume availability, stale, changed, ambiguous, unreadable, incomplete or unrevi
 observations need checking. Explicit empty requirements establish no-files-required;
 package registration's lack of game inputs says nothing about its separate launch
 route. None of these query states grants action, support or release authority.
+
+`refresh_game_file_query` composes inspection and projection in one explicit Core
+worker. It derives only the profiles required by complete offered routes and
+constructs its own private batch. Empty requirements select no source profiles
+and perform no source hashing; the standalone public inspector still requires a
+nonempty selection. Missing observations for required profiles remain unavailable.
+The original elapsed budget covers route resolution, inspection, projection,
+serialization and final acceptance, with the existing byte and response caps.
+Inspection retains source handles and directory inventories through projection
+and final source fences, then rechecks registration and selected route bindings
+before admitting publication. Cancellation or context drift discards the private
+result. Adapters must await the blocking worker before terminal settlement; this
+Core composition alone does not prove Desktop transport or native cancellation.

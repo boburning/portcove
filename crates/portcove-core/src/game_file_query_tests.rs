@@ -569,3 +569,334 @@ fn mismatched_profile_and_unsupported_variant_never_establish_compatibility() {
         GameFileQueryReason::VariantNotSupported
     );
 }
+
+fn refresh_limits() -> crate::RegisteredSourceInspectionLimits {
+    crate::RegisteredSourceInspectionLimits {
+        max_file_bytes: 1024,
+        max_hash_bytes: 1024,
+        max_elapsed_ms: 30_000,
+    }
+}
+
+fn managed_request(service: &PortcoveService) -> GameFileRouteRequest {
+    let port = service
+        .catalog()
+        .ports()
+        .iter()
+        .find(|port| {
+            port.source_profile.as_deref() == Some("ocarina-of-time")
+                && port.release.provider != crate::ReleaseSource::UserPrepared
+        })
+        .unwrap();
+    GameFileRouteRequest {
+        port_id: port.id.clone(),
+        platform: port.platforms[0],
+        channel: port.channels[0],
+        route: GameFileRouteKind::ManagedInstall,
+    }
+}
+
+fn register_inert_query_source(
+    service: &PortcoveService,
+    path: std::path::PathBuf,
+) -> crate::SourceRecord {
+    let bytes = b"inert registered-input fixture";
+    std::fs::write(&path, bytes).unwrap();
+    let hash = hex::encode(Sha256::digest(bytes));
+    let record = crate::SourceRecord {
+        profile_id: "ocarina-of-time".into(),
+        path,
+        sha256: hash.clone(),
+        size: bytes.len() as u64,
+        storage_sha256: hash,
+        storage_size: bytes.len() as u64,
+        updated_at: 1,
+        observed_identity: None,
+    };
+    service.library().register_source(&record).unwrap();
+    record
+}
+
+#[test]
+fn explicit_refresh_constructs_its_own_batch_and_does_not_mutate_source_or_activity() {
+    let (temporary, service, _batch) = service_fixture();
+    let record = register_inert_query_source(&service, temporary.path().join("input.z64"));
+    let before = serde_json::to_vec(&service.library().sources().unwrap()).unwrap();
+    let activities = serde_json::to_vec(&service.library().activities(100).unwrap()).unwrap();
+    let snapshot = service
+        .refresh_game_file_query(
+            &[managed_request(&service)],
+            &refresh_limits(),
+            300,
+            &crate::OperationCoordinator::new("query-refresh", None),
+        )
+        .unwrap();
+    assert_eq!(
+        snapshot.routes[0].reason,
+        GameFileQueryReason::IdentityNotAdmitted
+    );
+    assert_eq!(
+        before,
+        serde_json::to_vec(&service.library().sources().unwrap()).unwrap()
+    );
+    assert_eq!(
+        activities,
+        serde_json::to_vec(&service.library().activities(100).unwrap()).unwrap()
+    );
+    assert_eq!(
+        std::fs::read(record.path).unwrap(),
+        b"inert registered-input fixture"
+    );
+}
+
+#[test]
+fn empty_requirements_select_zero_source_profiles_and_zero_hashing() {
+    let (temporary, service, _batch) = service_fixture();
+    register_inert_query_source(&service, temporary.path().join("unrelated.z64"));
+    let port = service
+        .catalog()
+        .ports()
+        .iter()
+        .find(|port| {
+            port.release.provider == crate::ReleaseSource::UserPrepared
+                && !port.release.user_prepared.is_empty()
+        })
+        .unwrap();
+    let request = GameFileRouteRequest {
+        port_id: port.id.clone(),
+        platform: *port.release.user_prepared.keys().next().unwrap(),
+        channel: port.channels[0],
+        route: GameFileRouteKind::ExternalRegistration,
+    };
+    let mut limits = refresh_limits();
+    limits.max_hash_bytes = 1;
+    let snapshot = service
+        .refresh_game_file_query(
+            &[request],
+            &limits,
+            300,
+            &crate::OperationCoordinator::new("empty-refresh", None),
+        )
+        .unwrap();
+    assert_eq!(
+        snapshot.routes[0].state,
+        GameFileQueryState::NoFilesRequired
+    );
+    assert_eq!(
+        snapshot.registration_sha256,
+        crate::source_batch::fingerprint(&Vec::<crate::SourceRecord>::new()).unwrap()
+    );
+    assert_eq!(service.library().sources().unwrap().len(), 1);
+    service
+        .inspect_registered_sources_bounded_with_projection(
+            &[],
+            &limits,
+            &crate::OperationCoordinator::new("empty-worker", None),
+            |batch| {
+                assert!(batch.profile_ids.is_empty());
+                assert_eq!(batch.hash_bytes, 0);
+                Ok(())
+            },
+            |_| Ok(()),
+        )
+        .unwrap();
+    assert!(
+        service
+            .inspect_registered_sources_bounded(
+                &[],
+                &limits,
+                &crate::OperationCoordinator::new("public-empty", None)
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn empty_internal_observations_never_assert_required_files_missing_or_available() {
+    let (_temporary, service, _batch) = service_fixture();
+    let request = managed_request(&service);
+    let snapshot = service
+        .inspect_registered_sources_bounded_with_projection(
+            &[],
+            &refresh_limits(),
+            &crate::OperationCoordinator::new("absent-observation", None),
+            |batch| service.game_file_query_snapshot(&batch, &[request], 300),
+            |_| Ok(()),
+        )
+        .unwrap();
+    assert_eq!(
+        snapshot.routes[0].state,
+        GameFileQueryState::UnavailableContext
+    );
+}
+
+#[test]
+fn late_channel_or_instance_drift_discards_the_private_refresh_result() {
+    for change in ["channel", "instance"] {
+        let (_temporary, service, _batch) = service_fixture();
+        let mut request = managed_request(&service);
+        let install = if change == "instance" {
+            request.route = GameFileRouteKind::ManagedLaunch;
+            Some(inert_install(&service, &request.port_id, true))
+        } else {
+            None
+        };
+        let operation = crate::OperationCoordinator::new("drift-refresh", None);
+        let started = std::time::Instant::now();
+        let elapsed = || started.elapsed();
+        let error = service
+            .refresh_game_file_query_with_fence(
+                &[request.clone()],
+                &refresh_limits(),
+                300,
+                &QueryFence {
+                    elapsed: &elapsed,
+                    maximum: std::time::Duration::from_secs(30),
+                    operation: Some(&operation),
+                },
+                || {
+                    if let Some(mut install) = install {
+                        install.id = "changed-active-instance".into();
+                        service.library().register_install(&install, true)?;
+                    } else {
+                        service
+                            .library()
+                            .set_channel(&request.port_id, crate::ReleaseChannel::Beta)?;
+                    }
+                    Ok(())
+                },
+            )
+            .unwrap_err();
+        assert_eq!(
+            error.code,
+            crate::ErrorCode::Conflict,
+            "late {change} drift"
+        );
+    }
+}
+
+#[test]
+fn late_source_change_during_projection_is_checked_before_refresh_publication() {
+    let (temporary, service, _batch) = service_fixture();
+    let record = register_inert_query_source(&service, temporary.path().join("input.z64"));
+    let operation = crate::OperationCoordinator::new("source-drift-refresh", None);
+    let started = std::time::Instant::now();
+    let elapsed = || started.elapsed();
+    let result = service.refresh_game_file_query_with_fence(
+        &[managed_request(&service)],
+        &refresh_limits(),
+        300,
+        &QueryFence {
+            elapsed: &elapsed,
+            maximum: std::time::Duration::from_secs(30),
+            operation: Some(&operation),
+        },
+        || {
+            std::fs::write(&record.path, b"changed")?;
+            Ok(())
+        },
+    );
+    assert!(result.is_err());
+    assert_eq!(
+        service.library().sources().unwrap()[0].sha256,
+        record.sha256
+    );
+}
+
+#[test]
+fn deadline_after_projection_discards_result_before_publication() {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    let (_temporary, service, _batch) = service_fixture();
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            crate::ActivityOperation::CheckUpdate,
+            crate::ActivityTargetKind::Library,
+            None,
+        )
+        .unwrap();
+    let clock = AtomicU64::new(0);
+    let elapsed = || std::time::Duration::from_millis(clock.load(Ordering::SeqCst));
+    let result = service.refresh_game_file_query_with_fence(
+        &[managed_request(&service)],
+        &refresh_limits(),
+        300,
+        &QueryFence {
+            elapsed: &elapsed,
+            maximum: std::time::Duration::from_secs(30),
+            operation: Some(&operation),
+        },
+        || {
+            clock.store(30_001, Ordering::SeqCst);
+            Ok(())
+        },
+    );
+    assert_eq!(result.unwrap_err().code, crate::ErrorCode::Unsupported);
+    assert_eq!(
+        crate::cancellation::cancellation_state(service.library(), &activity.id)
+            .unwrap()
+            .unwrap()
+            .phase,
+        crate::CancellationPhase::Preparing
+    );
+}
+
+#[test]
+fn cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker() {
+    let (temporary, service, _batch) = service_fixture();
+    let record = register_inert_query_source(&service, temporary.path().join("input.z64"));
+    let request = managed_request(&service);
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            crate::ActivityOperation::CheckUpdate,
+            crate::ActivityTargetKind::Library,
+            None,
+        )
+        .unwrap();
+    let worker_service = PortcoveService::new(service.library().clone()).unwrap();
+    let (entered, ready) = std::sync::mpsc::channel();
+    let (release, held) = std::sync::mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        let started = std::time::Instant::now();
+        let elapsed = || started.elapsed();
+        worker_service.refresh_game_file_query_with_fence(
+            &[request],
+            &refresh_limits(),
+            300,
+            &QueryFence {
+                elapsed: &elapsed,
+                maximum: std::time::Duration::from_secs(30),
+                operation: Some(&operation),
+            },
+            || {
+                entered.send(()).unwrap();
+                held.recv_timeout(std::time::Duration::from_secs(10))
+                    .unwrap();
+                Ok(())
+            },
+        )
+    });
+    ready
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    service.request_cancellation(&activity.id).unwrap();
+    assert!(
+        !worker.is_finished(),
+        "cancellation acknowledgment cannot imply worker exit"
+    );
+    let state = crate::cancellation::cancellation_state(service.library(), &activity.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(state.phase, crate::CancellationPhase::Preparing);
+    assert!(state.requested);
+    assert_eq!(
+        std::fs::read(&record.path).unwrap(),
+        b"inert registered-input fixture"
+    );
+    release.send(()).unwrap();
+    let result = worker.join().unwrap();
+    assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
+    assert_eq!(
+        service.library().sources().unwrap()[0].sha256,
+        record.sha256
+    );
+}

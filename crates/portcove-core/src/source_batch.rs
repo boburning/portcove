@@ -53,6 +53,23 @@ pub struct RegisteredSourceInspectionBatch {
     pub observations: Vec<RegisteredSourceObservation>,
 }
 
+impl RegisteredSourceInspectionLimits {
+    pub(crate) fn validate(&self) -> Result<()> {
+        if self.max_file_bytes == 0
+            || self.max_file_bytes > 2 * 1024 * 1024 * 1024
+            || self.max_hash_bytes == 0
+            || self.max_hash_bytes > 32 * 1024 * 1024 * 1024
+            || self.max_elapsed_ms == 0
+            || self.max_elapsed_ms > 30_000
+        {
+            return Err(PortcoveError::usage(
+                "registered-source inspection needs bounded file/hash/time limits",
+            ));
+        }
+        Ok(())
+    }
+}
+
 impl PortcoveService {
     /// Explicit work outside query evaluation. Callers must await the blocking worker
     /// before terminal settlement and bind their request/library generation on acceptance.
@@ -80,17 +97,38 @@ impl PortcoveService {
         operation: &OperationCoordinator,
         before_accept: impl FnOnce() -> Result<()>,
     ) -> Result<RegisteredSourceInspectionBatch> {
-        if profile_ids.is_empty()
-            || profile_ids.len() > 256
-            || limits.max_file_bytes == 0
-            || limits.max_file_bytes > 2 * 1024 * 1024 * 1024
-            || limits.max_hash_bytes == 0
-            || limits.max_hash_bytes > 32 * 1024 * 1024 * 1024
-            || limits.max_elapsed_ms == 0
-            || limits.max_elapsed_ms > 30_000
-        {
+        if profile_ids.is_empty() {
             return Err(PortcoveError::usage(
-                "registered-source inspection needs 1-256 unique profiles and bounded file/hash/time limits",
+                "registered-source inspection needs 1-256 unique profiles",
+            ));
+        }
+        self.inspect_registered_sources_bounded_with_projection(
+            profile_ids,
+            limits,
+            operation,
+            |batch| {
+                before_accept()?;
+                Ok(batch)
+            },
+            |_| Ok(()),
+        )
+    }
+
+    /// Internal composition keeps the inspection handles and inventories owned
+    /// until the complete projected result passes final fences and publication.
+    /// Only this Core-owned composition can use an empty profile selection.
+    pub(crate) fn inspect_registered_sources_bounded_with_projection<T>(
+        &self,
+        profile_ids: &[String],
+        limits: &RegisteredSourceInspectionLimits,
+        operation: &OperationCoordinator,
+        project: impl FnOnce(RegisteredSourceInspectionBatch) -> Result<T>,
+        before_publish: impl FnOnce(&T) -> Result<()>,
+    ) -> Result<T> {
+        limits.validate()?;
+        if profile_ids.len() > 256 {
+            return Err(PortcoveError::usage(
+                "registered-source inspection profile budget reached",
             ));
         }
         let mut ids = profile_ids.to_vec();
@@ -202,8 +240,28 @@ impl PortcoveService {
             }
             observations.push(observation);
         }
+        let batch = RegisteredSourceInspectionBatch {
+            schema_version: 1,
+            library: library.clone(),
+            catalog_sha256,
+            catalog_binding_sha256: catalog_binding_sha256.clone(),
+            registration_sha256: registration_sha256.clone(),
+            profile_ids: ids.clone(),
+            limits: limits.clone(),
+            observed_at: crate::Library::now(),
+            hash_bytes: budget.hashed,
+            observations,
+        };
+        if serde_json::to_vec(&batch)?.len() > MAX_RESPONSE_BYTES {
+            return Err(PortcoveError::unsupported(
+                "registered-source inspection response budget reached",
+            ));
+        }
+        // This batch is still private and unaccepted. Projection may read context,
+        // but source fences below must pass before its result can be returned.
+        let result = project(batch)?;
+        checkpoint(operation, started, limits)?;
         // Registration changes invalidate the whole observation set, including unregistered rows.
-        before_accept()?;
         for (key, observed) in &cache {
             checkpoint(operation, started, limits)?;
             if std::fs::canonicalize(&key.0)? != observed.path {
@@ -259,28 +317,12 @@ impl PortcoveService {
             ));
         }
         checkpoint(operation, started, limits)?;
-        let batch = RegisteredSourceInspectionBatch {
-            schema_version: 1,
-            library,
-            catalog_sha256,
-            catalog_binding_sha256,
-            registration_sha256,
-            profile_ids: ids,
-            limits: limits.clone(),
-            observed_at: crate::Library::now(),
-            hash_bytes: budget.hashed,
-            observations,
-        };
-        if serde_json::to_vec(&batch)?.len() > MAX_RESPONSE_BYTES {
-            return Err(PortcoveError::unsupported(
-                "registered-source inspection response budget reached",
-            ));
-        }
+        before_publish(&result)?;
         checkpoint(operation, started, limits)?;
         // Atomically settle cancellation versus returning this transient observation set.
         // A throttled chunk checkpoint alone cannot establish that a late request lost.
         operation.begin_publication()?;
-        Ok(batch)
+        Ok(result)
     }
 }
 
