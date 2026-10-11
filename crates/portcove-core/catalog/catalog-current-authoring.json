@@ -489,6 +489,16 @@
         "claim": "SCPH5552.toml at the exact Diablo v0.1.4 framework gitlink and in its SHA256-verified Windows package declares the Europe v3.0 01/06/97 retail BIOS identity and staged bios/SCPH5552.BIN path. This is a required use-time raw BIOS input, not redistributed content or a generation/runtime observation.",
         "immutable_url": "https://github.com/Alexbeav/psxrecomp/blob/f7672e53b8504fd20bd2b2ad70e62adc6a87a5de/bios/SCPH5552.toml",
         "live_url": "https://github.com/Alexbeav/psxrecomp/blob/main/bios/SCPH5552.toml"
+      },
+      {
+        "id": "alexbeav-diablo-recomp-v0-1-4-linux-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/diablo-recomp",
+        "authority_ref": "1e71257166f6a2c0e087f7a36e0e3bde984132d4",
+        "reviewed_at": "2026-10-11",
+        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches upstream asset605927354 size27803391 and SHA2560579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1. Source/build/runtime declarations match the inspected Windows declarations after newline normalization, with raw hashes retained separately. Europe SLES-01156 disc and retail SCPH-5552 BIOS contracts are unchanged. Current Core has pinned Linux toolchain, isolated setup, explicit executable/config/save/BIOS coordinates and clears inherited APPIMAGE. Bootstrap ELF requires GLIBC_2.29/GLIBCXX_3.4.26 and its recorded shared libraries; generated-game minimum-host compatibility is not established. Linux generation, runtime, lifecycle and gameplay were not tested.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/1e71257166f6a2c0e087f7a36e0e3bde984132d4/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/main/game.toml"
       }
     ],
     "identities": [
@@ -7521,10 +7531,11 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-diablo-recomp-v0-1-4-source-contract"
+          "alexbeav-diablo-recomp-v0-1-4-source-contract",
+          "alexbeav-diablo-recomp-v0-1-4-linux-static-contract"
         ],
         "authority_ref": "1e71257166f6a2c0e087f7a36e0e3bde984132d4",
-        "reviewed_at": "2026-10-10",
+        "reviewed_at": "2026-10-11",
         "immutable_review_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/blob/1e71257166f6a2c0e087f7a36e0e3bde984132d4/game.toml",
         "live_review_url": null,
         "evidence_gap": null,
@@ -7532,6 +7543,10 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1"
           }
         ],
         "aliases": [],
@@ -7549,10 +7564,11 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "psx-scph-5552-f7672e5-source-contract",
-          "alexbeav-diablo-recomp-v0-1-4-source-contract"
+          "alexbeav-diablo-recomp-v0-1-4-source-contract",
+          "alexbeav-diablo-recomp-v0-1-4-linux-static-contract"
         ],
         "authority_ref": "f7672e53b8504fd20bd2b2ad70e62adc6a87a5de",
-        "reviewed_at": "2026-10-10",
+        "reviewed_at": "2026-10-11",
         "immutable_review_url": "https://github.com/Alexbeav/psxrecomp/blob/f7672e53b8504fd20bd2b2ad70e62adc6a87a5de/bios/SCPH5552.toml",
         "live_review_url": null,
         "evidence_gap": null,
@@ -7560,6 +7576,10 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1"
           }
         ],
         "aliases": [],
@@ -15340,7 +15360,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -15354,6 +15375,13 @@
             "size": 29909581,
             "sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
             "published_at": "2026-10-02T15:44:22Z"
+          },
+          "linux-x86-64": {
+            "version": "v0.1.4",
+            "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-linux-x64.zip",
+            "size": 27803391,
+            "sha256": "0579d28ce0f1d8bcb5aca3b1a68b8fe43ea866aa141202b2bc80d0d17f1943e1",
+            "published_at": "2026-10-02T15:44:22Z"
           }
         }
       },
@@ -15361,6 +15389,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Diablo_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Diablo_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -15412,7 +15443,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain; the packaged setup host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility and Linux runtime behavior remain untested."
       },
       "bios_source_profile": "psx-scph-5552-bios"
     }
