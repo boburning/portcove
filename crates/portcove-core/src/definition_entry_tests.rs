@@ -420,8 +420,13 @@ fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
     entry["required_capabilities"][0]["minimum_version"] = json!(3);
     assert!(inspect(&entry).is_ok());
     port.adapter = crate::AdapterKind::N64RecompPortable;
-    let document = json!({"schema_version": 1, "ports": [port]});
-    let error = crate::Catalog::from_json(&document.to_string()).unwrap_err();
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    *document
+        .ports
+        .iter_mut()
+        .find(|candidate| candidate.id == port.id)
+        .unwrap() = port;
+    let error = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
     assert!(
         error
             .message
