@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::{
     Catalog, GameFileRouteKind, InstallationMethod, LibraryIdentity, Platform, PortStatus,
@@ -53,6 +54,144 @@ pub(crate) struct RetainedBrowsingFacts {
     pub external_observed: bool,
 }
 
+const MAX_CONTEXTS: usize = 8192;
+const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
+const MAX_BINDING_BYTES: usize = 32 * 1024 * 1024;
+
+/// No serialized buffer: count and hash directly into fixed-size state.
+struct BindingWriter {
+    remaining: usize,
+    exceeded: bool,
+    hash: Sha256,
+}
+
+impl std::io::Write for BindingWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        if bytes.len() > self.remaining {
+            self.exceeded = true;
+            return Err(std::io::Error::other(
+                "browsing serialization budget reached",
+            ));
+        }
+        self.remaining -= bytes.len();
+        self.hash.update(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn serialized_size(value: &impl Serialize, limit: usize) -> Result<Option<usize>> {
+    let mut writer = BindingWriter {
+        remaining: limit,
+        exceeded: false,
+        hash: Sha256::new(),
+    };
+    let result = serde_json::to_writer(&mut writer, value);
+    if writer.exceeded {
+        return Ok(None);
+    }
+    result?;
+    Ok(Some(limit - writer.remaining))
+}
+
+fn fingerprint(value: &impl Serialize) -> Result<String> {
+    let mut writer = BindingWriter {
+        remaining: MAX_BINDING_BYTES,
+        exceeded: false,
+        hash: Sha256::new(),
+    };
+    serde_json::to_writer(&mut writer, value)?;
+    Ok(hex::encode(writer.hash.finalize()))
+}
+
+/// Conservative upper bound before cloning any per-context strings. JSON can
+/// expand a byte into six bytes; 1024 covers keys, enums and fixed-size digests.
+/// The whole borrowed input is separately counted before catalog cloning/hash.
+fn projection_fits(
+    catalog: &Catalog,
+    statuses: &[PortStatus],
+    sources: &[SourceRecord],
+    library: &LibraryIdentity,
+) -> Result<bool> {
+    // Leave room in the binding ceiling for retained definition digests and
+    // envelope fields; those are bounded by MAX_CONTEXTS, not source strings.
+    if serialized_size(
+        &(catalog.document(), statuses, sources, library),
+        MAX_BINDING_BYTES / 2,
+    )?
+    .is_none()
+    {
+        return Ok(false);
+    }
+    let Some(mut bytes) = serialized_size(library, MAX_RESPONSE_BYTES)? else {
+        return Ok(false);
+    };
+    bytes += 1024;
+    let mut count = 0usize;
+    let mut charge = |strings: &[&str], copies: usize| -> bool {
+        let length = strings
+            .iter()
+            .try_fold(0usize, |total, string| total.checked_add(string.len()));
+        let allocation = length
+            .and_then(|length| length.checked_mul(6))
+            .and_then(|length| length.checked_add(1024))
+            .and_then(|length| length.checked_mul(copies));
+        let Some(next_bytes) = allocation.and_then(|allocation| bytes.checked_add(allocation))
+        else {
+            return false;
+        };
+        let Some(next_count) = count.checked_add(copies) else {
+            return false;
+        };
+        bytes = next_bytes;
+        count = next_count;
+        bytes <= MAX_RESPONSE_BYTES && count <= MAX_CONTEXTS
+    };
+    for port in catalog.ports() {
+        for platform in &port.platforms {
+            let mut strings = vec![port.id.as_str()];
+            if let Some(release) = port.release.direct.get(platform) {
+                strings.extend([release.version.as_str(), release.sha256.as_str()]);
+            }
+            if !charge(&strings, port.channels.len()) {
+                return Ok(false);
+            }
+        }
+    }
+    for status in statuses {
+        if let Some(install) = &status.active {
+            if !charge(
+                &[
+                    &status.port_id,
+                    &install.id,
+                    &install.version,
+                    &install.artifact.sha256,
+                ],
+                1,
+            ) {
+                return Ok(false);
+            }
+        }
+        if let Some(runtime) = &status.external_runtime {
+            if !charge(
+                &[
+                    &status.port_id,
+                    &runtime.id,
+                    &runtime.version,
+                    &runtime.archive_sha256,
+                ],
+                1,
+            ) {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
 impl crate::PortcoveService {
     /// Collect metadata during the existing workspace refresh, before its final
     /// durable-revision fence. This budget is shared by managed and external
@@ -64,16 +203,8 @@ impl crate::PortcoveService {
         sources: &[SourceRecord],
     ) -> Result<Option<CatalogBrowsingSnapshot>> {
         const MAX_METADATA_BYTES: u64 = 32 * 1024 * 1024;
-        const MAX_CONTEXTS: usize = 8192;
-        const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
-        let count = catalog
-            .ports()
-            .iter()
-            .try_fold(0usize, |count, port| {
-                count.checked_add(port.platforms.len().checked_mul(port.channels.len())?)
-            })
-            .and_then(|count| count.checked_add(statuses.len().checked_mul(2)?));
-        if count.is_none_or(|count| count > MAX_CONTEXTS) {
+        let library = self.library().identity_record()?;
+        if !projection_fits(catalog, statuses, sources, &library)? {
             return Ok(None);
         }
         let started = std::time::Instant::now();
@@ -104,9 +235,7 @@ impl crate::PortcoveService {
                         .library()
                         .external_runtime_with_port_bounded(&status.port_id, &mut budget)
                     {
-                        if crate::source_batch::fingerprint(&record)?
-                            == crate::source_batch::fingerprint(expected)?
-                        {
+                        if fingerprint(&record)? == fingerprint(expected)? {
                             facts.external_catalog = Some(catalog);
                             facts.external_observed = true;
                         }
@@ -120,10 +249,10 @@ impl crate::PortcoveService {
             statuses,
             sources,
             &retained,
-            self.library().identity_record()?,
+            library,
             Platform::current()?,
         )?;
-        if serde_json::to_vec(&snapshot)?.len() > MAX_RESPONSE_BYTES {
+        if serialized_size(&snapshot, MAX_RESPONSE_BYTES)?.is_none() {
             return Ok(None);
         }
         Ok(Some(snapshot))
@@ -141,7 +270,11 @@ pub(crate) fn project_browsing_contexts(
     library: LibraryIdentity,
     host_platform: Platform,
 ) -> Result<CatalogBrowsingSnapshot> {
-    use crate::source_batch::fingerprint;
+    if !projection_fits(catalog, statuses, sources, &library)? {
+        return Err(crate::PortcoveError::unsupported(
+            "browsing projection budget reached",
+        ));
+    }
     let retained_metadata_complete = statuses.iter().all(|status| {
         let facts = retained.get(&status.port_id);
         (status.active.is_none() || facts.is_some_and(|facts| facts.managed_observed))
@@ -335,6 +468,46 @@ pub(crate) fn project_browsing_contexts(
 mod tests {
     use super::*;
     use crate::{ArtifactIdentity, ExternalRuntimeRecord, InstallRecord, UpdatePolicy};
+
+    #[test]
+    fn streaming_binding_preserves_existing_digest_and_stops_at_limit() {
+        let value = ("escaped\n\"é", vec![1, 2, 3]);
+        assert_eq!(
+            fingerprint(&value).unwrap(),
+            crate::source_batch::fingerprint(&value).unwrap()
+        );
+        let length = serde_json::to_vec(&value).unwrap().len();
+        assert_eq!(serialized_size(&value, length).unwrap(), Some(length));
+        assert_eq!(serialized_size(&value, length - 1).unwrap(), None);
+    }
+
+    #[test]
+    fn oversized_installed_string_is_rejected_before_context_construction() {
+        let catalog = Catalog::embedded().unwrap();
+        let id = &catalog.ports()[0].id;
+        let mut installed = managed(id);
+        installed.version = "\n".repeat(MAX_RESPONSE_BYTES / 6 + 1);
+        let mut member = status(id);
+        member.active = Some(installed);
+        let library = LibraryIdentity {
+            id: "selected".into(),
+            root: "/selected".into(),
+        };
+        assert!(!projection_fits(&catalog, &[member.clone()], &[], &library).unwrap());
+        assert!(
+            project_browsing_contexts(
+                &catalog,
+                &[member],
+                &[],
+                &HashMap::new(),
+                library,
+                Platform::LinuxX86_64
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("projection budget")
+        );
+    }
 
     fn status(id: &str) -> PortStatus {
         PortStatus {
