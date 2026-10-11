@@ -12,6 +12,8 @@ import {
 } from "./desktop-review-controls.mjs";
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
+const backupSectionSelector = '[aria-labelledby="detail-saves-and-storage"]';
+
 export async function backupReviewScenario({
   browser,
   invoke,
@@ -39,10 +41,12 @@ export async function backupReviewScenario({
     await writeFile(save, "current data before review");
     await open(port);
     const clickVisible = (element) => clickReviewControl(browser, element);
-    await clickVisible(await browser.findElement(By.css("summary.advanced-summary")));
     const button = (label) => By.xpath(`//button[normalize-space(.)="${label}"]`);
     const row = (id) =>
-      browser.wait(until.elementLocated(By.css(`[data-backup-id="${id}"]`)), 15_000);
+      browser.wait(
+        until.elementLocated(By.css(`${backupSectionSelector} [data-backup-id="${id}"]`)),
+        15_000,
+      );
     const list = () => command(["backup", "list", port.id]).backups;
     const restoreTrigger = async () =>
       (await row(selected.id)).findElement(By.xpath('.//button[normalize-space(.)="Restore"]'));
@@ -257,7 +261,6 @@ export async function backupReviewScenario({
     );
     assert.equal(degraded.problems.length, 1);
     await open(port);
-    await clickVisible(await browser.findElement(By.css("summary.advanced-summary")));
     const degradedNotice = await browser.wait(
       until.elementLocated(By.css(".backup-inventory-notice")),
       15_000,
@@ -281,7 +284,6 @@ export async function backupReviewScenario({
     assert.equal(unavailable.backups.length, 0);
     assert.equal(unavailable.problems.length, 2);
     await open(port);
-    await clickVisible(await browser.findElement(By.css("summary.advanced-summary")));
     const emptyNotice = await browser.wait(
       until.elementLocated(By.css(".backup-inventory-notice")),
       15_000,
@@ -316,11 +318,12 @@ export async function backupReviewScenario({
     const retainedAssessment = command(["backup", "list", port.id]).create_assessment;
     assert.deepEqual(retainedAssessment, unavailable.create_assessment);
     await openCatalogPortAfterRefresh(browser, port, port.name);
-    const disclosure = await browser.findElement(By.css("summary.advanced-summary"));
-    if (!(await disclosure.findElement(By.xpath("..")).getAttribute("open"))) {
-      await clickVisible(disclosure);
-    }
-    const create = await browser.wait(until.elementLocated(button("Back up data")), 15_000);
+    const create = await browser.wait(
+      until.elementLocated(
+        By.css(`${backupSectionSelector} button[aria-describedby="backup-create-explanation"]`),
+      ),
+      15_000,
+    );
     await browser.wait(
       async () => create.isEnabled(),
       15_000,

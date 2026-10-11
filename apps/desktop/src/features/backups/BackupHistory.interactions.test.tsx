@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, useState } from "react";
+import { readFileSync } from "node:fs";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
@@ -527,6 +528,45 @@ it("offers retained owned-data backup without an install and rejects last-loaded
   await act(async () => refresh());
   expect(button().disabled).toBe(true);
   expect(container.textContent).toContain("Your saved data could not be checked.");
+});
+
+it("routes the actual native backup selector to visible owned controls without opening unrelated disclosures or consenting", async () => {
+  const native = readFileSync("scripts/desktop-backup-review-test.mjs", "utf8");
+  const selector = native.match(/^const backupSectionSelector = '([^']+)';$/mu)?.[1];
+  expect(selector).toBeDefined();
+  expect(native).not.toContain('By.css("summary.advanced-summary")');
+  vi.spyOn(desktopApi, "backups").mockResolvedValueOnce({
+    port_id: "sample",
+    state: "healthy",
+    backups,
+    problems: [],
+    create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+  });
+  const apply = vi.spyOn(desktopApi, "restoreBackup");
+  await act(async () => root.render(<DetailReadHistory />));
+  const row = container.querySelector(`${selector} [data-backup-id="backup-1"]`)!;
+  expect(row).not.toBeNull();
+  expect(row.closest("details:not([open])")).toBeNull();
+  const restore = [...row.querySelectorAll<HTMLButtonElement>("button")].find(
+    (button) => button.textContent?.trim() === "Restore",
+  )!;
+  expect(restore.disabled).toBe(false);
+  const create = container.querySelector<HTMLButtonElement>(
+    `${selector} button[aria-describedby="backup-create-explanation"]`,
+  )!;
+  expect(create.disabled).toBe(false);
+  expect(create.closest("details:not([open])")).toBeNull();
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(apply).not.toHaveBeenCalled();
+  await act(async () => restore.click());
+  expect(document.body.querySelector('[aria-labelledby="backup-review-title"]')).not.toBeNull();
+  expect(desktopApi.previewBackupAction).toHaveBeenCalledExactlyOnceWith(
+    "sample",
+    "backup-1",
+    "restore",
+    7,
+  );
+  expect(apply).not.toHaveBeenCalled();
 });
 
 it("exposes a failed initial read through Saves and storage even without a known backup row", async () => {

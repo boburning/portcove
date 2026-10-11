@@ -2283,6 +2283,12 @@ describe("desktop components", () => {
         sourcePath="source.z64"
         setSourcePath={vi.fn()}
         actions={actions}
+        backupCreateAssessment={{
+          action: "backup_create",
+          availability: "allowed",
+          reason: "available",
+        }}
+        backupReadState={{ status: "current", hasInventory: true }}
         backups={[
           {
             id: "backup-1",
@@ -2356,7 +2362,16 @@ describe("desktop components", () => {
     expect(buttonLabels).toContain("Check for updates");
     expect(installed).toContain("Open data folder");
     expect(installed).toContain("Back up data");
-    expect(installed).toContain('title="Back up saves and settings"');
+    expect(installed).toContain('title="Back up owned saves and settings."');
+    const backupButton = installed.match(
+      /<button\b[^>]*aria-describedby="backup-create-explanation"[^>]*>/,
+    )?.[0];
+    expect(backupButton).toBeDefined();
+    expect(backupButton).not.toContain(' disabled=""');
+    expect(uninstalled).toContain("Checking your saved data…");
+    expect(
+      uninstalled.match(/<button\b[^>]*aria-describedby="backup-create-explanation"[^>]*>/)?.[0],
+    ).toContain(' disabled=""');
     expect(buttonLabels).toContain("Verify installation");
     expect(buttonLabels).toContain("Restore previous version");
     expect(buttonLabels).not.toContain("Check update");
