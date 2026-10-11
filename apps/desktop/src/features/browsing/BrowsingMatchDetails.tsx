@@ -33,7 +33,8 @@ export function BrowsingMatchDetails({
     selected?.binding === binding && selected.portId === portId
       ? contexts.find((fact) => fact.context_id === selected.contextId)
       : undefined;
-  const choice = current ?? (contexts.length === 1 ? contexts[0] : undefined);
+  const lostChoice = selected?.portId === portId && !current;
+  const choice = current ?? (!lostChoice && contexts.length === 1 ? contexts[0] : undefined);
   const observed = gameFiles?.byPort.get(portId);
   const matchingObservation =
     choice &&
@@ -59,7 +60,10 @@ export function BrowsingMatchDetails({
         <p>This port no longer matches your filters.</p>
       ) : (
         <>
-          {contexts.length > 1 && (
+          {lostChoice && (
+            <p>Your previous choice is no longer current. Choose a matching context to inspect.</p>
+          )}
+          {!lostChoice && contexts.length > 1 && (
             <p>
               Choose a matching context to inspect. Each choice matches all selected filter groups.
             </p>
