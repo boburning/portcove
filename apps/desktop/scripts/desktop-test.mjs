@@ -292,6 +292,7 @@ function validateBackupFocusInventory(captured) {
     checks.some(
       (check) =>
         [
+          "native-reviewed-backup-restore-and-delete",
           "native-selected-setup-completion",
           "native-retained-contract-repair-state",
           "native-backup-delete-focus",

@@ -490,7 +490,7 @@ impl PortcoveService {
         }
         for port in self.catalog.ports() {
             for problem in self
-                .list_backups_with_operations(&port.id, &operations)?
+                .backup_history_with_operations(&port.id, &operations)?
                 .problems
             {
                 if problem.operation_id.is_some() {

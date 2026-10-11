@@ -354,7 +354,17 @@ it("keeps a failed initial read unknown until a successful read-only retry", asy
   const read = vi
     .spyOn(desktopApi, "backups")
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups: [], problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups: [],
+      problems: [],
+    });
   const remove = vi.fn();
   const restore = vi.fn();
   await act(async () => root.render(<ReadHistory remove={remove} restore={restore} />));
@@ -371,9 +381,29 @@ it("keeps a failed initial read unknown until a successful read-only retry", asy
 it("identifies retained rows after a failed refresh and retries only the inventory read", async () => {
   const read = vi
     .spyOn(desktopApi, "backups")
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] })
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    })
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups: [], problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups: [],
+      problems: [],
+    });
   const remove = vi.fn();
   const restore = vi.fn();
   await act(async () => root.render(<ReadHistory remove={remove} restore={restore} />));
@@ -412,15 +442,34 @@ it("keeps read retry focused and disables repeated clicks while a read is pendin
   });
   expect(retry.disabled).toBe(true);
   expect(read).toHaveBeenCalledTimes(2);
-  await act(async () => finish({ port_id: "sample", state: "healthy", backups, problems: [] }));
+  await act(async () =>
+    finish({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    }),
+  );
   expect(retry.disabled).toBe(false);
   expect(document.activeElement).toBe(retry);
   expect(container.textContent).toContain("2 verified backups");
 });
 
-function DetailReadHistory({ portId = "sample" }: { portId?: string }) {
+function DetailReadHistory({
+  portId = "sample",
+  observe,
+}: {
+  portId?: string;
+  observe?: (refresh: () => Promise<void>) => void;
+}) {
   const port = { ...portDefinition(), id: portId };
   const current = usePortBackups(portId);
+  observe?.(current.refresh);
   const actions = detailActions({
     port,
     status: undefined,
@@ -437,6 +486,7 @@ function DetailReadHistory({ portId = "sample" }: { portId?: string }) {
       backups={current.backups}
       backupProblems={current.inventory.problems}
       backupState={current.inventory.state}
+      backupCreateAssessment={current.inventory.create_assessment}
       backupReadState={current.readState}
       retryBackupRead={current.refresh}
       libraryGeneration={7}
@@ -446,6 +496,160 @@ function DetailReadHistory({ portId = "sample" }: { portId?: string }) {
     />
   );
 }
+
+it("offers retained owned-data backup without an install and rejects last-loaded availability after refresh fails", async () => {
+  let refresh!: () => Promise<void>;
+  vi.spyOn(desktopApi, "backups")
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      backups: [],
+      problems: [],
+      create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+    })
+    .mockRejectedValueOnce(failureReport());
+  await act(async () =>
+    root.render(
+      <DetailReadHistory
+        observe={(value) => {
+          refresh = value;
+        }}
+      />,
+    ),
+  );
+  const button = () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (value) => value.textContent?.trim() === "Back up data",
+    )!;
+  expect(button()).toBeDefined();
+  expect(button().disabled).toBe(false);
+  expect(container.textContent).toContain("Back up owned saves and settings.");
+  await act(async () => refresh());
+  expect(button().disabled).toBe(true);
+  expect(container.textContent).toContain("Your saved data could not be checked.");
+});
+
+it("waits for current degraded inventory rather than a pending or failed read notice", async () => {
+  const { default: native } = await import("../../../scripts/desktop-backup-review-test.mjs?raw");
+  const selectors = native.match(
+    /const backupSectionSelector = [^]*?(?=export async function)/u,
+  )?.[0];
+  const wait = native.match(
+    /    const degradedInventory = [^]*?(?=    const restoreTrigger)/u,
+  )?.[0];
+  expect(selectors).toBeDefined();
+  expect(wait).toBeDefined();
+  const element = (node: Element) => ({
+    findElements: async (selector: string) => [...node.querySelectorAll(selector)],
+  });
+  const browser = {
+    findElements: async (selector: string) =>
+      [...container.querySelectorAll(selector)].map(element),
+    wait: async (predicate: () => Promise<unknown>, deadline: number) => {
+      expect(deadline).toBe(15_000);
+      return predicate();
+    },
+  };
+  const current = new Function("browser", "By", `${selectors}\n${wait}\nreturn degradedInventory;`)(
+    browser,
+    { css: (selector: string) => selector },
+  );
+  const render = async (status: "pending" | "failed" | "idle" | "current") =>
+    act(async () =>
+      root.render(
+        <section aria-labelledby="detail-saves-and-storage">
+          <BackupHistory
+            backups={backups}
+            state="degraded"
+            problems={[
+              {
+                kind: "missing_manifest",
+                backup_id: "broken",
+                operation_id: null,
+                path: "backups/broken",
+                message: "Missing manifest",
+                proposed_action: "Review this entry.",
+              },
+            ]}
+            readState={{ status, hasInventory: true }}
+            restore={vi.fn()}
+            remove={vi.fn()}
+          />
+        </section>,
+      ),
+    );
+  for (const status of ["pending", "failed"] as const) {
+    await render(status);
+    expect(container.querySelectorAll(".backup-inventory-notice")).toHaveLength(2);
+    expect(await current(1)).toBe(false);
+  }
+  await render("idle");
+  expect(await current(1)).toBe(false);
+  await render("current");
+  expect(await current(2)).toBe(false);
+  expect(await current(1)).toBeTruthy();
+  vi.spyOn(desktopApi, "backups").mockResolvedValueOnce({
+    port_id: "sample",
+    state: "degraded",
+    backups,
+    create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+    problems: [
+      {
+        kind: "missing_manifest",
+        backup_id: "broken",
+        operation_id: null,
+        path: "backups/broken",
+        message: "Missing manifest",
+        proposed_action: "Review this entry.",
+      },
+    ],
+  });
+  await act(async () => root.render(<DetailReadHistory />));
+  expect(container.querySelector(".backup-history")?.getAttribute("data-backup-read-state")).toBe(
+    "current",
+  );
+  expect(await current(1)).toBeTruthy();
+  expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
+});
+
+it("routes the actual native backup selector to visible owned controls without opening unrelated disclosures or consenting", async () => {
+  const { default: native } = await import("../../../scripts/desktop-backup-review-test.mjs?raw");
+  const selector = native.match(/^const backupSectionSelector = '([^']+)';$/mu)?.[1];
+  expect(selector).toBeDefined();
+  expect(native).not.toContain('By.css("summary.advanced-summary")');
+  vi.spyOn(desktopApi, "backups").mockResolvedValueOnce({
+    port_id: "sample",
+    state: "healthy",
+    backups,
+    problems: [],
+    create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+  });
+  const apply = vi.spyOn(desktopApi, "restoreBackup");
+  await act(async () => root.render(<DetailReadHistory />));
+  const row = container.querySelector(`${selector} [data-backup-id="backup-1"]`)!;
+  expect(row).not.toBeNull();
+  expect(row.closest("details:not([open])")).toBeNull();
+  const restore = [...row.querySelectorAll<HTMLButtonElement>("button")].find(
+    (button) => button.textContent?.trim() === "Restore",
+  )!;
+  expect(restore.disabled).toBe(false);
+  const create = container.querySelector<HTMLButtonElement>(
+    `${selector} button[aria-describedby="backup-create-explanation"]`,
+  )!;
+  expect(create.disabled).toBe(false);
+  expect(create.closest("details:not([open])")).toBeNull();
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(apply).not.toHaveBeenCalled();
+  await act(async () => restore.click());
+  expect(document.body.querySelector('[aria-labelledby="backup-review-title"]')).not.toBeNull();
+  expect(desktopApi.previewBackupAction).toHaveBeenCalledExactlyOnceWith(
+    "sample",
+    "backup-1",
+    "restore",
+    7,
+  );
+  expect(apply).not.toHaveBeenCalled();
+});
 
 it("exposes a failed initial read through Saves and storage even without a known backup row", async () => {
   vi.spyOn(desktopApi, "backups").mockRejectedValueOnce(failureReport());
@@ -462,6 +666,11 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
       backups: backups.slice(0, 1),
       problems: [],
     })
@@ -469,6 +678,11 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
       backups: backups.slice(1),
       problems: [],
     });
@@ -500,7 +714,17 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
 it("keeps the retry control focused when an uninstalled port's unknown list becomes current and empty", async () => {
   vi.spyOn(desktopApi, "backups")
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups: [], problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups: [],
+      problems: [],
+    });
   await act(async () => root.render(<DetailReadHistory />));
   const retry = [...container.querySelectorAll("button")].find(
     (button) => button.textContent === "Retry backup history",
@@ -517,9 +741,29 @@ it("keeps the retry control focused when an uninstalled port's unknown list beco
 it("preserves a completed reviewed restore and its focus when inventory readback fails", async () => {
   const read = vi
     .spyOn(desktopApi, "backups")
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] })
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    })
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    });
   const restore = vi
     .spyOn(desktopApi, "restoreBackup")
     .mockResolvedValueOnce({ restored_backup: backups[0], safety_backup: null });
@@ -562,7 +806,17 @@ it("lets the next selected port retry while the old port's retry is still pendin
       }),
     )
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "other", state: "healthy", backups: [], problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "other",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups: [],
+      problems: [],
+    });
   await act(async () => root.render(<DetailReadHistory />));
   await click("Retry backup history");
   expect(container.textContent).toContain("Loading backup history");
@@ -570,7 +824,19 @@ it("lets the next selected port retry while the old port's retry is still pendin
   await click("Retry backup history");
   expect(read.mock.calls).toEqual([["sample"], ["sample"], ["other"], ["other"]]);
   expect(container.textContent).toContain("No backups yet");
-  await act(async () => finishOld({ port_id: "sample", state: "healthy", backups, problems: [] }));
+  await act(async () =>
+    finishOld({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    }),
+  );
   expect(container.querySelectorAll(".backup-row")).toHaveLength(0);
   expect(container.textContent).toContain("No backups yet");
 });

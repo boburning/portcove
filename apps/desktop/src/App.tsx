@@ -1065,6 +1065,7 @@ function SelectedPortPanel({
       backups={backups.backups}
       backupProblems={backups.inventory.problems}
       backupState={backups.inventory.state}
+      backupCreateAssessment={backups.inventory.create_assessment}
       backupReadState={backups.readState}
       retryBackupRead={backups.refresh}
       source={model.source}

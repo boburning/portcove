@@ -19,6 +19,7 @@ function deferred<T>() {
 
 const inventory = (portId: string, backupId = `${portId}-backup`): BackupInventory => ({
   port_id: portId,
+  create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
   state: "healthy",
   backups: [
     {
@@ -68,7 +69,7 @@ describe("backup inventory read owner", () => {
     const initial = deferred<BackupInventory>();
     vi.spyOn(desktopApi, "backups")
       .mockReturnValueOnce(initial.promise)
-      .mockResolvedValueOnce({ port_id: "game", state: "healthy", backups: [], problems: [] });
+      .mockResolvedValueOnce({ ...inventory("game"), backups: [] });
     await act(async () => root?.render(<Fixture portId="game" />));
     expect(state.readState).toMatchObject({ status: "pending", hasInventory: false });
     await act(async () => initial.reject(new Error("read failure")));
@@ -158,7 +159,7 @@ describe("backup inventory read owner", () => {
     const next = deferred<BackupInventory>();
     const failure = failureReport();
     vi.spyOn(desktopApi, "backups")
-      .mockResolvedValueOnce({ port_id: "game", state: "healthy", backups: [], problems: [] })
+      .mockResolvedValueOnce({ ...inventory("game"), backups: [] })
       .mockReturnValueOnce(next.promise);
     await act(async () => root?.render(<Fixture portId="game" />));
     let pending!: Promise<void>;

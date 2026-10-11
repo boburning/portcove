@@ -95,6 +95,7 @@ interface DetailPanelProps {
   backups?: BackupRecord[];
   backupProblems?: BackupProblem[];
   backupState?: BackupInventory["state"];
+  backupCreateAssessment?: BackupInventory["create_assessment"];
   backupReadState?: BackupReadState;
   retryBackupRead?: () => Promise<void>;
   source?: SourceRecord;
@@ -129,6 +130,7 @@ export function DetailPanel(props: DetailPanelProps) {
     backups = [],
     backupProblems = [],
     backupState = "healthy",
+    backupCreateAssessment,
     backupReadState,
     retryBackupRead,
     source,
@@ -295,6 +297,7 @@ export function DetailPanel(props: DetailPanelProps) {
         backups={backups}
         backupProblems={backupProblems}
         backupState={backupState}
+        backupCreateAssessment={backupCreateAssessment}
         backupReadState={backupReadState}
         retryBackupRead={retryBackupRead}
         busy={effectiveBusy}
@@ -375,6 +378,7 @@ function DetailBody({
   backups,
   backupProblems,
   backupState,
+  backupCreateAssessment,
   backupReadState,
   retryBackupRead,
   busy,
@@ -406,6 +410,7 @@ function DetailBody({
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
+  backupCreateAssessment?: BackupInventory["create_assessment"];
   backupReadState?: BackupReadState;
   retryBackupRead?: () => Promise<void>;
   busy?: string;
@@ -497,6 +502,7 @@ function DetailBody({
           backups={backups}
           backupProblems={backupProblems}
           backupState={backupState}
+          backupCreateAssessment={backupCreateAssessment}
           backupReadState={backupReadState}
           retryBackupRead={retryBackupRead}
           libraryGeneration={libraryGeneration}
@@ -812,6 +818,7 @@ function SavesStorageGroup({
   backups,
   backupProblems,
   backupState,
+  backupCreateAssessment,
   backupReadState,
   retryBackupRead,
   libraryGeneration,
@@ -828,6 +835,7 @@ function SavesStorageGroup({
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
+  backupCreateAssessment?: BackupInventory["create_assessment"];
   backupReadState?: BackupReadState;
   retryBackupRead?: () => Promise<void>;
   libraryGeneration: number;
@@ -865,7 +873,12 @@ function SavesStorageGroup({
       >
         {outputLocation}
       </FutureSetupDisclosure>
-      {installed && <DataActions busy={busy} actions={actions} />}
+      <DataActions
+        busy={busy}
+        actions={actions}
+        assessment={backupCreateAssessment}
+        readState={backupReadState}
+      />
       {hasBackupHistory && (
         <BackupHistory
           key={`${port.id}:${libraryGeneration}`}
@@ -2095,14 +2108,48 @@ function MaintenanceActions({
   );
 }
 
-function DataActions({ busy, actions }: { busy?: string; actions: DetailActions }) {
+function DataActions({
+  busy,
+  actions,
+  assessment,
+  readState,
+}: {
+  busy?: string;
+  actions: DetailActions;
+  assessment?: BackupInventory["create_assessment"];
+  readState?: BackupReadState;
+}) {
+  const current =
+    readState?.status === "current" &&
+    readState.hasInventory &&
+    assessment?.action === "backup_create";
+  const available = current && assessment?.availability === "allowed";
+  const explanation = !current
+    ? readState?.status === "failed"
+      ? "Your saved data could not be checked. Retry the backup inventory read."
+      : "Checking your saved data…"
+    : assessment.reason === "available"
+      ? "Back up owned saves and settings."
+      : assessment.reason === "missing_data"
+        ? "There are no owned saves or settings to back up yet."
+        : assessment.reason === "recovery_required"
+          ? "Restart Portcove to retry recovery, then check your backups again."
+          : assessment.reason === "unsafe_data"
+            ? "The saved-data location needs path and ownership review."
+            : assessment.reason === "assessment_incomplete"
+              ? "The saved-data check did not finish. Your data is preserved."
+              : "Your saved data could not be read. Check its location, then retry.";
   return (
     <div className="flex flex-wrap gap-2">
+      <p role="status" className="w-full" id="backup-create-explanation">
+        {explanation}
+      </p>
       <Button
         data-focusable
         variant="outline"
-        title="Back up saves and settings"
-        disabled={Boolean(busy)}
+        title={explanation}
+        aria-describedby="backup-create-explanation"
+        disabled={Boolean(busy) || !available}
         onClick={() => {
           void actions.backup();
         }}

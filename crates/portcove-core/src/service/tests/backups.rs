@@ -1,6 +1,266 @@
 //! Complete backup lifecycle fixture family; production authority stays in its owner.
 use super::*;
 
+#[test]
+fn backup_create_assessment_preserves_direct_owned_root_without_runtime_substitution() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let port_id = "snap64-recomp";
+    let install = library.versions_dir().join(port_id).join("fixture");
+    fs::create_dir_all(&install).unwrap();
+    write_host_test_executable_with_contents(&install, port_id, b"test");
+    register_existing_test_install(&library, port_id, "v1.0.5", &install, true);
+    fs::write(install.join(LAUNCH_MARKER), b"1").unwrap();
+    let owned = library.user_dir(port_id).join("pokemonsnap.z64");
+    fs::create_dir_all(owned.parent().unwrap()).unwrap();
+    fs::write(&owned, b"owned fixture source").unwrap();
+    fs::write(install.join("pokemonsnap.z64"), b"different runtime bytes").unwrap();
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::Available
+    );
+    assert_eq!(fs::read(&owned).unwrap(), b"owned fixture source");
+    let backup = service.create_backup(port_id).unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/pokemonsnap.z64")).unwrap(),
+        b"owned fixture source"
+    );
+    assert_eq!(fs::read(&owned).unwrap(), b"owned fixture source");
+    assert_eq!(
+        fs::read(install.join("pokemonsnap.z64")).unwrap(),
+        b"different runtime bytes"
+    );
+}
+
+#[test]
+fn backup_create_assessment_excludes_registered_foreign_saves_and_allows_private_owned_data() {
+    let (_temporary, service, record) = external_location_fixture_with_private_data(true);
+    let port_id = "external-location-probe";
+    let foreign = record.path.join("player-save");
+    fs::write(&foreign, b"player owned save").unwrap();
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::MissingData
+    );
+    assert_eq!(
+        service.create_backup(port_id).unwrap_err().code,
+        crate::ErrorCode::NotFound
+    );
+    let owned = service.library.user_dir(port_id).join("private-save");
+    fs::create_dir_all(owned.parent().unwrap()).unwrap();
+    fs::write(&owned, b"private owned save").unwrap();
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::Available
+    );
+    let backup = service.create_backup(port_id).unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/private-save")).unwrap(),
+        b"private owned save"
+    );
+    assert!(!backup.path.join("data/player-save").exists());
+    assert_eq!(fs::read(&foreign).unwrap(), b"player owned save");
+    assert_eq!(fs::read(&owned).unwrap(), b"private owned save");
+}
+
+#[test]
+fn backup_create_assessment_distinguishes_empty_and_retained_owned_data() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    let empty = service.list_backups(port_id).unwrap();
+    assert_eq!(
+        empty.create_assessment.availability,
+        PortActionAvailability::Waiting
+    );
+    assert_eq!(
+        empty.create_assessment.reason,
+        PortActionReason::MissingData
+    );
+    let user_file = library.user_dir(port_id).join("owned-save.dat");
+    fs::create_dir_all(user_file.parent().unwrap()).unwrap();
+    fs::write(&user_file, b"retained owned data").unwrap();
+    for _ in 0..2 {
+        let inventory = service.list_backups(port_id).unwrap();
+        assert_eq!(inventory.create_assessment.action, PortAction::BackupCreate);
+        assert_eq!(
+            inventory.create_assessment.availability,
+            PortActionAvailability::Allowed
+        );
+        assert_eq!(fs::read(&user_file).unwrap(), b"retained owned data");
+        assert!(inventory.backups.is_empty());
+        assert!(
+            OperationStore::new(library.clone())
+                .all()
+                .unwrap()
+                .is_empty()
+        );
+    }
+    assert!(service.status(port_id).unwrap().active.is_none());
+    // A stale preview does not make later bytes available or authorize creation.
+    fs::remove_file(&user_file).unwrap();
+    assert_eq!(
+        service.create_backup(port_id).unwrap_err().code,
+        crate::ErrorCode::NotFound
+    );
+}
+
+#[test]
+fn backup_create_assessment_projects_launched_collection_without_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let active = register_zelda_install(&library, "v1", true);
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+    fs::write(active.join("general.json"), b"new collectible data").unwrap();
+    let user_file = library.user_dir(port_id).join("general.json");
+    assert!(!user_file.exists());
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::Available
+    );
+    assert!(!user_file.exists(), "preview must not collect saves");
+    fs::remove_file(active.join("general.json")).unwrap();
+    fs::create_dir_all(user_file.parent().unwrap()).unwrap();
+    fs::write(&user_file, b"stale mirror").unwrap();
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::MissingData
+    );
+    assert_eq!(
+        fs::read(&user_file).unwrap(),
+        b"stale mirror",
+        "preview must not remove stale mirrors"
+    );
+    assert_eq!(
+        service.create_backup(port_id).unwrap_err().code,
+        crate::ErrorCode::NotFound
+    );
+    assert!(
+        !user_file.exists(),
+        "authoritative collection removes the stale mirror"
+    );
+}
+
+#[test]
+fn backup_create_assessment_budget_is_not_a_new_execution_limit() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    let mut nested = library.user_dir(port_id);
+    for _ in 0..34 {
+        nested = nested.join("d");
+    }
+    fs::create_dir_all(&nested).unwrap();
+    fs::write(nested.join("save"), b"owned data beyond preview depth").unwrap();
+    let assessment = service.list_backups(port_id).unwrap().create_assessment;
+    assert_eq!(assessment.reason, PortActionReason::AssessmentIncomplete);
+    assert_ne!(assessment.reason, PortActionReason::MissingData);
+    assert_eq!(service.create_backup(port_id).unwrap().file_count, 1);
+}
+
+#[test]
+fn backup_create_assessment_retains_collection_recovery_and_root_safety_guards() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let active = register_zelda_install(&library, "v1", true);
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+    fs::write(active.join("general.json"), b"collectible data").unwrap();
+    let mut pending = LifecycleOperation::new(
+        "pending-create-assessment-restore",
+        LifecycleOperationKind::Restore,
+        port_id,
+    );
+    pending.phase = LifecyclePhase::PayloadPublished;
+    let store = OperationStore::new(library.clone());
+    store.put(&mut pending).unwrap();
+    let assessment = service.list_backups(port_id).unwrap().create_assessment;
+    assert_eq!(assessment.availability, PortActionAvailability::Held);
+    assert_eq!(assessment.reason, PortActionReason::RecoveryRequired);
+    assert_eq!(
+        service.create_backup(port_id).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(
+        store.all().unwrap().len(),
+        1,
+        "preview and refusal retain recovery material"
+    );
+    assert!(!library.user_dir(port_id).exists());
+    store.remove(&pending.id).unwrap();
+    // A concrete malformed owned root must not be reported as empty or available.
+    fs::write(library.user_dir(port_id), b"not a directory").unwrap();
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::UnsafeData
+    );
+    assert_eq!(
+        fs::read(library.user_dir(port_id)).unwrap(),
+        b"not a directory"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn backup_create_assessment_preserves_mirrors_when_collection_skips_a_source_link() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let active = register_zelda_install(&library, "v1", true);
+    let service = service_with_release(library.clone(), "v1");
+    let foreign = temporary.path().join("foreign-save");
+    fs::write(&foreign, b"unowned source").unwrap();
+    std::os::unix::fs::symlink(&foreign, active.join("general.json")).unwrap();
+    fs::write(active.join(LAUNCH_MARKER), b"1").unwrap();
+    let owned = library.user_dir("zelda64-recomp").join("general.json");
+    fs::create_dir_all(owned.parent().unwrap()).unwrap();
+    fs::write(&owned, b"owned mirror").unwrap();
+    assert_eq!(
+        service
+            .list_backups("zelda64-recomp")
+            .unwrap()
+            .create_assessment
+            .reason,
+        PortActionReason::Available
+    );
+    assert_eq!(fs::read(&foreign).unwrap(), b"unowned source");
+    let backup = service.create_backup("zelda64-recomp").unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/general.json")).unwrap(),
+        b"owned mirror"
+    );
+    assert_eq!(fs::read(&foreign).unwrap(), b"unowned source");
+}
+
 fn assert_restore_recovers_before_and_after_user_data_publication(point: LifecycleFaultPoint) {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
@@ -773,6 +1033,10 @@ fn reused_backup_snapshot_matches_fresh_inventory_across_diagnostic_states() {
     assert_eq!(degraded, service.list_backups(port_id).unwrap());
     assert_eq!(degraded.state, BackupInventoryState::Degraded);
     assert_eq!(
+        degraded.create_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    assert_eq!(
         degraded.problems[0].kind,
         BackupProblemKind::MalformedManifest
     );
@@ -795,6 +1059,10 @@ fn reused_backup_snapshot_matches_fresh_inventory_across_diagnostic_states() {
     let recovery_required = service
         .list_backups_with_operations(port_id, &operations)
         .unwrap();
+    assert_eq!(
+        recovery_required.create_assessment.reason,
+        PortActionReason::RecoveryRequired
+    );
     assert_eq!(recovery_required, service.list_backups(port_id).unwrap());
     assert_eq!(
         recovery_required.state,

@@ -406,6 +406,14 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
 }
 
 pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String {
+    format!(
+        "{}\n{}",
+        status_action(&inventory.create_assessment),
+        backup_history(port_id, inventory)
+    )
+}
+
+fn backup_history(port_id: &str, inventory: &BackupInventory) -> String {
     if inventory.backups.is_empty() && inventory.problems.is_empty() {
         return format!("No backups for {}.", clean(port_id));
     }
@@ -1130,6 +1138,21 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
                 }
                 _ => "Review and confirm this operation before proceeding.",
             },
+            PortActionReason::MissingData => {
+                "No owned saves or settings are currently available to back up."
+            }
+            PortActionReason::UnreadableData => {
+                "Owned data could not be read; review its location and retry."
+            }
+            PortActionReason::AssessmentIncomplete => {
+                "The bounded preview is incomplete; no empty-data conclusion or new backup execution limit is established."
+            }
+            PortActionReason::UnsafeData => {
+                "The owned data or retained save location needs path and ownership review."
+            }
+            PortActionReason::RecoveryRequired => {
+                "Restart Portcove to retry recovery; review doctor output if it remains."
+            }
             PortActionReason::MissingSource => "Add the required game files with source add.",
             PortActionReason::UnreadableSource => {
                 "The registered game-file location cannot be read."
@@ -2205,7 +2228,10 @@ mod tests {
         BackupInventoryState, BackupRecord, PreparationCleanupPreview, StorageSummary,
     };
 
-    use super::{backup_list, catalog_show, document, storage, table, utc_rate_reset, utc_time};
+    use super::{
+        backup_history, backup_list, catalog_show, document, storage, table, utc_rate_reset,
+        utc_time,
+    };
 
     fn scan_snapshot_fixture() -> portcove_core::GameFileScanSnapshot {
         use portcove_core::{
@@ -2838,13 +2864,23 @@ mod tests {
         assert!(!text.lines().any(|line| line.starts_with("forged")));
     }
 
+    fn backup_fixture_assessment() -> portcove_core::PortActionAssessment {
+        portcove_core::PortActionAssessment {
+            action: portcove_core::PortAction::BackupCreate,
+            availability: portcove_core::PortActionAvailability::Waiting,
+            reason: portcove_core::PortActionReason::MissingData,
+            definition: None,
+        }
+    }
+
     #[test]
     fn read_renderers_have_stable_human_snapshots() {
         assert_eq!(
-            backup_list(
+            backup_history(
                 "sample",
                 &BackupInventory {
                     port_id: "sample".into(),
+                    create_assessment: backup_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: Vec::new(),
                     problems: Vec::new(),
@@ -2853,10 +2889,11 @@ mod tests {
             "No backups for sample."
         );
         assert_eq!(
-            backup_list(
+            backup_history(
                 "sample",
                 &BackupInventory {
                     port_id: "sample".into(),
+                    create_assessment: backup_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: vec![BackupRecord {
                         id: "backup-1".into(),
@@ -2876,6 +2913,11 @@ mod tests {
             "sample",
             &BackupInventory {
                 port_id: "sample".into(),
+                create_assessment: portcove_core::PortActionAssessment {
+                    availability: portcove_core::PortActionAvailability::Held,
+                    reason: portcove_core::PortActionReason::RecoveryRequired,
+                    ..backup_fixture_assessment()
+                },
                 state: BackupInventoryState::RecoveryRequired,
                 backups: Vec::new(),
                 problems: vec![portcove_core::BackupProblem {
@@ -2889,6 +2931,9 @@ mod tests {
             },
         );
         assert!(degraded.contains("Backup inventory: recovery required (1 problem)"));
+        assert!(degraded.contains("backup_create"));
+        assert!(degraded.contains("held (recovery_required)"));
+        assert!(degraded.contains("Restart Portcove to retry recovery"));
         assert!(degraded.contains("deletion was interrupted"));
         assert!(degraded.contains(".deleting-operation-1"));
         assert_eq!(

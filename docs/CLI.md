@@ -204,6 +204,20 @@ without revoking permitted installed use. Retained rollback adds only
 target-artifact refusal, not current-definition permission. Status does not
 delete files or saves and still grants no execution authority.
 
+Schema 62 adds required `create_assessment` to `backup.list` inventory, with the
+shared `backup_create` action. `allowed/available` means owned data exists or
+launched managed save collection can yield it. Retained owned saves remain
+eligible without an install; unknown external saves never become owned data.
+`waiting/missing_data` means no data was found; `held` distinguishes recovery,
+unsafe paths, unreadable data and a bounded `assessment_incomplete` result.
+An incomplete preview establishes neither empty data nor an execution limit.
+The probe reads retained persistence coordinates without collecting or deleting
+mirrors. Malformed historical backup entries alone do not hold creation.
+Creation retains its authoritative lock, save collection, tree validation,
+publication and recovery checks. Preview existence is not whole-tree integrity
+or permission proof. Desktop requires a current inventory before enabling its
+action; CLI human inventory displays the same action and reason.
+
 Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
 `source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
 exported schema. Scan uses core's bounded limits and emits the existing

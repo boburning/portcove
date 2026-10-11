@@ -6419,7 +6419,8 @@
           "launch",
           "remove_managed",
           "remove_external",
-          "rollback"
+          "rollback",
+          "backup_create"
         ],
         "type": "string"
       },
@@ -6479,7 +6480,12 @@
           "missing_runtime",
           "preparation_required",
           "invalid_installation",
-          "definition_ineligible"
+          "definition_ineligible",
+          "missing_data",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
         ],
         "type": "string"
       },

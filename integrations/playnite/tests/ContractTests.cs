@@ -413,6 +413,7 @@ internal static class ContractTests
         Reject(() => failure.Finish(14), "structured busy-port failure remains a failure");
         DefinitionOperationRecords();
         PortActionRecords();
+        BackupCreateRecords();
         PreparationCleanupRecords();
         LaunchRecords();
         var root = Path.Combine(Path.GetDirectoryName(Binary), "fixture-library");
@@ -446,9 +447,13 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
-            Check(real.ApiSchemaVersion == 61 && statuses.All(status =>
+            Check(real.ApiSchemaVersion == 62 && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1),
-                "compiled schema61 producer and actual reader preserve one rollback assessment per catalog status");
+                "compiled schema62 producer and actual reader preserve one rollback assessment per catalog status");
+            var portId = Json.Text(statuses[0], "port_id");
+            var inventory = await real.Read("backup.list", "backup", "list", portId);
+            Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
+                "compiled schema62 backup producer and actual strict reader consume creation assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -1372,6 +1377,40 @@ internal static class ContractTests
         }));
         Reject(() => DefinitionOperations.Read(duplicate), "duplicate definition operation decision rejected");
     }
+    private static void BackupCreateRecords()
+    {
+        Func<long, object, object> consume = (schema, inventory) => {
+            var reader = new ProtocolStream("backup.list");
+            reader.Line(Json.Print(new { schema_version = schema, command = "backup.list", ok = true, data = inventory }));
+            return reader.Finish(0);
+        };
+        var legacy = new { port_id = "sample", state = "healthy", backups = new object[0], problems = new object[0] };
+        consume(61, legacy);
+        Reject(() => consume(62, legacy), "schema62 backup inventory requires actual assessment");
+        foreach (var tuple in new[] {
+            new[] { "allowed", "available" }, new[] { "waiting", "missing_data" },
+            new[] { "held", "unreadable_data" }, new[] { "held", "unsafe_data" },
+            new[] { "held", "recovery_required" }, new[] { "held", "assessment_incomplete" }
+        }) {
+            var inventory = new {
+                port_id = "sample", state = "healthy", backups = new object[0], problems = new object[0],
+                create_assessment = new { action = "backup_create", availability = tuple[0], reason = tuple[1] }
+            };
+            var result = consume(62, inventory);
+            Check(PortActionDecision.Read(Json.Field(result, "create_assessment")).Reason == tuple[1],
+                "schema62 reader consumes backup reason " + tuple[1]);
+            Reject(() => consume(61, inventory), "older schema cannot carry backup-create assessment");
+        }
+        foreach (var schema in new long[] { 58, 59 })
+            Reject(() => consume(schema, legacy), "unsupported schema gap remains rejected");
+        foreach (var tuple in new[] { new[] { "allowed", "missing_data" }, new[] { "held", "not_installed" }, new[] { "waiting", "review_required" } })
+            Reject(() => consume(62, new { create_assessment = new { action = "backup_create", availability = tuple[0], reason = tuple[1] } }),
+                "strict backup tuple validation rejects contradictory and unrelated reasons");
+        Reject(() => consume(62, new { create_assessment = new { action = "launch", availability = "allowed", reason = "available" } }),
+            "inventory rejects a different action masquerading as backup create");
+        Reject(() => consume(62, new { create_assessment = (object)null }), "inventory rejects null assessment");
+    }
+
     private static void PortActionRecords()
     {
         var legacy = Json.Parse(Json.Print(new { port_id = "legacy" }));

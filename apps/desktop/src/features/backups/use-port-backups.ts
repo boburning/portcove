@@ -67,6 +67,7 @@ export function usePortBackups(portId: string | undefined, setError?: (error?: s
   const current = read.selection === selection ? read : undefined;
   const inventory = current?.inventory ?? {
     port_id: portId ?? "",
+    create_assessment: undefined,
     state: "healthy" as const,
     backups: [],
     problems: [],

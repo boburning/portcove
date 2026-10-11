@@ -1274,7 +1274,8 @@
           "launch",
           "remove_managed",
           "remove_external",
-          "rollback"
+          "rollback",
+          "backup_create"
         ],
         "type": "string"
       },
@@ -1334,7 +1335,12 @@
           "missing_runtime",
           "preparation_required",
           "invalid_installation",
-          "definition_ineligible"
+          "definition_ineligible",
+          "missing_data",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
         ],
         "type": "string"
       },
@@ -2300,6 +2306,129 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "DefinitionEligibility": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/$defs/DefinitionEligibilityOutcome"
+          },
+          "reason": {
+            "$ref": "#/$defs/DefinitionEligibilityReason"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DefinitionEligibilityOutcome": {
+        "enum": [
+          "eligible",
+          "hold",
+          "escalate"
+        ],
+        "type": "string"
+      },
+      "DefinitionEligibilityReason": {
+        "enum": [
+          "mandatory_checks_passed",
+          "publisher_revoked",
+          "curated_artifact_revoked",
+          "curated_distribution_withdrawn",
+          "unknown_safety_semantics",
+          "publisher_scope_required",
+          "engine_capability_required",
+          "ownership_migration_required",
+          "metadata_replay",
+          "refresh_incomplete",
+          "metadata_stale",
+          "recorded_identity_changed",
+          "authenticated_integrity_required",
+          "local_integrity_failed",
+          "mandatory_check_failed",
+          "source_identity_mismatch",
+          "required_source_missing"
+        ],
+        "type": "string"
+      },
+      "PortAction": {
+        "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
+        "enum": [
+          "install",
+          "register_external",
+          "launch",
+          "remove_managed",
+          "remove_external",
+          "rollback",
+          "backup_create"
+        ],
+        "type": "string"
+      },
+      "PortActionAssessment": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/PortAction"
+          },
+          "availability": {
+            "$ref": "#/$defs/PortActionAvailability"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionEligibility"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The authoritative signed-definition reason, when it limits this action."
+          },
+          "reason": {
+            "$ref": "#/$defs/PortActionReason"
+          }
+        },
+        "required": [
+          "action",
+          "availability",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PortActionAvailability": {
+        "enum": [
+          "not_offered",
+          "waiting",
+          "held",
+          "allowed"
+        ],
+        "type": "string"
+      },
+      "PortActionReason": {
+        "enum": [
+          "available",
+          "route_not_offered",
+          "already_registered",
+          "unsupported_platform",
+          "not_installed",
+          "review_required",
+          "missing_source",
+          "unreadable_source",
+          "changed_source",
+          "missing_bios",
+          "unreadable_bios",
+          "changed_bios",
+          "missing_runtime",
+          "preparation_required",
+          "invalid_installation",
+          "definition_ineligible",
+          "missing_data",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2309,6 +2438,10 @@
           "$ref": "#/$defs/BackupRecord"
         },
         "type": "array"
+      },
+      "create_assessment": {
+        "$ref": "#/$defs/PortActionAssessment",
+        "description": "Read-only eligibility to attempt creation; execution rechecks under its lock."
       },
       "port_id": {
         "type": "string"
@@ -2325,6 +2458,7 @@
     },
     "required": [
       "port_id",
+      "create_assessment",
       "state",
       "backups",
       "problems"
@@ -29342,7 +29476,8 @@
           "launch",
           "remove_managed",
           "remove_external",
-          "rollback"
+          "rollback",
+          "backup_create"
         ],
         "type": "string"
       },
@@ -29402,7 +29537,12 @@
           "missing_runtime",
           "preparation_required",
           "invalid_installation",
-          "definition_ineligible"
+          "definition_ineligible",
+          "missing_data",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
         ],
         "type": "string"
       },

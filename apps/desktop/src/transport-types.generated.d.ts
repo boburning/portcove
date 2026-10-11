@@ -75,7 +75,8 @@ export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "mac
  * An `allowed` result is not an authorization token: execution rechecks current
  * inputs under its own lock and may still require an exact reviewed plan.
  */
-export type PortAction = "install" | "register_external" | "launch" | "remove_managed" | "remove_external" | "rollback";
+export type PortAction =
+  "install" | "register_external" | "launch" | "remove_managed" | "remove_external" | "rollback" | "backup_create";
 export type PortActionAvailability = "not_offered" | "waiting" | "held" | "allowed";
 export type PortActionReason =
   | "available"
@@ -93,7 +94,12 @@ export type PortActionReason =
   | "missing_runtime"
   | "preparation_required"
   | "invalid_installation"
-  | "definition_ineligible";
+  | "definition_ineligible"
+  | "missing_data"
+  | "unreadable_data"
+  | "unsafe_data"
+  | "recovery_required"
+  | "assessment_incomplete";
 /**
  * Current relationship between a registered source path and its saved storage identity.
  * `Current` means the bytes are unchanged since registration; it does not strengthen the
@@ -986,9 +992,23 @@ export interface BackupActionPreview {
 }
 export interface OutputBackupInventory {
   backups: BackupRecord[];
+  create_assessment: PortActionAssessment1;
   port_id: string;
   problems: BackupProblem[];
   state: BackupInventoryState;
+  [k: string]: unknown;
+}
+/**
+ * Read-only eligibility to attempt creation; execution rechecks under its lock.
+ */
+export interface PortActionAssessment1 {
+  action: PortAction;
+  availability: PortActionAvailability;
+  /**
+   * The authoritative signed-definition reason, when it limits this action.
+   */
+  definition?: DefinitionEligibility | null;
+  reason: PortActionReason;
   [k: string]: unknown;
 }
 export interface BackupProblem {
