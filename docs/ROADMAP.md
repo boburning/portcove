@@ -86,6 +86,62 @@ their affected scope. Unknown saves grant no destructive management. Exact
 artifact/platform/source/operation evidence cannot qualify unrelated versions
 or ports.
 
+## Port admission and later verification
+
+A port does not need gameplay verification to be available. It needs a valid,
+useful integration that passes required admission checks. Verification adds
+evidence about how well that same integration works afterward.
+
+| Outcome                                                                      | Completion boundary                                                                                                                                                                                                                                        |
+| ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Fast onboarding #254](https://github.com/boburning/portcove/issues/254)     | Reusable definition/artwork/evidence preparation, applicable checks and repeated ordinary authoring/maintenance use.                                                                                                                                       |
+| [Frozen rollout #1422](https://github.com/boburning/portcove/issues/1422)    | Actual useful delivery and justified final dispositions for the complete feasible October 2 cohort: 317 records / 316 distinct candidate identities, including existing integrations. Later discoveries do not expand this boundary.                       |
+| [Compatible delivery #246](https://github.com/boburning/portcove/issues/246) | Its independent new-definition → ordinary-compatible-artifact → compatible-correction journey on unchanged capable clients through protected acceptance/publication; actual provisioning remains [#534](https://github.com/boburning/portcove/issues/534). |
+| [Direct qualification #42](https://github.com/boburning/portcove/issues/42)  | The finite risk-based representative runtime/gameplay/audio/control/save-load commitment remains Required 1.0, outside ordinary beta admission.                                                                                                            |
+
+Ordinary admission requires attributable project/game/implementation identity,
+an exact platform/architecture and useful route, demonstrated fit with implemented
+source/package/preparation/executable/write/persistence/ownership/release contracts,
+applicable definition/input/artifact/integrity/safety checks and independent review.
+Players need clear prerequisites, usable actions, truthful limitations and scoped
+known failures, artwork preparation or a specific permitted working fallback,
+an accurate maintenance declaration and the applicable accepted delivery path.
+Required use-time input checks can be established without the developer possessing
+every player's game files. Known mandatory failures remain failures at their scope.
+
+Definition preparation/acceptance, useful integration actually available to users,
+and later observations are separate results. Drafts and fixture publication do not
+establish user delivery. A finite admission can finish with optional observations
+**Not tested**; other genuinely required work remains open. Personal installation,
+gameplay, every platform and every lifecycle operation are not universal admission
+gates. Offered operations keep their real safety and explicit acceptance obligations.
+
+Existing-capability additions ordinarily supply facts and parameterized cases
+through existing machinery, without application or bespoke harness changes.
+Actual source/setup/executable/write/release behavior establishes fit, rather than
+engine or console ancestry. Genuinely missing behavior gets the smallest safe
+extension under its existing owner, or isolated title glue where appropriate.
+Reuse equivalent coverage; do not invent an abstraction, duplicate tests or require
+a second title for every ordinary addition. Difficult candidates do not stop
+unrelated fitting additions and remain in the feasible-backlog commitment.
+
+Later evidence uses the same port identity, definition lineage and library
+relationship. No separate verified/unverified catalog or reinstall is needed.
+Admission, offered operations/current eligibility, integrity/ownership, automated
+lifecycle results, direct observations, known failures and upstream release
+channel/maintenance policy remain distinct. Record observations at actual
+artifact/version, platform, operation, method, result, date and limitations;
+new artifacts never inherit gameplay. Risk, known problems, reports and available
+usage evidence guide later coverage without a universal personal-testing queue.
+
+[Reusable scenario/operation-time evidence #1742](https://github.com/boburning/portcove/issues/1742)
+remains Planned 1.0. Broader optimization, all-family coverage and optional
+verification do not become new Required beta gates. Final rollout consumes its
+owners' required minima; independent authoring, evidence and capability work can
+proceed before protected production execution. Use existing proposal/completion
+reports for reused/new work and observed costs, keeping unknown baselines explicit.
+Intended tooling stays in issue specifications until shipped.
+
 ## Planned browsing enhancements
 
 [Composable catalog/library queries #1550](https://github.com/boburning/portcove/issues/1550)
