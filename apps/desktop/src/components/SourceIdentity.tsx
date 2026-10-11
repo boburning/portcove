@@ -62,7 +62,6 @@ export function SourceIdentityPanel({
         </div>
         <span
           className={`source-result inline-flex items-center gap-1 text-xs font-medium ${state.tone}`}
-          aria-label={`${checkLabel} result: ${state.label}`}
         >
           <Icon glyph={state.icon} size="sm" />
           {state.label}
