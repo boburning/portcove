@@ -304,7 +304,7 @@ fn raw_fixture_catalog(
 }
 
 #[test]
-fn raw_observation_reuses_schema_two_recognition_and_mismatch_logic() {
+fn raw_observation_reuses_schema_two_recognition_and_structural_unknown_logic() {
     let (_temporary, mut service, record) = fixture();
     service.replace_catalog_for_test(raw_fixture_catalog(&service, &record, false));
     for changed in [false, true] {
@@ -332,9 +332,17 @@ fn raw_observation_reuses_schema_two_recognition_and_mismatch_logic() {
         assert_eq!(observed.assessment, reference.assessment);
         assert_eq!(observed.observed_digests, reference.observed_digests);
         if changed {
+            assert_eq!(
+                observed.assessment.classification,
+                SourceClassification::Unrecognized
+            );
+            // The existing empty legacy digest allowlist preserves structural
+            // compatibility; unknown exact identity is not a known mismatch.
             assert!(matches!(
                 observed.assessment.admission,
-                crate::SourceAdmission::Rejected { .. }
+                crate::SourceAdmission::Admitted {
+                    mode: crate::SourceAdmissionMode::StructuralChecks
+                }
             ));
         } else {
             assert!(matches!(
