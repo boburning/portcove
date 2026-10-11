@@ -391,9 +391,12 @@ it("feeds the accepted membership context consistently into results, counts and 
   await act(async () => control("Filters (0)").click());
   await act(async () => control("In my library (1)").click());
   expect(visibleIds()).toEqual(["both"]);
-  await act(async () => control("Preview (1)").click());
-  expect(visibleIds()).toEqual(["both"]);
-  expect(control("Not in my library (1)")).toBeDefined();
+  expect(control("Preview (unavailable)").disabled).toBe(true);
+  await act(async () =>
+    shell.setFilter({ version: 1, membership: ["in-library"], channels: ["beta"] }),
+  );
+  expect(visibleIds()).toEqual([]);
+  expect(document.body.textContent).toContain("Ports unavailable");
   membershipFacts = false;
   await act(async () => root.render(<Fixture />));
   expect(document.body.textContent).toContain("Ports unavailable");
@@ -433,8 +436,12 @@ it("composes raw Core attention with readiness/channel counts and keeps unavaila
   expect(control("Missing game files (0)")).toBeDefined();
   await act(async () => control("Finish setup (1)").click());
   expect(visibleIds()).toEqual(["both"]);
-  await act(async () => control("Preview (1)").click());
-  expect(visibleIds()).toEqual(["both"]);
+  expect(control("Preview (unavailable)").disabled).toBe(true);
+  await act(async () =>
+    shell.setFilter({ version: 1, attention: ["finish-setup"], channels: ["beta"] }),
+  );
+  expect(visibleIds()).toEqual([]);
+  expect(document.body.textContent).toContain("Ports unavailable");
   membershipFacts = false;
   await act(async () => root.render(<Fixture />));
   expect(document.body.textContent).toContain("Ports unavailable");
@@ -508,7 +515,8 @@ it("feeds identity-matched staged updates into results/counts without update che
   await act(async () => control("Matching update staged (1)").click());
   expect(visibleIds()).toEqual(["both"]);
   expect(control("Available at last check (0)")).toBeDefined();
-  await act(async () => control("Preview (1)").click());
+  expect(control("Preview (unavailable)").disabled).toBe(true);
+  await act(async () => shell.setFilter({ version: 1, updates: ["staged"], channels: ["beta"] }));
   membershipFacts = false;
   await act(async () => root.render(<Fixture />));
   expect(document.body.textContent).toContain("Ports unavailable");

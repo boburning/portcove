@@ -108,11 +108,18 @@ it("offers every Core state, OR within game files, AND across groups, and distin
       { version: 1, gameFiles: ["files_available", "files_missing"], channels: ["beta"] },
       context(),
     ).ports.map((port) => port.id),
-  ).toEqual(["files_missing"]);
+  ).toEqual([]);
+  expect(
+    evaluateCatalogQuery(
+      ports,
+      { version: 1, gameFiles: ["files_missing"], channels: ["beta"] },
+      context(),
+    ).state,
+  ).toBe("unavailable");
   expect(
     evaluateCatalogQuery(ports, { version: 1, channels: ["beta"] }, context()).counts.gameFiles
       .files_available,
-  ).toBe(0);
+  ).toBeNull();
   expect(
     evaluateCatalogQuery(ports, { version: 1, gameFiles: ["files_missing"] }, context()).ports.map(
       (port) => port.id,

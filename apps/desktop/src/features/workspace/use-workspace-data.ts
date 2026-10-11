@@ -39,6 +39,7 @@ interface EssentialSnapshotIdentity {
   catalog: string;
   statuses: string;
   sources: string;
+  browsing: string;
 }
 
 export function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot): EssentialSnapshotIdentity {
@@ -46,6 +47,7 @@ export function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot): Essentia
     catalog: JSON.stringify(snapshot.catalog),
     statuses: JSON.stringify(snapshot.statuses),
     sources: JSON.stringify(snapshot.sources),
+    browsing: JSON.stringify(snapshot.browsing ?? null),
   };
 }
 
@@ -63,6 +65,7 @@ function useWorkspaceViewState() {
   const [catalog, setCatalog] = useState<CatalogDocument>();
   const [statuses, setStatuses] = useState<PortStatus[]>([]);
   const [sources, setSources] = useState<SourceRecord[]>([]);
+  const [browsing, setBrowsing] = useState<WorkspaceSnapshot["browsing"]>();
   const [activityFeed, setActivityFeed] = useState<ActivityFeed>(() => emptyActivityFeed());
   const [doctor, setDoctor] = useState<DoctorReport>();
   const [refreshFailure, setRefreshFailure] = useState<{ error: unknown }>();
@@ -80,6 +83,8 @@ function useWorkspaceViewState() {
     setStatuses,
     sources,
     setSources,
+    browsing,
+    setBrowsing,
     activityFeed,
     setActivityFeed,
     doctor,
@@ -115,12 +120,14 @@ function essentialSnapshotUpdate(
   const catalogChanged = !sameLibrary || previousIdentity?.catalog !== identity.catalog;
   const statusesChanged = !sameLibrary || previousIdentity?.statuses !== identity.statuses;
   const sourcesChanged = !sameLibrary || previousIdentity?.sources !== identity.sources;
-  if (!catalogChanged && !statusesChanged && !sourcesChanged) return undefined;
+  const browsingChanged = !sameLibrary || previousIdentity?.browsing !== identity.browsing;
+  if (!catalogChanged && !statusesChanged && !sourcesChanged && !browsingChanged) return undefined;
   return {
     identity,
     catalogChanged,
     statusesChanged,
     sourcesChanged,
+    browsingChanged,
     nextStatuses: statusesChanged
       ? sameLibrary
         ? retainUnchangedStatuses(acceptedStatuses, snapshot.statuses)
@@ -135,6 +142,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     catalog,
     statuses,
     sources,
+    browsing,
     activityFeed,
     doctor,
     refreshFailure,
@@ -158,6 +166,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     setSources,
     setStatuses,
     setSubscriptionFailure,
+    setBrowsing,
   } = view;
   const refreshGeneration = useRef(new LatestRequestGeneration());
   const activityGeneration = useRef(new LatestRequestGeneration());
@@ -210,6 +219,7 @@ export function usePortcoveData(libraryGeneration = 0) {
           setStatuses(update.nextStatuses);
         }
         if (update.sourcesChanged) setSources(snapshot.sources);
+        if (update.browsingChanged) setBrowsing(snapshot.browsing);
       }
       lastFullReconciliationAt.current = Date.now();
       if (activityGeneration.current.isCurrent(activityRequest))
@@ -230,6 +240,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     setRefreshFailure,
     setRefreshing,
     setSources,
+    setBrowsing,
     setStatuses,
   ]);
   const coordinators = useRef<
@@ -439,6 +450,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     catalog,
     statuses,
     sources,
+    browsing,
     activities,
     activityFeed,
     doctor,

@@ -2645,8 +2645,47 @@ export interface OutputDesktopSteamEntryReview {
 }
 export interface OutputDesktopWorkspaceSnapshot {
   activities: ActivityFeed;
+  browsing?: CatalogBrowsingSnapshot | null;
   catalog: CatalogDocument;
   sources: SourceRecord[];
   statuses: PortStatus[];
+  [k: string]: unknown;
+}
+export interface CatalogBrowsingSnapshot {
+  contexts: CatalogBrowsingContext[];
+  host_platform: Platform;
+  library: LibraryIdentity;
+  /**
+   * False when bounded retained metadata could not be observed. Membership
+   * still comes from complete Core status, not from metadata-read success.
+   */
+  retained_metadata_complete: boolean;
+  schema_version: number;
+  /**
+   * Binds the complete catalog, status and source inputs; never a private path.
+   */
+  workspace_binding_sha256: string;
+  [k: string]: unknown;
+}
+export interface CatalogBrowsingContext {
+  artifact_sha256: string | null;
+  channel: ReleaseChannel | null;
+  context_id: string;
+  definition_sha256: string | null;
+  installation_id: string | null;
+  installation_method: InstallationMethod | null;
+  instance_sha256: string | null;
+  member_context: boolean;
+  /**
+   * Legacy managed metadata can lack this fact. Do not substitute the host.
+   */
+  platform: Platform | null;
+  port_id: string;
+  /**
+   * Whole-port membership is distinct from membership of this exact context.
+   */
+  port_member: boolean;
+  release_version: string | null;
+  route: GameFileRouteKind;
   [k: string]: unknown;
 }

@@ -1,7 +1,12 @@
 import { useRef, type Dispatch, type SetStateAction } from "react";
 import { ListFilter, X } from "lucide-react";
 import type { PortDefinition } from "../../types";
-import { platformLabel, releaseChannelPresentation, type Filter } from "../../view-model";
+import {
+  platformLabel,
+  releaseChannelPresentation,
+  installationMethodLabels,
+  type Filter,
+} from "../../view-model";
 import { Button } from "../../components/ui/button";
 import {
   Dialog,
@@ -18,10 +23,24 @@ import type { GameFileFilterState } from "./use-game-file-filter-context";
 const groups = [
   {
     key: "platforms",
-    label: "Declared platforms",
-    values: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    label: "Platforms",
+    values: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64", "this-device"],
   },
   { key: "channels", label: "Release channels", values: ["stable", "beta", "rolling"] },
+  {
+    key: "installationMethods",
+    label: "Setup methods",
+    values: [
+      "portable-package",
+      "portable-recompilation",
+      "staged-game-files",
+      "referenced-disc",
+      "generated-game-data",
+      "upstream-setup",
+      "managed-recompilation",
+      "user-prepared-runtime",
+    ],
+  },
   { key: "membership", label: "Library membership", values: ["in-library", "not-in-library"] },
   { key: "updates", label: "Observed updates", values: ["available", "staged"] },
   {
@@ -52,6 +71,9 @@ function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
     : filter;
 }
 function label(group: Group, value: string) {
+  if (group === "installationMethods")
+    return installationMethodLabels[value as keyof typeof installationMethodLabels];
+  if (group === "platforms" && value === "this-device") return "For this device";
   if (group === "gameFiles") return states[value as keyof typeof states];
   if (group === "updates")
     return value === "available" ? "Available at last check" : "Matching update staged";
@@ -136,17 +158,17 @@ export function CatalogFilters({
         <DialogContent finalFocus={trigger}>
           <DialogTitle>{view === "library" ? "Library" : "Catalog"} filters</DialogTitle>
           <DialogDescription>
-            Match any selected value in each group and all groups together. Platforms describe
-            catalog targets; they do not confirm installation compatibility. Library membership
-            means an active managed installation or a registered external runtime in the selected
-            library; it does not confirm readiness. Installation attention uses observed Core
-            reasons for the current installation. Changed or unreadable files are not missing; these
-            choices do not establish game-file compatibility or authorize an action. Observed
-            updates match the current managed version and its last checked candidate. Available
-            excludes that candidate when it is verified and staged. Other downloaded versions do not
-            establish a matching staged update. Filtering never checks for a newer release.
-            {view === "library" &&
-              " Ready with Linux means current Library readiness and a declared Linux target, not a ready Linux installation."}
+            Match any selected value in each group and all groups together for one setup or
+            installed context. Platforms describe catalog targets or the retained installation; they
+            do not confirm tested compatibility. Library membership means an active managed
+            installation or a registered external runtime in the selected library; it does not
+            confirm readiness. Installation attention uses observed Core reasons for the current
+            installation. Changed or unreadable files are not missing; these choices do not
+            establish game-file compatibility or authorize an action. Observed updates match the
+            current managed version and its last checked candidate. Available excludes that
+            candidate when it is verified and staged. Other downloaded versions do not establish a
+            matching staged update. Filtering never checks for a newer release. Missing retained
+            platform or setup facts remain unavailable. For this device uses Core's host platform.
           </DialogDescription>
           {!editable && (
             <p role="alert">

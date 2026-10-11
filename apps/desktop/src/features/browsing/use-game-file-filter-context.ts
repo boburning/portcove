@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../../api";
-import type { CatalogDocument, SourceRecord, PortStatus } from "../../types";
+import type {
+  CatalogDocument,
+  SourceRecord,
+  PortStatus,
+  CatalogBrowsingSnapshot,
+} from "../../types";
 import { errorText } from "../../view-model";
 import {
   gameFileFilterContext,
@@ -14,12 +19,14 @@ export function useGameFileFilterContext({
   catalog,
   sources,
   statuses,
+  browsing,
   generation,
   libraryKey,
 }: {
   catalog?: CatalogDocument | null;
   sources: readonly SourceRecord[];
   statuses: readonly PortStatus[];
+  browsing?: CatalogBrowsingSnapshot | null;
   generation: number;
   libraryKey?: string | null;
 }) {
@@ -28,7 +35,15 @@ export function useGameFileFilterContext({
     platform: "windows-x86-64",
     channel: "stable",
   });
-  const key = JSON.stringify([catalog, sources, statuses, generation, libraryKey, selection]);
+  const key = JSON.stringify([
+    catalog,
+    sources,
+    statuses,
+    browsing?.workspace_binding_sha256,
+    generation,
+    libraryKey,
+    selection,
+  ]);
   const owner = useRef({ key, epoch: 0, closed: false, processing: false });
   if (owner.current.key !== key) {
     owner.current.key = key;

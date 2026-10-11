@@ -5644,6 +5644,141 @@
         ],
         "type": "string"
       },
+      "CatalogBrowsingContext": {
+        "properties": {
+          "artifact_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReleaseChannel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "context_id": {
+            "type": "string"
+          },
+          "definition_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installation_method": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallationMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instance_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "member_context": {
+            "type": "boolean"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Platform"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legacy managed metadata can lack this fact. Do not substitute the host."
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "port_member": {
+            "description": "Whole-port membership is distinct from membership of this exact context.",
+            "type": "boolean"
+          },
+          "release_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route": {
+            "$ref": "#/$defs/GameFileRouteKind"
+          }
+        },
+        "required": [
+          "context_id",
+          "port_id",
+          "route",
+          "platform",
+          "channel",
+          "installation_method",
+          "port_member",
+          "member_context",
+          "installation_id",
+          "definition_sha256",
+          "instance_sha256",
+          "release_version",
+          "artifact_sha256"
+        ],
+        "type": "object"
+      },
+      "CatalogBrowsingSnapshot": {
+        "properties": {
+          "contexts": {
+            "items": {
+              "$ref": "#/$defs/CatalogBrowsingContext"
+            },
+            "type": "array"
+          },
+          "host_platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "library": {
+            "$ref": "#/$defs/LibraryIdentity"
+          },
+          "retained_metadata_complete": {
+            "description": "False when bounded retained metadata could not be observed. Membership\nstill comes from complete Core status, not from metadata-read success.",
+            "type": "boolean"
+          },
+          "schema_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "workspace_binding_sha256": {
+            "description": "Binds the complete catalog, status and source inputs; never a private path.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "library",
+          "host_platform",
+          "retained_metadata_complete",
+          "workspace_binding_sha256",
+          "contexts"
+        ],
+        "type": "object"
+      },
       "CatalogDocument": {
         "properties": {
           "ports": {
@@ -6263,6 +6398,15 @@
         ],
         "type": "string"
       },
+      "GameFileRouteKind": {
+        "enum": [
+          "managed_install",
+          "external_registration",
+          "managed_launch",
+          "external_launch"
+        ],
+        "type": "string"
+      },
       "IgdbArtwork": {
         "additionalProperties": false,
         "description": "Maintainer-reviewed catalog mapping. These public IDs never contain Twitch\ncredentials; the image CDN can serve the mapped cover without an API token.",
@@ -6445,6 +6589,24 @@
           "launchable",
           "blockers",
           "pending_setup"
+        ],
+        "type": "object"
+      },
+      "LibraryIdentity": {
+        "description": "Durable library identity and its current effective location.",
+        "properties": {
+          "id": {
+            "description": "Opaque identity, preserved by managed moves; not an authentication token.",
+            "type": "string"
+          },
+          "root": {
+            "description": "Current location, which may differ from the root originally requested.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "root"
         ],
         "type": "object"
       },
@@ -8677,6 +8839,16 @@
     "properties": {
       "activities": {
         "$ref": "#/$defs/ActivityFeed"
+      },
+      "browsing": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogBrowsingSnapshot"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "catalog": {
         "$ref": "#/$defs/CatalogDocument"

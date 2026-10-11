@@ -165,20 +165,48 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("accepts retained-metadata-only changes and clears a no-longer-available projection", async () => {
+    await render();
+    const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
+    const browsing: NonNullable<WorkspaceSnapshot["browsing"]> = {
+      schema_version: 1,
+      library: { id: "opaque", root: "fixture/library" },
+      host_platform: "windows-x86-64",
+      retained_metadata_complete: false,
+      workspace_binding_sha256: "a".repeat(64),
+      contexts: [],
+    };
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({
+      ...structuredClone(snapshot),
+      browsing,
+    });
+    await act(async () => data.refresh());
+    expect(data.browsing).toBe(browsing);
+    expect(data.catalog).toBe(before.catalog);
+    expect(data.statuses).toBe(before.statuses);
+    expect(data.sources).toBe(before.sources);
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(structuredClone(snapshot));
+    await act(async () => data.refresh());
+    expect(data.browsing).toBeUndefined();
+  });
   it("compares each essential collection once without increasing serialized identity bytes", () => {
     const combinedIdentity = JSON.stringify([
       snapshot.catalog,
       snapshot.statuses,
       snapshot.sources,
+      snapshot.browsing ?? null,
     ]);
     const stringify = vi.spyOn(JSON, "stringify");
 
     const identities = essentialSnapshotIdentity(snapshot);
 
-    expect(stringify).toHaveBeenCalledTimes(3);
-    expect(identities.catalog.length + identities.statuses.length + identities.sources.length).toBe(
-      combinedIdentity.length - 4,
-    );
+    expect(stringify).toHaveBeenCalledTimes(4);
+    expect(
+      identities.catalog.length +
+        identities.statuses.length +
+        identities.sources.length +
+        identities.browsing.length,
+    ).toBe(combinedIdentity.length - 5);
   });
 
   it("preserves unchanged IPC snapshot references and avoids redundant status indexing", async () => {

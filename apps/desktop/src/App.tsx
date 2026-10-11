@@ -50,7 +50,7 @@ import {
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
-import type { CatalogQueryContext } from "./features/browsing/catalog-query";
+import { evaluateCatalogQuery, type CatalogQueryContext } from "./features/browsing/catalog-query";
 import {
   useGameFileFilterContext,
   type GameFileFilterState,
@@ -376,6 +376,7 @@ function Workspace({
     catalog: data.catalog,
     sources: data.sources,
     statuses: data.statuses,
+    browsing: data.browsing,
     generation: bootstrap.generation,
     libraryKey: bootstrap.library_root,
   });
@@ -673,19 +674,24 @@ function useAppModel(
   gameFileQuery?: GameFileFilterState,
 ) {
   const { selectedId, setBiosPath, setSourcePath } = ui;
-  const { catalog, sources, statuses } = data;
+  const { catalog, sources, statuses, browsing } = data;
   const statusMap = useMemo(() => indexStatuses(statuses), [statuses]);
   const gameFileQueryContext = useMemo(
-    () => JSON.stringify([catalog, sources, statuses]),
-    [catalog, sources, statuses],
+    () => JSON.stringify([catalog, sources, statuses, browsing?.workspace_binding_sha256]),
+    [catalog, sources, statuses, browsing?.workspace_binding_sha256],
   );
   // Catalog and statuses arrive together in the accepted generation-bound snapshot.
   const queryContext = useMemo<CatalogQueryContext>(
     () =>
       catalog && libraryRoot
-        ? { library: { id: libraryRoot, statuses: statusMap }, gameFiles: gameFileQuery?.context }
+        ? {
+            library: { id: libraryRoot, statuses: statusMap },
+            gameFiles: gameFileQuery?.context,
+            browsing: browsing ?? undefined,
+            devicePlatform: browsing?.host_platform,
+          }
         : {},
-    [catalog, libraryRoot, statusMap, gameFileQuery?.context],
+    [catalog, libraryRoot, statusMap, gameFileQuery?.context, browsing],
   );
   const visible = useMemo(
     () =>
@@ -755,6 +761,19 @@ function useAppModel(
     () => selectedPort(catalog, sources, selectedId, statusMap),
     [catalog, selectedId, sources, statusMap],
   );
+  const browsingMatch = useMemo(
+    () =>
+      selection.port && queryContext.browsing
+        ? evaluateCatalogQuery(
+            [selection.port],
+            typeof ui.filter === "string"
+              ? { version: 1, channels: ui.filter === "all" ? [] : [ui.filter] }
+              : ui.filter,
+            queryContext,
+          )
+        : undefined,
+    [selection.port, ui.filter, queryContext],
+  );
   useEffect(() => {
     setSourcePath(selection.source?.path ?? "");
   }, [selectedId, selection.source?.path, setSourcePath]);
@@ -773,6 +792,7 @@ function useAppModel(
     recent,
     sourceNeeds,
     ...selection,
+    browsingMatch,
   };
 }
 
@@ -1110,6 +1130,8 @@ function SelectedPortPanel({
       libraryGeneration={libraryGeneration}
       gameFileQueryContext={model.gameFileQueryContext}
       gameFileFilterContext={model.gameFileQuery?.context}
+      browsingMatch={model.browsingMatch}
+      browsingBinding={model.queryContext.browsing?.workspace_binding_sha256}
       outputLocationChanged={installPlanning.invalidate}
       externalRuntimeChanged={() => {
         installPlanning.invalidate();

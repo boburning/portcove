@@ -238,7 +238,7 @@ export function platformLabel(value: string) {
   return Object.hasOwn(platformLabels, value) ? platformLabels[value] : "Unknown platform";
 }
 
-const installationMethodLabels: Record<
+export const installationMethodLabels: Record<
   NonNullable<PortDefinition["presentation"]>["installation_method"],
   string
 > = {
