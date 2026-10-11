@@ -1,5 +1,5 @@
 import type { useFavorites } from "../features/favorites/use-favorites";
-import { useState, useRef, useEffect, type Dispatch, type SetStateAction } from "react";
+import { useState, useRef, useEffect, useId, type Dispatch, type SetStateAction } from "react";
 import {
   ArrowRight,
   Boxes,
@@ -12,6 +12,7 @@ import {
   Star,
   Wrench,
 } from "lucide-react";
+import { catalogSetupPresentation } from "../features/port-actions/port-action-presentation";
 import type { PortDefinition, PortStatus } from "../types";
 import {
   currentUpdateSnapshot,
@@ -687,7 +688,12 @@ function PortCard({
   nativeSourceDrag,
   view,
 }: PortCardProps) {
+  const setupDescriptionId = useId();
   const state = readinessPresentation(readiness, view, status);
+  const setup =
+    view === "catalog" && !status?.active && !status?.external_runtime
+      ? catalogSetupPresentation(status)
+      : undefined;
   const channel = status?.channel ? releaseChannelPresentation(status.channel) : undefined;
   const updateAvailable = hasAvailableUpdate(status);
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
@@ -696,7 +702,17 @@ function PortCard({
   const className = `port-card ${view === "catalog" ? "port-card-selectable" : "port-card-library"}${dropEligible ? " source-drop-eligible" : ""}${dropTarget ? " source-drop-targeted" : ""}`;
   const contents = (
     <PortCardContents
-      {...{ port, status, state, channel, updateAvailable, dropEligible, dropTarget }}
+      {...{
+        port,
+        status,
+        state,
+        setup,
+        setupDescriptionId,
+        channel,
+        updateAvailable,
+        dropEligible,
+        dropTarget,
+      }}
       detailOrigin={detailOrigin}
       onSelect={onSelect}
       onLaunch={onLaunch}
@@ -743,6 +759,7 @@ function PortCard({
         data-detail-origin={detailOrigin}
         className={`${className} h-full w-full`}
         aria-label={accessibleLabel}
+        aria-describedby={setup ? setupDescriptionId : undefined}
         onClick={() => onSelect(port.id, detailOrigin)}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
         data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
@@ -761,6 +778,8 @@ function PortCardContents({
   port,
   status,
   state,
+  setup,
+  setupDescriptionId,
   channel,
   updateAvailable,
   dropEligible,
@@ -771,6 +790,8 @@ function PortCardContents({
   view,
 }: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
   state: ReturnType<typeof readinessPresentation>;
+  setup?: ReturnType<typeof catalogSetupPresentation>;
+  setupDescriptionId: string;
   channel: ReturnType<typeof releaseChannelPresentation> | undefined;
   updateAvailable?: boolean;
   dropEligible: boolean;
@@ -818,6 +839,19 @@ function PortCardContents({
             {stateLabel}
             {title}
           </>
+        )}
+        {setup && (
+          <div
+            id={setupDescriptionId}
+            className="mt-2 space-y-1 text-xs text-[var(--color-text-secondary)]"
+          >
+            {setup.routes.map((route) => (
+              <p key={route.action} className="m-0">
+                <strong>{route.route}: </strong>
+                {route.reason}
+              </p>
+            ))}
+          </div>
         )}
         {view === "library" && channel && (
           <small className="text-xs text-[var(--color-text-secondary)]">
@@ -964,12 +998,9 @@ function filterLabel(filter: Filter) {
 }
 
 function readinessPresentation(readiness: PortReadiness, view: View, status?: PortStatus) {
-  if (view === "catalog" && readiness === "available")
+  if (view === "catalog" && !status?.active && !status?.external_runtime)
     return {
-      label:
-        typeof status?.readiness?.launchable === "boolean"
-          ? "Not installed"
-          : "Setup status unknown",
+      label: catalogSetupPresentation(status).label,
       action: "View details",
       tone: "available",
     } as const;

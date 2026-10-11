@@ -140,3 +140,100 @@ export function portActionPresentation(
     ? presentRollbackAssessment(matching[0])
     : presentAssessment(matching[0], action);
 }
+
+type SetupRoute = "install" | "register_external";
+type SetupRoutePresentation = {
+  action: SetupRoute;
+  route: string;
+  availability: Assessment["availability"] | "unknown";
+  reason: string;
+};
+
+/** Cached setup facts only; neither input review nor this display grants execution authority. */
+export function catalogSetupPresentation(status: PortStatus | undefined) {
+  const routes = (["install", "register_external"] as const).map((action) => {
+    const route = action === "install" ? "Managed setup" : "External setup";
+    const unknown: SetupRoutePresentation = {
+      action,
+      route,
+      availability: "unknown",
+      reason: "Setup status unknown. View details for current requirements.",
+    };
+    const assessments = status?.port_actions;
+    if (!Array.isArray(assessments)) return unknown;
+    const matches = assessments.filter((assessment) => assessment?.action === action);
+    if (matches.length !== 1) return unknown;
+    const { availability, reason, definition } = matches[0];
+    if (availability === "held" && reason === "definition_ineligible") {
+      if (
+        !definition ||
+        !["hold", "escalate"].includes(definition.outcome) ||
+        !Object.hasOwn(definitionReasons, definition.reason)
+      )
+        return unknown;
+      return {
+        action,
+        route,
+        availability,
+        reason: definitionHoldReason("Setup", definition.reason),
+      };
+    }
+    if (
+      definition != null &&
+      !(
+        availability === "allowed" &&
+        definition.outcome === "eligible" &&
+        definition.reason === "mandatory_checks_passed"
+      )
+    )
+      return unknown;
+    if (action === "install" && availability === "allowed" && reason === "available")
+      return {
+        action,
+        route,
+        availability,
+        reason: "Current setup checks passed. View details to review installation.",
+      };
+    if (definition != null) return unknown;
+    if (
+      action === "install" &&
+      availability === "waiting" &&
+      ["missing_source", "missing_bios"].includes(reason)
+    )
+      return {
+        action,
+        route,
+        availability,
+        reason: `${actionReasons[reason]} View details to select and review the required files.`,
+      };
+    if (
+      action === "register_external" &&
+      availability === "waiting" &&
+      reason === "review_required"
+    )
+      return {
+        action,
+        route,
+        availability,
+        reason:
+          "Review preparation requirements and your external game folder in details. External updates remain yours to manage.",
+      };
+    if (
+      availability === "not_offered" &&
+      ["route_not_offered", "unsupported_platform", "already_registered"].includes(reason)
+    )
+      return { action, route, availability, reason: actionReasons[reason] };
+    return unknown;
+  });
+  // An offered route remains visible even when the other route is not offered or unknown.
+  const label = routes.some((route) => route.availability === "allowed")
+    ? "Setup available"
+    : routes.some((route) => route.availability === "waiting")
+      ? "Setup needs review"
+      : routes.some((route) => route.availability === "unknown")
+        ? "Setup status unknown"
+        : routes.some((route) => route.availability === "held")
+          ? "Setup on hold"
+          : "Setup unavailable";
+  return { label, routes };
+}
