@@ -584,6 +584,12 @@ React UI ── Tauri IPC ───┤
 
 ## Backup service ownership
 
+Restore review checks the existing unfinished-restore and backup-deletion guards
+before loading the selected snapshot or offering its consent review. Preparing
+restore records remain excluded by the execution guard. A restore-only recovery
+hold does not hold deletion review of an otherwise usable snapshot. This preview
+check supplies no authorization; execution repeats its guards under the port lock.
+
 `PortcoveService` remains the public facade for create/list/review/authorize/
 restore/delete backup operations. Its stable `BackupAction` and
 `BackupActionPreview` DTOs remain at the existing public paths. The private
