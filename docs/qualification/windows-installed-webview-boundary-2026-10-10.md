@@ -85,8 +85,9 @@ handle `exit_observed` / zero. Uninstall removed managed files and registration
 while preserving the recursive isolated-library manifest. Successful maintained
 cleanup then removed only its disposable run root. Final readback found no
 Portcove registration, shortcut or sampled native process. Sampled absence
-supplements the captured-handle proof. The outer reservation was released at
-`00:56:24.333Z` only after positive settlement. No attempt was repeated.
+supplements the captured-handle proof. Positive settlement was recorded at
+`00:56:24.333Z`; the outer reservation was then released and read back absent.
+No attempt was repeated.
 
 ## Retained receipts
 
@@ -109,8 +110,8 @@ Credit the current-OS ordinary nonadministrator installed package, actual shippi
 main-WebView boundary rows and isolated persistence/registration cleanup only.
 Actual trusted secondary/same-label lifecycle rows, broader Windows/Linux security,
 minimum-host, physical/human, real game/save preservation, prompts/passive/systemwide
-install, migration, reboot transitions and installed updates remain independently
-qualified. The Linux GLib security hold is unchanged. Historical producer cleanup
+install, migration, reboot transitions and installed updates still require
+independent qualification. The Linux GLib security hold is unchanged. Historical producer cleanup
 remains Unknown; this fresh boot and captured-member proof do not repair it.
 
 Existing owner-controlled signing, updater activation, credentials, tags and
