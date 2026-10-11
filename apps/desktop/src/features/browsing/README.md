@@ -79,7 +79,7 @@ keep their semantics; unknown restored reasons remain unresolved for reset.
 These observations do not describe complete compatible source sets, install
 eligibility or a ready installation for a declared platform. They perform no I/O
 or lifecycle authorization. Whole #1551 remains open for route-bound game-file
-states and identity-matched available/staged update predicates.
+states; the finite observed update predicates are documented below.
 
 ## Observed update candidates
 
