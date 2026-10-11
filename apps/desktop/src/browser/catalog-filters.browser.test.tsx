@@ -12,6 +12,9 @@ import {
 import { portDefinition, portStatus } from "../test-fixtures";
 import { filterPorts, summarizeLibrary } from "../view-model";
 import type { PortStatus } from "../types";
+import { browsingContextFixture } from "./browsing-context-fixture";
+import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails";
+import { evaluateCatalogQuery } from "../features/browsing/catalog-query";
 import "../styles.css";
 const invoke = vi.hoisted(() => vi.fn(async () => null));
 vi.mock("../api", () => ({ desktopApi: new Proxy({}, { get: () => invoke }) }));
@@ -129,7 +132,7 @@ function Session({ library }: { library: string }) {
     ready: false,
   });
   const ui = browsing.ui;
-  const [detail, setDetail] = useState(false);
+  const [detail, setDetail] = useState<string>();
   const [facts, setFacts] = useState(true);
   const [downloaded, setDownloaded] = useState(true);
   const selectedStatuses = library.endsWith("a")
@@ -139,7 +142,7 @@ function Session({ library }: { library: string }) {
         last_update_check: updateSnapshot,
       })
     : new Map<string, PortStatus>();
-  const context = facts ? { library: { id: library, statuses: selectedStatuses } } : {};
+  const context = facts ? browsingContextFixture(ports, selectedStatuses, library) : {};
   useEffect(() => {
     ui.setView("catalog");
   }, [ui.setView]);
@@ -152,7 +155,20 @@ function Session({ library }: { library: string }) {
       <button onClick={() => setFacts((value) => !value)}>Toggle membership snapshot</button>
       <button onClick={() => setDownloaded((value) => !value)}>Toggle candidate download</button>
       {detail ? (
-        <button onClick={() => setDetail(false)}>Back to catalog</button>
+        <>
+          <button onClick={() => setDetail(undefined)}>Back to catalog</button>
+          <BrowsingMatchDetails
+            portId={detail}
+            binding={context.browsing?.workspace_binding_sha256}
+            result={evaluateCatalogQuery(
+              ports.filter((port) => port.id === detail),
+              typeof ui.filter === "string"
+                ? { version: 1, channels: ui.filter === "all" ? [] : [ui.filter] }
+                : ui.filter,
+              context,
+            )}
+          />
+        </>
       ) : (
         <PortBrowser
           view="catalog"
@@ -176,7 +192,7 @@ function Session({ library }: { library: string }) {
           catalogSort={ui.catalogSort}
           setCatalogSort={ui.setCatalogSort}
           setFilter={ui.setFilter}
-          onSelect={() => setDetail(true)}
+          onSelect={(id) => setDetail(id)}
           clearFilters={() => {
             ui.setFilter("all");
             ui.setQuery("");
@@ -217,6 +233,40 @@ afterEach(() => {
   localStorage.clear();
 });
 const roleButton = (name: string) => page.getByRole("button", { name, exact: true });
+it("keeps host, setup method and membership on one context through details and return without IPC", async () => {
+  await page.viewport(1100, 900);
+  flushSync(() => root.render(<Fixture />));
+  await userEvent.click(roleButton("Filters (0)"));
+  await userEvent.click(roleButton("For this device (2)"));
+  await userEvent.click(roleButton("In my library (2)"));
+  await expect.element(roleButton("Linux (0)")).toBeEnabled();
+  await expect.element(roleButton("Portable upstream package (0)")).toBeEnabled();
+  await userEvent.click(roleButton("Portable upstream package (0)"));
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByText("No ports match these filters", { exact: true }))
+    .toBeInTheDocument();
+  await userEvent.click(roleButton("Filters (3)"));
+  await expect
+    .element(roleButton("Portable upstream package (0)"))
+    .toHaveAttribute("aria-pressed", "true");
+  await userEvent.click(roleButton("Original disc referenced at launch (1)"));
+  await userEvent.keyboard("{Escape}");
+  expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(1);
+  await userEvent.click(page.getByRole("button", { name: /^Windows game\./ }));
+  const region = page.getByRole("region", { name: "Matching browsing contexts" });
+  await expect.element(region).toBeInTheDocument();
+  await expect
+    .element(roleButton("Installed build · Windows · Stable · 1"))
+    .toHaveAttribute("aria-pressed", "true");
+  expect(
+    document.querySelector('[aria-label="Matching browsing contexts"]')?.textContent,
+  ).toContain("Original disc referenced at launch");
+  await userEvent.click(roleButton("Back to catalog"));
+  await expect.element(roleButton("Remove For this device filter")).toBeInTheDocument();
+  await expect.element(roleButton("Remove Portable upstream package filter")).toBeInTheDocument();
+  expect(invoke).not.toHaveBeenCalled();
+});
 it.each(["dark", "light"])(
   "composes Catalog constraints, keyboard return and persisted library context in %s",
   async (theme) => {
@@ -288,10 +338,11 @@ it.each(["dark", "light"])(
     flushSync(() => root.render(<Fixture />));
     await userEvent.click(roleButton("Filters (0)"));
     await userEvent.click(roleButton("In my library (2)"));
-    await userEvent.click(roleButton("Preview (1)"));
-    await expect.element(roleButton("Linux (1)")).toBeEnabled();
+    await expect.element(roleButton("Preview (0)")).toBeEnabled();
+    await userEvent.click(roleButton("Stable (2)"));
+    await expect.element(roleButton("Linux (0)")).toBeEnabled();
     await userEvent.keyboard("{Escape}");
-    expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-detail-origin^="catalog:card:"]')).toHaveLength(2);
     await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
     await userEvent.click(roleButton("Back to catalog"));
     await expect.element(roleButton("Filters (2)")).toBeInTheDocument();
@@ -334,8 +385,9 @@ it.each(["dark", "light"])(
     await expect.element(roleButton("Missing game files (0)")).toBeEnabled();
     await userEvent.click(roleButton("Missing BIOS (1)"));
     await userEvent.click(roleButton("Finish setup (1)"));
-    await userEvent.click(roleButton("Preview (1)"));
-    await expect.element(roleButton("Finish setup (0)")).toHaveAttribute("aria-pressed", "true");
+    await expect.element(roleButton("Preview (0)")).toBeEnabled();
+    await userEvent.click(roleButton("Stable (2)"));
+    await expect.element(roleButton("Finish setup (1)")).toHaveAttribute("aria-pressed", "true");
     await userEvent.keyboard("{Escape}");
     await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
     await userEvent.click(roleButton("Back to catalog"));
@@ -362,7 +414,7 @@ it.each(["dark", "light"])(
     expect(document.activeElement?.textContent).toContain("Filters (2)");
     await userEvent.click(roleButton("Remove Finish setup filter"));
     await userEvent.click(roleButton("Toggle membership snapshot"));
-    await expect.element(roleButton("Remove Preview filter")).toBeInTheDocument();
+    await expect.element(roleButton("Remove Stable filter")).toBeInTheDocument();
     await userEvent.click(roleButton("Filters (1)"));
     await userEvent.click(roleButton("Reset catalog filters"));
     await userEvent.keyboard("{Escape}");

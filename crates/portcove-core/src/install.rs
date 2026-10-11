@@ -1523,9 +1523,19 @@ pub(crate) fn retained_catalog_for_install(
 pub(crate) fn retained_query_context(
     install: &InstallRecord,
 ) -> Result<(Option<crate::Catalog>, Option<Platform>)> {
-    let manifest = verified_manifest_with_limit(
+    retained_query_context_with_budget(install, None)
+}
+
+/// The workspace owns a single request-wide metadata allowance. Failed bounded
+/// reads spend their ceiling; successfully returned bytes spend their actual size.
+pub(crate) fn retained_query_context_with_budget(
+    install: &InstallRecord,
+    budget: Option<&mut u64>,
+) -> Result<(Option<crate::Catalog>, Option<Platform>)> {
+    let manifest = verified_manifest_with_budget(
         install,
         Some(crate::signed_catalog::MAX_CATALOG_BYTES as u64),
+        budget,
     )?;
     let catalog = manifest
         .retained_contract
@@ -1807,6 +1817,14 @@ fn verified_manifest_with_limit(
     install: &InstallRecord,
     maximum_bytes: Option<u64>,
 ) -> Result<InstallManifest> {
+    verified_manifest_with_budget(install, maximum_bytes, None)
+}
+
+fn verified_manifest_with_budget(
+    install: &InstallRecord,
+    maximum_bytes: Option<u64>,
+    mut budget: Option<&mut u64>,
+) -> Result<InstallManifest> {
     validate_artifact(&install.artifact)?;
     if install.manifest_sha256.len() != 64
         || !install
@@ -1819,12 +1837,29 @@ fn verified_manifest_with_limit(
         ));
     }
     let manifest_path = install.path.join(".portcove-manifest.json");
-    let bytes = (match maximum_bytes {
+    let maximum_bytes = match budget.as_deref() {
+        Some(0) => {
+            return Err(PortcoveError::unsupported(
+                "browsing metadata budget reached",
+            ));
+        }
+        Some(remaining) => Some(maximum_bytes.unwrap_or(*remaining).min(*remaining)),
+        None => maximum_bytes,
+    };
+    let read = match maximum_bytes {
         Some(limit) => crate::external_runtime::read_stable_metadata(&manifest_path, limit)
             .map_err(std::io::Error::other),
         None => fs::read(&manifest_path),
-    })
-    .map_err(|_| {
+    };
+    if let Some(remaining) = budget.as_deref_mut() {
+        let spent = read
+            .as_ref()
+            .map_or(maximum_bytes.unwrap_or(*remaining), |bytes| {
+                bytes.len() as u64
+            });
+        *remaining = remaining.saturating_sub(spent);
+    }
+    let bytes = read.map_err(|_| {
         PortcoveError::verification(format!("manifest is missing for {}", install.port_id))
     })?;
     let actual_manifest_sha256 = hex::encode(Sha256::digest(&bytes));
@@ -3232,6 +3267,15 @@ mod tests {
         let (retained, platform) = retained_query_context(&install).unwrap();
         assert!(retained.is_none());
         assert!(platform.is_none());
+        let mut metadata_budget = bytes.len() as u64 + 1024;
+        let (retained, platform) =
+            retained_query_context_with_budget(&install, Some(&mut metadata_budget)).unwrap();
+        assert!(retained.is_none());
+        assert!(platform.is_none());
+        assert_eq!(metadata_budget, 1024);
+        let mut too_small = bytes.len() as u64 - 1;
+        assert!(retained_query_context_with_budget(&install, Some(&mut too_small)).is_err());
+        assert_eq!(too_small, 0);
         assert!(installer.verify(&install).unwrap().valid);
         assert!(installer.verify_critical(&install, &qualification).is_ok());
         installer

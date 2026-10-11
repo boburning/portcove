@@ -1,4 +1,9 @@
-import type { PortDefinition, PortStatus } from "../../types";
+import type {
+  PortDefinition,
+  PortStatus,
+  CatalogBrowsingSnapshot,
+  CatalogBrowsingContext,
+} from "../../types";
 import { observedUpdateCandidate } from "./update-query-context";
 import type { GameFileFilterContext } from "./game-file-query-context";
 
@@ -37,6 +42,8 @@ export interface CatalogQueryContext {
   library?: { id: string; statuses: ReadonlyMap<string, PortStatus> };
   /** A completely covered, currently accepted Core route snapshot, never a readiness approximation. */
   gameFiles?: GameFileFilterContext;
+  /** Ephemeral Core facts accepted atomically with this library's workspace. */
+  browsing?: CatalogBrowsingSnapshot;
 }
 
 export interface CatalogQueryResult {
@@ -45,6 +52,7 @@ export interface CatalogQueryResult {
   query: unknown;
   ports: PortDefinition[];
   counts: Record<Group, Record<string, number | null>>;
+  matchingContexts: ReadonlyMap<string, readonly CatalogBrowsingContext[]>;
 }
 
 const groups = Object.keys(catalogQueryOptions) as Group[];
@@ -141,10 +149,74 @@ function matches(
   }
 }
 
-/** Pure cached-snapshot evaluation. Search/view/readiness narrowing precedes this call.
- * Facts are port-level declarations, selected-library membership or Core installation
- * attention observations. In particular,
- * managed InstallRecord has no platform identity: this is not a route/build matcher.
+type Match = boolean | undefined;
+function any(values: Match[]): Match {
+  return values.includes(true) ? true : values.includes(undefined) ? undefined : false;
+}
+function all(values: Match[]): Match {
+  return values.includes(false) ? false : values.includes(undefined) ? undefined : true;
+}
+
+function contextMatches(
+  port: PortDefinition,
+  fact: CatalogBrowsingContext,
+  group: Group,
+  value: string,
+  context: CatalogQueryContext,
+): Match {
+  switch (group) {
+    case "platforms":
+      return fact.platform === null
+        ? undefined
+        : fact.platform === (value === "this-device" ? context.browsing?.host_platform : value);
+    case "channels":
+      return fact.channel === null ? undefined : fact.channel === value;
+    case "installationMethods":
+      return fact.installation_method === null ? undefined : fact.installation_method === value;
+    case "membership":
+      return value === "not-in-library" ? !fact.port_member : fact.member_context;
+    case "attention":
+    case "updates": {
+      if (!fact.member_context) return false;
+      const status = context.library?.statuses.get(port.id);
+      const instance =
+        fact.route === "managed_launch"
+          ? status?.active
+          : fact.route === "external_launch"
+            ? status?.external_runtime
+            : undefined;
+      if (!instance || instance.id !== fact.installation_id) return undefined;
+      if (group === "attention" && status?.active && fact.route === "external_launch")
+        return undefined;
+      if (group === "updates" && fact.route !== "managed_launch") return false;
+      return matches(port, group, value, context);
+    }
+    case "gameFiles": {
+      const observed = context.gameFiles?.byPort.get(port.id);
+      if (
+        !observed ||
+        !context.browsing ||
+        context.gameFiles?.library.id !== context.browsing.library.id ||
+        context.gameFiles.library.root !== context.browsing.library.root
+      )
+        return undefined;
+      if (observed.route !== fact.route) return false;
+      if (fact.platform === null || fact.channel === null) return undefined;
+      if (observed.platform !== fact.platform || observed.channel !== fact.channel) return false;
+      if (
+        !fact.definition_sha256 ||
+        observed.route_definition_sha256 !== fact.definition_sha256 ||
+        (observed.route_instance_sha256 ?? null) !== fact.instance_sha256
+      )
+        return undefined;
+      return observed.state === value;
+    }
+  }
+}
+
+/** Pure cached-snapshot evaluation. Positive groups share one Core context;
+ * unknown retained facts stay unavailable rather than becoming negative facts.
+ * Public declaration-only queries retain their offline evaluator.
  */
 export function evaluateCatalogQuery(
   ports: readonly PortDefinition[],
@@ -167,6 +239,7 @@ export function evaluateCatalogQuery(
     query,
     ports: [],
     counts,
+    matchingContexts: new Map(),
   });
   if (!supportedQuery(query)) return empty("unresolved");
   if (
@@ -182,16 +255,84 @@ export function evaluateCatalogQuery(
     seen.add(port.id);
     return true;
   });
+  const activeGroups = groups.filter((group) => query[group]?.length);
+  const privateGroups: Group[] = ["membership", "attention", "updates", "gameFiles"];
+  const requiresContexts =
+    activeGroups.length > 1 && activeGroups.some((group) => privateGroups.includes(group));
+  const browsing = context.browsing;
+  const coherent = Boolean(
+    browsing &&
+    browsing.schema_version === 1 &&
+    context.library?.id === browsing.library.root &&
+    /^[a-f0-9]{64}$/.test(browsing.workspace_binding_sha256) &&
+    new Set(browsing.contexts.map((fact) => fact.context_id)).size === browsing.contexts.length &&
+    unique.every((port) => browsing.contexts.some((fact) => fact.port_id === port.id)),
+  );
+  if (requiresContexts && !coherent) return empty("unavailable");
+  if (coherent && browsing) {
+    const byPort = new Map<string, CatalogBrowsingContext[]>();
+    for (const fact of browsing.contexts) {
+      const facts = byPort.get(fact.port_id) ?? [];
+      facts.push(fact);
+      byPort.set(fact.port_id, facts);
+    }
+    const matching = (port: PortDefinition, override?: [Group, string]) => {
+      const selected = groups.filter((group) => query[group]?.length || override?.[0] === group);
+      return (byPort.get(port.id) ?? []).map((fact) => ({
+        fact,
+        match: all(
+          selected.map((group) =>
+            any(
+              (override?.[0] === group ? [override[1]] : (query[group] ?? [])).map((value) =>
+                contextMatches(port, fact, group, value, context),
+              ),
+            ),
+          ),
+        ),
+      }));
+    };
+    for (const group of groups) {
+      for (const value of catalogQueryOptions[group]) {
+        if (!available(group, value, context, gameFilesAvailable)) continue;
+        const outcomes = unique.map((port) =>
+          any(matching(port, [group, value]).map((entry) => entry.match)),
+        );
+        counts[group][value] = outcomes.includes(undefined)
+          ? null
+          : outcomes.filter((match) => match === true).length;
+      }
+    }
+    const outcomes = unique.map((port) => ({ port, matches: matching(port) }));
+    if (outcomes.some((outcome) => any(outcome.matches.map((entry) => entry.match)) === undefined))
+      return empty("unavailable");
+    const matchingContexts = new Map(
+      outcomes.map(({ port, matches }) => [
+        port.id,
+        matches.filter((entry) => entry.match === true).map((entry) => entry.fact),
+      ]),
+    );
+    return {
+      state: "matched",
+      query,
+      counts,
+      ports: unique.filter((port) => matchingContexts.get(port.id)?.length),
+      matchingContexts,
+    };
+  }
   const groupMatches = (port: PortDefinition, group: Group) =>
     !query[group]?.length || query[group].some((value) => matches(port, group, value, context));
   for (const group of groups) {
+    const facetGroups = [...activeGroups.filter((active) => active !== group), group];
+    const facetRequiresContexts =
+      facetGroups.length > 1 && facetGroups.some((active) => privateGroups.includes(active));
     const otherMatches = unique.filter((port) =>
       groups.every((other) => other === group || groupMatches(port, other)),
     );
     for (const value of catalogQueryOptions[group]) {
-      counts[group][value] = available(group, value, context, gameFilesAvailable)
-        ? otherMatches.filter((port) => matches(port, group, value, context)).length
-        : null;
+      counts[group][value] =
+        !facetRequiresContexts && available(group, value, context, gameFilesAvailable)
+          ? otherMatches.filter((port) => matches(port, group, value, context)).length
+          : null;
     }
   }
   return {
@@ -199,5 +340,6 @@ export function evaluateCatalogQuery(
     query,
     counts,
     ports: unique.filter((port) => groups.every((group) => groupMatches(port, group))),
+    matchingContexts: new Map(),
   };
 }

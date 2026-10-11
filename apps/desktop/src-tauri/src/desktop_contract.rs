@@ -22,6 +22,8 @@ pub(crate) struct DesktopWorkspaceSnapshot {
     pub(crate) statuses: Vec<portcove_core::PortStatus>,
     pub(crate) sources: Vec<portcove_core::SourceRecord>,
     pub(crate) activities: portcove_core::ActivityFeed,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) browsing: Option<portcove_core::CatalogBrowsingSnapshot>,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]

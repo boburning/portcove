@@ -965,6 +965,10 @@ pub struct WorkspaceSnapshot {
     pub statuses: Vec<PortStatus>,
     pub sources: Vec<SourceRecord>,
     pub activities: ActivityFeed,
+    /// Additive ephemeral read model. Older hosts may omit it; clients must not
+    /// infer coherent installed contexts from port-level declarations instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browsing: Option<crate::CatalogBrowsingSnapshot>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

@@ -963,6 +963,7 @@ impl PortcoveService {
                 "loaded transactional workspace read model"
             );
             let statuses = self.hydrate_statuses(&catalog, statuses, &sources)?;
+            let browsing = self.browsing_contexts_for_workspace(&catalog, &statuses, &sources)?;
             before_consistency_check(attempt);
             if data_version(&connection)? != observed_at_snapshot {
                 continue;
@@ -972,6 +973,7 @@ impl PortcoveService {
                 statuses,
                 sources,
                 activities,
+                browsing,
             });
         }
         Err(PortcoveError::conflict(
@@ -8743,6 +8745,20 @@ mod tests {
         assert_eq!(snapshot.statuses.len(), snapshot.catalog.ports.len());
         assert!(snapshot.sources.is_empty());
         assert!(snapshot.activities.records.is_empty());
+        let browsing = snapshot.browsing.unwrap();
+        assert_eq!(browsing.host_platform, Platform::current().unwrap());
+        assert_eq!(
+            browsing.library,
+            service.library().identity_record().unwrap()
+        );
+        assert!(browsing.retained_metadata_complete);
+        assert!(!browsing.contexts.is_empty());
+        assert!(
+            browsing
+                .contexts
+                .iter()
+                .all(|context| !context.member_context && !context.port_member)
+        );
     }
 
     #[test]

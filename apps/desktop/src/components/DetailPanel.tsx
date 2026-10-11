@@ -1,4 +1,6 @@
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
+import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails";
+import type { CatalogQueryResult } from "../features/browsing/catalog-query";
 import { SteamEntryControl } from "./SteamEntry";
 import { ExternalRuntimeControl } from "./ExternalRuntime";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
@@ -119,6 +121,8 @@ interface DetailPanelProps {
   libraryGeneration?: number;
   gameFileQueryContext?: string;
   gameFileFilterContext?: GameFileFilterContext;
+  browsingMatch?: CatalogQueryResult;
+  browsingBinding?: string;
   outputLocationChanged?: () => void;
   externalRuntimeChanged?: () => void;
   openSourceEvidence?: (evidenceId: string) => void;
@@ -272,7 +276,15 @@ export function DetailPanel(props: DetailPanelProps) {
         state={state}
         missingSourceLabels={!installed ? missingSourceLabels : []}
       />
-      <GameFileFilterObservation portId={port.id} context={props.gameFileFilterContext} />
+      {!props.browsingMatch && (
+        <GameFileFilterObservation portId={port.id} context={props.gameFileFilterContext} />
+      )}
+      <BrowsingMatchDetails
+        portId={port.id}
+        result={props.browsingMatch}
+        binding={props.browsingBinding}
+        gameFiles={props.gameFileFilterContext}
+      />
       {props.libraryGeneration !== undefined && selectedChannel && (
         <GameFileQueryControl
           port={port}

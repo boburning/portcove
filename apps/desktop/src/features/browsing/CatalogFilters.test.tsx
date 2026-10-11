@@ -6,6 +6,7 @@ import { CatalogFilters } from "./CatalogFilters";
 import type { CatalogQuery, CatalogQueryContext } from "./catalog-query";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import { filterPorts, type Filter } from "../../view-model";
+import type { CatalogBrowsingContext, CatalogBrowsingSnapshot, PortStatus } from "../../types";
 
 const ports = [
   {
@@ -36,6 +37,59 @@ let current: Filter | CatalogQuery;
 let setQuery: (value: string) => void;
 let setFavoritesOnly: (value: boolean) => void;
 let setContext: (value: CatalogQueryContext | undefined) => void;
+function retainedContext(statuses: ReadonlyMap<string, PortStatus>): CatalogQueryContext {
+  let identity = 0;
+  const contexts: CatalogBrowsingContext[] = [];
+  for (const port of ports) {
+    const status = statuses.get(port.id);
+    const member = Boolean(status?.active || status?.external_runtime);
+    const fact = {
+      port_id: port.id,
+      port_member: member,
+      definition_sha256: "a".repeat(64),
+      instance_sha256: null,
+      installation_id: null,
+      installation_method: "portable-package" as const,
+      release_version: null,
+      artifact_sha256: null,
+    };
+    for (const platform of port.platforms)
+      for (const channel of port.channels)
+        contexts.push({
+          ...fact,
+          context_id: (++identity).toString(16).padStart(64, "0"),
+          route: "managed_install",
+          platform,
+          channel,
+          member_context: false,
+        });
+    const instance = status?.active ?? status?.external_runtime;
+    if (instance)
+      contexts.push({
+        ...fact,
+        context_id: (++identity).toString(16).padStart(64, "0"),
+        route: status?.active ? "managed_launch" : "external_launch",
+        platform: status?.external_runtime?.platform ?? "windows-x86-64",
+        channel: status?.active?.channel ?? "stable",
+        member_context: true,
+        installation_id: instance.id,
+        instance_sha256: "b".repeat(64),
+      });
+  }
+  const browsing: CatalogBrowsingSnapshot = {
+    schema_version: 1,
+    contexts,
+    library: { id: "opaque", root: "selected" },
+    host_platform: "windows-x86-64",
+    retained_metadata_complete: true,
+    workspace_binding_sha256: "c".repeat(64),
+  };
+  return {
+    library: { id: "selected", statuses },
+    browsing,
+    devicePlatform: browsing.host_platform,
+  };
+}
 function Fixture({ initial = "all" }: { initial?: Filter | CatalogQuery }) {
   const [filter, setFilter] = useState(initial);
   const [context, contextSetter] = useState<CatalogQueryContext>();
@@ -144,7 +198,7 @@ it("preserves established extra predicates visibly on edit and clears only query
     port.presentation = { installation_method: method } as NonNullable<typeof port.presentation>;
   await render({ version: 1, installationMethods: [method] });
   await click("Filters (1)");
-  expect(document.body.textContent).toContain("Additional restored filters remain active");
+  expect(button("Portable upstream package (3)").getAttribute("aria-pressed")).toBe("true");
   await click("Windows (2)");
   expect((current as CatalogQuery).installationMethods).toEqual([method]);
   await act(async () => {
@@ -169,7 +223,9 @@ it("keeps selections editable when candidate facts are unavailable instead of cl
   await click("Filters (1)");
   expect(button("Linux (unavailable)").disabled).toBe(false);
   expect(button("Linux (unavailable)").getAttribute("aria-pressed")).toBe("true");
-  expect(document.body.textContent).toContain("not a ready Linux installation");
+  expect(document.body.textContent).toContain(
+    "Missing retained platform or setup facts remain unavailable",
+  );
   expect(button("Remove Linux filter")).toBeDefined();
 });
 
@@ -217,6 +273,7 @@ const membershipContext: CatalogQueryContext = {
     ]),
   },
 };
+membershipContext.browsing = retainedContext(membershipContext.library!.statuses).browsing;
 it("composes managed/external membership with declarations and keeps zero options removable", async () => {
   await render();
   await act(async () => setContext(membershipContext));
@@ -269,9 +326,10 @@ it("composes observed installation attention and keeps zero/unavailable reasons 
   });
   statuses.set("both", {
     ...statuses.get("both")!,
+    active: { ...install("both"), channel: "beta" },
     readiness: { launchable: true, pending_setup: true, blockers: [] },
   });
-  const context = { library: { id: "selected", statuses } };
+  const context = retainedContext(statuses);
   await render();
   await act(async () => setContext(context));
   await click("Filters (0)");
@@ -291,7 +349,7 @@ it("composes observed installation attention and keeps zero/unavailable reasons 
   expect(current).toMatchObject({ attention: [], channels: ["beta"] });
   expect(button("Preview (2)").disabled).toBe(false);
   await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
-  expect(button("Repair needed (0)").disabled).toBe(false);
+  expect(button("Repair needed (unavailable)").disabled).toBe(true);
 });
 it("keeps unknown restored attention unresolved until reset", async () => {
   await render({ version: 1, attention: ["future-reason"] });
@@ -344,7 +402,21 @@ it("composes observed update choices and removes retained zero/unavailable selec
       },
     });
   }
-  const context = { library: { id: "selected", statuses } };
+  const preview = statuses.get("both")!;
+  statuses.set("both", {
+    ...preview,
+    channel: "beta",
+    active: { ...preview.active!, channel: "beta" },
+    last_update_check: {
+      ...preview.last_update_check!,
+      check: {
+        ...preview.last_update_check!.check,
+        channel: "beta",
+        release: { ...preview.last_update_check!.check.release!, channel: "beta" },
+      },
+    },
+  });
+  const context = retainedContext(statuses);
   await render();
   await act(async () => setContext(context));
   await click("Filters (0)");
@@ -362,7 +434,7 @@ it("composes observed update choices and removes retained zero/unavailable selec
   await click("Remove Matching update staged filter");
   expect(current).toMatchObject({ updates: [], channels: ["beta"] });
   await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
-  expect(button("Available at last check (0)").disabled).toBe(false);
+  expect(button("Available at last check (unavailable)").disabled).toBe(true);
 });
 it("retains unsupported restored update values until reset", async () => {
   await render({ version: 1, updates: ["future-candidate"] });

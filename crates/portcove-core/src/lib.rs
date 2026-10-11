@@ -10,6 +10,7 @@ mod artwork_store;
 mod artwork_tests;
 mod auth;
 mod authorization;
+mod browsing_context;
 mod cancellation;
 mod catalog;
 mod catalog_store;
@@ -99,6 +100,7 @@ pub use auth::{
     GithubDeviceLoginState, GithubRateLimit,
 };
 pub use authorization::DestructiveAuthorization;
+pub use browsing_context::{CatalogBrowsingContext, CatalogBrowsingSnapshot};
 pub use cancellation::{CancellationPhase, CancellationState};
 pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
 pub use catalog_store::CatalogStatus;

@@ -1,15 +1,26 @@
-# Catalog and Library declared filters
+# Catalog and Library filters
 
-`CatalogFilters` presents explicit declared platforms, release channels, selected
-Library membership, observed installation attention and update candidates using `evaluateCatalogQuery`. Alternatives within a group are
-OR; groups are AND. It makes no device, route, setup-method, eligibility or
-qualification inference. Machine `beta` is displayed as Preview.
+`CatalogFilters` presents platforms, Core's host platform, release channels, all
+eight setup methods, selected Library membership, observed installation attention
+and update candidates using `evaluateCatalogQuery`. Alternatives within a group
+are OR; groups are AND against one Core browsing context. Machine `beta` is
+displayed as Preview. Browsing never grants action permission or qualification.
 
-App supplies one accepted generation-bound workspace status snapshot and canonical
-selected library identity consistently to result filtering and option counts.
+App supplies one accepted generation-bound workspace snapshot and canonical
+selected library identity consistently to result filtering, option counts and
+detail inspection. Core owns its ephemeral browsing projection, including host,
+route/platform/channel/setup method, retained instance and definition digests.
+Retained manifest/SQLite reads occur during snapshot refresh, under a shared
+32 MiB allowance and cooperative 250 ms stop between reads. Individual I/O and
+parsing have no hard 250 ms deadline. Construction preflights repeated fields,
+caps contexts at 8192 and serialized output at 4 MiB, and streams input hashes.
+Missing or bounded-out projection cannot prove a coherent local combination.
 In my library means an active managed installation or registered external runtime;
 previous or staged-only records do not establish membership. Membership does not
-assert readiness or installed-platform compatibility. Missing library context is
+assert readiness or tested installed-platform compatibility. Installed platform
+comes from retained metadata; legacy absence stays unknown. A declared Linux
+setup cannot satisfy Linux plus In my library for a Windows installation. An
+occupied setup remains a declaration, not an absent-library context. Missing library context is
 unavailable, never Not in my library; a confirmed empty snapshot is distinct.
 Restored membership selections remain visible/removable while context is absent.
 Library keeps its existing view narrowing: Not in my library can legitimately
@@ -19,15 +30,20 @@ App supplies cached candidates after search and the current view's membership,
 before editable groups. Library additionally narrows results using the existing
 `filterPorts` All/Ready/Needs attention semantics, independent of the declared
 query. Ready includes staged installations; Needs attention retains unknown,
-repair, source, BIOS, runtime and blocked readiness. Ready plus Linux means
-current Library readiness and a declared Linux target, not a ready Linux
-installation. Core remains the installation/readiness authority.
+repair, source, BIOS, runtime and blocked readiness. Readiness remains an
+independent observed status narrowing, not platform qualification. Core remains
+the installation/readiness authority.
 
 PortBrowser applies the session Favorites predicate before option counts.
-Platform/channel/membership counts exclude their own choices and retain readiness plus
+Platform/channel/membership/setup counts exclude their own choices and retain readiness plus
 all other groups. Readiness counts retain the declared query and exclude the
 readiness selection. Counts are distinct ports, may overlap and need not sum.
-Selected zero-count options remain removable. Missing candidate snapshots or
+Each positive combination shares one context. Unknown retained fields produce
+unavailable results/counts when they could change the answer; they never become
+false zeros. Matching context identities accompany results into detail inspection.
+Detail choices expire on workspace binding change and never select a different
+build silently. Game-file observations join only the exact route, platform,
+channel, definition and installed-instance digests. Selected zero-count options remain removable. Missing candidate snapshots or
 active Favorites without confirmed choices show unavailable, not numeric zero.
 Accepted cached snapshots remain usable during refresh failure under the
 existing refresh notice. App remounts the workspace by library generation and
@@ -45,7 +61,7 @@ constrains Library results until explicit correction. Unsupported or unavailable
 queries stay held for explicit reset, including malformed values. Established
 extra predicates are preserved on edits and visibly called out for reset.
 Future/unreadable preference records retain their bytes and the existing explicit
-retry/reset guards; no second store, Core or generated contract is introduced.
+retry/reset guards; no second preference store or durable authority is introduced.
 
 Reset Library filters resets only the declared query. All resets only readiness.
 Clear search and filters clears search, query, readiness and session Favorites.
@@ -55,10 +71,9 @@ The shared dialog/button controls provide keyboard dismissal and trigger focus
 return; removing a focused chip returns focus to Filters. Repeated selections use
 functional updates. Closing a panel keeps its already-applied selections.
 
-Contextual device selection, setup-method controls and coherent
-route/build/installation/source-set matching remain with #1550. These delivered
-frontend composition components do not complete that owner or establish native,
-physical-controller, human or game execution qualification.
+The contextual projection and its consumers are owned by #1550. Source and
+selected fixture evidence do not by themselves complete that owner or establish
+native, physical-controller, human or game execution qualification.
 
 ## Observed installation attention
 

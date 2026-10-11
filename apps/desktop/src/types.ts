@@ -53,6 +53,8 @@ export type HostToolProbeResult = Generated.TransportOutputs["host_tool_probe_re
 export type DoctorReport = Generated.TransportOutputs["doctor"];
 
 export type WorkspaceSnapshot = Generated.TransportOutputs["desktop_workspace_snapshot"];
+export type CatalogBrowsingSnapshot = NonNullable<WorkspaceSnapshot["browsing"]>;
+export type CatalogBrowsingContext = CatalogBrowsingSnapshot["contexts"][number];
 
 export type LocalePreferenceSnapshot = Generated.TransportOutputs["desktop_locale_preference"];
 

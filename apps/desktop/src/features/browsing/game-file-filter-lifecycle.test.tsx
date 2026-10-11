@@ -55,13 +55,29 @@ const response = (request: GameFileQueryRefreshRequest): GameFileQuerySnapshot =
 let host: HTMLDivElement;
 let root: Root;
 let state: ReturnType<typeof useGameFileFilterContext>;
-function Fixture({ generation = 1 }: { generation?: number }) {
+function Fixture({
+  generation = 1,
+  browsingBinding,
+}: {
+  generation?: number;
+  browsingBinding?: string;
+}) {
   state = useGameFileFilterContext({
     catalog,
     sources: [],
     statuses: [],
     generation,
     libraryKey: "scope",
+    browsing: browsingBinding
+      ? {
+          schema_version: 1,
+          library,
+          host_platform: "windows-x86-64",
+          retained_metadata_complete: false,
+          contexts: [],
+          workspace_binding_sha256: browsingBinding,
+        }
+      : undefined,
   });
   const [filter, setFilter] = useState<CatalogQuery>({ version: 1 });
   const context = { library: { id: "scope", statuses: new Map() }, gameFiles: state.context };
@@ -147,6 +163,14 @@ it("keeps retained choices unavailable after expiry without another check", asyn
   await act(async () => vi.advanceTimersByTime(300001));
   expect(state.context).toBeUndefined();
   expect(state.expired).toBe(true);
+  expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
+});
+it("invalidates an accepted observation when only retained browsing metadata changes without another check", async () => {
+  await act(async () => root.render(<Fixture browsingBinding={"a".repeat(64)} />));
+  await act(async () => state.refresh());
+  expect(state.context).toBeDefined();
+  await act(async () => root.render(<Fixture browsingBinding={"b".repeat(64)} />));
+  expect(state.context).toBeUndefined();
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
 });
 it("rejects expired context on a filter render before queued timer callbacks, including a later clock return", async () => {

@@ -201,7 +201,7 @@ describe("declared catalog query", () => {
         ),
       ),
     ).toEqual([]);
-    // This combines declarations and membership; it makes no Linux-managed claim.
+    // Legacy port-level declarations cannot prove a coherent installed context.
     expect(
       ids(
         evaluateCatalogQuery(
@@ -210,7 +210,7 @@ describe("declared catalog query", () => {
           { library: { id: "selected", statuses: new Map([["multi", managed("multi")]]) } },
         ),
       ),
-    ).toEqual(["multi"]);
+    ).toEqual([]);
   });
 
   it("counts each port once after other groups and before its own selection", () => {
@@ -292,10 +292,10 @@ describe("Core installation attention", () => {
       channels: ["rolling"],
     };
     const result = evaluateCatalogQuery([...ports, ports[1]], query, context);
-    expect(ids(result)).toEqual(["linux"]);
-    expect(result.counts.attention["missing-source"]).toBe(0);
-    expect(result.counts.attention["finish-setup"]).toBe(1);
-    expect(result.counts.channels.stable).toBe(1);
+    expect(result.state).toBe("unavailable");
+    expect(result.counts.attention["missing-source"]).toBeNull();
+    expect(result.counts.attention["finish-setup"]).toBeNull();
+    expect(result.counts.channels.stable).toBeNull();
     // Core pending_setup is independent of launchable.
     expect(context.library?.statuses.get("linux")?.readiness?.launchable).toBe(true);
     expect(
@@ -430,10 +430,10 @@ describe("identity-bound observed update queries", () => {
         { version: 1, updates: ["available", "staged"], channels: ["rolling"] },
         facts,
       );
-      expect(ids(result)).toEqual(["linux"]);
-      expect(result.counts.updates.available).toBe(0);
-      expect(result.counts.updates.staged).toBe(1);
-      expect(result.counts.channels.stable).toBe(1);
+      expect(result.state).toBe("unavailable");
+      expect(result.counts.updates.available).toBeNull();
+      expect(result.counts.updates.staged).toBeNull();
+      expect(result.counts.channels.stable).toBeNull();
       expect(staged.readiness?.launchable).toBe(true);
     },
   );
