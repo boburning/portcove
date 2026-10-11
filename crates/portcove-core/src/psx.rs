@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeSet,
     fs,
     path::{Path, PathBuf},
 };
@@ -552,22 +551,12 @@ fn prepare_install_inner(
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     let config_path = crate::path::unicode(&config, "managed build config")?;
     let project_root = crate::path::unicode(root, "managed build root")?;
-    let mut generate_arguments = vec![
-        "generate".into(),
-        "--config".into(),
-        config_path.clone(),
-        "--project-root".into(),
-        project_root.clone(),
-        "--disc".into(),
-        crate::path::unicode(&cue, "managed disc")?,
-    ];
-    if let Some(bios) = &preparation.bios {
-        generate_arguments.extend([
-            "--bios".into(),
-            crate::path::unicode(&bios.path, "BIOS source")?,
-        ]);
-    }
-    generate_arguments.push("--json-progress".into());
+    let generate_arguments = generation_arguments(
+        &config,
+        root,
+        &cue,
+        preparation.bios.as_ref().map(|bios| bios.path.as_path()),
+    )?;
     run_cli(
         &python,
         &cli,
@@ -1226,6 +1215,29 @@ fn builder_supervision_error(error: PortcoveError) -> PortcoveError {
     }
 }
 
+fn generation_arguments(
+    config: &Path,
+    root: &Path,
+    disc: &Path,
+    bios: Option<&Path>,
+) -> Result<Vec<String>> {
+    let mut arguments = vec![
+        "generate".into(),
+        "--config".into(),
+        crate::path::unicode(config, "managed build config")?,
+        "--project-root".into(),
+        crate::path::unicode(root, "managed build root")?,
+        "--disc".into(),
+        crate::path::unicode(disc, "managed disc")?,
+        "--json-progress".into(),
+        "--no-toolchain-download".into(),
+    ];
+    if let Some(bios) = bios {
+        arguments.extend(["--bios".into(), crate::path::unicode(bios, "BIOS source")?]);
+    }
+    Ok(arguments)
+}
+
 fn run_cli(
     python: &Path,
     cli: &Path,
@@ -1235,6 +1247,42 @@ fn run_cli(
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
+    operation.checkpoint()?;
+    let platform = Platform::current()?;
+    if !validate_toolchain_with_checkpoint(
+        toolchain_root,
+        platform,
+        toolchain_artifact(platform)?,
+        || operation.checkpoint(),
+    )? || toolchain_python(toolchain_root)? != python
+    {
+        return Err(PortcoveError::verification(
+            "managed PS1 builder requires its unchanged pinned toolchain",
+        ));
+    }
+    let environment_root = project_root.join(".portcove-builder-environment");
+    crate::path::refuse_symlink_ancestors(&environment_root)?;
+    for directory in [
+        "home",
+        "cache",
+        "data",
+        "config",
+        "temp",
+        "appdata",
+        "localappdata",
+    ] {
+        let path = environment_root.join(directory);
+        crate::path::refuse_symlink_ancestors(&path)?;
+        fs::create_dir_all(path)?;
+    }
+    let path = std::env::join_paths([
+        toolchain_root.join("bin"),
+        python
+            .parent()
+            .expect("bundled Python has a parent")
+            .to_path_buf(),
+    ])
+    .map_err(|_| PortcoveError::verification("pinned PS1 toolchain PATH is invalid"))?;
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?;
     command
@@ -1242,7 +1290,27 @@ fn run_cli(
         .args(arguments)
         .current_dir(project_root)
         .env("RETCOMM_TOOLCHAIN_DIR", toolchain_root)
-        .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root);
+        .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root)
+        .env_remove("LD_LIBRARY_PATH")
+        .env_remove("DYLD_LIBRARY_PATH")
+        .env_remove("HOMEDRIVE")
+        .env_remove("HOMEPATH")
+        .env("PATH", path)
+        .env("HOME", environment_root.join("home"))
+        .env("USERPROFILE", environment_root.join("home"))
+        .env("APPDATA", environment_root.join("appdata"))
+        .env("LOCALAPPDATA", environment_root.join("localappdata"))
+        .env("XDG_CACHE_HOME", environment_root.join("cache"))
+        .env("XDG_DATA_HOME", environment_root.join("data"))
+        .env("XDG_CONFIG_HOME", environment_root.join("config"))
+        .env(
+            "RETCOMM_TOOLCHAIN_CACHE",
+            environment_root.join("cache/retcomm"),
+        )
+        .env("RETCOMM_DATA_HOME", environment_root.join("data/retcomm"))
+        .env("TEMP", environment_root.join("temp"))
+        .env("TMP", environment_root.join("temp"))
+        .env("TMPDIR", environment_root.join("temp"));
     let previous_quiescence = *quiesced;
     *quiesced = false;
     let mut command_quiesced = false;
@@ -1323,11 +1391,25 @@ fn validate_toolchain(
     platform: Platform,
     artifact: ToolchainArtifact,
 ) -> Result<bool> {
+    validate_toolchain_with_checkpoint(root, platform, artifact, || Ok(()))
+}
+
+fn validate_toolchain_with_checkpoint(
+    root: &Path,
+    platform: Platform,
+    artifact: ToolchainArtifact,
+    mut checkpoint: impl FnMut() -> Result<()>,
+) -> Result<bool> {
+    checkpoint()?;
+    crate::path::refuse_symlink_ancestors(root)?;
     let marker_path = root.join(".portcove-toolchain.json");
+    crate::path::refuse_symlink_ancestors(&marker_path)?;
     if !marker_path.is_file() {
         return Ok(false);
     }
-    let marker: ToolchainMarker = serde_json::from_slice(&fs::read(marker_path)?)?;
+    // Four critical identities fit comfortably within this metadata-only limit.
+    let marker: ToolchainMarker =
+        serde_json::from_slice(&crate::path::read_bounded_regular(&marker_path, 64 * 1024)?)?;
     if marker.schema_version != 2
         || marker.version != TOOLCHAIN_VERSION
         || marker.platform != platform
@@ -1336,22 +1418,52 @@ fn validate_toolchain(
     {
         return Ok(false);
     }
-    let Ok(expected) = toolchain_file_identities(root, platform) else {
+    let Ok(python) = toolchain_python(root) else {
         return Ok(false);
     };
-    if marker.critical_files.len() != expected.len() {
+    let paths = [
+        python,
+        platform_executable(&root.join("bin"), "cmake"),
+        platform_executable(&root.join("bin"), "ninja"),
+        root.join("retcomm-toolchain.json"),
+    ];
+    if marker.critical_files.len() != paths.len() {
         return Ok(false);
     }
-    let recorded = marker
-        .critical_files
-        .into_iter()
-        .map(|file| (file.path, file.size, file.sha256))
-        .collect::<BTreeSet<_>>();
-    let actual = expected
-        .into_iter()
-        .map(|file| (file.path, file.size, file.sha256))
-        .collect::<BTreeSet<_>>();
-    Ok(recorded == actual)
+    for path in paths {
+        checkpoint()?;
+        crate::path::refuse_symlink_ancestors(&path)?;
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| PortcoveError::verification("toolchain file escaped its root"))?
+            .to_string_lossy()
+            .replace('\\', "/");
+        let mut matches = marker
+            .critical_files
+            .iter()
+            .filter(|file| file.path == relative);
+        let Some(recorded) = matches.next() else {
+            return Ok(false);
+        };
+        if matches.next().is_some() {
+            return Ok(false);
+        }
+        let Ok(metadata) = fs::symlink_metadata(&path) else {
+            return Ok(false);
+        };
+        if !metadata.is_file() || metadata.len() != recorded.size {
+            return Ok(false);
+        }
+        let (sha256, size) = crate::adapter::hash_file_bounded_with_checkpoint(
+            &path,
+            recorded.size,
+            &mut checkpoint,
+        )?;
+        if size != recorded.size || sha256 != recorded.sha256 {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 fn toolchain_file_identities(
@@ -1556,8 +1668,6 @@ mod tests {
         thread,
         time::{Duration, Instant},
     };
-
-    const BUILDER_FIXTURE: &str = "psx::tests::managed_builder_fixture_child";
 
     fn bios_fixture(path: &Path) -> SourceRecord {
         fs::write(path, b"inert owned BIOS fixture").unwrap();
@@ -1987,54 +2097,26 @@ mod tests {
         }
     }
 
-    // Execute this repository's native test binary through the production
+    // Execute this repository's small native probe through the production
     // builder boundary. No upstream Python, compiler, game or source is run.
     fn run_builder_fixture(root: &Path, operation: &OperationCoordinator) -> Result<()> {
+        let toolchain = root.join("owned-toolchain");
+        let python = if toolchain.join(".portcove-toolchain.json").is_file() {
+            toolchain_python(&toolchain).unwrap()
+        } else {
+            let native = tempfile::tempdir().unwrap();
+            let program = crate::test_fixture::build_probe(native.path());
+            toolchain_fixture(&toolchain, Some(&program))
+        };
         run_cli(
-            &std::env::current_exe().unwrap(),
-            Path::new("--exact"),
+            &python,
+            Path::new("--owned-builder-fixture"),
             root,
-            &root.join("owned-toolchain"),
-            [BUILDER_FIXTURE.into(), "--nocapture".into()],
+            &toolchain,
+            [],
             operation,
             &mut true,
         )
-    }
-
-    #[test]
-    fn managed_builder_fixture_child() {
-        let Ok(mode) = fs::read_to_string("owned-builder-mode") else {
-            return;
-        };
-        fs::write("owned-builder-ready", std::process::id().to_string()).unwrap();
-        match mode.as_str() {
-            "generation" | "rebuild" => {
-                // This finite fallback bounds a failing-before run and ensures
-                // an assertion cannot leave a permanent owned fixture process.
-                thread::sleep(Duration::from_secs(3));
-                fs::write("owned-builder-completed", b"unexpected completion").unwrap();
-            }
-            "success" => println!("owned builder success"),
-            "failure" => {
-                eprintln!("owned builder failure detail");
-                std::process::exit(23);
-            }
-            "flood-failure" | "same-stream-flood" | "clip-failure" => {
-                use std::io::Write;
-                let block = [b'x'; 8192];
-                let blocks = if mode == "clip-failure" { 10 } else { 320 };
-                for _ in 0..blocks {
-                    std::io::stdout().write_all(&block).unwrap();
-                }
-                if mode == "same-stream-flood" {
-                    println!("owned late stdout failure omitted by bounded capture");
-                } else {
-                    eprintln!("owned stderr after verbose stdout");
-                }
-                std::process::exit(23);
-            }
-            _ => panic!("unknown owned builder mode"),
-        }
     }
 
     fn assert_builder_cancellation(phase: &str) {
@@ -2042,6 +2124,9 @@ mod tests {
         let root = temporary.path().join("owned-build");
         fs::create_dir(&root).unwrap();
         fs::write(root.join("owned-builder-mode"), phase).unwrap();
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        toolchain_fixture(&root.join("owned-toolchain"), Some(&program));
         let player_source = temporary.path().join("player-source");
         fs::write(&player_source, b"unchanged external source").unwrap();
         let service =
@@ -2132,7 +2217,7 @@ mod tests {
                 Path::new("--exact"),
                 temporary.path(),
                 temporary.path(),
-                [BUILDER_FIXTURE.into(), "--nocapture".into()],
+                [],
                 &operation,
                 &mut quiesced,
             );
@@ -2194,7 +2279,7 @@ mod tests {
             &OperationCoordinator::new("owned-builder", None),
             &mut true,
         );
-        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Install);
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
         assert_eq!(
             fs::read(workspace.join("owned-input")).unwrap(),
             b"retain across error"
@@ -2372,9 +2457,10 @@ mod tests {
         let program = crate::test_fixture::build_probe(native.path());
         let root = tempfile::tempdir().unwrap();
         let marker = root.path().join("owned-descendant-output");
+        let python = toolchain_fixture(root.path(), Some(&program));
         let mut quiesced = true;
         run_cli(
-            &program,
+            &python,
             Path::new("--setup-tree"),
             root.path(),
             root.path(),
@@ -2398,8 +2484,9 @@ mod tests {
         let marker = workspace.join("owned-escaped-output");
         let ready = workspace.join("owned-escaped-ready");
         let mut quiesced = true;
+        let python = toolchain_fixture(&workspace, Some(&program));
         run_cli(
-            &program,
+            &python,
             Path::new("--setup-tree-escape"),
             &workspace,
             &workspace,
@@ -2414,10 +2501,7 @@ mod tests {
         assert!(marker.is_file());
     }
 
-    #[test]
-    fn toolchain_marker_is_bound_to_current_critical_file_bytes() {
-        let temporary = tempfile::tempdir().unwrap();
-        let root = temporary.path();
+    fn toolchain_fixture(root: &Path, program: Option<&Path>) -> PathBuf {
         let platform = Platform::current().unwrap();
         let artifact = toolchain_artifact(platform).unwrap();
         let python = if cfg!(windows) {
@@ -2436,6 +2520,11 @@ mod tests {
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, bytes).unwrap();
         }
+        if let Some(program) = program {
+            for path in [&python, &cmake, &ninja] {
+                fs::copy(program, path).unwrap();
+            }
+        }
         let marker = ToolchainMarker {
             schema_version: 2,
             version: TOOLCHAIN_VERSION.into(),
@@ -2449,11 +2538,182 @@ mod tests {
             serde_json::to_vec_pretty(&marker).unwrap(),
         )
         .unwrap();
+        python
+    }
+
+    #[test]
+    fn toolchain_marker_is_bound_to_current_critical_file_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        toolchain_fixture(root, None);
+        let platform = Platform::current().unwrap();
+        let artifact = toolchain_artifact(platform).unwrap();
         assert!(validate_toolchain(root, platform, artifact).unwrap());
 
-        fs::write(&cmake, b"tampered cmake").unwrap();
+        fs::write(
+            platform_executable(&root.join("bin"), "cmake"),
+            b"tampered cmake",
+        )
+        .unwrap();
 
         assert!(!validate_toolchain(root, platform, artifact).unwrap());
+    }
+
+    #[test]
+    fn managed_builder_preflight_bounds_growth_and_preserves_hash_cancellation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let python = toolchain_fixture(root, None);
+        let platform = Platform::current().unwrap();
+        let artifact = toolchain_artifact(platform).unwrap();
+        // Grow a declared file after the marker: refusal must precede hashing/spawn.
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&python)
+            .unwrap()
+            .set_len(16 * 1024 * 1024)
+            .unwrap();
+        let mut checkpoints = 0;
+        assert!(
+            !validate_toolchain_with_checkpoint(root, platform, artifact, || {
+                checkpoints += 1;
+                Ok(())
+            })
+            .unwrap()
+        );
+        assert!(checkpoints <= 4);
+        assert!(!root.join(".portcove-builder-environment").exists());
+        toolchain_fixture(root, None);
+        let service =
+            crate::PortcoveService::new(Library::open(root.join("cancellation-library")).unwrap())
+                .unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Library,
+                None,
+            )
+            .unwrap();
+        let mut checkpoints = 0;
+        let error = validate_toolchain_with_checkpoint(root, platform, artifact, || {
+            checkpoints += 1;
+            if checkpoints == 3 {
+                service.request_cancellation(&activity.id).unwrap();
+                // Let the existing 50ms cancellation polling interval expire.
+                thread::sleep(Duration::from_millis(60));
+            }
+            operation.checkpoint()
+        })
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert!(!root.join(".portcove-builder-environment").exists());
+        fs::write(
+            root.join(".portcove-toolchain.json"),
+            vec![b' '; 64 * 1024 + 1],
+        )
+        .unwrap();
+        assert_eq!(
+            validate_toolchain(root, platform, artifact)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Verification
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_builder_preflight_refuses_aliased_tools_without_touching_foreign_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let foreign = temporary.path().join("foreign");
+        toolchain_fixture(&foreign, None);
+        let alias = temporary.path().join("alias");
+        std::os::unix::fs::symlink(&foreign, &alias).unwrap();
+        let platform = Platform::current().unwrap();
+        let artifact = toolchain_artifact(platform).unwrap();
+        assert!(validate_toolchain(&alias, platform, artifact).is_err());
+        let owned = temporary.path().join("owned");
+        toolchain_fixture(&owned, None);
+        let owned_cmake = platform_executable(&owned.join("bin"), "cmake");
+        let foreign_cmake = platform_executable(&foreign.join("bin"), "cmake");
+        fs::remove_file(&owned_cmake).unwrap();
+        std::os::unix::fs::symlink(&foreign_cmake, &owned_cmake).unwrap();
+        assert!(validate_toolchain(&owned, platform, artifact).is_err());
+        assert_eq!(fs::read(foreign_cmake).unwrap(), b"cmake");
+        assert!(!foreign.join(".portcove-builder-environment").exists());
+    }
+
+    #[test]
+    fn managed_builder_refuses_missing_or_changed_tools_before_spawn() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        for changed in [false, true] {
+            let root = tempfile::tempdir().unwrap();
+            let python = toolchain_fixture(root.path(), Some(&program));
+            let cmake = platform_executable(&root.path().join("bin"), "cmake");
+            if changed {
+                fs::write(&cmake, b"changed declared tool").unwrap();
+            } else {
+                fs::remove_file(&cmake).unwrap();
+            }
+            let marker = root.path().join("must-not-spawn");
+            let mut quiesced = true;
+            let error = run_cli(
+                &python,
+                Path::new("--grandchild"),
+                root.path(),
+                root.path(),
+                [marker.display().to_string()],
+                &OperationCoordinator::new("owned-builder-refusal", None),
+                &mut quiesced,
+            )
+            .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Verification);
+            assert!(quiesced);
+            assert!(!marker.exists());
+            assert!(!root.path().join(".portcove-builder-environment").exists());
+        }
+    }
+
+    #[test]
+    fn managed_generation_uses_only_pinned_tools_and_private_profile_paths() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let root = tempfile::tempdir().unwrap();
+        let python = toolchain_fixture(root.path(), Some(&program));
+        let arguments = generation_arguments(
+            &root.path().join("game.toml"),
+            root.path(),
+            &root.path().join("disc.cue"),
+            None,
+        )
+        .unwrap();
+        let mut quiesced = true;
+        run_cli(
+            &python,
+            Path::new("--psx-builder-contract"),
+            root.path(),
+            root.path(),
+            arguments,
+            &OperationCoordinator::new("owned-generation", None),
+            &mut quiesced,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(
+                root.path()
+                    .join(".portcove-builder-environment/home/builder-probe")
+            )
+            .unwrap(),
+            b"private fixture write"
+        );
+        assert_eq!(
+            fs::read(
+                root.path()
+                    .join(".portcove-builder-environment/temp/builder-probe")
+            )
+            .unwrap(),
+            b"private fixture write"
+        );
     }
 
     #[test]

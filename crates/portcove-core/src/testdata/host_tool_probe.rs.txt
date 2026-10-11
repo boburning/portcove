@@ -8,6 +8,55 @@ fn main() {
         Some("extractdvd") => owned_conversion(&args),
         Some("extractcd") => owned_psx_conversion(&args),
         Some("--owned-preparation") => owned_preparation(&args),
+        Some("--owned-builder-fixture") => {
+            let mode = fs::read_to_string("owned-builder-mode").unwrap();
+            fs::write("owned-builder-ready", std::process::id().to_string()).unwrap();
+            match mode.as_str() {
+                "generation" | "rebuild" => {
+                    thread::sleep(Duration::from_secs(3));
+                    fs::write("owned-builder-completed", b"unexpected completion").unwrap();
+                }
+                "success" => println!("owned builder success"),
+                "failure" => {
+                    eprintln!("owned builder failure detail");
+                    std::process::exit(23);
+                }
+                "flood-failure" | "same-stream-flood" | "clip-failure" => {
+                    let block = [b'x'; 8192];
+                    let blocks = if mode == "clip-failure" { 10 } else { 320 };
+                    for _ in 0..blocks { io::stdout().write_all(&block).unwrap(); }
+                    if mode == "same-stream-flood" {
+                        println!("owned late stdout failure omitted by bounded capture");
+                    } else { eprintln!("owned stderr after verbose stdout"); }
+                    std::process::exit(23);
+                }
+                _ => panic!("unknown owned builder mode"),
+            }
+        }
+        Some("--psx-builder-contract") => {
+            // Independent SDK refusal rule: generation must never enable acquisition.
+            assert!(args.iter().any(|argument| argument == "--no-toolchain-download"));
+            let root = env::current_dir().unwrap();
+            let private = root.join(".portcove-builder-environment");
+            let python = env::current_exe().unwrap();
+            assert_eq!(env::split_paths(&env::var_os("PATH").unwrap()).collect::<Vec<_>>(),
+                vec![root.join("bin"), python.parent().unwrap().to_path_buf()]);
+            for name in ["HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "XDG_CACHE_HOME",
+                         "XDG_DATA_HOME", "XDG_CONFIG_HOME", "RETCOMM_TOOLCHAIN_CACHE",
+                         "RETCOMM_DATA_HOME", "TEMP", "TMP", "TMPDIR"] {
+                assert!(std::path::PathBuf::from(env::var_os(name).unwrap()).starts_with(&private));
+            }
+            for name in ["GH_TOKEN", "GITHUB_TOKEN", "PORTCOVE_GITHUB_TOKEN",
+                         "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "HOMEDRIVE", "HOMEPATH"] {
+                assert!(env::var_os(name).is_none());
+            }
+            // Keep this inert tool alive through the supervisor's membership
+            // observations. An instant child can correctly leave a lifetime gap.
+            assert!(Command::new("cmake").arg("--sleep").status().unwrap().success());
+            for name in ["HOME", "TEMP"] {
+                fs::write(std::path::PathBuf::from(env::var_os(name).unwrap()).join("builder-probe"), b"private fixture write").unwrap();
+            }
+        }
         Some("--game") if args.iter().any(|argument| argument == "--extract") => owned_preparation(&args),
         Some("--game") => {
             if let Some(pair) = args.windows(2).find(|pair| pair[0] == "--owned-wait") {
