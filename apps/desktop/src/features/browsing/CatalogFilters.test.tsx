@@ -256,3 +256,49 @@ it("retains removable membership intent through unavailable and confirmed-empty 
   expect(button("In my library (unavailable)").disabled).toBe(true);
   expect(button("Windows (2)").disabled).toBe(false);
 });
+
+it("composes observed installation attention and keeps zero/unavailable reasons removable", async () => {
+  const statuses = new Map(membershipContext.library!.statuses);
+  statuses.set("windows", {
+    ...statuses.get("windows")!,
+    readiness: {
+      launchable: false,
+      pending_setup: false,
+      blockers: ["missing_source", "missing_bios"],
+    },
+  });
+  statuses.set("both", {
+    ...statuses.get("both")!,
+    readiness: { launchable: true, pending_setup: true, blockers: [] },
+  });
+  const context = { library: { id: "selected", statuses } };
+  await render();
+  await act(async () => setContext(context));
+  await click("Filters (0)");
+  await click("Missing game files (1)");
+  await click("Finish setup (1)");
+  await click("Preview (1)");
+  expect(
+    filterPorts(ports, statuses, "catalog", current, "", "catalog", context).map((p) => p.id),
+  ).toEqual(["both"]);
+  expect(button("Missing game files (0)").disabled).toBe(false);
+  await click("Finish setup (1)");
+  expect(filterPorts(ports, statuses, "catalog", current, "", "catalog", context)).toEqual([]);
+  expect(button("Missing game files (0)").getAttribute("aria-pressed")).toBe("true");
+  await act(async () => setContext(undefined));
+  expect(button("Missing game files (unavailable)").disabled).toBe(true);
+  await click("Remove Missing game files filter");
+  expect(current).toMatchObject({ attention: [], channels: ["beta"] });
+  expect(button("Preview (2)").disabled).toBe(false);
+  await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
+  expect(button("Repair needed (0)").disabled).toBe(false);
+});
+it("keeps unknown restored attention unresolved until reset", async () => {
+  await render({ version: 1, attention: ["future-reason"] });
+  await act(async () => setContext(membershipContext));
+  await click("Filters (0)");
+  expect(button("Missing BIOS (unavailable)").disabled).toBe(true);
+  expect(current).toMatchObject({ attention: ["future-reason"] });
+  await click("Reset catalog filters");
+  expect(current).toBe("all");
+});

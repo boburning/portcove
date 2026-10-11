@@ -496,3 +496,34 @@ it("restores membership in its section/library without losing legacy or unsuppor
   expect(browsing.ui.libraryReadiness).toBe("setup");
   expect(browsing.ui.query).toBe("legacy");
 });
+
+it("persists attention independently by section/library and retains future reasons for correction", async () => {
+  await act(async () =>
+    browsing.ui.setFilter({ version: 1, attention: ["finish-setup"], channels: ["beta"] }),
+  );
+  await act(async () => browsing.ui.setLibraryReadiness("ready"));
+  await act(async () => browsing.ui.setQuery("attention search"));
+  await act(async () => browsing.ui.setView("catalog"));
+  await act(async () => browsing.ui.setFilter({ version: 1, attention: ["missing-bios"] }));
+  await remount();
+  await act(async () => browsing.ui.setView("library"));
+  expect(browsing.ui).toMatchObject({
+    libraryReadiness: "ready",
+    query: "attention search",
+    filter: { attention: ["finish-setup"], channels: ["beta"] },
+  });
+  libraryRoot = "E:/other";
+  await remount();
+  expect(browsing.ui.filter).toBe("all");
+  libraryRoot = "E:/first";
+  await remount();
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(browsing.ui.filter).toMatchObject({ attention: ["missing-bios"] });
+  await act(async () => browsing.ui.setFilter({ version: 1, attention: ["future-reason"] }));
+  await remount();
+  await act(async () => browsing.ui.setView("catalog"));
+  expect(evaluateCatalogQuery([], browsing.ui.filter).state).toBe("unresolved");
+  expect(browsing.ui.filter).toMatchObject({ attention: ["future-reason"] });
+  await act(async () => browsing.ui.setFilter("all"));
+  expect(browsing.ui.filter).toBe("all");
+});

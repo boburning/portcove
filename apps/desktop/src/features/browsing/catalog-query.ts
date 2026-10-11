@@ -15,6 +15,7 @@ const catalogQueryOptions = {
     "user-prepared-runtime",
   ],
   membership: ["in-library", "not-in-library"],
+  attention: ["missing-source", "missing-bios", "missing-runtime", "repair-needed", "finish-setup"],
 } as const;
 
 type Group = keyof typeof catalogQueryOptions;
@@ -49,7 +50,7 @@ function supportedQuery(value: unknown): value is CatalogQuery {
 }
 
 function available(group: Group, value: string, context: CatalogQueryContext): boolean {
-  if (group === "membership") return Boolean(context.library?.id);
+  if (group === "membership" || group === "attention") return Boolean(context.library?.id);
   return group !== "platforms" || value !== "this-device" || !!context.devicePlatform;
 }
 
@@ -75,11 +76,47 @@ function matches(
         Boolean(status.active?.port_id === port.id || status.external_runtime?.port_id === port.id);
       return value === "in-library" ? member : !member;
     }
+    case "attention": {
+      const status = context.library?.statuses.get(port.id);
+      // Core supplies readiness for the accepted installation. Unknown or
+      // inconsistent records do not establish a positive attention reason.
+      if (
+        status?.port_id !== port.id ||
+        (!status.active && !status.external_runtime) ||
+        (status.active && status.active.port_id !== port.id) ||
+        (status.external_runtime && status.external_runtime.port_id !== port.id)
+      )
+        return false;
+      const readiness = status.readiness;
+      if (
+        !readiness ||
+        typeof readiness.launchable !== "boolean" ||
+        typeof readiness.pending_setup !== "boolean" ||
+        !Array.isArray(readiness.blockers) ||
+        !readiness.blockers.every((blocker) => typeof blocker === "string")
+      )
+        return false;
+      switch (value) {
+        case "missing-source":
+          return readiness.blockers.includes("missing_source");
+        case "missing-bios":
+          return readiness.blockers.includes("missing_bios");
+        case "missing-runtime":
+          return readiness.blockers.includes("missing_runtime");
+        case "repair-needed":
+          return readiness.blockers.includes("invalid_installation");
+        case "finish-setup":
+          return readiness.pending_setup || readiness.blockers.includes("preparation_required");
+        default:
+          return false;
+      }
+    }
   }
 }
 
 /** Pure cached-snapshot evaluation. Search/view/readiness narrowing precedes this call.
- * All facts are port-level declarations or selected-library membership. In particular,
+ * Facts are port-level declarations, selected-library membership or Core installation
+ * attention observations. In particular,
  * managed InstallRecord has no platform identity: this is not a route/build matcher.
  */
 export function evaluateCatalogQuery(

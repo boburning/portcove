@@ -325,3 +325,36 @@ it("retains Library narrowing and readiness counts for membership without relaxi
   await expect.element(button("Ready (2)")).toBeEnabled();
   expect(invoke).not.toHaveBeenCalled();
 });
+
+it("retains specific attention with independent Library readiness, zero counts and unavailable removable focus", async () => {
+  flushSync(() => root.render(<Fixture />));
+  await userEvent.click(button("Filters (0)"));
+  await userEvent.click(button("Missing game files (1)"));
+  await expect.element(button("Finish setup (0)")).toBeEnabled();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(button("Ready (0)")).toBeEnabled();
+  await expect.element(button("Needs attention (1)")).toBeEnabled();
+  await userEvent.click(button("Ready (0)"));
+  await expect
+    .element(
+      page.getByText("No ports in your library match your search and filters", { exact: true }),
+    )
+    .toBeInTheDocument();
+  await userEvent.click(button("Filters (1)"));
+  await expect.element(button("Missing game files (0)")).toHaveAttribute("aria-pressed", "true");
+  await userEvent.keyboard("{Escape}");
+  await userEvent.click(button("Needs attention (1)"));
+  await userEvent.click(button("View details for Both game"));
+  await userEvent.click(button("Back to library"));
+  await expect.element(button("Remove Missing game files filter")).toBeInTheDocument();
+  await userEvent.click(button("Toggle snapshot"));
+  await expect.element(button("Ready (unavailable)")).toBeEnabled();
+  document
+    .querySelector<HTMLButtonElement>('button[aria-label="Remove Missing game files filter"]')!
+    .focus();
+  await userEvent.keyboard("{Enter}");
+  expect(document.activeElement?.textContent).toContain("Filters (0)");
+  await userEvent.click(button("Toggle snapshot"));
+  await expect.element(button("Needs attention (1)")).toHaveAttribute("aria-pressed", "true");
+  expect(invoke).not.toHaveBeenCalled();
+});

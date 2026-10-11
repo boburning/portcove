@@ -1,7 +1,7 @@
 # Catalog and Library declared filters
 
-`CatalogFilters` presents explicit declared platforms, release channels and selected
-Library membership using the unchanged `evaluateCatalogQuery` contract. Alternatives within a group are
+`CatalogFilters` presents explicit declared platforms, release channels, selected
+Library membership and observed installation attention using `evaluateCatalogQuery`. Alternatives within a group are
 OR; groups are AND. It makes no device, route, setup-method, eligibility or
 qualification inference. Machine `beta` is displayed as Preview.
 
@@ -59,3 +59,24 @@ Contextual device selection, setup-method controls and coherent
 route/build/installation/source-set matching remain with #1550. These delivered
 frontend composition components do not complete that owner or establish native,
 physical-controller, human or game execution qualification.
+
+## Observed installation attention
+
+The Installation attention group exposes exact Core reasons for identity-matched
+active managed or registered external installations from the same accepted
+selected-library snapshot. Missing game files, Missing BIOS and Missing runtime
+consume `missing_source`, `missing_bios` and `missing_runtime`; Repair needed
+consumes `invalid_installation`. Finish setup consumes `pending_setup` or
+`preparation_required` independently of `launchable`. Changed and unreadable
+observations never become missing-file matches. Stage-only, absent or malformed
+readiness and inconsistent port/installation identities establish no positive
+reason; unfiltered browsing retains them.
+
+Attention alternatives are OR, other groups and existing Library readiness are
+AND. Distinct counts exclude the attention group's own selections; selected zero
+and unavailable choices remain removable. Version-1 queries without attention
+keep their semantics; unknown restored reasons remain unresolved for reset.
+These observations do not describe complete compatible source sets, install
+eligibility or a ready installation for a declared platform. They perform no I/O
+or lifecycle authorization. Whole #1551 remains open for route-bound game-file
+states and identity-matched available/staged update predicates.

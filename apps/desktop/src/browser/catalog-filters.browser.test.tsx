@@ -44,6 +44,7 @@ const statuses = new Map<string, PortStatus>([
     {
       ...portStatus(),
       port_id: "windows",
+      readiness: { launchable: true, pending_setup: true, blockers: [] },
       active: {
         id: "managed",
         port_id: "windows",
@@ -65,6 +66,11 @@ const statuses = new Map<string, PortStatus>([
     {
       ...portStatus(),
       port_id: "both",
+      readiness: {
+        launchable: false,
+        pending_setup: false,
+        blockers: ["missing_bios", "changed_source"],
+      },
       external_runtime: {
         id: "external",
         port_id: "both",
@@ -272,6 +278,52 @@ it.each(["dark", "light"])(
     await userEvent.keyboard("{Enter}");
     expect(document.activeElement?.textContent).toContain("Filters (1)");
     await userEvent.click(roleButton("Toggle membership snapshot"));
+    await userEvent.click(roleButton("Filters (1)"));
+    await userEvent.click(roleButton("Reset catalog filters"));
+    await userEvent.keyboard("{Escape}");
+    expect(invoke).not.toHaveBeenCalled();
+  },
+);
+
+it.each(["dark", "light"])(
+  "composes installation attention with return, restart, unavailable correction and zero IPC in %s",
+  async (theme) => {
+    await page.viewport(1100, 800);
+    document.documentElement.dataset.theme = theme;
+    flushSync(() => root.render(<Fixture />));
+    await userEvent.click(roleButton("Filters (0)"));
+    await expect.element(roleButton("Missing game files (0)")).toBeEnabled();
+    await userEvent.click(roleButton("Missing BIOS (1)"));
+    await userEvent.click(roleButton("Finish setup (1)"));
+    await userEvent.click(roleButton("Preview (1)"));
+    await expect.element(roleButton("Finish setup (0)")).toHaveAttribute("aria-pressed", "true");
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(page.getByRole("button", { name: /^Both game\./ }));
+    await userEvent.click(roleButton("Back to catalog"));
+    await expect.element(roleButton("Remove Missing BIOS filter")).toBeInTheDocument();
+    flushSync(() => root.unmount());
+    root = createRoot(host);
+    flushSync(() => root.render(<Fixture />));
+    await expect.element(roleButton("Filters (3)")).toBeInTheDocument();
+    await userEvent.click(roleButton("Switch library"));
+    await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
+    await userEvent.click(roleButton("Filters (0)"));
+    await expect.element(roleButton("Missing BIOS (0)")).toBeEnabled();
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(roleButton("Switch library"));
+    await userEvent.click(roleButton("Toggle membership snapshot"));
+    await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
+    await userEvent.click(roleButton("Filters (3)"));
+    await expect.element(roleButton("Missing BIOS (unavailable)")).toBeDisabled();
+    await userEvent.keyboard("{Escape}");
+    document
+      .querySelector<HTMLButtonElement>('button[aria-label="Remove Missing BIOS filter"]')!
+      .focus();
+    await userEvent.keyboard("{Enter}");
+    expect(document.activeElement?.textContent).toContain("Filters (2)");
+    await userEvent.click(roleButton("Remove Finish setup filter"));
+    await userEvent.click(roleButton("Toggle membership snapshot"));
+    await expect.element(roleButton("Remove Preview filter")).toBeInTheDocument();
     await userEvent.click(roleButton("Filters (1)"));
     await userEvent.click(roleButton("Reset catalog filters"));
     await userEvent.keyboard("{Escape}");
