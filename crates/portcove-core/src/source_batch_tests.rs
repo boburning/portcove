@@ -291,7 +291,7 @@ fn raw_fixture_catalog(
                         identities: vec![crate::DigestIdentity {
                             scope: crate::DigestScope::ArchiveMember,
                             sha1: None,
-                            sha256: Some(record.sha256.clone()),
+                            sha256: Some(hex::encode(Sha256::digest(variant.id.as_bytes()))),
                             crc32: None,
                         }],
                     },
