@@ -2373,8 +2373,8 @@ checks at mutation boundaries. SQLite, public schemas and journal encodings are 
 ### Route-bound game-file query construction
 
 Core constructs `GameFileQuerySnapshot` from a batch retained by its own worker
-and explicit port, platform, channel and route selections. This Rust foundation
-has no renderer command yet. Adapters must never accept client-authored serialized
+and explicit port, platform, channel and route selections. CLI `source query` and
+Desktop `refresh_game_file_query` consume this same Core refresh. Adapters must never accept client-authored serialized
 inspection reports: context fingerprints detect changes, not forged observations.
 Construction reads registration and selected route metadata, checks them again,
 and binds the library, catalog, registration set, route definition and instance.
@@ -2422,3 +2422,16 @@ worker and rejects its snapshot if the selected library generation changed.
 Renderer acceptance must additionally reject obsolete request generations and
 events, expired evidence and changed query context; transport alone does not
 establish an accepted browsing observation.
+
+Desktop's selected-port detail control explicitly chooses one route, target
+platform and channel. It reads the current library identity and requests one
+bounded Core refresh; opening details, changing choices and returning to browsing
+do not trigger inspection. It binds completion, cancellation controls and events
+to a monotonic request-context epoch. Changes to the accepted catalog, sources,
+statuses or library generation invalidate an observation even when the player
+returns to an earlier selection. Expiry removes the displayed observation without
+another refresh. Positive states require their emitted identity, contract and
+definition context. The control presents Core reasons without private paths or
+an action shortcut; ordinary setup and launch reviews remain authoritative.
+This selected-route consumer does not yet provide the composable game-file filter
+group or establish native UI, game or whole-issue acceptance.
