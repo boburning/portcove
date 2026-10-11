@@ -3801,6 +3801,142 @@ mod tests {
                 "Ghostship persistence contract is missing {path}"
             );
         }
+
+        let source_catalog = catalog.source_catalog().unwrap();
+        let contract = source_catalog
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "ghostship-game-source")
+            .unwrap();
+        assert_eq!(
+            contract.supported_variant_ids,
+            ["super-mario-64-us", "super-mario-64-jp"]
+        );
+        assert_eq!(
+            contract.authority_ref,
+            "762ce4a6dff8d69b934a41a326ae41e78431e6cd"
+        );
+        assert_eq!(
+            contract.evidence_ids,
+            [
+                "ghostship-2-0-0-source-contract",
+                "ghostship-3-0-0-source-contract"
+            ]
+        );
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("2.0.0", None),
+                (
+                    "3.0.0",
+                    Some("49a0ab6c6624ccb20d29bb433f391d017f638f2b7db0601eae7808574a62aa18")
+                ),
+            ]
+        );
+        let evidence = source_catalog
+            .evidence
+            .iter()
+            .find(|evidence| evidence.id == "ghostship-3-0-0-source-contract")
+            .unwrap();
+        assert_eq!(
+            evidence.authority_ref,
+            "deb091c29caff57dd986398087b058f16b11911e"
+        );
+        assert_eq!(
+            evidence.immutable_url,
+            "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/config.yml"
+        );
+        assert!(
+            source_catalog
+                .identities
+                .iter()
+                .find(|identity| identity.id == "ghostship-source")
+                .unwrap()
+                .variants
+                .iter()
+                .any(|variant| variant.id == "legacy-accepted" && variant.legacy_projection_only)
+        );
+
+        // Isolated structural evidence exercises artifact admission; it is never
+        // written to the embedded catalog or credited as an observed lifecycle.
+        let mut document = catalog.authoritative_document();
+        let fixture = document.source_catalog.as_mut().unwrap();
+        fixture.evidence.push(crate::CatalogEvidence {
+            id: "ghostship-applicability-fixture".into(),
+            role: crate::CatalogEvidenceRole::PortcoveQualification,
+            authority: "Portcove isolated fixture".into(),
+            authority_ref: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+            reviewed_at: "2026-10-11".into(),
+            claim: "Synthetic structural applicability admission only".into(),
+            immutable_url: "https://github.com/boburning/portcove/blob/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/fixture.json".into(),
+            live_url: None,
+        });
+        fixture.qualification.push(crate::SourceEvidence {
+            scope: crate::SourceEvidenceScope {
+                port_id: "ghostship".into(),
+                platform: crate::Platform::WindowsX86_64,
+                artifact_sha256: Some(
+                    "49a0ab6c6624ccb20d29bb433f391d017f638f2b7db0601eae7808574a62aa18".into(),
+                ),
+                upstream_ref: Some("3.0.0".into()),
+                contract_id: Some("ghostship-game-source".into()),
+                variant: crate::SourceVariantScope::Exact {
+                    identity: crate::SourceIdentity {
+                        game_id: "ghostship-source".into(),
+                        variant_id: "super-mario-64-us".into(),
+                        representation_id: "canonical-rom".into(),
+                    },
+                },
+                check_version: Some("ghostship-applicability-fixture-v1".into()),
+            },
+            kind: crate::SourceEvidenceKind::StructuralCheck,
+            outcome: crate::SourceEvidenceOutcome::Passed,
+            observed_at: 1,
+            portcove_version: None,
+            portcove_commit: None,
+            method: "isolated structural fixture; no runtime execution".into(),
+            evidence_ids: vec!["ghostship-applicability-fixture".into()],
+        });
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let mut unbound = document.clone();
+        unbound
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .iter_mut()
+            .find(|contract| contract.id == "ghostship-game-source")
+            .unwrap()
+            .applicability
+            .retain(|binding| binding.upstream_ref != "3.0.0");
+        let error = Catalog::from_json(&serde_json::to_string(&unbound).unwrap()).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("reviewed artifact applicability")
+        );
+        document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .qualification
+            .last_mut()
+            .unwrap()
+            .scope
+            .artifact_sha256 = Some("c".repeat(64));
+        let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("reviewed artifact applicability")
+        );
     }
 
     #[test]
