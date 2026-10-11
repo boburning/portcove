@@ -163,6 +163,22 @@ it("rejects expired context on a filter render before queued timer callbacks, in
   await render();
   expect(state.context).toBeUndefined();
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
+  await act(async () => state.refresh());
+  expect(state.context).toBeDefined();
+  expect(state.expired).toBe(false);
+  expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);
+});
+it("expires against the original monotonic deadline even when the wall clock stays unchanged", async () => {
+  const monotonic = vi.spyOn(performance, "now").mockReturnValue(1000);
+  await render();
+  await act(async () => state.refresh());
+  expect(state.context).toBeDefined();
+  monotonic.mockReturnValue(301001);
+  await render();
+  expect(state.context).toBeUndefined();
+  expect(state.expired).toBe(true);
+  expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
+  monotonic.mockRestore();
 });
 it("rejects held A-to-B-to-A completions and pre-switch events, without overlapping requests", async () => {
   let resolve!: (value: GameFileQuerySnapshot) => void;
