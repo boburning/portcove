@@ -11,6 +11,9 @@ import {
   DialogTrigger,
 } from "../../components/ui/dialog";
 import { evaluateCatalogQuery, type CatalogQuery, type CatalogQueryContext } from "./catalog-query";
+import { states } from "./game-file-query-context";
+import { GameFileFilterControls } from "./GameFileFilterControls";
+import type { GameFileFilterState } from "./use-game-file-filter-context";
 
 const groups = [
   {
@@ -21,6 +24,17 @@ const groups = [
   { key: "channels", label: "Release channels", values: ["stable", "beta", "rolling"] },
   { key: "membership", label: "Library membership", values: ["in-library", "not-in-library"] },
   { key: "updates", label: "Observed updates", values: ["available", "staged"] },
+  {
+    key: "gameFiles",
+    label: "Game files for the observed route",
+    values: [
+      "files_available",
+      "files_missing",
+      "needs_checking",
+      "no_files_required",
+      "unavailable_context",
+    ],
+  },
   {
     key: "attention",
     label: "Installation attention",
@@ -38,6 +52,7 @@ function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
     : filter;
 }
 function label(group: Group, value: string) {
+  if (group === "gameFiles") return states[value as keyof typeof states];
   if (group === "updates")
     return value === "available" ? "Available at last check" : "Matching update staged";
   if (group === "attention") {
@@ -60,6 +75,7 @@ export function CatalogFilters({
   context,
   filter,
   setFilter,
+  gameFileQuery,
   view = "catalog",
 }: {
   candidates?: readonly PortDefinition[];
@@ -67,6 +83,7 @@ export function CatalogFilters({
   view?: "catalog" | "library";
   filter: Filter | CatalogQuery;
   setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
+  gameFileQuery?: GameFileFilterState;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const query = queryFromFilter(filter);
@@ -144,6 +161,7 @@ export function CatalogFilters({
               Additional restored filters remain active. Reset {view} filters to remove them.
             </p>
           )}
+          {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
           {groups.map((group) => (
             <fieldset key={group.key} className="grid gap-2">
               <legend className="mb-2 font-medium">{group.label}</legend>

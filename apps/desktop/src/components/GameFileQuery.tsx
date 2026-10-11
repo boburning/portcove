@@ -1,92 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
-import type {
-  GameFileQueryRefreshRequest,
-  GameFileQuerySnapshot,
-  PortDefinition,
-  ReleaseChannel,
-} from "../types";
+import type { GameFileQuerySnapshot, PortDefinition, ReleaseChannel } from "../types";
 import { errorText, platformLabel, releaseChannelPresentation } from "../view-model";
 import { Button } from "./ui/button";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
 
-type Route = GameFileQueryRefreshRequest["routes"][number];
-const routes: readonly { value: Route["route"]; label: string }[] = [
-  { value: "managed_install", label: "Managed setup" },
-  { value: "external_registration", label: "Existing installation setup" },
-  { value: "managed_launch", label: "Managed launch" },
-  { value: "external_launch", label: "Existing installation launch" },
-];
-const states: Record<GameFileQuerySnapshot["routes"][number]["state"], string> = {
-  files_available: "Compatible complete files available",
-  files_missing: "Files missing",
-  needs_checking: "Needs checking",
-  no_files_required: "No game files required",
-  unavailable_context: "Unavailable context",
-};
-const reasons: Record<GameFileQuerySnapshot["routes"][number]["reason"], string> = {
-  complete_compatible_observation: "Core observed a complete compatible set for this route.",
-  no_connected_registration: "No game-file registration is connected for this route.",
-  explicit_empty_requirements: "This route explicitly declares no game-file requirement.",
-  observation_unavailable: "An accepted observation is unavailable.",
-  observation_stale: "The observation needs a fresh check.",
-  source_needs_checking: "The connected files need checking.",
-  storage_absence_unconfirmed:
-    "Storage could not confirm absence; files are not confirmed missing.",
-  identity_not_admitted: "The file identity has not been admitted for this route.",
-  contract_not_reviewed: "The game-file contract has not been reviewed for this route.",
-  variant_not_supported: "The observed file variant does not match this route.",
-  release_not_bound: "The observation is not bound to the selected release.",
-  route_not_offered: "The selected route is not offered.",
-  profile_context_changed: "The selected game-file context has changed.",
-};
-
-/** Validate presentation context only. Core remains the execution authority. */
-export function acceptedGameFileQuery(
-  snapshot: GameFileQuerySnapshot,
-  request: Route,
-  library: { id: string; root: string },
-  now: number,
-): boolean {
-  const projection = snapshot.routes?.[0];
-  const digest = (value: unknown) => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-  const identifier = (value: unknown) => typeof value === "string" && value.length > 0;
-  return (
-    snapshot.schema_version === 1 &&
-    snapshot.library?.id === library.id &&
-    snapshot.library?.root === library.root &&
-    snapshot.routes?.length === 1 &&
-    Number.isSafeInteger(snapshot.observed_at) &&
-    Number.isSafeInteger(snapshot.expires_at) &&
-    snapshot.observed_at > 0 &&
-    snapshot.observed_at <= now &&
-    now <= snapshot.expires_at &&
-    snapshot.expires_at - snapshot.observed_at <= 300 &&
-    digest(snapshot.catalog_binding_sha256) &&
-    digest(snapshot.registration_sha256) &&
-    digest(snapshot.selection_sha256) &&
-    !!projection &&
-    projection.port_id === request.port_id &&
-    projection.platform === request.platform &&
-    projection.channel === request.channel &&
-    projection.route === request.route &&
-    Object.hasOwn(states, projection.state) &&
-    Object.hasOwn(reasons, projection.reason) &&
-    (projection.state !== "files_available" ||
-      (projection.reason === "complete_compatible_observation" &&
-        identifier(projection.contract_id) &&
-        identifier(projection.identity?.game_id) &&
-        identifier(projection.identity?.variant_id) &&
-        identifier(projection.identity?.representation_id) &&
-        digest(projection.source_instance_sha256) &&
-        digest(projection.route_definition_sha256))) &&
-    (projection.state !== "files_missing" || projection.reason === "no_connected_registration") &&
-    (projection.state !== "no_files_required" ||
-      (projection.reason === "explicit_empty_requirements" &&
-        digest(projection.route_definition_sha256)))
-  );
-}
+import {
+  acceptedGameFileQuery,
+  routes,
+  states,
+  reasons,
+  type Route,
+} from "../features/browsing/game-file-query-context";
+export { acceptedGameFileQuery } from "../features/browsing/game-file-query-context";
 
 export function GameFileQueryControl({
   port,

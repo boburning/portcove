@@ -42,6 +42,8 @@ import type {
 } from "../types";
 import { OperationCancellation } from "./OperationCancellation";
 import { GameFileQueryControl } from "./GameFileQuery";
+import { GameFileFilterObservation } from "./GameFileFilterObservation";
+import type { GameFileFilterContext } from "../features/browsing/game-file-query-context";
 import { OutputLocationControl } from "./OutputLocation";
 import { PreparationControl, type RunPreparation } from "./Preparation";
 import {
@@ -116,6 +118,7 @@ interface DetailPanelProps {
   busy?: string;
   libraryGeneration?: number;
   gameFileQueryContext?: string;
+  gameFileFilterContext?: GameFileFilterContext;
   outputLocationChanged?: () => void;
   externalRuntimeChanged?: () => void;
   openSourceEvidence?: (evidenceId: string) => void;
@@ -269,6 +272,7 @@ export function DetailPanel(props: DetailPanelProps) {
         state={state}
         missingSourceLabels={!installed ? missingSourceLabels : []}
       />
+      <GameFileFilterObservation portId={port.id} context={props.gameFileFilterContext} />
       {props.libraryGeneration !== undefined && selectedChannel && (
         <GameFileQueryControl
           port={port}

@@ -51,6 +51,10 @@ import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
 import type { CatalogQueryContext } from "./features/browsing/catalog-query";
+import {
+  useGameFileFilterContext,
+  type GameFileFilterState,
+} from "./features/browsing/use-game-file-filter-context";
 import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
@@ -368,7 +372,14 @@ function Workspace({
     JSON.stringify(data.catalog?.source_catalog ?? null),
   );
   const appearance = useThemePreference();
-  const model = useAppModel(data, ui, bootstrap.library_root);
+  const gameFileQuery = useGameFileFilterContext({
+    catalog: data.catalog,
+    sources: data.sources,
+    statuses: data.statuses,
+    generation: bootstrap.generation,
+    libraryKey: bootstrap.library_root,
+  });
+  const model = useAppModel(data, ui, bootstrap.library_root, gameFileQuery);
   const installPlanning = useInstallPlanning(
     model.port?.id,
     model.status?.channel ?? model.port?.channels[0],
@@ -655,7 +666,12 @@ type AppearanceState = ReturnType<typeof useThemePreference>;
 type InstallPlanningState = ReturnType<typeof useInstallPlanning>;
 type BackupState = ReturnType<typeof usePortBackups>;
 
-function useAppModel(data: DataState, ui: UiState, libraryRoot?: string | null) {
+function useAppModel(
+  data: DataState,
+  ui: UiState,
+  libraryRoot?: string | null,
+  gameFileQuery?: GameFileFilterState,
+) {
   const { selectedId, setBiosPath, setSourcePath } = ui;
   const { catalog, sources, statuses } = data;
   const statusMap = useMemo(() => indexStatuses(statuses), [statuses]);
@@ -665,8 +681,11 @@ function useAppModel(data: DataState, ui: UiState, libraryRoot?: string | null) 
   );
   // Catalog and statuses arrive together in the accepted generation-bound snapshot.
   const queryContext = useMemo<CatalogQueryContext>(
-    () => (catalog && libraryRoot ? { library: { id: libraryRoot, statuses: statusMap } } : {}),
-    [catalog, libraryRoot, statusMap],
+    () =>
+      catalog && libraryRoot
+        ? { library: { id: libraryRoot, statuses: statusMap }, gameFiles: gameFileQuery?.context }
+        : {},
+    [catalog, libraryRoot, statusMap, gameFileQuery?.context],
   );
   const visible = useMemo(
     () =>
@@ -746,6 +765,7 @@ function useAppModel(data: DataState, ui: UiState, libraryRoot?: string | null) 
     statusMap,
     queryContext,
     gameFileQueryContext,
+    gameFileQuery,
     visible,
     catalogFilterCandidates,
     libraryFilterCandidates,
@@ -960,6 +980,7 @@ function CurrentView({
       catalogFilterCandidates={model.catalogFilterCandidates}
       libraryFilterCandidates={model.libraryFilterCandidates}
       queryContext={model.queryContext}
+      gameFileQuery={model.gameFileQuery}
       libraryReadiness={ui.libraryReadiness}
       setLibraryReadiness={ui.setLibraryReadiness}
       statuses={model.statusMap}
@@ -1088,6 +1109,7 @@ function SelectedPortPanel({
       )}
       libraryGeneration={libraryGeneration}
       gameFileQueryContext={model.gameFileQueryContext}
+      gameFileFilterContext={model.gameFileQuery?.context}
       outputLocationChanged={installPlanning.invalidate}
       externalRuntimeChanged={() => {
         installPlanning.invalidate();

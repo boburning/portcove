@@ -46,6 +46,7 @@ import {
   type CatalogQueryContext,
 } from "../features/browsing/catalog-query";
 import { CatalogFilters } from "../features/browsing/CatalogFilters";
+import type { GameFileFilterState } from "../features/browsing/use-game-file-filter-context";
 
 const catalogSortOptions: readonly { value: CatalogSort; label: string }[] = [
   { value: "catalog", label: "Catalog order" },
@@ -60,6 +61,7 @@ export function PortBrowser({
   catalogFilterCandidates,
   libraryFilterCandidates,
   queryContext,
+  gameFileQuery,
   libraryReadiness = "all",
   setLibraryReadiness,
   statuses,
@@ -87,6 +89,7 @@ export function PortBrowser({
   /** Search and canonical Library membership, before readiness and declared query. */
   libraryFilterCandidates?: PortDefinition[];
   queryContext?: CatalogQueryContext;
+  gameFileQuery?: GameFileFilterState;
   libraryReadiness?: string;
   setLibraryReadiness?: (readiness: string) => void;
   statuses: Map<string, PortStatus>;
@@ -327,6 +330,7 @@ export function PortBrowser({
       )}
       {(view === "catalog" || composedLibrary) && (
         <CatalogFilters
+          gameFileQuery={gameFileQuery}
           view={view === "library" ? "library" : "catalog"}
           candidates={declaredCandidates}
           context={queryContext}
