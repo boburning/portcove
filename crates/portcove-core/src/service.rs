@@ -1799,7 +1799,52 @@ impl PortcoveService {
             )
         };
 
-        status.port_actions = vec![install, register_external, launch, removal, remove_external];
+        // Candidate resolution remains explicit: a status snapshot never checks
+        // upstream or infers update eligibility from a cached observation.
+        let update = if status.external_runtime.is_some() || user_prepared {
+            assessed(
+                Action::Update,
+                Availability::NotOffered,
+                Reason::RouteNotOffered,
+                None,
+            )
+        } else if status.active.is_none() {
+            assessed(
+                Action::Update,
+                Availability::NotOffered,
+                Reason::NotInstalled,
+                None,
+            )
+        } else if !on_platform {
+            assessed(
+                Action::Update,
+                Availability::NotOffered,
+                Reason::UnsupportedPlatform,
+                None,
+            )
+        } else if let Some(ineligible) = definition(DefinitionOperation::Install) {
+            assessed(
+                Action::Update,
+                Availability::Held,
+                Reason::DefinitionIneligible,
+                Some(ineligible),
+            )
+        } else {
+            assessed(
+                Action::Update,
+                Availability::Waiting,
+                Reason::ReviewRequired,
+                None,
+            )
+        };
+        status.port_actions = vec![
+            install,
+            register_external,
+            launch,
+            removal,
+            remove_external,
+            update,
+        ];
         Ok(status)
     }
 

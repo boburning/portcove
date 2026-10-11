@@ -30,6 +30,7 @@ impl PortcoveService {
             activate,
         )?;
         Ok(GameUpdatePlan {
+            assessment: game_update_plan_assessment(&plan),
             plan,
             activate,
             plan_sha256,
@@ -151,6 +152,40 @@ impl PortcoveService {
     }
 }
 
+fn game_update_plan_assessment(plan: &crate::InstallPlan) -> crate::PortActionAssessment {
+    use crate::{
+        InstallPlanAction as Action, PortActionAvailability as Availability,
+        PortActionReason as Reason,
+    };
+    let (availability, reason) = match plan.action {
+        Action::AlreadyActive => (Availability::NotOffered, Reason::AlreadyRegistered),
+        Action::BlockedUnverified => (Availability::Held, Reason::InvalidInstallation),
+        // Verified local reuse does not reacquire original input bytes. Its
+        // critical files and retained ownership are checked again at execution.
+        Action::UseStaged | Action::ReuseRetained => (Availability::Allowed, Reason::Available),
+        Action::Download => match plan
+            .source_requirements
+            .iter()
+            .find(|input| !input.registered)
+        {
+            Some(input) => (
+                Availability::Waiting,
+                match input.role {
+                    crate::SourceRequirementRole::GameSource => Reason::MissingSource,
+                    crate::SourceRequirementRole::Bios => Reason::MissingBios,
+                },
+            ),
+            None => (Availability::Allowed, Reason::Available),
+        },
+    };
+    crate::PortActionAssessment {
+        action: crate::PortAction::Update,
+        availability,
+        reason,
+        definition: None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,6 +214,14 @@ mod tests {
         assert_eq!(
             review.plan.action,
             crate::InstallPlanAction::BlockedUnverified
+        );
+        assert_eq!(
+            review.assessment.availability,
+            crate::PortActionAvailability::Held
+        );
+        assert_eq!(
+            review.assessment.reason,
+            crate::PortActionReason::InvalidInstallation
         );
         assert_eq!(
             previous
@@ -231,6 +274,88 @@ mod tests {
         register_zelda_install(&library, "v1", true);
         register_zelda_install(&library, "v2", false);
         (temporary, service_with_release(library, "v2"))
+    }
+
+    #[tokio::test]
+    async fn update_assessment_requires_review_and_preserves_local_reuse_without_original_inputs() {
+        use crate::{
+            PortAction, PortActionAvailability as Availability, PortActionReason as Reason,
+        };
+        let (_temporary, service) = fixture();
+        let empty = service_with_release(
+            Library::open(_temporary.path().join("empty-library")).unwrap(),
+            "v2",
+        );
+        let empty_status = empty.status(PORT).unwrap();
+        let absent = empty_status
+            .port_actions
+            .iter()
+            .find(|action| action.action == PortAction::Update)
+            .unwrap();
+        assert_eq!(absent.availability, Availability::NotOffered);
+        assert_eq!(absent.reason, Reason::NotInstalled);
+        let status = service.status(PORT).unwrap();
+        let pending = status
+            .port_actions
+            .iter()
+            .find(|action| action.action == PortAction::Update)
+            .unwrap();
+        assert_eq!(pending.availability, Availability::Waiting);
+        assert_eq!(pending.reason, Reason::ReviewRequired);
+        let activities = service.library.activities(100).unwrap().len();
+        let review = service.plan_game_update(PORT, false).await.unwrap();
+        assert_eq!(review.plan.action, crate::InstallPlanAction::UseStaged);
+        assert!(
+            review
+                .plan
+                .source_requirements
+                .iter()
+                .any(|input| !input.registered)
+        );
+        assert_eq!(review.assessment.availability, Availability::Allowed);
+        assert_eq!(review.assessment.reason, Reason::Available);
+        assert_eq!(
+            service.status(PORT).unwrap().active.unwrap().id,
+            status.active.unwrap().id
+        );
+        assert_eq!(service.library.activities(100).unwrap().len(), activities);
+        // An allowed preview does not supply an execution token.
+        assert!(
+            service
+                .apply_game_update(PORT, false, "preview-is-not-authorization", |_| {})
+                .await
+                .is_err()
+        );
+        service.activate_staged(PORT).unwrap();
+        let current = service.plan_game_update(PORT, true).await.unwrap();
+        assert_eq!(current.assessment.availability, Availability::NotOffered);
+        assert_eq!(current.assessment.reason, Reason::AlreadyRegistered);
+    }
+
+    #[tokio::test]
+    async fn update_download_assessment_distinguishes_original_input_and_bios() {
+        let (_temporary, service) = fixture();
+        let next = service_with_release(service.library.clone(), "v3");
+        let mut review = next.plan_game_update(PORT, false).await.unwrap();
+        assert_eq!(review.plan.action, crate::InstallPlanAction::Download);
+        assert_eq!(
+            review.assessment.availability,
+            crate::PortActionAvailability::Waiting
+        );
+        assert_eq!(
+            review.assessment.reason,
+            crate::PortActionReason::MissingSource
+        );
+        review.plan.source_requirements[0].role = crate::SourceRequirementRole::Bios;
+        assert_eq!(
+            game_update_plan_assessment(&review.plan).reason,
+            crate::PortActionReason::MissingBios
+        );
+        review.plan.source_requirements[0].registered = true;
+        assert_eq!(
+            game_update_plan_assessment(&review.plan).availability,
+            crate::PortActionAvailability::Allowed
+        );
     }
 
     #[test]

@@ -1375,7 +1375,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "installation.qualification-update-plan",
                 review,
-                |review| human::plan(&review.plan),
+                human::game_update_plan,
             )?;
         }
         #[cfg(feature = "qualification-fixtures")]

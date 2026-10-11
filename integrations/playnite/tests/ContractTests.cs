@@ -358,7 +358,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "curated artifact status schema negotiated with exact reader support");
         bad["schema_version"] = 64;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond curated status rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "managed update assessment schema negotiated with actual reader support");
+        bad["schema_version"] = 65;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond managed update decisions rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -447,9 +450,10 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
-            Check(real.ApiSchemaVersion == 63 && statuses.All(status =>
-                PortActions.Read(status).Count(value => value.Action == "rollback") == 1),
-                "compiled schema63 producer and actual reader preserve one rollback assessment per catalog status");
+            Check(real.ApiSchemaVersion == 64 && statuses.All(status =>
+                PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
+                PortActions.Read(status).Count(value => value.Action == "update") == 1),
+                "compiled schema64 producer and actual reader consume one rollback and update assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
@@ -1493,6 +1497,40 @@ internal static class ContractTests
         };
         consume(57, status);
         consume(42, legacy);
+        Func<string, string, object> updateStatus = (availability, reason) => Json.Parse(Json.Print(new {
+            port_actions = new object[] {
+                new { action = "rollback", availability = "not_offered", reason = "not_installed" },
+                new { action = "update", availability, reason }
+            }
+        }));
+        foreach (var tuple in new[] {
+            new[] { "not_offered", "route_not_offered" }, new[] { "not_offered", "not_installed" },
+            new[] { "not_offered", "unsupported_platform" }, new[] { "waiting", "review_required" }
+        }) {
+            var value = updateStatus(tuple[0], tuple[1]);
+            Check(PortActions.Summary(consume(64, value)).Contains("Action update"), "schema64 current update decision is presented");
+            Reject(() => consume(63, value), "schema63 cannot contain new update decision");
+        }
+        Reject(() => consume(64, Json.Parse(Json.Print(new { port_actions = new[] {
+            new { action = "rollback", availability = "not_offered", reason = "not_installed" }
+        } }))), "schema64 requires current update assessment");
+        Reject(() => consume(64, updateStatus("allowed", "available")), "status cannot substitute candidate review authorization");
+        Reject(() => consume(64, updateStatus("waiting", "missing_source")), "status cannot infer candidate source requirement before resolution");
+        var updateHeld = Json.Parse(Json.Print(new {
+            port_actions = new object[] {
+                new { action = "rollback", availability = "not_offered", reason = "not_installed" },
+                new { action = "update", availability = "held", reason = "definition_ineligible", definition = new { outcome = "hold", reason = "publisher_revoked" } }
+            }
+        }));
+        Check(PortActions.Summary(consume(64, updateHeld)).Contains("publisher revoked"), "schema64 reader presents exact held update definition");
+        Reject(() => consume(64, updateStatus("held", "definition_ineligible")), "held update cannot lose its definition reason");
+        Reject(() => consume(64, Json.Parse(Json.Print(new {
+            port_actions = new[] {
+                new { action = "rollback", availability = "not_offered", reason = "not_installed" },
+                new { action = "update", availability = "waiting", reason = "review_required" },
+                new { action = "update", availability = "waiting", reason = "review_required" }
+            }
+        }))), "schema64 duplicate update assessment refused");
         foreach (var artifactReason in new[] { "curated_artifact_revoked", "curated_distribution_withdrawn" }) {
             var curatedStatus = Json.Parse(Json.Print(new {
                 definition_operations = new[] { new { operation = "install", eligibility = new { outcome = "hold", reason = artifactReason }, retained = false } },

@@ -97,6 +97,7 @@ pub enum PortAction {
     Rollback,
     BackupCreate,
     BackupRestore,
+    Update,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

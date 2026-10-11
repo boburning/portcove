@@ -300,6 +300,13 @@ function GameUpdateFailure({ value }: { value: unknown }) {
 }
 
 function gameUpdateActionLabel(plan: GameUpdatePlan) {
+  if (
+    plan.assessment?.action !== "update" ||
+    plan.assessment.availability !== "allowed" ||
+    plan.assessment.reason !== "available" ||
+    plan.assessment.definition != null
+  )
+    return undefined;
   const labels: Record<GameUpdatePlan["plan"]["action"], string | undefined> = {
     download: plan.activate ? "Download and install update" : "Download update for later",
     use_staged: plan.activate ? "Use saved update" : "Keep saved update for later",
@@ -342,13 +349,22 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
           Saved update settings are unchanged.
         </p>
       )}
-      {!label ? (
-        <p role="status">
-          {plan.plan.action === "already_active"
-            ? "This verified release is already active."
-            : "An unverified local copy blocks this update. Verify or repair it first."}
-        </p>
-      ) : null}
+      {!label ? <p role="status">{gameUpdateHoldReason(plan)}</p> : null}
     </div>
   );
+}
+
+function gameUpdateHoldReason(plan: GameUpdatePlan) {
+  const assessment = plan.assessment;
+  if (assessment?.action !== "update" || assessment.definition != null)
+    return "Current update availability is unavailable. Review it again before continuing.";
+  if (assessment.availability === "not_offered" && assessment.reason === "already_registered")
+    return "This verified release is already active.";
+  if (assessment.availability === "waiting" && assessment.reason === "missing_source")
+    return "Add the required game files before running this update.";
+  if (assessment.availability === "waiting" && assessment.reason === "missing_bios")
+    return "Add the required BIOS before running this update.";
+  if (assessment.availability === "held" && assessment.reason === "invalid_installation")
+    return "An unverified local copy blocks this update. Verify or repair it first.";
+  return "Current update availability is unavailable. Review it again before continuing.";
 }

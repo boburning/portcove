@@ -1153,6 +1153,8 @@ pub struct GameInstallPlan {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GameUpdatePlan {
     pub plan: InstallPlan,
+    /// Read-only decision for this exact reviewed candidate, not authorization.
+    pub assessment: crate::PortActionAssessment,
     pub activate: bool,
     pub plan_sha256: String,
 }

@@ -204,6 +204,16 @@ without revoking permitted installed use. Retained rollback adds only
 target-artifact refusal, not current-definition permission. Status does not
 delete files or saves and still grants no execution authority.
 
+Schema 64 requires one `update` action in port status: non-owning/user-prepared
+routes and absent managed installs are not offered, current-definition
+restrictions are held, and an eligible managed route waits for explicit candidate
+review. Status performs no update check and supplies no candidate or execution
+authority. An exact `GameUpdatePlan.assessment` reports an already active release
+as not offered, an unverified retained copy as held, missing original files or
+BIOS for a download as waiting, or a usable candidate as allowed. Verified local
+reuse does not reacquire original input bytes. Execution still rechecks critical
+files, reviewed identities and consent under the existing per-port lock.
+
 Schema 62 adds required `create_assessment` to `backup.list` inventory, with the
 shared `backup_create` action. API schema 63 also requires `restore_assessment`
 with action `backup_restore`: `waiting/missing_backup` when no usable snapshot

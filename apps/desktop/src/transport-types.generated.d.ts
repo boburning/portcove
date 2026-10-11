@@ -83,7 +83,8 @@ export type PortAction =
   | "remove_external"
   | "rollback"
   | "backup_create"
-  | "backup_restore";
+  | "backup_restore"
+  | "update";
 export type PortActionAvailability = "not_offered" | "waiting" | "held" | "allowed";
 export type PortActionReason =
   | "available"
@@ -1721,8 +1722,22 @@ export interface InstallSourceRequirement {
  */
 export interface OutputGameUpdatePlan {
   activate: boolean;
+  assessment: PortActionAssessment3;
   plan: InstallPlan;
   plan_sha256: string;
+  [k: string]: unknown;
+}
+/**
+ * Read-only decision for this exact reviewed candidate, not authorization.
+ */
+export interface PortActionAssessment3 {
+  action: PortAction;
+  availability: PortActionAvailability;
+  /**
+   * The authoritative signed-definition reason, when it limits this action.
+   */
+  definition?: DefinitionEligibility | null;
+  reason: PortActionReason;
   [k: string]: unknown;
 }
 export interface GithubAuthStatus {
