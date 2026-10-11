@@ -305,6 +305,7 @@ function coreProposalInspector(cli, root) {
   const inspect = (name, bytes) => {
     const file = join(root, `${name}.json`);
     writeFileSync(file, bytes, { flag: "wx" });
+    const processStarted = process.hrtime.bigint();
     const child = spawnSync(
       artifact,
       [
@@ -318,6 +319,7 @@ function coreProposalInspector(cli, root) {
       ],
       { env, encoding: "utf8", timeout: 30000, maxBuffer: 1024 * 1024, windowsHide: true },
     );
+    const processElapsedMs = Number(process.hrtime.bigint() - processStarted) / 1e6;
     writeFileSync(
       join(root, `${name}-process.json`),
       JSON.stringify(
@@ -326,6 +328,8 @@ function coreProposalInspector(cli, root) {
           status: child.status,
           signal: child.signal,
           error_code: child.error?.code ?? null,
+          elapsed_ms: processElapsedMs,
+          elapsed_boundary: "monotonic wall elapsed around validator spawnSync, including waiting",
           stdout_tail: child.stdout?.slice(-16384) ?? "",
           stderr_tail: child.stderr?.slice(-16384) ?? "",
         },
@@ -391,15 +395,28 @@ async function prepareArtworkProposal(fullProposal = false) {
   // Refuse existing output rather than replacing an earlier proposal, recovery
   // receipt or private library. No catalog publication or source mutation.
   mkdirSync(outputRoot);
+  const preparationStarted = process.hrtime.bigint();
+  let phaseStarted = preparationStarted;
+  const phases = [];
+  const finishPhase = (phase) => {
+    const finished = process.hrtime.bigint();
+    phases.push({ phase, elapsed_ms: Number(finished - phaseStarted) / 1e6 });
+    phaseStarted = finished;
+  };
   let inspectProposal;
   let beforeChecks;
   if (fullProposal) {
     const validationRoot = join(outputRoot, "proposal-checks");
     mkdirSync(validationRoot);
     inspectProposal = coreProposalInspector(cli, validationRoot);
+    finishPhase("validator_capture");
+    const accepted = inspectProposal.inspect("accepted", Buffer.from(JSON.stringify(current)));
+    finishPhase("accepted_declarations");
+    const inputCheck = inspectProposal.inspect("input", captured.bytes);
+    finishPhase("input_declarations");
     beforeChecks = {
-      accepted: inspectProposal.inspect("accepted", Buffer.from(JSON.stringify(current))),
-      input: inspectProposal.inspect("input", captured.bytes),
+      accepted,
+      input: inputCheck,
     };
   }
   let imageValidator;
@@ -432,12 +449,34 @@ async function prepareArtworkProposal(fullProposal = false) {
     identities,
     refreshPortIds,
   });
+  finishPhase("artwork_preparation");
   validateCurrentCatalog(result.catalog);
   const proposalBytes = Buffer.from(`${JSON.stringify(result.catalog, null, 2)}\n`);
   const proposalChecks = fullProposal
     ? { ...beforeChecks, output: inspectProposal.inspect("output", proposalBytes) }
     : undefined;
+  finishPhase("output_preparation_and_declarations");
   const compatibilityReview = fullProposal ? compatibilityFixtureReview(result.catalog) : undefined;
+  finishPhase("compatibility_review");
+  const preparationCosts = {
+    clock: "process.hrtime.bigint",
+    elapsed_ms: Number(phaseStarted - preparationStarted) / 1e6,
+    elapsed_boundary:
+      "New output directory through compatibility review; excludes input/options parsing, process startup and final output writes. Includes subprocess/provider waiting; not CPU time.",
+    phases,
+    artwork_metrics: "artwork-evidence.json#/metrics",
+    provider_metrics: "artwork-evidence.json#/provider_metrics",
+    unmeasured: [
+      "authoring",
+      "engineering",
+      "interventions",
+      "CPU",
+      "comparative_baseline",
+      "speedup",
+    ],
+    scope:
+      "Observed preparation only; reuse counts do not establish time saved or delivery improvement.",
+  };
   const evidence = {
     format_version: 1,
     input_sha256: digest(input),
@@ -468,6 +507,7 @@ async function prepareArtworkProposal(fullProposal = false) {
           differences: differences(current, result.catalog),
           proposal_changes: proposalChanges(current, result.catalog),
           compatibility_fixture_review: compatibilityReview,
+          preparation_costs: preparationCosts,
           checks: proposalChecks,
           artwork_evidence: "artwork-evidence.json",
           scope:
