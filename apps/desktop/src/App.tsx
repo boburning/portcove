@@ -1109,6 +1109,7 @@ function SelectedPortPanel({
       )}
       libraryGeneration={libraryGeneration}
       gameFileQueryContext={model.gameFileQueryContext}
+      gameFileFilterContext={model.gameFileQuery?.context}
       outputLocationChanged={installPlanning.invalidate}
       externalRuntimeChanged={() => {
         installPlanning.invalidate();
