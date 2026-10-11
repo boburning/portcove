@@ -12,7 +12,10 @@ import {
   Star,
   Wrench,
 } from "lucide-react";
-import { catalogSetupPresentation } from "../features/port-actions/port-action-presentation";
+import {
+  catalogSetupPresentation,
+  installedCardInputPresentation,
+} from "../features/port-actions/port-action-presentation";
 import type { PortDefinition, PortStatus } from "../types";
 import {
   currentUpdateSnapshot,
@@ -643,6 +646,12 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
   );
 }
 
+type CardState = {
+  label: string;
+  action: ReturnType<typeof readinessPresentation>["action"];
+  tone: ReturnType<typeof readinessPresentation>["tone"];
+};
+
 type PortCardProps = {
   onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
   favorites?: ReturnType<typeof useFavorites>;
@@ -689,7 +698,9 @@ function PortCard({
   view,
 }: PortCardProps) {
   const setupDescriptionId = useId();
-  const state = readinessPresentation(readiness, view, status);
+  const input = installedCardInputPresentation(status);
+  const originalState = readinessPresentation(readiness, view, status);
+  const state = input ? { ...originalState, label: input.label } : originalState;
   const setup =
     view === "catalog" && !status?.active && !status?.external_runtime
       ? catalogSetupPresentation(status)
@@ -708,6 +719,7 @@ function PortCard({
         state,
         setup,
         setupDescriptionId,
+        input,
         channel,
         updateAvailable,
         dropEligible,
@@ -745,6 +757,7 @@ function PortCard({
       <article
         className={className}
         aria-label={accessibleLabel}
+        aria-describedby={input ? setupDescriptionId : undefined}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
         data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
       >
@@ -759,7 +772,7 @@ function PortCard({
         data-detail-origin={detailOrigin}
         className={`${className} h-full w-full`}
         aria-label={accessibleLabel}
-        aria-describedby={setup ? setupDescriptionId : undefined}
+        aria-describedby={setup || input ? setupDescriptionId : undefined}
         onClick={() => onSelect(port.id, detailOrigin)}
         data-source-drop-port-id={dropEligible ? port.id : undefined}
         data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
@@ -780,6 +793,7 @@ function PortCardContents({
   state,
   setup,
   setupDescriptionId,
+  input,
   channel,
   updateAvailable,
   dropEligible,
@@ -789,9 +803,10 @@ function PortCardContents({
   onLaunch,
   view,
 }: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
-  state: ReturnType<typeof readinessPresentation>;
+  state: CardState;
   setup?: ReturnType<typeof catalogSetupPresentation>;
   setupDescriptionId: string;
+  input?: ReturnType<typeof installedCardInputPresentation>;
   channel: ReturnType<typeof releaseChannelPresentation> | undefined;
   updateAvailable?: boolean;
   dropEligible: boolean;
@@ -814,7 +829,9 @@ function PortCardContents({
         {state.label}
       </span>
       {view === "catalog" && channel && (
-        <span className={`badge ${channel.tone} ${cardBadgeClass}`}>{channel.label}</span>
+        <span className={`badge ${channel.tone} ${cardBadgeClass}`}>
+          Release channel: {channel.label}
+        </span>
       )}
     </div>
   );
@@ -849,6 +866,18 @@ function PortCardContents({
               <p key={route.action} className="m-0">
                 <strong>{route.route}: </strong>
                 {route.reason}
+              </p>
+            ))}
+          </div>
+        )}
+        {input && (
+          <div
+            id={setupDescriptionId}
+            className="mt-2 space-y-1 text-xs text-[var(--color-text-secondary)]"
+          >
+            {input.reasons.map((reason) => (
+              <p key={reason} className="m-0">
+                {reason}
               </p>
             ))}
           </div>
@@ -888,13 +917,17 @@ function PortCardContents({
             </div>
           </>
         )}
-        <PortCardStatus {...{ port, status, state, detailOrigin, onSelect, onLaunch, view }} />
+        <PortCardStatus
+          inputDescriptionId={input ? setupDescriptionId : undefined}
+          {...{ port, status, state, detailOrigin, onSelect, onLaunch, view }}
+        />
       </div>
     </>
   );
 }
 
 function PortCardStatus({
+  inputDescriptionId,
   port,
   status,
   state,
@@ -903,7 +936,8 @@ function PortCardStatus({
   onLaunch,
   view,
 }: Pick<PortCardProps, "port" | "status" | "onSelect" | "onLaunch" | "view"> & {
-  state: ReturnType<typeof readinessPresentation>;
+  inputDescriptionId?: string;
+  state: CardState;
   detailOrigin: string;
 }) {
   const overflowOrigin = `library:card-more:${port.id}`;
@@ -931,6 +965,7 @@ function PortCardStatus({
             variant="outline"
             size="sm"
             aria-label={`View details for ${port.name}`}
+            aria-describedby={inputDescriptionId}
             data-detail-origin={detailOrigin}
             onClick={() => onSelect(port.id, detailOrigin)}
           >

@@ -263,3 +263,78 @@ describe("catalog and capacity presentation", () => {
     expect(unknown).not.toContain('role="meter"');
   });
 });
+
+const cardInstall: NonNullable<PortStatus["active"]> = {
+  id: "install",
+  port_id: "sample",
+  channel: "stable",
+  version: "1",
+  path: "/fixture",
+  installed_at: 1,
+  staged: false,
+  verified: true,
+  manifest_sha256: "a".repeat(64),
+  selected_executable: "game.exe",
+  runtime: null,
+  artifact: { asset_name: "fixture.zip", size: 1, sha256: "a".repeat(64) },
+};
+it.each(["catalog", "library"] as const)(
+  "presents installed input reasons on %s cards with reachable Details",
+  (view) => {
+    for (const [blocker, label, reason] of [
+      ["missing_source", "Game files missing", "Required game files are missing"],
+      ["changed_source", "Game files changed", "game files changed"],
+      ["unreadable_source", "Game files unreadable", "cannot read the required game files"],
+      ["missing_bios", "BIOS file missing", "BIOS file is missing"],
+      ["changed_bios", "BIOS file changed", "BIOS file changed"],
+      ["unreadable_bios", "BIOS file unreadable", "cannot read the required BIOS file"],
+    ] as const) {
+      const port = portDefinition();
+      const status: PortStatus = {
+        ...portStatus(),
+        active: cardInstall,
+        readiness: { launchable: false, pending_setup: false, blockers: [blocker] },
+      };
+      const html = renderToStaticMarkup(
+        <PortBrowser
+          view={view}
+          ports={[port]}
+          statuses={new Map([[port.id, status]])}
+          overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={vi.fn()}
+          onContinue={vi.fn()}
+          loading={false}
+        />,
+      );
+      expect(html).toContain(label);
+      expect(html).toContain(reason);
+      expect(html).toContain("aria-describedby=");
+      expect(html).not.toContain(">Play</button>");
+      expect(html).toContain(view === "library" ? `View details for ${port.name}` : "Finish setup");
+    }
+  },
+);
+it.each(["stable", "beta", "rolling"] as const)(
+  "labels the selected Catalog release channel %s without deriving it from support",
+  (channel) => {
+    const port = { ...portDefinition(), support_tier: "rolling" as const };
+    const status = { ...portStatus(), channel };
+    const html = renderToStaticMarkup(
+      <PortBrowser
+        view="catalog"
+        ports={[port]}
+        statuses={new Map([[port.id, status]])}
+        overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+      />,
+    );
+    expect(html).toContain(
+      `Release channel: ${channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling"}`,
+    );
+  },
+);

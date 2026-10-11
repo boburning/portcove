@@ -237,3 +237,60 @@ export function catalogSetupPresentation(status: PortStatus | undefined) {
           : "Setup unavailable";
   return { label, routes };
 }
+
+const installedInputLabels: Record<string, string> = {
+  missing_source: "Game files missing",
+  changed_source: "Game files changed",
+  unreadable_source: "Game files unreadable",
+  missing_bios: "BIOS file missing",
+  changed_bios: "BIOS file changed",
+  unreadable_bios: "BIOS file unreadable",
+};
+
+/** Display cached input problems; keep admission and operation availability with their existing owners. */
+export function installedCardInputPresentation(status: PortStatus | undefined) {
+  const readiness = status?.readiness;
+  if (
+    !(status?.active || status?.external_runtime) ||
+    readiness?.launchable !== false ||
+    !Array.isArray(readiness.blockers) ||
+    readiness.blockers.includes("invalid_installation")
+  )
+    return undefined;
+  const inputs = [...new Set(readiness.blockers)].filter(
+    (reason) => typeof reason === "string" && Object.hasOwn(installedInputLabels, reason),
+  );
+  const reasons = inputs.map((reason) => {
+    const recovery = reason.startsWith("unreadable_")
+      ? "View details to restore access or choose the required files again."
+      : "View details to select and review the required files.";
+    return `${actionReasons[reason]} ${recovery}`;
+  });
+  const assessments = status.port_actions;
+  const launch = Array.isArray(assessments)
+    ? assessments.filter((assessment) => assessment?.action === "launch")
+    : [];
+  const mismatch =
+    launch.length === 1 &&
+    launch[0].availability === "held" &&
+    launch[0].reason === "definition_ineligible" &&
+    ["hold", "escalate"].includes(launch[0].definition?.outcome ?? "") &&
+    launch[0].definition?.reason === "source_identity_mismatch";
+  if (mismatch)
+    reasons.push(
+      `${definitionHoldReason("Launch", "source_identity_mismatch")} View details to review the input requirements.`,
+    );
+  if (reasons.length === 0) return undefined;
+  const game = inputs.some((reason) => reason.endsWith("_source"));
+  const bios = inputs.some((reason) => reason.endsWith("_bios"));
+  const label = mismatch
+    ? "Input edition mismatch"
+    : inputs.length === 1
+      ? installedInputLabels[inputs[0]]
+      : game && bios
+        ? "Game files and BIOS need review"
+        : bios
+          ? "BIOS file needs review"
+          : "Game files need review";
+  return { label, reasons };
+}
