@@ -413,10 +413,22 @@ export async function selectedSetupCompletionScenario({
       for (const label of choices)
         assert.equal(await browser.findElement(button(label)).isEnabled(), true);
       report.observations.returned_choices = choices;
-      await captureAccessibilityReport(
-        browser,
-        path.join(output, "selected-setup-completion-accessibility.json"),
-        artifacts,
+      const accessibilityFile = path.join(output, "selected-setup-completion-accessibility.json");
+      await captureAccessibilityReport(browser, accessibilityFile, artifacts);
+      const accessibility = JSON.parse(await readFile(accessibilityFile, "utf8"));
+      assert.ok((await browser.findElements(By.css(".source-result"))).length > 0);
+      const prohibitedAttributes = [
+        ...accessibility.violations,
+        ...accessibility.incomplete,
+      ].filter((item) => item.id === "aria-prohibited-attr");
+      report.observations.source_result_accessibility = {
+        rule: "aria-prohibited-attr",
+        unresolved: prohibitedAttributes.length,
+      };
+      assert.deepEqual(
+        prohibitedAttributes,
+        [],
+        "The visible source result must not retain prohibited or unresolved ARIA attributes",
       );
     } catch (error) {
       failure = error;
