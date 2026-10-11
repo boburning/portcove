@@ -172,6 +172,23 @@
       "release_facts_sha256": "0f6d0f08bacf062540f0d41bad5166b548a22941d787c785536b326d6c907149",
       "asset_id": 544445910,
       "asset_facts_sha256": "2f823de4ce920d22f35327be56a15a87f70added246310db2987eb5b7dd13b12"
+    },
+    {
+      "port_id": "alexbeav-diablo-recomp",
+      "port_contract_sha256": "3db897a5c890b7665e96223d7daaf6985888304ad0fe264d8c6bd740fe8fc117",
+      "platform": "windows-x86-64",
+      "repository": "alexbeavs-ps1-ports/diablo-recomp",
+      "tag": "v0.1.4",
+      "name": "diablo-recomp-0.1.4-windows-x64.zip",
+      "url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp/releases/download/v0.1.4/diablo-recomp-0.1.4-windows-x64.zip",
+      "size": 29909581,
+      "sha256": "962088ec8a614305221e4f67879702b1c0ca57268392982b431ab8d17b6c4722",
+      "repository_id": 1355811747,
+      "archived": false,
+      "release_id": 401948038,
+      "asset_id": 605927357,
+      "asset_facts_sha256": "8ead23edd001e5547581d10a638b78fe2d9b06b9f6dc04ab3b173932f15936d9",
+      "release_facts_sha256": "5e81c50d2e3873e2a026f5f56c922b77dd400a42654f481c5462322e92087cd4"
     }
   ],
   "original_conditions": [
