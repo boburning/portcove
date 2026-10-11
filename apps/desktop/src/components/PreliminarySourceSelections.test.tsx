@@ -12,7 +12,7 @@ type Inspection = NonNullable<SourceInspectionReport["inspection"]>;
 const profile: SourceProfile = {
   id: "disc",
   label: "Disc files",
-  kind: "upstream_validated_disc",
+  kind: "upstream-validated-disc",
   accepted_extensions: ["iso"],
   accepted_sha1: [],
   accepted_sha256: [],
