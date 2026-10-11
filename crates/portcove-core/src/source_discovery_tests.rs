@@ -150,7 +150,7 @@ fn schema1_validator_selection_stays_manual_without_silent_hashing() {
     let mut document = catalog(payload).document().clone();
     for profile in &mut document.source_profiles {
         profile.kind = crate::SourceKind::UpstreamValidatedDisc;
-        profile.accepted_extensions = vec!["iso".into()];
+        profile.accepted_extensions = vec!["iso".into(), "chd".into()];
         profile.accepted_sha256.clear();
     }
     let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
@@ -178,7 +178,22 @@ fn preliminary_saved_scan_resumes_after_restart_without_rehashing_or_resetting_c
     for name in ["one.iso", "two.iso", "three.iso"] {
         fs::write(root.join(name), payload).unwrap();
     }
-    let catalog = Catalog::embedded().unwrap();
+    // Saved scans include every profile. Keep two real validator identities so
+    // the first entry cannot exhaust the four-result cumulative budget.
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    document.source_profiles.clear();
+    document.ports.clear();
+    let source = document.source_catalog.as_mut().unwrap();
+    source.identities.retain(|identity| {
+        matches!(
+            identity.id.as_str(),
+            "opengoal-jak1-disc" | "opengoal-jak2-disc"
+        )
+    });
+    source.contracts.clear();
+    source.qualification.clear();
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    assert_eq!(catalog.document().source_profiles.len(), 2);
     let library_path = temporary.path().join("library");
     let library = crate::Library::open(&library_path).unwrap();
     library.add_game_file_root(&root).unwrap();
@@ -189,7 +204,13 @@ fn preliminary_saved_scan_resumes_after_restart_without_rehashing_or_resetting_c
     };
     let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
     let count = first.report.preliminary_selections.len();
-    assert!(count > 0 && count < limits.max_candidates as usize);
+    assert_eq!(count, 2);
+    assert!(first.report.preliminary_selections.iter().all(|selection| {
+        matches!(
+            selection.profile_id.as_str(),
+            "opengoal-jak1-disc" | "opengoal-jak2-disc"
+        ) && selection.validator.as_ref().unwrap().result == crate::SourceValidatorResult::NotRun
+    }));
     assert_eq!(first.report.files_hashed, 1);
     assert!(first.coverage.as_ref().unwrap().can_resume);
     drop(library);
@@ -2655,7 +2676,7 @@ fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() 
     assert!(error.to_string().contains("invalid scan limits"));
 
     snapshot.limits = Some(SourceDiscoveryLimits::default());
-    snapshot.format_version = 9;
+    snapshot.format_version = CURRENT_SCAN_FORMAT_VERSION + 1;
     library.replace_game_file_scan_snapshot(&snapshot).unwrap();
 
     let error = super::current_game_file_scan(&catalog, &library).unwrap_err();
@@ -4456,7 +4477,7 @@ fn fresh_scan_preserves_readable_reports_with_bad_metadata_and_refuses_future_fo
         if corruption == "roots" {
             value["roots"] = serde_json::json!("invalid required metadata");
         } else {
-            value["format_version"] = serde_json::json!(9);
+            value["format_version"] = serde_json::json!(CURRENT_SCAN_FORMAT_VERSION + 1);
             if corruption == "future-unreadable-report" {
                 value["report"] = serde_json::json!("incompatible future report");
             }
