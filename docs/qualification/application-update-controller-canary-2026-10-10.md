@@ -156,3 +156,42 @@ PR/fork/reusable-caller cases and a safe attributable creation-denial probe requ
 separately reviewed nonsecret source. Production request lineage, custody, signing,
 feed publication and installed acceptance remain unqualified. This evidence does
 not close #534 or lift the Linux GLib or native custody holds.
+
+## October 11 read-only creation-rule attribution
+
+The October 10 generic HTTP 422 creation response and the earlier uncertainty
+remain retained. A later read of its already recorded rule-suite identity
+attributes that same failed attempt to the creation restriction. No probe was
+repeated and no remaining test allocation was consumed.
+
+Authenticated GET
+`/repos/boburning/portcove/rulesets/rule-suites/4461226338` returned these facts:
+
+| Binding             | Observed value                                            |
+| ------------------- | --------------------------------------------------------- |
+| Rule suite          | `4461226338`, result `fail`                               |
+| Actor               | `boburning`, ID `43177418`                                |
+| Ref                 | `refs/tags/portcove-controller-canary-20261010`           |
+| Before SHA          | `0000000000000000000000000000000000000000`                |
+| Requested after SHA | `b67826eda36547add4b3304682d6301464a979a1`                |
+| Attempt time        | `2026-10-10T12:32:03-04:00` (`16:32:03Z`)                 |
+| Rule source         | ruleset `24845568`, `portcove-controller-canary-20261010` |
+| Evaluation          | enforcement `active`, rule type `creation`, result `fail` |
+| Attribution         | `Cannot create ref due to creations being restricted.`    |
+
+This is attribution of the approved existing exact-ref creation attempt. It
+supersedes the earlier statement that this attempt's creation-policy denial was
+unproven. It does not establish absent-ref or unrelated-namespace behavior,
+another actor's privileges, future key custody, or permission to create tags.
+
+Fresh readback retained the tag at the same SHA, the Active exact ruleset with
+no bypass actors and current-user bypass `never`, administrator bypass disabled
+on environment `23963641917`, and sole type-tag policy `62609324`. Environment
+secret-name and variable-name inventories both contain zero entries, consistent
+with the approved minimal teardown. No secret bytes were read or retained.
+
+The four authorized workflow attempts, all failures, artifacts, probe refs and
+protected controls remain unchanged. PR/fork/reusable-caller proof, production
+request lineage, custody/recovery, signing, feed publication, installed acceptance
+and the Linux GLib security hold remain open. Additional protected actions still
+require their own exact canonical-owner packet and authority.
