@@ -131,19 +131,18 @@ export function gameFileFilterContext(
   )
     return undefined;
   const selection = request.routes[0];
+  if (!selection) return undefined;
   if (
-    !request.routes.every(
-      (route, index) =>
+    !request.routes.every((route, index) => {
+      const projection = snapshot.routes[index];
+      return (
+        projection !== undefined &&
         route.platform === selection.platform &&
         route.channel === selection.channel &&
         route.route === selection.route &&
-        acceptedGameFileQuery(
-          { ...snapshot, routes: [snapshot.routes[index]] },
-          route,
-          library,
-          now,
-        ),
-    )
+        acceptedGameFileQuery({ ...snapshot, routes: [projection] }, route, library, now)
+      );
+    })
   )
     return undefined;
   return {
