@@ -2228,7 +2228,10 @@ mod tests {
         BackupInventoryState, BackupRecord, PreparationCleanupPreview, StorageSummary,
     };
 
-    use super::{backup_list, catalog_show, document, storage, table, utc_rate_reset, utc_time};
+    use super::{
+        backup_history, backup_list, catalog_show, document, storage, table, utc_rate_reset,
+        utc_time,
+    };
 
     fn scan_snapshot_fixture() -> portcove_core::GameFileScanSnapshot {
         use portcove_core::{
