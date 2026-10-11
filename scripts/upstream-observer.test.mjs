@@ -2808,3 +2808,24 @@ test("malformed inventories refuse before requests and prior-report bounds remai
     }
   }
 });
+
+test("reuse opportunities require the pin read to precede a shared hosted sibling", async () => {
+  const pin = reviewedAccounting.pins[0];
+  const pinnedPort = currentHealthCatalog.ports.find((port) => port.id === pin.port_id);
+  const sibling = {
+    id: "shared-hosted-sibling",
+    release: { provider: "github", repository: pin.repository },
+  };
+  for (const pinFirst of [true, false]) {
+    const calls = [];
+    const report = await collectRepositoryHealth(
+      { ports: pinFirst ? [pinnedPort, sibling] : [sibling, pinnedPort] },
+      { fetch: accountingFetch(calls) },
+    );
+    assert.equal(report.outcome, "complete");
+    assert.equal(report.request_plan.conditional_repository_reuses, pinFirst ? 1 : 0);
+    assert.equal(report.coverage.reused_repositories, pinFirst ? 1 : 0);
+    assert.equal(report.limits.requests, 5);
+    assert.equal(report.consumed.requests, pinFirst ? 4 : 5);
+  }
+});

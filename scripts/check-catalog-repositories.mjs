@@ -519,10 +519,13 @@ export async function collectRepositoryHealth(
     network_records: networkRecords.length,
     conditional_pin_requests: conditionalPinRequests,
     conditional_repository_reuses: records.filter(
-      (record) =>
+      (record, index) =>
         record.provider === "github" &&
         !record.release_ref &&
-        pinnedRecords.some((pin) => pinRules(pin)[0].repository === record.repository),
+        pinnedRecords.some(
+          (pin) =>
+            records.indexOf(pin) < index && pinRules(pin)[0].repository === record.repository,
+        ),
     ).length,
     conservative_requests: conservativeRequests,
     hard_ceiling: HARD_REQUEST_CEILING,
