@@ -2370,7 +2370,6 @@ Catalog identity, port locks, one-use consent, original/source preservation and 
 revalidation remain required. Typed path snapshots cannot replace symlink/ownership
 checks at mutation boundaries. SQLite, public schemas and journal encodings are unchanged.
 
-
 ### Route-bound game-file query construction
 
 Core constructs `GameFileQuerySnapshot` from a batch retained by its own worker
