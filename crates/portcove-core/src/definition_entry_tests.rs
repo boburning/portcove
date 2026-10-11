@@ -424,7 +424,7 @@ fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
     *document
         .ports
         .iter_mut()
-        .find(|candidate| candidate.id == port.id)
+        .find(|candidate| candidate.id == "dkc3-recomp")
         .unwrap() = port;
     let error = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
     assert!(
