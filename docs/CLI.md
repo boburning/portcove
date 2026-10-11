@@ -205,7 +205,15 @@ target-artifact refusal, not current-definition permission. Status does not
 delete files or saves and still grants no execution authority.
 
 Schema 62 adds required `create_assessment` to `backup.list` inventory, with the
-shared `backup_create` action. `allowed/available` means owned data exists or
+shared `backup_create` action. API schema 63 also requires `restore_assessment`
+with action `backup_restore`: `waiting/missing_backup` when no usable snapshot
+exists, `held/recovery_required` for unfinished restore/deletion recovery,
+`held/unsafe_data` or `held/unreadable_data` for an unsafe/unreadable owned root,
+and `allowed/available` when snapshot review can be attempted. Preparing restore
+records and unrelated damaged history do not hold a usable snapshot. Restore-only
+holds do not change Delete's own rules. These read-only decisions supply neither
+snapshot integrity nor consent; execution repeats its guards under the port lock.
+For creation, `allowed/available` means owned data exists or
 launched managed save collection can yield it. Retained owned saves remain
 eligible without an install; unknown external saves never become owned data.
 `waiting/missing_data` means no data was found; `held` distinguishes recovery,

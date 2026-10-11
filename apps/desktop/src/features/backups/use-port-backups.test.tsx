@@ -19,6 +19,11 @@ function deferred<T>() {
 
 const inventory = (portId: string, backupId = `${portId}-backup`): BackupInventory => ({
   port_id: portId,
+  restore_assessment: {
+    action: "backup_restore" as const,
+    availability: "allowed" as const,
+    reason: "available" as const,
+  },
   create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
   state: "healthy",
   backups: [

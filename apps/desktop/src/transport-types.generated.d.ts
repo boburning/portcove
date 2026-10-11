@@ -76,7 +76,14 @@ export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "mac
  * inputs under its own lock and may still require an exact reviewed plan.
  */
 export type PortAction =
-  "install" | "register_external" | "launch" | "remove_managed" | "remove_external" | "rollback" | "backup_create";
+  | "install"
+  | "register_external"
+  | "launch"
+  | "remove_managed"
+  | "remove_external"
+  | "rollback"
+  | "backup_create"
+  | "backup_restore";
 export type PortActionAvailability = "not_offered" | "waiting" | "held" | "allowed";
 export type PortActionReason =
   | "available"
@@ -96,6 +103,7 @@ export type PortActionReason =
   | "invalid_installation"
   | "definition_ineligible"
   | "missing_data"
+  | "missing_backup"
   | "unreadable_data"
   | "unsafe_data"
   | "recovery_required"
@@ -995,6 +1003,7 @@ export interface OutputBackupInventory {
   create_assessment: PortActionAssessment1;
   port_id: string;
   problems: BackupProblem[];
+  restore_assessment: PortActionAssessment2;
   state: BackupInventoryState;
   [k: string]: unknown;
 }
@@ -1018,6 +1027,19 @@ export interface BackupProblem {
   operation_id: string | null;
   path: string;
   proposed_action: string;
+  [k: string]: unknown;
+}
+/**
+ * Eligibility to review a usable snapshot; consent and execution remain authoritative.
+ */
+export interface PortActionAssessment2 {
+  action: PortAction;
+  availability: PortActionAvailability;
+  /**
+   * The authoritative signed-definition reason, when it limits this action.
+   */
+  definition?: DefinitionEligibility | null;
+  reason: PortActionReason;
   [k: string]: unknown;
 }
 export interface OutputCapabilities {

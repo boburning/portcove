@@ -2,6 +2,177 @@
 use super::*;
 
 #[test]
+fn backup_restore_assessment_distinguishes_unknown_root_from_missing_backup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    let root = library.backups_dir().join(port_id);
+    fs::create_dir_all(root.parent().unwrap()).unwrap();
+    fs::write(&root, b"preserve invalid backup root").unwrap();
+    let inventory = service.list_backups(port_id).unwrap();
+    assert!(inventory.backups.is_empty());
+    assert_eq!(
+        inventory.restore_assessment.availability,
+        PortActionAvailability::Held
+    );
+    assert_eq!(
+        inventory.restore_assessment.reason,
+        PortActionReason::UnsafeData
+    );
+    assert_eq!(fs::read(&root).unwrap(), b"preserve invalid backup root");
+}
+
+#[test]
+fn backup_restore_assessment_distinguishes_empty_degraded_preparing_and_recovery() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    let empty = service.list_backups(port_id).unwrap().restore_assessment;
+    assert_eq!(empty.action, PortAction::BackupRestore);
+    assert_eq!(empty.availability, PortActionAvailability::Waiting);
+    assert_eq!(empty.reason, PortActionReason::MissingBackup);
+    assert!(empty.definition.is_none());
+    let user_file = library.user_dir(port_id).join("general.json");
+    fs::create_dir_all(user_file.parent().unwrap()).unwrap();
+    fs::write(&user_file, b"owned current").unwrap();
+    let backup = service.create_backup(port_id).unwrap();
+    let damaged = library
+        .backups_dir()
+        .join(port_id)
+        .join("damaged-unrelated");
+    fs::create_dir_all(&damaged).unwrap();
+    fs::write(damaged.join("backup.json"), b"not json").unwrap();
+    let store = OperationStore::new(library.clone());
+    let mut operation = LifecycleOperation::new(
+        "restore-assessment-control",
+        LifecycleOperationKind::Restore,
+        port_id,
+    );
+    store.put(&mut operation).unwrap();
+    let before = format!("{:?}", store.all().unwrap());
+    let inventory = service.list_backups(port_id).unwrap();
+    assert_eq!(inventory.state, BackupInventoryState::Degraded);
+    assert_eq!(inventory.backups.len(), 1);
+    assert_eq!(
+        inventory.restore_assessment.availability,
+        PortActionAvailability::Allowed
+    );
+    assert_eq!(
+        inventory.restore_assessment.reason,
+        PortActionReason::Available
+    );
+    assert_eq!(format!("{:?}", store.all().unwrap()), before);
+    operation.phase = LifecyclePhase::Prepared;
+    store.put(&mut operation).unwrap();
+    let before = format!("{:?}", store.all().unwrap());
+    let inventory = service.list_backups(port_id).unwrap();
+    assert_eq!(
+        inventory.restore_assessment.availability,
+        PortActionAvailability::Held
+    );
+    assert_eq!(
+        inventory.restore_assessment.reason,
+        PortActionReason::RecoveryRequired
+    );
+    assert_eq!(inventory.state, BackupInventoryState::Degraded);
+    assert_eq!(
+        service
+            .preview_backup_action(port_id, &backup.id, BackupAction::Delete)
+            .unwrap()
+            .backup
+            .id,
+        backup.id
+    );
+    assert_eq!(format!("{:?}", store.all().unwrap()), before);
+    operation.port_id = "another-port".into();
+    store.put(&mut operation).unwrap();
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .restore_assessment
+            .reason,
+        PortActionReason::Available
+    );
+    operation.port_id = port_id.into();
+    operation.kind = LifecycleOperationKind::DeleteBackup;
+    operation.phase = LifecyclePhase::Preparing;
+    store.put(&mut operation).unwrap();
+    let before = format!("{:?}", store.all().unwrap());
+    assert_eq!(
+        service
+            .list_backups(port_id)
+            .unwrap()
+            .restore_assessment
+            .reason,
+        PortActionReason::RecoveryRequired
+    );
+    assert_eq!(format!("{:?}", store.all().unwrap()), before);
+    assert_eq!(fs::read(&user_file).unwrap(), b"owned current");
+    assert_eq!(fs::read(damaged.join("backup.json")).unwrap(), b"not json");
+}
+
+#[test]
+fn backup_restore_assessment_projects_real_retained_restore_without_mutation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    let user_file = library.user_dir(port_id).join("general.json");
+    fs::create_dir_all(user_file.parent().unwrap()).unwrap();
+    fs::write(&user_file, b"wanted").unwrap();
+    let backup = service.create_backup(port_id).unwrap();
+    fs::write(&user_file, b"current").unwrap();
+    let service = service_with_fault(library.clone(), LifecycleFaultPoint::RestorePrepared);
+    let authorization = backup_authorization(&service, port_id, &backup.id, BackupAction::Restore);
+    assert!(
+        service
+            .restore_backup(port_id, &backup.id, &authorization.token)
+            .unwrap_err()
+            .message
+            .contains("injected lifecycle failure")
+    );
+    let store = OperationStore::new(library.clone());
+    let before = format!("{:?}", store.all().unwrap());
+    let inventory = service.list_backups(port_id).unwrap();
+    assert_eq!(
+        inventory.restore_assessment.reason,
+        PortActionReason::RecoveryRequired
+    );
+    assert_eq!(
+        inventory.restore_assessment.availability,
+        PortActionAvailability::Held
+    );
+    assert_eq!(format!("{:?}", store.all().unwrap()), before);
+    assert_eq!(fs::read(&user_file).unwrap(), b"current");
+    assert_eq!(
+        fs::read(backup.path.join("data/general.json")).unwrap(),
+        b"wanted"
+    );
+}
+
+#[test]
+fn backup_restore_assessment_holds_non_directory_owned_data_root() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    let user_root = library.user_dir(port_id);
+    fs::create_dir_all(&user_root).unwrap();
+    fs::write(user_root.join("general.json"), b"wanted").unwrap();
+    service.create_backup(port_id).unwrap();
+    fs::remove_file(user_root.join("general.json")).unwrap();
+    fs::remove_dir(&user_root).unwrap();
+    fs::write(&user_root, b"preserve invalid root").unwrap();
+    let assessment = service.list_backups(port_id).unwrap().restore_assessment;
+    assert_eq!(assessment.availability, PortActionAvailability::Held);
+    assert_eq!(assessment.reason, PortActionReason::UnsafeData);
+    assert_eq!(fs::read(&user_root).unwrap(), b"preserve invalid root");
+}
+
+#[test]
 fn backup_create_assessment_preserves_direct_owned_root_without_runtime_substitution() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();

@@ -484,6 +484,7 @@ impl PortcoveService {
         let history = self.backup_history_with_operations(port_id, operations)?;
         Ok(BackupInventory {
             port_id: port_id.into(),
+            restore_assessment: self.backup_restore_assessment(port_id, operations, &history),
             create_assessment: self.backup_create_assessment(
                 port_id,
                 operations,
@@ -739,6 +740,62 @@ impl PortcoveService {
             backups,
             problems,
         })
+    }
+
+    fn backup_restore_assessment(
+        &self,
+        port_id: &str,
+        operations: &[LifecycleOperation],
+        history: &BackupHistory,
+    ) -> PortActionAssessment {
+        use crate::PortActionAvailability as Availability;
+        use PortActionReason as Reason;
+        let decision = |availability, reason| PortActionAssessment {
+            action: PortAction::BackupRestore,
+            availability,
+            reason,
+            definition: None,
+        };
+        if operations.iter().any(|operation| {
+            operation.port_id == port_id
+                && (operation.kind == LifecycleOperationKind::DeleteBackup
+                    || (operation.kind == LifecycleOperationKind::Restore
+                        && operation.phase != LifecyclePhase::Preparing))
+        }) {
+            return decision(Availability::Held, Reason::RecoveryRequired);
+        }
+        if history.state == BackupInventoryState::RecoveryRequired {
+            return decision(Availability::Held, Reason::UnsafeData);
+        }
+        let backup_root = self.library.backups_dir().join(port_id);
+        if history.problems.iter().any(|problem| {
+            problem.backup_id.is_none()
+                && problem.path == backup_root
+                && problem.kind == BackupProblemKind::UnsupportedEntry
+        }) {
+            return decision(Availability::Held, Reason::UnsafeData);
+        }
+        if history.backups.is_empty() {
+            // A failed root/entry read cannot establish that no usable backup
+            // exists. Damaged identified snapshots remain separate evidence.
+            if history.problems.iter().any(|problem| {
+                problem.backup_id.is_none() && problem.kind == BackupProblemKind::UnreadableManifest
+            }) {
+                return decision(Availability::Held, Reason::UnreadableData);
+            }
+            return decision(Availability::Waiting, Reason::MissingBackup);
+        }
+        let user_root = self.library.user_dir(port_id);
+        if refuse_symlink_ancestors(&user_root).is_err() {
+            return decision(Availability::Held, Reason::UnsafeData);
+        }
+        match fs::symlink_metadata(&user_root) {
+            Ok(metadata) if !metadata.is_dir() => decision(Availability::Held, Reason::UnsafeData),
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                decision(Availability::Held, Reason::UnreadableData)
+            }
+            _ => decision(Availability::Allowed, Reason::Available),
+        }
     }
 
     fn backup_create_assessment(
@@ -1517,4 +1574,44 @@ fn backup_action_fingerprint(
 ) -> Result<String> {
     let encoded = serde_json::to_vec(&(action, backup, backup_plan, user_plan))?;
     Ok(hex::encode(Sha256::digest(encoded)))
+}
+
+#[cfg(test)]
+mod assessment_tests {
+    use super::*;
+    #[test]
+    fn backup_restore_assessment_unreadable_history_is_unknown() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let port_id = "zelda64-recomp";
+        let root = library.backups_dir().join(port_id);
+        // Deterministic classification control for the existing failed-root-read
+        // history branch; this does not claim a host permission observation.
+        let mut history = BackupHistory {
+            state: BackupInventoryState::Degraded,
+            backups: Vec::new(),
+            problems: vec![BackupProblem {
+                kind: BackupProblemKind::UnreadableManifest,
+                backup_id: None,
+                operation_id: None,
+                path: root,
+                message: "backup directory could not be listed".into(),
+                proposed_action: "review the owned directory".into(),
+            }],
+        };
+        assert_eq!(
+            service
+                .backup_restore_assessment(port_id, &[], &history)
+                .reason,
+            PortActionReason::UnreadableData
+        );
+        history.problems[0].backup_id = Some("identified-damaged-snapshot".into());
+        assert_eq!(
+            service
+                .backup_restore_assessment(port_id, &[], &history)
+                .reason,
+            PortActionReason::MissingBackup
+        );
+    }
 }

@@ -6420,7 +6420,8 @@
           "remove_managed",
           "remove_external",
           "rollback",
-          "backup_create"
+          "backup_create",
+          "backup_restore"
         ],
         "type": "string"
       },
@@ -6482,6 +6483,7 @@
           "invalid_installation",
           "definition_ineligible",
           "missing_data",
+          "missing_backup",
           "unreadable_data",
           "unsafe_data",
           "recovery_required",

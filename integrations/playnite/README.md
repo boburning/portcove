@@ -68,7 +68,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57 or 60–62 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57 or 60–63 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -85,7 +85,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61 or schema-62 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62 or schema-63 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -107,7 +107,11 @@ operations even when action records are otherwise valid and rejects these new
 meanings in schema-60 or legacy envelopes. No unknown-value refusal is relaxed.
 
 Schema 62 backup inventory requires `create_assessment` with the shared
-`backup_create` action. The actual `backup.list` reader validates its exact
+`backup_create` action. Schema 63 requires the separate `restore_assessment`
+and strict `backup_restore` tuple; the reader rejects that field in older schemas
+and rejects missing, unrelated or contradictory Restore decisions. This reader
+proof does not establish installed-extension or native Desktop qualification.
+The actual `backup.list` reader validates its exact
 availability/reason tuple, rejects missing/null/wrong-action records, and refuses
 the new field in older envelopes. A bounded incomplete preview remains distinct
 from empty owned data and imposes no new execution limit. The reference consumes

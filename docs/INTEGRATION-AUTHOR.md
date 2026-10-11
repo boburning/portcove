@@ -90,7 +90,11 @@ reasons and schema-61 meanings carried by older envelopes are refused, including
 batched status. These source changes do not qualify an installed client update.
 
 Schema 62 requires `create_assessment` on backup inventory. Consume the exact
-`backup_create` availability/reason tuple before presenting creation; do not
+`backup_create` availability/reason tuple before presenting creation. Schema 63
+also requires `restore_assessment` with action `backup_restore`; consume its
+current availability/reason separately from Delete. Missing, stale or failed
+inventory reads do not establish Restore eligibility. An eligible snapshot still
+requires exact review, fingerprint, consent and locked execution. Do not
 infer it from whether an installation or a backup row exists. Retained owned
 data and collectible managed saves are distinct from unknown external saves.
 An incomplete bounded assessment cannot establish empty data or impose a new

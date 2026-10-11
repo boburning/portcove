@@ -96,6 +96,7 @@ pub enum PortAction {
     RemoveExternal,
     Rollback,
     BackupCreate,
+    BackupRestore,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -127,6 +128,7 @@ pub enum PortActionReason {
     InvalidInstallation,
     DefinitionIneligible,
     MissingData,
+    MissingBackup,
     UnreadableData,
     UnsafeData,
     RecoveryRequired,

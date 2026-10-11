@@ -13,6 +13,7 @@ export function BackupHistory({
   problems = [],
   state = "healthy",
   readState,
+  restoreAssessment,
   retryRead,
   busy,
   generation = 0,
@@ -24,6 +25,7 @@ export function BackupHistory({
   problems?: BackupProblem[];
   state?: BackupInventory["state"];
   readState?: BackupReadState;
+  restoreAssessment?: BackupInventory["restore_assessment"];
   retryRead?: () => Promise<void>;
   busy?: string;
   generation?: number;
@@ -42,6 +44,11 @@ export function BackupHistory({
     index: number;
   }>();
   const visible = expanded ? backups : backups.slice(0, 3);
+  const restoreAllowed =
+    (!readState || readState.status === "current") &&
+    restoreAssessment?.action === "backup_restore" &&
+    restoreAssessment.availability === "allowed" &&
+    restoreAssessment.reason === "available";
   return (
     <div ref={history} className="backup-history" data-backup-read-state={readState?.status}>
       <div className="backup-heading">
@@ -142,6 +149,21 @@ export function BackupHistory({
           </details>
         </div>
       )}
+      {backups.length > 0 && !restoreAllowed && (
+        <p role="status" className="backup-restore-assessment">
+          {readState && readState.status !== "current"
+            ? "Restore eligibility is unknown until backup history is read again."
+            : restoreAssessment?.reason === "recovery_required"
+              ? "Restoring requires recovery to finish. Restart Portcove to retry recovery and review doctor output if it remains."
+              : restoreAssessment?.reason === "unsafe_data"
+                ? "Restore is on hold. Review the owned backup and saved-data locations."
+                : restoreAssessment?.reason === "unreadable_data"
+                  ? "Restore is on hold because the owned saved-data location could not be read."
+                  : restoreAssessment?.reason === "missing_backup"
+                    ? "No usable backup is currently available to restore."
+                    : "Restore eligibility is unknown. Refresh backup history before proceeding."}
+        </p>
+      )}
       {visible.map((backup, index) => {
         const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
         return (
@@ -167,7 +189,7 @@ export function BackupHistory({
                 data-focusable
                 data-backup-action="restore"
                 variant="outline"
-                disabled={Boolean(busy) || state === "recovery_required"}
+                disabled={Boolean(busy) || state === "recovery_required" || !restoreAllowed}
                 onClick={(event) =>
                   setSelection({ backup, action: "restore", opener: event.currentTarget, index })
                 }
