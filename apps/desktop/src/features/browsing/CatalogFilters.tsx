@@ -20,6 +20,11 @@ const groups = [
   },
   { key: "channels", label: "Release channels", values: ["stable", "beta", "rolling"] },
   { key: "membership", label: "Library membership", values: ["in-library", "not-in-library"] },
+  {
+    key: "attention",
+    label: "Installation attention",
+    values: ["missing-source", "missing-bios", "missing-runtime", "repair-needed", "finish-setup"],
+  },
 ] as const;
 type Group = (typeof groups)[number]["key"];
 
@@ -32,11 +37,21 @@ function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
     : filter;
 }
 function label(group: Group, value: string) {
+  if (group === "attention") {
+    const labels: Record<string, string> = {
+      "missing-source": "Missing game files",
+      "missing-bios": "Missing BIOS",
+      "missing-runtime": "Missing runtime",
+      "repair-needed": "Repair needed",
+      "finish-setup": "Finish setup",
+    };
+    return labels[value];
+  }
   if (group === "membership") return value === "in-library" ? "In my library" : "Not in my library";
   return group === "platforms" ? platformLabel(value) : releaseChannelPresentation(value).label;
 }
 
-/** Presentation of declared facts only; the existing evaluator owns matching/counts. */
+/** Presentation of declarations and Core observations; the evaluator owns matching/counts. */
 export function CatalogFilters({
   candidates,
   context,
@@ -104,7 +119,9 @@ export function CatalogFilters({
             Match any selected value in each group and all groups together. Platforms describe
             catalog targets; they do not confirm installation compatibility. Library membership
             means an active managed installation or a registered external runtime in the selected
-            library; it does not confirm readiness.
+            library; it does not confirm readiness. Installation attention uses observed Core
+            reasons for the current installation. Changed or unreadable files are not missing; these
+            choices do not establish game-file compatibility or authorize an action.
             {view === "library" &&
               " Ready with Linux means current Library readiness and a declared Linux target, not a ready Linux installation."}
           </DialogDescription>
@@ -134,10 +151,7 @@ export function CatalogFilters({
                       supported && query[group.key]?.includes(value) ? "selected" : "outline"
                     }
                     aria-pressed={supported && query[group.key]?.includes(value) === true}
-                    disabled={
-                      !editable ||
-                      (group.key === "membership" && result.counts.membership[value] === null)
-                    }
+                    disabled={!editable || result.counts[group.key][value] === null}
                     onClick={() => toggle(group.key, value)}
                   >
                     {label(group.key, value)} (

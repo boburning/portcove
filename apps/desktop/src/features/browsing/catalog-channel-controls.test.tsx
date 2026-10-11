@@ -405,3 +405,43 @@ it("feeds the accepted membership context consistently into results, counts and 
   expect(invoke).not.toHaveBeenCalled();
   expect(fetchSpy).not.toHaveBeenCalled();
 });
+
+it("composes raw Core attention with readiness/channel counts and keeps unavailable intent without I/O", async () => {
+  statuses.set("both", {
+    ...portStatus(),
+    port_id: "both",
+    external_runtime: {
+      id: "external",
+      port_id: "both",
+      path: "/fixture",
+      executable: "game.exe",
+      platform: "windows-x86-64",
+      version: "1",
+      registered_at: 1,
+      archive_sha256: "a".repeat(64),
+      immutable_tree_sha256: "b".repeat(64),
+    },
+    readiness: { launchable: true, pending_setup: true, blockers: ["changed_source"] },
+  });
+  membershipFacts = true;
+  await act(async () => root.render(<Fixture />));
+  const control = (name: string) =>
+    [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+      (b) => b.getAttribute("aria-label") === name || b.textContent?.trim() === name,
+    )!;
+  await act(async () => control("Filters (0)").click());
+  expect(control("Missing game files (0)")).toBeDefined();
+  await act(async () => control("Finish setup (1)").click());
+  expect(visibleIds()).toEqual(["both"]);
+  await act(async () => control("Preview (1)").click());
+  expect(visibleIds()).toEqual(["both"]);
+  membershipFacts = false;
+  await act(async () => root.render(<Fixture />));
+  expect(document.body.textContent).toContain("Ports unavailable");
+  expect(visibleIds()).toEqual([]);
+  await act(async () => control("Remove Finish setup filter").click());
+  expect(visibleIds()).toEqual(["beta", "both"]);
+  expect(shell.filter).toMatchObject({ attention: [], channels: ["beta"] });
+  expect(invoke).not.toHaveBeenCalled();
+  expect(fetchSpy).not.toHaveBeenCalled();
+});
