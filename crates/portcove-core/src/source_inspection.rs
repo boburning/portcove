@@ -505,6 +505,35 @@ pub(crate) fn file_scan_extensions(
     catalog: &Catalog,
     profile: &SourceProfile,
 ) -> (Vec<String>, Vec<String>) {
+    if profile.kind == SourceKind::UpstreamValidatedDisc {
+        // Only explicit schema-2 pinned contracts have a truthful NotRun observation.
+        // Legacy selection stays manual; never fabricate validator metadata for it.
+        let extensions = catalog
+            .source_catalog()
+            .and_then(|catalog| {
+                catalog
+                    .identities
+                    .iter()
+                    .find(|identity| identity.id == profile.id)
+            })
+            .into_iter()
+            .flat_map(|identity| &identity.variants)
+            .filter(|variant| !variant.legacy_projection_only)
+            .flat_map(|variant| &variant.representations)
+            .filter(|representation| {
+                matches!(
+                    representation.kind,
+                    SourceRepresentationKind::PinnedValidator { .. }
+                )
+            })
+            .flat_map(|representation| &representation.extensions)
+            .map(|extension| extension.to_ascii_lowercase())
+            .filter(|extension| extension != "zip")
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        return (extensions.clone(), extensions);
+    }
     if profile.kind == SourceKind::GamecubeDisc {
         // These representations already are normalized bytes. Compressed discs and
         // archive members need separate materialization contracts, not this reader.
@@ -596,7 +625,17 @@ pub(crate) fn inspect_pinned_validator(
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let identity = read_identity(path, &legacy.accepted_extensions, maximum_size, budget)?;
-    let observed_digests = observed_digests(&identity);
+    inspect_pinned_validator_identity(catalog, profile_id, path, &identity)
+}
+
+fn inspect_pinned_validator_identity(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    identity: &FileIdentity,
+) -> Result<SourceInspection> {
+    let legacy = catalog.source_profile(profile_id)?;
+    let observed_digests = observed_digests(identity);
     let record = identity.record_without_admission(profile_id, path);
 
     let Some(source_catalog) = catalog.source_catalog() else {
@@ -1542,6 +1581,9 @@ pub(crate) fn inspect_file_identity(
     path: &Path,
     identity: &FileIdentity,
 ) -> Result<SourceInspection> {
+    if catalog.source_profile(profile_id)?.kind == SourceKind::UpstreamValidatedDisc {
+        return inspect_pinned_validator_identity(catalog, profile_id, path, identity);
+    }
     if catalog.source_profile(profile_id)?.kind == SourceKind::GamecubeDisc {
         if identity.archive_member || !matches!(identity.content_extension.as_str(), "iso" | "gcm")
         {

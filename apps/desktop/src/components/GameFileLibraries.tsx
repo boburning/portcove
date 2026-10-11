@@ -21,6 +21,7 @@ import type {
 } from "../types";
 import { errorText, formatBytes, formatCountMessage, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
+import { PreliminarySourceSelections } from "./PreliminarySourceSelections";
 import {
   SourceImportReview,
   sourceDiscoveryLimitLabel,
@@ -385,6 +386,12 @@ function CompletedScan({
           />
         </div>
       ))}
+      <PreliminarySourceSelections
+        selections={report.preliminary_selections}
+        profiles={profiles}
+        disabled={busy || !readConfirmed || snapshot.freshness !== "inputs_match"}
+        onReview={review}
+      />
       {report.issues.map((issue, index) => (
         <p key={`${issue.path}:${index}`}>
           {issue.message}{" "}

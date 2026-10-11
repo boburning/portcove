@@ -37,7 +37,7 @@ it("presents source discovery counts and limits in player-facing language", () =
     "Folder depth",
     "Individual file size",
     "Verification data",
-    "Exact-match count",
+    "Result count",
   ]);
   expect(limits.map((limit) => sourceDiscoveryLimitLabel(limit, "inbox"))).toEqual([
     "File and folder count",
@@ -290,7 +290,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).toContain("Individual file size");
     expect(document.body.textContent).toContain("2.0 GiB");
     expect(document.body.textContent).toContain("temporarily move some files outside it");
-    expect(document.body.textContent).not.toContain("Exact-match count");
+    expect(document.body.textContent).not.toContain("Result count");
     expect(document.body.textContent).not.toContain("not-a-match.iso");
     await click("Search this folder");
     expect(search).toHaveBeenCalledWith(
@@ -319,7 +319,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).toContain("Verification data");
     expect(document.body.textContent).toContain("16.0 GiB");
     expect(document.body.textContent).toContain("Choose a smaller folder and search again.");
-    expect(document.body.textContent).toContain("Exact-match count");
+    expect(document.body.textContent).toContain("Result count");
     expect(document.body.textContent).not.toContain("Possible matches checked");
     expect(document.body.textContent).not.toContain("file_size");
     expect(document.body.textContent).not.toContain("hash_bytes");

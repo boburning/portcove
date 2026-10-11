@@ -334,6 +334,80 @@ export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
 export type SourceComponentKind = "file_set_member" | "optical_disc";
 export type SourceValidatorResult = "not_run" | "passed" | "failed" | "missing_tool";
 export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
+export type SourceAdmission =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      mode: SourceAdmissionMode;
+      state: "admitted";
+      [k: string]: unknown;
+    }
+  | {
+      reason: SourceRejectionReason;
+      state: "rejected";
+      [k: string]: unknown;
+    };
+export type SourceAdmissionMode =
+  "exact_identity" | "structural_checks" | "informational_consent" | "upstream_validator";
+export type SourceRejectionReason =
+  | "missing"
+  | "unreadable"
+  | "changed"
+  | "known_mismatch"
+  | "ambiguous_identity"
+  | "missing_tool"
+  | "check_failed"
+  | "consent_required";
+export type SourceClassification =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      state: "unrecognized";
+      [k: string]: unknown;
+    }
+  | {
+      identity: SourceIdentity;
+      state: "recognized";
+      [k: string]: unknown;
+    }
+  | {
+      candidates: SourceIdentity[];
+      state: "ambiguous";
+      [k: string]: unknown;
+    };
+export type SourceContractResult =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      state: "unreviewed_for_release";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "supported";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "recognized_not_listed";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "known_incompatible";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "informational";
+      [k: string]: unknown;
+    };
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
 export type SourceRequirementRole = "game_source" | "bios";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
@@ -409,80 +483,6 @@ export type OutputDestinationOwnership =
   | "unrelated_content"
   | "invalid"
   | "unknown";
-export type SourceContractResult =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      state: "unreviewed_for_release";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "supported";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "recognized_not_listed";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "known_incompatible";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "informational";
-      [k: string]: unknown;
-    };
-export type SourceAdmission =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      mode: SourceAdmissionMode;
-      state: "admitted";
-      [k: string]: unknown;
-    }
-  | {
-      reason: SourceRejectionReason;
-      state: "rejected";
-      [k: string]: unknown;
-    };
-export type SourceAdmissionMode =
-  "exact_identity" | "structural_checks" | "informational_consent" | "upstream_validator";
-export type SourceRejectionReason =
-  | "missing"
-  | "unreadable"
-  | "changed"
-  | "known_mismatch"
-  | "ambiguous_identity"
-  | "missing_tool"
-  | "check_failed"
-  | "consent_required";
-export type SourceClassification =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      state: "unrecognized";
-      [k: string]: unknown;
-    }
-  | {
-      identity: SourceIdentity;
-      state: "recognized";
-      [k: string]: unknown;
-    }
-  | {
-      candidates: SourceIdentity[];
-      state: "ambiguous";
-      [k: string]: unknown;
-    };
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
 export type SourceImportOutcome =
@@ -1707,6 +1707,10 @@ export interface SourceDiscoveryReport {
   issues: SourceDiscoveryIssue[];
   issues_omitted: number;
   limits_reached: SourceDiscoveryLimit[];
+  /**
+   * Preliminary selections are not exact matches and their pinned validator has not run.
+   */
+  preliminary_selections?: SourceInspection[];
   searched_profiles: string[];
   searched_roots: string[];
   symlinks_skipped: number;
@@ -1767,6 +1771,30 @@ export interface SourceDiscoveryIssue {
   message: string;
   path: string | null;
   profile_id: string | null;
+  [k: string]: unknown;
+}
+/**
+ * Facts returned by read-only inspection. A record is present only when the
+ * admission state permits existing callers to register or use the source.
+ */
+export interface SourceInspection {
+  archive_member_name?: string | null;
+  assessment: SourceAssessment;
+  components: ObservedSourceComponent[];
+  message: string;
+  observed_digests: ObservedSourceDigest[];
+  path: string;
+  profile_id: string;
+  record: SourceRecord | null;
+  validator?: ObservedSourceValidator | null;
+  [k: string]: unknown;
+}
+export interface SourceAssessment {
+  admission: SourceAdmission;
+  classification: SourceClassification;
+  contract: SourceContractResult;
+  evidence: SourceEvidence[];
+  health: SourceHealth;
   [k: string]: unknown;
 }
 /**
@@ -2212,30 +2240,6 @@ export interface SourceEvidenceLink {
   live_url?: string | null;
   reviewed_at: string;
   role: CatalogEvidenceRole;
-  [k: string]: unknown;
-}
-/**
- * Facts returned by read-only inspection. A record is present only when the
- * admission state permits existing callers to register or use the source.
- */
-export interface SourceInspection {
-  archive_member_name?: string | null;
-  assessment: SourceAssessment;
-  components: ObservedSourceComponent[];
-  message: string;
-  observed_digests: ObservedSourceDigest[];
-  path: string;
-  profile_id: string;
-  record: SourceRecord | null;
-  validator?: ObservedSourceValidator | null;
-  [k: string]: unknown;
-}
-export interface SourceAssessment {
-  admission: SourceAdmission;
-  classification: SourceClassification;
-  contract: SourceContractResult;
-  evidence: SourceEvidence[];
-  health: SourceHealth;
   [k: string]: unknown;
 }
 export interface SourceLegacyCoverage {

@@ -13,6 +13,228 @@ use crate::ErrorCode;
 use sha2::{Digest, Sha256};
 use std::io::Write;
 
+#[test]
+fn pinned_validator_discovery_is_preliminary_without_exact_events_or_registration() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic retail disc candidate";
+    let path = root.join("game.iso");
+    fs::write(&path, payload).unwrap();
+    let service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    let mut selected = request(&root);
+    selected.profile_ids = vec!["opengoal-jak1-disc".into()];
+    let mut events = Vec::new();
+    let report = service
+        .discover_sources_with_progress(&selected, |event| events.push(event.event))
+        .unwrap();
+    assert!(report.candidates.is_empty());
+    assert_eq!(report.preliminary_selections.len(), 1);
+    assert_eq!(report.files_hashed, 1);
+    assert_eq!(report.hash_bytes, payload.len() as u64);
+    let direct = service.inspect_source("opengoal-jak1-disc", &path).unwrap();
+    let discovered = &report.preliminary_selections[0];
+    assert_eq!(discovered.profile_id, direct.profile_id);
+    assert_eq!(
+        fs::canonicalize(&discovered.path).unwrap(),
+        fs::canonicalize(&direct.path).unwrap()
+    );
+    assert_eq!(discovered.message, direct.message);
+    assert_eq!(
+        discovered.record.as_ref().unwrap().sha256,
+        direct.record.as_ref().unwrap().sha256
+    );
+    assert_eq!(
+        serde_json::to_value(&discovered.assessment).unwrap(),
+        serde_json::to_value(&direct.assessment).unwrap()
+    );
+    assert_eq!(
+        report.preliminary_selections[0]
+            .validator
+            .as_ref()
+            .unwrap()
+            .result,
+        crate::SourceValidatorResult::NotRun
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, crate::OperationEventKind::SourceCandidate { .. }))
+    );
+    assert!(service.library().sources().unwrap().is_empty());
+
+    selected.limits.max_candidates = 1;
+    let limited = service.discover_sources(&selected).unwrap();
+    assert_eq!(limited.preliminary_selections.len(), 1);
+    assert!(
+        limited
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+}
+
+#[test]
+fn exact_only_discovery_keeps_legacy_report_shape_and_reads_advisory_omission() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    fs::write(temporary.path().join("game.z64"), payload).unwrap();
+    let report = scan(&catalog(payload), &request(temporary.path())).unwrap();
+    assert_eq!(report.candidates.len(), 2);
+    assert!(report.preliminary_selections.is_empty());
+    let serialized = serde_json::to_value(&report).unwrap();
+    assert!(serialized.get("preliminary_selections").is_none());
+    let restored: SourceDiscoveryReport = serde_json::from_value(serialized).unwrap();
+    assert!(restored.preliminary_selections.is_empty());
+    assert_eq!(restored.candidates.len(), 2);
+}
+
+#[test]
+fn pinned_validator_profiles_share_raw_and_zip_observations_but_refuse_ambiguous_members() {
+    for archived in [false, true] {
+        let temporary = tempfile::tempdir().unwrap();
+        let payload = b"synthetic disc selection";
+        let path = temporary
+            .path()
+            .join(if archived { "disc.zip" } else { "disc.iso" });
+        if archived {
+            let mut zip = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+            zip.start_file("disc.iso", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(payload).unwrap();
+            zip.finish().unwrap();
+        } else {
+            fs::write(&path, payload).unwrap();
+        }
+        let mut selected = request(temporary.path());
+        selected.profile_ids = vec!["opengoal-jak1-disc".into(), "opengoal-jak2-disc".into()];
+        let report = scan(&Catalog::embedded().unwrap(), &selected).unwrap();
+        assert!(report.candidates.is_empty());
+        assert_eq!(report.preliminary_selections.len(), 2);
+        assert_eq!(report.files_hashed, 1);
+        assert_eq!(
+            report.hash_bytes,
+            payload.len() as u64
+                + if archived {
+                    fs::metadata(&path).unwrap().len()
+                } else {
+                    0
+                }
+        );
+        assert!(
+            report
+                .preliminary_selections
+                .iter()
+                .all(|selection| selection.archive_member_name.as_deref()
+                    == if archived { Some("disc.iso") } else { None })
+        );
+        if archived {
+            let mut zip = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+            for name in ["one.iso", "two.iso"] {
+                zip.start_file(name, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                zip.write_all(payload).unwrap();
+            }
+            zip.finish().unwrap();
+            let refused = scan(&Catalog::embedded().unwrap(), &selected).unwrap();
+            assert!(refused.preliminary_selections.is_empty());
+            assert!(refused.candidates.is_empty());
+            assert!(!refused.issues.is_empty());
+        }
+    }
+}
+
+#[test]
+fn schema1_validator_selection_stays_manual_without_silent_hashing() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic legacy selection";
+    fs::write(temporary.path().join("disc.iso"), payload).unwrap();
+    let mut document = catalog(payload).document().clone();
+    for profile in &mut document.source_profiles {
+        profile.kind = crate::SourceKind::UpstreamValidatedDisc;
+        profile.accepted_extensions = vec!["iso".into(), "chd".into()];
+        profile.accepted_sha256.clear();
+    }
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let report = scan(&catalog, &request(temporary.path())).unwrap();
+    assert!(report.searched_profiles.is_empty());
+    assert!(report.preliminary_selections.is_empty());
+    assert!(report.candidates.is_empty());
+    assert_eq!(report.files_hashed, 0);
+    assert_eq!(report.hash_bytes, 0);
+    assert_eq!(report.issues.len(), 2);
+    assert!(
+        report
+            .issues
+            .iter()
+            .all(|issue| issue.message.contains("Choose them directly"))
+    );
+}
+
+#[test]
+fn preliminary_saved_scan_resumes_after_restart_without_rehashing_or_resetting_candidate_limits() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"synthetic resumable disc selection";
+    for name in ["one.iso", "two.iso", "three.iso"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    // Saved scans include every profile. Keep two real validator identities so
+    // the first entry cannot exhaust the four-result cumulative budget.
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    document.source_profiles.clear();
+    document.ports.clear();
+    let source = document.source_catalog.as_mut().unwrap();
+    source.identities.retain(|identity| {
+        matches!(
+            identity.id.as_str(),
+            "opengoal-jak1-disc" | "opengoal-jak2-disc"
+        )
+    });
+    source.contracts.clear();
+    source.qualification.clear();
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    assert_eq!(catalog.document().source_profiles.len(), 2);
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        max_candidates: 4,
+        ..Default::default()
+    };
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let count = first.report.preliminary_selections.len();
+    assert_eq!(count, 2);
+    assert!(first.report.preliminary_selections.iter().all(|selection| {
+        matches!(
+            selection.profile_id.as_str(),
+            "opengoal-jak1-disc" | "opengoal-jak2-disc"
+        ) && selection.validator.as_ref().unwrap().result == crate::SourceValidatorResult::NotRun
+    }));
+    assert_eq!(first.report.files_hashed, 1);
+    assert!(first.coverage.as_ref().unwrap().can_resume);
+    drop(library);
+    let reopened = crate::Library::open(&library_path).unwrap();
+    let second = publish_saved_batch(&catalog, &reopened, &limits).unwrap();
+    assert_eq!(
+        second.report.preliminary_selections.len(),
+        limits.max_candidates as usize
+    );
+    assert_eq!(second.report.files_hashed, 2);
+    assert_eq!(second.report.hash_bytes, 2 * payload.len() as u64);
+    assert!(second.report.candidates.is_empty());
+    assert!(
+        second
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    assert!(!second.coverage.as_ref().unwrap().can_resume);
+}
+
 // Generic discovery needs two identities and one port for catalog snapshot changes.
 // Keep real schema-2 admission and embedded-catalog coverage in their dedicated cases.
 fn catalog(bytes: &[u8]) -> Catalog {
@@ -1609,7 +1831,7 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
         &crate::OperationCoordinator::new("saved-root-scan", None),
     )
     .unwrap();
-    assert_eq!(snapshot.format_version, 8);
+    assert_eq!(snapshot.format_version, 9);
     assert_eq!(snapshot.limits.as_ref().unwrap().max_entries, 10_000);
     assert_eq!(snapshot.roots.len(), 1);
     assert_eq!(snapshot.report.files_hashed, 1);
@@ -2457,7 +2679,7 @@ fn stored_scan_snapshot_accepts_legacy_and_rejects_corrupt_and_future_formats() 
     assert!(error.to_string().contains("invalid scan limits"));
 
     snapshot.limits = Some(SourceDiscoveryLimits::default());
-    snapshot.format_version = 9;
+    snapshot.format_version = CURRENT_SCAN_FORMAT_VERSION + 1;
     library.replace_game_file_scan_snapshot(&snapshot).unwrap();
 
     let error = super::current_game_file_scan(&catalog, &library).unwrap_err();
@@ -4258,7 +4480,7 @@ fn fresh_scan_preserves_readable_reports_with_bad_metadata_and_refuses_future_fo
         if corruption == "roots" {
             value["roots"] = serde_json::json!("invalid required metadata");
         } else {
-            value["format_version"] = serde_json::json!(9);
+            value["format_version"] = serde_json::json!(CURRENT_SCAN_FORMAT_VERSION + 1);
             if corruption == "future-unreadable-report" {
                 value["report"] = serde_json::json!("incompatible future report");
             }

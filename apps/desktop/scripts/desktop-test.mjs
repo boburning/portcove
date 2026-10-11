@@ -295,6 +295,7 @@ function validateBackupFocusInventory(captured) {
           "native-reviewed-backup-restore-and-delete",
           "native-game-update-review",
           "native-selected-setup-completion",
+          "native-preliminary-source-review",
           "native-retained-contract-repair-state",
           "native-backup-delete-focus",
           "native-host-interrupted-preparation",
@@ -1410,11 +1411,15 @@ try {
       output,
       revision,
       sourceJourney: executionPlan.fixtures.sourceJourney,
+      preliminaryJourney: executionPlan.fixtures.preliminaryJourney,
       completionJourney: executionPlan.fixtures.completionJourney,
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       preparationTool: values["preparation-tool"],
     });
     if (installFixture.sourceJourney) {
+      if (installFixture.preliminaryJourney)
+        for (const name of ["path", "before"])
+          inputs.push(await fileIdentity(installFixture.preliminaryJourney[name]));
       for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
         inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
       installFixture.sourceJourney.root = seedSelectedSetup({
