@@ -31,9 +31,19 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       continue;
     }
     const selection = resolveDesktopSelection({ ...row.options, platform: row.platform });
-    assert.deepEqual(selection, row.selection);
+    // Preserve the frozen oracle. This new opt-in scenario was absent from its
+    // inventory and remains excluded from every historical execution.
+    const historicalSelection = (value) => ({
+      ...value,
+      excluded_scenarios: value.excluded_scenarios.filter(
+        (id) => id !== "native-preliminary-source-review",
+      ),
+    });
+    assert.ok(!selection.selected_scenarios.includes("native-preliminary-source-review"));
+    assert.ok(selection.excluded_scenarios.includes("native-preliminary-source-review"));
+    assert.deepEqual(historicalSelection(selection), row.selection);
     const plan = planDesktopExecution(selection, { platform: row.platform });
-    assert.deepEqual(plan.selection, row.selection);
+    assert.deepEqual(historicalSelection(plan.selection), row.selection);
     assert.deepEqual(
       plan.receiptInputs
         .filter((input) => {
@@ -114,7 +124,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       });
       const expected = structuredClone(row.serialized_verify_plan);
       expected.harness_deadline_ms = desktopHarnessDeadlineMs(selection); // Deliberately retained pre-change deadline owner.
-      assert.deepEqual(actual, expected);
+      assert.deepEqual(historicalSelection(actual), expected);
     }
   }
 });
@@ -178,6 +188,31 @@ test("selected setup completion requires identity-bound positive exit evidence",
     }),
   );
   assert.equal(discovery.session.identityBoundSession, false);
+});
+
+test("preliminary review is isolated and retains positive cleanup without setup execution", () => {
+  const id = "native-preliminary-source-review";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.fixtures.preliminaryJourney, true);
+  assert.equal(plan.fixtures.completionJourney, false);
+  assert.deepEqual(plan.build.cliFeatures, ["portcove-core/qualification-fixtures"]);
+  assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "preliminary-source-review");
+  assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+  assert.equal(
+    plan.receiptInputs.filter((input) => input.path?.endsWith("desktop-source-dialog-test.mjs"))
+      .length,
+    1,
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
 });
 
 test("game-update review binds Windows cleanup without first-play or wider deadlines", () => {

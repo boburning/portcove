@@ -1410,11 +1410,15 @@ try {
       output,
       revision,
       sourceJourney: executionPlan.fixtures.sourceJourney,
+      preliminaryJourney: executionPlan.fixtures.preliminaryJourney,
       completionJourney: executionPlan.fixtures.completionJourney,
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       preparationTool: values["preparation-tool"],
     });
     if (installFixture.sourceJourney) {
+      if (installFixture.preliminaryJourney)
+        for (const name of ["path", "before"])
+          inputs.push(await fileIdentity(installFixture.preliminaryJourney[name]));
       for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
         inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
       installFixture.sourceJourney.root = seedSelectedSetup({

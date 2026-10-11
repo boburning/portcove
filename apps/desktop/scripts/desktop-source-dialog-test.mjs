@@ -903,6 +903,126 @@ async function scanCoveragePresentation({ browser, snapshot, output, artifacts }
   await browser.wait(until.elementLocated(button("Scan saved folders")), 5_000);
 }
 
+async function preliminarySourceReviewScenario(context) {
+  const { browser, invoke, scenario, library, output, artifacts, cli, fixture } = context;
+  await scenario("native-preliminary-source-review", async () => {
+    const owned = fixture.preliminaryJourney;
+    assert.ok(owned, "Only the standalone selection supplies the inert disc fixture");
+    const command = selectedSetupCommand({ cli, library, output, fixture });
+    const { button, click } = reviewControls(browser);
+    const before = await readFile(owned.before);
+    const expectedHash = createHash("sha256").update(before).digest("hex");
+    const sourcesBefore = command(["source", "list"]);
+    assert.deepEqual(sourcesBefore, []);
+    const previousOperations = new Set(command(["activity"]).records.map((record) => record.id));
+    const report = {
+      scope: "inert first-party disc selection; actual Core scan and deliberate review/cancel only",
+      observations: {},
+    };
+    const artifact = path.join(output, "preliminary-source-review.json");
+    try {
+      await click(
+        By.xpath(
+          '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
+        ),
+      );
+      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await click(button("Refresh folders"));
+      await browser.wait(
+        async () => (await browser.findElement(button("Scan saved folders"))).isEnabled(),
+        5_000,
+      );
+      await click(button("Scan saved folders"));
+      await browser.wait(
+        async () =>
+          command(["activity"]).records.some(
+            (record) =>
+              record.operation === "discover_sources" &&
+              record.status === "succeeded" &&
+              !previousOperations.has(record.id),
+          ),
+        15_000,
+      );
+      const response = await invoke("get_game_file_scan_snapshot");
+      assert.equal(response.ok, true);
+      const snapshot = response.value;
+      const selection = snapshot.report.preliminary_selections.find(
+        (item) => item.profile_id === owned.profile,
+      );
+      assert.ok(
+        selection,
+        "The completed real Core scan must discover the selected validator profile",
+      );
+      assert.equal(selection.validator.result, "not_run");
+      assert.equal(selection.assessment.admission.mode, "structural_checks");
+      assert.equal(selection.assessment.classification.state, "not_evaluated");
+      assert.equal(selection.assessment.contract.state, "not_evaluated");
+      assert.equal(selection.record.sha256, expectedHash);
+      assert.deepEqual(command(["source", "list"]), sourcesBefore);
+      report.observations.scan = snapshot;
+      const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+      const label = catalog.source_catalog.identities.find(
+        (identity) => identity.id === owned.profile,
+      ).label;
+      assert.ok(!label.includes('"'), "The fixed catalog label must fit this exact XPath literal");
+      const row = await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            `//section[@aria-label="Preliminary game-file selections"]//div[strong[normalize-space(.)="${label}"]]`,
+          ),
+        ),
+        5_000,
+      );
+      await browser.executeScript(
+        (element) => element.scrollIntoView({ block: "center", behavior: "instant" }),
+        row,
+      );
+      assert.match(await row.getText(), /Validation has not run\./);
+      const reviewButton = await row.findElement(
+        By.xpath('.//button[normalize-space(.)="Review preliminary selection"]'),
+      );
+      assert.equal(await reviewButton.isEnabled(), true);
+      const resultScreenshot = path.join(output, "preliminary-selection.png");
+      await writeFile(resultScreenshot, await browser.takeScreenshot(), "base64");
+      artifacts.push(resultScreenshot);
+      await clickVisible(browser, reviewButton);
+      const review = await browser.wait(
+        until.elementLocated(By.css('[aria-label="Source import review"]')),
+        15_000,
+      );
+      const reviewText = await review.getText();
+      assert.match(reviewText, /validation.*not.*run|not.*validated|structural/i);
+      report.observations.review_text = reviewText;
+      await captureAccessibilityReport(
+        browser,
+        path.join(output, "preliminary-review-accessibility.json"),
+        artifacts,
+      );
+      const reviewScreenshot = path.join(output, "preliminary-review.png");
+      await writeFile(reviewScreenshot, await browser.takeScreenshot(), "base64");
+      artifacts.push(reviewScreenshot);
+      await clickVisible(
+        browser,
+        await review.findElement(By.xpath('.//button[normalize-space(.)="Cancel review"]')),
+      );
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[aria-label="Source import review"]'))).length === 0,
+        5_000,
+      );
+      assert.deepEqual(command(["source", "list"]), sourcesBefore);
+      assert.deepEqual(await readFile(owned.path), before);
+      assert.equal(fixture.requests.length, 0, "Review/cancel must not fetch the install fixture");
+      report.observations.registration_unchanged = true;
+      report.observations.input_unchanged = true;
+      report.observations.no_setup_acquisition = true;
+    } finally {
+      await writeFile(artifact, JSON.stringify(report, null, 2), { flag: "wx" });
+      artifacts.push(artifact);
+    }
+  });
+}
+
 export async function selectedSetupScenario({
   browser,
   invoke,
@@ -913,6 +1033,17 @@ export async function selectedSetupScenario({
   cli,
   fixture,
 }) {
+  if (fixture?.preliminaryJourney)
+    return preliminarySourceReviewScenario({
+      browser,
+      invoke,
+      scenario,
+      library,
+      output,
+      artifacts,
+      cli,
+      fixture,
+    });
   await scenario("native-saved-folder-selected-setup", async () => {
     assert.ok(fixture?.sourceJourney, "Only the exact opt-in selection supplies these identities");
     const owned = fixture.sourceJourney;

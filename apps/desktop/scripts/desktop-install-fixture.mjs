@@ -428,12 +428,15 @@ export async function createInstallFixture({
   output,
   holdFirstDownload = false,
   sourceJourney = false,
+  preliminaryJourney = false,
   completionJourney = false,
   preparationTool,
   revision,
 }) {
   if (sourceJourney && completionJourney)
     throw new Error("Discovery and completion fixtures require separate isolated selections");
+  if (preliminaryJourney && (!sourceJourney || completionJourney))
+    throw new Error("Preliminary review requires its standalone source fixture");
   let artifact = completionJourney
     ? await createCompletionArtifact(preparationTool)
     : createInstallArtifact();
@@ -458,6 +461,14 @@ export async function createInstallFixture({
         completionJourney,
         revision,
       }));
+    if (preliminaryJourney) {
+      const bytes = Buffer.from("Portcove inert preliminary disc selection; no retail identity\n");
+      const selectedPath = path.join(sourceJourney.directory, "preliminary.iso");
+      const before = path.join(output, "preliminary-before.iso");
+      await writeFile(selectedPath, bytes, { flag: "wx" });
+      await writeFile(before, bytes, { flag: "wx" });
+      preliminaryJourney = { path: selectedPath, before, profile: "opengoal-jak1-disc" };
+    }
   } catch (error) {
     for (const socket of sockets) socket.destroy();
     await new Promise((resolve) => server.close(resolve));
@@ -473,6 +484,7 @@ export async function createInstallFixture({
     refreshPort: refreshPortDefinition,
     requests,
     sourceJourney: sourceJourney || null,
+    preliminaryJourney: preliminaryJourney || null,
     completionJourney,
     url,
     async publishRelease(portId, { version, publishedAt, seed }) {

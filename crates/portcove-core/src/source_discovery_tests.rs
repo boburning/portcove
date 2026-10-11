@@ -37,7 +37,10 @@ fn pinned_validator_discovery_is_preliminary_without_exact_events_or_registratio
     let direct = service.inspect_source("opengoal-jak1-disc", &path).unwrap();
     let discovered = &report.preliminary_selections[0];
     assert_eq!(discovered.profile_id, direct.profile_id);
-    assert_eq!(discovered.path, direct.path);
+    assert_eq!(
+        fs::canonicalize(&discovered.path).unwrap(),
+        fs::canonicalize(&direct.path).unwrap()
+    );
     assert_eq!(discovered.message, direct.message);
     assert_eq!(
         discovered.record.as_ref().unwrap().sha256,

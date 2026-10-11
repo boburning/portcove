@@ -40,6 +40,7 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
     "native-normal-package-webview-boundary",
   );
   const identityBoundSession =
+    selection.selected_scenarios.includes("native-preliminary-source-review") ||
     (platform === "win32" && selection.selected_scenarios.includes("native-game-update-review")) ||
     (platform === "win32" &&
       selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")) ||
@@ -56,9 +57,10 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
     preferencesRecoverySession ||
     bootstrapRecoverySession ||
     librarySwitchRecoverySession;
-  const cleanupName =
-    platform === "win32" &&
-    selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
+  const cleanupName = selection.selected_scenarios.includes("native-preliminary-source-review")
+    ? "preliminary-source-review"
+    : platform === "win32" &&
+        selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
       ? "backup-review"
       : platform === "win32" && selection.selected_scenarios.includes("native-game-update-review")
         ? "game-update-review"
@@ -92,7 +94,11 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
                               : "backup-focus";
   const inputs = ["app", "driver", "native-driver"].map((name) => ({ kind: "executable", name }));
   inputs.push(receiptSource(harnessUrl));
-  if (selection.selected_scenarios.includes("native-saved-folder-selected-setup"))
+  if (
+    selection.selected_scenarios.some((id) =>
+      ["native-saved-folder-selected-setup", "native-preliminary-source-review"].includes(id),
+    )
+  )
     inputs.push(receiptSource(new URL("./desktop-source-dialog-test.mjs", harnessUrl)));
   if (selection.selected_scenarios.includes("native-selected-setup-completion"))
     for (const name of [
@@ -178,7 +184,8 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
 
   const executed = new Set([...selection.selected_scenarios, ...selection.setup_scenarios]);
   const needs = (requirement) => selection.prerequisites.includes(requirement);
-  const sourceJourney = executed.has("native-saved-folder-selected-setup");
+  const preliminaryJourney = executed.has("native-preliminary-source-review");
+  const sourceJourney = executed.has("native-saved-folder-selected-setup") || preliminaryJourney;
   const completionJourney = executed.has("native-selected-setup-completion");
   const roles = [
     ...selection.selected_scenarios.map((id) => ({ id, role: "selected" })),
@@ -214,7 +221,9 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
     },
     {
       family: "selected-setup",
-      members: roles.filter(({ id }) => id === "native-saved-folder-selected-setup"),
+      members: roles.filter(({ id }) =>
+        ["native-saved-folder-selected-setup", "native-preliminary-source-review"].includes(id),
+      ),
     },
     {
       family: "selected-setup-completion",
@@ -230,6 +239,7 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
                 preparationSources.has(desktopScenarioById.get(id)?.source) &&
                 ![
                   "native-saved-folder-selected-setup",
+                  "native-preliminary-source-review",
                   "native-selected-setup-completion",
                 ].includes(id),
             ),
@@ -259,6 +269,7 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
       steam: needs("steam-fixture"),
       externalRuntime: needs("external-runtime-fixture"),
       sourceJourney,
+      preliminaryJourney,
       completionJourney,
       holdFirstDownload: completionJourney,
       designCompatibility: needs("design-compatibility-fixture"),

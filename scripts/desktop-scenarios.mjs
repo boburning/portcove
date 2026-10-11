@@ -17,6 +17,16 @@ function scenario(id, description, options = {}) {
 
 export const DESKTOP_SCENARIOS = Object.freeze([
   scenario(
+    "native-preliminary-source-review",
+    "Real pinned-validator discovery exposes NotRun and deliberate fresh review without registration.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-source-dialog-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-qualification-history",
     "Recorded history and technical disclosure remain scoped and usable in the normal Linux WebView.",
     {
@@ -520,6 +530,11 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (uniqueRequested.includes("native-preliminary-source-review")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-preliminary-source-review requires one exact standalone scenario");
+    if (platform !== "win32") throw new Error("native-preliminary-source-review requires Windows");
+  }
   if (uniqueRequested.includes("native-selected-setup-completion")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-selected-setup-completion requires one exact standalone scenario");
