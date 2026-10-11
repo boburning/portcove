@@ -28,7 +28,7 @@ pub struct CatalogBrowsingContext {
     pub route: GameFileRouteKind,
     /// Legacy managed metadata can lack this fact. Do not substitute the host.
     pub platform: Option<Platform>,
-    pub channel: ReleaseChannel,
+    pub channel: Option<ReleaseChannel>,
     pub installation_method: Option<InstallationMethod>,
     /// Whole-port membership is distinct from membership of this exact context.
     pub port_member: bool,
@@ -60,22 +60,28 @@ pub(crate) fn project_browsing_contexts(
     host_platform: Platform,
 ) -> Result<CatalogBrowsingSnapshot> {
     use crate::source_batch::fingerprint;
+    let definition = |catalog: Option<&Catalog>| {
+        catalog
+            .map(|catalog| fingerprint(&catalog.authoritative_document()))
+            .transpose()
+    };
     let retained_binding: Vec<_> = catalog
         .ports()
         .iter()
         .map(|port| {
             let facts = retained.get(&port.id);
-            (
+            Ok((
                 &port.id,
                 facts.and_then(|facts| facts.managed_platform),
-                facts
-                    .and_then(|facts| facts.managed_catalog.as_ref())
-                    .map(Catalog::authoritative_document),
-                facts
-                    .and_then(|facts| facts.external_catalog.as_ref())
-                    .map(Catalog::authoritative_document),
-            )
+                definition(facts.and_then(|facts| facts.managed_catalog.as_ref()))?,
+                definition(facts.and_then(|facts| facts.external_catalog.as_ref()))?,
+            ))
         })
+        .collect::<Result<_>>()?;
+    // Keep digests rather than retaining one cloned catalog document per member.
+    let definitions: HashMap<_, _> = retained_binding
+        .iter()
+        .map(|(id, _, managed, external)| (id.to_string(), (managed.clone(), external.clone())))
         .collect();
     let binding = fingerprint(&(
         &library,
@@ -125,11 +131,10 @@ pub(crate) fn project_browsing_contexts(
                 .and_then(|port| port.presentation.as_ref())
                 .map(|presentation| presentation.installation_method)
         };
-        let definition = |catalog: Option<&Catalog>| {
-            catalog
-                .map(|catalog| fingerprint(&catalog.authoritative_document()))
-                .transpose()
-        };
+        let (managed_definition, external_definition) = definitions
+            .get(port.id.as_str())
+            .cloned()
+            .unwrap_or_default();
         for &platform in &port.platforms {
             let route = if port.release.provider == ReleaseSource::UserPrepared {
                 // A declared target alone does not establish an external package.
@@ -153,7 +158,7 @@ pub(crate) fn project_browsing_contexts(
                     port_id: port.id.clone(),
                     route,
                     platform: Some(platform),
-                    channel,
+                    channel: Some(channel),
                     installation_method: method(Some(catalog)),
                     port_member,
                     member_context: false,
@@ -172,30 +177,52 @@ pub(crate) fn project_browsing_contexts(
                 port_id: port.id.clone(),
                 route: GameFileRouteKind::ManagedLaunch,
                 platform: facts.and_then(|facts| facts.managed_platform),
-                channel: install.channel,
+                channel: Some(install.channel),
                 installation_method: method(catalog),
                 port_member,
                 member_context: true,
                 installation_id: Some(install.id.clone()),
-                definition_sha256: definition(catalog)?,
+                definition_sha256: managed_definition,
                 instance_sha256: Some(fingerprint(install)?),
                 release_version: Some(install.version.clone()),
                 artifact_sha256: Some(install.artifact.sha256.clone()),
             });
         }
-        if let (Some(status), Some(runtime)) = (status, external) {
-            let catalog = facts.and_then(|facts| facts.external_catalog.as_ref());
+        if let Some(runtime) = external {
+            let catalog = facts
+                .and_then(|facts| facts.external_catalog.as_ref())
+                .filter(|catalog| {
+                    catalog.port(&port.id).is_ok_and(|port| {
+                        port.release.provider == ReleaseSource::UserPrepared
+                            && port.channels == [ReleaseChannel::Stable]
+                            && port
+                                .release
+                                .user_prepared
+                                .get(&runtime.platform)
+                                .is_some_and(|package| {
+                                    package.version == runtime.version
+                                        && package
+                                            .archive_sha256
+                                            .eq_ignore_ascii_case(&runtime.archive_sha256)
+                                        && package
+                                            .immutable_tree_sha256
+                                            .eq_ignore_ascii_case(&runtime.immutable_tree_sha256)
+                                })
+                    })
+                });
             contexts.push(CatalogBrowsingContext {
                 context_id: String::new(),
                 port_id: port.id.clone(),
                 route: GameFileRouteKind::ExternalLaunch,
                 platform: Some(runtime.platform),
-                channel: status.channel,
+                // The accepted UserPrepared schema is Stable-only. A mutable
+                // selected-channel preference is not the registered build's channel.
+                channel: catalog.map(|_| ReleaseChannel::Stable),
                 installation_method: method(catalog),
                 port_member,
                 member_context: true,
                 installation_id: Some(runtime.id.clone()),
-                definition_sha256: definition(catalog)?,
+                definition_sha256: catalog.and(external_definition),
                 instance_sha256: Some(fingerprint(runtime)?),
                 release_version: Some(runtime.version.clone()),
                 artifact_sha256: Some(runtime.archive_sha256.clone()),
@@ -348,14 +375,14 @@ mod tests {
             members
                 .iter()
                 .any(|context| context.platform == Some(Platform::WindowsX86_64)
-                    && context.channel == ReleaseChannel::Stable
+                    && context.channel == Some(ReleaseChannel::Stable)
                     && context.route == GameFileRouteKind::ManagedLaunch)
         );
         assert!(
             members
                 .iter()
                 .any(|context| context.platform == Some(Platform::LinuxX86_64)
-                    && context.channel == ReleaseChannel::Beta
+                    && context.channel.is_none()
                     && context.route == GameFileRouteKind::ExternalLaunch)
         );
         assert!(
@@ -424,6 +451,50 @@ mod tests {
                 .iter()
                 .all(|context| !first_ids.contains(&context.context_id))
         );
+    }
+
+    #[test]
+    fn external_build_channel_comes_from_the_retained_package_not_preference() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog
+            .ports()
+            .iter()
+            .find(|port| port.release.provider == ReleaseSource::UserPrepared)
+            .unwrap();
+        let (&platform, package) = port.release.user_prepared.iter().next().unwrap();
+        let mut status = status(&port.id);
+        status.channel = ReleaseChannel::Beta;
+        status.external_runtime = Some(ExternalRuntimeRecord {
+            id: "accepted-external-instance".into(),
+            port_id: port.id.clone(),
+            path: "/private/accepted-runtime".into(),
+            executable: "game".into(),
+            version: package.version.clone(),
+            platform,
+            archive_sha256: package.archive_sha256.clone(),
+            immutable_tree_sha256: package.immutable_tree_sha256.clone(),
+            registered_at: 1,
+            retained_definition: None,
+        });
+        let facts = HashMap::from([(
+            port.id.clone(),
+            RetainedBrowsingFacts {
+                external_catalog: Some(catalog.clone()),
+                ..RetainedBrowsingFacts::default()
+            },
+        )]);
+        let snapshot = project(&catalog, &[status], &facts);
+        let member = snapshot
+            .contexts
+            .iter()
+            .find(|context| context.port_id == port.id && context.member_context)
+            .unwrap();
+        assert_eq!(member.channel, Some(ReleaseChannel::Stable));
+        assert_eq!(
+            member.installation_method,
+            Some(InstallationMethod::UserPreparedRuntime)
+        );
+        assert!(member.definition_sha256.is_some());
     }
 
     #[test]
