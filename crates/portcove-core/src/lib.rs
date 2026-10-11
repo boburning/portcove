@@ -32,6 +32,7 @@ mod durability;
 mod error;
 mod external_runtime;
 mod failure;
+mod game_file_query;
 mod game_file_root;
 mod gitlab;
 mod host_preferences;
@@ -137,6 +138,10 @@ pub use external_runtime::{ExternalRuntimePreview, ExternalRuntimeRemovalPreview
 pub use failure::{
     FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
     redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
+};
+pub use game_file_query::{
+    GameFileQueryReason, GameFileQuerySnapshot, GameFileQueryState, GameFileRouteKind,
+    GameFileRouteProjection, GameFileRouteRequest,
 };
 pub use game_file_root::{
     GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,

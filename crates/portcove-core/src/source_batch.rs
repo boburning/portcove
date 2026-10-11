@@ -284,7 +284,7 @@ impl PortcoveService {
     }
 }
 
-fn fingerprint(value: &impl Serialize) -> Result<String> {
+pub(crate) fn fingerprint(value: &impl Serialize) -> Result<String> {
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(value)?)))
 }
 
@@ -298,7 +298,7 @@ fn matcher_binding(catalog: &crate::Catalog) -> Result<String> {
     fingerprint(&(document, selections))
 }
 
-fn effective_binding(library: &crate::Library) -> Result<(crate::Catalog, String)> {
+pub(crate) fn effective_binding(library: &crate::Library) -> Result<(crate::Catalog, String)> {
     let before = library.catalog_status()?.state_sha256;
     let (catalog, provenance) = library.load_catalog()?;
     let after = library.catalog_status()?.state_sha256;

@@ -1633,8 +1633,7 @@ impl PortcoveService {
                 .copied()
         });
         let source_reason = source_blocker.map(port_action_blocker);
-        let on_platform = current_port.platforms.contains(&Platform::current()?);
-        let user_prepared = current_port.release.provider == ReleaseSource::UserPrepared;
+        let platform = Platform::current()?;
         // Install evaluates the current definition. Launch readiness may have
         // inspected a different, retained installed contract.
         let current_missing = [
@@ -1650,27 +1649,13 @@ impl PortcoveService {
                 .filter(|id| !registered_sources.contains_key(*id))
                 .map(|_| reason)
         });
-        let install = if status.external_runtime.is_some() {
-            assessed(
-                Action::Install,
-                Availability::NotOffered,
-                Reason::AlreadyRegistered,
-                None,
-            )
-        } else if user_prepared {
-            assessed(
-                Action::Install,
-                Availability::NotOffered,
-                Reason::RouteNotOffered,
-                None,
-            )
-        } else if !on_platform {
-            assessed(
-                Action::Install,
-                Availability::NotOffered,
-                Reason::UnsupportedPlatform,
-                None,
-            )
+        let install = if let Some(reason) = crate::definition_eligibility::admission_route_exclusion(
+            current_port,
+            &status,
+            platform,
+            Action::Install,
+        ) {
+            assessed(Action::Install, Availability::NotOffered, reason, None)
         } else if let Some(ineligible) = definition(DefinitionOperation::Install) {
             assessed(
                 Action::Install,
@@ -1689,29 +1674,17 @@ impl PortcoveService {
             )
         };
 
-        let register_external = if !user_prepared {
+        let register_external = if let Some(reason) =
+            crate::definition_eligibility::admission_route_exclusion(
+                current_port,
+                &status,
+                platform,
+                Action::RegisterExternal,
+            ) {
             assessed(
                 Action::RegisterExternal,
                 Availability::NotOffered,
-                Reason::RouteNotOffered,
-                None,
-            )
-        } else if !on_platform {
-            assessed(
-                Action::RegisterExternal,
-                Availability::NotOffered,
-                Reason::UnsupportedPlatform,
-                None,
-            )
-        } else if status.external_runtime.is_some()
-            || status.active.is_some()
-            || status.previous.is_some()
-            || status.staged.is_some()
-        {
-            assessed(
-                Action::RegisterExternal,
-                Availability::NotOffered,
-                Reason::AlreadyRegistered,
+                reason,
                 None,
             )
         } else if let Some(ineligible) = definition(DefinitionOperation::RegisterExternal) {

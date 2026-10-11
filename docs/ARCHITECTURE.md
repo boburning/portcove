@@ -2369,3 +2369,33 @@ interpret generic flags. Decoding does not write files or journals and is not au
 Catalog identity, port locks, one-use consent, original/source preservation and filesystem
 revalidation remain required. Typed path snapshots cannot replace symlink/ownership
 checks at mutation boundaries. SQLite, public schemas and journal encodings are unchanged.
+
+### Route-bound game-file query construction
+
+Core constructs `GameFileQuerySnapshot` from a batch retained by its own worker
+and explicit port, platform, channel and route selections. This Rust foundation
+has no renderer command yet. Adapters must never accept client-authored serialized
+inspection reports: context fingerprints detect changes, not forged observations.
+Construction reads registration and selected route metadata, checks them again,
+and binds the library, catalog, registration set, route definition and instance.
+The evaluator performs no filesystem reads, source hashes, release resolution,
+planning, setup, persistent writes or executable execution.
+
+Current managed-install and external-registration routes share Core's existing
+route exclusions with action presentation. Managed and external launch use their
+retained definitions and recorded platform; missing, oversized, changed or legacy
+retained context stays unavailable and has no guessed definition digest. Query
+manifest reads use the existing stable no-follow object reader, a 4 MiB bound and
+immutable manifest verification. Construction accepts at most 256 unique known
+routes with identifiers of at most 128 bytes, a cooperative 30-second budget and
+a 4 MiB response. These checks cannot interrupt an individual filesystem call.
+
+A current, admitted exact identity establishes compatible files only when its
+variant and complete representation satisfy an enforced source contract bound to
+the selected release and artifact. Caller-selected observation age is explicit
+and bounded to 1-1800 seconds; expired evidence needs checking. No connected
+registration is a distinct missing-input reason. Missing storage without verified
+volume availability, stale, changed, ambiguous, unreadable, incomplete or unreviewed
+observations need checking. Explicit empty requirements establish no-files-required;
+package registration's lack of game inputs says nothing about its separate launch
+route. None of these query states grants action, support or release authority.
