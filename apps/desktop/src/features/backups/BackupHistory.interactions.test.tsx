@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { act, useState } from "react";
-import { readFileSync } from "node:fs";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { desktopApi } from "../../api";
@@ -531,7 +530,7 @@ it("offers retained owned-data backup without an install and rejects last-loaded
 });
 
 it("routes the actual native backup selector to visible owned controls without opening unrelated disclosures or consenting", async () => {
-  const native = readFileSync("scripts/desktop-backup-review-test.mjs", "utf8");
+  const { default: native } = await import("../../../scripts/desktop-backup-review-test.mjs?raw");
   const selector = native.match(/^const backupSectionSelector = '([^']+)';$/mu)?.[1];
   expect(selector).toBeDefined();
   expect(native).not.toContain('By.css("summary.advanced-summary")');
