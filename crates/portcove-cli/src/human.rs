@@ -1197,6 +1197,7 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
     format!("  {action}: {availability} ({reason}): {explanation}")
 }
 
+#[cfg(feature = "qualification-fixtures")]
 pub(crate) fn game_update_plan(review: &portcove_core::GameUpdatePlan) -> String {
     format!(
         "{}\nUpdate decision:\n{}",
