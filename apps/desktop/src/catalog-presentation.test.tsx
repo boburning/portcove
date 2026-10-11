@@ -73,6 +73,55 @@ describe("catalog and capacity presentation", () => {
     expect(card).not.toContain(" disabled=");
   });
 
+  it.each([
+    ["allowed", "available", "Setup available", "Current setup checks passed"],
+    ["waiting", "missing_source", "Setup needs review", "Required game files are missing"],
+    ["waiting", "missing_bios", "Setup needs review", "A required BIOS file is missing"],
+    ["held", "definition_ineligible", "Setup on hold", "do not match the required edition"],
+    ["not_offered", "unsupported_platform", "Setup unavailable", "on this platform"],
+  ] as const)(
+    "shows cached %s/%s setup reasons with enabled Details",
+    (availability, reason, label, explanation) => {
+      const port = portDefinition();
+      const status: PortStatus = {
+        ...portStatus(),
+        port_actions: [
+          {
+            action: "install",
+            availability,
+            reason,
+            ...(reason === "definition_ineligible"
+              ? {
+                  definition: {
+                    outcome: "hold" as const,
+                    reason: "source_identity_mismatch" as const,
+                  },
+                }
+              : {}),
+          },
+          { action: "register_external", availability: "not_offered", reason: "route_not_offered" },
+        ],
+      };
+      const html = renderToStaticMarkup(
+        <PortBrowser
+          view="catalog"
+          ports={[port]}
+          statuses={new Map([[port.id, status]])}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={vi.fn()}
+          onSelect={vi.fn()}
+          loading={false}
+        />,
+      );
+      expect(html).toContain(`${port.name}. ${label}. View details.`);
+      expect(html).toContain(explanation);
+      expect(html).toContain("Not installed");
+      expect(html).not.toContain("Ready to play");
+      expect(html.match(/<button[^>]*class="port-card [^>]*>/u)?.[0]).not.toContain(" disabled=");
+    },
+  );
+
   it.each(["future-platform", "constructor", "__proto__", "toString"])(
     "renders explicit platform fallback for %s without manufacturing a selected channel",
     (value) => {

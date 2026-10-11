@@ -1,7 +1,11 @@
 import { expect, it } from "vitest";
 import { portStatus } from "../../test-fixtures";
 import type { PortStatus } from "../../types";
-import { definitionHoldReason, portActionPresentation } from "./port-action-presentation";
+import {
+  catalogSetupPresentation,
+  definitionHoldReason,
+  portActionPresentation,
+} from "./port-action-presentation";
 
 type Assessment = NonNullable<PortStatus["port_actions"]>[number];
 const withAssessment = (assessment: Assessment): PortStatus => ({
@@ -268,4 +272,111 @@ it("accepts only the complete eligible definition tuple on an allowed assessment
       "install",
     ),
   ).toEqual({ blocked: false });
+});
+
+const setupStatus = (
+  install: Assessment,
+  external: Assessment = {
+    action: "register_external",
+    availability: "not_offered",
+    reason: "route_not_offered",
+  },
+): PortStatus => ({ ...portStatus(), port_actions: [install, external] });
+
+it.each(["missing_source", "missing_bios"] as const)(
+  "keeps %s input review distinct from setup eligibility",
+  (reason) => {
+    const status = setupStatus({ action: "install", availability: "waiting", reason });
+    expect(portActionPresentation(status, "install")).toEqual({ blocked: false });
+    const display = catalogSetupPresentation(status);
+    expect(display.label).toBe("Setup needs review");
+    expect(display.routes[0].reason).toContain("select and review");
+    expect(display.routes[0].availability).toBe("waiting");
+  },
+);
+
+it("keeps offered external review visible when managed installation is not offered", () => {
+  const status = setupStatus(
+    { action: "install", availability: "not_offered", reason: "route_not_offered" },
+    {
+      action: "register_external",
+      availability: "waiting",
+      reason: "review_required",
+    },
+  );
+  expect(catalogSetupPresentation(status).label).toBe("Setup needs review");
+  expect(catalogSetupPresentation(status).routes[1].reason).toContain(
+    "External updates remain yours to manage",
+  );
+});
+
+it("explains known definition holds without upgrading source mismatch to gameplay support", () => {
+  const display = catalogSetupPresentation(
+    setupStatus({
+      action: "install",
+      availability: "held",
+      reason: "definition_ineligible",
+      definition: { outcome: "hold", reason: "source_identity_mismatch" },
+    }),
+  );
+  expect(display.label).toBe("Setup on hold");
+  expect(display.routes[0].reason).toContain("do not match the required edition");
+});
+
+it("presents eligible setup without claiming installed readiness", () => {
+  const display = catalogSetupPresentation(
+    setupStatus({
+      action: "install",
+      availability: "allowed",
+      reason: "available",
+      definition: { outcome: "eligible", reason: "mandatory_checks_passed" },
+    }),
+  );
+  expect(display.label).toBe("Setup available");
+  expect(display.routes[0].reason).toContain("review installation");
+});
+
+it.each([
+  undefined,
+  null,
+  {},
+  [],
+  [null],
+  [{ action: "install", availability: "allowed", reason: "missing_source" }],
+  [{ action: "install", availability: "future", reason: "available" }],
+  [
+    {
+      action: "install",
+      availability: "held",
+      reason: "definition_ineligible",
+      definition: { outcome: "eligible", reason: "mandatory_checks_passed" },
+    },
+  ],
+  [
+    {
+      action: "install",
+      availability: "held",
+      reason: "definition_ineligible",
+      definition: { outcome: "hold", reason: "future" },
+    },
+  ],
+  [
+    { action: "install", availability: "allowed", reason: "available" },
+    { action: "install", availability: "waiting", reason: "missing_source" },
+  ],
+  [{ action: "register_external", availability: "allowed", reason: "available" }],
+])(
+  "preserves malformed/legacy/future/contradictory setup projection as unknown: %j",
+  (port_actions) => {
+    const status = { ...portStatus(), port_actions } as PortStatus;
+    expect(catalogSetupPresentation(status).label).toBe("Setup status unknown");
+  },
+);
+
+it("keeps both unavailable routes separate from unsupported gameplay", () => {
+  const display = catalogSetupPresentation(
+    setupStatus({ action: "install", availability: "not_offered", reason: "unsupported_platform" }),
+  );
+  expect(display.label).toBe("Setup unavailable");
+  expect(display.routes[0].reason).toContain("on this platform");
 });
