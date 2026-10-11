@@ -2103,6 +2103,16 @@ Authentication does not grant webhook access to arbitrary upstream repositories.
 
 RetComM is not a Portcove release provider. Its title catalog is used only by a CI audit to confirm that PS1 entries still name the same direct per-game repositories. The RetComM launcher cannot satisfy a game release request and is explicitly rejected by catalog validation. `retcomm-toolchains` is a separate checksum-pinned build dependency used by the shared PS1 adapter.
 
+Core-managed PS1 rebuilds pass fixed `--cmake-extra` arguments defining both
+`CMAKE_C_COMPILER_LAUNCHER` and `CMAKE_CXX_COMPILER_LAUNCHER` as empty strings.
+Each definition is joined to its option in one argument so the SDK parser does
+not reinterpret `-D` as another option. This selects direct pinned compilers
+instead of optional cache launchers without increasing process, memory, output
+or time budgets. The selected kit must support that CLI/CMake pass-through;
+unsupported kits remain held without a retry omitting the policy. Qualification
+must observe the resulting configure/build commands and actual bounded outcome.
+Removing a wrapper alone does not prove complete build fit or quiescence.
+
 Backup deletion uses a private checked operation-family view in normal execution
 and recovery. Named original/quarantine/backup identities replace its positional
 recovery tuple; checked authorized-to-quarantined-to-deleted transitions retain

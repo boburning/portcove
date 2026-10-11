@@ -36,6 +36,16 @@ fn main() {
         Some("--psx-builder-contract") => {
             // Independent SDK refusal rule: generation must never enable acquisition.
             assert!(args.iter().any(|argument| argument == "--no-toolchain-download"));
+            if args.iter().any(|argument| argument == "rebuild") {
+                for launcher in ["C", "CXX"] {
+                    let expected = format!("--cmake-extra=-DCMAKE_{launcher}_COMPILER_LAUNCHER:STRING=");
+                    assert_eq!(args.iter().filter(|argument| **argument == expected).count(), 1);
+                }
+                assert_eq!(args.iter().filter(|argument| argument.starts_with("--cmake-extra")).count(), 2);
+                assert!(args.iter().any(|argument| argument == "--no-pgo"));
+                assert!(args.windows(2).any(|pair| pair == ["--target", "psx-runtime"]));
+                assert!(args.windows(2).any(|pair| pair == ["--prune-after", "build-intermediates"]));
+            }
             let root = env::current_dir().unwrap();
             let private = root.join(".portcove-builder-environment");
             let python = env::current_exe().unwrap();
