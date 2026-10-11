@@ -529,6 +529,66 @@ it("offers retained owned-data backup without an install and rejects last-loaded
   expect(container.textContent).toContain("Your saved data could not be checked.");
 });
 
+it("waits for current degraded inventory rather than a pending or failed read notice", async () => {
+  const { default: native } = await import("../../../scripts/desktop-backup-review-test.mjs?raw");
+  const selectors = native.match(
+    /const backupSectionSelector = [^]*?(?=export async function)/u,
+  )?.[0];
+  const wait = native.match(
+    /    const degradedInventory = [^]*?(?=    const restoreTrigger)/u,
+  )?.[0];
+  expect(selectors).toBeDefined();
+  expect(wait).toBeDefined();
+  const element = (node: Element) => ({
+    findElements: async (selector: string) => [...node.querySelectorAll(selector)],
+  });
+  const browser = {
+    findElements: async (selector: string) =>
+      [...container.querySelectorAll(selector)].map(element),
+    wait: async (predicate: () => Promise<unknown>, deadline: number) => {
+      expect(deadline).toBe(15_000);
+      return predicate();
+    },
+  };
+  const current = new Function("browser", "By", `${selectors}\n${wait}\nreturn degradedInventory;`)(
+    browser,
+    { css: (selector: string) => selector },
+  );
+  const render = async (status: "pending" | "failed" | "idle") =>
+    act(async () =>
+      root.render(
+        <section aria-labelledby="detail-saves-and-storage">
+          <BackupHistory
+            backups={backups}
+            state="degraded"
+            problems={[
+              {
+                kind: "missing_manifest",
+                backup_id: "broken",
+                operation_id: null,
+                path: "backups/broken",
+                message: "Missing manifest",
+                proposed_action: "Review this entry.",
+              },
+            ]}
+            readState={{ status, hasInventory: true }}
+            restore={vi.fn()}
+            remove={vi.fn()}
+          />
+        </section>,
+      ),
+    );
+  for (const status of ["pending", "failed"] as const) {
+    await render(status);
+    expect(container.querySelectorAll(".backup-inventory-notice")).toHaveLength(2);
+    expect(await current(1)).toBe(false);
+  }
+  await render("idle");
+  expect(await current(2)).toBe(false);
+  expect(await current(1)).toBeTruthy();
+  expect(desktopApi.previewBackupAction).not.toHaveBeenCalled();
+});
+
 it("routes the actual native backup selector to visible owned controls without opening unrelated disclosures or consenting", async () => {
   const { default: native } = await import("../../../scripts/desktop-backup-review-test.mjs?raw");
   const selector = native.match(/^const backupSectionSelector = '([^']+)';$/mu)?.[1];
