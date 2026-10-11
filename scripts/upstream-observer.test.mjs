@@ -14,7 +14,7 @@ import {
 } from "./upstream-observer.mjs";
 import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mjs";
 import {
-  collectRepositoryHealth,
+  collectRepositoryHealth as collectRepositoryHealthWithPolicy,
   renderRepositoryHealth,
   validateHealthAccountingPolicy,
 } from "./check-catalog-repositories.mjs";
@@ -1275,9 +1275,37 @@ test("exact Git discovery binds base, merge base, head and checkout; drift and m
     );
 });
 
-const reviewedAccounting = JSON.parse(
-  await readFile(new URL("../.github/upstream-health-accounting.json", import.meta.url), "utf8"),
+const accountingCases = JSON.parse(
+  await readFile(
+    new URL("./fixtures/upstream-health-accounting-cases.json", import.meta.url),
+    "utf8",
+  ),
 );
+const { reviewedAccounting } = accountingCases;
+// Generic monitoring tests use retained independent cases, not a changing live
+// catalog/pin inventory. Explicit negative-policy cases still override this.
+function collectRepositoryHealth(catalog, options = {}) {
+  return collectRepositoryHealthWithPolicy(catalog, { reviewedAccounting, ...options });
+}
+
+test("live monitoring policy retains valid explicit port contract bindings", async () => {
+  const policy = JSON.parse(
+    await readFile(new URL("../.github/upstream-health-accounting.json", import.meta.url), "utf8"),
+  );
+  const catalog = JSON.parse(
+    await readFile(
+      new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  validateHealthAccountingPolicy(policy);
+  for (const rule of [...policy.pins, ...policy.original_conditions]) {
+    const port = catalog.ports.find(({ id }) => id === rule.port_id);
+    assert.ok(port, rule.port_id);
+    const { summary: _summary, ...contract } = port;
+    assert.equal(observationHash(contract), rule.port_contract_sha256, rule.port_id);
+  }
+});
 const pinMetadata = JSON.parse(
   await readFile(new URL("./fixtures/upstream-health-pins.json", import.meta.url), "utf8"),
 ).pins;
@@ -1937,9 +1965,7 @@ pinMetadata.push(
     ),
   ),
 );
-const currentHealthCatalog = JSON.parse(
-  await readFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), "utf8"),
-);
+const currentHealthCatalog = accountingCases.catalog;
 const accountingCatalog = () => ({
   ports: structuredClone(
     currentHealthCatalog.ports.filter((port) =>
@@ -2047,7 +2073,7 @@ test("reviewed exact metadata and original conditions remain degraded without gr
   assert.equal(original, JSON.stringify(catalog));
 });
 
-test("full catalog retains every location and pin check with eight fewer actual requests", async () => {
+test("fixed mixed inventory retains every location and pin check with eight fewer actual requests", async () => {
   const calls = [];
   const inventory = await collectRepositoryHealth(currentHealthCatalog, {
     fetch: async () => {
@@ -2117,12 +2143,12 @@ test("full catalog retains every location and pin check with eight fewer actual 
     "complete",
     JSON.stringify(report.observations.filter((r) => !r.accounted_for)),
   );
-  assert.equal(report.coverage.monitored_ports, 89);
-  assert.equal(report.coverage.repositories, 103);
-  assert.equal(report.coverage.attempted_repositories, 95);
+  assert.equal(report.coverage.monitored_ports, 15);
+  assert.equal(report.coverage.repositories, 25);
+  assert.equal(report.coverage.attempted_repositories, 17);
   assert.equal(report.coverage.reused_repositories, 8);
-  assert.equal(report.consumed.requests, 125);
-  assert.equal(calls.length, 125);
+  assert.equal(report.consumed.requests, 47);
+  assert.equal(calls.length, 47);
   assert.equal(report.limits.requests, 128);
   assert.equal(report.observations.filter((record) => record.pin_assessment).length, 10);
   for (const pin of reviewedAccounting.pins) {
