@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeSet,
     fs,
     path::{Path, PathBuf},
 };
@@ -1250,8 +1249,12 @@ fn run_cli(
 ) -> Result<()> {
     operation.checkpoint()?;
     let platform = Platform::current()?;
-    if !validate_toolchain(toolchain_root, platform, toolchain_artifact(platform)?)?
-        || toolchain_python(toolchain_root)? != python
+    if !validate_toolchain_with_checkpoint(
+        toolchain_root,
+        platform,
+        toolchain_artifact(platform)?,
+        || operation.checkpoint(),
+    )? || toolchain_python(toolchain_root)? != python
     {
         return Err(PortcoveError::verification(
             "managed PS1 builder requires its unchanged pinned toolchain",
@@ -1288,6 +1291,10 @@ fn run_cli(
         .current_dir(project_root)
         .env("RETCOMM_TOOLCHAIN_DIR", toolchain_root)
         .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root)
+        .env_remove("LD_LIBRARY_PATH")
+        .env_remove("DYLD_LIBRARY_PATH")
+        .env_remove("HOMEDRIVE")
+        .env_remove("HOMEPATH")
         .env("PATH", path)
         .env("HOME", environment_root.join("home"))
         .env("USERPROFILE", environment_root.join("home"))
@@ -1384,11 +1391,25 @@ fn validate_toolchain(
     platform: Platform,
     artifact: ToolchainArtifact,
 ) -> Result<bool> {
+    validate_toolchain_with_checkpoint(root, platform, artifact, || Ok(()))
+}
+
+fn validate_toolchain_with_checkpoint(
+    root: &Path,
+    platform: Platform,
+    artifact: ToolchainArtifact,
+    mut checkpoint: impl FnMut() -> Result<()>,
+) -> Result<bool> {
+    checkpoint()?;
+    crate::path::refuse_symlink_ancestors(root)?;
     let marker_path = root.join(".portcove-toolchain.json");
+    crate::path::refuse_symlink_ancestors(&marker_path)?;
     if !marker_path.is_file() {
         return Ok(false);
     }
-    let marker: ToolchainMarker = serde_json::from_slice(&fs::read(marker_path)?)?;
+    // Four critical identities fit comfortably within this metadata-only limit.
+    let marker: ToolchainMarker =
+        serde_json::from_slice(&crate::path::read_bounded_regular(&marker_path, 64 * 1024)?)?;
     if marker.schema_version != 2
         || marker.version != TOOLCHAIN_VERSION
         || marker.platform != platform
@@ -1397,22 +1418,52 @@ fn validate_toolchain(
     {
         return Ok(false);
     }
-    let Ok(expected) = toolchain_file_identities(root, platform) else {
+    let Ok(python) = toolchain_python(root) else {
         return Ok(false);
     };
-    if marker.critical_files.len() != expected.len() {
+    let paths = [
+        python,
+        platform_executable(&root.join("bin"), "cmake"),
+        platform_executable(&root.join("bin"), "ninja"),
+        root.join("retcomm-toolchain.json"),
+    ];
+    if marker.critical_files.len() != paths.len() {
         return Ok(false);
     }
-    let recorded = marker
-        .critical_files
-        .into_iter()
-        .map(|file| (file.path, file.size, file.sha256))
-        .collect::<BTreeSet<_>>();
-    let actual = expected
-        .into_iter()
-        .map(|file| (file.path, file.size, file.sha256))
-        .collect::<BTreeSet<_>>();
-    Ok(recorded == actual)
+    for path in paths {
+        checkpoint()?;
+        crate::path::refuse_symlink_ancestors(&path)?;
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| PortcoveError::verification("toolchain file escaped its root"))?
+            .to_string_lossy()
+            .replace('\\', "/");
+        let mut matches = marker
+            .critical_files
+            .iter()
+            .filter(|file| file.path == relative);
+        let Some(recorded) = matches.next() else {
+            return Ok(false);
+        };
+        if matches.next().is_some() {
+            return Ok(false);
+        }
+        let Ok(metadata) = fs::symlink_metadata(&path) else {
+            return Ok(false);
+        };
+        if !metadata.is_file() || metadata.len() != recorded.size {
+            return Ok(false);
+        }
+        let (sha256, size) = crate::adapter::hash_file_bounded_with_checkpoint(
+            &path,
+            recorded.size,
+            &mut checkpoint,
+        )?;
+        if size != recorded.size || sha256 != recorded.sha256 {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 fn toolchain_file_identities(
@@ -2051,11 +2102,17 @@ mod tests {
     // Execute this repository's native test binary through the production
     // builder boundary. No upstream Python, compiler, game or source is run.
     fn run_builder_fixture(root: &Path, operation: &OperationCoordinator) -> Result<()> {
+        let toolchain = root.join("owned-toolchain");
+        let python = if toolchain.join(".portcove-toolchain.json").is_file() {
+            toolchain_python(&toolchain).unwrap()
+        } else {
+            toolchain_fixture(&toolchain, Some(&std::env::current_exe().unwrap()))
+        };
         run_cli(
-            &std::env::current_exe().unwrap(),
+            &python,
             Path::new("--exact"),
             root,
-            &root.join("owned-toolchain"),
+            &toolchain,
             [BUILDER_FIXTURE.into(), "--nocapture".into()],
             operation,
             &mut true,
@@ -2103,6 +2160,10 @@ mod tests {
         let root = temporary.path().join("owned-build");
         fs::create_dir(&root).unwrap();
         fs::write(root.join("owned-builder-mode"), phase).unwrap();
+        toolchain_fixture(
+            &root.join("owned-toolchain"),
+            Some(&std::env::current_exe().unwrap()),
+        );
         let player_source = temporary.path().join("player-source");
         fs::write(&player_source, b"unchanged external source").unwrap();
         let service =
@@ -2255,7 +2316,7 @@ mod tests {
             &OperationCoordinator::new("owned-builder", None),
             &mut true,
         );
-        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Install);
+        assert_eq!(result.unwrap_err().code, crate::ErrorCode::Verification);
         assert_eq!(
             fs::read(workspace.join("owned-input")).unwrap(),
             b"retain across error"
@@ -2533,6 +2594,87 @@ mod tests {
         .unwrap();
 
         assert!(!validate_toolchain(root, platform, artifact).unwrap());
+    }
+
+    #[test]
+    fn managed_builder_preflight_bounds_growth_and_preserves_hash_cancellation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let python = toolchain_fixture(root, None);
+        let platform = Platform::current().unwrap();
+        let artifact = toolchain_artifact(platform).unwrap();
+        // Grow a declared file after the marker: refusal must precede hashing/spawn.
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&python)
+            .unwrap()
+            .set_len(16 * 1024 * 1024)
+            .unwrap();
+        let mut checkpoints = 0;
+        assert!(
+            !validate_toolchain_with_checkpoint(root, platform, artifact, || {
+                checkpoints += 1;
+                Ok(())
+            })
+            .unwrap()
+        );
+        assert!(checkpoints <= 4);
+        assert!(!root.join(".portcove-builder-environment").exists());
+        toolchain_fixture(root, None);
+        let service =
+            crate::PortcoveService::new(Library::open(root.join("cancellation-library")).unwrap())
+                .unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Library,
+                None,
+            )
+            .unwrap();
+        let mut checkpoints = 0;
+        let error = validate_toolchain_with_checkpoint(root, platform, artifact, || {
+            checkpoints += 1;
+            if checkpoints == 3 {
+                service.request_cancellation(&activity.id).unwrap();
+            }
+            operation.checkpoint()
+        })
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert!(!root.join(".portcove-builder-environment").exists());
+        fs::write(
+            root.join(".portcove-toolchain.json"),
+            vec![b' '; 64 * 1024 + 1],
+        )
+        .unwrap();
+        assert_eq!(
+            validate_toolchain(root, platform, artifact)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Verification
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_builder_preflight_refuses_aliased_tools_without_touching_foreign_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let foreign = temporary.path().join("foreign");
+        toolchain_fixture(&foreign, None);
+        let alias = temporary.path().join("alias");
+        std::os::unix::fs::symlink(&foreign, &alias).unwrap();
+        let platform = Platform::current().unwrap();
+        let artifact = toolchain_artifact(platform).unwrap();
+        assert!(validate_toolchain(&alias, platform, artifact).is_err());
+        let owned = temporary.path().join("owned");
+        toolchain_fixture(&owned, None);
+        let owned_cmake = platform_executable(&owned.join("bin"), "cmake");
+        let foreign_cmake = platform_executable(&foreign.join("bin"), "cmake");
+        fs::remove_file(&owned_cmake).unwrap();
+        std::os::unix::fs::symlink(&foreign_cmake, &owned_cmake).unwrap();
+        assert!(validate_toolchain(&owned, platform, artifact).is_err());
+        assert_eq!(fs::read(foreign_cmake).unwrap(), b"cmake");
+        assert!(!foreign.join(".portcove-builder-environment").exists());
     }
 
     #[test]

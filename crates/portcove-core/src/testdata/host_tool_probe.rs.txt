@@ -21,7 +21,8 @@ fn main() {
                          "RETCOMM_DATA_HOME", "TEMP", "TMP", "TMPDIR"] {
                 assert!(std::path::PathBuf::from(env::var_os(name).unwrap()).starts_with(&private));
             }
-            for name in ["GH_TOKEN", "GITHUB_TOKEN", "PORTCOVE_GITHUB_TOKEN"] {
+            for name in ["GH_TOKEN", "GITHUB_TOKEN", "PORTCOVE_GITHUB_TOKEN",
+                         "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "HOMEDRIVE", "HOMEPATH"] {
                 assert!(env::var_os(name).is_none());
             }
             assert!(Command::new("cmake").arg("--success").status().unwrap().success());
