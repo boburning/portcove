@@ -50,7 +50,9 @@ fn main() {
                          "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "HOMEDRIVE", "HOMEPATH"] {
                 assert!(env::var_os(name).is_none());
             }
-            assert!(Command::new("cmake").arg("--success").status().unwrap().success());
+            // Keep this inert tool alive through the supervisor's membership
+            // observations. An instant child can correctly leave a lifetime gap.
+            assert!(Command::new("cmake").arg("--sleep").status().unwrap().success());
             for name in ["HOME", "TEMP"] {
                 fs::write(std::path::PathBuf::from(env::var_os(name).unwrap()).join("builder-probe"), b"private fixture write").unwrap();
             }
