@@ -19,6 +19,9 @@ use crate::{
 };
 
 const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
+const MAX_DIRECTORY_ENTRIES: usize = 4096;
+const MAX_DIRECTORY_NAME_BYTES: usize = 256 * 1024;
+const MAX_RETAINED_FILES: usize = 4096;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -54,7 +57,8 @@ impl PortcoveService {
     /// Explicit work outside query evaluation. Callers must await the blocking worker
     /// before terminal settlement and bind their request/library generation on acceptance.
     /// Supply this batch's own coordinator: final return admits publication of its transient result.
-    /// Only ordinary raw files are supported here; other readers remain NotChecked.
+    /// Ordinary raw files, uncompressed GameCube images and schema-2 directory
+    /// file sets reuse the shared inspectors; other readers remain NotChecked.
     pub fn inspect_registered_sources_bounded(
         &self,
         profile_ids: &[String],
@@ -121,6 +125,8 @@ impl PortcoveService {
         // Share byte observations only for the same pathname and full storage/content baseline.
         // Each profile is still interpreted independently by the authoritative matcher.
         let mut cache = RawCache::new();
+        let mut directories = DirectoryCache::new();
+        let mut inventory_budget = InventoryBudget::default();
         let mut observations = Vec::new();
         let mut response_bytes = 0usize;
         for profile_id in &ids {
@@ -133,42 +139,55 @@ impl PortcoveService {
                     profile_id: profile_id.clone(),
                 },
                 Some(record) => {
-                    let report =
-                        match inspect_raw(self, record, limits, started, &mut budget, &mut cache) {
-                            Ok(inspection) => crate::source_report::available_report(
-                                self.catalog(),
-                                Some(record.clone()),
-                                inspection,
-                            )?,
-                            Err(error) => {
-                                checkpoint(operation, started, limits)?;
-                                let health = if error
-                                    .details
-                                    .get("observed_health")
-                                    .map(String::as_str)
-                                    == Some("changed")
-                                {
-                                    SourceHealth::Changed
-                                } else if error.details.get("observed_health").map(String::as_str)
-                                    == Some("current")
-                                {
-                                    SourceHealth::Current
-                                } else if error.code == crate::ErrorCode::Unsupported {
-                                    SourceHealth::NotChecked
-                                } else {
-                                    match record.path.try_exists() {
-                                        Ok(false) => SourceHealth::Missing,
-                                        _ => SourceHealth::Unreadable,
-                                    }
-                                };
-                                crate::source_report::unavailable_report(
-                                    self.catalog(),
-                                    record.clone(),
-                                    health,
-                                    &error,
-                                )?
-                            }
+                    let inspection =
+                        if self.catalog().source_profile(profile_id)?.kind == SourceKind::FileSet {
+                            inspect_directory_set(
+                                record,
+                                InspectionScope {
+                                    service: self,
+                                    limits,
+                                    started,
+                                },
+                                &mut budget,
+                                &mut cache,
+                                &mut directories,
+                                &mut inventory_budget,
+                            )
+                        } else {
+                            inspect_raw(self, record, limits, started, &mut budget, &mut cache)
                         };
+                    let report = match inspection {
+                        Ok(inspection) => crate::source_report::available_report(
+                            self.catalog(),
+                            Some(record.clone()),
+                            inspection,
+                        )?,
+                        Err(error) => {
+                            checkpoint(operation, started, limits)?;
+                            let health = if error.details.get("observed_health").map(String::as_str)
+                                == Some("changed")
+                            {
+                                SourceHealth::Changed
+                            } else if error.details.get("observed_health").map(String::as_str)
+                                == Some("current")
+                            {
+                                SourceHealth::Current
+                            } else if error.code == crate::ErrorCode::Unsupported {
+                                SourceHealth::NotChecked
+                            } else {
+                                match record.path.try_exists() {
+                                    Ok(false) => SourceHealth::Missing,
+                                    _ => SourceHealth::Unreadable,
+                                }
+                            };
+                            crate::source_report::unavailable_report(
+                                self.catalog(),
+                                record.clone(),
+                                health,
+                                &error,
+                            )?
+                        }
+                    };
                     RegisteredSourceObservation::Inspected {
                         report: Box::new(report),
                     }
@@ -193,6 +212,38 @@ impl PortcoveService {
                 ));
             }
             crate::source_inspection::verify_open_source_location(
+                &observed.path,
+                &observed.file,
+                &observed.metadata,
+            )?;
+        }
+        let mut final_inventory_budget = InventoryBudget::default();
+        for (key, observed) in &directories {
+            checkpoint(operation, started, limits)?;
+            crate::path::refuse_symlink_ancestors(&key.0)?;
+            if std::fs::canonicalize(&key.0)? != observed.path {
+                return Err(PortcoveError::conflict(
+                    "registered directory location changed during inspection",
+                ));
+            }
+            crate::source_inspection::verify_open_source_directory(
+                &observed.path,
+                &observed.file,
+                &observed.metadata,
+            )?;
+            if directory_inventory(
+                &observed.path,
+                operation,
+                started,
+                limits,
+                &mut final_inventory_budget,
+            )? != observed.inventory
+            {
+                return Err(PortcoveError::conflict(
+                    "registered directory inventory changed during inspection",
+                ));
+            }
+            crate::source_inspection::verify_open_source_directory(
                 &observed.path,
                 &observed.file,
                 &observed.metadata,
@@ -283,6 +334,160 @@ struct RawObservation {
 
 type RawCache = HashMap<(PathBuf, String, u64, String, u64), RawObservation>;
 
+struct DirectoryObservation {
+    path: PathBuf,
+    file: File,
+    metadata: std::fs::Metadata,
+    inventory: Vec<(String, bool)>,
+}
+
+type DirectoryCache = HashMap<(PathBuf, String, u64, String, u64), DirectoryObservation>;
+
+#[derive(Default)]
+struct InventoryBudget {
+    entries: usize,
+    name_bytes: usize,
+}
+
+fn directory_inventory(
+    path: &std::path::Path,
+    operation: &OperationCoordinator,
+    started: Instant,
+    limits: &RegisteredSourceInspectionLimits,
+    budget: &mut InventoryBudget,
+) -> Result<Vec<(String, bool)>> {
+    if budget.entries >= MAX_DIRECTORY_ENTRIES || budget.name_bytes >= MAX_DIRECTORY_NAME_BYTES {
+        return Err(PortcoveError::unsupported(
+            "registered-source directory inventory budget reached",
+        ));
+    }
+    let mut inventory = Vec::new();
+    for entry in std::fs::read_dir(path)? {
+        checkpoint(operation, started, limits)?;
+        budget.entries += 1;
+        if budget.entries > MAX_DIRECTORY_ENTRIES {
+            return Err(PortcoveError::unsupported(
+                "registered-source directory entry budget reached",
+            ));
+        }
+        let entry = entry?;
+        let name = entry.file_name().into_string().map_err(|_| {
+            PortcoveError::unsupported("registered-source member names must be Unicode")
+        })?;
+        budget.name_bytes = budget.name_bytes.saturating_add(name.len());
+        if budget.name_bytes > MAX_DIRECTORY_NAME_BYTES {
+            return Err(PortcoveError::unsupported(
+                "registered-source directory name budget reached",
+            ));
+        }
+        let kind = entry.file_type()?;
+        inventory.push((name, kind.is_file() && !kind.is_symlink()));
+    }
+    inventory.sort_unstable();
+    Ok(inventory)
+}
+
+struct InspectionScope<'a> {
+    service: &'a PortcoveService,
+    limits: &'a RegisteredSourceInspectionLimits,
+    started: Instant,
+}
+
+fn inspect_directory_set(
+    record: &SourceRecord,
+    scope: InspectionScope<'_>,
+    budget: &mut HashBudget,
+    cache: &mut RawCache,
+    directories: &mut DirectoryCache,
+    inventory_budget: &mut InventoryBudget,
+) -> Result<crate::SourceInspection> {
+    let InspectionScope {
+        service,
+        limits,
+        started,
+    } = scope;
+    // ZIP file sets need a separately bounded container reader. Never open them here.
+    crate::path::refuse_symlink_ancestors(&record.path)?;
+    if !std::fs::symlink_metadata(&record.path)?.is_dir() {
+        return Err(PortcoveError::unsupported(
+            "bounded file-set inspection requires an ordinary directory",
+        ));
+    }
+    let key = cache_key(record.path.clone(), record);
+    if !directories.contains_key(&key) {
+        let file = crate::external_runtime::open_identity_handle(&record.path)?;
+        let path = std::fs::canonicalize(&record.path)?;
+        crate::path::refuse_symlink_ancestors(&record.path)?;
+        let metadata = file.metadata()?;
+        crate::source_inspection::verify_open_source_directory(&path, &file, &metadata)?;
+        let inventory = directory_inventory(
+            &path,
+            budget.operation.as_ref().expect("batch owns operation"),
+            started,
+            limits,
+            inventory_budget,
+        )?;
+        crate::source_inspection::verify_open_source_directory(&path, &file, &metadata)?;
+        directories.insert(
+            key.clone(),
+            DirectoryObservation {
+                path,
+                file,
+                metadata,
+                inventory,
+            },
+        );
+    }
+    let directory = &directories[&key];
+    let names = directory
+        .inventory
+        .iter()
+        .filter(|(_, regular)| *regular)
+        .map(|(name, _)| name.clone())
+        .collect::<Vec<_>>();
+    crate::source_inspection::inspect_directory_file_set(
+        service.catalog(),
+        &record.profile_id,
+        &record.path,
+        &names,
+        &mut |aliases| {
+            checkpoint(
+                budget.operation.as_ref().expect("batch owns operation"),
+                started,
+                limits,
+            )?;
+            let matched = names
+                .iter()
+                .filter(|name| aliases.iter().any(|alias| alias.eq_ignore_ascii_case(name)))
+                .collect::<Vec<_>>();
+            if matched.len() != 1 {
+                return Ok(None);
+            }
+            let name = matched[0];
+            let member = record.path.join(name);
+            crate::path::refuse_symlink_ancestors(&member)?;
+            let identity = observe_raw_bytes(&member, record, limits, started, budget, cache)?;
+            Ok(Some(crate::source_inspection::HashedNamedSource {
+                name: name.clone(),
+                sha1: identity.sha1.clone(),
+                sha256: identity.sha256.clone(),
+                crc32: identity.crc32.clone(),
+                size: identity.size,
+            }))
+        },
+    )
+}
+
+fn cache_key(path: PathBuf, record: &SourceRecord) -> (PathBuf, String, u64, String, u64) {
+    (
+        path,
+        record.sha256.clone(),
+        record.size,
+        record.storage_sha256.clone(),
+        record.storage_size,
+    )
+}
+
 fn inspect_raw(
     service: &PortcoveService,
     record: &SourceRecord,
@@ -298,7 +503,10 @@ fn inspect_raw(
         .and_then(|value| value.to_str())
         .unwrap_or_default();
     // Refuse before a ZIP parser, compound validator, disc helper or external tool can run.
-    if profile.kind != SourceKind::File
+    if !matches!(profile.kind, SourceKind::File | SourceKind::GamecubeDisc)
+        || (matches!(profile.kind, SourceKind::GamecubeDisc)
+            && !extension.eq_ignore_ascii_case("iso")
+            && !extension.eq_ignore_ascii_case("gcm"))
         || extension.eq_ignore_ascii_case("zip")
         || crate::source_inspection::compound_scan_eligible(
             service.catalog(),
@@ -331,57 +539,7 @@ fn inspect_raw(
             "registered source extension has no bounded reader for this profile",
         ));
     }
-    let key = (
-        record.path.clone(),
-        record.sha256.clone(),
-        record.size,
-        record.storage_sha256.clone(),
-        record.storage_size,
-    );
-    if !cache.contains_key(&key) {
-        let path = std::fs::canonicalize(&record.path)?;
-        if !std::fs::symlink_metadata(&path)?.is_file() {
-            return Err(PortcoveError::unsupported(
-                "registered source is not an ordinary raw file",
-            ));
-        }
-        // The maintained identity opener refuses leaf redirects and cannot block on a raced FIFO.
-        let mut file = crate::external_runtime::open_identity_handle(&path)?;
-        let metadata = file.metadata()?;
-        crate::source_inspection::verify_open_source_location(&path, &file, &metadata)?;
-        if !metadata.is_file() {
-            return Err(PortcoveError::source(
-                "registered source is not an ordinary file",
-            ));
-        }
-        if metadata.len() > limits.max_file_bytes {
-            return Err(PortcoveError::unsupported(
-                "registered source exceeds its file budget",
-            ));
-        }
-        let identity = read_raw_identity_from_reader(
-            &record.path,
-            DeadlineReader {
-                file: &mut file,
-                started,
-                maximum: Duration::from_millis(limits.max_elapsed_ms),
-            },
-            metadata.len(),
-            limits.max_file_bytes,
-            budget,
-        )?;
-        crate::source_inspection::verify_open_source_location(&path, &file, &metadata)?;
-        cache.insert(
-            key.clone(),
-            RawObservation {
-                identity,
-                file,
-                metadata,
-                path,
-            },
-        );
-    }
-    let identity = &cache.get(&key).expect("raw identity was retained").identity;
+    let identity = observe_raw_bytes(&record.path, record, limits, started, budget, cache)?;
     crate::source_inspection::inspect_file_identity(
         service.catalog(),
         &record.profile_id,
@@ -404,6 +562,66 @@ fn inspect_raw(
             },
         )
     })
+}
+
+fn observe_raw_bytes<'a>(
+    input: &std::path::Path,
+    record: &SourceRecord,
+    limits: &RegisteredSourceInspectionLimits,
+    started: Instant,
+    budget: &mut HashBudget,
+    cache: &'a mut RawCache,
+) -> Result<&'a FileIdentity> {
+    let key = cache_key(input.to_path_buf(), record);
+    if !cache.contains_key(&key) {
+        if cache.len() >= MAX_RETAINED_FILES {
+            return Err(PortcoveError::unsupported(
+                "registered-source retained-file budget reached",
+            ));
+        }
+        if !std::fs::symlink_metadata(input)?.is_file() {
+            return Err(PortcoveError::unsupported(
+                "registered source is not an ordinary raw file",
+            ));
+        }
+        // The maintained identity opener refuses leaf redirects and cannot block on a raced FIFO.
+        let mut file = crate::external_runtime::open_identity_handle(input)?;
+        let path = std::fs::canonicalize(input)?;
+        let metadata = file.metadata()?;
+        crate::source_inspection::verify_open_source_location(&path, &file, &metadata)?;
+        if !metadata.is_file() {
+            return Err(PortcoveError::source(
+                "registered source is not an ordinary file",
+            ));
+        }
+        if metadata.len() > limits.max_file_bytes {
+            return Err(PortcoveError::unsupported(
+                "registered source exceeds its file budget",
+            ));
+        }
+        let identity = read_raw_identity_from_reader(
+            input,
+            DeadlineReader {
+                file: &mut file,
+                started,
+                maximum: Duration::from_millis(limits.max_elapsed_ms),
+            },
+            metadata.len(),
+            limits.max_file_bytes,
+            budget,
+        )?;
+        crate::source_inspection::verify_open_source_location(&path, &file, &metadata)?;
+        cache.insert(
+            key.clone(),
+            RawObservation {
+                identity,
+                file,
+                metadata,
+                path,
+            },
+        );
+    }
+    Ok(&cache.get(&key).expect("raw identity was retained").identity)
 }
 
 struct DeadlineReader<'a> {

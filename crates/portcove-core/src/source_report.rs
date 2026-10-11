@@ -225,6 +225,7 @@ pub(crate) fn available_report(
     }
     let health = match registered.as_ref() {
         Some(record) if observation_matches_record(&inspection, record) => SourceHealth::Current,
+        Some(_) if inspection.observed_digests.is_empty() => SourceHealth::NotChecked,
         Some(_) => SourceHealth::Changed,
         None => SourceHealth::NotBaselined,
     };

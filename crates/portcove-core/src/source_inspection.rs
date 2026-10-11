@@ -435,9 +435,27 @@ pub(crate) fn verify_open_source_location(
     input: &File,
     initial: &std::fs::Metadata,
 ) -> Result<()> {
+    verify_open_source_object(path, input, initial, false)
+}
+
+pub(crate) fn verify_open_source_directory(
+    path: &Path,
+    input: &File,
+    initial: &std::fs::Metadata,
+) -> Result<()> {
+    verify_open_source_object(path, input, initial, true)
+}
+
+fn verify_open_source_object(
+    path: &Path,
+    input: &File,
+    initial: &std::fs::Metadata,
+    directory: bool,
+) -> Result<()> {
     let metadata = std::fs::symlink_metadata(path)?;
     let current = input.metadata()?;
-    if !metadata.is_file()
+    if (directory && (!metadata.is_dir() || !current.is_dir()))
+        || (!directory && (!metadata.is_file() || !current.is_file()))
         || std::fs::canonicalize(path)? != path
         || !same_compound_object(path, input, initial, &metadata)?
         || initial.len() != current.len()
@@ -795,6 +813,7 @@ fn inspect_file_set_observations(
 
     let mut matches = Vec::new();
     let mut observed = Vec::new();
+    let mut observed_digests = Vec::new();
     for variant in profile
         .variants
         .iter()
@@ -814,6 +833,13 @@ fn inspect_file_set_observations(
             else {
                 continue;
             };
+            // A complete observed set establishes its bytes independently of
+            // whether the current catalog admits a unique identity.
+            for digest in file_set_aggregate_digests(&record) {
+                if !observed_digests.contains(&digest) {
+                    observed_digests.push(digest);
+                }
+            }
             if !matched {
                 if observed.is_empty() {
                     observed = components;
@@ -864,10 +890,6 @@ fn inspect_file_set_observations(
             "source file set matches more than one schema-2 identity".into(),
         ),
     };
-    let observed_digests = record
-        .as_ref()
-        .map(file_set_aggregate_digests)
-        .unwrap_or_default();
     Ok(SourceInspection {
         profile_id: profile_id.into(),
         path: path.into(),
