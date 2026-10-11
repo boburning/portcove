@@ -420,6 +420,7 @@ pub fn export_transport_schemas() -> Value {
             "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
             "game_file_roots": output::<Vec<portcove_core::GameFileRoot>>(),
             "game_file_scan_snapshot": output::<Option<portcove_core::GameFileScanSnapshot>>(),
+            "game_file_query_snapshot": output::<portcove_core::GameFileQuerySnapshot>(),
             "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
             "external_runtime_preview": output::<portcove_core::ExternalRuntimePreview>(),
             "external_runtime_removal_preview": output::<portcove_core::ExternalRuntimeRemovalPreview>(),
@@ -431,6 +432,7 @@ pub fn export_transport_schemas() -> Value {
         },
         "input": {
             "install_input": schemars::schema_for!(InstallInput),
+            "game_file_query_request": schemars::schema_for!(portcove_core::GameFileQueryRefreshRequest),
             "application_update_choice": schemars::schema_for!(ApplicationUpdateChoice),
             "application_update_production_decision": schemars::schema_for!(ApplicationUpdateProductionDecision),
             "application_update_recovery_area": schemars::schema_for!(ApplicationUpdateRecoveryArea),

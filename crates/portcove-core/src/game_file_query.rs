@@ -19,6 +19,15 @@ pub struct GameFileRouteRequest {
     pub route: GameFileRouteKind,
 }
 
+/// Explicit refresh inputs. Inspection reports are never accepted from a client.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GameFileQueryRefreshRequest {
+    pub routes: Vec<GameFileRouteRequest>,
+    pub limits: crate::RegisteredSourceInspectionLimits,
+    pub maximum_age_seconds: u32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GameFileQuerySnapshot {
     pub schema_version: u32,
@@ -32,6 +41,46 @@ pub struct GameFileQuerySnapshot {
 }
 
 impl crate::PortcoveService {
+    /// Own the cancellable refresh activity through the blocking worker's return.
+    pub fn refresh_game_file_query_with_progress(
+        &self,
+        request: &GameFileQueryRefreshRequest,
+        emit: impl FnMut(crate::OperationEvent),
+    ) -> crate::Result<GameFileQuerySnapshot> {
+        self.refresh_game_file_query_tracked(request, emit, || Ok(()))
+    }
+
+    fn refresh_game_file_query_tracked(
+        &self,
+        request: &GameFileQueryRefreshRequest,
+        mut emit: impl FnMut(crate::OperationEvent),
+        before_accept: impl FnOnce() -> crate::Result<()>,
+    ) -> crate::Result<GameFileQuerySnapshot> {
+        let started = std::time::Instant::now();
+        request.limits.validate()?;
+        let (activity, operation) = self.begin_cancellable_activity(
+            crate::ActivityOperation::VerifySource,
+            crate::ActivityTargetKind::Library,
+            None,
+        )?;
+        emit(operation.started());
+        let elapsed = || started.elapsed();
+        let result = self.refresh_game_file_query_with_fence(
+            &request.routes,
+            &request.limits,
+            request.maximum_age_seconds,
+            &QueryFence {
+                elapsed: &elapsed,
+                maximum: std::time::Duration::from_millis(request.limits.max_elapsed_ms),
+                operation: Some(&operation),
+            },
+            before_accept,
+        );
+        let result = self.finish_activity(activity, result);
+        emit(operation.finished(crate::OperationResult::from_result(&result)));
+        result
+    }
+
     /// Build a read-only query snapshot from this service's accepted Core batch.
     /// This is explicit snapshot construction, never filtering. Host adapters must
     /// keep the batch in their Core worker; do not accept client-authored reports.

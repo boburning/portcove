@@ -659,6 +659,10 @@ function useAppModel(data: DataState, ui: UiState, libraryRoot?: string | null) 
   const { selectedId, setBiosPath, setSourcePath } = ui;
   const { catalog, sources, statuses } = data;
   const statusMap = useMemo(() => indexStatuses(statuses), [statuses]);
+  const gameFileQueryContext = useMemo(
+    () => JSON.stringify([catalog, sources, statuses]),
+    [catalog, sources, statuses],
+  );
   // Catalog and statuses arrive together in the accepted generation-bound snapshot.
   const queryContext = useMemo<CatalogQueryContext>(
     () => (catalog && libraryRoot ? { library: { id: libraryRoot, statuses: statusMap } } : {}),
@@ -741,6 +745,7 @@ function useAppModel(data: DataState, ui: UiState, libraryRoot?: string | null) 
   return {
     statusMap,
     queryContext,
+    gameFileQueryContext,
     visible,
     catalogFilterCandidates,
     libraryFilterCandidates,
@@ -1082,6 +1087,7 @@ function SelectedPortPanel({
         (activity) => activity.target_id === model.port?.id && activity.cancellation,
       )}
       libraryGeneration={libraryGeneration}
+      gameFileQueryContext={model.gameFileQueryContext}
       outputLocationChanged={installPlanning.invalidate}
       externalRuntimeChanged={() => {
         installPlanning.invalidate();

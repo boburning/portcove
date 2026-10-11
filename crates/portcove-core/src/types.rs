@@ -1414,6 +1414,7 @@ impl CapabilityDocument {
                 "source".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),
+                "source.query".into(),
                 "tool".into(),
                 "status".into(),
                 "activity".into(),

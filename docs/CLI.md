@@ -1,5 +1,20 @@
 # Portcove CLI
 
+`source query PORT_ID --route managed-install --channel stable` explicitly
+refreshes registered game-file observations for the selected route on the current
+host. Other route choices are `external-registration`, `managed-launch` and
+`external-launch`. JSON and JSONL reuse Core's route-bound snapshot; JSONL emits
+the existing `verify_source` activity with a Library target and settles it after
+the worker returns. This command does not register sources, plan setup, resolve
+network releases or execute a game. Filtering the returned snapshot performs no
+inspection. API 65 exposes the command without claiming private schema 64.
+
+The observation age defaults to 300 seconds and is bounded to 1–1800 seconds.
+`--max-file-bytes`, `--max-hash-bytes` and `--max-elapsed-ms` may reduce the
+respective 2 GiB, 32 GiB and 30-second caps; larger or zero limits are refused.
+The elapsed limit is cooperative and cannot interrupt an individual filesystem
+call. A game-file state does not grant setup or launch authority.
+
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
 Use `portcove plan PORT_ID --channel preview`, `portcove install PORT_ID --channel preview`,

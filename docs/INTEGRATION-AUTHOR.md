@@ -57,7 +57,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57 or 60–63/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -70,6 +70,14 @@ and reject unknown consequential enum values or a different used schema with a
 migration message. Future client revisions should extend that window only after
 matching fixtures and package tests. The product version is descriptive, never a
 substitute for these checks. Export authoritative schemas with `schema export`.
+
+API 65 adds explicit `source.query` game-file refresh, tracked as the existing
+`verify_source` activity with a Library target. Its inputs select routes and resource limits;
+inspection batches remain private to Core. The client does not invoke this
+optional command and does not infer readiness from its game-file observations.
+Private schemas 58, 59 and the retained unmerged 64 candidate remain rejected;
+65 does not require that candidate's game-update review fields. Existing launch,
+lifecycle and backup decisions keep their earlier contracts.
 
 Schema 60 introduces retained rollback assessment in status. The reference
 validates exactly one rollback decision per status against the envelope version,
@@ -169,7 +177,7 @@ failure does not imply earlier registration was undone.
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57 or 60–63 membership. Some
+schema within the client's supported 42–57, 60–63 or 65 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core

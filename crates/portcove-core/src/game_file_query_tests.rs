@@ -900,3 +900,88 @@ fn cancellation_after_inspection_waits_for_the_actual_blocking_refresh_worker() 
         record.sha256
     );
 }
+
+#[test]
+fn tracked_refresh_settles_cancellation_only_after_worker_exit() {
+    let (temporary, service, _batch) = service_fixture();
+    let source = register_inert_query_source(&service, temporary.path().join("input.z64"));
+    let request = GameFileQueryRefreshRequest {
+        routes: vec![managed_request(&service)],
+        limits: refresh_limits(),
+        maximum_age_seconds: 300,
+    };
+    let worker_service = PortcoveService::new(service.library().clone()).unwrap();
+    let (entered, ready) = std::sync::mpsc::channel();
+    let (release, held) = std::sync::mpsc::channel();
+    let (events, observed) = std::sync::mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        worker_service.refresh_game_file_query_tracked(
+            &request,
+            |event| events.send(event).unwrap(),
+            || {
+                entered.send(()).unwrap();
+                held.recv_timeout(std::time::Duration::from_secs(10))
+                    .unwrap();
+                Ok(())
+            },
+        )
+    });
+    ready
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    let started = observed
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .unwrap();
+    let running = service.library().activities(1).unwrap().remove(0);
+    assert_eq!(running.id, started.operation_id);
+    assert_eq!(running.operation, crate::ActivityOperation::VerifySource);
+    assert_eq!(running.status, crate::ActivityStatus::Running);
+    service.request_cancellation(&running.id).unwrap();
+    assert!(!worker.is_finished());
+    assert!(
+        observed.try_recv().is_err(),
+        "no terminal event while worker is held"
+    );
+    assert_eq!(
+        service.library().activities(1).unwrap()[0].status,
+        crate::ActivityStatus::Running
+    );
+    release.send(()).unwrap();
+    assert_eq!(
+        worker.join().unwrap().unwrap_err().code,
+        crate::ErrorCode::Cancelled
+    );
+    let terminal = serde_json::to_value(
+        observed
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(terminal["type"], "finished");
+    assert_eq!(terminal["result"], "cancelled");
+    assert_eq!(
+        service.library().activities(1).unwrap()[0].status,
+        crate::ActivityStatus::Cancelled
+    );
+    assert_eq!(
+        service.library().sources().unwrap()[0].sha256,
+        source.sha256
+    );
+    assert_eq!(
+        std::fs::read(source.path).unwrap(),
+        b"inert registered-input fixture"
+    );
+}
+
+#[test]
+fn refresh_request_rejects_client_authored_observation_batches() {
+    let (_temporary, service, batch) = service_fixture();
+    let request = GameFileQueryRefreshRequest {
+        routes: vec![managed_request(&service)],
+        limits: refresh_limits(),
+        maximum_age_seconds: 300,
+    };
+    let mut value = serde_json::to_value(request).unwrap();
+    value["batch"] = serde_json::to_value(batch).unwrap();
+    assert!(serde_json::from_value::<GameFileQueryRefreshRequest>(value).is_err());
+}

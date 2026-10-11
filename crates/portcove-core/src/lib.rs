@@ -140,8 +140,8 @@ pub use failure::{
     redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
 };
 pub use game_file_query::{
-    GameFileQueryReason, GameFileQuerySnapshot, GameFileQueryState, GameFileRouteKind,
-    GameFileRouteProjection, GameFileRouteRequest,
+    GameFileQueryReason, GameFileQueryRefreshRequest, GameFileQuerySnapshot, GameFileQueryState,
+    GameFileRouteKind, GameFileRouteProjection, GameFileRouteRequest,
 };
 pub use game_file_root::{
     GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
@@ -224,9 +224,9 @@ pub use source_report::{
 };
 pub use types::*;
 
-// Private parked 58/59 candidates retain their own client/runtime pair.
-// The next public contract is 60; it does not claim those private contracts.
-pub const API_SCHEMA_VERSION: u32 = 63;
+// Private parked 58/59 and the retained, unmerged 64 candidate are not public contracts.
+// Public 65 adds explicit game-file refresh without claiming private 64 update fields.
+pub const API_SCHEMA_VERSION: u32 = 65;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

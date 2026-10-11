@@ -108,6 +108,113 @@
     "title": "ApplicationUpdateRecoveryArea",
     "type": "string"
   },
+  "game_file_query_request": {
+    "$defs": {
+      "GameFileRouteKind": {
+        "enum": [
+          "managed_install",
+          "external_registration",
+          "managed_launch",
+          "external_launch"
+        ],
+        "type": "string"
+      },
+      "GameFileRouteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "route": {
+            "$ref": "#/$defs/GameFileRouteKind"
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "channel",
+          "route"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "RegisteredSourceInspectionLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "max_elapsed_ms": {
+            "description": "Cooperative deadline, checked between reads; does not interrupt blocked filesystem calls.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_file_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_hash_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_file_bytes",
+          "max_hash_bytes",
+          "max_elapsed_ms"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Explicit refresh inputs. Inspection reports are never accepted from a client.",
+    "properties": {
+      "limits": {
+        "$ref": "#/$defs/RegisteredSourceInspectionLimits"
+      },
+      "maximum_age_seconds": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "routes": {
+        "items": {
+          "$ref": "#/$defs/GameFileRouteRequest"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "routes",
+      "limits",
+      "maximum_age_seconds"
+    ],
+    "title": "GameFileQueryRefreshRequest",
+    "type": "object"
+  },
   "install_input": {
     "$defs": {
       "ReleaseChannel": {
