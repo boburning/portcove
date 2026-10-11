@@ -57,7 +57,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57 or 60–61/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57 or 60–62/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -88,6 +88,15 @@ withdrawal cannot become a Launch hold. It admits only the exact revoked-artifac
 rollback tuple described in the CLI contract. Contradictory outcomes, unknown
 reasons and schema-61 meanings carried by older envelopes are refused, including
 batched status. These source changes do not qualify an installed client update.
+
+Schema 62 requires `create_assessment` on backup inventory. Consume the exact
+`backup_create` availability/reason tuple before presenting creation; do not
+infer it from whether an installation or a backup row exists. Retained owned
+data and collectible managed saves are distinct from unknown external saves.
+An incomplete bounded assessment cannot establish empty data or impose a new
+backup execution cap. The reference validates this contract on `backup.list`
+results, rejects it in older envelopes, and keeps private schemas 58/59 outside
+its accepted window. Source parity remains separate from installed updates.
 
 Runtime discovery is a trust boundary, not permission to execute the first file
 with a matching name. Ask the user to select or approve a verified compatible
@@ -156,7 +165,7 @@ failure does not imply earlier registration was undone.
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57 or 60–61 membership. Some
+schema within the client's supported 42–57 or 60–62 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core

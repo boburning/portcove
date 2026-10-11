@@ -95,6 +95,7 @@ pub enum PortAction {
     RemoveManaged,
     RemoveExternal,
     Rollback,
+    BackupCreate,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -125,6 +126,11 @@ pub enum PortActionReason {
     PreparationRequired,
     InvalidInstallation,
     DefinitionIneligible,
+    MissingData,
+    UnreadableData,
+    UnsafeData,
+    RecoveryRequired,
+    AssessmentIncomplete,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

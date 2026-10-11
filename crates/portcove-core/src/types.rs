@@ -1086,6 +1086,8 @@ pub enum BackupInventoryState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BackupInventory {
     pub port_id: String,
+    /// Read-only eligibility to attempt creation; execution rechecks under its lock.
+    pub create_assessment: crate::PortActionAssessment,
     pub state: BackupInventoryState,
     pub backups: Vec<BackupRecord>,
     pub problems: Vec<BackupProblem>,

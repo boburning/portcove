@@ -301,6 +301,58 @@ export async function backupReviewScenario({
     );
     await capture("native-unusable-backup-inventory", ".backup-inventory-notice");
 
+    assert.deepEqual(unavailable.create_assessment, {
+      action: "backup_create",
+      availability: "allowed",
+      reason: "available",
+    });
+    const preservedSave = await fileIdentity(save);
+    const damagedManifests = await Promise.all(
+      [other, safety].map((backup) => fileIdentity(path.join(backup.path, "backup.json"))),
+    );
+    // Controlled CLI fixture setup; this does not qualify native uninstall.
+    command(["remove", port.id, "--yes"]);
+    assert.equal(command(["status", port.id]).active, null);
+    const retainedAssessment = command(["backup", "list", port.id]).create_assessment;
+    assert.deepEqual(retainedAssessment, unavailable.create_assessment);
+    await openCatalogPortAfterRefresh(browser, port, port.name);
+    const disclosure = await browser.findElement(By.css("summary.advanced-summary"));
+    if (!(await disclosure.findElement(By.xpath("..")).getAttribute("open"))) {
+      await clickVisible(disclosure);
+    }
+    const create = await browser.wait(until.elementLocated(button("Back up data")), 15_000);
+    await browser.wait(
+      async () => create.isEnabled(),
+      15_000,
+      "Fresh Core assessment must enable backup of retained owned data",
+    );
+    await capture("native-retained-data-backup-create", "#backup-create-explanation");
+    await clickVisible(create);
+    await browser.wait(
+      async () => list().length === 1,
+      15_000,
+      "Native creation must publish an actual new usable backup",
+    );
+    const createdFromRetainedData = list()[0];
+    assert.equal(
+      await readFile(path.join(createdFromRetainedData.path, "data/owned-review-save.bin"), "utf8"),
+      "selected snapshot data",
+    );
+    assert.equal(command(["status", port.id]).active, null);
+    assert.equal((await fileIdentity(save)).sha256, preservedSave.sha256);
+    for (const identity of damagedManifests) {
+      assert.equal((await fileIdentity(identity.path)).sha256, identity.sha256);
+    }
+    const createdInventory = command(["backup", "list", port.id]);
+    assert.equal(createdInventory.problems.length, 2);
+    assert.equal(createdInventory.state, "degraded");
+    const createdRow = await row(createdFromRetainedData.id);
+    assert.equal(
+      await createdRow.findElement(By.xpath('.//button[normalize-space(.)="Restore"]')).isEnabled(),
+      true,
+    );
+    await capture("native-retained-data-backup-created", ".backup-history");
+
     const report = path.join(output, "backup-review-result.json");
     await writeFile(
       report,
@@ -310,7 +362,15 @@ export async function backupReviewScenario({
           selected,
           other,
           safety,
-          unchanged_install_id: install.id,
+          review_install_id: install.id,
+          retained_data_creation: {
+            assessment: retainedAssessment,
+            created: createdFromRetainedData,
+            preservedSave,
+            damagedManifests,
+            installed: false,
+            degraded_history_preserved: true,
+          },
           stale_generation_rejected: true,
           changed_data_rejected: true,
           escape_dismissal_and_focus_restoration: true,

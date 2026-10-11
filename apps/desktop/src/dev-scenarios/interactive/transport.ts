@@ -163,6 +163,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_backups", args, { portId: args?.portId });
       return {
         port_id: String(args?.portId),
+        create_assessment: {
+          action: "backup_create",
+          availability: "waiting",
+          reason: "missing_data",
+        },
         backups: [],
         problems: [],
         state: "healthy",

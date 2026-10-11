@@ -354,7 +354,17 @@ it("keeps a failed initial read unknown until a successful read-only retry", asy
   const read = vi
     .spyOn(desktopApi, "backups")
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups: [], problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups: [],
+      problems: [],
+    });
   const remove = vi.fn();
   const restore = vi.fn();
   await act(async () => root.render(<ReadHistory remove={remove} restore={restore} />));
@@ -371,9 +381,29 @@ it("keeps a failed initial read unknown until a successful read-only retry", asy
 it("identifies retained rows after a failed refresh and retries only the inventory read", async () => {
   const read = vi
     .spyOn(desktopApi, "backups")
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] })
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    })
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups: [], problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups: [],
+      problems: [],
+    });
   const remove = vi.fn();
   const restore = vi.fn();
   await act(async () => root.render(<ReadHistory remove={remove} restore={restore} />));
@@ -412,15 +442,34 @@ it("keeps read retry focused and disables repeated clicks while a read is pendin
   });
   expect(retry.disabled).toBe(true);
   expect(read).toHaveBeenCalledTimes(2);
-  await act(async () => finish({ port_id: "sample", state: "healthy", backups, problems: [] }));
+  await act(async () =>
+    finish({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    }),
+  );
   expect(retry.disabled).toBe(false);
   expect(document.activeElement).toBe(retry);
   expect(container.textContent).toContain("2 verified backups");
 });
 
-function DetailReadHistory({ portId = "sample" }: { portId?: string }) {
+function DetailReadHistory({
+  portId = "sample",
+  observe,
+}: {
+  portId?: string;
+  observe?: (refresh: () => Promise<void>) => void;
+}) {
   const port = { ...portDefinition(), id: portId };
   const current = usePortBackups(portId);
+  observe?.(current.refresh);
   const actions = detailActions({
     port,
     status: undefined,
@@ -437,6 +486,7 @@ function DetailReadHistory({ portId = "sample" }: { portId?: string }) {
       backups={current.backups}
       backupProblems={current.inventory.problems}
       backupState={current.inventory.state}
+      backupCreateAssessment={current.inventory.create_assessment}
       backupReadState={current.readState}
       retryBackupRead={current.refresh}
       libraryGeneration={7}
@@ -446,6 +496,38 @@ function DetailReadHistory({ portId = "sample" }: { portId?: string }) {
     />
   );
 }
+
+it("offers retained owned-data backup without an install and rejects last-loaded availability after refresh fails", async () => {
+  let refresh!: () => Promise<void>;
+  vi.spyOn(desktopApi, "backups")
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      backups: [],
+      problems: [],
+      create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+    })
+    .mockRejectedValueOnce(failureReport());
+  await act(async () =>
+    root.render(
+      <DetailReadHistory
+        observe={(value) => {
+          refresh = value;
+        }}
+      />,
+    ),
+  );
+  const button = () =>
+    [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (value) => value.textContent?.trim() === "Back up data",
+    )!;
+  expect(button()).toBeDefined();
+  expect(button().disabled).toBe(false);
+  expect(container.textContent).toContain("Back up owned saves and settings.");
+  await act(async () => refresh());
+  expect(button().disabled).toBe(true);
+  expect(container.textContent).toContain("Your saved data could not be checked.");
+});
 
 it("exposes a failed initial read through Saves and storage even without a known backup row", async () => {
   vi.spyOn(desktopApi, "backups").mockRejectedValueOnce(failureReport());
@@ -462,6 +544,11 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
       backups: backups.slice(0, 1),
       problems: [],
     })
@@ -469,6 +556,11 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
     .mockResolvedValueOnce({
       port_id: "sample",
       state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
       backups: backups.slice(1),
       problems: [],
     });
@@ -500,7 +592,17 @@ it("preserves a completed reviewed delete and its focus after readback fails, th
 it("keeps the retry control focused when an uninstalled port's unknown list becomes current and empty", async () => {
   vi.spyOn(desktopApi, "backups")
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups: [], problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups: [],
+      problems: [],
+    });
   await act(async () => root.render(<DetailReadHistory />));
   const retry = [...container.querySelectorAll("button")].find(
     (button) => button.textContent === "Retry backup history",
@@ -517,9 +619,29 @@ it("keeps the retry control focused when an uninstalled port's unknown list beco
 it("preserves a completed reviewed restore and its focus when inventory readback fails", async () => {
   const read = vi
     .spyOn(desktopApi, "backups")
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] })
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    })
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "sample", state: "healthy", backups, problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    });
   const restore = vi
     .spyOn(desktopApi, "restoreBackup")
     .mockResolvedValueOnce({ restored_backup: backups[0], safety_backup: null });
@@ -562,7 +684,17 @@ it("lets the next selected port retry while the old port's retry is still pendin
       }),
     )
     .mockRejectedValueOnce(failureReport())
-    .mockResolvedValueOnce({ port_id: "other", state: "healthy", backups: [], problems: [] });
+    .mockResolvedValueOnce({
+      port_id: "other",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups: [],
+      problems: [],
+    });
   await act(async () => root.render(<DetailReadHistory />));
   await click("Retry backup history");
   expect(container.textContent).toContain("Loading backup history");
@@ -570,7 +702,19 @@ it("lets the next selected port retry while the old port's retry is still pendin
   await click("Retry backup history");
   expect(read.mock.calls).toEqual([["sample"], ["sample"], ["other"], ["other"]]);
   expect(container.textContent).toContain("No backups yet");
-  await act(async () => finishOld({ port_id: "sample", state: "healthy", backups, problems: [] }));
+  await act(async () =>
+    finishOld({
+      port_id: "sample",
+      state: "healthy",
+      create_assessment: {
+        action: "backup_create",
+        availability: "allowed",
+        reason: "available",
+      } as const,
+      backups,
+      problems: [],
+    }),
+  );
   expect(container.querySelectorAll(".backup-row")).toHaveLength(0);
   expect(container.textContent).toContain("No backups yet");
 });
