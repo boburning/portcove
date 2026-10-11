@@ -41,6 +41,9 @@ import type {
   UpdatePolicy,
 } from "../types";
 import { OperationCancellation } from "./OperationCancellation";
+import { GameFileQueryControl } from "./GameFileQuery";
+import { GameFileFilterObservation } from "./GameFileFilterObservation";
+import type { GameFileFilterContext } from "../features/browsing/game-file-query-context";
 import { OutputLocationControl } from "./OutputLocation";
 import { PreparationControl, type RunPreparation } from "./Preparation";
 import {
@@ -114,6 +117,8 @@ interface DetailPanelProps {
   pickBios?: AsyncAction;
   busy?: string;
   libraryGeneration?: number;
+  gameFileQueryContext?: string;
+  gameFileFilterContext?: GameFileFilterContext;
   outputLocationChanged?: () => void;
   externalRuntimeChanged?: () => void;
   openSourceEvidence?: (evidenceId: string) => void;
@@ -267,6 +272,26 @@ export function DetailPanel(props: DetailPanelProps) {
         state={state}
         missingSourceLabels={!installed ? missingSourceLabels : []}
       />
+      <GameFileFilterObservation portId={port.id} context={props.gameFileFilterContext} />
+      {props.libraryGeneration !== undefined && selectedChannel && (
+        <GameFileQueryControl
+          port={port}
+          channel={selectedChannel}
+          generation={props.libraryGeneration}
+          context={JSON.stringify([
+            props.gameFileQueryContext,
+            port,
+            status,
+            source,
+            sourceProfile,
+            sourceInspection,
+            bios,
+            biosProfile,
+            biosInspection,
+          ])}
+          busy={Boolean(effectiveBusy)}
+        />
+      )}
       {props.cancellableActivities
         ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
         .map((activity) => (

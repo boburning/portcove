@@ -154,6 +154,16 @@ impl DefinitionContentIndex {
                 "prepared private user data requires staged-source capability version 2",
             ));
         }
+        if port.release.provider == crate::ReleaseSource::UserPrepared
+            && port.runtime_subdirectory.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable" && requirement.minimum_version >= 3
+            })
+        {
+            return Err(PortcoveError::verification(
+                "prepared runtime subdirectory requires staged-source capability version 3",
+            ));
+        }
         if !document
             .required_capabilities
             .iter()

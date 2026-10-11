@@ -254,3 +254,32 @@ pub fn evaluate_definition_eligibility(
     }
     DefinitionEligibility::eligible()
 }
+
+/// Shared route offering only; trust, readiness and execution guards remain separate.
+pub(crate) fn admission_route_exclusion(
+    port: &crate::PortDefinition,
+    status: &crate::PortStatus,
+    platform: crate::Platform,
+    action: PortAction,
+) -> Option<PortActionReason> {
+    let user_prepared = port.release.provider == crate::ReleaseSource::UserPrepared;
+    let on_platform = port.platforms.contains(&platform);
+    match action {
+        PortAction::Install if status.external_runtime.is_some() => {
+            Some(PortActionReason::AlreadyRegistered)
+        }
+        PortAction::Install if user_prepared => Some(PortActionReason::RouteNotOffered),
+        PortAction::Install if !on_platform => Some(PortActionReason::UnsupportedPlatform),
+        PortAction::RegisterExternal if !user_prepared => Some(PortActionReason::RouteNotOffered),
+        PortAction::RegisterExternal if !on_platform => Some(PortActionReason::UnsupportedPlatform),
+        PortAction::RegisterExternal
+            if status.external_runtime.is_some()
+                || status.active.is_some()
+                || status.previous.is_some()
+                || status.staged.is_some() =>
+        {
+            Some(PortActionReason::AlreadyRegistered)
+        }
+        _ => None,
+    }
+}

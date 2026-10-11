@@ -6101,6 +6101,326 @@
     "title": "ExternalRuntimeRemovalPreview",
     "type": "object"
   },
+  "game_file_query_request": {
+    "$defs": {
+      "GameFileRouteKind": {
+        "enum": [
+          "managed_install",
+          "external_registration",
+          "managed_launch",
+          "external_launch"
+        ],
+        "type": "string"
+      },
+      "GameFileRouteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "route": {
+            "$ref": "#/$defs/GameFileRouteKind"
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "channel",
+          "route"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "RegisteredSourceInspectionLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "max_elapsed_ms": {
+            "description": "Cooperative deadline, checked between reads; does not interrupt blocked filesystem calls.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_file_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_hash_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_file_bytes",
+          "max_hash_bytes",
+          "max_elapsed_ms"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Explicit refresh inputs. Inspection reports are never accepted from a client.",
+    "properties": {
+      "limits": {
+        "$ref": "#/$defs/RegisteredSourceInspectionLimits"
+      },
+      "maximum_age_seconds": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "routes": {
+        "items": {
+          "$ref": "#/$defs/GameFileRouteRequest"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "routes",
+      "limits",
+      "maximum_age_seconds"
+    ],
+    "title": "GameFileQueryRefreshRequest",
+    "type": "object"
+  },
+  "game_file_query_snapshot": {
+    "$defs": {
+      "GameFileQueryReason": {
+        "enum": [
+          "complete_compatible_observation",
+          "no_connected_registration",
+          "explicit_empty_requirements",
+          "observation_unavailable",
+          "observation_stale",
+          "source_needs_checking",
+          "storage_absence_unconfirmed",
+          "identity_not_admitted",
+          "contract_not_reviewed",
+          "variant_not_supported",
+          "release_not_bound",
+          "route_not_offered",
+          "profile_context_changed"
+        ],
+        "type": "string"
+      },
+      "GameFileQueryState": {
+        "enum": [
+          "files_available",
+          "files_missing",
+          "needs_checking",
+          "no_files_required",
+          "unavailable_context"
+        ],
+        "type": "string"
+      },
+      "GameFileRouteKind": {
+        "enum": [
+          "managed_install",
+          "external_registration",
+          "managed_launch",
+          "external_launch"
+        ],
+        "type": "string"
+      },
+      "GameFileRouteProjection": {
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "identity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/$defs/GameFileQueryReason"
+          },
+          "route": {
+            "$ref": "#/$defs/GameFileRouteKind"
+          },
+          "route_definition_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route_instance_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_instance_sha256": {
+            "description": "Digest of the complete registered instance, never its private path.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/GameFileQueryState"
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "channel",
+          "route",
+          "state",
+          "reason",
+          "contract_id",
+          "identity",
+          "source_instance_sha256",
+          "route_definition_sha256",
+          "route_instance_sha256"
+        ],
+        "type": "object"
+      },
+      "LibraryIdentity": {
+        "description": "Durable library identity and its current effective location.",
+        "properties": {
+          "id": {
+            "description": "Opaque identity, preserved by managed moves; not an authentication token.",
+            "type": "string"
+          },
+          "root": {
+            "description": "Current location, which may differ from the root originally requested.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "root"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "SourceIdentity": {
+        "description": "Stable catalog identifiers, never display names or inferred hash-array pairs.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "catalog_binding_sha256": {
+        "type": "string"
+      },
+      "expires_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "library": {
+        "$ref": "#/$defs/LibraryIdentity"
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "registration_sha256": {
+        "type": "string"
+      },
+      "routes": {
+        "items": {
+          "$ref": "#/$defs/GameFileRouteProjection"
+        },
+        "type": "array"
+      },
+      "schema_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "selection_sha256": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "library",
+      "catalog_binding_sha256",
+      "registration_sha256",
+      "selection_sha256",
+      "observed_at",
+      "expires_at",
+      "routes"
+    ],
+    "title": "GameFileQuerySnapshot",
+    "type": "object"
+  },
   "game_file_roots": {
     "$defs": {
       "GameFileRoot": {

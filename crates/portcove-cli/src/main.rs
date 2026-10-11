@@ -528,6 +528,8 @@ enum SourceCommand {
     List,
     /// Inspect a registered source without changing its bytes or saved baseline.
     Inspect { profile_id: String },
+    /// Explicitly refresh route-bound game-file observations for one port on this host.
+    Query(SourceQueryArgs),
     /// Recheck registered game files against their saved baselines.
     Verify(SourceVerifyArgs),
     /// Forget a source registration without deleting its file.
@@ -537,6 +539,42 @@ enum SourceCommand {
         #[arg(long)]
         yes: bool,
     },
+}
+
+#[derive(Debug, Args)]
+struct SourceQueryArgs {
+    port_id: String,
+    #[arg(long, value_enum)]
+    route: GameFileQueryRouteArg,
+    #[arg(long, value_enum, default_value = "stable")]
+    channel: ChannelArg,
+    #[arg(long, default_value_t = 300)]
+    maximum_age_seconds: u32,
+    #[arg(long, default_value_t = 2 * 1024 * 1024 * 1024)]
+    max_file_bytes: u64,
+    #[arg(long, default_value_t = 32 * 1024 * 1024 * 1024)]
+    max_hash_bytes: u64,
+    #[arg(long, default_value_t = 30_000)]
+    max_elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum GameFileQueryRouteArg {
+    ManagedInstall,
+    ExternalRegistration,
+    ManagedLaunch,
+    ExternalLaunch,
+}
+
+impl From<GameFileQueryRouteArg> for portcove_core::GameFileRouteKind {
+    fn from(value: GameFileQueryRouteArg) -> Self {
+        match value {
+            GameFileQueryRouteArg::ManagedInstall => Self::ManagedInstall,
+            GameFileQueryRouteArg::ExternalRegistration => Self::ExternalRegistration,
+            GameFileQueryRouteArg::ManagedLaunch => Self::ManagedLaunch,
+            GameFileQueryRouteArg::ExternalLaunch => Self::ExternalLaunch,
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -1721,6 +1759,30 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 "source.inspect",
                 service.inspect_registered_source(&profile_id)?,
                 human::source_inspection,
+            )?;
+        }
+        Commands::Source {
+            command: SourceCommand::Query(args),
+        } => {
+            let request = portcove_core::GameFileQueryRefreshRequest {
+                routes: vec![portcove_core::GameFileRouteRequest {
+                    port_id: args.port_id,
+                    platform: portcove_core::Platform::current()?,
+                    channel: args.channel.into(),
+                    route: args.route.into(),
+                }],
+                limits: portcove_core::RegisteredSourceInspectionLimits {
+                    max_file_bytes: args.max_file_bytes,
+                    max_hash_bytes: args.max_hash_bytes,
+                    max_elapsed_ms: args.max_elapsed_ms,
+                },
+                maximum_age_seconds: args.maximum_age_seconds,
+            };
+            render_read_success(
+                mode,
+                "source.query",
+                service.refresh_game_file_query_with_progress(&request, progress_renderer(mode))?,
+                human::game_file_query,
             )?;
         }
         Commands::Source {
@@ -3119,6 +3181,7 @@ fn command_name(command: &Commands) -> &'static str {
             SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
             SourceCommand::Inspect { .. } => "source.inspect",
+            SourceCommand::Query(_) => "source.query",
             SourceCommand::Verify(_) => "source.verify",
             SourceCommand::Remove { .. } => "source.remove",
         },

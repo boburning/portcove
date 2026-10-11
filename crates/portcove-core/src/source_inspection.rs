@@ -391,7 +391,7 @@ pub(crate) fn observe_compound_file(
     checkpoint()?;
     let mut input = File::open(path)?;
     let initial = input.metadata()?;
-    verify_compound_location(path, &input, &initial)?;
+    verify_open_source_location(path, &input, &initial)?;
     if initial.len() < 4 || initial.len() > maximum_size {
         return Ok(None);
     }
@@ -422,7 +422,7 @@ pub(crate) fn observe_compound_file(
         (None, None)
     };
     checkpoint()?;
-    verify_compound_location(path, &input, &initial)?;
+    verify_open_source_location(path, &input, &initial)?;
     Ok(Some(CompoundObservation {
         identity,
         validated,
@@ -430,10 +430,32 @@ pub(crate) fn observe_compound_file(
     }))
 }
 
-fn verify_compound_location(path: &Path, input: &File, initial: &std::fs::Metadata) -> Result<()> {
+pub(crate) fn verify_open_source_location(
+    path: &Path,
+    input: &File,
+    initial: &std::fs::Metadata,
+) -> Result<()> {
+    verify_open_source_object(path, input, initial, false)
+}
+
+pub(crate) fn verify_open_source_directory(
+    path: &Path,
+    input: &File,
+    initial: &std::fs::Metadata,
+) -> Result<()> {
+    verify_open_source_object(path, input, initial, true)
+}
+
+fn verify_open_source_object(
+    path: &Path,
+    input: &File,
+    initial: &std::fs::Metadata,
+    directory: bool,
+) -> Result<()> {
     let metadata = std::fs::symlink_metadata(path)?;
     let current = input.metadata()?;
-    if !metadata.is_file()
+    if (directory && (!metadata.is_dir() || !current.is_dir()))
+        || (!directory && (!metadata.is_file() || !current.is_file()))
         || std::fs::canonicalize(path)? != path
         || !same_compound_object(path, input, initial, &metadata)?
         || initial.len() != current.len()
@@ -441,9 +463,7 @@ fn verify_compound_location(path: &Path, input: &File, initial: &std::fs::Metada
         || initial.modified()? != current.modified()?
         || initial.modified()? != metadata.modified()?
     {
-        return Err(PortcoveError::source(
-            "compound source changed during inspection",
-        ));
+        return Err(PortcoveError::source("source changed during inspection"));
     }
     Ok(())
 }
@@ -793,6 +813,7 @@ fn inspect_file_set_observations(
 
     let mut matches = Vec::new();
     let mut observed = Vec::new();
+    let mut observed_digests = Vec::new();
     for variant in profile
         .variants
         .iter()
@@ -812,6 +833,13 @@ fn inspect_file_set_observations(
             else {
                 continue;
             };
+            // A complete observed set establishes its bytes independently of
+            // whether the current catalog admits a unique identity.
+            for digest in file_set_aggregate_digests(&record) {
+                if !observed_digests.contains(&digest) {
+                    observed_digests.push(digest);
+                }
+            }
             if !matched {
                 if observed.is_empty() {
                     observed = components;
@@ -862,10 +890,6 @@ fn inspect_file_set_observations(
             "source file set matches more than one schema-2 identity".into(),
         ),
     };
-    let observed_digests = record
-        .as_ref()
-        .map(file_set_aggregate_digests)
-        .unwrap_or_default();
     Ok(SourceInspection {
         profile_id: profile_id.into(),
         path: path.into(),
@@ -1968,14 +1992,14 @@ mod tests {
             fs::write(&path, b"LIVE").unwrap();
             let input = File::open(&path).unwrap();
             let initial = input.metadata().unwrap();
-            verify_compound_location(&path, &input, &initial).unwrap();
+            verify_open_source_location(&path, &input, &initial).unwrap();
             fs::OpenOptions::new()
                 .write(true)
                 .open(&path)
                 .unwrap()
                 .set_len(size)
                 .unwrap();
-            assert!(verify_compound_location(&path, &input, &initial).is_err());
+            assert!(verify_open_source_location(&path, &input, &initial).is_err());
         }
         fs::write(&path, b"LIVE").unwrap();
         let input = File::open(&path).unwrap();
@@ -1984,14 +2008,14 @@ mod tests {
         fs::write(&replacement, b"LIVE").unwrap();
         fs::remove_file(&path).unwrap();
         fs::rename(&replacement, &path).unwrap();
-        assert!(verify_compound_location(&path, &input, &initial).is_err());
+        assert!(verify_open_source_location(&path, &input, &initial).is_err());
         #[cfg(unix)]
         {
             fs::remove_file(&path).unwrap();
             let target = temporary.path().join("target");
             fs::write(&target, b"LIVE").unwrap();
             std::os::unix::fs::symlink(target, &path).unwrap();
-            assert!(verify_compound_location(&path, &input, &initial).is_err());
+            assert!(verify_open_source_location(&path, &input, &initial).is_err());
         }
     }
 
@@ -2024,7 +2048,7 @@ mod tests {
         // The validator reads the exact original handle, not the new pathname.
         crate::stfs::validate_reader(&mut input, initial.len(), &|| Ok(())).unwrap();
         assert!(crate::stfs::validate(&path, &|| Ok(())).is_err());
-        assert!(verify_compound_location(&path, &input, &initial).is_err());
+        assert!(verify_open_source_location(&path, &input, &initial).is_err());
         assert_eq!(fs::read(path).unwrap(), vec![0_u8; package.len()]);
     }
 

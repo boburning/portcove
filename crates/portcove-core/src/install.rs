@@ -1518,6 +1518,22 @@ pub(crate) fn retained_catalog_for_install(
         .transpose()
 }
 
+/// Explicit query-context observation. Legacy manifests do not acquire a
+/// guessed host platform; oversized metadata remains unavailable to this reader.
+pub(crate) fn retained_query_context(
+    install: &InstallRecord,
+) -> Result<(Option<crate::Catalog>, Option<Platform>)> {
+    let manifest = verified_manifest_with_limit(
+        install,
+        Some(crate::signed_catalog::MAX_CATALOG_BYTES as u64),
+    )?;
+    let catalog = manifest
+        .retained_contract
+        .map(|contract| contract.catalog(&install.port_id))
+        .transpose()?;
+    Ok((catalog, manifest.platform))
+}
+
 pub(crate) fn portability_catalog_for_install(
     install: &InstallRecord,
     embedded: &crate::Catalog,
@@ -1784,6 +1800,13 @@ pub(crate) fn verified_launch_subject(install: &InstallRecord) -> Result<[u8; 32
 }
 
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
+    verified_manifest_with_limit(install, None)
+}
+
+fn verified_manifest_with_limit(
+    install: &InstallRecord,
+    maximum_bytes: Option<u64>,
+) -> Result<InstallManifest> {
     validate_artifact(&install.artifact)?;
     if install.manifest_sha256.len() != 64
         || !install
@@ -1796,7 +1819,12 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
         ));
     }
     let manifest_path = install.path.join(".portcove-manifest.json");
-    let bytes = fs::read(&manifest_path).map_err(|_| {
+    let bytes = (match maximum_bytes {
+        Some(limit) => crate::external_runtime::read_stable_metadata(&manifest_path, limit)
+            .map_err(std::io::Error::other),
+        None => fs::read(&manifest_path),
+    })
+    .map_err(|_| {
         PortcoveError::verification(format!("manifest is missing for {}", install.port_id))
     })?;
     let actual_manifest_sha256 = hex::encode(Sha256::digest(&bytes));
@@ -3201,6 +3229,9 @@ mod tests {
         install.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
 
         assert_eq!(verified_manifest(&install).unwrap().schema_version, 4);
+        let (retained, platform) = retained_query_context(&install).unwrap();
+        assert!(retained.is_none());
+        assert!(platform.is_none());
         assert!(installer.verify(&install).unwrap().valid);
         assert!(installer.verify_critical(&install, &qualification).is_ok());
         installer

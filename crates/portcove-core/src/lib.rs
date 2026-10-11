@@ -32,6 +32,7 @@ mod durability;
 mod error;
 mod external_runtime;
 mod failure;
+mod game_file_query;
 mod game_file_root;
 mod gitlab;
 mod host_preferences;
@@ -68,6 +69,7 @@ mod service;
 mod signed_catalog;
 mod source;
 mod source_assessment;
+mod source_batch;
 mod source_catalog;
 mod source_discovery;
 mod source_file;
@@ -137,6 +139,10 @@ pub use failure::{
     FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
     redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
 };
+pub use game_file_query::{
+    GameFileQueryReason, GameFileQueryRefreshRequest, GameFileQuerySnapshot, GameFileQueryState,
+    GameFileRouteKind, GameFileRouteProjection, GameFileRouteRequest,
+};
 pub use game_file_root::{
     GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
     GameFileScanSnapshot,
@@ -191,6 +197,9 @@ pub use signed_catalog::{
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;
+pub use source_batch::{
+    RegisteredSourceInspectionBatch, RegisteredSourceInspectionLimits, RegisteredSourceObservation,
+};
 pub use source_catalog::*;
 pub use source_discovery::{
     SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
@@ -215,9 +224,9 @@ pub use source_report::{
 };
 pub use types::*;
 
-// Private parked 58/59 candidates retain their own client/runtime pair.
-// The next public contract is 60; it does not claim those private contracts.
-pub const API_SCHEMA_VERSION: u32 = 64;
+// Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.
+// Public 66 adds reviewed update assessments while retaining both delivered scopes.
+pub const API_SCHEMA_VERSION: u32 = 66;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

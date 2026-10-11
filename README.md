@@ -39,7 +39,10 @@ Existing Alpha 1 libraries can be carried forward with the documented
 
 ## What Portcove does
 
-- Browse a catalog of native ports and manage them as one library.
+- Browse a catalog of native ports and manage them as one library. Explicitly
+  check game-file availability for a selected route, platform and channel, then
+  combine current observations with catalog filters. Details explain the same
+  observation; setup and launch still use their ordinary reviews.
 - Check game files locally. A saved location can point to the
   current file; copying into Portcove leaves the original in place, while Move
   requires separate authorization. Portcove checks known exact identities and

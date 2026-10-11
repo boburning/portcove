@@ -1859,6 +1859,29 @@ Only a verified import changes its journal to published and becomes openable. Th
 
 Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Schema-2 scans select extensions from current exact file representations rather than their potentially narrower informational schema-1 projection; the shared inspector also accepts those current extensions when reviewing or importing a candidate. Schema-1 catalogs retain their exact-hash lookup. Only a unique exact identity admitted by the shared inspector becomes a candidate. Complete schema-2 directory file sets also participate: the shared inspector matches required member names, digests and coherent variants from scan-local observations. Member enumeration and hash work share the request-wide budgets; incomplete directories cannot establish unique membership. Ordinary-file and directory-set matching reuse byte observations without sharing admission. File-set ZIPs use the same schema-2 matcher with safe root-level member inventories, bounded/cancellable member and container hashing, and scan-local facts shared across file-set profiles. The original container and normalized file-set aggregate retain distinct identities; old snapshots remain readable but stale when scan coverage changes. Exact schema-2 GameCube ISO/GCM representations also use the bounded raw-file observation and the existing disc matcher without conversion. Applicable profiles share one original-byte hashing pass while admission stays independent. Exact schema-2 STFS LIVE compound inputs also participate, including extensionless packages. A four-byte LIVE probe is bounded by the entry limit and does not hash unrelated inputs; matching packages share one bounded raw hash across applicable ordinary-file and compound profiles. Only exact compound digest matches trigger the existing bounded structural validator, once per file. Probe, hashing and validation use one open handle, with canonical-path, object, size and modification-time checks before and after inspection. Structural reads are additional bounded I/O, not hash bytes; no persistent cache or universal concurrent-mutation guarantee is implied. ZIP-contained STFS, compressed GameCube formats, PSX conversion, structural-only files and upstream-validator handoffs continue through manual selection. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
 
+Core also provides explicit bounded registered-source observation batches,
+separate from query evaluation. Readers cover ordinary raw files, uncompressed
+GameCube ISO/GCM inputs and schema-2 directory file sets. Directory sets use the
+shared complete-variant matcher, retain opened directory/member identities and
+recheck the complete top-level inventory before acceptance. Across a batch,
+directory enumeration is bounded to 4,096 entries and 256 KiB of names, and
+at most 4,096 opened member/file identities are retained. Incomplete or
+incompatible members never establish an admitted set. ZIPs, compound inputs,
+validators and helper-driven disc readers remain NotChecked.
+Complete set byte observations remain separate from identity admission: unchanged
+bytes can be Current while an ambiguous or incompatible identity stays rejected.
+Without a complete comparable observation, baseline health remains NotChecked.
+It shares the existing identity matcher and complete inspection report, checks
+the opened file's location/object/size/mtime before and after reading, and rechecks
+retained handles, library identity, catalog and registrations before returning.
+Profiles, individual/aggregate hashing, response size and cooperative elapsed
+work are bounded. The elapsed limit does not interrupt blocked filesystem calls;
+adapters must await the worker before terminal settlement. These dated facts
+write no registrations and establish neither continuous freshness nor route,
+platform or selected-release eligibility. Legacy identity remains unknown.
+Public CLI/Desktop transport and complete game-file query predicates remain
+separate work under #1551 and the explicit API version boundary.
+
 Explicit saved game-file roots are a separate core-owned input authority. A
 catalog-wide foreground scan considers only currently available saved roots and
 records unavailable roots as incomplete coverage rather than deletion. The
@@ -2346,3 +2369,91 @@ interpret generic flags. Decoding does not write files or journals and is not au
 Catalog identity, port locks, one-use consent, original/source preservation and filesystem
 revalidation remain required. Typed path snapshots cannot replace symlink/ownership
 checks at mutation boundaries. SQLite, public schemas and journal encodings are unchanged.
+
+### Route-bound game-file query construction
+
+Core constructs `GameFileQuerySnapshot` from a batch retained by its own worker
+and explicit port, platform, channel and route selections. CLI `source query` and
+Desktop `refresh_game_file_query` consume this same Core refresh. Adapters must never accept client-authored serialized
+inspection reports: context fingerprints detect changes, not forged observations.
+Construction reads registration and selected route metadata, checks them again,
+and binds the library, catalog, registration set, route definition and instance.
+The evaluator performs no filesystem reads, source hashes, release resolution,
+planning, setup, persistent writes or executable execution.
+
+Current managed-install and external-registration routes share Core's existing
+route exclusions with action presentation. Managed and external launch use their
+retained definitions and recorded platform; missing, oversized, changed or legacy
+retained context stays unavailable and has no guessed definition digest. Query
+manifest reads use the existing stable no-follow object reader, a 4 MiB bound and
+immutable manifest verification. Construction accepts at most 256 unique known
+routes with identifiers of at most 128 bytes, a cooperative 30-second budget and
+a 4 MiB response. These checks cannot interrupt an individual filesystem call.
+
+A current, admitted exact identity establishes compatible files only when its
+variant and complete representation satisfy an enforced source contract bound to
+the selected release and artifact. Caller-selected observation age is explicit
+and bounded to 1-1800 seconds; expired evidence needs checking. No connected
+registration is a distinct missing-input reason. Missing storage without verified
+volume availability, stale, changed, ambiguous, unreadable, incomplete or unreviewed
+observations need checking. Explicit empty requirements establish no-files-required;
+package registration's lack of game inputs says nothing about its separate launch
+route. None of these query states grants action, support or release authority.
+
+`refresh_game_file_query` composes inspection and projection in one explicit Core
+worker. It derives only the profiles required by complete offered routes and
+constructs its own private batch. Empty requirements select no source profiles
+and perform no source hashing; the standalone public inspector still requires a
+nonempty selection. Missing observations for required profiles remain unavailable.
+The original elapsed budget covers route resolution, inspection, projection,
+serialization and final acceptance, with the existing byte and response caps.
+Inspection retains source handles and directory inventories through projection
+and final source fences, then rechecks registration and selected route bindings
+before admitting publication. Cancellation or context drift discards the private
+result. Adapters must await the blocking worker before terminal settlement; this
+Core composition alone does not prove Desktop transport or native cancellation.
+
+The explicit transport request contains selections, limits and observation age,
+never client-authored inspection batches. The Core tracked wrapper retains the
+existing `verify_source` activity kind with a Library target, so old readers do
+not encounter a new durable operation enum. It records and emits a terminal
+outcome only after the complete refresh worker returns. Desktop awaits that
+worker and rejects its snapshot if the selected library generation changed.
+Renderer acceptance must additionally reject obsolete request generations and
+events, expired evidence and changed query context; transport alone does not
+establish an accepted browsing observation.
+
+Desktop's selected-port detail control explicitly chooses one route, target
+platform and channel. It reads the current library identity and requests one
+bounded Core refresh; opening details, changing choices and returning to browsing
+do not trigger inspection. It binds completion, cancellation controls and events
+to a monotonic request-context epoch. Changes to the accepted catalog, sources,
+statuses or library generation invalidate an observation even when the player
+returns to an earlier selection. Expiry removes the displayed observation without
+another refresh. Positive states require their emitted identity, contract and
+definition context. The control presents Core reasons without private paths or
+an action shortcut; ordinary setup and launch reviews remain authoritative.
+The composable catalog game-file group requests one explicit Core refresh for the
+complete accepted catalog, capped at 256 unique ports with one request-wide
+resource budget. It never chunks a partial selection into apparently complete
+coverage. Opening the filter group, changing filters, searching, switching views
+or returning from details does not refresh observations. Missing, duplicate,
+foreign, expired or changed-context route results invalidate the whole browsing
+observation. Selected library, catalog, sources, statuses, library generation,
+route, target platform and channel all belong to that context.
+
+Game-file choices compose with OR within their group and AND across other groups.
+Distinct-port facet counts exclude the group's own choices. Unavailable context
+has unknown counts; a zero count requires complete current coverage. Filter
+intent persists per browsing library, while accepted observations do not survive
+context invalidation or remount. Details consume the selected port's Core reason,
+route, target platform, channel and complete-set identity from this same snapshot.
+The independent selected-route check retains its explicitly displayed scope.
+
+Both consumers synchronously enforce observation wall-clock bounds and the
+original monotonic deadline. Once invalidated, an observation cannot become
+current again after clock rollback; a fresh explicit check creates a new
+observation. Timer and visibility notifications refer to their own observation
+and cannot expire a replacement result. These browsing observations provide no
+setup or launch shortcut and do not establish native UI, game or whole-issue
+acceptance.

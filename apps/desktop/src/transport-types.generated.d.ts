@@ -309,6 +309,23 @@ export type RepairItemKind =
   | "missing_registered_path"
   | "degraded_backup"
   | "backup_recovery_required";
+export type GameFileRouteKind = "managed_install" | "external_registration" | "managed_launch" | "external_launch";
+export type GameFileQueryReason =
+  | "complete_compatible_observation"
+  | "no_connected_registration"
+  | "explicit_empty_requirements"
+  | "observation_unavailable"
+  | "observation_stale"
+  | "source_needs_checking"
+  | "storage_absence_unconfirmed"
+  | "identity_not_admitted"
+  | "contract_not_reviewed"
+  | "variant_not_supported"
+  | "release_not_bound"
+  | "route_not_offered"
+  | "profile_context_changed";
+export type GameFileQueryState =
+  "files_available" | "files_missing" | "needs_checking" | "no_files_required" | "unavailable_context";
 export type GameFileRootAvailability = "available" | "unavailable";
 export type OutputGameFileRoots = GameFileRoot[];
 export type OutputGameFileScanSnapshot = GameFileScanSnapshot | null;
@@ -532,6 +549,8 @@ export interface TransportOutputs {
   external_runtime_preview: OutputExternalRuntimePreview;
   external_runtime_record: ExternalRuntimeRecord;
   external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
+  game_file_query_request: OutputGameFileQueryRequest;
+  game_file_query_snapshot: OutputGameFileQuerySnapshot;
   game_file_roots: OutputGameFileRoots;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_install_plan: OutputGameInstallPlan;
@@ -543,7 +562,7 @@ export interface TransportOutputs {
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
   launch_request: OutputLaunchRequest;
-  library_identity: OutputLibraryIdentity;
+  library_identity: LibraryIdentity;
   library_import_plan: OutputLibraryImportPlan;
   library_import_result: OutputLibraryImportResult;
   library_metadata: LibraryMetadata;
@@ -606,6 +625,7 @@ export interface TransportOutputs {
   desktop_external_runtime_preview: OutputExternalRuntimePreview;
   desktop_external_runtime_record: ExternalRuntimeRecord;
   desktop_external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
+  desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_launch_result: OutputDesktopLaunchResult;
@@ -1574,6 +1594,70 @@ export interface OutputExternalRuntimeRemovalPreview {
   version: string;
   [k: string]: unknown;
 }
+/**
+ * Explicit refresh inputs. Inspection reports are never accepted from a client.
+ */
+export interface OutputGameFileQueryRequest {
+  limits: RegisteredSourceInspectionLimits;
+  maximum_age_seconds: number;
+  routes: GameFileRouteRequest[];
+}
+export interface RegisteredSourceInspectionLimits {
+  /**
+   * Cooperative deadline, checked between reads; does not interrupt blocked filesystem calls.
+   */
+  max_elapsed_ms: number;
+  max_file_bytes: number;
+  max_hash_bytes: number;
+}
+export interface GameFileRouteRequest {
+  channel: ReleaseChannel;
+  platform: Platform;
+  port_id: string;
+  route: GameFileRouteKind;
+}
+export interface OutputGameFileQuerySnapshot {
+  catalog_binding_sha256: string;
+  expires_at: number;
+  library: LibraryIdentity;
+  observed_at: number;
+  registration_sha256: string;
+  routes: GameFileRouteProjection[];
+  schema_version: number;
+  selection_sha256: string;
+  [k: string]: unknown;
+}
+/**
+ * Durable library identity and its current effective location.
+ */
+export interface LibraryIdentity {
+  /**
+   * Opaque identity, preserved by managed moves; not an authentication token.
+   */
+  id: string;
+  /**
+   * Current location, which may differ from the root originally requested.
+   */
+  root: string;
+  [k: string]: unknown;
+}
+export interface GameFileRouteProjection {
+  channel: ReleaseChannel;
+  contract_id: string | null;
+  identity: SourceIdentity | null;
+  platform: Platform;
+  port_id: string;
+  reason: GameFileQueryReason;
+  route: GameFileRouteKind;
+  route_definition_sha256: string | null;
+  route_instance_sha256: string | null;
+  /**
+   * Digest of the complete registered instance, never its private path.
+   */
+  source_instance_sha256: string | null;
+  state: GameFileQueryState;
+  [k: string]: unknown;
+}
 export interface GameFileRoot {
   availability: GameFileRootAvailability;
   created_at: number;
@@ -1795,20 +1879,6 @@ export interface LaunchSessionRecord {
   supervisor_identity: string | null;
   supervisor_pid: number;
   updated_at: number;
-  [k: string]: unknown;
-}
-/**
- * Durable library identity and its current effective location.
- */
-export interface OutputLibraryIdentity {
-  /**
-   * Opaque identity, preserved by managed moves; not an authentication token.
-   */
-  id: string;
-  /**
-   * Current location, which may differ from the root originally requested.
-   */
-  root: string;
   [k: string]: unknown;
 }
 /**

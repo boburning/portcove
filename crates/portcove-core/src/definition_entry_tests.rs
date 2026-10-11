@@ -402,3 +402,34 @@ fn prepared_private_data_requires_version_two_without_widening_legacy_entries() 
     entry["required_capabilities"][0]["minimum_version"] = json!(2);
     assert!(inspect(&entry).is_ok());
 }
+
+#[test]
+fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("dkc3-recomp")
+        .unwrap()
+        .clone();
+    port.runtime_subdirectory = Some("Install/Base".into());
+    let mut entry = entry_for_port(&port);
+    for minimum in [1, 2] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(3);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(3);
+    assert!(inspect(&entry).is_ok());
+    port.adapter = crate::AdapterKind::N64RecompPortable;
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    *document
+        .ports
+        .iter_mut()
+        .find(|candidate| candidate.id == "dkc3-recomp")
+        .unwrap() = port;
+    let error = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("prepared runtime subdirectory requires staged-source")
+    );
+}

@@ -1,0 +1,263 @@
+import { DirectionProvider } from "@base-ui/react/direction-provider";
+import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { desktopApi } from "../api";
+import { GameFileFilterObservation } from "../components/GameFileFilterObservation";
+import { PortBrowser } from "../components/PortBrowser";
+import { useDetailWorkspaceNavigation } from "../features/app-shell/use-detail-workspace-navigation";
+import { useLibraryBrowsingContext } from "../features/app-shell/use-library-browsing-context";
+import { useGameFileFilterContext } from "../features/browsing/use-game-file-filter-context";
+import { portDefinition } from "../test-fixtures";
+import type { GameFileQueryRefreshRequest, GameFileQuerySnapshot, PortStatus } from "../types";
+import { filterPorts, summarizeLibrary } from "../view-model";
+import "../styles.css";
+
+vi.mock("../api", () => ({
+  desktopApi: { libraryIdentity: vi.fn(), refreshGameFileQuery: vi.fn(), cancelOperation: vi.fn() },
+}));
+const ports = ["Complete", "Missing", "Checking", "Empty", "Unknown"]
+  .map((name) => ({
+    ...portDefinition(),
+    id: name.toLowerCase(),
+    name: `${name} game`,
+    platforms: ["windows-x86-64", "linux-x86-64"] as const,
+    channels: ["stable", "beta"] as const,
+  }))
+  .map((port) => ({ ...port, platforms: [...port.platforms], channels: [...port.channels] }));
+const catalog = { schema_version: 2, ports };
+const empty = new Map<string, PortStatus>();
+const availableIds = new Set(ports.map((port) => port.id));
+const remember = () => {};
+const switchLibrary = async () => {};
+const response = (request: GameFileQueryRefreshRequest): GameFileQuerySnapshot => ({
+  schema_version: 1,
+  library: { id: "opaque-core", root: "/private-game-files" },
+  observed_at: Math.floor(Date.now() / 1000),
+  expires_at: Math.floor(Date.now() / 1000) + 300,
+  catalog_binding_sha256: "a".repeat(64),
+  registration_sha256: "b".repeat(64),
+  selection_sha256: "c".repeat(64),
+  routes: request.routes.map((route, index) => ({
+    ...route,
+    state: [
+      "files_available",
+      "files_missing",
+      "needs_checking",
+      "no_files_required",
+      "unavailable_context",
+    ][index] as GameFileQuerySnapshot["routes"][number]["state"],
+    reason: [
+      "complete_compatible_observation",
+      "no_connected_registration",
+      "storage_absence_unconfirmed",
+      "explicit_empty_requirements",
+      "observation_unavailable",
+    ][index] as GameFileQuerySnapshot["routes"][number]["reason"],
+    contract_id: index === 0 ? "contract" : null,
+    identity:
+      index === 0
+        ? { game_id: "profile", variant_id: "variant", representation_id: "complete-set" }
+        : null,
+    source_instance_sha256: index === 0 ? "d".repeat(64) : null,
+    route_definition_sha256: index === 4 ? null : "e".repeat(64),
+    route_instance_sha256: null,
+  })),
+});
+
+function Session({ library }: { library: string }) {
+  const browsing = useLibraryBrowsingContext({
+    root: library,
+    remember,
+    switchLibrary,
+    resetLibrary: switchLibrary,
+    ready: false,
+  });
+  const ui = browsing.ui;
+  const [generation, setGeneration] = useState(1);
+  const observation = useGameFileFilterContext({
+    catalog,
+    sources: [],
+    statuses: [],
+    generation,
+    libraryKey: library,
+  });
+  const navigation = useDetailWorkspaceNavigation(
+    browsing.workspace,
+    ui.setSelectedId,
+    availableIds,
+  );
+  const context = { library: { id: library, statuses: empty }, gameFiles: observation.context };
+  useEffect(() => ui.setView("catalog"), [ui.setView]);
+  return (
+    <main ref={browsing.workspace} data-focus-region="workspace" tabIndex={-1}>
+      <label>
+        Search catalog
+        <input value={ui.query} onChange={(event) => ui.setQuery(event.target.value)} />
+      </label>
+      <button onClick={() => setGeneration((value) => value + 1)}>
+        Invalidate library observation
+      </button>
+      {ui.selectedId ? (
+        <>
+          <button className="detail-back" onClick={navigation.close}>
+            Back to catalog
+          </button>
+          <GameFileFilterObservation portId={ui.selectedId} context={observation.context} />
+        </>
+      ) : (
+        <PortBrowser
+          view="catalog"
+          ports={filterPorts(ports, empty, "catalog", ui.filter, ui.query, ui.catalogSort, context)}
+          catalogFilterCandidates={filterPorts(ports, empty, "catalog", "all", ui.query)}
+          queryContext={context}
+          gameFileQuery={observation}
+          statuses={empty}
+          overview={summarizeLibrary(ports, empty)}
+          filter={ui.filter}
+          query={ui.query}
+          catalogSort={ui.catalogSort}
+          setCatalogSort={ui.setCatalogSort}
+          setFilter={ui.setFilter}
+          onSelect={navigation.open}
+          clearFilters={() => {
+            ui.setFilter("all");
+            ui.setQuery("");
+          }}
+          loading={false}
+        />
+      )}
+    </main>
+  );
+}
+function Fixture() {
+  const [library, setLibrary] = useState("/game-filter-library-a");
+  return (
+    <DirectionProvider direction="ltr">
+      <button
+        onClick={() =>
+          setLibrary((value) =>
+            value.endsWith("a") ? "/game-filter-library-b" : "/game-filter-library-a",
+          )
+        }
+      >
+        Switch library
+      </button>
+      <Session key={library} library={library} />
+    </DirectionProvider>
+  );
+}
+let host: HTMLDivElement;
+let root: Root;
+beforeEach(() => {
+  localStorage.clear();
+  vi.clearAllMocks();
+  vi.mocked(desktopApi.libraryIdentity).mockResolvedValue({
+    id: "opaque-core",
+    root: "/private-game-files",
+  });
+  vi.mocked(desktopApi.refreshGameFileQuery).mockImplementation(async (request) =>
+    response(request),
+  );
+  host = document.body.appendChild(document.createElement("div"));
+  root = createRoot(host);
+});
+afterEach(() => {
+  flushSync(() => root.unmount());
+  host.remove();
+  localStorage.clear();
+  delete document.documentElement.dataset.theme;
+});
+const button = (name: string) => page.getByRole("button", { name, exact: true });
+const noAdditionalChecks = () => {
+  expect(desktopApi.libraryIdentity).toHaveBeenCalledTimes(1);
+  expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
+  expect(desktopApi.cancelOperation).not.toHaveBeenCalled();
+};
+
+it.each(["dark", "light"])(
+  "carries complete filter reasons through keyboard selection and return in %s",
+  async (theme) => {
+    await page.viewport(960, 900);
+    document.documentElement.dataset.theme = theme;
+    flushSync(() => root.render(<Fixture />));
+    await userEvent.click(button("Filters (0)"));
+    await expect
+      .element(button("Compatible complete files available (unavailable)"))
+      .toBeDisabled();
+    expect(desktopApi.refreshGameFileQuery).not.toHaveBeenCalled();
+    await userEvent.click(button("Check game-file filters"));
+    for (const label of [
+      "Compatible complete files available",
+      "Files missing",
+      "Needs checking",
+      "No game files required",
+      "Unavailable context",
+    ])
+      await expect.element(button(`${label} (1)`)).toBeEnabled();
+    await userEvent.click(button("Compatible complete files available (1)"));
+    await userEvent.keyboard("{Escape}");
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(button("Filters (1)")).toHaveFocus();
+    const card = page.getByRole("button", { name: /^Complete game\./ });
+    await userEvent.click(card);
+    await expect
+      .element(page.getByRole("region", { name: "Catalog game-file observation" }))
+      .toBeInTheDocument();
+    const explanation = document.querySelector('[aria-label="Catalog game-file observation"]')!;
+    expect(explanation.textContent).toContain("Managed setup · Windows · Stable");
+    expect(explanation.textContent).toContain("profile / variant / complete-set");
+    await expect.element(button("Back to catalog")).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+    await expect.element(card).toHaveFocus();
+    await expect
+      .element(button("Remove Compatible complete files available filter"))
+      .toBeInTheDocument();
+    await userEvent.fill(page.getByRole("textbox", { name: "Search catalog" }), "no match");
+    await userEvent.click(button("Filters (1)"));
+    await expect.element(button("Compatible complete files available (0)")).toBeEnabled();
+    await userEvent.keyboard("{Escape}");
+    noAdditionalChecks();
+    expect(document.body.textContent).not.toContain("/private-game-files");
+  },
+);
+
+it("retains unavailable choices across library invalidation, persistence and isolation without rechecking", async () => {
+  flushSync(() => root.render(<Fixture />));
+  await userEvent.click(button("Filters (0)"));
+  await userEvent.click(button("Check game-file filters"));
+  await userEvent.click(button("Needs checking (1)"));
+  await userEvent.keyboard("{Escape}");
+  await userEvent.click(page.getByRole("button", { name: /^Checking game\./ }));
+  await expect
+    .element(page.getByRole("region", { name: "Catalog game-file observation" }))
+    .toBeInTheDocument();
+  expect(
+    document.querySelector('[aria-label="Catalog game-file observation"]')?.textContent,
+  ).toContain("files are not confirmed missing");
+  await userEvent.click(button("Invalidate library observation"));
+  await expect
+    .element(page.getByRole("region", { name: "Catalog game-file observation" }))
+    .not.toBeInTheDocument();
+  await userEvent.click(button("Back to catalog"));
+  await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
+  await userEvent.click(button("Filters (1)"));
+  await expect.element(button("Needs checking (unavailable)")).toBeDisabled();
+  await userEvent.keyboard("{Escape}");
+  await userEvent.click(button("Switch library"));
+  await expect.element(button("Filters (0)")).toBeInTheDocument();
+  await userEvent.click(button("Switch library"));
+  await expect.element(button("Filters (1)")).toBeInTheDocument();
+  flushSync(() => root.unmount());
+  root = createRoot(host);
+  flushSync(() => root.render(<Fixture />));
+  await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
+  noAdditionalChecks();
+  document
+    .querySelector<HTMLButtonElement>('button[aria-label="Remove Needs checking filter"]')!
+    .focus();
+  await userEvent.keyboard("{Enter}");
+  await expect.element(button("Filters (0)")).toHaveFocus();
+});

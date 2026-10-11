@@ -180,6 +180,11 @@ pub(crate) fn unavailable_report(
     problem: &PortcoveError,
 ) -> Result<SourceInspectionReport> {
     let (state_code, summary, next_action) = match health {
+        SourceHealth::Changed => (
+            "source_changed",
+            "The selected source differs from the registered baseline.",
+            "These files have changed since they were added. Choose an unchanged copy to update their location. To use different files, add them again so Portcove can check them.",
+        ),
         SourceHealth::Missing => (
             "source_missing",
             "The registered source could not be found.",
@@ -220,6 +225,7 @@ pub(crate) fn available_report(
     }
     let health = match registered.as_ref() {
         Some(record) if observation_matches_record(&inspection, record) => SourceHealth::Current,
+        Some(_) if inspection.observed_digests.is_empty() => SourceHealth::NotChecked,
         Some(_) => SourceHealth::Changed,
         None => SourceHealth::NotBaselined,
     };

@@ -397,7 +397,36 @@ fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
     Ok(file)
 }
 
-fn open_identity_handle(path: &Path) -> Result<fs::File> {
+/// Bounded metadata read using the existing stable, no-follow object authority.
+pub(crate) fn read_stable_metadata(path: &Path, limit: u64) -> Result<Vec<u8>> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    let canonical = fs::canonicalize(path)?;
+    let mut file = open_object(&canonical, false)?;
+    let before = file_snapshot(&file)?;
+    if before.size > limit {
+        return Err(PortcoveError::verification(
+            "query metadata exceeds its read budget",
+        ));
+    }
+    let mut bytes = Vec::new();
+    (&mut file)
+        .take(limit.saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > limit
+        || bytes.len() as u64 != before.size
+        || file_snapshot(&file)? != before
+        || file_snapshot(&open_object(&canonical, false)?)? != before
+    {
+        return Err(changed_during_inspection());
+    }
+    crate::path::refuse_symlink_ancestors(path)?;
+    if fs::canonicalize(path)? != canonical {
+        return Err(changed_during_inspection());
+    }
+    Ok(bytes)
+}
+
+pub(crate) fn open_identity_handle(path: &Path) -> Result<fs::File> {
     let mut options = fs::File::options();
     options.read(true);
     #[cfg(unix)]
@@ -511,6 +540,35 @@ fn object_identity(_file: &fs::File) -> Result<ObjectIdentity> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stable_query_metadata_enforces_byte_budget_and_regular_object() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("manifest.json");
+        fs::write(&path, b"fixture metadata").unwrap();
+        assert_eq!(
+            read_stable_metadata(&path, 16).unwrap(),
+            b"fixture metadata"
+        );
+        assert!(read_stable_metadata(&path, 15).is_err());
+        assert!(read_stable_metadata(temporary.path(), 16).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stable_query_metadata_refuses_symlink_and_fifo_without_blocking() {
+        use std::os::unix::ffi::OsStrExt;
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("manifest.json");
+        fs::write(&path, b"fixture").unwrap();
+        let alias = temporary.path().join("alias.json");
+        std::os::unix::fs::symlink(&path, &alias).unwrap();
+        assert!(read_stable_metadata(&alias, 16).is_err());
+        let fifo = temporary.path().join("fifo");
+        let name = std::ffi::CString::new(fifo.as_os_str().as_bytes()).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0);
+        assert!(read_stable_metadata(&fifo, 16).is_err());
+    }
 
     fn fixture() -> (tempfile::TempDir, PathBuf, PathBuf, UserPreparedRuntimeSpec) {
         let temporary = tempfile::tempdir().unwrap();

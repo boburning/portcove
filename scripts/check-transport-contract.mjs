@@ -629,6 +629,7 @@ function main() {
   const requests = Object.fromEntries(
     [
       "source_discovery_request",
+      "game_file_query_request",
       "source_discovery_limits",
       "catalog_update_source",
       "definition_capability_request",

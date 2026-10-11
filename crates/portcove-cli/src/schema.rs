@@ -242,6 +242,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 ),
             ),
             (
+                "game_file_query_request",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::GameFileQueryRefreshRequest,
+                >(contract)),
+            ),
+            (
+                "game_file_query_snapshot",
+                serde_json::json!(schema_for_contract::<portcove_core::GameFileQuerySnapshot>(
+                    contract
+                )),
+            ),
+            (
                 "game_file_roots",
                 serde_json::json!(schema_for_contract::<Vec<portcove_core::GameFileRoot>>(
                     contract

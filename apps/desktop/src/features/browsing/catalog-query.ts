@@ -1,5 +1,6 @@
 import type { PortDefinition, PortStatus } from "../../types";
 import { observedUpdateCandidate } from "./update-query-context";
+import type { GameFileFilterContext } from "./game-file-query-context";
 
 // These identifiers describe declared port facts, not installation eligibility.
 const catalogQueryOptions = {
@@ -18,6 +19,13 @@ const catalogQueryOptions = {
   membership: ["in-library", "not-in-library"],
   attention: ["missing-source", "missing-bios", "missing-runtime", "repair-needed", "finish-setup"],
   updates: ["available", "staged"],
+  gameFiles: [
+    "files_available",
+    "files_missing",
+    "needs_checking",
+    "no_files_required",
+    "unavailable_context",
+  ],
 } as const;
 
 type Group = keyof typeof catalogQueryOptions;
@@ -27,6 +35,8 @@ export interface CatalogQueryContext {
   devicePlatform?: PortDefinition["platforms"][number];
   /** A supplied Core snapshot for this selected library; absent is not empty. */
   library?: { id: string; statuses: ReadonlyMap<string, PortStatus> };
+  /** A completely covered, currently accepted Core route snapshot, never a readiness approximation. */
+  gameFiles?: GameFileFilterContext;
 }
 
 export interface CatalogQueryResult {
@@ -51,7 +61,13 @@ function supportedQuery(value: unknown): value is CatalogQuery {
   });
 }
 
-function available(group: Group, value: string, context: CatalogQueryContext): boolean {
+function available(
+  group: Group,
+  value: string,
+  context: CatalogQueryContext,
+  gameFilesAvailable: boolean,
+): boolean {
+  if (group === "gameFiles") return gameFilesAvailable;
   if (group === "membership" || group === "attention" || group === "updates")
     return Boolean(context.library?.id);
   return group !== "platforms" || value !== "this-device" || !!context.devicePlatform;
@@ -64,6 +80,8 @@ function matches(
   context: CatalogQueryContext,
 ): boolean {
   switch (group) {
+    case "gameFiles":
+      return context.gameFiles?.byPort.get(port.id)?.state === value;
     case "updates": {
       const candidate = observedUpdateCandidate(port.id, context.library?.statuses.get(port.id));
       return value === "available"
@@ -133,6 +151,11 @@ export function evaluateCatalogQuery(
   query: unknown,
   context: CatalogQueryContext = {},
 ): CatalogQueryResult {
+  const gameFilesAvailable = Boolean(
+    context.library?.id &&
+    context.gameFiles?.libraryKey === context.library.id &&
+    ports.every((port) => context.gameFiles?.byPort.has(port.id)),
+  );
   const counts = Object.fromEntries(
     groups.map((group) => [
       group,
@@ -146,7 +169,11 @@ export function evaluateCatalogQuery(
     counts,
   });
   if (!supportedQuery(query)) return empty("unresolved");
-  if (groups.some((group) => query[group]?.some((value) => !available(group, value, context))))
+  if (
+    groups.some((group) =>
+      query[group]?.some((value) => !available(group, value, context, gameFilesAvailable)),
+    )
+  )
     return empty("unavailable");
 
   const seen = new Set<string>();
@@ -162,7 +189,7 @@ export function evaluateCatalogQuery(
       groups.every((other) => other === group || groupMatches(port, other)),
     );
     for (const value of catalogQueryOptions[group]) {
-      counts[group][value] = available(group, value, context)
+      counts[group][value] = available(group, value, context, gameFilesAvailable)
         ? otherMatches.filter((port) => matches(port, group, value, context)).length
         : null;
     }

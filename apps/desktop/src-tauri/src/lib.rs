@@ -931,6 +931,38 @@ async fn get_game_file_scan_snapshot(
 }
 
 #[tauri::command]
+async fn refresh_game_file_query(
+    state: tauri::State<'_, DesktopState>,
+    request: portcove_core::GameFileQueryRefreshRequest,
+    generation: u64,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::GameFileQuerySnapshot> {
+    let state = state.inner().clone();
+    refresh_game_file_query_at_generation(state, request, generation, move |event| {
+        let _ = on_event.send(event);
+    })
+    .await
+}
+
+async fn refresh_game_file_query_at_generation(
+    state: DesktopState,
+    request: portcove_core::GameFileQueryRefreshRequest,
+    generation: u64,
+    emit: impl FnMut(OperationEvent) + Send + 'static,
+) -> DesktopResult<portcove_core::GameFileQuerySnapshot> {
+    let worker_state = state.clone();
+    let snapshot = blocking_worker(move || {
+        let service = service_at_generation(&worker_state, generation)?;
+        service
+            .refresh_game_file_query_with_progress(&request, emit)
+            .map_err(Into::into)
+    })
+    .await?;
+    require_library_generation(state_generation(&state), generation)?;
+    Ok(snapshot)
+}
+
+#[tauri::command]
 async fn discover_sources(
     state: tauri::State<'_, DesktopState>,
     request: portcove_core::SourceDiscoveryRequest,
@@ -2507,6 +2539,7 @@ pub fn run() -> std::process::ExitCode {
             remove_game_file_root,
             scan_game_file_roots,
             get_game_file_scan_snapshot,
+            refresh_game_file_query,
             discover_sources,
             get_source_inbox_paths,
             open_source_inbox,
@@ -2664,6 +2697,60 @@ mod tests {
     fn storage_commands_reject_a_stale_library_generation() {
         assert!(require_library_generation(7, 7).is_ok());
         let error = require_library_generation(8, 7).unwrap_err();
+        assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+        assert!(error.message.contains("open library changed"));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn game_file_refresh_awaits_worker_and_rejects_changed_library_generation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("query-library");
+        let initialized = initialize_desktop_at(Some(root)).unwrap();
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(initialized))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        let request = portcove_core::GameFileQueryRefreshRequest {
+            routes: vec![portcove_core::GameFileRouteRequest {
+                port_id: "shipwright".into(),
+                platform: portcove_core::Platform::WindowsX86_64,
+                channel: ReleaseChannel::Stable,
+                route: portcove_core::GameFileRouteKind::ManagedInstall,
+            }],
+            limits: portcove_core::RegisteredSourceInspectionLimits {
+                max_file_bytes: 1024,
+                max_hash_bytes: 1024,
+                max_elapsed_ms: 30_000,
+            },
+            maximum_age_seconds: 300,
+        };
+        let (entered, ready) = tokio::sync::oneshot::channel();
+        let (release, held) = std::sync::mpsc::channel();
+        let mut entered = Some(entered);
+        let worker = tokio::spawn(refresh_game_file_query_at_generation(
+            state.clone(),
+            request,
+            1,
+            move |event| {
+                if matches!(event.event, portcove_core::OperationEventKind::Started) {
+                    entered.take().unwrap().send(()).unwrap();
+                    held.recv_timeout(Duration::from_secs(10)).unwrap();
+                }
+            },
+        ));
+        tokio::time::timeout(Duration::from_secs(10), ready)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!worker.is_finished());
+        state
+            .generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        release.send(()).unwrap();
+        let error = worker.await.unwrap().unwrap_err();
         assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
         assert!(error.message.contains("open library changed"));
     }

@@ -30,6 +30,16 @@ version 2 or later as its minimum. A `[1,2]` window is refused for that entry:
 version 1 engines could otherwise silently ignore the safety-relevant default.
 This compatibility check supplies no admission, signing or execution authority.
 
+Staged-source portable version 3 implements a user-prepared runtime's declared
+`runtime_subdirectory` as its launch working directory. Core verifies the whole
+registered tree and requires the executable inside that directory before creating
+private user data. The installation root remains the whole prepared tree; absent
+a declaration, the working directory remains that root. Indexed entries using
+this combination must require minimum version 3; `[1,3]` and `[2,3]` are refused.
+Versions 1 and 2 remain supported. Other templates cannot declare a prepared
+runtime subdirectory. Capability schema and public envelope shapes are unchanged.
+This primitive supplies no title, package, generated-output or native acceptance.
+
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`
 delegate to the same core negotiation. Tauri `get_engine_capabilities` returns
