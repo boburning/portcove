@@ -206,6 +206,20 @@ internal static class ContractTests
         Reject(() => PublicCli.RequireAbsolute(@"\root-relative"), "root-relative path rejected");
         ProtocolStream.Negotiate(Json.Parse(Json.Print(Capabilities())));
         Check(true, "supported capabilities negotiated");
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65 })
+        {
+            var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
+            supported["schema_version"] = publicSchema;
+            supported["operation_event_schema_version"] = publicSchema < 50 ? 2 : 3;
+            ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
+            Check(true, "public schema " + publicSchema + " negotiated");
+        }
+        foreach (var privateSchema in new[] { 58, 59, 64, 66 })
+        {
+            var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
+            unsupported["schema_version"] = privateSchema;
+            Reject(() => ProtocolStream.Negotiate(unsupported), "private or future schema " + privateSchema + " rejected");
+        }
         var contradictoryLegacyEvent = Json.Object(Json.Parse(Json.Print(Capabilities())));
         contradictoryLegacyEvent["operation_event_schema_version"] = 3;
         Reject(() => ProtocolStream.Negotiate(contradictoryLegacyEvent),
@@ -447,9 +461,9 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
-            Check(real.ApiSchemaVersion == 63 && statuses.All(status =>
+            Check(real.ApiSchemaVersion == 65 && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1),
-                "compiled schema63 producer and actual reader preserve one rollback assessment per catalog status");
+                "compiled schema65 producer and actual reader preserve one rollback assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",

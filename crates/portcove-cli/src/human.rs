@@ -1,5 +1,31 @@
 use std::path::Path;
 
+pub(crate) fn game_file_query(snapshot: &portcove_core::GameFileQuerySnapshot) -> String {
+    snapshot
+        .routes
+        .iter()
+        .map(|route| {
+            let state = match route.state {
+                portcove_core::GameFileQueryState::FilesAvailable => "Compatible files available",
+                portcove_core::GameFileQueryState::FilesMissing => "Files missing",
+                portcove_core::GameFileQueryState::NeedsChecking => "Needs checking",
+                portcove_core::GameFileQueryState::NoFilesRequired => "No files required",
+                portcove_core::GameFileQueryState::UnavailableContext => "Context unavailable",
+            };
+            let selected = match route.route {
+                portcove_core::GameFileRouteKind::ManagedInstall => "managed setup",
+                portcove_core::GameFileRouteKind::ExternalRegistration => {
+                    "existing installation setup"
+                }
+                portcove_core::GameFileRouteKind::ManagedLaunch => "managed launch",
+                portcove_core::GameFileRouteKind::ExternalLaunch => "existing installation launch",
+            };
+            format!("{} ({selected}): {state}", clean(&route.port_id))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
     CatalogOrigin, CatalogStatus, DoctorReport, GameFileRoot, GameFileScanSnapshot,

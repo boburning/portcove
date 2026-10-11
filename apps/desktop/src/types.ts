@@ -73,6 +73,8 @@ export type ExternalRuntimeRecord = Generated.TransportOutputs["desktop_external
 export type { SourceRecord } from "./transport-types.generated";
 
 export type GameFileRoot = Generated.TransportOutputs["game_file_roots"][number];
+export type GameFileQueryRefreshRequest = Requests.TransportInputs["game_file_query_request"];
+export type GameFileQuerySnapshot = Generated.TransportOutputs["game_file_query_snapshot"];
 
 export type GameFileScanSnapshot = NonNullable<
   Generated.TransportOutputs["game_file_scan_snapshot"]

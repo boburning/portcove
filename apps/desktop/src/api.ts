@@ -59,6 +59,8 @@ import type {
   GithubDeviceLogin,
   GithubDeviceLoginResult,
   GameFileRoot,
+  GameFileQueryRefreshRequest,
+  GameFileQuerySnapshot,
   GameFileScanSnapshot,
   HostToolProbeResult,
   HostToolStatus,
@@ -410,6 +412,19 @@ export const desktopApi = {
     });
   },
   gameFileScanSnapshot: () => invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot"),
+  refreshGameFileQuery: (
+    request: GameFileQueryRefreshRequest,
+    generation: number,
+    onEvent?: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = (event) => onEvent?.(event);
+    return invoke<GameFileQuerySnapshot>("refresh_game_file_query", {
+      request,
+      generation,
+      onEvent: channel,
+    });
+  },
   discoverSources: (request: SourceDiscoveryRequest, onEvent?: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = (event) => onEvent?.(event);

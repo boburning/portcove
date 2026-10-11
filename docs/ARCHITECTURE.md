@@ -2412,3 +2412,13 @@ and final source fences, then rechecks registration and selected route bindings
 before admitting publication. Cancellation or context drift discards the private
 result. Adapters must await the blocking worker before terminal settlement; this
 Core composition alone does not prove Desktop transport or native cancellation.
+
+The explicit transport request contains selections, limits and observation age,
+never client-authored inspection batches. The Core tracked wrapper retains the
+existing `verify_source` activity kind with a Library target, so old readers do
+not encounter a new durable operation enum. It records and emits a terminal
+outcome only after the complete refresh worker returns. Desktop awaits that
+worker and rejects its snapshot if the selected library generation changed.
+Renderer acceptance must additionally reject obsolete request generations and
+events, expired evidence and changed query context; transport alone does not
+establish an accepted browsing observation.
