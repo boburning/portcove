@@ -1869,6 +1869,47 @@ impl Library {
         .transpose()
     }
 
+    /// Read retained browsing metadata without allocating an oversized SQLite
+    /// value in Rust. This is not runtime verification or registration authority.
+    pub(crate) fn external_runtime_with_port_bounded(
+        &self,
+        port_id: &str,
+        budget: &mut u64,
+    ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
+        let ceiling = (*budget).min(crate::signed_catalog::MAX_CATALOG_BYTES as u64);
+        if ceiling == 0 {
+            return Err(PortcoveError::unsupported(
+                "browsing metadata budget reached",
+            ));
+        }
+        let row = self.connection()?.query_row(
+            "SELECT CASE WHEN length(CAST(record_json AS BLOB)) + length(CAST(retained_catalog_json AS BLOB)) <= ?2 THEN record_json END,
+                    CASE WHEN length(CAST(record_json AS BLOB)) + length(CAST(retained_catalog_json AS BLOB)) <= ?2 THEN retained_catalog_json END
+             FROM external_runtime_registrations WHERE port_id=?1",
+            rusqlite::params![port_id, ceiling as i64],
+            |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?)),
+        ).optional()?;
+        let (record, catalog) = match row {
+            Some((Some(record), Some(catalog))) => (record, catalog),
+            Some(_) => {
+                *budget = budget.saturating_sub(ceiling);
+                return Err(PortcoveError::unsupported(
+                    "retained browsing metadata is oversized",
+                ));
+            }
+            None => return Ok(None),
+        };
+        *budget = budget.saturating_sub((record.len() + catalog.len()) as u64);
+        let record: ExternalRuntimeRecord = serde_json::from_str(&record)?;
+        let catalog = Catalog::from_json(&catalog)?;
+        if record.port_id != port_id || catalog.port(port_id).is_err() {
+            return Err(PortcoveError::state(
+                "retained browsing metadata has a mismatched port identity",
+            ));
+        }
+        Ok(Some((record, catalog)))
+    }
+
     pub(crate) fn register_external_runtime(
         &self,
         record: &ExternalRuntimeRecord,
@@ -2410,6 +2451,46 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn retained_browsing_sql_guard_counts_bytes_before_copying_values() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        library.connection().unwrap().execute(
+            "INSERT INTO external_runtime_registrations (port_id, record_json, retained_catalog_json, registered_at) VALUES (?1, ?2, ?3, 1)",
+            params!["bounded-browsing-fixture", "é".repeat(128), "é".repeat(128)],
+        ).unwrap();
+        let mut budget = 300;
+        let error = library
+            .external_runtime_with_port_bounded("bounded-browsing-fixture", &mut budget)
+            .unwrap_err();
+        assert!(error.to_string().contains("oversized"));
+        assert_eq!(budget, 0);
+        let mut zero = 0;
+        assert!(
+            library
+                .external_runtime_with_port_bounded("bounded-browsing-fixture", &mut zero)
+                .is_err()
+        );
+        assert_eq!(zero, 0);
+    }
+
+    #[test]
+    fn malformed_retained_browsing_json_still_spends_the_shared_allowance() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        library.connection().unwrap().execute(
+            "INSERT INTO external_runtime_registrations (port_id, record_json, retained_catalog_json, registered_at) VALUES (?1, ?2, ?3, 1)",
+            params!["malformed-browsing-fixture", "x".repeat(32), "y".repeat(32)],
+        ).unwrap();
+        let mut budget = 100;
+        assert!(
+            library
+                .external_runtime_with_port_bounded("malformed-browsing-fixture", &mut budget)
+                .is_err()
+        );
+        assert_eq!(budget, 36);
+    }
 
     #[test]
     fn prepared_private_directory_cancellation_and_disappearance_fail_closed() {

@@ -25,6 +25,7 @@ impl From<portcove_core::WorkspaceSnapshot> for DesktopWorkspaceSnapshot {
             statuses: snapshot.statuses,
             sources: snapshot.sources,
             activities: snapshot.activities,
+            browsing: snapshot.browsing,
         }
     }
 }

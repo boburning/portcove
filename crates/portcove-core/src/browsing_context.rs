@@ -16,6 +16,9 @@ pub struct CatalogBrowsingSnapshot {
     pub schema_version: u32,
     pub library: LibraryIdentity,
     pub host_platform: Platform,
+    /// False when bounded retained metadata could not be observed. Membership
+    /// still comes from complete Core status, not from metadata-read success.
+    pub retained_metadata_complete: bool,
     /// Binds the complete catalog, status and source inputs; never a private path.
     pub workspace_binding_sha256: String,
     pub contexts: Vec<CatalogBrowsingContext>,
@@ -46,6 +49,85 @@ pub(crate) struct RetainedBrowsingFacts {
     pub managed_catalog: Option<Catalog>,
     pub managed_platform: Option<Platform>,
     pub external_catalog: Option<Catalog>,
+    pub managed_observed: bool,
+    pub external_observed: bool,
+}
+
+impl crate::PortcoveService {
+    /// Collect metadata during the existing workspace refresh, before its final
+    /// durable-revision fence. This budget is shared by managed and external
+    /// instances; filtering has no route to this reader.
+    pub(crate) fn browsing_contexts_for_workspace(
+        &self,
+        catalog: &Catalog,
+        statuses: &[PortStatus],
+        sources: &[SourceRecord],
+    ) -> Result<Option<CatalogBrowsingSnapshot>> {
+        const MAX_METADATA_BYTES: u64 = 32 * 1024 * 1024;
+        const MAX_CONTEXTS: usize = 8192;
+        const MAX_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
+        let count = catalog
+            .ports()
+            .iter()
+            .try_fold(0usize, |count, port| {
+                count.checked_add(port.platforms.len().checked_mul(port.channels.len())?)
+            })
+            .and_then(|count| count.checked_add(statuses.len().checked_mul(2)?));
+        if count.is_none_or(|count| count > MAX_CONTEXTS) {
+            return Ok(None);
+        }
+        let started = std::time::Instant::now();
+        let mut budget = MAX_METADATA_BYTES;
+        let mut retained = HashMap::new();
+        for status in statuses {
+            if budget == 0 || started.elapsed() > std::time::Duration::from_millis(250) {
+                break;
+            }
+            let mut facts = RetainedBrowsingFacts::default();
+            if let Some(install) = &status.active {
+                if let Ok((catalog, platform)) = crate::output_root::validate_install_path(
+                    self.library(),
+                    &status.port_id,
+                    &install.path,
+                )
+                .and_then(|_| {
+                    crate::install::retained_query_context_with_budget(install, Some(&mut budget))
+                }) {
+                    facts.managed_catalog = catalog;
+                    facts.managed_platform = platform;
+                    facts.managed_observed = true;
+                }
+            }
+            if let Some(expected) = &status.external_runtime {
+                if budget > 0 && started.elapsed() <= std::time::Duration::from_millis(250) {
+                    if let Ok(Some((record, catalog))) = self
+                        .library()
+                        .external_runtime_with_port_bounded(&status.port_id, &mut budget)
+                    {
+                        if crate::source_batch::fingerprint(&record)?
+                            == crate::source_batch::fingerprint(expected)?
+                        {
+                            facts.external_catalog = Some(catalog);
+                            facts.external_observed = true;
+                        }
+                    }
+                }
+            }
+            retained.insert(status.port_id.clone(), facts);
+        }
+        let snapshot = project_browsing_contexts(
+            catalog,
+            statuses,
+            sources,
+            &retained,
+            self.library().identity_record()?,
+            Platform::current()?,
+        )?;
+        if serde_json::to_vec(&snapshot)?.len() > MAX_RESPONSE_BYTES {
+            return Ok(None);
+        }
+        Ok(Some(snapshot))
+    }
 }
 
 /// Pure projection. Metadata loading and workspace consistency stay at the caller.
@@ -60,6 +142,12 @@ pub(crate) fn project_browsing_contexts(
     host_platform: Platform,
 ) -> Result<CatalogBrowsingSnapshot> {
     use crate::source_batch::fingerprint;
+    let retained_metadata_complete = statuses.iter().all(|status| {
+        let facts = retained.get(&status.port_id);
+        (status.active.is_none() || facts.is_some_and(|facts| facts.managed_observed))
+            && (status.external_runtime.is_none()
+                || facts.is_some_and(|facts| facts.external_observed))
+    });
     let definition = |catalog: Option<&Catalog>| {
         catalog
             .map(|catalog| fingerprint(&catalog.authoritative_document()))
@@ -89,6 +177,7 @@ pub(crate) fn project_browsing_contexts(
         statuses,
         sources,
         host_platform,
+        retained_metadata_complete,
         retained_binding,
     ))?;
     let current_definition = fingerprint(&catalog.authoritative_document())?;
@@ -236,6 +325,7 @@ pub(crate) fn project_browsing_contexts(
         schema_version: 1,
         library,
         host_platform,
+        retained_metadata_complete,
         workspace_binding_sha256: binding,
         contexts,
     })
@@ -362,6 +452,8 @@ mod tests {
                 managed_catalog: Some(catalog.clone()),
                 managed_platform: Some(Platform::WindowsX86_64),
                 external_catalog: Some(catalog.clone()),
+                managed_observed: true,
+                external_observed: true,
             },
         )]);
         let snapshot = project(&catalog, &[status], &retained);
@@ -480,6 +572,7 @@ mod tests {
             port.id.clone(),
             RetainedBrowsingFacts {
                 external_catalog: Some(catalog.clone()),
+                external_observed: true,
                 ..RetainedBrowsingFacts::default()
             },
         )]);
