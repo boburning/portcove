@@ -173,6 +173,121 @@ fn backup_restore_assessment_holds_non_directory_owned_data_root() {
 }
 
 #[test]
+fn backup_restore_preview_refuses_retained_recovery_before_consent_without_holding_delete() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    let user_file = library.user_dir(port_id).join("general.json");
+    fs::create_dir_all(user_file.parent().unwrap()).unwrap();
+    fs::write(&user_file, b"wanted").unwrap();
+    let backup = service.create_backup(port_id).unwrap();
+    fs::write(&user_file, b"current").unwrap();
+    let service = service_with_fault(library.clone(), LifecycleFaultPoint::RestorePrepared);
+    let authorization = backup_authorization(&service, port_id, &backup.id, BackupAction::Restore);
+    assert!(
+        service
+            .restore_backup(port_id, &backup.id, &authorization.token)
+            .unwrap_err()
+            .message
+            .contains("injected lifecycle failure")
+    );
+    let store = OperationStore::new(library.clone());
+    let before = store.all().unwrap();
+    let owned_before = fs::read(&user_file).unwrap();
+    let payload = backup.path.join("data/general.json");
+    let payload_before = fs::read(&payload).unwrap();
+    let error = service
+        .preview_backup_action(port_id, &backup.id, BackupAction::Restore)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert!(error.message.contains("unfinished backup restore"));
+    assert_eq!(format!("{:?}", store.all().unwrap()), format!("{before:?}"));
+    let execution_error = service
+        .restore_backup(port_id, &backup.id, "ungranted-token")
+        .unwrap_err();
+    assert_eq!(execution_error.code, crate::ErrorCode::Conflict);
+    assert!(
+        execution_error
+            .message
+            .contains("unfinished backup restore")
+    );
+    assert_eq!(
+        service
+            .preview_backup_action(port_id, &backup.id, BackupAction::Delete)
+            .unwrap()
+            .backup
+            .id,
+        backup.id
+    );
+    assert_eq!(fs::read(&user_file).unwrap(), owned_before);
+    assert_eq!(fs::read(&payload).unwrap(), payload_before);
+    // The refused execution creates its own Preparing operation. The retained
+    // recovery record and its payload must keep their exact identity.
+    let after = store.all().unwrap();
+    for operation in before {
+        assert_eq!(
+            format!(
+                "{:?}",
+                after.iter().find(|value| value.id == operation.id).unwrap()
+            ),
+            format!("{operation:?}")
+        );
+    }
+}
+
+#[test]
+fn backup_restore_preview_preserves_preparing_and_usable_degraded_history() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = service_with_release(library.clone(), "v1");
+    let port_id = "zelda64-recomp";
+    let user_file = library.user_dir(port_id).join("general.json");
+    fs::create_dir_all(user_file.parent().unwrap()).unwrap();
+    fs::write(&user_file, b"wanted").unwrap();
+    let backup = service.create_backup(port_id).unwrap();
+    let damaged = library
+        .backups_dir()
+        .join(port_id)
+        .join("unrelated-damaged");
+    fs::create_dir_all(&damaged).unwrap();
+    fs::write(damaged.join("backup.json"), b"not json").unwrap();
+    let mut operation = LifecycleOperation::new(
+        "preparing-preview-control",
+        LifecycleOperationKind::Restore,
+        port_id,
+    );
+    let store = OperationStore::new(library.clone());
+    store.put(&mut operation).unwrap();
+    let before = format!("{:?}", store.all().unwrap());
+    assert_eq!(
+        service.list_backups(port_id).unwrap().state,
+        BackupInventoryState::Degraded
+    );
+    assert_eq!(
+        service
+            .preview_backup_action(port_id, &backup.id, BackupAction::Restore)
+            .unwrap()
+            .backup
+            .id,
+        backup.id
+    );
+    assert_eq!(format!("{:?}", store.all().unwrap()), before);
+    assert_eq!(fs::read(&user_file).unwrap(), b"wanted");
+    assert_eq!(fs::read(damaged.join("backup.json")).unwrap(), b"not json");
+    operation.kind = LifecycleOperationKind::DeleteBackup;
+    store.put(&mut operation).unwrap();
+    let before = format!("{:?}", store.all().unwrap());
+    let error = service
+        .preview_backup_action(port_id, &backup.id, BackupAction::Restore)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert!(error.message.contains("unfinished backup deletion"));
+    assert_eq!(format!("{:?}", store.all().unwrap()), before);
+    assert_eq!(fs::read(&user_file).unwrap(), b"wanted");
+}
+
+#[test]
 fn backup_create_assessment_preserves_direct_owned_root_without_runtime_substitution() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();

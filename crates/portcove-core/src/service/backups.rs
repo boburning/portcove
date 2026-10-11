@@ -904,6 +904,10 @@ impl PortcoveService {
         action: BackupAction,
     ) -> Result<BackupActionPreview> {
         self.catalog.port(port_id)?;
+        if action == BackupAction::Restore {
+            self.require_completed_restore(port_id)?;
+            self.require_completed_backup_deletion(port_id)?;
+        }
         let backup = self.load_backup(port_id, backup_id)?;
         let backup_plan = adoption_copy_plan(&backup.path.join("data"))?;
         let user_root = self.library.user_dir(port_id);
