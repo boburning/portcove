@@ -106,9 +106,11 @@ export function GameFileQueryControl({
   const [platform, setPlatform] = useState<Route["platform"]>(port.platforms[0]);
   const [pending, setPending] = useState(false);
   const [operation, setOperation] = useState<{ epoch: number; id: string }>();
-  const [result, setResult] = useState<{ epoch: number; snapshot: GameFileQuerySnapshot }>();
+  type Observation = { epoch: number; snapshot: GameFileQuerySnapshot; deadline: number };
+  const [result, setResult] = useState<Observation>();
   const [error, setError] = useState<{ epoch: number; message: string }>();
-  const [expired, setExpired] = useState(false);
+  const [expiredObservation, setExpiredObservation] = useState<Observation>();
+  const invalidObservation = useRef<Observation | undefined>(undefined);
   const key = JSON.stringify([port.id, channel, generation, context, route, platform]);
   const owner = useRef({ key, epoch: 0, closed: false });
   const processing = useRef(false);
@@ -123,13 +125,40 @@ export function GameFileQueryControl({
       owner.current.closed = true;
     };
   }, []);
+  if (
+    result?.epoch === epoch &&
+    (Date.now() >= result.snapshot.expires_at * 1000 ||
+      Date.now() < result.snapshot.observed_at * 1000 ||
+      performance.now() >= result.deadline)
+  )
+    invalidObservation.current = result;
+  const expired = Boolean(
+    result?.epoch === epoch &&
+    (expiredObservation === result || invalidObservation.current === result),
+  );
   const current = result?.epoch === epoch && !expired ? result.snapshot : undefined;
   useEffect(() => {
-    if (!current) return;
-    const milliseconds = Math.max(0, Math.min(300_000, current.expires_at * 1000 - Date.now()));
-    const timer = setTimeout(() => setExpired(true), milliseconds);
-    return () => clearTimeout(timer);
-  }, [current]);
+    if (!current || !result) return;
+    const expire = () => {
+      if (
+        Date.now() >= current.expires_at * 1000 ||
+        Date.now() < current.observed_at * 1000 ||
+        performance.now() >= result.deadline
+      )
+        setExpiredObservation(result);
+    };
+    const timer = setTimeout(
+      () => setExpiredObservation(result),
+      Math.max(0, result.deadline - performance.now()),
+    );
+    const clock = setInterval(expire, 1000);
+    document.addEventListener("visibilitychange", expire);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(clock);
+      document.removeEventListener("visibilitychange", expire);
+    };
+  }, [current, result]);
   const check = async () => {
     if (processing.current || busy || !platform || !port.platforms.includes(platform)) return;
     processing.current = true;
@@ -140,7 +169,8 @@ export function GameFileQueryControl({
     setOperation(undefined);
     setResult(undefined);
     setError(undefined);
-    setExpired(false);
+    setExpiredObservation(undefined);
+    invalidObservation.current = undefined;
     try {
       const library = await desktopApi.libraryIdentity(generation);
       if (!active()) return;
@@ -168,7 +198,13 @@ export function GameFileQueryControl({
       if (!active()) return;
       if (!acceptedGameFileQuery(snapshot, selected, library, Math.floor(Date.now() / 1000)))
         throw new Error("The game-file observation no longer matches this selection. Check again.");
-      setResult({ epoch: requestEpoch, snapshot });
+      setResult({
+        epoch: requestEpoch,
+        snapshot,
+        deadline:
+          performance.now() +
+          Math.max(0, Math.min(300_000, snapshot.expires_at * 1000 - Date.now())),
+      });
     } catch (value) {
       if (active()) setError({ epoch: requestEpoch, message: errorText(value) });
     } finally {
