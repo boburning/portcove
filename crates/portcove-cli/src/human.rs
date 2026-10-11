@@ -677,6 +677,23 @@ pub(crate) fn source_discovery(
             ]);
         }
     }
+    if !report.preliminary_selections.is_empty() {
+        lines.push(format!(
+            "Preliminary selections: {}. These are not exact matches; validation has not run.",
+            report.preliminary_selections.len()
+        ));
+        for selection in &report.preliminary_selections {
+            lines.extend([
+                format!(
+                    "Preliminary selection: {}",
+                    profile_name(&selection.profile_id)
+                ),
+                format!("Path: {}", clean(&selection.path.display().to_string())),
+                format!("Selection details: {}", clean(&selection.message)),
+            ]);
+        }
+        lines.push("Review a chosen preliminary selection with source inspect PROFILE_ID PATH before deciding whether to register it. A selection does not prove compatibility.".into());
+    }
     lines.push(
         "No sources were registered by this search. Discovery does not install or launch games."
             .into(),
@@ -2152,6 +2169,7 @@ mod tests {
             searched_roots: vec!["owned-search-folder".into()],
             searched_profiles: vec!["minish-cap-gba".into()],
             candidates: Vec::new(),
+            preliminary_selections: Vec::new(),
             entries_examined: 3,
             files_hashed: 2,
             hash_bytes: 1024,
@@ -2160,6 +2178,28 @@ mod tests {
             issues: Vec::new(),
             issues_omitted: 0,
         }
+    }
+
+    #[test]
+    fn discovery_preliminary_selection_does_not_claim_validation_or_exact_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("disc.iso");
+        std::fs::write(&path, b"synthetic preliminary disc").unwrap();
+        let service = portcove_core::PortcoveService::new(
+            portcove_core::Library::open(temporary.path().join("library")).unwrap(),
+        )
+        .unwrap();
+        let mut report = discovery_report();
+        report.preliminary_selections =
+            vec![service.inspect_source("opengoal-jak1-disc", &path).unwrap()];
+        let text = super::source_discovery(&report, &portcove_core::Catalog::embedded().unwrap());
+        assert!(text.contains(
+            "Preliminary selections: 1. These are not exact matches; validation has not run."
+        ));
+        assert!(text.contains("source inspect PROFILE_ID PATH"));
+        assert!(!text.contains("To register a chosen candidate"));
+        assert!(text.contains("No sources were registered by this search."));
+        assert!(service.library().sources().unwrap().is_empty());
     }
 
     #[test]
@@ -2301,6 +2341,7 @@ mod tests {
                 searched_roots: Vec::new(),
                 searched_profiles: Vec::new(),
                 candidates: Vec::new(),
+                preliminary_selections: Vec::new(),
                 entries_examined: 1,
                 files_hashed: 0,
                 hash_bytes: 0,

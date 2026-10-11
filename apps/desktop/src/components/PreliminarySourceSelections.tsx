@@ -1,0 +1,71 @@
+import type { SourceInspectionReport, SourceProfile, SourceRecord } from "../types";
+import { Button } from "./ui/button";
+
+type Inspection = NonNullable<SourceInspectionReport["inspection"]>;
+
+export function preliminarySelectionRecord(selection: Inspection) {
+  const { assessment, validator, record } = selection;
+  return assessment.admission.state === "admitted" &&
+    assessment.admission.mode === "structural_checks" &&
+    assessment.classification.state === "not_evaluated" &&
+    assessment.contract.state === "not_evaluated" &&
+    validator?.result === "not_run" &&
+    Boolean(validator.contract_id && validator.tool_id && validator.protocol_version) &&
+    record?.profile_id === selection.profile_id &&
+    record.path === selection.path
+    ? record
+    : undefined;
+}
+
+export function PreliminarySourceSelections({
+  selections = [],
+  profiles,
+  disabled,
+  onReview,
+}: {
+  selections?: Inspection[];
+  profiles: SourceProfile[];
+  disabled: boolean;
+  onReview: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
+}) {
+  if (selections.length === 0) return null;
+  return (
+    <section aria-label="Preliminary game-file selections">
+      <h4>Preliminary selections</h4>
+      <p>
+        These files are not exact matches. Validation has not run, and compatibility is not
+        confirmed. Review a selection before deciding whether to save its location.
+      </p>
+      {selections.map((selection) => {
+        const candidate = preliminarySelectionRecord(selection);
+        const profile = profiles.find((item) => item.id === selection.profile_id);
+        return (
+          <div
+            className="source-health-row my-2 rounded-pc-md border border-pc-border p-3"
+            key={`${selection.profile_id}:${selection.path}`}
+          >
+            <strong>{profile?.label ?? selection.profile_id}</strong>
+            <code className="block whitespace-normal [overflow-wrap:anywhere]">
+              {selection.path}
+            </code>
+            <p>
+              {candidate
+                ? "Validation has not run."
+                : "Selection details are unavailable or inconsistent. Search again before reviewing this file."}
+            </p>
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={disabled || !candidate || !profile}
+              onClick={() => {
+                if (candidate && profile) onReview(candidate);
+              }}
+            >
+              Review preliminary selection
+            </Button>
+          </div>
+        );
+      })}
+    </section>
+  );
+}

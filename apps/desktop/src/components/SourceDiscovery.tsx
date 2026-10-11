@@ -13,6 +13,7 @@ import type {
 } from "../types";
 import { errorText, formatBytes, formatCountMessage, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
+import { PreliminarySourceSelections } from "./PreliminarySourceSelections";
 import { sourceAdmissionPresentation } from "./SourceIdentity";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { NavigationHints } from "./ui";
@@ -70,7 +71,7 @@ export function sourceDiscoveryLimitLabel(limit: string, source: "folder" | "inb
     depth: "Folder depth",
     file_size: "Individual file size",
     hash_bytes: "Verification data",
-    candidates: source === "folder" ? "Exact-match count" : "Possible matches checked",
+    candidates: source === "folder" ? "Result count" : "Possible matches checked",
   };
   return labels[limit] ?? "Another search safety limit";
 }
@@ -93,7 +94,7 @@ export function sourceDiscoveryLimitGuidance(limit: string, source: "folder" | "
   if (limit === "candidates")
     return source === "inbox"
       ? "Review the possible matches shown. Open Portcove's game-file folder and temporarily move some files outside it. Search the files left there, then swap batches to check the rest."
-      : "Search a smaller folder to check more exact matches.";
+      : "Search a smaller folder to check more exact matches and preliminary selections.";
   return "Review the search limits and try a narrower search.";
 }
 
@@ -251,9 +252,12 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
       ),
     );
   };
-  const reviewImport = (candidate: SourceRecord, mode: SourceImportMode) =>
+  const reviewImport = (
+    candidate: Pick<SourceRecord, "profile_id" | "path">,
+    mode: SourceImportMode,
+  ) =>
     run("Checking the selected file and destination…", async () => {
-      setPlan(await desktopApi.planSourceImport(profile, candidate.path, mode));
+      setPlan(await desktopApi.planSourceImport(candidate.profile_id, candidate.path, mode));
       setNotice(undefined);
     });
   const applyImport = () => {
@@ -310,7 +314,13 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
 
 type Workflow = ReturnType<typeof useSourceDiscoveryWorkflow>;
 
-function DiscoveryResults({ workflow }: { workflow: Workflow }) {
+function DiscoveryResults({
+  workflow,
+  profiles,
+}: {
+  workflow: Workflow;
+  profiles: SourceProfile[];
+}) {
   const { report, inbox, busy, registered, reviewImport } = workflow;
   const candidates =
     report?.candidates ??
@@ -387,6 +397,14 @@ function DiscoveryResults({ workflow }: { workflow: Workflow }) {
           </div>
         </div>
       ))}
+      <PreliminarySourceSelections
+        selections={report?.preliminary_selections}
+        profiles={profiles}
+        disabled={Boolean(busy)}
+        onReview={(candidate) => {
+          void reviewImport(candidate, "use_current_location");
+        }}
+      />
       {issues.map((issue, index) => (
         <p key={`${issue.profile_id ?? issue.path}:${index}`}>
           {issue.message}
@@ -652,7 +670,7 @@ function SourceDiscoveryDialog({
             )}
           </section>
         )}
-        <DiscoveryResults workflow={workflow} />
+        <DiscoveryResults workflow={workflow} profiles={profiles} />
         <SourceImportReview
           plan={plan}
           profiles={profiles}

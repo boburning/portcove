@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCAN_FORMAT_VERSION: u32 = 8;
+const CURRENT_SCAN_FORMAT_VERSION: u32 = 9;
 const MAX_CONTINUATION_RECORDS: usize = 16_384;
 const MAX_CONTINUATION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESUME_CHECKS: u32 = 100_000;
@@ -199,6 +199,9 @@ pub struct SourceDiscoveryReport {
     pub searched_roots: Vec<PathBuf>,
     pub searched_profiles: Vec<String>,
     pub candidates: Vec<SourceRecord>,
+    /// Preliminary selections are not exact matches and their pinned validator has not run.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub preliminary_selections: Vec<crate::SourceInspection>,
     pub entries_examined: u32,
     pub files_hashed: u32,
     pub hash_bytes: u64,
@@ -206,6 +209,12 @@ pub struct SourceDiscoveryReport {
     pub limits_reached: Vec<SourceDiscoveryLimit>,
     pub issues: Vec<SourceDiscoveryIssue>,
     pub issues_omitted: u32,
+}
+
+impl SourceDiscoveryReport {
+    fn candidate_count(&self) -> usize {
+        self.candidates.len() + self.preliminary_selections.len()
+    }
 }
 
 impl PortcoveService {
@@ -628,7 +637,7 @@ fn validate_continuation(
             .as_ref()
             .is_none_or(|coverage| !coverage.can_resume || coverage.restart_required)
         || snapshot.report.hash_bytes > limits.max_hash_bytes
-        || snapshot.report.candidates.len() > limits.max_candidates as usize
+        || snapshot.report.candidate_count() > limits.max_candidates as usize
         || value
             .get("observed")
             .and_then(serde_json::Value::as_object)
@@ -649,7 +658,7 @@ fn validate_continuation(
         || cursor.outputs_sha256 != outputs_identity
         || cursor.report_sha256
             != hex::encode(Sha256::digest(serde_json::to_vec(&snapshot.report)?))
-        || snapshot.report.candidates.len() >= limits.max_candidates as usize
+        || snapshot.report.candidate_count() >= limits.max_candidates as usize
         || snapshot.report.entries_examined as usize + snapshot.report.searched_roots.len()
             < cursor.observed.len()
         || cursor.pending.is_empty()
@@ -1056,6 +1065,7 @@ fn scan_with_continuation<'a>(
         searched_roots: selected.clone(),
         searched_profiles: Vec::new(),
         candidates: Vec::new(),
+        preliminary_selections: Vec::new(),
         entries_examined: 0,
         files_hashed: 0,
         hash_bytes: 0,
@@ -1177,6 +1187,12 @@ fn scan_with_continuation<'a>(
     discovery.report.candidates.sort_by(|left, right| {
         (&left.profile_id, &left.path).cmp(&(&right.profile_id, &right.path))
     });
+    discovery
+        .report
+        .preliminary_selections
+        .sort_by(|left, right| {
+            (&left.profile_id, &left.path).cmp(&(&right.profile_id, &right.path))
+        });
     Ok(ScanBatch {
         report: discovery.report,
         continuation: discovery.continuation,
@@ -1455,7 +1471,7 @@ impl Discovery<'_> {
                         }
                         self.issue(Some(canonical), None, error.message);
                     }
-                    if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                    if self.report.candidate_count() >= self.limits.max_candidates as usize {
                         self.reached.insert(SourceDiscoveryLimit::Candidates);
                         state.complete = complete;
                         pending.push_front(state);
@@ -1469,7 +1485,7 @@ impl Discovery<'_> {
                 if !self.is_excluded(&directory) {
                     self.directory(&directory, &members, &mut observations)?;
                 }
-                if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                if self.report.candidate_count() >= self.limits.max_candidates as usize {
                     self.reached.insert(SourceDiscoveryLimit::Candidates);
                     self.save_frontier(pending);
                     return Ok(());
@@ -1597,27 +1613,43 @@ impl Discovery<'_> {
                     for profile in profiles {
                         if let Ok(inspection) = crate::source_inspection::inspect_file_identity(
                             // Discovery and registration now share schema-2 matching.
-                            // Only exact identities are eligible for automatic discovery.
+                            // Preliminary validator selection stays separate from exact matches.
                             self.catalog,
                             &profile.id,
                             path,
                             &identity,
-                        ) && matches!(
-                            inspection.assessment.admission,
-                            crate::SourceAdmission::Admitted {
-                                mode: crate::SourceAdmissionMode::ExactIdentity
+                        ) {
+                            if matches!(
+                                inspection.assessment.admission,
+                                crate::SourceAdmission::Admitted {
+                                    mode: crate::SourceAdmissionMode::ExactIdentity
+                                }
+                            ) {
+                                if let Some(candidate) = inspection.record {
+                                    (self.emit)(
+                                        self.budget
+                                            .operation
+                                            .as_ref()
+                                            .expect("discovery always owns an operation")
+                                            .source_candidate(&candidate),
+                                    );
+                                    self.report.candidates.push(candidate);
+                                }
+                            } else if inspection.record.is_some()
+                                && matches!(
+                                    inspection.assessment.admission,
+                                    crate::SourceAdmission::Admitted {
+                                        mode: crate::SourceAdmissionMode::StructuralChecks
+                                    }
+                                )
+                                && inspection.validator.as_ref().is_some_and(|validator| {
+                                    validator.result == crate::SourceValidatorResult::NotRun
+                                })
+                            {
+                                self.report.preliminary_selections.push(inspection);
                             }
-                        ) && let Some(candidate) = inspection.record
-                        {
-                            (self.emit)(
-                                self.budget
-                                    .operation
-                                    .as_ref()
-                                    .expect("discovery always owns an operation")
-                                    .source_candidate(&candidate),
-                            );
-                            self.report.candidates.push(candidate);
-                            if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                            if self.report.candidate_count() >= self.limits.max_candidates as usize
+                            {
                                 break;
                             }
                         }
@@ -1647,13 +1679,13 @@ impl Discovery<'_> {
                     self.issue(Some(path.into()), None, error.message);
                 }
             }
-            if self.report.candidates.len() >= self.limits.max_candidates as usize {
+            if self.report.candidate_count() >= self.limits.max_candidates as usize {
                 break;
             }
         }
         if extension.eq_ignore_ascii_case("zip")
             && !self.directory_profiles.is_empty()
-            && self.report.candidates.len() < self.limits.max_candidates as usize
+            && self.report.candidate_count() < self.limits.max_candidates as usize
         {
             match self.zip_file_sets(path) {
                 Ok(()) => {}
@@ -1740,7 +1772,7 @@ impl Discovery<'_> {
                 operation.checkpoint()?;
                 (self.emit)(operation.source_candidate(&candidate));
                 self.report.candidates.push(candidate);
-                if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                if self.report.candidate_count() >= self.limits.max_candidates as usize {
                     break;
                 }
             }
@@ -1809,7 +1841,7 @@ impl Discovery<'_> {
                 (self.emit)(operation.source_candidate(&candidate));
                 operation.checkpoint()?;
                 self.report.candidates.push(candidate);
-                if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                if self.report.candidate_count() >= self.limits.max_candidates as usize {
                     break;
                 }
             }
@@ -1946,7 +1978,7 @@ impl Discovery<'_> {
                             .expect("discovery owns operation")
                             .checkpoint()?;
                         self.report.candidates.push(candidate);
-                        if self.report.candidates.len() >= self.limits.max_candidates as usize {
+                        if self.report.candidate_count() >= self.limits.max_candidates as usize {
                             break;
                         }
                     }
