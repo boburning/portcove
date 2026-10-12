@@ -315,6 +315,8 @@ struct TestOptions {
     #[cfg(test)]
     fail_capture: bool,
     #[cfg(test)]
+    refused_creation: Option<Arc<RefusedCreation>>,
+    #[cfg(test)]
     pending_creation: Option<Arc<PendingCreation>>,
     #[cfg(test)]
     exception_trace: Option<Arc<Mutex<Vec<ExceptionObservation>>>>,
@@ -334,6 +336,14 @@ struct ExceptionObservation {
 struct PendingCreation {
     identity: Mutex<Option<Identity>>,
     cancellation_observed: AtomicBool,
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct RefusedCreation {
+    // An independent fixture observation of the refused CREATE handle. It is
+    // never inserted into Core membership or used to grant cleanup proof.
+    member: Mutex<Option<(Identity, OwnedHandle)>>,
 }
 
 fn spawn_with_options(
@@ -976,6 +986,14 @@ impl Controller {
         {
             return Err(io::Error::other("creation is outside the owned job"));
         }
+        #[cfg(test)]
+        if self.options.fail_capture && initial_thread.is_some() && Some(key) != self.root {
+            if let Some(observation) = &self.options.refused_creation {
+                *observation.member.lock().unwrap() = Some((key, duplicate(raw)?));
+            }
+            self.fail("creation_capture", None);
+            return Err(io::Error::other("injected creation capture refusal"));
+        }
         if let Some(member) = self.members.get_mut(&key) {
             if initial_thread.is_some() {
                 if member.creation_seen {
@@ -994,11 +1012,6 @@ impl Controller {
         if self.slots() >= MEMBER_LIMIT {
             self.fail("retained_handle_capacity", None);
             return Err(io::Error::other("native lifetime capacity exhausted"));
-        }
-        #[cfg(test)]
-        if self.options.fail_capture && initial_thread.is_some() {
-            self.fail("creation_capture", None);
-            return Err(io::Error::other("injected creation capture refusal"));
         }
         let handle = duplicate(raw)?;
         self.members.insert(
@@ -1675,6 +1688,72 @@ mod native_control_tests {
                 assert!(working.path().join("application-unhandled-ready").is_file());
             }
         }
+    }
+
+    #[test]
+    #[ignore = "requires separately admitted prepared first-party capture-refusal packet"]
+    fn creation_capture_refusal_stays_failed_after_owned_handles_close() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args([
+            "--setup-tree",
+            &working.path().join("orphan-output").display().to_string(),
+            "observed-wait",
+        ])
+        .current_dir(working.path());
+        let refused = Arc::new(RefusedCreation::default());
+        let (mut child, group) = spawn_with_options(
+            &spec,
+            TestOptions {
+                fail_capture: true,
+                refused_creation: Some(refused.clone()),
+                ..Default::default()
+            },
+        )
+        .map_err(|failure| failure.error)
+        .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(4);
+        while refused.member.lock().unwrap().is_none() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(1));
+        }
+        let stopped = group.terminate_and_wait(&mut child);
+        let quiesced = group.proves_tree_quiescence();
+        let proof = crate::tool_process::copy_proof_details(
+            &group.with_proof_details(PortcoveError::state("creation capture refusal control")),
+        );
+        let observed = refused.member.lock().unwrap().take();
+        let observation = observed.as_ref().map(|(identity, handle)| {
+            serde_json::json!({
+                "pid":identity.pid,"created_filetime":identity.created.to_string(),
+                "wait_result":unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) },
+                "image":test_process_image(handle.as_raw_handle()),
+            })
+        });
+        // Publish real closure observations before any acceptance assertion.
+        // The refused handle is fixture evidence, not reconstructed Core custody.
+        eprintln!(
+            "native_capture_refusal_proof:{}",
+            serde_json::json!({
+                "quiesced":quiesced,"proof":proof,"refused_creation":observation,
+                "termination_error":stopped.as_ref().err().map(ToString::to_string),
+                "root_status":stopped.as_ref().ok().and_then(ExitStatus::code),
+                "orphan_output":working.path().join("orphan-output").exists(),
+            })
+        );
+        assert!(observed.is_some(), "actual descendant CREATE refusal was observed");
+        assert_eq!(observation.as_ref().unwrap()["wait_result"], WAIT_OBJECT_0);
+        assert!(!quiesced, "positive exits cannot clear the sticky capture refusal");
+        assert_eq!(stopped.unwrap().code(), Some(1));
+        assert_eq!(proof["process_tree_first_failure"], "creation_capture");
+        assert_eq!(proof["process_tree_total"], "2");
+        assert_eq!(proof["process_tree_active"], "0");
+        assert_eq!(proof["process_tree_all_retained_signaled"], "true");
+        assert_eq!(proof["process_tree_deadline_exhausted"], "false");
+        assert!(!working.path().join("orphan-output").exists());
     }
 
     #[test]
