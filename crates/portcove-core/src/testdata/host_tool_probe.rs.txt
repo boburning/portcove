@@ -9,6 +9,8 @@ fn main() {
         Some("--owned-exceptions") => exception_fixture::run(&args[1]),
         #[cfg(windows)]
         Some("--owned-tls-exceptions") => exception_fixture::verify_tls(),
+        #[cfg(windows)]
+        Some("--owned-dll-exceptions") => exception_fixture::verify_dll(&args[1]),
         Some("--observe-launch") => {
             // First-party launch-parity control: inputs are bounded by the
             // admitted test packet; no helper, network or game is invoked.
@@ -273,9 +275,29 @@ mod exception_fixture {
         assert_eq!(HANDLED.load(Ordering::Relaxed),2,"TLS exception was substituted or swallowed");
         fs::write("tls-exceptions-handled",b"custom exception and DebugBreak handled inside TLS callback").unwrap();
     }
+    pub fn verify_dll(path:&str) {
+        use std::os::windows::ffi::OsStrExt;
+        assert!(cfg!(target_arch="x86_64"));
+        assert!(std::path::Path::new(path).is_absolute() && std::path::Path::new(path).is_file());
+        let mut wide=std::ffi::OsStr::new(path).encode_wide().collect::<Vec<_>>();
+        assert!(!wide.contains(&0));wide.push(0);
+        unsafe{SetErrorMode(1|2);}
+        assert!(unsafe{WerSetFlags(0x20)}>=0);
+        let module=unsafe{LoadLibraryExW(wide.as_ptr(),std::ptr::null_mut(),0x100|0x800)};
+        assert!(!module.is_null(),"owned DLL entry failed");
+        let getter=unsafe{GetProcAddress(module,c"owned_dll_receipt".as_ptr())};
+        assert!(!getter.is_null(),"owned DLL receipt export missing");
+        let receipt:unsafe extern "system" fn()->u32=unsafe{std::mem::transmute(getter)};
+        assert_eq!(unsafe{receipt()},0x0002_0002,"DLL entry handlers did not complete");
+        assert_ne!(unsafe{FreeLibrary(module)},0);
+        fs::write("dll-exceptions-handled",b"owned DLL entry phase2 counted two handled exceptions").unwrap();
+    }
     #[link(name="kernel32")] unsafe extern "system" {
         fn GetCommandLineW()->*const u16;
         fn ExitProcess(code:u32)->!;
+        fn LoadLibraryExW(path:*const u16,file:*mut c_void,flags:u32)->*mut c_void;
+        fn GetProcAddress(module:*mut c_void,name:*const core::ffi::c_char)->*mut c_void;
+        fn FreeLibrary(module:*mut c_void)->i32;
     }
     unsafe extern "system" fn tls_handler(info:*mut ExceptionPointers)->i32 {
         if TLS_PHASE.load(Ordering::Acquire)!=1 || info.is_null() || unsafe{(*info).record.is_null()} {return 0;}
