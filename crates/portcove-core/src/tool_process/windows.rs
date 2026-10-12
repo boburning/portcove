@@ -1,0 +1,1330 @@
+//! One creation/event owner for each native tool tree. Caller checkpoints never
+//! execute on this thread. All retained identities and accounting share one store.
+use std::{
+    collections::BTreeMap,
+    ffi::{OsStr, OsString},
+    fs::File,
+    io::{self, Read, Seek, SeekFrom},
+    os::windows::{
+        ffi::OsStrExt,
+        io::{AsRawHandle, BorrowedHandle, FromRawHandle, OwnedHandle},
+        process::ExitStatusExt,
+    },
+    path::PathBuf,
+    process::ExitStatus,
+    sync::{
+        Arc, Condvar, Mutex,
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    },
+    thread::{self, JoinHandle},
+    time::{Duration, Instant},
+};
+
+use super::ToolSpawnFailure;
+use crate::{PortcoveError, process::NativeToolLaunchSpec};
+use windows_sys::Win32::{
+    Foundation::{
+        DBG_CONTINUE, DBG_EXCEPTION_NOT_HANDLED, ERROR_INVALID_HANDLE, ERROR_INVALID_PARAMETER,
+        ERROR_SEM_TIMEOUT, FILETIME, GetLastError, HANDLE, HANDLE_FLAG_INHERIT,
+        INVALID_HANDLE_VALUE, STATUS_BREAKPOINT, SetHandleInformation, WAIT_FAILED, WAIT_OBJECT_0,
+    },
+    Security::SECURITY_ATTRIBUTES,
+    Storage::FileSystem::{
+        CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_GENERIC_READ, FILE_SHARE_READ, FILE_SHARE_WRITE,
+        GetFinalPathNameByHandleW, OPEN_EXISTING,
+    },
+    System::{
+        Diagnostics::Debug::{
+            CREATE_PROCESS_DEBUG_EVENT, CREATE_THREAD_DEBUG_EVENT, ContinueDebugEvent, DEBUG_EVENT,
+            EXCEPTION_DEBUG_EVENT, EXIT_PROCESS_DEBUG_EVENT, EXIT_THREAD_DEBUG_EVENT,
+            LOAD_DLL_DEBUG_EVENT, OUTPUT_DEBUG_STRING_EVENT, RIP_EVENT, UNLOAD_DLL_DEBUG_EVENT,
+            WaitForDebugEventEx,
+        },
+        JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, IsProcessInJob,
+            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
+            JOBOBJECT_BASIC_PROCESS_ID_LIST, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+            JobObjectBasicAccountingInformation, JobObjectBasicProcessIdList,
+            JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject,
+            TerminateJobObject,
+        },
+        Pipes::CreatePipe,
+        SystemInformation::{
+            GetSystemDirectoryW, IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_UNKNOWN,
+        },
+        Threading::{
+            CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, CreateProcessW, DEBUG_PROCESS,
+            DeleteProcThreadAttributeList, EXTENDED_STARTUPINFO_PRESENT, GetExitCodeProcess,
+            GetProcessId, GetProcessTimes, InitializeProcThreadAttributeList, IsWow64Process2,
+            OpenProcess, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, PROCESS_INFORMATION,
+            PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, ResumeThread,
+            STARTF_USESTDHANDLES, STARTUPINFOEXW, TerminateProcess, UpdateProcThreadAttribute,
+            WaitForSingleObject,
+        },
+    },
+};
+
+const MEMBER_LIMIT: usize = 512;
+const EVENT_LIMIT: usize = 4096;
+const CLOSURE_BOUND: Duration = Duration::from_secs(2);
+
+#[derive(Default, Clone)]
+struct Proof {
+    first_failure: Option<(&'static str, Option<u32>)>,
+    retained: usize,
+    accounting: Option<(u32, u32)>,
+    wait_result: Option<u32>,
+    deadline: Option<Instant>,
+    deadline_exhausted: bool,
+    root_status: Option<ExitStatus>,
+    done: bool,
+    quiesced: bool,
+}
+
+impl Proof {
+    fn latch_deadline(&mut self, now: Instant) {
+        if !self.done && self.deadline.is_some_and(|deadline| now >= deadline) {
+            self.deadline_exhausted = true;
+            self.first_failure.get_or_insert(("closure_deadline", None));
+            self.quiesced = false;
+        }
+    }
+
+    fn finish(&mut self, complete: bool, now: Instant) {
+        self.latch_deadline(now);
+        self.quiesced = complete && !self.deadline_exhausted && self.first_failure.is_none();
+        self.done = true;
+    }
+}
+
+#[derive(Default)]
+struct Control {
+    stop: AtomicBool,
+    proof: Mutex<Proof>,
+    changed: Condvar,
+}
+
+impl Control {
+    fn lock(&self) -> std::sync::MutexGuard<'_, Proof> {
+        self.proof
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
+    fn request_stop(&self) {
+        let mut proof = self.lock();
+        if !proof.done {
+            proof
+                .deadline
+                .get_or_insert_with(|| Instant::now() + CLOSURE_BOUND);
+            self.stop.store(true, Ordering::Release);
+        }
+        self.changed.notify_all();
+    }
+
+    fn wait_done(&self) -> Proof {
+        self.request_stop();
+        let mut proof = self.lock();
+        while !proof.done {
+            let remaining = proof
+                .deadline
+                .expect("stop has one deadline")
+                .saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                proof.latch_deadline(Instant::now());
+                break;
+            }
+            proof = self
+                .changed
+                .wait_timeout(proof, remaining)
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .0;
+        }
+        proof.clone()
+    }
+}
+
+pub(crate) struct ToolChild {
+    pub(crate) stdout: Option<File>,
+    pub(crate) stderr: Option<File>,
+    control: Arc<Control>,
+}
+
+impl ToolChild {
+    pub(crate) fn try_wait(&mut self) -> io::Result<Option<ExitStatus>> {
+        let proof = self.control.lock();
+        if proof.done && proof.root_status.is_none() {
+            return Err(io::Error::other(
+                "native tool root exit lacks positive handle proof",
+            ));
+        }
+        Ok(proof.root_status)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn wait(&mut self) -> io::Result<ExitStatus> {
+        self.control
+            .wait_done()
+            .root_status
+            .ok_or_else(|| io::Error::other("native tool root did not settle"))
+    }
+}
+
+impl Drop for ToolChild {
+    fn drop(&mut self) {
+        self.control.request_stop();
+    }
+}
+
+pub(crate) struct ToolProcessGroup {
+    control: Arc<Control>,
+    worker: Option<JoinHandle<()>>,
+}
+
+impl ToolProcessGroup {
+    pub(crate) fn proves_tree_quiescence(&self) -> bool {
+        let proof = self.control.wait_done();
+        proof.done && proof.quiesced
+    }
+
+    pub(crate) fn terminate_and_wait(&self, _child: &mut ToolChild) -> io::Result<ExitStatus> {
+        self.control.wait_done().root_status.ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::TimedOut,
+                "native tool root did not exit within the owned-tree bound",
+            )
+        })
+    }
+
+    pub(crate) fn with_proof_details(&self, mut error: PortcoveError) -> PortcoveError {
+        let proof = self.control.lock();
+        if let Some((reason, code)) = proof.first_failure {
+            error = error.detail("process_tree_first_failure", reason);
+            if let Some(code) = code {
+                error = error.detail("process_tree_api_error", code.to_string());
+            }
+        }
+        error = error
+            .detail("process_tree_retained_members", proof.retained.to_string())
+            .detail(
+                "process_tree_membership_complete",
+                proof.first_failure.is_none().to_string(),
+            )
+            .detail(
+                "process_tree_deadline_exhausted",
+                proof.deadline_exhausted.to_string(),
+            );
+        if let Some((active, total)) = proof.accounting {
+            error = error
+                .detail("process_tree_active", active.to_string())
+                .detail("process_tree_total", total.to_string());
+        }
+        if let Some(waited) = proof.wait_result {
+            error = error.detail("process_tree_wait_result", waited.to_string());
+        }
+        error
+    }
+}
+
+impl Drop for ToolProcessGroup {
+    fn drop(&mut self) {
+        let proof = self.control.wait_done();
+        if let Some(worker) = self.worker.take() {
+            // Never replace an expired closure budget with an unbounded join.
+            while !worker.is_finished()
+                && proof
+                    .deadline
+                    .is_some_and(|deadline| Instant::now() < deadline)
+            {
+                thread::sleep(Duration::from_millis(1));
+            }
+            if worker.is_finished() {
+                let _ = worker.join();
+            }
+        }
+    }
+}
+
+pub(crate) fn spawn_tool(
+    spec: &NativeToolLaunchSpec,
+) -> Result<(ToolChild, ToolProcessGroup), ToolSpawnFailure> {
+    spawn_with_options(spec, TestOptions::default())
+}
+
+#[cfg(test)]
+pub(super) fn spawn_with_occupied_slots(
+    spec: &NativeToolLaunchSpec,
+    occupied: usize,
+) -> Result<(ToolChild, ToolProcessGroup), ToolSpawnFailure> {
+    assert!((1..=MEMBER_LIMIT).contains(&occupied));
+    spawn_with_options(
+        spec,
+        TestOptions {
+            reserved_slots: occupied - 1,
+            fail_capture: false,
+        },
+    )
+}
+
+#[derive(Default, Clone, Copy)]
+struct TestOptions {
+    #[cfg(test)]
+    reserved_slots: usize,
+    #[cfg(test)]
+    fail_capture: bool,
+}
+
+fn spawn_with_options(
+    spec: &NativeToolLaunchSpec,
+    options: TestOptions,
+) -> Result<(ToolChild, ToolProcessGroup), ToolSpawnFailure> {
+    let launch = EncodedLaunch::new(spec).map_err(ToolSpawnFailure::before_spawn)?;
+    let control = Arc::new(Control::default());
+    let worker_control = control.clone();
+    let (ready_tx, ready_rx) = mpsc::sync_channel(1);
+    let worker = thread::Builder::new()
+        .name("portcove-tool-controller".into())
+        .spawn(move || {
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                match Controller::new(launch, worker_control.clone(), options) {
+                    Ok((mut controller, stdout, stderr)) => {
+                        let _ = ready_tx.send(Ok((stdout, stderr)));
+                        controller.run();
+                    }
+                    Err(error) => {
+                        let _ = ready_tx.send(Err(error));
+                    }
+                }
+            }));
+            if outcome.is_err() {
+                let mut proof = worker_control.lock();
+                proof
+                    .first_failure
+                    .get_or_insert(("controller_panic", None));
+                proof.quiesced = false;
+                proof.done = true;
+                worker_control.changed.notify_all();
+            }
+        })
+        .map_err(ToolSpawnFailure::io_before_spawn)?;
+    match ready_rx.recv_timeout(CLOSURE_BOUND) {
+        Ok(Ok((stdout, stderr))) => Ok((
+            ToolChild {
+                stdout: Some(stdout),
+                stderr: Some(stderr),
+                control: control.clone(),
+            },
+            ToolProcessGroup {
+                control,
+                worker: Some(worker),
+            },
+        )),
+        Ok(Err(error)) => {
+            let _ = worker.join();
+            Err(error)
+        }
+        Err(_) => {
+            control.request_stop();
+            if worker.is_finished() {
+                let _ = worker.join();
+            }
+            Err(ToolSpawnFailure {
+                error: PortcoveError::state(
+                    "native tool controller did not establish creation custody",
+                ),
+                quiesced: false,
+                io_kind: None,
+            })
+        }
+    }
+}
+
+struct EncodedLaunch {
+    application: Vec<u16>,
+    command: Vec<u16>,
+    environment: Vec<u16>,
+    directory: Option<Vec<u16>>,
+}
+
+impl EncodedLaunch {
+    fn new(spec: &NativeToolLaunchSpec) -> crate::Result<Self> {
+        // Reuse policy validation without inspecting Command's hidden state.
+        spec.command()?;
+        let program = PathBuf::from(&spec.program);
+        #[cfg(test)]
+        let program = if spec.program == "cmd.exe" {
+            system_directory()?.join("cmd.exe")
+        } else {
+            program
+        };
+        if !program.is_absolute() {
+            return Err(PortcoveError::launch(
+                "supervised native tools require a resolved absolute executable",
+            ));
+        }
+        let application = wide(program.as_os_str())?;
+        let mut command = quote_argument(&application[..application.len() - 1]);
+        for argument in &spec.arguments {
+            command.push(b' ' as u16);
+            let argument = wide(argument)?;
+            command.extend(quote_argument(&argument[..argument.len() - 1]));
+        }
+        #[cfg(test)]
+        for argument in &spec.raw_arguments {
+            command.push(b' ' as u16);
+            let argument = wide(argument)?;
+            command.extend_from_slice(&argument[..argument.len() - 1]);
+        }
+        command.push(0);
+        if command.len() > 32767 {
+            return Err(PortcoveError::launch(
+                "native tool command exceeds the Windows argument bound",
+            ));
+        }
+        let mut environment = Vec::new();
+        let mut entries = Vec::new();
+        for (key, value) in &spec.environment {
+            let key = wide(key)?;
+            let value = wide(value)?;
+            if key.len() <= 1 || key[..key.len() - 1].contains(&(b'=' as u16)) {
+                return Err(PortcoveError::launch(
+                    "native tool environment name is invalid",
+                ));
+            }
+            entries.push((key, value));
+        }
+        entries.sort_by(|(a, _), (b, _)| {
+            use windows_sys::Win32::Globalization::{
+                CSTR_GREATER_THAN, CSTR_LESS_THAN, CompareStringOrdinal,
+            };
+            // SAFETY: NUL-terminated buffers have validated bounded lengths.
+            match unsafe { CompareStringOrdinal(a.as_ptr(), -1, b.as_ptr(), -1, 1) } {
+                CSTR_LESS_THAN => std::cmp::Ordering::Less,
+                CSTR_GREATER_THAN => std::cmp::Ordering::Greater,
+                _ => std::cmp::Ordering::Equal,
+            }
+        });
+        for (key, value) in entries {
+            environment.extend_from_slice(&key[..key.len() - 1]);
+            environment.push(b'=' as u16);
+            environment.extend(value);
+        }
+        if environment.is_empty() {
+            environment.push(0);
+        }
+        environment.push(0);
+        if environment.len() > 32767 {
+            return Err(PortcoveError::launch(
+                "native tool environment exceeds its bounded launch input",
+            ));
+        }
+        Ok(Self {
+            application,
+            command,
+            environment,
+            directory: spec
+                .working_directory
+                .as_ref()
+                .map(|path| wide(path.as_os_str()))
+                .transpose()?,
+        })
+    }
+}
+
+fn wide(value: &OsStr) -> crate::Result<Vec<u16>> {
+    let mut units: Vec<_> = value.encode_wide().collect();
+    if units.contains(&0) || units.len() >= 32767 {
+        return Err(PortcoveError::launch(
+            "native tool launch input contains NUL or exceeds its bound",
+        ));
+    }
+    units.push(0);
+    Ok(units)
+}
+
+fn quote_argument(argument: &[u16]) -> Vec<u16> {
+    let mut quoted = vec![b'"' as u16];
+    let mut slashes = 0;
+    for &unit in argument {
+        if unit == b'\\' as u16 {
+            slashes += 1;
+            continue;
+        }
+        quoted.extend(std::iter::repeat_n(
+            b'\\' as u16,
+            if unit == b'"' as u16 {
+                slashes * 2 + 1
+            } else {
+                slashes
+            },
+        ));
+        slashes = 0;
+        quoted.push(unit);
+    }
+    quoted.extend(std::iter::repeat_n(b'\\' as u16, slashes * 2));
+    quoted.push(b'"' as u16);
+    quoted
+}
+
+fn owned(raw: HANDLE) -> io::Result<OwnedHandle> {
+    if raw.is_null() || raw == INVALID_HANDLE_VALUE {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: caller transfers exactly one newly created handle into RAII ownership.
+    Ok(unsafe { OwnedHandle::from_raw_handle(raw) })
+}
+
+fn duplicate(raw: HANDLE) -> io::Result<OwnedHandle> {
+    if raw.is_null() || raw == INVALID_HANDLE_VALUE {
+        return Err(io::Error::other("invalid native process capture"));
+    }
+    // SAFETY: debugger event/creation handle remains open throughout duplication.
+    unsafe { BorrowedHandle::borrow_raw(raw).try_clone_to_owned() }
+}
+
+fn pipe() -> io::Result<(File, OwnedHandle)> {
+    let attributes = SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: std::ptr::null_mut(),
+        bInheritHandle: 1,
+    };
+    let (mut read, mut write) = (std::ptr::null_mut(), std::ptr::null_mut());
+    if unsafe { CreatePipe(&mut read, &mut write, &attributes, 0) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let read = owned(read)?;
+    let write = owned(write)?;
+    if unsafe { SetHandleInformation(read.as_raw_handle(), HANDLE_FLAG_INHERIT, 0) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok((File::from(read), write))
+}
+
+struct Attributes {
+    words: Vec<usize>,
+    initialized: bool,
+}
+impl Attributes {
+    fn new(handles: &mut [HANDLE]) -> io::Result<Self> {
+        let mut bytes = 0;
+        unsafe {
+            InitializeProcThreadAttributeList(std::ptr::null_mut(), 1, 0, &mut bytes);
+        }
+        if bytes == 0 || bytes > 65536 {
+            return Err(io::Error::other("invalid native handle-list storage"));
+        }
+        let mut attributes = Self {
+            words: vec![0; bytes.div_ceil(std::mem::size_of::<usize>())],
+            initialized: false,
+        };
+        let pointer = attributes.words.as_mut_ptr().cast();
+        if unsafe { InitializeProcThreadAttributeList(pointer, 1, 0, &mut bytes) } == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        attributes.initialized = true;
+        if unsafe {
+            UpdateProcThreadAttribute(
+                pointer,
+                0,
+                PROC_THREAD_ATTRIBUTE_HANDLE_LIST as usize,
+                handles.as_ptr().cast(),
+                std::mem::size_of_val(handles),
+                std::ptr::null_mut(),
+                std::ptr::null(),
+            )
+        } == 0
+        {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(attributes)
+    }
+}
+impl Drop for Attributes {
+    fn drop(&mut self) {
+        if self.initialized {
+            unsafe {
+                DeleteProcThreadAttributeList(self.words.as_mut_ptr().cast());
+            }
+        }
+    }
+}
+
+struct SuspendedRootGuard {
+    handle: OwnedHandle,
+    contained: bool,
+}
+
+impl Drop for SuspendedRootGuard {
+    fn drop(&mut self) {
+        // A panic before Job assignment still stops the exact created root.
+        // This is containment only, never a quiescence/cleanup acceptance claim.
+        if !self.contained {
+            unsafe {
+                TerminateProcess(self.handle.as_raw_handle(), 1);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct Identity {
+    pid: u32,
+    created: u64,
+}
+
+struct Member {
+    handle: OwnedHandle,
+    initial_thread: Option<u32>,
+    creation_seen: bool,
+    startup_handled: bool,
+    system_module: Option<(usize, usize)>,
+}
+
+fn identity(handle: HANDLE) -> io::Result<Identity> {
+    let (mut created, mut exited, mut kernel, mut user) = (
+        FILETIME::default(),
+        FILETIME::default(),
+        FILETIME::default(),
+        FILETIME::default(),
+    );
+    if unsafe { GetProcessTimes(handle, &mut created, &mut exited, &mut kernel, &mut user) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let pid = unsafe { GetProcessId(handle) };
+    let created = (u64::from(created.dwHighDateTime) << 32) | u64::from(created.dwLowDateTime);
+    if pid == 0 || created == 0 {
+        return Err(io::Error::other("native creation identity is incomplete"));
+    }
+    Ok(Identity { pid, created })
+}
+
+struct Controller {
+    job: OwnedHandle,
+    root: Option<Identity>,
+    primary_thread: Option<OwnedHandle>,
+    members: BTreeMap<Identity, Member>,
+    live_debug_members: BTreeMap<u32, Identity>,
+    control: Arc<Control>,
+    job_assigned: bool,
+    terminating: bool,
+    events: usize,
+    #[cfg(test)]
+    options: TestOptions,
+    #[cfg(test)]
+    reserved: Vec<OwnedHandle>,
+}
+
+impl Controller {
+    fn new(
+        mut launch: EncodedLaunch,
+        control: Arc<Control>,
+        options: TestOptions,
+    ) -> Result<(Self, File, File), ToolSpawnFailure> {
+        #[cfg(not(test))]
+        let _ = options;
+        let job = owned(unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) })
+            .map_err(ToolSpawnFailure::io_before_spawn)?;
+        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if unsafe {
+            SetInformationJobObject(
+                job.as_raw_handle(),
+                JobObjectExtendedLimitInformation,
+                (&raw const limits).cast(),
+                std::mem::size_of_val(&limits) as u32,
+            )
+        } == 0
+        {
+            return Err(ToolSpawnFailure::io_before_spawn(io::Error::last_os_error()));
+        }
+        let (stdout, stdout_writer) = pipe().map_err(ToolSpawnFailure::io_before_spawn)?;
+        let (stderr, stderr_writer) = pipe().map_err(ToolSpawnFailure::io_before_spawn)?;
+        let attributes = SECURITY_ATTRIBUTES {
+            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+            lpSecurityDescriptor: std::ptr::null_mut(),
+            bInheritHandle: 1,
+        };
+        let null = wide(OsStr::new("NUL")).map_err(ToolSpawnFailure::before_spawn)?;
+        let stdin = owned(unsafe {
+            CreateFileW(
+                null.as_ptr(),
+                FILE_GENERIC_READ,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                &attributes,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                std::ptr::null_mut(),
+            )
+        })
+        .map_err(ToolSpawnFailure::io_before_spawn)?;
+        let mut handles = [
+            stdin.as_raw_handle(),
+            stdout_writer.as_raw_handle(),
+            stderr_writer.as_raw_handle(),
+        ];
+        let mut attributes =
+            Attributes::new(&mut handles).map_err(ToolSpawnFailure::io_before_spawn)?;
+        let mut startup = STARTUPINFOEXW::default();
+        startup.StartupInfo.cb = std::mem::size_of::<STARTUPINFOEXW>() as u32;
+        startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+        startup.StartupInfo.hStdInput = handles[0];
+        startup.StartupInfo.hStdOutput = handles[1];
+        startup.StartupInfo.hStdError = handles[2];
+        startup.lpAttributeList = attributes.words.as_mut_ptr().cast();
+        let mut info = PROCESS_INFORMATION::default();
+        if unsafe {
+            CreateProcessW(
+                launch.application.as_ptr(),
+                launch.command.as_mut_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+                1,
+                CREATE_SUSPENDED
+                    | DEBUG_PROCESS
+                    | CREATE_UNICODE_ENVIRONMENT
+                    | EXTENDED_STARTUPINFO_PRESENT,
+                launch.environment.as_ptr().cast(),
+                launch
+                    .directory
+                    .as_ref()
+                    .map_or(std::ptr::null(), |value| value.as_ptr()),
+                &startup.StartupInfo,
+                &mut info,
+            )
+        } == 0
+        {
+            return Err(ToolSpawnFailure::io_before_spawn(io::Error::last_os_error()));
+        }
+        // PROCESS_INFORMATION handles are ours, independently of OS-owned debug
+        // event handles. Use the exact primary handle, never a thread snapshot.
+        let mut root_guard = SuspendedRootGuard {
+            handle: owned(info.hProcess).expect("successful creation provides a process handle"),
+            contained: false,
+        };
+        let primary_thread =
+            owned(info.hThread).expect("successful creation provides a primary thread handle");
+        let root_handle =
+            duplicate(root_guard.handle.as_raw_handle()).map_err(|error| ToolSpawnFailure {
+                error: PortcoveError::state(format!(
+                    "could not retain the created native root: {error}"
+                )),
+                quiesced: false,
+                io_kind: None,
+            })?;
+        let mut controller = Self {
+            job,
+            root: None,
+            primary_thread: Some(primary_thread),
+            members: BTreeMap::new(),
+            live_debug_members: BTreeMap::new(),
+            control,
+            job_assigned: false,
+            terminating: false,
+            events: 0,
+            #[cfg(test)]
+            options,
+            #[cfg(test)]
+            reserved: Vec::new(),
+        };
+        let root_identity = identity(root_handle.as_raw_handle());
+        if let Ok(root) = root_identity {
+            controller.root = Some(root);
+            controller.members.insert(
+                root,
+                Member {
+                    handle: root_handle,
+                    initial_thread: Some(info.dwThreadId),
+                    creation_seen: false,
+                    startup_handled: false,
+                    system_module: None,
+                },
+            );
+        } else {
+            // Retain the directly owned root even if metadata cannot be read.
+            let root = Identity {
+                pid: info.dwProcessId,
+                created: 0,
+            };
+            controller.root = Some(root);
+            controller.members.insert(
+                root,
+                Member {
+                    handle: root_handle,
+                    initial_thread: Some(info.dwThreadId),
+                    creation_seen: false,
+                    startup_handled: false,
+                    system_module: None,
+                },
+            );
+            controller.fail("root_identity", Some(unsafe { GetLastError() }));
+        }
+        let root = controller.root.expect("owned root retained");
+        if unsafe {
+            AssignProcessToJobObject(
+                controller.job.as_raw_handle(),
+                controller.members[&root].handle.as_raw_handle(),
+            )
+        } == 0
+        {
+            controller.fail("job_assignment", Some(unsafe { GetLastError() }));
+        } else {
+            controller.job_assigned = true;
+            root_guard.contained = true;
+        }
+        #[cfg(test)]
+        for _ in 0..options.reserved_slots {
+            match duplicate(controller.members[&root].handle.as_raw_handle()) {
+                Ok(handle) => controller.reserved.push(handle),
+                Err(error) => controller.fail(
+                    "capacity_fixture_capture",
+                    error.raw_os_error().map(|code| code as u32),
+                ),
+            }
+        }
+        if controller.control.stop.load(Ordering::Acquire) {
+            controller.fail("creation_cancelled", None);
+        }
+        if controller.control.lock().first_failure.is_none() {
+            let previous = unsafe {
+                ResumeThread(controller.primary_thread.as_ref().unwrap().as_raw_handle())
+            };
+            if previous != 1 {
+                controller.fail(
+                    "owned_primary_resume",
+                    (previous == u32::MAX).then(|| unsafe { GetLastError() }),
+                );
+            }
+        }
+        drop(stdout_writer);
+        drop(stderr_writer);
+        drop(stdin);
+        drop(attributes);
+        controller.publish_counts();
+        if controller.control.lock().first_failure.is_some() {
+            controller.run();
+            let group = ToolProcessGroup {
+                control: controller.control.clone(),
+                worker: None,
+            };
+            return Err(ToolSpawnFailure {
+                error: group.with_proof_details(PortcoveError::state(
+                    "native tool could not establish suspended creation custody",
+                )),
+                quiesced: false,
+                io_kind: None,
+            });
+        }
+        Ok((controller, stdout, stderr))
+    }
+
+    fn fail(&self, reason: &'static str, code: Option<u32>) {
+        self.control
+            .lock()
+            .first_failure
+            .get_or_insert((reason, code));
+        self.control.request_stop();
+    }
+
+    fn slots(&self) -> usize {
+        let count = self.members.len();
+        #[cfg(test)]
+        let count = count + self.reserved.len();
+        count
+    }
+
+    fn publish_counts(&self) {
+        self.control.lock().retained = self.slots();
+    }
+
+    fn retain(
+        &mut self,
+        raw: HANDLE,
+        pid: u32,
+        initial_thread: Option<u32>,
+    ) -> io::Result<Identity> {
+        let key = identity(raw)?;
+        if key.pid != pid {
+            return Err(io::Error::other(
+                "creation PID differs from retained identity",
+            ));
+        }
+        if self
+            .root
+            .is_some_and(|root| root.created != 0 && key.created < root.created)
+        {
+            return Err(io::Error::other("native member predates the owned root"));
+        }
+        let mut in_job = 0;
+        if unsafe { IsProcessInJob(raw, self.job.as_raw_handle(), &mut in_job) } == 0 || in_job == 0
+        {
+            return Err(io::Error::other("creation is outside the owned job"));
+        }
+        if let Some(member) = self.members.get_mut(&key) {
+            if initial_thread.is_some() {
+                if member.creation_seen {
+                    return Err(io::Error::other("duplicate process creation event"));
+                }
+                if member.initial_thread.is_some() && member.initial_thread != initial_thread {
+                    return Err(io::Error::other(
+                        "creation event differs from the owned primary thread",
+                    ));
+                }
+                member.creation_seen = true;
+                member.initial_thread = initial_thread;
+            }
+            return Ok(key);
+        }
+        if self.slots() >= MEMBER_LIMIT {
+            self.fail("retained_handle_capacity", None);
+            return Err(io::Error::other("native lifetime capacity exhausted"));
+        }
+        #[cfg(test)]
+        if self.options.fail_capture && initial_thread.is_some() {
+            self.fail("creation_capture", None);
+            return Err(io::Error::other("injected creation capture refusal"));
+        }
+        let handle = duplicate(raw)?;
+        self.members.insert(
+            key,
+            Member {
+                handle,
+                initial_thread,
+                creation_seen: initial_thread.is_some(),
+                startup_handled: false,
+                system_module: None,
+            },
+        );
+        self.publish_counts();
+        Ok(key)
+    }
+
+    fn observe_non_debug_members(&mut self) {
+        // Descendants that themselves become debuggers do not inherit our debug
+        // port. Retain any observed exact Job identity in the SAME store. Missing
+        // short lifetimes still fail the terminal total=retained equality.
+        let ids = match membership_snapshot(self.job.as_raw_handle()) {
+            Ok(ids) => ids,
+            Err((reason, code)) => {
+                self.fail(reason, code);
+                return;
+            }
+        };
+        for pid in ids {
+            // A retained live handle, rather than numeric PID, establishes reuse safety.
+            if self.members.iter().any(|(key, member)| {
+                key.pid == pid
+                    && unsafe { WaitForSingleObject(member.handle.as_raw_handle(), 0) }
+                        != WAIT_OBJECT_0
+            }) {
+                continue;
+            }
+            let raw = unsafe {
+                OpenProcess(
+                    PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
+                    0,
+                    pid,
+                )
+            };
+            let Ok(handle) = owned(raw) else {
+                // Snapshot races are not repaired by absence. Accounting will
+                // refuse any missing lifetime; direct creation events capture it.
+                continue;
+            };
+            if let Err(error) = self.retain(handle.as_raw_handle(), pid, None) {
+                self.fail(
+                    "member_capture",
+                    error.raw_os_error().map(|code| code as u32),
+                );
+                return;
+            }
+        }
+    }
+
+    fn event(&mut self, event: &DEBUG_EVENT) -> i32 {
+        self.events += 1;
+        if self.events > EVENT_LIMIT {
+            self.fail("event_capacity", None);
+        }
+        // SAFETY: the event code selects the initialized union member. Debug
+        // hProcess/hThread are OS-owned and auto-close after EXIT continuation;
+        // image hFile handles belong to the debugger and close here exactly once.
+        unsafe {
+            match event.dwDebugEventCode {
+                CREATE_PROCESS_DEBUG_EVENT => {
+                    let info = event.u.CreateProcessInfo;
+                    let image = owned(info.hFile).ok();
+                    match self.retain(info.hProcess, event.dwProcessId, Some(event.dwThreadId)) {
+                        Ok(key) => {
+                            self.live_debug_members.insert(event.dwProcessId, key);
+                            let (mut machine, mut native) = (0, 0);
+                            if IsWow64Process2(info.hProcess, &mut machine, &mut native) == 0
+                                || machine != IMAGE_FILE_MACHINE_UNKNOWN
+                                || native != IMAGE_FILE_MACHINE_AMD64
+                            {
+                                self.fail("startup_architecture_unqualified", None);
+                            }
+                        }
+                        Err(error) => self.fail(
+                            "creation_capture",
+                            error.raw_os_error().map(|code| code as u32),
+                        ),
+                    }
+                    drop(image);
+                }
+                LOAD_DLL_DEBUG_EVENT => {
+                    let info = event.u.LoadDll;
+                    if let Ok(file) = owned(info.hFile) {
+                        if let Some(key) = self.live_debug_members.get(&event.dwProcessId).copied()
+                        {
+                            if self.members[&key].startup_handled
+                                || self.members[&key].system_module.is_some()
+                            {
+                                return DBG_CONTINUE;
+                            }
+                            match system_module(File::from(file), info.lpBaseOfDll as usize) {
+                                Ok(Some(range)) => {
+                                    self.members.get_mut(&key).unwrap().system_module = Some(range)
+                                }
+                                Ok(None) => {}
+                                Err(error) => self.fail(
+                                    "startup_module_identity",
+                                    error.raw_os_error().map(|code| code as u32),
+                                ),
+                            }
+                        }
+                    }
+                }
+                EXCEPTION_DEBUG_EVENT => {
+                    let exception = event.u.Exception;
+                    if let Some(key) = self.live_debug_members.get(&event.dwProcessId).copied() {
+                        let member = self.members.get_mut(&key).unwrap();
+                        let is_startup = !member.startup_handled;
+                        if is_startup
+                            && exception.ExceptionRecord.ExceptionCode == STATUS_BREAKPOINT
+                            && exception.dwFirstChance == 1
+                            && member.initial_thread == Some(event.dwThreadId)
+                            && member.creation_seen
+                            && member.system_module.is_some_and(|(base, size)| {
+                                (exception.ExceptionRecord.ExceptionAddress as usize)
+                                    .checked_sub(base)
+                                    .is_some_and(|offset| offset < size)
+                            })
+                        {
+                            // Documented initial breakpoint precedes DLL initialization.
+                            // Restrict the one-shot to the actual created identity,
+                            // initial thread and architecture-bound system image.
+                            member.startup_handled = true;
+                            return DBG_CONTINUE;
+                        }
+                        if is_startup {
+                            self.fail("startup_exception_unclassified", None);
+                        }
+                    } else {
+                        self.fail("exception_identity", None);
+                    }
+                    return DBG_EXCEPTION_NOT_HANDLED;
+                }
+                EXIT_PROCESS_DEBUG_EVENT => {
+                    if let Some(key) = self.live_debug_members.remove(&event.dwProcessId) {
+                        if Some(key) == self.root {
+                            self.control.request_stop();
+                        }
+                    } else {
+                        self.fail("exit_identity", None);
+                    }
+                }
+                CREATE_THREAD_DEBUG_EVENT
+                | EXIT_THREAD_DEBUG_EVENT
+                | UNLOAD_DLL_DEBUG_EVENT
+                | OUTPUT_DEBUG_STRING_EVENT => {}
+                RIP_EVENT => self.fail("debug_rip", None),
+                _ => self.fail("unexpected_debug_event", None),
+            }
+        }
+        DBG_CONTINUE
+    }
+
+    fn terminate_if_requested(&mut self) {
+        if self.control.stop.load(Ordering::Acquire) && !self.terminating {
+            self.terminating = true;
+            if self.job_assigned {
+                if unsafe { TerminateJobObject(self.job.as_raw_handle(), 1) } == 0 {
+                    self.fail("job_termination", Some(unsafe { GetLastError() }));
+                }
+            } else if let Some(root) = self.root {
+                if unsafe { TerminateProcess(self.members[&root].handle.as_raw_handle(), 1) } == 0 {
+                    self.fail("root_termination", Some(unsafe { GetLastError() }));
+                }
+            }
+        }
+    }
+
+    fn run(&mut self) {
+        loop {
+            self.terminate_if_requested();
+            let mut event = DEBUG_EVENT::default();
+            if unsafe { WaitForDebugEventEx(&mut event, 1) } != 0 {
+                let continuation = self.event(&event);
+                self.terminate_if_requested();
+                if unsafe { ContinueDebugEvent(event.dwProcessId, event.dwThreadId, continuation) }
+                    == 0
+                {
+                    self.fail("event_continuation", Some(unsafe { GetLastError() }));
+                }
+            } else {
+                let error = unsafe { GetLastError() };
+                let root_creation_seen = self
+                    .root
+                    .is_some_and(|root| self.members[&root].creation_seen);
+                let no_debuggees = self.live_debug_members.is_empty()
+                    && root_creation_seen
+                    && matches!(error, ERROR_INVALID_HANDLE | ERROR_INVALID_PARAMETER);
+                if error != ERROR_SEM_TIMEOUT && !no_debuggees {
+                    self.fail("debug_wait", Some(error));
+                }
+            }
+            if self.job_assigned {
+                self.observe_non_debug_members();
+            }
+            if let Some(root) = self.root {
+                let handle = self.members[&root].handle.as_raw_handle();
+                let waited = unsafe { WaitForSingleObject(handle, 0) };
+                if waited == WAIT_OBJECT_0 {
+                    let mut code = 0;
+                    if unsafe { GetExitCodeProcess(handle, &mut code) } != 0 {
+                        self.control.lock().root_status = Some(ExitStatus::from_raw(code));
+                        self.control.request_stop();
+                    } else {
+                        self.fail("root_exit_code", Some(unsafe { GetLastError() }));
+                    }
+                } else if waited == WAIT_FAILED {
+                    self.fail("root_wait", Some(unsafe { GetLastError() }));
+                }
+            }
+            let Some(deadline) = self.control.lock().deadline else {
+                continue;
+            };
+            let mut accounting = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+            if unsafe {
+                QueryInformationJobObject(
+                    self.job.as_raw_handle(),
+                    JobObjectBasicAccountingInformation,
+                    (&raw mut accounting).cast(),
+                    std::mem::size_of_val(&accounting) as u32,
+                    std::ptr::null_mut(),
+                )
+            } == 0
+            {
+                self.fail("accounting_query", Some(unsafe { GetLastError() }));
+            } else {
+                self.control.lock().accounting =
+                    Some((accounting.ActiveProcesses, accounting.TotalProcesses));
+            }
+            let mut all_signaled = true;
+            for member in self.members.values() {
+                let waited = unsafe { WaitForSingleObject(member.handle.as_raw_handle(), 0) };
+                if waited != WAIT_OBJECT_0 {
+                    all_signaled = false;
+                    self.control.lock().wait_result = Some(waited);
+                    if waited == WAIT_FAILED {
+                        self.fail("member_wait", Some(unsafe { GetLastError() }));
+                    }
+                }
+            }
+            if Instant::now() >= deadline {
+                self.fail("closure_deadline", None);
+                let mut proof = self.control.lock();
+                proof.deadline_exhausted = true;
+                proof.done = true;
+                proof.quiesced = false;
+                self.control.changed.notify_all();
+                return;
+            }
+            if all_signaled
+                && self.live_debug_members.is_empty()
+                && self
+                    .control
+                    .lock()
+                    .accounting
+                    .is_some_and(|(active, _)| active == 0)
+            {
+                let complete = self
+                    .control
+                    .lock()
+                    .accounting
+                    .is_some_and(|(_, total)| total as usize == self.slots());
+                if !complete {
+                    self.fail("lifetime_count_gap", None);
+                }
+                let root_seen = self
+                    .root
+                    .is_some_and(|key| self.members[&key].creation_seen);
+                if !root_seen {
+                    self.fail("root_creation_event_missing", None);
+                }
+                let mut proof = self.control.lock();
+                proof.finish(complete && root_seen, Instant::now());
+                self.control.changed.notify_all();
+                return;
+            }
+        }
+    }
+}
+
+fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
+    let mut buffer = [0_usize; MEMBER_LIMIT + 1];
+    if unsafe {
+        QueryInformationJobObject(
+            job,
+            JobObjectBasicProcessIdList,
+            buffer.as_mut_ptr().cast(),
+            std::mem::size_of_val(&buffer) as u32,
+            std::ptr::null_mut(),
+        )
+    } == 0
+    {
+        return Err(("membership_query", Some(unsafe { GetLastError() })));
+    }
+    let list = unsafe { &*buffer.as_ptr().cast::<JOBOBJECT_BASIC_PROCESS_ID_LIST>() };
+    if list.NumberOfAssignedProcesses != list.NumberOfProcessIdsInList
+        || list.NumberOfProcessIdsInList as usize > MEMBER_LIMIT
+    {
+        return Err(("membership_capacity", None));
+    }
+    let ids = unsafe {
+        std::slice::from_raw_parts(
+            list.ProcessIdList.as_ptr(),
+            list.NumberOfProcessIdsInList as usize,
+        )
+    };
+    ids.iter()
+        .map(|&pid| u32::try_from(pid).map_err(|_| ("member_id_range", None)))
+        .collect()
+}
+
+fn system_directory() -> io::Result<PathBuf> {
+    let mut buffer = [0_u16; 32768];
+    let count = unsafe { GetSystemDirectoryW(buffer.as_mut_ptr(), buffer.len() as u32) } as usize;
+    if count == 0 || count >= buffer.len() {
+        return Err(io::Error::last_os_error());
+    }
+    use std::os::windows::ffi::OsStringExt;
+    Ok(PathBuf::from(OsString::from_wide(&buffer[..count])))
+}
+
+fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize)>> {
+    let mut path = [0_u16; 32768];
+    let count = unsafe {
+        GetFinalPathNameByHandleW(
+            file.as_raw_handle(),
+            path.as_mut_ptr(),
+            path.len() as u32,
+            0,
+        )
+    } as usize;
+    if count == 0 || count >= path.len() {
+        return Err(io::Error::last_os_error());
+    }
+    use std::os::windows::ffi::OsStringExt;
+    let actual = OsString::from_wide(&path[..count]);
+    let expected = std::fs::canonicalize(system_directory()?.join("ntdll.dll"))?;
+    if !crate::process::environment_names_equal(&actual, expected.as_os_str()) {
+        return Ok(None);
+    }
+    // Bounded reads of the actual loaded system image, not local ASLR guesses,
+    // remote application memory or undocumented loader-function offsets.
+    let mut dos = [0_u8; 64];
+    file.seek(SeekFrom::Start(0))?;
+    file.read_exact(&mut dos)?;
+    if &dos[..2] != b"MZ" {
+        return Err(io::Error::other("system module DOS identity is invalid"));
+    }
+    let offset = u32::from_le_bytes(dos[60..64].try_into().unwrap());
+    if offset > 65536 {
+        return Err(io::Error::other(
+            "system module PE header exceeds its bound",
+        ));
+    }
+    file.seek(SeekFrom::Start(u64::from(offset)))?;
+    let mut pe = [0_u8; 84];
+    file.read_exact(&mut pe)?;
+    if &pe[..4] != b"PE\0\0"
+        || u16::from_le_bytes(pe[4..6].try_into().unwrap()) != IMAGE_FILE_MACHINE_AMD64
+        || u16::from_le_bytes(pe[24..26].try_into().unwrap()) != 0x20b
+    {
+        return Err(io::Error::other(
+            "system module architecture is unqualified",
+        ));
+    }
+    let size = u32::from_le_bytes(pe[80..84].try_into().unwrap()) as usize;
+    if base == 0 || !(4096..=128 * 1024 * 1024).contains(&size) || base.checked_add(size).is_none()
+    {
+        return Err(io::Error::other("system module image range is invalid"));
+    }
+    Ok(Some((base, size)))
+}
+
+#[cfg(test)]
+mod proof_tests {
+    use super::*;
+
+    #[test]
+    fn invalid_job_observation_never_grants_cleanup_proof() {
+        let failure =
+            membership_snapshot(windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE).unwrap_err();
+        assert_eq!(failure.0, "membership_query");
+        assert!(failure.1.is_some());
+        let mut proof = Proof {
+            first_failure: Some(failure),
+            ..Default::default()
+        };
+        proof.finish(true, Instant::now());
+        assert!(!proof.quiesced);
+        assert!(proof.accounting.is_none());
+    }
+
+    #[test]
+    fn late_publication_cannot_replace_an_expired_observation() {
+        let deadline = Instant::now();
+        let mut proof = Proof {
+            deadline: Some(deadline),
+            ..Default::default()
+        };
+        proof.latch_deadline(deadline);
+        assert!(!proof.done);
+        assert!(proof.deadline_exhausted);
+        proof.finish(true, deadline + Duration::from_nanos(1));
+        assert!(proof.done);
+        assert!(!proof.quiesced);
+        assert_eq!(proof.first_failure, Some(("closure_deadline", None)));
+    }
+
+    #[test]
+    fn final_publication_checks_deadline_without_an_observer() {
+        let deadline = Instant::now();
+        let mut proof = Proof {
+            deadline: Some(deadline),
+            first_failure: Some(("earlier_failure", Some(5))),
+            ..Default::default()
+        };
+        proof.finish(true, deadline);
+        assert!(proof.deadline_exhausted);
+        assert!(!proof.quiesced);
+        assert_eq!(proof.first_failure, Some(("earlier_failure", Some(5))));
+    }
+
+    #[test]
+    fn completed_proof_does_not_expire_retroactively() {
+        let deadline = Instant::now() + CLOSURE_BOUND;
+        let mut proof = Proof {
+            deadline: Some(deadline),
+            ..Default::default()
+        };
+        proof.finish(true, deadline - Duration::from_nanos(1));
+        proof.latch_deadline(deadline + Duration::from_secs(1));
+        assert!(proof.done);
+        assert!(proof.quiesced);
+        assert!(!proof.deadline_exhausted);
+    }
+}

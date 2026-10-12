@@ -2223,6 +2223,21 @@ overlays cannot add credential-shaped names; Windows replacement and removal
 compare names using case-insensitive ordinal equality. Raw argument syntax is
 available only to the existing Windows junction unit-test fixtures.
 
+On Windows, supervised tools use a private controller whose single owning thread
+creates the suspended root, assigns its non-breakaway kill-on-close Job and
+resumes the exact creation-returned primary thread. It captures descendant
+creation handles before continuing debug events, independently of caller
+checkpoints. One PID-and-creation-time store combines those handles with bounded
+Job observations for descendants that start their own debugger. Cleanup proof
+requires positive retained-handle waits, zero active members and equality between
+the Job's lifetime count and retained identities, within one two-second closure
+deadline. Missing coverage, API failure or expiry preserves failure. Startup
+exception classification is limited to the admitted native x64 system-module,
+initial-thread and one-shot state; application exceptions are forwarded. Fixed
+host-tool probes use this same controller and require cleanup proof before
+publishing selection. Source and fixture checks do not establish native or
+upstream acceptance; those remain separate qualification gates.
+
 `portcove-core::ChildProcessPolicy` is the single construction path for every production child process. Callers select a typed class for games, upstream setup, host tools such as `chdman` and DolphinTool, managed builders, or operating-system integration. All classes begin from the same reviewed session allowlist rather than inheriting the complete Portcove environment. The allowlist preserves cross-platform process discovery, profile/home, temporary-directory, locale, desktop/display, audio/graphics, Steam/Proton, Wine, and dynamic-runtime variables needed by native ports. GitHub variables and other credential-shaped token, secret, password, API-key, cloud-key, SSH-agent, and askpass variables are removed centrally. Catalog/adapter overlays are checked by the same policy and cannot reintroduce a credential-shaped variable.
 
 Manual host-tool selection crosses that policy only through the core registry's fixed probe. Core rejects nonregular files, symlink paths, scripts, and executables that do not satisfy the host platform; fingerprints the candidate before spawn; rechecks it immediately before and after the probe; supplies only registry-owned arguments; and bounds executable size, combined output, and elapsed time. Timeout, cancellation, and excessive output terminate the probe process tree. A path and SHA-256 fingerprint are published atomically to host preferences only after the expected tool identity and required command markers appear, so failure preserves the previous valid selection and a later byte change becomes `misconfigured`. This fingerprint binds the saved choice to the probed bytes; it does not establish publisher authenticity or prove arbitrary software safe.

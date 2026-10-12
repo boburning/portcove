@@ -83,13 +83,14 @@ pub struct ChildProcessPolicy;
 /// Complete private launch input for supervised native tools. Unlike `Command`,
 /// this has no implicit ambient environment or hidden platform launch options.
 /// The Windows controller can consume it without guessing Command's state.
+#[derive(Clone)]
 pub(crate) struct NativeToolLaunchSpec {
     pub(crate) program: OsString,
     pub(crate) arguments: Vec<OsString>,
     pub(crate) environment: BTreeMap<OsString, OsString>,
     pub(crate) working_directory: Option<PathBuf>,
     #[cfg(all(windows, test))]
-    raw_arguments: Vec<OsString>,
+    pub(crate) raw_arguments: Vec<OsString>,
 }
 
 impl std::fmt::Debug for NativeToolLaunchSpec {
@@ -187,7 +188,7 @@ impl NativeToolLaunchSpec {
     }
 }
 
-fn environment_names_equal(left: &OsStr, right: &OsStr) -> bool {
+pub(crate) fn environment_names_equal(left: &OsStr, right: &OsStr) -> bool {
     #[cfg(windows)]
     {
         use std::os::windows::ffi::OsStrExt;

@@ -4,7 +4,6 @@ use std::{
     fs,
     io::Read,
     path::{Path, PathBuf},
-    process::Stdio,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
@@ -366,30 +365,13 @@ fn run_fixed_probe(
             message: error.message,
         })?;
     specification.args(&definition.probe.arguments);
-    let mut command = specification.command().map_err(|error| ProbeFailure {
-        state: HostToolProbeState::Blocked,
-        message: error.message,
-    })?;
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    crate::tool_process::ToolProcessGroup::prepare(&mut command);
-    let mut child = command.spawn().map_err(|error| ProbeFailure {
-        state: spawn_error_state(error.kind()),
-        message: format!("could not start the fixed probe: {error}"),
-    })?;
-    let process_group = match crate::tool_process::ToolProcessGroup::attach(&child) {
-        Ok(process_group) => process_group,
-        Err(failure) => {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(ProbeFailure {
-                state: HostToolProbeState::Blocked,
-                message: failure.message,
-            });
-        }
-    };
+    let (mut child, process_group) =
+        crate::tool_process::spawn_tool(&specification).map_err(|failure| ProbeFailure {
+            state: failure
+                .io_kind
+                .map_or(HostToolProbeState::Blocked, spawn_error_state),
+            message: failure.error.message,
+        })?;
     let total = Arc::new(AtomicU64::new(0));
     let (exceeded_tx, exceeded_rx) = mpsc::channel();
     let stdout = child.stdout.take().expect("piped probe stdout");
@@ -405,8 +387,15 @@ fn run_fixed_probe(
         &exceeded_rx,
         cancelled,
     )?;
-    let stdout = stdout_reader.join().ok().and_then(std::result::Result::ok);
-    let stderr = stderr_reader.join().ok().and_then(std::result::Result::ok);
+    let drain_deadline = Instant::now() + Duration::from_secs(2);
+    let stdout = stdout_reader
+        .recv_timeout(drain_deadline.saturating_duration_since(Instant::now()))
+        .ok()
+        .and_then(std::result::Result::ok);
+    let stderr = stderr_reader
+        .recv_timeout(drain_deadline.saturating_duration_since(Instant::now()))
+        .ok()
+        .and_then(std::result::Result::ok);
     if let Some(state) = interrupted {
         return Err(ProbeFailure {
             state,
@@ -439,7 +428,7 @@ fn run_fixed_probe(
 }
 
 fn wait_for_probe(
-    child: &mut std::process::Child,
+    child: &mut crate::tool_process::ToolChild,
     process_group: &crate::tool_process::ToolProcessGroup,
     deadline: Instant,
     exceeded: &mpsc::Receiver<()>,
@@ -461,7 +450,13 @@ fn wait_for_probe(
             return Ok((None, Some(state)));
         }
         match child.try_wait() {
-            Ok(Some(status)) => return Ok((Some(status), None)),
+            Ok(Some(status)) => {
+                #[cfg(windows)]
+                if !process_group.proves_tree_quiescence() {
+                    return Err(ProbeFailure { state: HostToolProbeState::Blocked, message: "could not verify the fixed probe process tree; keep the previous selection".into() });
+                }
+                return Ok((Some(status), None));
+            }
             Ok(None) => thread::sleep(Duration::from_millis(10)),
             Err(error) => {
                 terminate_probe(child, process_group);
@@ -665,28 +660,33 @@ fn spawn_output_reader(
     total: Arc<AtomicU64>,
     limit: u64,
     exceeded: mpsc::Sender<()>,
-) -> thread::JoinHandle<std::io::Result<Vec<u8>>> {
+) -> mpsc::Receiver<std::io::Result<Vec<u8>>> {
+    let (sender, receiver) = mpsc::sync_channel(1);
     thread::spawn(move || {
-        let mut captured = Vec::new();
-        let mut buffer = [0_u8; 8 * 1024];
-        loop {
-            let count = reader.read(&mut buffer)?;
-            if count == 0 {
-                break;
+        let result = (|| {
+            let mut captured = Vec::new();
+            let mut buffer = [0_u8; 8 * 1024];
+            loop {
+                let count = reader.read(&mut buffer)?;
+                if count == 0 {
+                    break;
+                }
+                let previous = total.fetch_add(count as u64, Ordering::Relaxed);
+                if previous.saturating_add(count as u64) > limit {
+                    let _ = exceeded.send(());
+                    break;
+                }
+                captured.extend_from_slice(&buffer[..count]);
             }
-            let previous = total.fetch_add(count as u64, Ordering::Relaxed);
-            if previous.saturating_add(count as u64) > limit {
-                let _ = exceeded.send(());
-                break;
-            }
-            captured.extend_from_slice(&buffer[..count]);
-        }
-        Ok(captured)
-    })
+            Ok(captured)
+        })();
+        let _ = sender.send(result);
+    });
+    receiver
 }
 
 fn terminate_probe(
-    child: &mut std::process::Child,
+    child: &mut crate::tool_process::ToolChild,
     process_group: &crate::tool_process::ToolProcessGroup,
 ) {
     let _ = process_group.terminate_and_wait(child);

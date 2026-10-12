@@ -77,10 +77,14 @@ fn nested_supervision_fixture_child() {
         },
     );
     let details = result.as_ref().err().map(copy_proof_details);
+    let proof = result
+        .as_ref()
+        .ok()
+        .map(|output| &output.process_tree_proof);
     fs::write(
         working.join("inner-result.pending"),
         serde_json::to_vec(&serde_json::json!({
-            "quiesced": inner_quiesced, "error": details,
+            "quiesced": inner_quiesced, "error": details, "proof": proof,
         }))
         .unwrap(),
     )
@@ -91,13 +95,13 @@ fn nested_supervision_fixture_child() {
     )
     .unwrap();
     wait_nested_file(&working.join("allow-worker-exit"));
-    assert_eq!(inner_quiesced, !short);
-    assert_eq!(result.is_ok(), !short);
+    assert!(inner_quiesced);
+    assert!(result.unwrap().status.success());
 }
 
 #[cfg(windows)]
 #[test]
-fn nested_windows_supervisors_distinguish_held_and_unobserved_child_lifetimes() {
+fn nested_windows_supervisors_report_exact_child_lifetime_coverage() {
     let native = tempfile::tempdir().unwrap();
     let program = crate::test_fixture::build_probe(native.path());
     for short in [false, true] {
@@ -130,8 +134,9 @@ fn nested_windows_supervisors_distinguish_held_and_unobserved_child_lifetimes() 
                 if working.path().join("inner-observing").is_file() {
                     observations.set(observations.get() + 1);
                     if observations.get() >= 2 {
-                        // Both jobs have observed the held members. In the short case,
-                        // freeze both observers while the one new child finishes.
+                        // Block this caller while the independent inner controller
+                        // observes its child. The outer job has no debug-port
+                        // inheritance for the inner debugger's descendants.
                         fs::write(working.path().join("allow-inner-release"), b"release").unwrap();
                         wait_nested_file(&working.path().join("inner-result.json"));
                         fs::write(
@@ -154,27 +159,37 @@ fn nested_windows_supervisors_distinguish_held_and_unobserved_child_lifetimes() 
         let inner: serde_json::Value =
             serde_json::from_slice(&fs::read(working.path().join("inner-result.json")).unwrap())
                 .unwrap();
-        assert_eq!(outer_quiesced, !short);
-        assert_eq!(inner["quiesced"], !short);
-        if short {
+        assert_eq!(inner["quiesced"], true);
+        assert!(inner["error"].is_null());
+        assert_eq!(inner["proof"]["process_tree_total"], "2");
+        assert_eq!(inner["proof"]["process_tree_retained_members"], "2");
+        assert_eq!(inner["proof"]["process_tree_active"], "0");
+        if short && !outer_quiesced {
             let error = result
                 .err()
-                .expect("both observers missed the short lifetime");
+                .expect("a missing nested lifetime must refuse success");
             assert_eq!(
                 error.details["process_tree_first_failure"],
                 "lifetime_count_gap"
             );
             assert_eq!(error.details["process_tree_total"], "3");
             assert_eq!(error.details["process_tree_retained_members"], "2");
-            assert_eq!(
-                inner["error"]["process_tree_first_failure"],
-                "lifetime_count_gap"
-            );
-            assert_eq!(inner["error"]["process_tree_total"], "2");
-            assert_eq!(inner["error"]["process_tree_retained_members"], "1");
+            assert_eq!(error.details["process_tree_active"], "0");
         } else {
-            assert!(result.unwrap().status.success());
-            assert!(inner["error"].is_null());
+            assert!(outer_quiesced);
+            let output = result.unwrap();
+            assert!(output.status.success());
+            assert_eq!(output.process_tree_proof["process_tree_total"], "3");
+            assert_eq!(
+                output.process_tree_proof["process_tree_retained_members"],
+                "3"
+            );
+            assert_eq!(output.process_tree_proof["process_tree_active"], "0");
+            assert!(
+                !output
+                    .process_tree_proof
+                    .contains_key("process_tree_first_failure")
+            );
         }
         assert_eq!(
             fs::read(working.path().join("private-sentinel")).unwrap(),
@@ -602,7 +617,7 @@ fn windows_quiescence_callback_observes_descendant_handle_exit() {
 
 #[cfg(windows)]
 #[test]
-fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
+fn windows_creation_capture_continues_while_the_caller_checkpoint_is_blocked() {
     let native = tempfile::tempdir().unwrap();
     let program = crate::test_fixture::build_probe(native.path());
     let working = tempfile::tempdir().unwrap();
@@ -615,9 +630,8 @@ fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
         &Default::default(),
         &|| {
             if working.path().join("leader-ready").is_file() {
-                // The supervisor took its membership snapshot before this
-                // checkpoint. Complete one real child while that snapshot is
-                // paused, so its lifetime cannot be covered by a later handle.
+                // Complete a real child while this caller is blocked. The
+                // independent controller must capture its creation beforehand.
                 fs::write(working.path().join("spawn-child"), b"spawn").unwrap();
                 let deadline = Instant::now() + Duration::from_secs(5);
                 while !working.path().join("child-finished").is_file() {
@@ -635,26 +649,20 @@ fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
             }),
         },
     );
-    let error = result
-        .err()
-        .expect("unobserved lifetime must hold preparation");
-    assert_eq!(error.code, crate::ErrorCode::State);
-    assert!(
-        error
-            .message
-            .contains("process-tree exit could not be verified")
-    );
-    assert!(
-        !confirmed,
-        "successful leader exit cannot grant cleanup authority"
-    );
+    let output = result.expect("creation events cover the blocked caller's short child");
+    assert!(output.status.success());
+    assert!(confirmed);
+    assert_eq!(output.process_tree_proof["process_tree_active"], "0");
     assert_eq!(
-        error.details["process_tree_first_failure"],
-        "lifetime_count_gap"
+        output.process_tree_proof["process_tree_retained_members"],
+        "2"
     );
-    assert_eq!(error.details["process_tree_active"], "0");
-    assert_eq!(error.details["process_tree_retained_members"], "1");
-    assert_eq!(error.details["process_tree_total"], "2");
+    assert_eq!(output.process_tree_proof["process_tree_total"], "2");
+    assert!(
+        !output
+            .process_tree_proof
+            .contains_key("process_tree_first_failure")
+    );
     assert!(working.path().join("child-finished").is_file());
 }
 
@@ -664,73 +672,55 @@ fn windows_retained_handle_capacity_refuses_one_more_member_without_cleanup_proo
     use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
     use windows_sys::Win32::{
         Foundation::WAIT_OBJECT_0,
-        System::Threading::{
-            OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
-            WaitForSingleObject,
-        },
+        System::Threading::{OpenProcess, PROCESS_SYNCHRONIZE, WaitForSingleObject},
     };
 
     let native = tempfile::tempdir().unwrap();
     let program = crate::test_fixture::build_probe(native.path());
     for occupied in [511, 512] {
         let working = tempfile::tempdir().unwrap();
-        let mut command =
-            ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, &program).unwrap();
-        command
-            .args([
-                "--setup-tree",
-                &working.path().join("orphan-output").display().to_string(),
-                "observed-wait",
-            ])
-            .current_dir(working.path())
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        ToolProcessGroup::prepare(&mut command);
-        let mut child = command.spawn().unwrap();
-        let group = ToolProcessGroup::attach(&child).unwrap();
-        wait_nested_file(&working.path().join("descendant-pid"));
-        let descendant_pid: u32 = fs::read_to_string(working.path().join("descendant-pid"))
-            .unwrap()
-            .parse()
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args([
+            "--setup-tree",
+            &working.path().join("orphan-output").display().to_string(),
+            "observed-wait",
+        ])
+        .current_dir(working.path());
+        // Reservations consume real handle storage, but never assert distinct
+        // lifetimes. Final accounting must reject their synthetic coverage.
+        let (mut child, group) = windows::spawn_with_occupied_slots(&spec, occupied)
+            .map_err(|failure| failure.error)
             .unwrap();
-        let descendant = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, descendant_pid) };
-        assert!(!descendant.is_null());
-        let descendant = unsafe { OwnedHandle::from_raw_handle(descendant) };
-
-        // Consume actual handle/storage capacity without starting 512 processes.
-        // These synthetic keys deliberately do NOT claim distinct lifetimes:
-        // every added handle names the still-live leader. Both cases must refuse
-        // final coverage, even when there is room to retain the real descendant.
-        let mut members = group.members.borrow_mut();
-        for key in (0..u32::MAX).rev() {
-            if members.len() == occupied {
-                break;
+        let descendant = if occupied == 511 {
+            wait_nested_file(&working.path().join("descendant-pid"));
+            let pid = fs::read_to_string(working.path().join("descendant-pid"))
+                .unwrap()
+                .parse()
+                .unwrap();
+            let raw = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, pid) };
+            assert!(!raw.is_null());
+            Some(unsafe { OwnedHandle::from_raw_handle(raw) })
+        } else {
+            // The creation event is refused before continuation. The parent
+            // therefore cannot publish descendant-pid; await automatic closure.
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while child.try_wait().unwrap().is_none() {
+                assert!(
+                    Instant::now() < deadline,
+                    "capacity refusal did not stop root"
+                );
+                std::thread::sleep(Duration::from_millis(10));
             }
-            if key == child.id() || key == descendant_pid {
-                continue;
-            }
-            let handle = unsafe {
-                OpenProcess(
-                    PROCESS_SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
-                    0,
-                    child.id(),
-                )
-            };
-            assert!(!handle.is_null());
-            members.insert(key, unsafe { OwnedHandle::from_raw_handle(handle) });
-        }
-        drop(members);
-        group.observe_members();
-        assert_eq!(group.members.borrow().len(), 512);
-        assert_eq!(group.complete.get(), occupied == 511);
-        assert_eq!(
-            group.members.borrow().contains_key(&descendant_pid),
-            occupied == 511
-        );
+            None
+        };
+        group.terminate_and_wait(&mut child).unwrap();
         assert!(!group.proves_tree_quiescence());
         let error = group.with_proof_details(PortcoveError::state("capacity fixture held"));
         assert_eq!(error.details["process_tree_retained_members"], "512");
+        assert_eq!(error.details["process_tree_active"], "0");
+        assert_eq!(error.details["process_tree_total"], "2");
         assert_eq!(
             error.details["process_tree_first_failure"],
             if occupied == 512 {
@@ -739,38 +729,16 @@ fn windows_retained_handle_capacity_refuses_one_more_member_without_cleanup_proo
                 "lifetime_count_gap"
             }
         );
-        assert_eq!(
-            unsafe { WaitForSingleObject(descendant.as_raw_handle(), 1000) },
-            WAIT_OBJECT_0,
-            "held acceptance still positively stops the owned descendant"
-        );
+        if let Some(descendant) = descendant {
+            assert_eq!(
+                unsafe { WaitForSingleObject(descendant.as_raw_handle(), 1000) },
+                WAIT_OBJECT_0,
+                "captured descendant is positively stopped"
+            );
+        }
         child.wait().unwrap();
         assert!(!working.path().join("orphan-output").exists());
     }
-}
-
-#[cfg(windows)]
-#[test]
-fn windows_quiescence_refuses_invalid_job_observation() {
-    let group = ToolProcessGroup {
-        // NULL queries the caller's current job; use an actually invalid handle.
-        job: windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE,
-        members: Default::default(),
-        complete: std::cell::Cell::new(true),
-        termination_deadline: Default::default(),
-        proof_failure: Default::default(),
-        accounting: Default::default(),
-        wait_result: Default::default(),
-    };
-    group.observe_members();
-    assert!(!group.proves_tree_quiescence());
-    let error = group.with_proof_details(PortcoveError::state("retained"));
-    assert_eq!(
-        error.details["process_tree_first_failure"],
-        "membership_query"
-    );
-    assert!(error.details.contains_key("process_tree_api_error"));
-    assert!(!error.details.contains_key("process_tree_active"));
 }
 
 #[cfg(unix)]
