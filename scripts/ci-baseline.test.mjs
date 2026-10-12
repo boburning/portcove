@@ -58,6 +58,18 @@ test("hosted contracts retain relevant script/docs/schema tests without stateful
     assert.ok(tests.includes(file));
   assert.ok(!tests.includes("scripts/windows-qualification-session.integration.test.mjs"));
 });
+
+test("release run evidence contracts are selected for implementation and test changes", () => {
+  for (const changed of [
+    "scripts/release-run-evidence.mjs",
+    "scripts/release-run-evidence.test.mjs",
+  ]) {
+    const plan = make([changed]);
+    assert.ok(plan.areas.includes("release-security"));
+    assert.ok(plan.groups.includes("catalog"));
+    assert.ok(baselineContractTests(plan).includes("scripts/release-run-evidence.test.mjs"));
+  }
+});
 test("shared and unknown frontend inputs use full units; sources use the related graph", () => {
   const related = baselineFrontendPlan(make(["apps/desktop/src/App.tsx"]));
   assert.ok(

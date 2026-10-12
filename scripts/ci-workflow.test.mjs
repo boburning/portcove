@@ -386,6 +386,13 @@ test("application release records run after the maintained SemVer dependency is 
   assert.ok(!catalog.includes("scripts/reconstruct-application-update-records.test.mjs"));
 });
 
+test("full repository contracts run the bounded release evidence collector controls", () => {
+  assert.match(
+    catalog,
+    /- name: Test bounded release run evidence\r?\n +run: node --test --test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mjs scripts\/release-run-evidence\.test\.mjs/u,
+  );
+});
+
 test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(
@@ -3094,10 +3101,34 @@ test("export refuses links and oversized evidence instead of silently dropping r
   test("fixed request, duration and aggregate byte limits leave unattempted identities visible", async () => {
     const input = catalog(...Array.from({ length: 130 }, (_, i) => port(`port-${i}`)));
     const report = await collect(input);
-    assert.equal(report.consumed.requests, 128);
+    assert.equal(report.consumed.requests, 130);
     assert.equal(report.observations.length, 130);
-    assert.equal(report.observations[129].reason, "budget");
-    assert.equal(report.observations[129].attempted, false);
+    assert.equal(report.observations[129].reason, null);
+    assert.equal(report.observations[129].attempted, true);
+    assert.equal(report.request_plan.status, "admitted");
+    assert.equal(report.limits.requests, 130);
+    const atCeiling = await collect(
+      catalog(...Array.from({ length: 256 }, (_, i) => port(`ceiling-${i}`))),
+    );
+    assert.equal(atCeiling.consumed.requests, 256);
+    assert.equal(atCeiling.request_plan.status, "admitted");
+    let overflowCalls = 0;
+    const overflow = await collect(
+      catalog(...Array.from({ length: 257 }, (_, i) => port(`overflow-${i}`))),
+      async () => {
+        overflowCalls += 1;
+        assert.fail("overflow must refuse before network");
+      },
+    );
+    assert.equal(overflow.request_plan.status, "overflow");
+    assert.equal(overflow.consumed.requests, 0);
+    assert.equal(overflowCalls, 0);
+    assert.equal(overflow.observations.length, 257);
+    assert.ok(
+      overflow.observations.every(
+        (record) => record.reason === "budget" && record.attempted === false,
+      ),
+    );
     let elapsed = 0;
     const timeLimited = await collect(
       input,

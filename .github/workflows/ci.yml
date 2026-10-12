@@ -885,6 +885,8 @@ jobs:
           node scripts/qualification-coverage.mjs
           node scripts/repository-settings.mjs --validate
           node scripts/roadmap.mjs check
+      - name: Test bounded release run evidence
+        run: node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/release-run-evidence.test.mjs
       - name: Validate local RetComM mappings
         run: node scripts/check-retcomm-upstreams.mjs --offline
 
