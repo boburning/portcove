@@ -266,7 +266,10 @@ impl PortcoveService {
                 if operation.kind != LifecycleOperationKind::Install {
                     continue;
                 }
-                if operation.phase != LifecyclePhase::Preparing {
+                if !matches!(
+                    operation.phase,
+                    LifecyclePhase::Preparing | LifecyclePhase::StagedPreparing
+                ) {
                     continue;
                 }
                 let _port_guard = match self
@@ -281,6 +284,14 @@ impl PortcoveService {
                 else {
                     continue;
                 };
+                if current.phase == LifecyclePhase::StagedPreparing {
+                    self.library().finish_activity_once(
+                        &id,
+                        if state.requested { ActivityStatus::Cancelled } else { ActivityStatus::Failed },
+                        "Staged PS1 preparation was interrupted; private data and closure evidence are retained without a resume or cleanup grant",
+                    )?;
+                    continue;
+                }
                 match discard_private_install(self.library(), &current) {
                     Ok(()) => {}
                     Err(error)
@@ -552,6 +563,92 @@ mod managed_builder_tests {
             assert!(!error.details.contains_key("cleanup_hold"));
             assert!(journal.paths.staging.as_ref().unwrap().is_dir());
         }
+    }
+
+    #[test]
+    fn staged_preparing_interruption_retains_data_and_exact_closure_without_witness() {
+        for quiesced in [None, Some(false), Some(true)] {
+            let (_temporary, service, operation, journal) = fixture(
+                ActivityOperation::Install,
+                LifecyclePhase::StagedPreparing,
+                quiesced,
+            );
+            // Model a genuinely interrupted worker, not a still-owned activity.
+            drop(operation);
+            PortcoveService::new(service.library().clone()).unwrap();
+            let retained = OperationStore::new(service.library().clone())
+                .get(&journal.id)
+                .unwrap()
+                .unwrap();
+            assert_eq!(retained.phase, LifecyclePhase::StagedPreparing);
+            assert_eq!(retained.preparation_process_quiesced, quiesced);
+            assert!(retained.last_error.is_none());
+            assert_eq!(
+                fs::read(
+                    journal
+                        .paths
+                        .staging
+                        .as_ref()
+                        .unwrap()
+                        .join("owned-private")
+                )
+                .unwrap(),
+                b"retained builder input"
+            );
+            assert!(discard_private_install(service.library(), &retained).is_err());
+            let status: String = service
+                .library()
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT status FROM activity_history WHERE id=?1",
+                    [&journal.id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(status, "failed");
+        }
+    }
+
+    #[test]
+    fn staged_preparing_cancelled_interruption_preserves_failed_evidence() {
+        let (_temporary, service, operation, mut journal) = fixture(
+            ActivityOperation::Install,
+            LifecyclePhase::StagedPreparing,
+            Some(true),
+        );
+        journal.last_error = Some("retained original failure".into());
+        OperationStore::new(service.library().clone())
+            .put(&mut journal)
+            .unwrap();
+        service.request_cancellation(&journal.id).unwrap();
+        drop(operation);
+        PortcoveService::new(service.library().clone()).unwrap();
+        let retained = OperationStore::new(service.library().clone())
+            .get(&journal.id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.last_error, journal.last_error);
+        assert_eq!(retained.preparation_process_quiesced, Some(true));
+        assert!(
+            journal
+                .paths
+                .staging
+                .unwrap()
+                .join("owned-private")
+                .is_file()
+        );
+        let status: String = service
+            .library()
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT status FROM activity_history WHERE id=?1",
+                [&journal.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(status, "cancelled");
     }
 
     #[test]

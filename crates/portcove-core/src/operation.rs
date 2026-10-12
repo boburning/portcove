@@ -89,6 +89,9 @@ impl FromStr for LifecycleOperationKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LifecyclePhase {
     Preparing,
+    /// Private staged PSX intent, persisted before generation starts. Ordinary
+    /// publication recovery and install cancellation cannot consume its data.
+    StagedPreparing,
     Prepared,
     PayloadPublished,
     MetadataCommitted,
@@ -99,6 +102,7 @@ impl fmt::Display for LifecyclePhase {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Preparing => "preparing",
+            Self::StagedPreparing => "staged_preparing",
             Self::Prepared => "prepared",
             Self::PayloadPublished => "payload_published",
             Self::MetadataCommitted => "metadata_committed",
@@ -113,6 +117,7 @@ impl FromStr for LifecyclePhase {
     fn from_str(value: &str) -> Result<Self> {
         match value {
             "preparing" => Ok(Self::Preparing),
+            "staged_preparing" => Ok(Self::StagedPreparing),
             "prepared" => Ok(Self::Prepared),
             "payload_published" => Ok(Self::PayloadPublished),
             "metadata_committed" => Ok(Self::MetadataCommitted),
@@ -422,7 +427,7 @@ impl OperationStore {
         let changed = transaction.execute(
             &format!("INSERT INTO {}(operation_id,witness_json,witness_sha256)
              SELECT id,?1,?8 FROM lifecycle_operations
-             WHERE id=?2 AND kind='install' AND phase='preparing' AND port_id=?3
+             WHERE id=?2 AND kind='install' AND phase='staged_preparing' AND port_id=?3
                AND staging_path IS ?4 AND final_path IS ?5 AND activate=?6
                AND updated_at=?7 AND preparation_process_quiesced=1
                AND created_at=?9 AND EXISTS(SELECT 1 FROM library_identity WHERE singleton=1 AND id=?10)

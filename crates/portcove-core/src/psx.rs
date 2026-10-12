@@ -473,7 +473,7 @@ impl GeneratedInstallWitness {
             || self.generated.tree.root() != fs::canonicalize(staging.join("payload"))?
             || self.generated.normalized_disc.root().parent() != Some(staging_identity.as_path())
             || journal.kind != LifecycleOperationKind::Install
-            || journal.phase != LifecyclePhase::Preparing
+            || journal.phase != LifecyclePhase::StagedPreparing
             || journal.install.is_some()
             || journal.preparation.is_some()
             || journal.relocation.is_some()
@@ -2615,6 +2615,7 @@ mod tests {
             LifecycleOperationKind::Install,
             "inert-port",
         );
+        journal.phase = crate::operation::LifecyclePhase::StagedPreparing;
         let staging = library.staging_dir().join(operation.operation_id());
         let payload = staging.join("payload");
         let normalized = staging.join("psx-source-inert");
@@ -2678,6 +2679,7 @@ mod tests {
             .commit_psx_configuration(&journal, &configured, &operation)
             .unwrap();
         let reopened = Library::open(library.root()).unwrap();
+        crate::PortcoveService::new(reopened.clone()).unwrap();
         let continuation = crate::Installer::new(reopened.clone())
             .unwrap()
             .managed_install_configured(&operation)
@@ -3049,6 +3051,7 @@ mod tests {
             .commit_psx_generation(&journal, &witness, &operation)
             .unwrap();
         let reopened = Library::open(library.root()).unwrap();
+        crate::PortcoveService::new(reopened.clone()).unwrap();
         let continuation = crate::Installer::new(reopened.clone())
             .unwrap()
             .managed_install_continuation(operation.operation_id())
@@ -3059,7 +3062,7 @@ mod tests {
             .get(&journal.id)
             .unwrap()
             .unwrap();
-        assert_eq!(retained.phase, LifecyclePhase::Preparing);
+        assert_eq!(retained.phase, LifecyclePhase::StagedPreparing);
         assert!(retained.install.is_none());
         assert!(reopened.all_installs().unwrap().is_empty());
         assert!(!journal.paths.final_path.unwrap().exists());

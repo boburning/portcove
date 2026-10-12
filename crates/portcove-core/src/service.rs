@@ -546,6 +546,12 @@ impl PortcoveService {
             let Some(mut operation) = store.get(&candidate.id)? else {
                 continue;
             };
+            // Retention is not resume authority. Even malformed staged intent
+            // cannot be sent to generic publication recovery or automatic cleanup.
+            // Stage loaders independently validate exact custody and evidence.
+            if operation.phase == LifecyclePhase::StagedPreparing {
+                continue;
+            }
             // The inventory only discovers candidates. A reused or reassigned ID
             // cannot be recovered under locks chosen for its former owner/kind.
             if operation.created_at != candidate.created_at
@@ -4831,9 +4837,9 @@ impl PortcoveService {
         }
         refuse_symlink_ancestors(&original)?;
         refuse_symlink_ancestors(&quarantine)?;
-        Ok(backups::BackupDeletionOperation::from_validated_paths(
+        backups::BackupDeletionOperation::from_validated_paths(
             operation, original, quarantine, backup_id,
-        ))
+        )
     }
 
     pub(crate) fn synchronize_restored_user_data(&self, port_id: &str) -> Result<()> {
@@ -6600,7 +6606,7 @@ mod tests {
             LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending => {
                 LifecycleFaultPoint::AdoptionMetadataCommitted
             }
-            LifecyclePhase::Preparing => unreachable!(),
+            LifecyclePhase::Preparing | LifecyclePhase::StagedPreparing => unreachable!(),
         };
         let service = service_with_fault(library.clone(), point);
         let adoption_source = temporary.path().join("existing-install");

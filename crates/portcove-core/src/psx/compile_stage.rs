@@ -138,6 +138,7 @@ mod tests {
         store
             .commit_psx_compilation(&journal, &compiled, &operation)
             .unwrap();
+        crate::PortcoveService::new(library.clone()).unwrap();
         assert!(store.psx_compilation(&operation).is_ok());
         // The original configured inventory remains immutable, not silently updated.
         assert!(store.psx_configuration(&operation).is_err());

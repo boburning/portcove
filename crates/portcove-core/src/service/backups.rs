@@ -276,11 +276,16 @@ impl BackupDeletionOperation {
         original: PathBuf,
         quarantine: PathBuf,
         backup_id: String,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        Ok(Self {
             id: operation.id.clone(),
             port_id: operation.port_id.clone(),
             phase: match operation.phase {
+                LifecyclePhase::StagedPreparing => {
+                    return Err(PortcoveError::state(
+                        "staged PS1 intent cannot authorize backup deletion",
+                    ));
+                }
                 LifecyclePhase::Preparing => BackupDeletionPhase::Unconfirmed,
                 LifecyclePhase::Prepared => BackupDeletionPhase::Authorized,
                 LifecyclePhase::PayloadPublished => BackupDeletionPhase::Quarantined,
@@ -290,7 +295,7 @@ impl BackupDeletionOperation {
             original,
             quarantine,
             backup_id,
-        }
+        })
     }
 
     pub(crate) fn advance(
@@ -986,6 +991,11 @@ impl PortcoveService {
             id: operation.id.clone(),
             port_id: operation.port_id.clone(),
             phase: match operation.phase {
+                LifecyclePhase::StagedPreparing => {
+                    return Err(PortcoveError::state(
+                        "staged PS1 intent cannot authorize backup restore",
+                    ));
+                }
                 LifecyclePhase::Preparing => RestorePhase::Unverified,
                 LifecyclePhase::Prepared => RestorePhase::ReadyToPublish,
                 LifecyclePhase::PayloadPublished => RestorePhase::Published,

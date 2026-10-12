@@ -419,6 +419,30 @@ struct InstallLifecycle {
     record: LifecycleOperation,
 }
 
+fn retain_staged_failure(lifecycle: &mut InstallLifecycle, error: &PortcoveError) -> Result<()> {
+    if lifecycle.record.phase != LifecyclePhase::StagedPreparing {
+        return Err(PortcoveError::state(
+            "failure retention requires staged intent",
+        ));
+    }
+    lifecycle.record.last_error = Some(error.message.clone());
+    lifecycle
+        .store
+        .put(&mut lifecycle.record)
+        .map_err(|persist| {
+            let mut refusal = PortcoveError::state(
+                "staged preparation failed and its error could not be recorded",
+            )
+            .detail("operation_id", &lifecycle.record.id)
+            .detail("preparation_error", &error.message)
+            .detail("persistence_error", persist.message);
+            refusal
+                .details
+                .extend(crate::tool_process::copy_proof_details(error));
+            refusal
+        })
+}
+
 // This existing nullable field is used here only for managed PS1 Install
 // workers. None remains the legacy/non-managed Install contract.
 async fn run_managed_install_worker<T: Send + 'static>(
@@ -943,6 +967,9 @@ impl Installer {
         record.paths.staging = Some(operation_root.clone());
         record.paths.final_path = Some(destination.clone());
         record.activate = request.activate;
+        if limit == InstallLimit::Generated {
+            record.phase = LifecyclePhase::StagedPreparing;
+        }
         let store = OperationStore::new(self.library.clone());
         store.put(&mut record)?;
         let mut lifecycle = InstallLifecycle {
@@ -955,7 +982,15 @@ impl Installer {
             .install_inner(request, operation, &mut lifecycle, &mut emit, limit)
             .await;
         if let Err(error) = &mut result {
-            if lifecycle.record.phase == LifecyclePhase::Preparing {
+            if lifecycle.record.phase == LifecyclePhase::StagedPreparing {
+                retain_staged_failure(&mut lifecycle, error)?;
+                error
+                    .details
+                    .insert("operation_id".into(), lifecycle.record.id.clone());
+                error
+                    .details
+                    .insert("cleanup_state".into(), "retained_staged_preparation".into());
+            } else if lifecycle.record.phase == LifecyclePhase::Preparing {
                 if error.code == crate::ErrorCode::Cancelled {
                     if let Err(cleanup) = crate::cancellation::discard_private_install(
                         &self.library,
@@ -2845,6 +2880,64 @@ mod tests {
     use sha2::{Digest, Sha256};
 
     use super::*;
+
+    async fn assert_staged_worker_failure_retained(code: crate::ErrorCode) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let operation = OperationCoordinator::new("inert-staged-worker", None);
+        let staging = library.staging_dir().join(operation.operation_id());
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("owned-input"), b"retained failed generation").unwrap();
+        let mut record = LifecycleOperation::new(
+            operation.operation_id(),
+            LifecycleOperationKind::Install,
+            "sample",
+        );
+        record.phase = LifecyclePhase::StagedPreparing;
+        record.paths.staging = Some(staging.clone());
+        let store = OperationStore::new(library.clone());
+        store.put(&mut record).unwrap();
+        let mut lifecycle = InstallLifecycle {
+            destination: staging.join("unused"),
+            operation_root: staging.clone(),
+            store: store.clone(),
+            record,
+        };
+        let error = run_managed_install_worker::<()>(&mut lifecycle, &operation, move |_| {
+            (
+                Err(PortcoveError::new(code, "inert staged generation failure")),
+                true,
+            )
+        })
+        .await
+        .unwrap_err();
+        retain_staged_failure(&mut lifecycle, &error).unwrap();
+        crate::PortcoveService::new(library.clone()).unwrap();
+        let retained = store.get(operation.operation_id()).unwrap().unwrap();
+        assert_eq!(retained.phase, LifecyclePhase::StagedPreparing);
+        assert_eq!(retained.preparation_process_quiesced, Some(true));
+        assert_eq!(
+            retained.last_error.as_deref(),
+            Some("inert staged generation failure")
+        );
+        assert_eq!(
+            fs::read(staging.join("owned-input")).unwrap(),
+            b"retained failed generation"
+        );
+        assert!(crate::cancellation::discard_private_install(&library, &retained).is_err());
+        assert!(store.psx_generation(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn staged_preparing_closed_generation_error_retains_tree_and_journal() {
+        assert_staged_worker_failure_retained(crate::ErrorCode::Install).await;
+    }
+
+    #[tokio::test]
+    async fn staged_preparing_closed_generation_cancellation_retains_tree_and_journal() {
+        assert_staged_worker_failure_retained(crate::ErrorCode::Cancelled).await;
+    }
 
     #[tokio::test]
     async fn managed_worker_completion_storage_error_keeps_both_proofs_false() {
