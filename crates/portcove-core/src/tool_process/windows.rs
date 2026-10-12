@@ -207,64 +207,68 @@ impl ToolProcessGroup {
         })
     }
 
-    pub(crate) fn with_proof_details(&self, mut error: PortcoveError) -> PortcoveError {
-        let proof = self.control.lock();
-        if let Some((reason, code)) = proof.first_failure {
-            error = error.detail("process_tree_first_failure", reason);
-            if let Some(code) = code {
-                error = error.detail("process_tree_api_error", code.to_string());
-            }
-        }
-        error = error
-            .detail("process_tree_retained_members", proof.retained.to_string())
-            .detail(
-                "process_tree_membership_complete",
-                proof.first_failure.is_none().to_string(),
-            )
-            .detail(
-                "process_tree_deadline_exhausted",
-                proof.deadline_exhausted.to_string(),
-            );
-        if let Some((active, total)) = proof.accounting {
-            error = error
-                .detail("process_tree_active", active.to_string())
-                .detail("process_tree_total", total.to_string());
-        }
-        if let Some(waited) = proof.wait_result {
-            error = error.detail("process_tree_wait_result", waited.to_string());
-        }
-        if let Some(signaled) = proof.all_retained_signaled {
-            error = error.detail("process_tree_all_retained_signaled", signaled.to_string());
-        }
-        if let Some(status) = proof.root_status {
-            error = error.detail(
-                "process_tree_root_exit",
-                (status.code().unwrap() as u32).to_string(),
-            );
-        }
-        if !proof.identities.is_empty() {
-            // Decimal strings preserve FILETIME precision across JSON consumers.
-            let identities = proof
-                .identities
-                .iter()
-                .map(|identity| {
-                    format!(
-                        "{{\"pid\":{},\"created_filetime\":\"{}\"}}",
-                        identity.pid, identity.created
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(",");
-            error = error.detail("process_tree_identities", format!("[{identities}]"));
-        }
-        #[cfg(test)]
-        if let Ok(images) = serde_json::to_string(&proof.images.iter().map(|(identity,image)| {
-            serde_json::json!({"pid":identity.pid,"created_filetime":identity.created.to_string(),"image":image})
-        }).collect::<Vec<_>>()) {
-            error = error.detail("process_tree_image_identities",images);
-        }
-        error
+    pub(crate) fn with_proof_details(&self, error: PortcoveError) -> PortcoveError {
+        with_control_proof(&self.control, error)
     }
+}
+
+fn with_control_proof(control: &Control, mut error: PortcoveError) -> PortcoveError {
+    let proof = control.lock();
+    if let Some((reason, code)) = proof.first_failure {
+        error = error.detail("process_tree_first_failure", reason);
+        if let Some(code) = code {
+            error = error.detail("process_tree_api_error", code.to_string());
+        }
+    }
+    error = error
+        .detail("process_tree_retained_members", proof.retained.to_string())
+        .detail(
+            "process_tree_membership_complete",
+            proof.first_failure.is_none().to_string(),
+        )
+        .detail(
+            "process_tree_deadline_exhausted",
+            proof.deadline_exhausted.to_string(),
+        );
+    if let Some((active, total)) = proof.accounting {
+        error = error
+            .detail("process_tree_active", active.to_string())
+            .detail("process_tree_total", total.to_string());
+    }
+    if let Some(waited) = proof.wait_result {
+        error = error.detail("process_tree_wait_result", waited.to_string());
+    }
+    if let Some(signaled) = proof.all_retained_signaled {
+        error = error.detail("process_tree_all_retained_signaled", signaled.to_string());
+    }
+    if let Some(status) = proof.root_status {
+        error = error.detail(
+            "process_tree_root_exit",
+            (status.code().unwrap() as u32).to_string(),
+        );
+    }
+    if !proof.identities.is_empty() {
+        // Decimal strings preserve FILETIME precision across JSON consumers.
+        let identities = proof
+            .identities
+            .iter()
+            .map(|identity| {
+                format!(
+                    "{{\"pid\":{},\"created_filetime\":\"{}\"}}",
+                    identity.pid, identity.created
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        error = error.detail("process_tree_identities", format!("[{identities}]"));
+    }
+    #[cfg(test)]
+    if let Ok(images) = serde_json::to_string(&proof.images.iter().map(|(identity,image)| {
+        serde_json::json!({"pid":identity.pid,"created_filetime":identity.created.to_string(),"image":image})
+    }).collect::<Vec<_>>()) {
+        error = error.detail("process_tree_image_identities",images);
+    }
+    error
 }
 
 impl Drop for ToolProcessGroup {
@@ -332,6 +336,8 @@ enum RootFailure {
     Identity,
     Assignment,
     Resume,
+    PanicBeforeAssignment,
+    PanicAfterAssignment,
 }
 
 #[cfg(test)]
@@ -412,10 +418,17 @@ fn spawn_with_options(
             if worker.is_finished() {
                 let _ = worker.join();
             }
+            // Preserve an observed controller panic. A live readiness timeout
+            // remains incomplete custody; it cannot publish successful cleanup.
+            {
+                let mut proof = control.lock();
+                proof.first_failure.get_or_insert(("controller_readiness", None));
+                proof.quiesced = false;
+            }
             Err(ToolSpawnFailure {
-                error: PortcoveError::state(
+                error: with_control_proof(&control, PortcoveError::state(
                     "native tool controller did not establish creation custody",
-                ),
+                )),
                 quiesced: false,
                 io_kind: None,
             })
@@ -911,6 +924,11 @@ impl Controller {
             controller.fail("root_identity", Some(unsafe { GetLastError() }));
         }
         let root = controller.root.expect("owned root retained");
+        #[cfg(test)]
+        if controller.options.root_failure == Some(RootFailure::PanicBeforeAssignment) {
+            controller.publish_counts();
+            panic!("owned fixture panic before root Job assignment");
+        }
         let assignment_job = controller.job.as_raw_handle();
         #[cfg(test)]
         let assignment_job = if controller.options.root_failure == Some(RootFailure::Assignment) {
@@ -929,6 +947,11 @@ impl Controller {
         } else {
             controller.job_assigned = true;
             root_guard.contained = true;
+        }
+        #[cfg(test)]
+        if controller.options.root_failure == Some(RootFailure::PanicAfterAssignment) {
+            controller.publish_counts();
+            panic!("owned fixture panic after root Job assignment, before resume");
         }
         #[cfg(test)]
         for _ in 0..controller.options.reserved_slots {
@@ -1497,6 +1520,62 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
 mod native_control_tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    #[ignore = "requires separately admitted prepared controller-panic packet"]
+    fn controller_panics_preserve_failure_without_fabricating_cleanup() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        for fault in [RootFailure::PanicBeforeAssignment, RootFailure::PanicAfterAssignment] {
+            let working = tempfile::tempdir().unwrap();
+            let output = working.path().join("orphan-output");
+            let mut spec = ChildProcessPolicy::native_tool_spec(
+                ChildProcessClass::UpstreamSetup, &program,
+            ).unwrap();
+            spec.args(["--setup-tree", &output.display().to_string(), "observed-wait"])
+                .current_dir(working.path());
+            let observed = Arc::new(RefusedMember::default());
+            let failure = match spawn_with_options(&spec, TestOptions {
+                root_failure: Some(fault), root_observation: Some(observed.clone()),
+                ..Default::default()
+            }) {
+                Err(failure) => failure,
+                Ok((mut child, group)) => {
+                    let _ = group.terminate_and_wait(&mut child);
+                    panic!("injected controller panic unexpectedly launched");
+                }
+            };
+            let proof = crate::tool_process::copy_proof_details(&failure.error);
+            let actual = observed.member.lock().unwrap().take();
+            let observation = actual.as_ref().map(|(identity, handle)| {
+                // Positive closure of this independent fixture handle only.
+                // Core lost its controller and must retain incomplete proof.
+                let waited = unsafe { WaitForSingleObject(handle.as_raw_handle(), 2000) };
+                let mut exit_code = 0;
+                let queried = unsafe { GetExitCodeProcess(handle.as_raw_handle(), &mut exit_code) };
+                serde_json::json!({"pid":identity.pid,
+                    "created_filetime":identity.created.to_string(),"wait_result":waited,
+                    "exit_query":queried,"exit_code":exit_code})
+            });
+            eprintln!("native_controller_panic_proof:{}", serde_json::json!({
+                "fault":format!("{fault:?}"),"quiesced":failure.quiesced,
+                "proof":proof,"observed_root":observation,"orphan_output":output.exists(),
+            }));
+            assert!(actual.is_some());
+            let observation = observation.as_ref().unwrap();
+            assert_eq!(observation["wait_result"], WAIT_OBJECT_0);
+            assert_ne!(observation["exit_query"], 0);
+            assert!(!failure.quiesced);
+            assert_eq!(proof["process_tree_first_failure"], "controller_panic");
+            assert_eq!(proof["process_tree_membership_complete"], "false");
+            assert_eq!(proof["process_tree_retained_members"], "1");
+            for absent in ["process_tree_active", "process_tree_total",
+                "process_tree_root_exit", "process_tree_all_retained_signaled"] {
+                assert!(!proof.contains_key(absent), "panic cannot fabricate {absent}");
+            }
+            assert!(!output.exists());
+        }
+    }
 
     #[test]
     #[ignore = "requires separately admitted prepared root-failure packet"]
