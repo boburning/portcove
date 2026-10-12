@@ -543,6 +543,8 @@ fn windows_quiescence_callback_observes_descendant_handle_exit() {
         let working = tempfile::tempdir().unwrap();
         let descendant = RefCell::new(None::<OwnedHandle>);
         let mut confirmed = false;
+        let mut last_diagnostic = None;
+        let deadline = Instant::now() + Duration::from_secs(4);
         let result = run_setup(
             &program,
             &[
@@ -559,22 +561,27 @@ fn windows_quiescence_callback_observes_descendant_handle_exit() {
             working.path(),
             &Default::default(),
             &|| {
+                if Instant::now() >= deadline {
+                    return Err(PortcoveError::state("descendant observation deadline"));
+                }
                 let pid_file = working.path().join("descendant-pid");
                 if descendant.borrow().is_none() && pid_file.is_file() {
-                    let pid = fs::read_to_string(&pid_file).unwrap().parse().unwrap();
+                    let pid = fs::read_to_string(&pid_file)?
+                        .parse()
+                        .map_err(|_| PortcoveError::state("invalid owned descendant PID"))?;
                     let handle = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, pid) };
-                    assert!(
-                        !handle.is_null(),
-                        "capture the live owned descendant handle"
-                    );
-                    assert_ne!(unsafe { WaitForSingleObject(handle, 0) }, WAIT_OBJECT_0);
-                    *descendant.borrow_mut() =
-                        Some(unsafe { OwnedHandle::from_raw_handle(handle) });
+                    if handle.is_null() {
+                        return Err(PortcoveError::state("owned descendant handle unavailable"));
+                    }
+                    let owned = unsafe { OwnedHandle::from_raw_handle(handle) };
+                    if unsafe { WaitForSingleObject(owned.as_raw_handle(), 0) } == WAIT_OBJECT_0 {
+                        return Err(PortcoveError::state("owned descendant already exited"));
+                    }
+                    *descendant.borrow_mut() = Some(owned);
                     fs::write(
                         working.path().join("descendant-observed"),
                         b"handle captured",
-                    )
-                    .unwrap();
+                    )?;
                 }
                 if cancel && descendant.borrow().is_some() {
                     Err(PortcoveError::new(
@@ -586,21 +593,41 @@ fn windows_quiescence_callback_observes_descendant_handle_exit() {
                 }
             },
             ToolProcessObserver {
-                diagnostics: None,
+                diagnostics: Some(ToolDiagnosticSink {
+                    activity_id: "owned-quiescence-control",
+                    phase: "first-party-fixture",
+                    record: &mut |value| {
+                        last_diagnostic = Some(value.clone());
+                        Ok(())
+                    },
+                }),
                 quiesced: Some(&mut || {
                     let handles = descendant.borrow();
                     let handle = handles
                         .as_ref()
-                        .expect("descendant observed before parent exit");
-                    assert_eq!(
-                        unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) },
-                        WAIT_OBJECT_0,
-                        "positive descendant exit must precede cleanup eligibility"
-                    );
+                        .ok_or_else(|| PortcoveError::state("descendant not observed"))?;
+                    if unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) } != WAIT_OBJECT_0 {
+                        return Err(PortcoveError::state(
+                            "descendant positive exit absent at cleanup boundary",
+                        ));
+                    }
                     confirmed = true;
                     Ok(())
                 }),
             },
+        );
+        let proof = match &result {
+            Ok(output) => output.process_tree_proof.clone(),
+            Err(error) => copy_proof_details(error),
+        };
+        eprintln!(
+            "native_quiescence_proof:{}",
+            serde_json::json!({
+                "cancel":cancel,"quiesced":confirmed,"proof":proof,
+                "diagnostic":last_diagnostic,
+                "operation_error":result.as_ref().err().map(|error| error.message.as_str()),
+                "operation_code":result.as_ref().err().map(|error| format!("{:?}", error.code)),
+            })
         );
         assert!(confirmed);
         if cancel {
