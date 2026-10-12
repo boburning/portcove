@@ -3101,10 +3101,34 @@ test("export refuses links and oversized evidence instead of silently dropping r
   test("fixed request, duration and aggregate byte limits leave unattempted identities visible", async () => {
     const input = catalog(...Array.from({ length: 130 }, (_, i) => port(`port-${i}`)));
     const report = await collect(input);
-    assert.equal(report.consumed.requests, 128);
+    assert.equal(report.consumed.requests, 130);
     assert.equal(report.observations.length, 130);
-    assert.equal(report.observations[129].reason, "budget");
-    assert.equal(report.observations[129].attempted, false);
+    assert.equal(report.observations[129].reason, null);
+    assert.equal(report.observations[129].attempted, true);
+    assert.equal(report.request_plan.status, "admitted");
+    assert.equal(report.limits.requests, 130);
+    const atCeiling = await collect(
+      catalog(...Array.from({ length: 256 }, (_, i) => port(`ceiling-${i}`))),
+    );
+    assert.equal(atCeiling.consumed.requests, 256);
+    assert.equal(atCeiling.request_plan.status, "admitted");
+    let overflowCalls = 0;
+    const overflow = await collect(
+      catalog(...Array.from({ length: 257 }, (_, i) => port(`overflow-${i}`))),
+      async () => {
+        overflowCalls += 1;
+        assert.fail("overflow must refuse before network");
+      },
+    );
+    assert.equal(overflow.request_plan.status, "overflow");
+    assert.equal(overflow.consumed.requests, 0);
+    assert.equal(overflowCalls, 0);
+    assert.equal(overflow.observations.length, 257);
+    assert.ok(
+      overflow.observations.every(
+        (record) => record.reason === "budget" && record.attempted === false,
+      ),
+    );
     let elapsed = 0;
     const timeLimited = await collect(
       input,
