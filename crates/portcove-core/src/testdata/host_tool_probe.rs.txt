@@ -5,6 +5,8 @@ use std::process::Stdio;
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
+        #[cfg(windows)]
+        Some("--owned-exceptions") => owned_exceptions(&args[1]),
         Some("--observe-launch") => {
             // First-party launch-parity control: inputs are bounded by the
             // admitted test packet; no helper, network or game is invoked.
@@ -199,6 +201,65 @@ fn main() {
             fs::write(&args[1], b"orphaned").unwrap();
         }
         _ => println!("wrong program"),
+    }
+}
+
+#[cfg(windows)]
+fn owned_exceptions(mode: &str) {
+    assert!(cfg!(target_arch="x86_64"));
+    use std::{ffi::c_void, sync::atomic::{AtomicU32, Ordering}};
+    #[repr(C)] struct ExceptionRecord { code:u32, flags:u32, nested:*mut c_void, address:*const u8 }
+    #[repr(C,align(16))] struct ContextPrefix {
+        home:[u64;6], flags:u32, mxcsr:u32, segments:[u16;6], eflags:u32,
+        debug:[u64;6], registers:[u64;16], rip:u64,
+    }
+    const _:()=assert!(std::mem::offset_of!(ContextPrefix,rip)==248);
+    #[repr(C)] struct ExceptionPointers { record:*const ExceptionRecord, context:*mut ContextPrefix }
+    static HANDLED:AtomicU32=AtomicU32::new(0);
+    unsafe extern "system" fn handler(info:*mut ExceptionPointers)->i32 {
+        if info.is_null() || unsafe{(*info).record.is_null()} { return 0; }
+        let code=unsafe{(*(*info).record).code};
+        if code==0x8000_0003 {
+            let context=unsafe{(*info).context};
+            if context.is_null() || unsafe{(*context).flags}&0x0010_0001!=0x0010_0001 { return 0; }
+            let address=unsafe{(*(*info).record).address};
+            let mut instruction=0u8; let mut read=0usize;
+            if unsafe{ReadProcessMemory(GetCurrentProcess(),address.cast(),(&raw mut instruction).cast(),1,&raw mut read)}==0 || read!=1 || instruction!=0xcc { return 0; }
+            let at=address as u64;
+            let Some(after)=at.checked_add(1) else { return 0; };
+            let rip=unsafe{(*context).rip};
+            if rip==at { unsafe{(*context).rip=after}; }
+            else if rip!=after { return 0; }
+        }
+        if code==0xe042_3333 || code==0x8000_0003 {
+            HANDLED.fetch_add(1,Ordering::Relaxed);
+            -1 // EXCEPTION_CONTINUE_EXECUTION; application handler owns this.
+        } else { 0 } // EXCEPTION_CONTINUE_SEARCH; never swallow terminal exception.
+    }
+    #[link(name="kernel32")] unsafe extern "system" {
+        fn AddVectoredExceptionHandler(first:u32,handler:unsafe extern "system" fn(*mut ExceptionPointers)->i32)->*mut c_void;
+        fn RemoveVectoredExceptionHandler(handle:*mut c_void)->u32;
+        fn RaiseException(code:u32,flags:u32,count:u32,args:*const usize);
+        fn DebugBreak();
+        fn SetErrorMode(mode:u32)->u32;
+        fn WerSetFlags(flags:u32)->i32;
+        fn GetCurrentProcess()->*mut c_void;
+        fn ReadProcessMemory(process:*mut c_void,address:*const c_void,buffer:*mut c_void,size:usize,read:*mut usize)->i32;
+    }
+    assert!(mode=="handled" || mode=="unhandled");
+    unsafe { SetErrorMode(0x0001|0x0002); } // No critical-error or fault dialog.
+    assert!(unsafe{WerSetFlags(0x20)}>=0); // Current-process WER_FAULT_REPORTING_NO_UI.
+    let handle=unsafe{AddVectoredExceptionHandler(1,handler)};
+    assert!(!handle.is_null());
+    if mode=="handled" {
+        unsafe { RaiseException(0xe042_3333,0,0,std::ptr::null()); DebugBreak(); DebugBreak(); }
+        assert_eq!(HANDLED.load(Ordering::Relaxed),3);
+        fs::write("application-exceptions-handled",b"custom exception and two DebugBreak calls").unwrap();
+        assert_ne!(unsafe{RemoveVectoredExceptionHandler(handle)},0);
+    } else {
+        fs::write("application-unhandled-ready",b"second-chance refusal required").unwrap();
+        unsafe { RaiseException(0xe042_4444,0,0,std::ptr::null()); }
+        panic!("unhandled exception was swallowed");
     }
 }
 

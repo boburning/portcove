@@ -308,6 +308,17 @@ struct TestOptions {
     fail_capture: bool,
     #[cfg(test)]
     pending_creation: Option<Arc<PendingCreation>>,
+    #[cfg(test)]
+    exception_trace: Option<Arc<Mutex<Vec<ExceptionObservation>>>>,
+}
+
+#[cfg(test)]
+#[derive(Clone)]
+struct ExceptionObservation {
+    pid: u32,
+    code: u32,
+    first_chance: u32,
+    continuation: i32,
 }
 
 #[cfg(test)]
@@ -1140,6 +1151,8 @@ impl Controller {
                 let continuation = self.event(&event);
                 #[cfg(test)]
                 self.observe_pending_creation(&event);
+                #[cfg(test)]
+                self.observe_exception(&event, continuation);
                 self.terminate_if_requested();
                 if unsafe { ContinueDebugEvent(event.dwProcessId, event.dwThreadId, continuation) }
                     == 0
@@ -1244,6 +1257,29 @@ impl Controller {
                 return;
             }
         }
+    }
+
+    #[cfg(test)]
+    fn observe_exception(&mut self, event: &DEBUG_EVENT, continuation: i32) {
+        if event.dwDebugEventCode != EXCEPTION_DEBUG_EVENT {
+            return;
+        }
+        let Some(trace) = self.options.exception_trace.clone() else {
+            return;
+        };
+        let mut trace = trace.lock().unwrap();
+        if trace.len() >= 32 {
+            self.fail("exception_trace_fixture_capacity", None);
+            return;
+        }
+        // Read the actual initialized event union, after production classification.
+        let exception = unsafe { event.u.Exception };
+        trace.push(ExceptionObservation {
+            pid: event.dwProcessId,
+            code: exception.ExceptionRecord.ExceptionCode as u32,
+            first_chance: exception.dwFirstChance,
+            continuation,
+        });
     }
 
     #[cfg(test)]
@@ -1374,6 +1410,93 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
 mod native_control_tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    fn application_handlers_and_second_chance_failure_receive_forwarded_exceptions() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        for mode in ["handled", "unhandled"] {
+            let working = tempfile::tempdir().unwrap();
+            let mut spec =
+                ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                    .unwrap();
+            spec.args(["--owned-exceptions", mode])
+                .current_dir(working.path());
+            let trace = Arc::new(Mutex::new(Vec::new()));
+            let (mut child, group) = spawn_with_options(
+                &spec,
+                TestOptions {
+                    exception_trace: Some(trace.clone()),
+                    ..Default::default()
+                },
+            )
+            .map_err(|failure| failure.error)
+            .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(4);
+            let observed = loop {
+                match child.try_wait() {
+                    Ok(Some(status)) => break Ok(status),
+                    Err(error) => break Err(error.to_string()),
+                    Ok(None) if Instant::now() >= deadline => {
+                        break Err("application exception control deadline".into());
+                    }
+                    Ok(None) => thread::sleep(Duration::from_millis(1)),
+                }
+            };
+            let stopped = group.terminate_and_wait(&mut child);
+            let quiesced = group.proves_tree_quiescence();
+            let proof = crate::tool_process::copy_proof_details(
+                &group.with_proof_details(PortcoveError::state("application exception control")),
+            );
+            let events = trace.lock().unwrap().clone();
+            eprintln!(
+                "native_exception_proof:{}",
+                serde_json::json!({
+                    "mode":mode,"quiesced":quiesced,"proof":proof,
+                    "observation_error":observed.as_ref().err(),
+                    "termination_error":stopped.as_ref().err().map(ToString::to_string),
+                    "events":events.iter().map(|event|serde_json::json!({
+                        "pid":event.pid,"code":event.code,"first_chance":event.first_chance,
+                        "continuation":event.continuation,
+                    })).collect::<Vec<_>>(),
+                })
+            );
+            assert!(observed.is_ok());
+            assert!(quiesced);
+            let expected = if mode == "handled" { 0 } else { 0xe042_4444 };
+            assert_eq!(stopped.unwrap().code().unwrap() as u32, expected);
+            assert_eq!(proof["process_tree_total"], "1");
+            assert_eq!(proof["process_tree_retained_members"], "1");
+            assert_eq!(proof["process_tree_all_retained_signaled"], "true");
+            assert_eq!(proof["process_tree_active"], "0");
+            assert!(!proof.contains_key("process_tree_first_failure"));
+            let startup = events
+                .iter()
+                .filter(|event| event.continuation == DBG_CONTINUE)
+                .count();
+            assert_eq!(startup, 1);
+            let forwarded = events
+                .iter()
+                .filter(|event| event.continuation == DBG_EXCEPTION_NOT_HANDLED)
+                .map(|event| (event.code, event.first_chance))
+                .collect::<Vec<_>>();
+            if mode == "handled" {
+                assert_eq!(
+                    forwarded,
+                    [(0xe042_3333, 1), (0x8000_0003, 1), (0x8000_0003, 1)]
+                );
+                assert!(
+                    working
+                        .path()
+                        .join("application-exceptions-handled")
+                        .is_file()
+                );
+            } else {
+                assert_eq!(forwarded, [(0xe042_4444, 1), (0xe042_4444, 0)]);
+                assert!(working.path().join("application-unhandled-ready").is_file());
+            }
+        }
+    }
 
     #[test]
     fn cancellation_closes_a_captured_uncontinued_descendant_creation_event() {
