@@ -195,10 +195,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     source_identity(&source)?;
+    let preparation_diagnostics = operation_id
+        .lock()
+        .expect("event identity lock poisoned")
+        .as_deref()
+        .map(portcove_core::qualification_psx_preparation_diagnostics);
     emit(
         json!({"kind": "terminal", "deadline_reached": deadline_reached,
         "selected_stage": selected_stage.map(|(stage, _)| stage),
         "result": result.as_ref().map_err(|error| error.to_string()),
+        "preparation_diagnostics": preparation_diagnostics,
         "source_container_sha256": SOURCE_SHA256,
         "expected_normalized_track_sha256": "6e22494a45bf50fa2d239cd3819a57163a5f9b91e0365babc3e101509b5c3a7c",
         "normalized_track_validation_requirement": "existing Core source inspection and validation; not observed by this field",

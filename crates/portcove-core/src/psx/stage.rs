@@ -343,11 +343,18 @@ impl GeneratedTree {
 }
 
 fn inventory(root: &Path, operation: &OperationCoordinator) -> Result<BTreeMap<PathBuf, Entry>> {
+    #[cfg(feature = "qualification-fixtures")]
+    let mut trace =
+        super::qualification_trace::Trace::new(operation.operation_id(), "tree_inventory");
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("enumeration");
     let mut entries = BTreeMap::new();
     let mut collision_keys = BTreeSet::new();
     let mut pending = vec![(root.to_path_buf(), 0_usize)];
     let root_identity = crate::external_runtime::inspect_directory(root)?;
     entries.insert(PathBuf::new(), Entry::Directory(root_identity.clone()));
+    #[cfg(feature = "qualification-fixtures")]
+    trace.entries(entries.len());
     let mut total = 0_u64;
     while let Some((directory, depth)) = pending.pop() {
         operation.checkpoint()?;
@@ -386,9 +393,15 @@ fn inventory(root: &Path, operation: &OperationCoordinator) -> Result<BTreeMap<P
                 if before.len() > maximum {
                     return Err(PortcoveError::verification("PS1 stage byte limit exceeded"));
                 }
+                #[cfg(feature = "qualification-fixtures")]
+                trace.hashing();
+                #[cfg(feature = "qualification-fixtures")]
+                let hashing_started = std::time::Instant::now();
                 let file = crate::external_runtime::hash_stable_file(&path, before.len(), &|| {
                     operation.checkpoint()
                 })?;
+                #[cfg(feature = "qualification-fixtures")]
+                trace.hashed(before.len(), hashing_started);
                 let size = before.len();
                 crate::path::refuse_symlink_ancestors(&path)?;
                 let after = fs::symlink_metadata(&path)?;
@@ -416,10 +429,14 @@ fn inventory(root: &Path, operation: &OperationCoordinator) -> Result<BTreeMap<P
                     "PS1 stage duplicate path refused",
                 ));
             }
+            #[cfg(feature = "qualification-fixtures")]
+            trace.entries(entries.len());
         }
     }
     // Fence the complete inventory after enumeration and hashing. No callback
     // can insert a path into an already enumerated directory without refusal.
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("final_fence");
     operation.checkpoint()?;
     if crate::external_runtime::inspect_directory(root)? != root_identity {
         return Err(PortcoveError::verification(
@@ -427,6 +444,8 @@ fn inventory(root: &Path, operation: &OperationCoordinator) -> Result<BTreeMap<P
         ));
     }
     verify_inventory(root, &entries)?;
+    #[cfg(feature = "qualification-fixtures")]
+    trace.complete();
     Ok(entries)
 }
 
@@ -629,6 +648,35 @@ mod tests {
                 .is_err()
         );
         fs::write(root.path().join("generated.c"), "changed!").unwrap();
+        assert!(stage.verify(root.path(), &operation).is_err());
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn generated_stage_diagnostics_count_only_successful_inventory_hashes() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("first.c"), "one").unwrap();
+        fs::write(root.path().join("second.c"), "second").unwrap();
+        let operation = OperationCoordinator::new("qualification-inventory", None);
+        let stage = GeneratedTree::capture(root.path(), &operation, true).unwrap();
+        let output = super::super::qualification_trace::qualification_psx_preparation_diagnostics(
+            operation.operation_id(),
+        );
+        let records = output["records"].as_array().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0]["completed"], true);
+        assert_eq!(records[0]["files_hashed"], 2);
+        assert_eq!(records[0]["bytes_hashed"], 9);
+        assert_eq!(records[0]["entries"], 3);
+        assert!(
+            records[0]["marks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|mark| mark["phase"] == "final_fence")
+        );
+        // Reporting never substitutes for the retained content/object fence.
+        fs::write(root.path().join("first.c"), "changed").unwrap();
         assert!(stage.verify(root.path(), &operation).is_err());
     }
 

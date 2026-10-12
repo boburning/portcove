@@ -12,7 +12,11 @@ mod compile_plan;
 mod compile_stage;
 pub(crate) use compile_stage::{CompiledInstall, FinalizedInstall};
 mod pending;
+#[cfg(feature = "qualification-fixtures")]
+mod qualification_trace;
 mod stage;
+#[cfg(feature = "qualification-fixtures")]
+pub use qualification_trace::qualification_psx_preparation_diagnostics;
 
 use crate::{
     ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
@@ -1078,11 +1082,19 @@ fn generate_install(
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<GeneratedInstall> {
+    #[cfg(feature = "qualification-fixtures")]
+    let mut trace = qualification_trace::Trace::new(operation.operation_id(), "generation_entry");
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("source_identity");
     operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("bios_identity");
     if let Some(bios) = &preparation.bios {
         verify_raw_bios(bios, &|| operation.checkpoint())?;
     }
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("preparation_contracts");
     let configuration = PreparationConfiguration::from_preparation(preparation)?;
     let cli = root.join("psxrecomp").join("psxrecomp_cli.py");
     let config = root.join("game.toml");
@@ -1103,8 +1115,16 @@ fn generate_install(
     } else {
         None
     };
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("python_selection");
     let python = toolchain_python(&preparation.toolchain_root)?;
+    #[cfg(feature = "qualification-fixtures")]
+    trace.phase("toolchain_inventory");
     let toolchain = stage::GeneratedTree::capture(&preparation.toolchain_root, operation, true)?;
+    #[cfg(feature = "qualification-fixtures")]
+    trace.complete();
+    #[cfg(feature = "qualification-fixtures")]
+    drop(trace);
     operation.checkpoint()?;
     let temporary = retained_source_workspace(root)?;
     let cue = materialize_managed_disc(

@@ -95,6 +95,18 @@ locate the preparation boundary reached before cancellation. They do not prove
 extraction, toolkit inventory, generation completion or a resumable witness.
 The stream/projection and controller bounds remain unchanged.
 
+The qualification-only terminal diagnostic also retains source/BIOS verification,
+preparation-contract and toolkit-inventory phases. Inventory retains fixed entry,
+completed-file/byte and hashing-time counters, and marks entry to the final fence.
+There are at most eight process-local records and eight phase marks per record; eviction
+and lock contention are reported as omitted records. It publishes after scope
+exit, including cancellation, without callbacks or serialization inside a fence.
+An incomplete file hash is not counted as completed. These feature-gated counters
+report elapsed successful stable-file calls, including I/O and identity rechecks;
+they exclude an interrupted current call and do not measure SHA CPU time. They
+preserve the original result and every source, object, name, content and deadline
+check; they confer no generation, custody or continuation acceptance.
+
 ## First actual attempt and repaired boundary
 
 The separately admitted one-attempt script at SHA-256

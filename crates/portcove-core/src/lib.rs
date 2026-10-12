@@ -188,6 +188,8 @@ pub use preparation::{
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
+#[cfg(feature = "qualification-fixtures")]
+pub use psx::qualification_psx_preparation_diagnostics;
 pub use release::{
     GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
     ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
