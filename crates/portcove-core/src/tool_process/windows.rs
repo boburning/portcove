@@ -73,7 +73,9 @@ const CLOSURE_BOUND: Duration = Duration::from_secs(2);
 struct Proof {
     first_failure: Option<(&'static str, Option<u32>)>,
     retained: usize,
+    identities: Vec<Identity>,
     accounting: Option<(u32, u32)>,
+    all_retained_signaled: Option<bool>,
     wait_result: Option<u32>,
     deadline: Option<Instant>,
     deadline_exhausted: bool,
@@ -83,6 +85,12 @@ struct Proof {
 }
 
 impl Proof {
+    fn publish_members(&mut self, retained: usize, identities: impl Iterator<Item = Identity>) {
+        self.retained = retained;
+        self.identities = identities.collect();
+        self.all_retained_signaled = None;
+    }
+
     fn latch_deadline(&mut self, now: Instant) {
         if !self.done && self.deadline.is_some_and(|deadline| now >= deadline) {
             self.deadline_exhausted = true;
@@ -222,6 +230,30 @@ impl ToolProcessGroup {
         }
         if let Some(waited) = proof.wait_result {
             error = error.detail("process_tree_wait_result", waited.to_string());
+        }
+        if let Some(signaled) = proof.all_retained_signaled {
+            error = error.detail("process_tree_all_retained_signaled", signaled.to_string());
+        }
+        if let Some(status) = proof.root_status {
+            error = error.detail(
+                "process_tree_root_exit",
+                (status.code().unwrap() as u32).to_string(),
+            );
+        }
+        if !proof.identities.is_empty() {
+            // Decimal strings preserve FILETIME precision across JSON consumers.
+            let identities = proof
+                .identities
+                .iter()
+                .map(|identity| {
+                    format!(
+                        "{{\"pid\":{},\"created_filetime\":\"{}\"}}",
+                        identity.pid, identity.created
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            error = error.detail("process_tree_identities", format!("[{identities}]"));
         }
         error
     }
@@ -870,7 +902,8 @@ impl Controller {
     }
 
     fn publish_counts(&self) {
-        self.control.lock().retained = self.slots();
+        let mut proof = self.control.lock();
+        proof.publish_members(self.slots(), self.members.keys().copied());
     }
 
     fn retain(
@@ -1161,6 +1194,7 @@ impl Controller {
                     }
                 }
             }
+            self.control.lock().all_retained_signaled = Some(all_signaled);
             if Instant::now() >= deadline {
                 self.fail("closure_deadline", None);
                 let mut proof = self.control.lock();
@@ -1349,8 +1383,19 @@ mod native_control_tests {
                     Ok(())
                 }),
             },
-        )
-        .unwrap();
+        );
+        let proof = match &result {
+            Ok(output) => output.process_tree_proof.clone(),
+            Err(error) => crate::tool_process::copy_proof_details(error),
+        };
+        eprintln!(
+            "native_launch_proof:{}",
+            serde_json::json!({
+                "quiesced": quiesced,
+                "proof": proof,
+            })
+        );
+        let result = result.unwrap();
         assert!(result.status.success());
         assert!(quiesced);
         assert_eq!(result.process_tree_proof["process_tree_active"], "0");
@@ -1557,6 +1602,62 @@ mod launch_tests {
 #[cfg(test)]
 mod proof_tests {
     use super::*;
+
+    #[test]
+    fn enlarged_member_set_invalidates_prior_positive_wait_observation() {
+        let old = Identity {
+            pid: 42,
+            created: 100,
+        };
+        let new = Identity {
+            pid: 43,
+            created: 101,
+        };
+        let mut proof = Proof {
+            retained: 1,
+            identities: vec![old],
+            all_retained_signaled: Some(true),
+            ..Default::default()
+        };
+        proof.publish_members(2, [old, new].into_iter());
+        assert_eq!(proof.retained, 2);
+        assert_eq!(proof.identities, vec![old, new]);
+        assert_eq!(proof.all_retained_signaled, None);
+    }
+
+    #[test]
+    fn positive_handle_observations_do_not_promote_a_lifetime_gap() {
+        let created = 1_234_567_890_123_456_789_u64;
+        let group = ToolProcessGroup {
+            control: Arc::new(Control {
+                proof: Mutex::new(Proof {
+                    first_failure: Some(("lifetime_count_gap", None)),
+                    retained: 1,
+                    identities: vec![Identity { pid: 42, created }],
+                    accounting: Some((0, 2)),
+                    all_retained_signaled: Some(true),
+                    root_status: Some(ExitStatus::from_raw(0)),
+                    done: true,
+                    quiesced: false,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            worker: None,
+        };
+        assert!(!group.proves_tree_quiescence());
+        let error = group.with_proof_details(crate::PortcoveError::state("retained failure"));
+        let copied = crate::tool_process::copy_proof_details(&error);
+        assert_eq!(copied["process_tree_first_failure"], "lifetime_count_gap");
+        assert_eq!(copied["process_tree_all_retained_signaled"], "true");
+        assert_eq!(copied["process_tree_retained_members"], "1");
+        assert_eq!(copied["process_tree_total"], "2");
+        assert_eq!(copied["process_tree_root_exit"], "0");
+        let identities: serde_json::Value =
+            serde_json::from_str(&copied["process_tree_identities"]).unwrap();
+        assert_eq!(identities[0]["created_filetime"], created.to_string());
+        assert_eq!(identities[0]["pid"], 42);
+    }
 
     #[test]
     fn invalid_job_observation_never_grants_cleanup_proof() {

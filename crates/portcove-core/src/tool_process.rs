@@ -74,7 +74,7 @@ pub(crate) fn spawn_tool(
 }
 
 pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, String> {
-    const KEYS: [&str; 8] = [
+    const KEYS: [&str; 11] = [
         "process_tree_first_failure",
         "process_tree_api_error",
         "process_tree_retained_members",
@@ -83,6 +83,9 @@ pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, Stri
         "process_tree_active",
         "process_tree_total",
         "process_tree_wait_result",
+        "process_tree_all_retained_signaled",
+        "process_tree_root_exit",
+        "process_tree_identities",
     ];
     KEYS.into_iter()
         .filter_map(|key| {
@@ -92,6 +95,16 @@ pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, Stri
                 .map(|value| (key.to_owned(), value.clone()))
         })
         .collect()
+}
+
+fn attach_process_tree_proof(
+    mut error: PortcoveError,
+    proof: &BTreeMap<String, String>,
+) -> PortcoveError {
+    for (key, value) in proof {
+        error.details.insert(key.clone(), value.clone());
+    }
+    error
 }
 
 pub(crate) struct SetupOutput {
@@ -244,27 +257,21 @@ pub(crate) fn run_tool(
             }
         }
     };
-    #[cfg(windows)]
-    let result = if process_quiesced {
-        result
-    } else {
-        result.map_err(|error| group.with_proof_details(error))
-    };
     // Windows closes this exact job's descendants. Unix poll_setup stops the
     // group before reaping its leader, while its PID still cannot be reused;
     // its group marker owns no resource that requires a destructor.
-    #[cfg(all(windows, any(test, feature = "qualification-fixtures")))]
+    #[cfg(windows)]
     let process_tree_proof = copy_proof_details(
         &group.with_proof_details(PortcoveError::state("native tool process-tree observation")),
     );
-    #[cfg(all(not(windows), any(test, feature = "qualification-fixtures")))]
+    #[cfg(not(windows))]
     let process_tree_proof = BTreeMap::new();
     #[cfg(windows)]
     drop(group);
     #[cfg(unix)]
     let _ = group;
     if process_quiesced && let Some(confirm) = quiesced.as_mut() {
-        confirm()?;
+        confirm().map_err(|error| attach_process_tree_proof(error, &process_tree_proof))?;
     }
     let diagnostic = (|| {
         let drained = drain_setup_output(&receiver);
@@ -273,12 +280,16 @@ pub(crate) fn run_tool(
         drained?;
         Ok::<_, PortcoveError>(snapshot)
     })();
-    let status = result.map_err(|error| match &diagnostic {
-        Err(capture_error) => error.detail("diagnostic_error", &capture_error.message),
-        Ok(_) => error,
+    let status = result.map_err(|error| {
+        let error = match &diagnostic {
+            Err(capture_error) => error.detail("diagnostic_error", &capture_error.message),
+            Ok(_) => error,
+        };
+        attach_process_tree_proof(error, &process_tree_proof)
     })?;
-    let diagnostic = diagnostic?;
-    checkpoint()?;
+    let diagnostic =
+        diagnostic.map_err(|error| attach_process_tree_proof(error, &process_tree_proof))?;
+    checkpoint().map_err(|error| attach_process_tree_proof(error, &process_tree_proof))?;
     let mut output = format!("{}\n{}", diagnostic.stdout.text, diagnostic.stderr.text);
     let truncated = diagnostic.stdout.truncated
         || diagnostic.stderr.truncated

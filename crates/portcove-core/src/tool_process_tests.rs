@@ -3,6 +3,22 @@ use std::{collections::BTreeMap, fs, io::Write, time::Instant};
 
 const CHILD_TEST: &str = "tool_process::tests::setup_fixture_child";
 
+#[test]
+fn post_exit_error_preserves_final_process_proof_and_original_failure() {
+    let proof = BTreeMap::from([
+        ("process_tree_root_exit".into(), "0".into()),
+        ("process_tree_all_retained_signaled".into(), "true".into()),
+        ("process_tree_retained_members".into(), "1".into()),
+        ("process_tree_total".into(), "1".into()),
+    ]);
+    let original = PortcoveError::state("final diagnostic failed").detail("capture", "retained");
+    let error = attach_process_tree_proof(original, &proof);
+    assert_eq!(error.message, "final diagnostic failed");
+    assert_eq!(error.code, crate::ErrorCode::State);
+    assert_eq!(error.details["capture"], "retained");
+    assert_eq!(copy_proof_details(&error), proof);
+}
+
 #[cfg(windows)]
 fn wait_nested_file(path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(5);
