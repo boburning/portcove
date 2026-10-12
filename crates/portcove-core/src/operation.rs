@@ -308,6 +308,20 @@ pub(crate) fn psx_witness_json(witness: &impl serde::Serialize) -> Result<String
         .map_err(|_| PortcoveError::state("PS1 witness serialization is not UTF-8"))
 }
 
+fn psx_bootstrap_parent(
+    witness: &impl crate::psx::PsxStageWitness,
+) -> Result<Option<(&str, &str)>> {
+    let parent = witness.bootstrap_parent();
+    if parent.is_some_and(|(sha, json)| {
+        json.len() > MAX_PSX_WITNESS_BYTES || hex::encode(Sha256::digest(json.as_bytes())) != sha
+    }) {
+        return Err(PortcoveError::verification(
+            "PS1 acquired predecessor bytes changed",
+        ));
+    }
+    Ok(parent)
+}
+
 fn psx_parent_json(witness: &impl crate::psx::PsxStageWitness) -> Result<Option<(&str, String)>> {
     psx_bound_parent(witness.parent()?)
 }
@@ -522,6 +536,27 @@ impl OperationStore {
         finalized: &crate::psx::FinalizedInstall,
         operation: &OperationCoordinator,
     ) -> Result<()> {
+        self.prepare_psx_publication_fenced(journal, finalized, operation, || Ok(()))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn prepare_psx_publication_before_fence(
+        &self,
+        journal: &mut LifecycleOperation,
+        finalized: &crate::psx::FinalizedInstall,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+    ) -> Result<()> {
+        self.prepare_psx_publication_fenced(journal, finalized, operation, before_fence)
+    }
+
+    fn prepare_psx_publication_fenced(
+        &self,
+        journal: &mut LifecycleOperation,
+        finalized: &crate::psx::FinalizedInstall,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+    ) -> Result<()> {
         let install = journal
             .install
             .as_ref()
@@ -544,9 +579,11 @@ impl OperationStore {
             .ok_or_else(|| PortcoveError::state("PS1 configuration parent missing"))?;
         let ancestor = psx_bound_parent(crate::psx::PsxStageWitness::ancestor(compiled)?)?
             .ok_or_else(|| PortcoveError::state("PS1 generation ancestor missing"))?;
+        let bootstrap = psx_bootstrap_parent(compiled)?;
         let install_json = serde_json::to_string(install)?;
         let updated_at = Library::now();
         operation.checkpoint()?;
+        before_fence()?;
         let mut connection = database::connect(self.library.root())?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         if psx_compile_history_digest(&transaction, operation, compiled.completed_batches() - 1)?
@@ -566,8 +603,9 @@ impl OperationStore {
                AND EXISTS(SELECT 1 FROM library_identity WHERE singleton=1 AND id=?10)
                AND EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=?3 AND witness_sha256=?11 AND witness_json=?12)
                AND EXISTS(SELECT 1 FROM managed_psx_configuration WHERE operation_id=?3 AND witness_sha256=?13 AND witness_json=?14)
-               AND EXISTS(SELECT 1 FROM managed_psx_generation WHERE operation_id=?3 AND witness_sha256=?15 AND witness_json=?16)",
-            params![install_json,updated_at,journal.id,journal.port_id,path_string(journal.paths.staging.as_ref())?,path_string(journal.paths.final_path.as_ref())?,journal.activate as i64,journal.updated_at,journal.created_at,crate::psx::PsxStageWitness::library_id(compiled),sha,json,parent.0,parent.1,ancestor.0,ancestor.1],
+               AND EXISTS(SELECT 1 FROM managed_psx_generation WHERE operation_id=?3 AND witness_sha256=?15 AND witness_json=?16)
+               AND (?17 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_bootstrap WHERE operation_id=?3 AND witness_sha256=?17 AND witness_json=?18))",
+            params![install_json,updated_at,journal.id,journal.port_id,path_string(journal.paths.staging.as_ref())?,path_string(journal.paths.final_path.as_ref())?,journal.activate as i64,journal.updated_at,journal.created_at,crate::psx::PsxStageWitness::library_id(compiled),sha,json,parent.0,parent.1,ancestor.0,ancestor.1,bootstrap.map(|(sha, _)| sha),bootstrap.map(|(_, json)| json)],
         )?;
         if changed != 1 {
             return Err(PortcoveError::conflict(
@@ -613,6 +651,7 @@ impl OperationStore {
         witness.verify(&self.library, journal, operation)?;
         let json = psx_witness_json(witness)?;
         let parent = psx_parent_json(witness)?;
+        let bootstrap = psx_bootstrap_parent(witness)?;
         let ancestor = psx_bound_parent(witness.ancestor()?)?;
         if table.has_parent() != parent.is_some() {
             return Err(PortcoveError::state("PS1 stage parent identity is missing"));
@@ -651,7 +690,8 @@ impl OperationStore {
                AND (?11 IS NULL OR EXISTS(SELECT 1 FROM {}
                    WHERE operation_id=?2 AND witness_sha256=?11 AND witness_json=?12))
                AND (?13 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_generation
-                   WHERE operation_id=?2 AND witness_sha256=?13 AND witness_json=?14)){successor_sql}", table.name(), table.parent_name()),
+                   WHERE operation_id=?2 AND witness_sha256=?13 AND witness_json=?14))
+               AND (?17 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_bootstrap WHERE operation_id=?2 AND witness_sha256=?17 AND witness_json=?18)){successor_sql}", table.name(), table.parent_name()),
             params![
                 json,
                 journal.id,
@@ -668,7 +708,9 @@ impl OperationStore {
                 ancestor.as_ref().map(|(sha, _)| *sha),
                 ancestor.as_ref().map(|(_, json)| json.as_str()),
                 predecessor.map(|(sha, _, _, _)| sha),
-                predecessor.map(|(_, json, _, _)| json)
+                predecessor.map(|(_, json, _, _)| json),
+                bootstrap.map(|(sha, _)| sha),
+                bootstrap.map(|(_, json)| json)
             ],
         )?;
         if changed != 1 {
@@ -702,6 +744,25 @@ impl OperationStore {
         operation.checkpoint()?;
         transaction.commit()?;
         Ok(())
+    }
+
+    pub(crate) fn require_psx_generation_vacant(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        let advanced: bool = database::connect(self.library.root())?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM managed_psx_generation WHERE operation_id=?1)
+                OR EXISTS(SELECT 1 FROM managed_psx_configuration WHERE operation_id=?1)
+                OR EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=?1)",
+            [operation.operation_id()],
+            |row| row.get(0),
+        )?;
+        if advanced {
+            return Err(PortcoveError::conflict(
+                "PS1 acquired generation already advanced",
+            ));
+        }
+        operation.checkpoint()
     }
 
     pub(crate) fn psx_generation(
@@ -800,6 +861,7 @@ impl OperationStore {
         }
         let mut witness: T = serde_json::from_str(&json)?;
         let bound_parent = psx_parent_json(&witness)?;
+        let bootstrap = psx_bootstrap_parent(&witness)?;
         let ancestor = psx_bound_parent(witness.ancestor()?)?;
         if table.has_parent() != bound_parent.is_some()
             || bound_parent.as_ref().map(|(sha, _)| *sha) != parent_sha256.as_deref()
@@ -851,6 +913,8 @@ impl OperationStore {
                 AND (?6 IS NULL OR (p.witness_json=?6 AND p.witness_sha256=?7))
                 AND (?8 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_generation a
                     WHERE a.operation_id=g.operation_id AND a.witness_sha256=?8 AND a.witness_json=?9))
+                AND (?11 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_bootstrap b
+                    WHERE b.operation_id=g.operation_id AND b.witness_sha256=?11 AND b.witness_json=?12))
                 AND (?10 IS NULL OR (
                     (SELECT count(*) FROM managed_psx_compile_history WHERE operation_id=g.operation_id)=?10-1
                     AND NOT EXISTS(SELECT 1 FROM managed_psx_compile_history WHERE operation_id=g.operation_id AND completed_batches>=?10))))",
@@ -867,7 +931,9 @@ impl OperationStore {
                 parent_sha256,
                 ancestor.as_ref().map(|(sha, _)| *sha),
                 ancestor.as_ref().map(|(_, json)| json.as_str()),
-                witness.retained_compile_batches().map(|count| count as i64)
+                witness.retained_compile_batches().map(|count| count as i64),
+                bootstrap.map(|(sha, _)| sha),
+                bootstrap.map(|(_, json)| json)
             ],
             |row| row.get(0),
         )?;

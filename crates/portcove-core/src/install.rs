@@ -443,7 +443,14 @@ fn retain_staged_failure(lifecycle: &mut InstallLifecycle, error: &PortcoveError
                 "staged preparation failed and its error could not be recorded",
             )
             .detail("operation_id", &lifecycle.record.id)
-            .detail("preparation_error", &error.message)
+            .detail(
+                "preparation_error",
+                error
+                    .details
+                    .get("preparation_error")
+                    .unwrap_or(&error.message),
+            )
+            .detail("retention_input_error", &error.message)
             .detail("persistence_error", persist.message);
             refusal
                 .details
@@ -469,7 +476,16 @@ async fn run_managed_install_worker<T: Send + 'static>(
         .map_err(|error| PortcoveError::install(error.to_string()))?;
     let mut completed = lifecycle.record.clone();
     completed.preparation_process_quiesced = Some(quiesced);
-    lifecycle.store.put(&mut completed)?;
+    if let Err(persist) = lifecycle.store.put(&mut completed) {
+        let mut refusal = persist.detail("operation_id", &lifecycle.record.id);
+        if let Err(error) = &result {
+            refusal = refusal.detail("preparation_error", &error.message);
+            refusal
+                .details
+                .extend(crate::tool_process::copy_proof_details(error));
+        }
+        return Err(refusal);
+    }
     lifecycle.record = completed;
     result
 }
@@ -652,6 +668,122 @@ impl Installer {
         Ok(ManagedInstallContinuation {
             operation_id: operation_id.to_owned(),
             port_id: witness.port_id().to_owned(),
+        })
+    }
+
+    /// Generate from an exact store-owned acquired checkpoint, with fresh
+    /// acquisition authority and the port lock. No bytes are reacquired.
+    pub async fn generate_acquired_managed_install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<ManagedInstallContinuation>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let preparation = request.managed.as_ref().ok_or_else(|| {
+            PortcoveError::unsupported("PS1 acquired generation requires managed preparation")
+        })?;
+        if request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 acquired generation requires a retained contract",
+            ));
+        }
+        let scope = self.require_acquisition(&request)?;
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let _port_guard = self
+            .library
+            .try_lock_port(&request.port_id, "generate-acquired-managed-install")?;
+        operation.checkpoint()?;
+        let store = OperationStore::new(self.library.clone());
+        store.require_psx_generation_vacant(operation)?;
+        let load_store = store.clone();
+        let witness = join_psx_witness_worker(operation, move |checkpoint| {
+            load_store.psx_bootstrap(&checkpoint)
+        })
+        .await?;
+        let artifact = witness.artifact().clone();
+        if artifact.asset_name != request.release.asset.name
+            || !artifact
+                .sha256
+                .eq_ignore_ascii_case(&request.release.asset.sha256)
+            || (request.release.asset.size != 0 && request.release.asset.size != artifact.size)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained artifact and live release differ",
+            ));
+        }
+        witness.require_request(&generation_contract(&request, &artifact)?, preparation)?;
+        let record = store.get(operation.operation_id())?.ok_or_else(|| {
+            PortcoveError::state("PS1 acquired generation lifecycle owner is missing")
+        })?;
+        let operation_root =
+            record.paths.staging.clone().ok_or_else(|| {
+                PortcoveError::state("PS1 acquired generation staging is missing")
+            })?;
+        let destination = record.paths.final_path.clone().ok_or_else(|| {
+            PortcoveError::state("PS1 acquired generation destination is missing")
+        })?;
+        let mut lifecycle = InstallLifecycle {
+            destination,
+            operation_root,
+            store,
+            record,
+        };
+        let preparation = preparation.clone();
+        // Revalidate the live grant after lengthy private-file checks, before
+        // recording a writer and dispatching any setup process.
+        self.require_acquisition(&request)?;
+        lifecycle.store.require_psx_generation_vacant(operation)?;
+        operation.checkpoint()?;
+        emit(operation.message(
+            "info",
+            "Generating from retained acquired setup; no reacquisition or publication",
+        ));
+        let generation_library = self.library.clone();
+        let prior = lifecycle.record.clone();
+        let result = run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
+            witness.generate(&generation_library, &prior, &preparation, &checkpoint)
+        })
+        .await;
+        let (generated, binding) = match result {
+            Ok(generated) => generated,
+            Err(error) => {
+                // Preserve the failed stage and closure evidence. This method
+                // grants neither automatic retry nor deletion of private data.
+                retain_staged_failure(&mut lifecycle, &error)?;
+                return Err(error);
+            }
+        };
+        let retained = self.require_acquisition(&request).and_then(|_| {
+            crate::psx::GeneratedInstallWitness::new(
+                &self.library,
+                &lifecycle.record,
+                generation_contract(&request, &artifact)?,
+                generated,
+            )
+            .map(|witness| witness.with_bootstrap(binding))
+        });
+        let retained = match retained {
+            Ok(generated) => {
+                let store = lifecycle.store.clone();
+                let journal = lifecycle.record.clone();
+                join_psx_witness_worker(operation, move |checkpoint| {
+                    store.commit_psx_generation(&journal, &generated, &checkpoint)
+                })
+                .await
+            }
+            Err(error) => Err(error),
+        };
+        if let Err(error) = retained {
+            retain_staged_failure(&mut lifecycle, &error)?;
+            return Err(error);
+        }
+        Ok(ManagedInstallContinuation {
+            operation_id: operation.operation_id().to_owned(),
+            port_id: request.port_id,
         })
     }
 
@@ -3206,6 +3338,15 @@ mod tests {
 
     #[tokio::test]
     async fn managed_worker_completion_storage_error_keeps_both_proofs_false() {
+        assert_managed_worker_completion_storage_error(false).await;
+    }
+
+    #[tokio::test]
+    async fn managed_worker_completion_storage_error_preserves_worker_cause_and_proof() {
+        assert_managed_worker_completion_storage_error(true).await;
+    }
+
+    async fn assert_managed_worker_completion_storage_error(worker_fails: bool) {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let operation = OperationCoordinator::new("owned-managed-worker", None);
@@ -3217,6 +3358,7 @@ mod tests {
             LifecycleOperationKind::Install,
             "sample",
         );
+        record.phase = LifecyclePhase::StagedPreparing;
         record.paths.staging = Some(staging.clone());
         let store = OperationStore::new(library.clone());
         store.put(&mut record).unwrap();
@@ -3229,15 +3371,51 @@ mod tests {
             store: store.clone(),
             record,
         };
-        let error = run_managed_install_worker(&mut lifecycle, &operation, |_| (Ok(()), true))
-            .await
-            .unwrap_err();
+        let error = run_managed_install_worker(&mut lifecycle, &operation, move |_| {
+            let result = if worker_fails {
+                Err(PortcoveError::install("joined worker original refusal")
+                    .detail("process_tree_total", "2")
+                    .detail("process_tree_membership_complete", "true"))
+            } else {
+                Ok(())
+            };
+            (result, true)
+        })
+        .await
+        .unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::State);
         assert!(
             error
                 .message
                 .contains("owned completion persistence failure")
         );
+        if worker_fails {
+            assert_eq!(
+                error.details["preparation_error"],
+                "joined worker original refusal"
+            );
+            assert_eq!(error.details["process_tree_total"], "2");
+            assert_eq!(error.details["process_tree_membership_complete"], "true");
+            library.connection().unwrap().execute_batch("CREATE TRIGGER refuse_joined_failure BEFORE UPDATE ON lifecycle_operations WHEN NEW.last_error IS NOT NULL BEGIN SELECT RAISE(ABORT, 'joined retention persistence refusal'); END;").unwrap();
+            let retained_error = retain_staged_failure(&mut lifecycle, &error).unwrap_err();
+            assert_eq!(
+                retained_error.details["preparation_error"],
+                "joined worker original refusal"
+            );
+            assert!(
+                retained_error.details["retention_input_error"]
+                    .contains("owned completion persistence failure")
+            );
+            assert!(
+                retained_error.details["persistence_error"]
+                    .contains("joined retention persistence refusal")
+            );
+            assert_eq!(retained_error.details["process_tree_total"], "2");
+            assert_eq!(
+                retained_error.details["process_tree_membership_complete"],
+                "true"
+            );
+        }
         assert_eq!(lifecycle.record.preparation_process_quiesced, Some(false));
         assert_eq!(
             store
@@ -3411,6 +3589,43 @@ mod tests {
             assert_eq!(staging.exists(), !quiesced);
             assert_eq!(store.get(&id).unwrap().is_some(), !quiesced);
         }
+    }
+
+    #[test]
+    fn bootstrap_failure_retention_preserves_original_process_proof_when_store_fails() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let operation = OperationCoordinator::new("bootstrap-proof-fixture", None);
+        let mut record = LifecycleOperation::new(
+            operation.operation_id(),
+            LifecycleOperationKind::Install,
+            "sample",
+        );
+        record.phase = LifecyclePhase::StagedPreparing;
+        let staging = library.staging_dir().join(operation.operation_id());
+        fs::create_dir_all(&staging).unwrap();
+        record.paths.staging = Some(staging.clone());
+        record.preparation_process_quiesced = Some(true);
+        let store = OperationStore::new(library.clone());
+        store.put(&mut record).unwrap();
+        library.connection().unwrap().execute_batch("CREATE TRIGGER refuse_bootstrap_error BEFORE UPDATE ON lifecycle_operations WHEN NEW.last_error IS NOT NULL BEGIN SELECT RAISE(ABORT, 'retained fixture persistence refusal'); END;").unwrap();
+        let mut lifecycle = InstallLifecycle {
+            destination: staging.join("unused"),
+            operation_root: staging.clone(),
+            store,
+            record,
+        };
+        let original = PortcoveError::install("original generation refusal")
+            .detail("process_tree_total", "2")
+            .detail("process_tree_membership_complete", "false");
+        let error = retain_staged_failure(&mut lifecycle, &original).unwrap_err();
+        assert_eq!(error.details["preparation_error"], original.message);
+        assert!(
+            error.details["persistence_error"].contains("retained fixture persistence refusal")
+        );
+        assert_eq!(error.details["process_tree_total"], "2");
+        assert_eq!(error.details["process_tree_membership_complete"], "false");
+        assert!(staging.is_dir());
     }
 
     #[tokio::test(flavor = "current_thread")]

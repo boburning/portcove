@@ -22,6 +22,43 @@ pub(crate) struct BootstrapWitness {
     artifact: ArtifactIdentity,
     archive: crate::external_runtime::InspectedFile,
     payload: GeneratedTree,
+    #[serde(skip)]
+    persisted_sha256: Option<String>,
+    #[serde(skip)]
+    persisted_json: Option<String>,
+}
+
+/// Exact acquired predecessor bytes, retained throughout all later stages.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct BootstrapBinding {
+    sha256: String,
+    json: String,
+}
+
+impl BootstrapBinding {
+    pub(super) fn receipt(&self) -> (&str, &str) {
+        (&self.sha256, &self.json)
+    }
+
+    pub(super) fn require_current(&self, library: &Library, operation_id: &str) -> Result<()> {
+        use sha2::Digest;
+        if self.json.len() > 64 * 1024 * 1024
+            || hex::encode(sha2::Sha256::digest(self.json.as_bytes())) != self.sha256
+        {
+            return Err(PortcoveError::verification(
+                "PS1 acquired predecessor bytes changed",
+            ));
+        }
+        let current: bool = library.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM managed_psx_bootstrap WHERE operation_id=?1 AND witness_sha256=?2 AND witness_json=?3)",
+            rusqlite::params![operation_id, self.sha256, self.json], |row| row.get(0),
+        )?;
+        if !current {
+            return Err(PortcoveError::conflict("PS1 acquired predecessor changed"));
+        }
+        Ok(())
+    }
 }
 
 impl BootstrapWitness {
@@ -63,6 +100,8 @@ impl BootstrapWitness {
             artifact,
             archive,
             payload,
+            persisted_sha256: None,
+            persisted_json: None,
         };
         // Provisional observations only; the joined owner must verify and
         // atomically seal this value after durable positive worker closure.
@@ -72,9 +111,66 @@ impl BootstrapWitness {
     pub(crate) fn port_id(&self) -> &str {
         &self.port_id
     }
+
+    pub(crate) fn artifact(&self) -> &ArtifactIdentity {
+        &self.artifact
+    }
+
+    pub(crate) fn require_request(
+        &self,
+        contract: &serde_json::Value,
+        preparation: &PsxManagedPreparation,
+    ) -> Result<()> {
+        if &self.contract != contract || self.inputs != preparation_identity(preparation)? {
+            return Err(PortcoveError::conflict(
+                "PS1 acquired continuation request changed",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(super) fn binding(&self) -> Result<BootstrapBinding> {
+        Ok(BootstrapBinding {
+            sha256: self.persisted_sha256.clone().ok_or_else(|| {
+                PortcoveError::state("PS1 acquired predecessor was not store-loaded")
+            })?,
+            json: self.persisted_json.clone().ok_or_else(|| {
+                PortcoveError::state("PS1 acquired predecessor bytes were not store-loaded")
+            })?,
+        })
+    }
+
+    pub(crate) fn generate(
+        self,
+        library: &Library,
+        journal: &LifecycleOperation,
+        preparation: &PsxManagedPreparation,
+        operation: &OperationCoordinator,
+    ) -> (Result<(super::GeneratedInstall, BootstrapBinding)>, bool) {
+        let checked = self.binding().and_then(|binding| {
+            crate::operation::OperationStore::new(library.clone())
+                .require_psx_generation_vacant(operation)?;
+            binding.require_current(library, operation.operation_id())?;
+            self.verify(library, journal, operation)?;
+            Ok(binding)
+        });
+        let binding = match checked {
+            Ok(value) => value,
+            Err(error) => return (Err(error), true),
+        };
+        let (result, quiesced) =
+            super::generate_install_stage(self.payload.root(), preparation, operation);
+        (result.map(|generated| (generated, binding)), quiesced)
+    }
 }
 
 impl PsxStageWitness for BootstrapWitness {
+    fn record_load(&mut self, sha256: String) {
+        self.persisted_sha256 = Some(sha256);
+    }
+    fn record_load_json(&mut self, json: String) {
+        self.persisted_json = Some(json);
+    }
     fn library_id(&self) -> &str {
         &self.library_id
     }

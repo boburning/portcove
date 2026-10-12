@@ -66,6 +66,9 @@ pub(crate) struct CompiledInstall {
 }
 
 impl PsxStageWitness for CompiledInstall {
+    fn bootstrap_parent(&self) -> Option<(&str, &str)> {
+        self.configuration.bootstrap_parent()
+    }
     fn compile_history_identity(&self) -> Option<&str> {
         Some(&self.history_sha256)
     }
@@ -466,9 +469,22 @@ mod tests {
         crate::operation::LifecycleOperation,
         ConfiguredInstallWitness,
     ) {
+        fixture_with_edges_acquired(edges, false)
+    }
+
+    fn fixture_with_edges_acquired(
+        edges: usize,
+        acquired: bool,
+    ) -> (
+        tempfile::TempDir,
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ConfiguredInstallWitness,
+    ) {
         let temporary = tempfile::tempdir().unwrap();
         let (library, operation, journal, mut configured) =
-            super::super::tests::configuration_witness_fixture(temporary.path());
+            super::super::tests::configuration_witness_fixture_acquired(temporary.path(), acquired);
         if edges > 0 {
             let root = configured.configured.tree.root();
             let preparation =
@@ -554,7 +570,21 @@ mod tests {
         CompiledInstall,
         PsxManagedPreparation,
     ) {
-        let (temporary, library, operation, journal, configured) = fixture();
+        completed_fixture_acquired(false)
+    }
+
+    fn completed_fixture_acquired(
+        acquired: bool,
+    ) -> (
+        tempfile::TempDir,
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        CompiledInstall,
+        PsxManagedPreparation,
+    ) {
+        let (temporary, library, operation, journal, configured) =
+            fixture_with_edges_acquired(0, acquired);
         let preparation =
             preparation_from_identity(&configured.generation.generated.inputs).unwrap();
         fs::write(
@@ -823,6 +853,34 @@ mod tests {
                 .prepare_psx_publication(&mut journal, &finalized, &operation)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn bootstrap_predecessor_propagates_to_compile_and_publication_fence() {
+        let (_temporary, library, operation, mut journal, compiled, preparation) =
+            completed_fixture_acquired(true);
+        assert!(compiled.bootstrap_parent().is_some());
+        let mut finalized = compiled
+            .finish_completed(&preparation, &operation, true, 0)
+            .unwrap();
+        fs::write(
+            finalized.tree.root().join(".portcove-manifest.json"),
+            "inert manifest; no runtime acceptance",
+        )
+        .unwrap();
+        finalized.seal_manifest(&operation).unwrap();
+        journal.install = Some(fixture_install(&journal));
+        let store = OperationStore::new(library.clone());
+        let result = store.prepare_psx_publication_before_fence(&mut journal, &finalized, &operation, || {
+            library.connection()?.execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json || ' ' WHERE operation_id=?1", [operation.operation_id()])?;
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert_eq!(
+            store.get(operation.operation_id()).unwrap().unwrap().phase,
+            crate::operation::LifecyclePhase::StagedPreparing
+        );
+        assert!(library.all_installs().unwrap().is_empty());
     }
 
     #[test]

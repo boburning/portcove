@@ -111,8 +111,14 @@ fn create_owned_root(root: &Path, catalog_override_present: bool) -> Result<Path
 fn require_stage_request(stage: &str, retained_operation_id: Option<&str>) -> Result<()> {
     if !matches!(
         stage,
-        "generate" | "configure" | "compile-first" | "compile-next" | "finalize"
-    ) || (stage == "generate") != retained_operation_id.is_none()
+        "acquire"
+            | "generate-acquired"
+            | "generate"
+            | "configure"
+            | "compile-first"
+            | "compile-next"
+            | "finalize"
+    ) || matches!(stage, "acquire" | "generate") != retained_operation_id.is_none()
         || retained_operation_id.is_some_and(|id| {
             uuid::Uuid::parse_str(id).map_or(true, |parsed| parsed.to_string() != id)
         })
@@ -168,7 +174,7 @@ impl PortcoveService {
         }
         refuse_symlink_ancestors(root)?;
         refuse_symlink_ancestors(source)?;
-        let root = if stage == "generate" {
+        let root = if matches!(stage, "acquire" | "generate") {
             create_owned_root(root, override_present)?
         } else {
             if !root.is_dir() {
@@ -229,7 +235,7 @@ impl PortcoveService {
             let provider = crate::GithubReleaseProvider::for_library(&service.library)?;
             let release = operation.interruptible(provider.forbidden_memories_baseline(port)).await?;
             require_legacy()?;
-            let source = if stage == "generate" {
+            let source = if matches!(stage, "acquire" | "generate") {
                 service.validate_and_remember_source(port, Some(source), &operation)?
             } else {
                 let profile = port.source_profile.as_deref().ok_or_else(|| {
@@ -253,6 +259,8 @@ impl PortcoveService {
             };
             let installer = Installer::new(service.library.clone())?;
             let outcome = match stage {
+                "acquire" => serde_json::to_value(installer.acquire_managed_install(request, &operation, &mut emit).await?)?,
+                "generate-acquired" => serde_json::to_value(installer.generate_acquired_managed_install(request, &operation, &mut emit).await?)?,
                 "generate" => serde_json::to_value(installer.generate_managed_install(request, &operation, &mut emit).await?)?,
                 "configure" => serde_json::to_value(installer.configure_managed_install(request, &operation, &mut emit).await?)?,
                 "compile-first" | "compile-next" => {
@@ -335,7 +343,7 @@ impl PortcoveService {
         refuse_symlink_ancestors(program)?;
         refuse_symlink_ancestors(root)?;
         refuse_symlink_ancestors(source)?;
-        let fresh = selected_stage.is_none_or(|(stage, _)| stage == "generate");
+        let fresh = selected_stage.is_none_or(|(stage, _)| matches!(stage, "acquire" | "generate"));
         if (fresh && root.exists())
             || (!fresh && !root.is_dir())
             || source.starts_with(root)
@@ -519,6 +527,17 @@ impl PortcoveService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn historical_acquired_stages_require_exact_fresh_or_retained_custody() {
+        let id = uuid::Uuid::new_v4().to_string();
+        assert!(require_stage_request("acquire", None).is_ok());
+        assert!(require_stage_request("acquire", Some(&id)).is_err());
+        assert!(require_stage_request("generate-acquired", Some(&id)).is_ok());
+        assert!(require_stage_request("generate-acquired", None).is_err());
+        assert!(require_stage_request("generate-acquired", Some("caller-reconstructed")).is_err());
+    }
 
     #[cfg(feature = "qualification-fixtures")]
     #[tokio::test]

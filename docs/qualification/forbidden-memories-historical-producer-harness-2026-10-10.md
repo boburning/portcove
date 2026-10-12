@@ -179,3 +179,27 @@ verification remain implementation work. All fresh content/object/name checks
 after generation and on later continuation remain mandatory; persistent partial
 inventory must grant no execution. No native packet may replay the failed root,
 raise resource caps, or infer acceptance from the acquired checkpoint.
+
+## Resuming acquired setup bytes
+
+`generate_acquired_managed_install` owns the port lock, refreshes live acquisition
+authority, loads the exact acquired checkpoint in joined blocking work and checks
+its request, source/preparation identity and artifact against the current request.
+Existing generation or downstream progress explicitly refuses before dispatch;
+failed or unclosed journals remain unusable. The worker rechecks the full acquired
+payload/archive and then invokes the existing generation path with all fresh
+toolkit, normalized-source and post-generation checks intact.
+
+A store-loaded raw acquired receipt is bound into generated evidence and carried
+through configuration, compilation and final publication intent. Every stage
+loads and commits with the exact predecessor bytes in its SQLite fence. Changing
+the acquired row after filesystem verification prevents the Prepared transition.
+Optional absent bindings preserve legacy generation serialization. Persistence
+refusals retain the original error and native process proof.
+
+The qualification caller exposes one fixed `acquire` invocation on a fresh root
+and one `generate-acquired` invocation on an exact retained lifecycle UUID. Neither
+command loops stages, grants retry, adopts failed libraries or raises resource
+caps. Acquiring a checkpoint is distinct from accepted generation. The existing
+full toolkit checks still require a finite input/post-process boundary to prove
+resource fit; this wiring alone supplies no such native acceptance.

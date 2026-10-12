@@ -205,6 +205,8 @@ pub(crate) struct GeneratedInstallWitness {
     created_at: i64,
     contract: serde_json::Value,
     generated: GeneratedInstall,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bootstrap: Option<bootstrap::BootstrapBinding>,
     #[serde(skip)]
     persisted_sha256: Option<String>,
 }
@@ -228,6 +230,9 @@ pub(crate) trait PsxStageWitness: Serialize + serde::de::DeserializeOwned {
         journal: &crate::operation::LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()>;
+    fn bootstrap_parent(&self) -> Option<(&str, &str)> {
+        None
+    }
     fn parent(&self) -> Result<Option<(&str, String)>> {
         Ok(None)
     }
@@ -246,6 +251,9 @@ pub(crate) trait PsxStageWitness: Serialize + serde::de::DeserializeOwned {
 }
 
 impl PsxStageWitness for GeneratedInstallWitness {
+    fn bootstrap_parent(&self) -> Option<(&str, &str)> {
+        self.bootstrap.as_ref().map(|binding| binding.receipt())
+    }
     fn library_id(&self) -> &str {
         &self.library_id
     }
@@ -263,6 +271,9 @@ impl PsxStageWitness for GeneratedInstallWitness {
 }
 
 impl PsxStageWitness for ConfiguredInstallWitness {
+    fn bootstrap_parent(&self) -> Option<(&str, &str)> {
+        self.generation.bootstrap_parent()
+    }
     fn record_load(&mut self, sha256: String) {
         self.persisted_sha256 = Some(sha256);
     }
@@ -389,6 +400,10 @@ impl ConfiguredInstallWitness {
 }
 
 impl GeneratedInstallWitness {
+    pub(crate) fn with_bootstrap(mut self, binding: bootstrap::BootstrapBinding) -> Self {
+        self.bootstrap = Some(binding);
+        self
+    }
     pub(crate) fn artifact(&self) -> Result<crate::ArtifactIdentity> {
         serde_json::from_value(
             self.contract.get("artifact").cloned().ok_or_else(|| {
@@ -418,6 +433,7 @@ impl GeneratedInstallWitness {
             created_at: journal.created_at,
             contract,
             generated,
+            bootstrap: None,
             persisted_sha256: None,
         })
     }
@@ -500,6 +516,9 @@ impl GeneratedInstallWitness {
             return Err(PortcoveError::state(
                 "PS1 generation witness custody changed",
             ));
+        }
+        if let Some(binding) = &self.bootstrap {
+            binding.require_current(library, &journal.id)?;
         }
         Ok(())
     }
@@ -2774,8 +2793,11 @@ mod tests {
         OperationCoordinator,
         crate::operation::LifecycleOperation,
         BootstrapWitness,
+        GeneratedInstallWitness,
+        PsxManagedPreparation,
     ) {
-        let (library, operation, journal, _, preparation) = generation_witness_fixture(root);
+        let (library, operation, journal, generated, preparation) =
+            generation_witness_fixture(root);
         let bytes = b"inert authenticated archive fixture";
         fs::write(
             journal
@@ -2802,14 +2824,14 @@ mod tests {
             &operation,
         )
         .unwrap();
-        (library, operation, journal, witness)
+        (library, operation, journal, witness, generated, preparation)
     }
 
     #[test]
     fn bootstrap_reopen_grants_no_generation_and_rejects_changed_archive() {
         use crate::operation::OperationStore;
         let temporary = tempfile::tempdir().unwrap();
-        let (library, operation, journal, witness) = bootstrap_fixture(temporary.path());
+        let (library, operation, journal, witness, _, _) = bootstrap_fixture(temporary.path());
         let store = OperationStore::new(library.clone());
         store
             .commit_psx_bootstrap(&journal, &witness, &operation)
@@ -2837,7 +2859,7 @@ mod tests {
     fn bootstrap_refuses_payload_replacement_and_unclosed_or_failed_journal() {
         use crate::operation::OperationStore;
         let temporary = tempfile::tempdir().unwrap();
-        let (library, operation, mut journal, witness) = bootstrap_fixture(temporary.path());
+        let (library, operation, mut journal, witness, _, _) = bootstrap_fixture(temporary.path());
         let store = OperationStore::new(library.clone());
         journal.preparation_process_quiesced = Some(false);
         store.put(&mut journal).unwrap();
@@ -2872,7 +2894,7 @@ mod tests {
     fn bootstrap_exact_witness_and_journal_fence_rejects_concurrent_drift() {
         use crate::operation::OperationStore;
         let temporary = tempfile::tempdir().unwrap();
-        let (library, operation, journal, witness) = bootstrap_fixture(temporary.path());
+        let (library, operation, journal, witness, _, _) = bootstrap_fixture(temporary.path());
         let store = OperationStore::new(library.clone());
         store
             .commit_psx_bootstrap(&journal, &witness, &operation)
@@ -2882,6 +2904,124 @@ mod tests {
             Ok(())
         });
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn bootstrap_generation_requires_loaded_exact_predecessor_and_unchanged_request() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, bootstrap, generated, mut preparation) =
+            bootstrap_fixture(temporary.path());
+        assert!(bootstrap.binding().is_err());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+            .unwrap();
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        loaded
+            .require_request(&serde_json::json!({"inert":true}), &preparation)
+            .unwrap();
+        preparation.executable_basename.push_str("-changed");
+        assert!(
+            loaded
+                .require_request(&serde_json::json!({"inert":true}), &preparation)
+                .is_err()
+        );
+        let bound = generated.with_bootstrap(loaded.binding().unwrap());
+        store
+            .commit_psx_generation(&journal, &bound, &operation)
+            .unwrap();
+        let reopened = store.psx_generation(&operation).unwrap();
+        assert_eq!(reopened.bootstrap_parent(), bound.bootstrap_parent());
+        library.connection().unwrap().execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id]).unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn bootstrap_generation_vacancy_refuses_replay_before_worker_dispatch() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, bootstrap, generated, preparation) =
+            bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+            .unwrap();
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        store.require_psx_generation_vacant(&operation).unwrap();
+        let binding = loaded.binding().unwrap();
+        store
+            .commit_psx_generation(&journal, &generated.with_bootstrap(binding), &operation)
+            .unwrap();
+        assert!(store.require_psx_generation_vacant(&operation).is_err());
+        let before = fs::read(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("payload/generated.c"),
+        )
+        .unwrap();
+        let (result, quiesced) = loaded.generate(&library, &journal, &preparation, &operation);
+        assert_eq!(
+            result.err().unwrap().message,
+            "PS1 acquired generation already advanced"
+        );
+        assert!(quiesced);
+        assert_eq!(
+            before,
+            fs::read(
+                journal
+                    .paths
+                    .staging
+                    .as_ref()
+                    .unwrap()
+                    .join("payload/generated.c")
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn bootstrap_optional_binding_preserves_legacy_generation_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (_, _, _, generated, _) = generation_witness_fixture(temporary.path());
+        let json = crate::operation::psx_witness_json(&generated).unwrap();
+        assert!(
+            serde_json::from_str::<serde_json::Value>(&json)
+                .unwrap()
+                .get("bootstrap")
+                .is_none()
+        );
+        let reopened: GeneratedInstallWitness = serde_json::from_str(&json).unwrap();
+        assert_eq!(json, crate::operation::psx_witness_json(&reopened).unwrap());
+    }
+
+    #[test]
+    fn bootstrap_generation_fence_refuses_predecessor_drift_after_filesystem_verification() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, bootstrap, generated, _) =
+            bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+            .unwrap();
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        store
+            .commit_psx_generation(
+                &journal,
+                &generated.with_bootstrap(loaded.binding().unwrap()),
+                &operation,
+            )
+            .unwrap();
+        let result = store.psx_generation_before_fence(&operation, || {
+            library.connection()?.execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id])?;
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert!(library.all_installs().unwrap().is_empty());
     }
 
     #[test]
@@ -2950,9 +3090,32 @@ mod tests {
         crate::operation::LifecycleOperation,
         ConfiguredInstallWitness,
     ) {
+        configuration_witness_fixture_acquired(root, false)
+    }
+
+    pub(super) fn configuration_witness_fixture_acquired(
+        root: &Path,
+        acquired: bool,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ConfiguredInstallWitness,
+    ) {
         use crate::operation::OperationStore;
-        let (library, operation, journal, generation, preparation) =
-            generation_witness_fixture(root);
+        let (library, operation, journal, generation, preparation) = if acquired {
+            let (library, operation, journal, bootstrap, generation, preparation) =
+                bootstrap_fixture(root);
+            let store = OperationStore::new(library.clone());
+            store
+                .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+                .unwrap();
+            let loaded = store.psx_bootstrap(&operation).unwrap();
+            let generation = generation.with_bootstrap(loaded.binding().unwrap());
+            (library, operation, journal, generation, preparation)
+        } else {
+            generation_witness_fixture(root)
+        };
         let store = OperationStore::new(library.clone());
         store
             .commit_psx_generation(&journal, &generation, &operation)
