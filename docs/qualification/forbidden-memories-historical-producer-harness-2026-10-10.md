@@ -107,6 +107,13 @@ they exclude an interrupted current call and do not measure SHA CPU time. They
 preserve the original result and every source, object, name, content and deadline
 check; they confer no generation, custody or continuation acceptance.
 
+On Windows, identity-only comparisons request metadata access on no-reparse
+handles; readable handles remain mandatory for complete byte hashing and metadata
+content reads. The same ancestor, canonical path, object, type, size, time and
+final name fences remain in place. This access correction does not establish
+performance fit: an exact rebuilt executable needs separate review and a fresh
+bounded native observation before any stage can acquire acceptance.
+
 ## First actual attempt and repaired boundary
 
 The separately admitted one-attempt script at SHA-256
