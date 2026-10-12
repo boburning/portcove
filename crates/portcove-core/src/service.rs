@@ -7201,15 +7201,13 @@ mod tests {
 
     #[cfg(windows)]
     fn create_adoption_test_junction(target: &Path, link: &Path) {
-        use std::os::windows::process::CommandExt;
-
         let target = target.to_str().unwrap();
         let link = link.to_str().unwrap();
         for path in [target, link] {
             assert!(!path.contains(['"', '%', '!', '&', '|', '<', '>', '^', '\r', '\n']));
         }
         let mut command =
-            ChildProcessPolicy::native_command(ChildProcessClass::HostTool, "cmd.exe").unwrap();
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, "cmd.exe").unwrap();
         command.raw_arg(format!("/D /V:OFF /C mklink /J \"{link}\" \"{target}\""));
         let started = std::time::Instant::now();
         let checkpoint = || {

@@ -2126,6 +2126,16 @@ Authentication does not grant webhook access to arbitrary upstream repositories.
 
 RetComM is not a Portcove release provider. Its title catalog is used only by a CI audit to confirm that PS1 entries still name the same direct per-game repositories. The RetComM launcher cannot satisfy a game release request and is explicitly rejected by catalog validation. `retcomm-toolchains` is a separate checksum-pinned build dependency used by the shared PS1 adapter.
 
+Core-managed PS1 rebuilds pass fixed `--cmake-extra` arguments defining both
+`CMAKE_C_COMPILER_LAUNCHER` and `CMAKE_CXX_COMPILER_LAUNCHER` as empty strings.
+Each definition is joined to its option in one argument so the SDK parser does
+not reinterpret `-D` as another option. This selects direct pinned compilers
+instead of optional cache launchers without increasing process, memory, output
+or time budgets. The selected kit must support that CLI/CMake pass-through;
+unsupported kits remain held without a retry omitting the policy. Qualification
+must observe the resulting configure/build commands and actual bounded outcome.
+Removing a wrapper alone does not prove complete build fit or quiescence.
+
 Backup deletion uses a private checked operation-family view in normal execution
 and recovery. Named original/quarantine/backup identities replace its positional
 recovery tuple; checked authorized-to-quarantined-to-deleted transitions retain
@@ -2206,7 +2216,9 @@ initial-generation boundary.
 
 The Windows tool supervisor retains the leader handle before resuming it and
 collects handles for verified members of its exact containment job during execution.
-Membership storage is bounded to 512 processes. After requesting termination it
+Membership handle storage is bounded to 512 slots. Duplicate handles or failed
+creation-time metadata do not establish additional admitted process lifetimes.
+After requesting termination it
 waits for every retained handle to signal exit, within one shared two-second bound,
 and requires zero active processes plus a lifetime process count matching its
 complete handle coverage. Only this proof permits its quiescence callback.
@@ -2227,6 +2239,33 @@ never grant cleanup authority or extend the existing deadline; a missed child
 lifetime remains a hold even after active accounting reaches zero.
 
 ## Child-process boundary
+
+Supervised setup, managed-builder, conversion and fixed host-probe calls carry
+a private `NativeToolLaunchSpec` with the native program, literal arguments,
+complete filtered environment and optional working directory. Core constructs
+the command from that input with ambient inheritance cleared. Tool environment
+overlays cannot add credential-shaped names; Windows replacement and removal
+compare names using case-insensitive ordinal equality. Raw argument syntax is
+available only to the existing Windows junction unit-test fixtures.
+
+On Windows, supervised tools use a private controller whose single owning thread
+creates the suspended root, assigns its non-breakaway kill-on-close Job and
+resumes the exact creation-returned primary thread. It captures descendant
+creation handles before continuing debug events, independently of caller
+checkpoints. One PID-and-creation-time store combines those handles with bounded
+Job observations for descendants that start their own debugger. Cleanup proof
+requires positive retained-handle waits, zero active members and equality between
+the Job's lifetime count and retained identities, within one two-second closure
+deadline. Missing coverage, API failure or expiry preserves failure. Startup
+readiness failures and controller panics project the available locked proof
+without an additional wait. Unobserved active counts, root exits or retained-handle
+closure stay absent; independently closed fixture handles cannot repair Core's
+missing cleanup proof. Startup
+exception classification is limited to the admitted native x64 system-module,
+initial-thread and one-shot state; application exceptions are forwarded. Fixed
+host-tool probes use this same controller and require cleanup proof before
+publishing selection. Source and fixture checks do not establish native or
+upstream acceptance; those remain separate qualification gates.
 
 `portcove-core::ChildProcessPolicy` is the single construction path for every production child process. Callers select a typed class for games, upstream setup, host tools such as `chdman` and DolphinTool, managed builders, or operating-system integration. All classes begin from the same reviewed session allowlist rather than inheriting the complete Portcove environment. The allowlist preserves cross-platform process discovery, profile/home, temporary-directory, locale, desktop/display, audio/graphics, Steam/Proton, Wine, and dynamic-runtime variables needed by native ports. GitHub variables and other credential-shaped token, secret, password, API-key, cloud-key, SSH-agent, and askpass variables are removed centrally. Catalog/adapter overlays are checked by the same policy and cannot reintroduce a credential-shaped variable.
 

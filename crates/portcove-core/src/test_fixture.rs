@@ -358,6 +358,7 @@ pub(crate) fn build_probe(directory: &Path) -> PathBuf {
         ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, "rustc").unwrap();
     assert!(
         rustc
+            .arg("--edition=2024")
             .arg(&source)
             .arg("-o")
             .arg(&executable)

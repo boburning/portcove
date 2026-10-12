@@ -549,8 +549,6 @@ fn prepare_install_inner(
     )?;
     operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
-    let config_path = crate::path::unicode(&config, "managed build config")?;
-    let project_root = crate::path::unicode(root, "managed build root")?;
     let generate_arguments = generation_arguments(
         &config,
         root,
@@ -576,24 +574,7 @@ fn prepare_install_inner(
         &cli,
         root,
         &preparation.toolchain_root,
-        [
-            "rebuild".into(),
-            "--config".into(),
-            config_path,
-            "--project-root".into(),
-            project_root,
-            "--build-dir".into(),
-            crate::path::unicode(&build_dir, "managed build directory")?,
-            "--target".into(),
-            "psx-runtime".into(),
-            "--exe-basename".into(),
-            configuration.executable_basename.into(),
-            "--no-pgo".into(),
-            "--no-toolchain-download".into(),
-            "--prune-after".into(),
-            "build-intermediates".into(),
-            "--json-progress".into(),
-        ],
+        rebuild_arguments(&config, root, &build_dir, configuration.executable_basename)?,
         operation,
         quiesced,
     )?;
@@ -1238,6 +1219,37 @@ fn generation_arguments(
     Ok(arguments)
 }
 
+fn rebuild_arguments(
+    config: &Path,
+    root: &Path,
+    build_dir: &Path,
+    executable_basename: &str,
+) -> Result<Vec<String>> {
+    Ok(vec![
+        "rebuild".into(),
+        "--config".into(),
+        crate::path::unicode(config, "managed build config")?,
+        "--project-root".into(),
+        crate::path::unicode(root, "managed build root")?,
+        "--build-dir".into(),
+        crate::path::unicode(build_dir, "managed build directory")?,
+        "--target".into(),
+        "psx-runtime".into(),
+        "--exe-basename".into(),
+        executable_basename.into(),
+        "--no-pgo".into(),
+        "--no-toolchain-download".into(),
+        "--prune-after".into(),
+        "build-intermediates".into(),
+        "--json-progress".into(),
+        // Keep each -D value joined to its option for argparse. Explicit empty
+        // launchers prevent the SDK's optional ccache discovery; supervision's
+        // retained lifetime membership limit still applies to direct compilers.
+        "--cmake-extra=-DCMAKE_C_COMPILER_LAUNCHER:STRING=".into(),
+        "--cmake-extra=-DCMAKE_CXX_COMPILER_LAUNCHER:STRING=".into(),
+    ])
+}
+
 fn run_cli(
     python: &Path,
     cli: &Path,
@@ -1284,7 +1296,7 @@ fn run_cli(
     ])
     .map_err(|_| PortcoveError::verification("pinned PS1 toolchain PATH is invalid"))?;
     let mut command =
-        ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?;
+        ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, python)?;
     command
         .arg(cli)
         .args(arguments)
@@ -2710,6 +2722,40 @@ mod tests {
             fs::read(
                 root.path()
                     .join(".portcove-builder-environment/temp/builder-probe")
+            )
+            .unwrap(),
+            b"private fixture write"
+        );
+    }
+
+    #[test]
+    fn managed_rebuild_disables_optional_launchers_with_pinned_private_tools() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let root = tempfile::tempdir().unwrap();
+        let python = toolchain_fixture(root.path(), Some(&program));
+        let arguments = rebuild_arguments(
+            &root.path().join("game.toml"),
+            root.path(),
+            &root.path().join("build-portcove"),
+            "owned-game",
+        )
+        .unwrap();
+        let mut quiesced = true;
+        run_cli(
+            &python,
+            Path::new("--psx-builder-contract"),
+            root.path(),
+            root.path(),
+            arguments,
+            &OperationCoordinator::new("owned-rebuild", None),
+            &mut quiesced,
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(
+                root.path()
+                    .join(".portcove-builder-environment/home/builder-probe")
             )
             .unwrap(),
             b"private fixture write"

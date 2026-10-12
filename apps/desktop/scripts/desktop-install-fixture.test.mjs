@@ -233,6 +233,7 @@ test.runIf(process.platform === "win32")(
       const compiled = spawnCommand(
         "rustc",
         [
+          "--edition=2024",
           "--crate-name",
           "portcove_probe_mode_contract",
           path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),

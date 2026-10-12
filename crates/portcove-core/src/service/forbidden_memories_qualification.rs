@@ -5,7 +5,7 @@ use super::*;
 fn owned_producer_command(
     program: &Path,
     environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
-) -> Result<std::process::Command> {
+) -> Result<crate::process::NativeToolLaunchSpec> {
     // These are first-party host configuration, never upstream-child inheritance.
     // Preserve absent/empty semantics; native admission separately binds private paths.
     const BINDINGS: [&str; 4] = [
@@ -31,7 +31,7 @@ fn owned_producer_command(
         }
     }
     let mut command =
-        crate::ChildProcessPolicy::native_command(crate::ChildProcessClass::HostTool, program)?;
+        crate::ChildProcessPolicy::native_tool_spec(crate::ChildProcessClass::HostTool, program)?;
     command.envs(bindings);
     Ok(command)
 }
@@ -327,6 +327,8 @@ mod tests {
         let output = owned_producer_command(Path::new("cmd.exe"), environment)
             .unwrap()
             .args(["/d", "/u", "/c", "set PORTCOVE_"])
+            .command()
+            .unwrap()
             .output()
             .unwrap();
         assert!(output.status.success());
@@ -385,6 +387,8 @@ mod tests {
         .unwrap();
         assert!(
             command
+                .command()
+                .unwrap()
                 .get_envs()
                 .any(|(name, value)| name == "PORTCOVE_PREFERENCES"
                     && value == Some(std::ffi::OsStr::new("")))

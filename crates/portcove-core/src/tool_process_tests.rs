@@ -3,6 +3,22 @@ use std::{collections::BTreeMap, fs, io::Write, time::Instant};
 
 const CHILD_TEST: &str = "tool_process::tests::setup_fixture_child";
 
+#[test]
+fn post_exit_error_preserves_final_process_proof_and_original_failure() {
+    let proof = BTreeMap::from([
+        ("process_tree_root_exit".into(), "0".into()),
+        ("process_tree_all_retained_signaled".into(), "true".into()),
+        ("process_tree_retained_members".into(), "1".into()),
+        ("process_tree_total".into(), "1".into()),
+    ]);
+    let original = PortcoveError::state("final diagnostic failed").detail("capture", "retained");
+    let error = attach_process_tree_proof(original, &proof);
+    assert_eq!(error.message, "final diagnostic failed");
+    assert_eq!(error.code, crate::ErrorCode::State);
+    assert_eq!(error.details["capture"], "retained");
+    assert_eq!(copy_proof_details(&error), proof);
+}
+
 #[cfg(windows)]
 fn wait_nested_file(path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -77,10 +93,14 @@ fn nested_supervision_fixture_child() {
         },
     );
     let details = result.as_ref().err().map(copy_proof_details);
+    let proof = result
+        .as_ref()
+        .ok()
+        .map(|output| &output.process_tree_proof);
     fs::write(
         working.join("inner-result.pending"),
         serde_json::to_vec(&serde_json::json!({
-            "quiesced": inner_quiesced, "error": details,
+            "quiesced": inner_quiesced, "error": details, "proof": proof,
         }))
         .unwrap(),
     )
@@ -91,13 +111,13 @@ fn nested_supervision_fixture_child() {
     )
     .unwrap();
     wait_nested_file(&working.join("allow-worker-exit"));
-    assert_eq!(inner_quiesced, !short);
-    assert_eq!(result.is_ok(), !short);
+    assert!(inner_quiesced);
+    assert!(result.unwrap().status.success());
 }
 
 #[cfg(windows)]
 #[test]
-fn nested_windows_supervisors_distinguish_held_and_unobserved_child_lifetimes() {
+fn nested_windows_supervisors_report_exact_child_lifetime_coverage() {
     let native = tempfile::tempdir().unwrap();
     let program = crate::test_fixture::build_probe(native.path());
     for short in [false, true] {
@@ -130,8 +150,9 @@ fn nested_windows_supervisors_distinguish_held_and_unobserved_child_lifetimes() 
                 if working.path().join("inner-observing").is_file() {
                     observations.set(observations.get() + 1);
                     if observations.get() >= 2 {
-                        // Both jobs have observed the held members. In the short case,
-                        // freeze both observers while the one new child finishes.
+                        // Block this caller while the independent inner controller
+                        // observes its child. The outer job has no debug-port
+                        // inheritance for the inner debugger's descendants.
                         fs::write(working.path().join("allow-inner-release"), b"release").unwrap();
                         wait_nested_file(&working.path().join("inner-result.json"));
                         fs::write(
@@ -154,27 +175,37 @@ fn nested_windows_supervisors_distinguish_held_and_unobserved_child_lifetimes() 
         let inner: serde_json::Value =
             serde_json::from_slice(&fs::read(working.path().join("inner-result.json")).unwrap())
                 .unwrap();
-        assert_eq!(outer_quiesced, !short);
-        assert_eq!(inner["quiesced"], !short);
-        if short {
+        assert_eq!(inner["quiesced"], true);
+        assert!(inner["error"].is_null());
+        assert_eq!(inner["proof"]["process_tree_total"], "2");
+        assert_eq!(inner["proof"]["process_tree_retained_members"], "2");
+        assert_eq!(inner["proof"]["process_tree_active"], "0");
+        if short && !outer_quiesced {
             let error = result
                 .err()
-                .expect("both observers missed the short lifetime");
+                .expect("a missing nested lifetime must refuse success");
             assert_eq!(
                 error.details["process_tree_first_failure"],
                 "lifetime_count_gap"
             );
             assert_eq!(error.details["process_tree_total"], "3");
             assert_eq!(error.details["process_tree_retained_members"], "2");
-            assert_eq!(
-                inner["error"]["process_tree_first_failure"],
-                "lifetime_count_gap"
-            );
-            assert_eq!(inner["error"]["process_tree_total"], "2");
-            assert_eq!(inner["error"]["process_tree_retained_members"], "1");
+            assert_eq!(error.details["process_tree_active"], "0");
         } else {
-            assert!(result.unwrap().status.success());
-            assert!(inner["error"].is_null());
+            assert!(outer_quiesced);
+            let output = result.unwrap();
+            assert!(output.status.success());
+            assert_eq!(output.process_tree_proof["process_tree_total"], "3");
+            assert_eq!(
+                output.process_tree_proof["process_tree_retained_members"],
+                "3"
+            );
+            assert_eq!(output.process_tree_proof["process_tree_active"], "0");
+            assert!(
+                !output
+                    .process_tree_proof
+                    .contains_key("process_tree_first_failure")
+            );
         }
         assert_eq!(
             fs::read(working.path().join("private-sentinel")).unwrap(),
@@ -512,6 +543,8 @@ fn windows_quiescence_callback_observes_descendant_handle_exit() {
         let working = tempfile::tempdir().unwrap();
         let descendant = RefCell::new(None::<OwnedHandle>);
         let mut confirmed = false;
+        let mut last_diagnostic = None;
+        let deadline = Instant::now() + Duration::from_secs(4);
         let result = run_setup(
             &program,
             &[
@@ -528,22 +561,27 @@ fn windows_quiescence_callback_observes_descendant_handle_exit() {
             working.path(),
             &Default::default(),
             &|| {
+                if Instant::now() >= deadline {
+                    return Err(PortcoveError::state("descendant observation deadline"));
+                }
                 let pid_file = working.path().join("descendant-pid");
                 if descendant.borrow().is_none() && pid_file.is_file() {
-                    let pid = fs::read_to_string(&pid_file).unwrap().parse().unwrap();
+                    let pid = fs::read_to_string(&pid_file)?
+                        .parse()
+                        .map_err(|_| PortcoveError::state("invalid owned descendant PID"))?;
                     let handle = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, pid) };
-                    assert!(
-                        !handle.is_null(),
-                        "capture the live owned descendant handle"
-                    );
-                    assert_ne!(unsafe { WaitForSingleObject(handle, 0) }, WAIT_OBJECT_0);
-                    *descendant.borrow_mut() =
-                        Some(unsafe { OwnedHandle::from_raw_handle(handle) });
+                    if handle.is_null() {
+                        return Err(PortcoveError::state("owned descendant handle unavailable"));
+                    }
+                    let owned = unsafe { OwnedHandle::from_raw_handle(handle) };
+                    if unsafe { WaitForSingleObject(owned.as_raw_handle(), 0) } == WAIT_OBJECT_0 {
+                        return Err(PortcoveError::state("owned descendant already exited"));
+                    }
+                    *descendant.borrow_mut() = Some(owned);
                     fs::write(
                         working.path().join("descendant-observed"),
                         b"handle captured",
-                    )
-                    .unwrap();
+                    )?;
                 }
                 if cancel && descendant.borrow().is_some() {
                     Err(PortcoveError::new(
@@ -555,21 +593,41 @@ fn windows_quiescence_callback_observes_descendant_handle_exit() {
                 }
             },
             ToolProcessObserver {
-                diagnostics: None,
+                diagnostics: Some(ToolDiagnosticSink {
+                    activity_id: "owned-quiescence-control",
+                    phase: "first-party-fixture",
+                    record: &mut |value| {
+                        last_diagnostic = Some(value.clone());
+                        Ok(())
+                    },
+                }),
                 quiesced: Some(&mut || {
                     let handles = descendant.borrow();
                     let handle = handles
                         .as_ref()
-                        .expect("descendant observed before parent exit");
-                    assert_eq!(
-                        unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) },
-                        WAIT_OBJECT_0,
-                        "positive descendant exit must precede cleanup eligibility"
-                    );
+                        .ok_or_else(|| PortcoveError::state("descendant not observed"))?;
+                    if unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) } != WAIT_OBJECT_0 {
+                        return Err(PortcoveError::state(
+                            "descendant positive exit absent at cleanup boundary",
+                        ));
+                    }
                     confirmed = true;
                     Ok(())
                 }),
             },
+        );
+        let proof = match &result {
+            Ok(output) => output.process_tree_proof.clone(),
+            Err(error) => copy_proof_details(error),
+        };
+        eprintln!(
+            "native_quiescence_proof:{}",
+            serde_json::json!({
+                "cancel":cancel,"quiesced":confirmed,"proof":proof,
+                "diagnostic":last_diagnostic,
+                "operation_error":result.as_ref().err().map(|error| error.message.as_str()),
+                "operation_code":result.as_ref().err().map(|error| format!("{:?}", error.code)),
+            })
         );
         assert!(confirmed);
         if cancel {
@@ -602,7 +660,7 @@ fn windows_quiescence_callback_observes_descendant_handle_exit() {
 
 #[cfg(windows)]
 #[test]
-fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
+fn windows_creation_capture_continues_while_the_caller_checkpoint_is_blocked() {
     let native = tempfile::tempdir().unwrap();
     let program = crate::test_fixture::build_probe(native.path());
     let working = tempfile::tempdir().unwrap();
@@ -615,9 +673,8 @@ fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
         &Default::default(),
         &|| {
             if working.path().join("leader-ready").is_file() {
-                // The supervisor took its membership snapshot before this
-                // checkpoint. Complete one real child while that snapshot is
-                // paused, so its lifetime cannot be covered by a later handle.
+                // Complete a real child while this caller is blocked. The
+                // independent controller must capture its creation beforehand.
                 fs::write(working.path().join("spawn-child"), b"spawn").unwrap();
                 let deadline = Instant::now() + Duration::from_secs(5);
                 while !working.path().join("child-finished").is_file() {
@@ -635,26 +692,353 @@ fn windows_quiescence_holds_success_when_a_child_exits_between_snapshots() {
             }),
         },
     );
-    let error = result
-        .err()
-        .expect("unobserved lifetime must hold preparation");
-    assert_eq!(error.code, crate::ErrorCode::State);
-    assert!(
-        error
-            .message
-            .contains("process-tree exit could not be verified")
+    let output = result.expect("creation events cover the blocked caller's short child");
+    assert!(output.status.success());
+    assert!(confirmed);
+    assert_eq!(output.process_tree_proof["process_tree_active"], "0");
+    assert_eq!(
+        output.process_tree_proof["process_tree_retained_members"],
+        "2"
     );
+    assert_eq!(output.process_tree_proof["process_tree_total"], "2");
     assert!(
-        !confirmed,
-        "successful leader exit cannot grant cleanup authority"
+        !output
+            .process_tree_proof
+            .contains_key("process_tree_first_failure")
+    );
+    assert!(working.path().join("child-finished").is_file());
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "owned different-image child selected explicitly by the blocked-caller control"]
+fn different_image_fixture_child() {
+    assert!(Path::new("different-image-admitted").is_file());
+    fs::write("different-image-pid", std::process::id().to_string()).unwrap();
+    fs::write(
+        "different-image-executable",
+        std::env::current_exe().unwrap().display().to_string(),
+    )
+    .unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "requires separately admitted actual hidden console infrastructure"]
+fn console_image_fixture_child() {
+    assert!(Path::new("console-image-admitted").is_file());
+    assert!(Path::new("console-session-ready").is_file());
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetConsoleProcessList(pids: *mut u32, count: u32) -> u32;
+    }
+    let mut pids = [0u32; 8];
+    let count = unsafe { GetConsoleProcessList(pids.as_mut_ptr(), 8) };
+    assert_eq!(
+        count, 2,
+        "exact owned root and different-image client required"
+    );
+    let root: u32 = fs::read_to_string("console-root-pid")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let mut expected = vec![root, std::process::id()];
+    expected.sort();
+    let mut clients = pids[..2].to_vec();
+    clients.sort();
+    assert_eq!(clients, expected);
+    fs::write(
+        "console-image-clients",
+        serde_json::to_vec(&clients).unwrap(),
+    )
+    .unwrap();
+    fs::write("console-image-pid", std::process::id().to_string()).unwrap();
+    fs::write(
+        "console-image-executable",
+        std::env::current_exe().unwrap().display().to_string(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn retained_image_projection_preserves_lifetime_metadata_without_unrelated_details() {
+    let images = r#"[{"pid":42,"created_filetime":"134362482769661130","image":"C:\\Windows\\System32\\conhost.exe"}]"#;
+    let original = PortcoveError::new(crate::ErrorCode::Cancelled, "owned cancellation")
+        .detail("process_tree_image_identities", images)
+        .detail("unrelated_private_detail", "fixture-only-value");
+    let proof = copy_proof_details(&original);
+    assert_eq!(proof["process_tree_image_identities"], images);
+    assert!(!proof.contains_key("unrelated_private_detail"));
+    let projected = attach_process_tree_proof(
+        PortcoveError::new(crate::ErrorCode::Cancelled, "owned cancellation"),
+        &proof,
+    );
+    assert_eq!(projected.code, original.code);
+    assert_eq!(projected.message, original.message);
+    assert_eq!(copy_proof_details(&projected), proof);
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "requires separately admitted actual hidden console infrastructure"]
+fn windows_console_image_child_exits_while_the_caller_checkpoint_is_blocked() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    let other_image = std::env::current_exe().unwrap();
+    assert_ne!(program, other_image);
+    let working = tempfile::tempdir().unwrap();
+    fs::write(
+        working.path().join("console-image-admitted"),
+        b"owned control",
+    )
+    .unwrap();
+    let blocked_child_exit = std::cell::Cell::new(false);
+    let mut confirmed = false;
+    let mut last_diagnostic = None;
+    let overall_deadline = Instant::now() + Duration::from_secs(8);
+    let result = run_setup(
+        &program,
+        &[
+            "--setup-console-image".into(),
+            other_image.display().to_string(),
+        ],
+        &working.path().join("owned.iso"),
+        working.path(),
+        &Default::default(),
+        &|| {
+            if Instant::now() >= overall_deadline {
+                return Err(PortcoveError::state("console-image control deadline"));
+            }
+            if working.path().join("leader-ready").is_file() {
+                fs::write(working.path().join("spawn-child"), b"spawn")?;
+                let deadline = overall_deadline.min(Instant::now() + Duration::from_secs(5));
+                while !working.path().join("child-finished").is_file() {
+                    if Instant::now() >= deadline {
+                        return Err(PortcoveError::state(
+                            "owned console-image child did not finish",
+                        ));
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                blocked_child_exit.set(true);
+            }
+            Ok(())
+        },
+        ToolProcessObserver {
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-console-image-control",
+                phase: "first-party-fixture",
+                record: &mut |value| {
+                    last_diagnostic = Some(value.clone());
+                    Ok(())
+                },
+            }),
+            quiesced: Some(&mut || {
+                confirmed = true;
+                Ok(())
+            }),
+        },
+    );
+    let proof = match &result {
+        Ok(output) => output.process_tree_proof.clone(),
+        Err(error) => copy_proof_details(error),
+    };
+    let console_window_owner = fs::read_to_string(working.path().join("console-window-owner-pid"))
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok());
+    let images = proof
+        .get("process_tree_image_identities")
+        .and_then(|value| serde_json::from_str::<Vec<serde_json::Value>>(value).ok());
+    let hosts = images.as_ref().map(|images| {
+        images
+            .iter()
+            .filter(|entry| {
+                entry["image"].as_str().is_some_and(|image| {
+                    image.eq_ignore_ascii_case("C:\\Windows\\System32\\conhost.exe")
+                })
+            })
+            .collect::<Vec<_>>()
+    });
+    let console_host = hosts
+        .as_ref()
+        .filter(|hosts| hosts.len() == 1)
+        .and_then(|hosts| hosts[0]["pid"].as_u64())
+        .and_then(|pid| u32::try_from(pid).ok());
+    let console_root = fs::read_to_string(working.path().join("console-root-pid"))
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok());
+    let clients = fs::read_to_string(working.path().join("console-image-clients"))
+        .ok()
+        .and_then(|value| serde_json::from_str::<Vec<u32>>(&value).ok());
+    let detached = working.path().join("console-session-detached").is_file();
+    eprintln!(
+        "native_console_image_proof:{}",
+        serde_json::json!({
+            "quiesced":confirmed,"proof":proof,"diagnostic":last_diagnostic,
+            "console_host":console_host,"console_root":console_root,"clients":clients,
+            "console_window_owner":console_window_owner,"images":images,
+            "detached":detached,"blocked_child_exit_observed":blocked_child_exit.get(),
+            "operation_error":result.as_ref().err().map(|error| error.message.as_str()),
+        })
+    );
+    let output = result.expect("console-image creation remains captured while caller blocks");
+    assert!(output.status.success());
+    assert!(confirmed);
+    assert_eq!(output.process_tree_proof["process_tree_active"], "0");
+    assert_eq!(
+        output.process_tree_proof["process_tree_total"],
+        output.process_tree_proof["process_tree_retained_members"]
     );
     assert_eq!(
-        error.details["process_tree_first_failure"],
-        "lifetime_count_gap"
+        output.process_tree_proof["process_tree_all_retained_signaled"],
+        "true"
     );
-    assert_eq!(error.details["process_tree_active"], "0");
-    assert_eq!(error.details["process_tree_retained_members"], "1");
-    assert_eq!(error.details["process_tree_total"], "2");
+    assert!(
+        !output
+            .process_tree_proof
+            .contains_key("process_tree_first_failure")
+    );
+    let identities: Vec<serde_json::Value> =
+        serde_json::from_str(&output.process_tree_proof["process_tree_identities"]).unwrap();
+    let child_pid: u32 = fs::read_to_string(working.path().join("console-image-pid"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        identities
+            .iter()
+            .any(|identity| identity["pid"] == child_pid)
+    );
+    assert_eq!(
+        fs::read_to_string(working.path().join("console-image-executable")).unwrap(),
+        other_image.display().to_string()
+    );
+    let host = console_host.expect("actual console host required");
+    let root = console_root.expect("actual console root required");
+    let images = images.unwrap();
+    assert_eq!(images.len(), identities.len());
+    for image in &images {
+        assert!(
+            identities
+                .iter()
+                .any(|identity| identity["pid"] == image["pid"]
+                    && identity["created_filetime"] == image["created_filetime"])
+        );
+    }
+    assert_ne!(host, root);
+    assert_ne!(host, child_pid);
+    assert!(identities.iter().any(|identity| identity["pid"] == host));
+    assert!(identities.iter().any(|identity| identity["pid"] == root));
+    let mut expected_clients = vec![root, child_pid];
+    expected_clients.sort();
+    assert_eq!(clients.unwrap(), expected_clients);
+    assert!(detached && blocked_child_exit.get());
+    assert!(identities.len() >= 3 && identities.len() <= 7);
+    assert!(working.path().join("child-finished").is_file());
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_different_image_child_exits_while_the_caller_checkpoint_is_blocked() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    let other_image = std::env::current_exe().unwrap();
+    assert_ne!(program, other_image);
+    let working = tempfile::tempdir().unwrap();
+    fs::write(
+        working.path().join("different-image-admitted"),
+        b"owned control",
+    )
+    .unwrap();
+    let mut confirmed = false;
+    let mut last_diagnostic = None;
+    let overall_deadline = Instant::now() + Duration::from_secs(8);
+    let result = run_setup(
+        &program,
+        &[
+            "--setup-unobserved-image".into(),
+            other_image.display().to_string(),
+        ],
+        &working.path().join("owned.iso"),
+        working.path(),
+        &Default::default(),
+        &|| {
+            if Instant::now() >= overall_deadline {
+                return Err(PortcoveError::state("different-image control deadline"));
+            }
+            if working.path().join("leader-ready").is_file() {
+                fs::write(working.path().join("spawn-child"), b"spawn")?;
+                let deadline = overall_deadline.min(Instant::now() + Duration::from_secs(5));
+                while !working.path().join("child-finished").is_file() {
+                    if Instant::now() >= deadline {
+                        return Err(PortcoveError::state(
+                            "owned different-image child did not finish",
+                        ));
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+            }
+            Ok(())
+        },
+        ToolProcessObserver {
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-different-image-control",
+                phase: "first-party-fixture",
+                record: &mut |value| {
+                    last_diagnostic = Some(value.clone());
+                    Ok(())
+                },
+            }),
+            quiesced: Some(&mut || {
+                confirmed = true;
+                Ok(())
+            }),
+        },
+    );
+    let proof = match &result {
+        Ok(output) => output.process_tree_proof.clone(),
+        Err(error) => copy_proof_details(error),
+    };
+    eprintln!(
+        "native_different_image_proof:{}",
+        serde_json::json!({
+            "quiesced":confirmed,"proof":proof,"diagnostic":last_diagnostic,
+            "operation_error":result.as_ref().err().map(|error| error.message.as_str()),
+        })
+    );
+    let output = result.expect("different-image creation remains captured while caller blocks");
+    assert!(output.status.success());
+    assert!(confirmed);
+    assert_eq!(output.process_tree_proof["process_tree_active"], "0");
+    assert_eq!(output.process_tree_proof["process_tree_total"], "2");
+    assert_eq!(
+        output.process_tree_proof["process_tree_retained_members"],
+        "2"
+    );
+    assert_eq!(
+        output.process_tree_proof["process_tree_all_retained_signaled"],
+        "true"
+    );
+    assert!(
+        !output
+            .process_tree_proof
+            .contains_key("process_tree_first_failure")
+    );
+    let identities: Vec<serde_json::Value> =
+        serde_json::from_str(&output.process_tree_proof["process_tree_identities"]).unwrap();
+    let child_pid: u32 = fs::read_to_string(working.path().join("different-image-pid"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        identities
+            .iter()
+            .any(|identity| identity["pid"] == child_pid)
+    );
+    assert_eq!(
+        fs::read_to_string(working.path().join("different-image-executable")).unwrap(),
+        other_image.display().to_string()
+    );
     assert!(working.path().join("child-finished").is_file());
 }
 
@@ -664,73 +1048,55 @@ fn windows_retained_handle_capacity_refuses_one_more_member_without_cleanup_proo
     use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
     use windows_sys::Win32::{
         Foundation::WAIT_OBJECT_0,
-        System::Threading::{
-            OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
-            WaitForSingleObject,
-        },
+        System::Threading::{OpenProcess, PROCESS_SYNCHRONIZE, WaitForSingleObject},
     };
 
     let native = tempfile::tempdir().unwrap();
     let program = crate::test_fixture::build_probe(native.path());
     for occupied in [511, 512] {
         let working = tempfile::tempdir().unwrap();
-        let mut command =
-            ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, &program).unwrap();
-        command
-            .args([
-                "--setup-tree",
-                &working.path().join("orphan-output").display().to_string(),
-                "observed-wait",
-            ])
-            .current_dir(working.path())
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        ToolProcessGroup::prepare(&mut command);
-        let mut child = command.spawn().unwrap();
-        let group = ToolProcessGroup::attach(&child).unwrap();
-        wait_nested_file(&working.path().join("descendant-pid"));
-        let descendant_pid: u32 = fs::read_to_string(working.path().join("descendant-pid"))
-            .unwrap()
-            .parse()
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args([
+            "--setup-tree",
+            &working.path().join("orphan-output").display().to_string(),
+            "observed-wait",
+        ])
+        .current_dir(working.path());
+        // Reservations consume real handle storage, but never assert distinct
+        // lifetimes. Final accounting must reject their synthetic coverage.
+        let (mut child, group) = windows::spawn_with_occupied_slots(&spec, occupied)
+            .map_err(|failure| failure.error)
             .unwrap();
-        let descendant = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, descendant_pid) };
-        assert!(!descendant.is_null());
-        let descendant = unsafe { OwnedHandle::from_raw_handle(descendant) };
-
-        // Consume actual handle/storage capacity without starting 512 processes.
-        // These synthetic keys deliberately do NOT claim distinct lifetimes:
-        // every added handle names the still-live leader. Both cases must refuse
-        // final coverage, even when there is room to retain the real descendant.
-        let mut members = group.members.borrow_mut();
-        for key in (0..u32::MAX).rev() {
-            if members.len() == occupied {
-                break;
+        let descendant = if occupied == 511 {
+            wait_nested_file(&working.path().join("descendant-pid"));
+            let pid = fs::read_to_string(working.path().join("descendant-pid"))
+                .unwrap()
+                .parse()
+                .unwrap();
+            let raw = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, pid) };
+            assert!(!raw.is_null());
+            Some(unsafe { OwnedHandle::from_raw_handle(raw) })
+        } else {
+            // The creation event is refused before continuation. The parent
+            // therefore cannot publish descendant-pid; await automatic closure.
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while child.try_wait().unwrap().is_none() {
+                assert!(
+                    Instant::now() < deadline,
+                    "capacity refusal did not stop root"
+                );
+                std::thread::sleep(Duration::from_millis(10));
             }
-            if key == child.id() || key == descendant_pid {
-                continue;
-            }
-            let handle = unsafe {
-                OpenProcess(
-                    PROCESS_SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
-                    0,
-                    child.id(),
-                )
-            };
-            assert!(!handle.is_null());
-            members.insert(key, unsafe { OwnedHandle::from_raw_handle(handle) });
-        }
-        drop(members);
-        group.observe_members();
-        assert_eq!(group.members.borrow().len(), 512);
-        assert_eq!(group.complete.get(), occupied == 511);
-        assert_eq!(
-            group.members.borrow().contains_key(&descendant_pid),
-            occupied == 511
-        );
+            None
+        };
+        group.terminate_and_wait(&mut child).unwrap();
         assert!(!group.proves_tree_quiescence());
         let error = group.with_proof_details(PortcoveError::state("capacity fixture held"));
         assert_eq!(error.details["process_tree_retained_members"], "512");
+        assert_eq!(error.details["process_tree_active"], "0");
+        assert_eq!(error.details["process_tree_total"], "2");
         assert_eq!(
             error.details["process_tree_first_failure"],
             if occupied == 512 {
@@ -739,38 +1105,16 @@ fn windows_retained_handle_capacity_refuses_one_more_member_without_cleanup_proo
                 "lifetime_count_gap"
             }
         );
-        assert_eq!(
-            unsafe { WaitForSingleObject(descendant.as_raw_handle(), 1000) },
-            WAIT_OBJECT_0,
-            "held acceptance still positively stops the owned descendant"
-        );
+        if let Some(descendant) = descendant {
+            assert_eq!(
+                unsafe { WaitForSingleObject(descendant.as_raw_handle(), 1000) },
+                WAIT_OBJECT_0,
+                "captured descendant is positively stopped"
+            );
+        }
         child.wait().unwrap();
         assert!(!working.path().join("orphan-output").exists());
     }
-}
-
-#[cfg(windows)]
-#[test]
-fn windows_quiescence_refuses_invalid_job_observation() {
-    let group = ToolProcessGroup {
-        // NULL queries the caller's current job; use an actually invalid handle.
-        job: windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE,
-        members: Default::default(),
-        complete: std::cell::Cell::new(true),
-        termination_deadline: Default::default(),
-        proof_failure: Default::default(),
-        accounting: Default::default(),
-        wait_result: Default::default(),
-    };
-    group.observe_members();
-    assert!(!group.proves_tree_quiescence());
-    let error = group.with_proof_details(PortcoveError::state("retained"));
-    assert_eq!(
-        error.details["process_tree_first_failure"],
-        "membership_query"
-    );
-    assert!(error.details.contains_key("process_tree_api_error"));
-    assert!(!error.details.contains_key("process_tree_active"));
 }
 
 #[cfg(unix)]

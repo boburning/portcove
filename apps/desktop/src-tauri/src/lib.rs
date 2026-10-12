@@ -3176,6 +3176,7 @@ mod tests {
         let mut rustc =
             ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, "rustc").unwrap();
         let compiled = rustc
+            .arg("--edition=2024")
             .arg(&source)
             .arg("-o")
             .arg(&executable)
