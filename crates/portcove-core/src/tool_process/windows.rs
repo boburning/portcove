@@ -315,6 +315,8 @@ pub(super) fn spawn_with_occupied_slots(
 #[derive(Default, Clone)]
 struct TestOptions {
     #[cfg(test)]
+    panic_tree: Option<Arc<PanicTreeObservation>>,
+    #[cfg(test)]
     root_failure: Option<RootFailure>,
     #[cfg(test)]
     root_observation: Option<Arc<RefusedMember>>,
@@ -362,6 +364,20 @@ struct RefusedMember {
     // An independent fixture observation of a refused member handle. It is
     // never inserted into Core membership or used to grant cleanup proof.
     member: Mutex<Option<(Identity, OwnedHandle)>>,
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct PanicTreeObservation {
+    captured: Mutex<Option<PanickedTree>>,
+}
+
+#[cfg(test)]
+struct PanickedTree {
+    root_pid: u32,
+    event_pid: u32,
+    event_thread: u32,
+    members: Vec<(Identity, OwnedHandle)>,
 }
 
 fn spawn_with_options(
@@ -1260,6 +1276,8 @@ impl Controller {
             if unsafe { WaitForDebugEventEx(&mut event, 1) } != 0 {
                 let continuation = self.event(&event);
                 #[cfg(test)]
+                self.panic_after_owned_creation(&event);
+                #[cfg(test)]
                 self.observe_pending_creation(&event);
                 #[cfg(test)]
                 self.observe_exception(&event, continuation);
@@ -1421,6 +1439,29 @@ impl Controller {
             .cancellation_observed
             .store(true, Ordering::Release);
     }
+
+    #[cfg(test)]
+    fn panic_after_owned_creation(&self, event: &DEBUG_EVENT) {
+        let Some(observation) = &self.options.panic_tree else { return; };
+        if event.dwDebugEventCode != CREATE_PROCESS_DEBUG_EVENT
+            || self.root.is_none_or(|root| root.pid == event.dwProcessId)
+            || self.control.lock().first_failure.is_some()
+            || !self.members.iter().any(|(key, member)|
+                key.pid == event.dwProcessId && member.creation_seen)
+        {
+            return;
+        }
+        // Capture independent fixture handles after real Core CREATE capture,
+        // before continuation. They never repair the controller's proof.
+        let members = self.members.iter().map(|(identity, member)| {
+            (*identity, duplicate(member.handle.as_raw_handle()).expect("owned panic fixture handle"))
+        }).collect();
+        *observation.captured.lock().unwrap() = Some(PanickedTree {
+            root_pid: self.root.unwrap().pid,
+            event_pid: event.dwProcessId, event_thread: event.dwThreadId, members,
+        });
+        panic!("owned fixture live controller panic before descendant CREATE continuation");
+    }
 }
 
 fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
@@ -1520,6 +1561,79 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
 mod native_control_tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    #[ignore = "requires separately admitted prepared live event-pump panic packet"]
+    fn live_controller_panic_keeps_captured_tree_cleanup_unknown() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let output = working.path().join("orphan-output");
+        let mut spec = ChildProcessPolicy::native_tool_spec(
+            ChildProcessClass::UpstreamSetup, &program,
+        ).unwrap();
+        spec.args(["--setup-tree", &output.display().to_string(), "observed-wait"])
+            .current_dir(working.path());
+        let observation = Arc::new(PanicTreeObservation::default());
+        let (mut child, group) = spawn_with_options(&spec, TestOptions {
+            panic_tree: Some(observation.clone()), ..Default::default()
+        }).map_err(|failure| failure.error).unwrap();
+        // Do not request stop before the real event-pump panic has occurred.
+        let deadline = Instant::now() + Duration::from_secs(4);
+        while !group.control.lock().done && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(1));
+        }
+        let done = group.control.lock().done;
+        if !done { let _ = group.terminate_and_wait(&mut child); }
+        let proof = crate::tool_process::copy_proof_details(
+            &group.with_proof_details(PortcoveError::state("live event-pump panic control")),
+        );
+        let quiesced = group.proves_tree_quiescence();
+        let root_wait_error = child.try_wait().err().map(|error| error.to_string());
+        let captured = observation.captured.lock().unwrap().take();
+        // One shared two-second fixture observation deadline across all handles.
+        let closure_deadline = Instant::now() + CLOSURE_BOUND;
+        let actual = captured.as_ref().map(|tree| {
+            let members: Vec<_> = tree.members.iter().map(|(identity, handle)| {
+                let remaining = closure_deadline.saturating_duration_since(Instant::now());
+                let waited = unsafe { WaitForSingleObject(handle.as_raw_handle(),
+                    remaining.as_millis().min(2000) as u32) };
+                let mut code = 0;
+                let queried = unsafe { GetExitCodeProcess(handle.as_raw_handle(), &mut code) };
+                serde_json::json!({"pid":identity.pid,"created_filetime":identity.created.to_string(),
+                    "wait_result":waited,"exit_query":queried,"exit_code":code})
+            }).collect();
+            serde_json::json!({"root_pid":tree.root_pid,"event_pid":tree.event_pid,"event_thread":tree.event_thread,
+                "members":members})
+        });
+        let closure_timely = Instant::now() < closure_deadline;
+        eprintln!("native_live_panic_proof:{}", serde_json::json!({
+            "done":done,"quiesced":quiesced,"proof":proof,"observed_tree":actual,
+            "fixture_closure_timely":closure_timely,
+            "root_wait_error":root_wait_error,"orphan_output":output.exists(),
+        }));
+        assert!(done && captured.is_some());
+        assert!(closure_timely, "positive fixture closure must fit the shared deadline");
+        assert!(!quiesced);
+        assert!(root_wait_error.is_some(), "Core cannot invent a positive root exit after panic");
+        assert_eq!(proof["process_tree_first_failure"], "controller_panic");
+        assert_eq!(proof["process_tree_membership_complete"], "false");
+        assert_eq!(proof["process_tree_retained_members"], "2");
+        let tree = captured.as_ref().unwrap();
+        assert_eq!(tree.members.len(), 2);
+        assert_ne!(tree.root_pid, tree.event_pid);
+        assert!(tree.members.iter().any(|(identity, _)| identity.pid == tree.root_pid));
+        assert!(tree.members.iter().any(|(identity, _)| identity.pid == tree.event_pid));
+        for member in actual.as_ref().unwrap()["members"].as_array().unwrap() {
+            assert_eq!(member["wait_result"], WAIT_OBJECT_0);
+            assert_ne!(member["exit_query"], 0);
+        }
+        for absent in ["process_tree_active", "process_tree_total", "process_tree_root_exit",
+            "process_tree_all_retained_signaled"] {
+            assert!(!proof.contains_key(absent), "panic cannot fabricate {absent}");
+        }
+        assert!(!output.exists());
+    }
 
     #[test]
     #[ignore = "requires separately admitted prepared controller-panic packet"]
