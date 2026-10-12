@@ -72,6 +72,7 @@ const CLOSURE_BOUND: Duration = Duration::from_secs(2);
 #[derive(Default, Clone)]
 struct Proof {
     first_failure: Option<(&'static str, Option<u32>)>,
+    membership_snapshot: Option<MembershipSnapshotCounts>,
     retained: usize,
     identities: Vec<Identity>,
     #[cfg(test)]
@@ -87,6 +88,18 @@ struct Proof {
 }
 
 impl Proof {
+    fn record_membership_failure(
+        &mut self,
+        reason: &'static str,
+        code: Option<u32>,
+        counts: Option<MembershipSnapshotCounts>,
+    ) {
+        if self.first_failure.is_none() {
+            self.first_failure = Some((reason, code));
+            self.membership_snapshot = counts;
+        }
+    }
+
     fn publish_members(&mut self, retained: usize, identities: impl Iterator<Item = Identity>) {
         self.retained = retained;
         self.identities = identities.collect();
@@ -219,6 +232,25 @@ fn with_control_proof(control: &Control, mut error: PortcoveError) -> PortcoveEr
         if let Some(code) = code {
             error = error.detail("process_tree_api_error", code.to_string());
         }
+    }
+    if let Some(snapshot) = proof.membership_snapshot {
+        error = error
+            .detail(
+                "process_tree_membership_assigned",
+                snapshot.assigned.to_string(),
+            )
+            .detail(
+                "process_tree_membership_returned",
+                snapshot.returned.to_string(),
+            )
+            .detail(
+                "process_tree_membership_buffer_bytes",
+                snapshot.buffer_bytes.to_string(),
+            )
+            .detail(
+                "process_tree_membership_returned_bytes",
+                snapshot.returned_bytes.to_string(),
+            );
     }
     error = error
         .detail("process_tree_retained_members", proof.retained.to_string())
@@ -1143,8 +1175,11 @@ impl Controller {
         // short lifetimes still fail the terminal total=retained equality.
         let ids = match membership_snapshot(self.job.as_raw_handle()) {
             Ok(ids) => ids,
-            Err((reason, code)) => {
-                self.fail(reason, code);
+            Err((reason, code, counts)) => {
+                self.control
+                    .lock()
+                    .record_membership_failure(reason, code, counts);
+                self.control.request_stop();
                 return;
             }
         };
@@ -1499,26 +1534,48 @@ impl Controller {
     }
 }
 
-fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
+#[derive(Clone, Copy, Debug)]
+struct MembershipSnapshotCounts {
+    assigned: u32,
+    returned: u32,
+    buffer_bytes: u32,
+    returned_bytes: u32,
+}
+
+type MembershipSnapshotFailure = (&'static str, Option<u32>, Option<MembershipSnapshotCounts>);
+
+fn require_membership_snapshot_counts(
+    counts: MembershipSnapshotCounts,
+) -> Result<(), MembershipSnapshotFailure> {
+    if counts.assigned != counts.returned || counts.returned as usize > MEMBER_LIMIT {
+        return Err(("membership_capacity", None, Some(counts)));
+    }
+    Ok(())
+}
+
+fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, MembershipSnapshotFailure> {
     let mut buffer = [0_usize; MEMBER_LIMIT + 1];
+    let buffer_bytes = std::mem::size_of_val(&buffer) as u32;
+    let mut returned_bytes = 0;
     if unsafe {
         QueryInformationJobObject(
             job,
             JobObjectBasicProcessIdList,
             buffer.as_mut_ptr().cast(),
-            std::mem::size_of_val(&buffer) as u32,
-            std::ptr::null_mut(),
+            buffer_bytes,
+            &mut returned_bytes,
         )
     } == 0
     {
-        return Err(("membership_query", Some(unsafe { GetLastError() })));
+        return Err(("membership_query", Some(unsafe { GetLastError() }), None));
     }
     let list = unsafe { &*buffer.as_ptr().cast::<JOBOBJECT_BASIC_PROCESS_ID_LIST>() };
-    if list.NumberOfAssignedProcesses != list.NumberOfProcessIdsInList
-        || list.NumberOfProcessIdsInList as usize > MEMBER_LIMIT
-    {
-        return Err(("membership_capacity", None));
-    }
+    require_membership_snapshot_counts(MembershipSnapshotCounts {
+        assigned: list.NumberOfAssignedProcesses,
+        returned: list.NumberOfProcessIdsInList,
+        buffer_bytes,
+        returned_bytes,
+    })?;
     let ids = unsafe {
         std::slice::from_raw_parts(
             list.ProcessIdList.as_ptr(),
@@ -1526,8 +1583,69 @@ fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, (&'static str, Option<u3
         )
     };
     ids.iter()
-        .map(|&pid| u32::try_from(pid).map_err(|_| ("member_id_range", None)))
+        .map(|&pid| u32::try_from(pid).map_err(|_| ("member_id_range", None, None)))
         .collect()
+}
+
+#[cfg(test)]
+mod membership_snapshot_diagnostic_tests {
+    use super::*;
+
+    fn counts(assigned: u32, returned: u32) -> MembershipSnapshotCounts {
+        MembershipSnapshotCounts {
+            assigned,
+            returned,
+            buffer_bytes: 4104,
+            returned_bytes: 24,
+        }
+    }
+
+    #[test]
+    fn membership_snapshot_diagnostic_preserves_refusal_and_exact_counts() {
+        for (assigned, returned) in [(3, 2), (2, 3), (513, 513)] {
+            let (reason, code, snapshot) =
+                require_membership_snapshot_counts(counts(assigned, returned)).unwrap_err();
+            assert_eq!(reason, "membership_capacity");
+            assert_eq!(code, None);
+            let control = Control::default();
+            control
+                .lock()
+                .record_membership_failure(reason, code, snapshot);
+            control.lock().finish(true, Instant::now());
+            assert!(!control.lock().quiesced);
+            let error =
+                with_control_proof(&control, PortcoveError::state("inert snapshot refusal"));
+            let copied = crate::tool_process::copy_proof_details(&error);
+            assert_eq!(copied["process_tree_first_failure"], "membership_capacity");
+            assert_eq!(copied["process_tree_membership_complete"], "false");
+            assert_eq!(
+                copied["process_tree_membership_assigned"],
+                assigned.to_string()
+            );
+            assert_eq!(
+                copied["process_tree_membership_returned"],
+                returned.to_string()
+            );
+            assert_eq!(copied["process_tree_membership_buffer_bytes"], "4104");
+            assert_eq!(copied["process_tree_membership_returned_bytes"], "24");
+        }
+        for count in [0, 1, 512] {
+            require_membership_snapshot_counts(counts(count, count)).unwrap();
+        }
+    }
+
+    #[test]
+    fn membership_snapshot_diagnostic_preserves_first_failure_without_later_counts() {
+        let mut proof = Proof::default();
+        proof.first_failure = Some(("execution_deadline", None));
+        proof.record_membership_failure("membership_capacity", None, Some(counts(3, 2)));
+        assert_eq!(proof.first_failure, Some(("execution_deadline", None)));
+        assert!(proof.membership_snapshot.is_none());
+        let mut proof = Proof::default();
+        proof.record_membership_failure("membership_capacity", None, Some(counts(3, 2)));
+        proof.record_membership_failure("membership_capacity", None, Some(counts(4, 2)));
+        assert_eq!(proof.membership_snapshot.unwrap().assigned, 3);
+    }
 }
 
 fn system_directory() -> io::Result<PathBuf> {
@@ -2680,10 +2798,9 @@ mod proof_tests {
             membership_snapshot(windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE).unwrap_err();
         assert_eq!(failure.0, "membership_query");
         assert!(failure.1.is_some());
-        let mut proof = Proof {
-            first_failure: Some(failure),
-            ..Default::default()
-        };
+        assert!(failure.2.is_none());
+        let mut proof = Proof::default();
+        proof.record_membership_failure(failure.0, failure.1, failure.2);
         proof.finish(true, Instant::now());
         assert!(!proof.quiesced);
         assert!(proof.accounting.is_none());
