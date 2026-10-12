@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::{OperationCoordinator, PortcoveError, Result};
+use serde::{Deserialize, Serialize};
 
 // Keep the existing extraction ceilings; preparation cannot admit a larger tree.
 const MAX_ENTRIES: usize = 100_000;
@@ -13,15 +14,17 @@ const MAX_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_DEPTH: usize = 32;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum Entry {
     Directory(crate::external_runtime::InspectedDirectory),
     File(crate::external_runtime::InspectedFile),
 }
 
 /// Only Core can create this value, after the generator has positively closed.
-/// Persistence and cross-invocation resume need a lifecycle-owned witness; this
-/// in-memory boundary deliberately grants neither.
+/// Serialized values must be loaded through the lifecycle owner, which binds
+/// library custody and positive process closure before this inventory is used.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct GeneratedTree {
     root: PathBuf,
     operation_id: String,
@@ -29,6 +32,13 @@ pub(super) struct GeneratedTree {
 }
 
 impl GeneratedTree {
+    pub(super) fn operation_id(&self) -> &str {
+        &self.operation_id
+    }
+
+    pub(super) fn root(&self) -> &Path {
+        &self.root
+    }
     pub(super) fn capture(
         root: &Path,
         operation: &OperationCoordinator,

@@ -9,7 +9,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use rusqlite::params;
+use rusqlite::{OptionalExtension, TransactionBehavior, params};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 #[cfg(test)]
@@ -187,6 +188,41 @@ pub(crate) struct OperationStore {
     library: Library,
 }
 
+const MAX_PSX_WITNESS_BYTES: usize = 64 * 1024 * 1024;
+
+// Stop the serializer before either retained bytes or allocation exceed the cap.
+struct WitnessWriter(Vec<u8>);
+
+impl std::io::Write for WitnessWriter {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        let wanted = self
+            .0
+            .len()
+            .checked_add(bytes.len())
+            .filter(|size| *size <= MAX_PSX_WITNESS_BYTES)
+            .ok_or_else(|| {
+                std::io::Error::other("PS1 generation witness exceeds its byte limit")
+            })?;
+        if wanted > self.0.capacity() {
+            let capacity = wanted
+                .max(self.0.capacity().saturating_mul(2))
+                .min(MAX_PSX_WITNESS_BYTES);
+            self.0.reserve_exact(capacity - self.0.len());
+        }
+        self.0.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+const PSX_JOURNAL_SNAPSHOT: &str = "json_array(l.id,l.kind,l.port_id,l.phase,
+    l.staging_path,l.final_path,l.quarantine_path,l.install_json,l.relocation_json,
+    l.source_import_json,l.original_paths_json,l.activate,l.last_error,l.created_at,
+    l.updated_at,l.preparation_json,l.preparation_process_quiesced)";
+
 impl OperationStore {
     pub fn new(library: Library) -> Self {
         Self { library }
@@ -284,6 +320,134 @@ impl OperationStore {
 
     pub fn get(&self, id: &str) -> Result<Option<LifecycleOperation>> {
         Ok(self.read(Some(id))?.pop())
+    }
+
+    pub(crate) fn commit_psx_generation(
+        &self,
+        journal: &LifecycleOperation,
+        witness: &crate::psx::GeneratedInstallWitness,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        witness.verify(&self.library, journal, operation)?;
+        let mut writer = WitnessWriter(Vec::new());
+        serde_json::to_writer(&mut writer, witness)?;
+        let json = String::from_utf8(writer.0)
+            .map_err(|_| PortcoveError::state("PS1 witness serialization is not UTF-8"))?;
+        let sha256 = hex::encode(Sha256::digest(json.as_bytes()));
+        operation.checkpoint()?;
+        let mut connection = database::connect(self.library.root())?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        // The join owner has already durably recorded positive closure. Bind
+        // that exact private journal while installing the witness atomically.
+        let changed = transaction.execute(
+            "INSERT INTO managed_psx_generation(operation_id,witness_json,witness_sha256)
+             SELECT id,?1,?8 FROM lifecycle_operations
+             WHERE id=?2 AND kind='install' AND phase='preparing' AND port_id=?3
+               AND staging_path IS ?4 AND final_path IS ?5 AND activate=?6
+               AND updated_at=?7 AND preparation_process_quiesced=1
+               AND created_at=?9 AND EXISTS(SELECT 1 FROM library_identity WHERE singleton=1 AND id=?10)
+               AND install_json IS NULL AND preparation_json IS NULL
+               AND quarantine_path IS NULL AND last_error IS NULL
+               AND relocation_json IS NULL AND source_import_json IS NULL
+               AND original_paths_json='[]'",
+            params![
+                json,
+                journal.id,
+                journal.port_id,
+                path_string(journal.paths.staging.as_ref())?,
+                path_string(journal.paths.final_path.as_ref())?,
+                journal.activate as i64,
+                journal.updated_at,
+                sha256,
+                journal.created_at,
+                witness.library_id()
+            ],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "PS1 generation journal changed before commit",
+            ));
+        }
+        operation.checkpoint()?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub(crate) fn psx_generation(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<crate::psx::GeneratedInstallWitness> {
+        self.psx_generation_fenced(operation, || Ok(()))
+    }
+
+    // Deterministic tests inject journal drift at the verification/fence boundary.
+    #[cfg(test)]
+    pub(crate) fn psx_generation_before_fence(
+        &self,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+    ) -> Result<crate::psx::GeneratedInstallWitness> {
+        self.psx_generation_fenced(operation, before_fence)
+    }
+
+    fn psx_generation_fenced(
+        &self,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+    ) -> Result<crate::psx::GeneratedInstallWitness> {
+        operation.checkpoint()?;
+        let connection = database::connect(self.library.root())?;
+        let retained: Option<(String, String, String)> = connection
+            .query_row(
+                &format!(
+                    "SELECT g.witness_json,g.witness_sha256,{PSX_JOURNAL_SNAPSHOT}
+                 FROM managed_psx_generation g JOIN lifecycle_operations l ON l.id=g.operation_id
+                 WHERE g.operation_id=?1 AND length(CAST(g.witness_json AS BLOB)) BETWEEN 1 AND ?2"
+                ),
+                params![operation.operation_id(), MAX_PSX_WITNESS_BYTES as i64],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?;
+        let (json, sha256, journal_snapshot) = retained.ok_or_else(|| {
+            PortcoveError::state("PS1 generation witness is missing or oversized")
+        })?;
+        if hex::encode(Sha256::digest(json.as_bytes())) != sha256 {
+            return Err(PortcoveError::verification(
+                "PS1 generation witness bytes changed",
+            ));
+        }
+        let witness: crate::psx::GeneratedInstallWitness = serde_json::from_str(&json)?;
+        let journal = self
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 generation lifecycle owner is missing"))?;
+        witness.verify(&self.library, &journal, operation)?;
+        before_fence()?;
+        operation.checkpoint()?;
+        // One SQLite statement observes both exact witness bytes and all durable
+        // journal fields together, after the potentially lengthy filesystem checks.
+        let unchanged: bool = connection.query_row(
+            &format!(
+                "SELECT EXISTS(SELECT 1 FROM managed_psx_generation g
+                JOIN lifecycle_operations l ON l.id=g.operation_id
+                WHERE g.operation_id=?1 AND g.witness_json=?2 AND g.witness_sha256=?3
+                AND {PSX_JOURNAL_SNAPSHOT}=?4
+                AND EXISTS(SELECT 1 FROM library_identity WHERE singleton=1 AND id=?5))"
+            ),
+            params![
+                operation.operation_id(),
+                json,
+                sha256,
+                journal_snapshot,
+                witness.library_id()
+            ],
+            |row| row.get(0),
+        )?;
+        if !unchanged {
+            return Err(PortcoveError::conflict(
+                "PS1 generation custody changed during verification",
+            ));
+        }
+        Ok(witness)
     }
 
     fn read(&self, id: Option<&str>) -> Result<Vec<LifecycleOperation>> {

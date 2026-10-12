@@ -23,7 +23,7 @@ const MAX_FILES: usize = 100_000;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 enum ObjectIdentity {
     #[cfg(unix)]
     Unix { device: u64, inode: u64 },
@@ -33,7 +33,8 @@ enum ObjectIdentity {
     Windows64 { volume: u32, file: u64 },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct FileSnapshot {
     identity: ObjectIdentity,
     size: u64,
@@ -42,14 +43,16 @@ struct FileSnapshot {
     changed_at: (i64, i64),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct InspectedFile {
     path: PathBuf,
     snapshot: FileSnapshot,
     pub(crate) sha256: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct InspectedDirectory {
     identity: ObjectIdentity,
     modified: SystemTime,

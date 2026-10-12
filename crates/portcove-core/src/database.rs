@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 36;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 37;
 
 struct Migration {
     version: i64,
@@ -240,7 +240,32 @@ const MIGRATIONS: &[Migration] = &[
         apply: crate::curated_acquisition::migrate,
         verify: verify_migration_36,
     },
+    Migration {
+        version: 37,
+        name: "lifecycle-owned managed PS1 generation witnesses",
+        apply: migration_37,
+        verify: verify_migration_37,
+    },
 ];
+
+fn migration_37(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_generation (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES lifecycle_operations(id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_37(transaction)
+}
+
+fn verify_migration_37(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_generation",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
 
 fn verify_migration_36(connection: &Connection) -> Result<()> {
     require_columns(
@@ -1781,6 +1806,7 @@ mod tests {
         schema_33: 33,
         schema_34: 34,
         schema_35: 35,
+        schema_36: 36,
     }
 
     #[test]
@@ -1882,7 +1908,7 @@ mod tests {
         );
         assert_eq!(
             recorded_versions(&connection).unwrap(),
-            (1..=36).collect::<Vec<_>>()
+            (1..=CURRENT_SCHEMA_VERSION).collect::<Vec<_>>()
         );
         verify_migration_34(&connection).unwrap();
         verify_migration_35(&connection).unwrap();

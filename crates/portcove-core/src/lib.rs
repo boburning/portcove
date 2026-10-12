@@ -160,7 +160,9 @@ pub use host_tools::{
     definitions as host_tool_definitions, probe_host_tool, probe_host_tool_with_cancellation,
 };
 pub use import_execution::LibraryImportResult;
-pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};
+pub use install::{
+    InstallQualification, InstallRequest, Installer, ManagedInstallContinuation, VerificationReport,
+};
 pub use launch::forward_launch_signal;
 pub use library::{
     ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, PortOperationGuard,

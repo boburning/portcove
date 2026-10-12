@@ -34,14 +34,50 @@ pub struct InstallRequest {
     pub qualification: InstallQualification,
 }
 
+/// Successful private generation. No installation has been published or
+/// registered; subsequent Core work must load its lifecycle-owned witness.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ManagedInstallContinuation {
+    pub operation_id: String,
+    pub port_id: String,
+}
+
+enum InstallProgress {
+    Installed(InstallRecord),
+    Generated(ManagedInstallContinuation),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum InstallLimit {
+    Complete,
+    Generated,
+}
+
+fn generation_contract(
+    request: &InstallRequest,
+    artifact: &ArtifactIdentity,
+) -> Result<serde_json::Value> {
+    // Retain semantics and artifact identity, never a reusable live grant.
+    Ok(serde_json::json!({
+        "schema_version": 1,
+        "port_id": request.port_id,
+        "release": request.release,
+        "output_root": request.output_root,
+        "activate": request.activate,
+        "artifact": artifact,
+        "qualification": serde_json::to_value(&request.qualification)?,
+    }))
+}
+
 /// Cache eligibility belongs to the exact qualified platform, not the grant alone.
 struct AssetAcquisition<'a> {
     scope: &'a crate::DefinitionAcquisitionScope,
     curated: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct InstallQualification {
+    #[serde(skip)]
     acquisition: Option<crate::ScopedResolvedRelease>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
@@ -361,11 +397,11 @@ struct InstallLifecycle {
 
 // This existing nullable field is used here only for managed PS1 Install
 // workers. None remains the legacy/non-managed Install contract.
-async fn run_managed_install_worker(
+async fn run_managed_install_worker<T: Send + 'static>(
     lifecycle: &mut InstallLifecycle,
     operation: &OperationCoordinator,
-    worker: impl FnOnce(OperationCoordinator) -> (Result<()>, bool) + Send + 'static,
-) -> Result<()> {
+    worker: impl FnOnce(OperationCoordinator) -> (Result<T>, bool) + Send + 'static,
+) -> Result<T> {
     lifecycle.record.preparation_process_quiesced = Some(false);
     lifecycle.store.put(&mut lifecycle.record)?;
     let checkpoint = operation.clone();
@@ -457,8 +493,69 @@ impl Installer {
         &self,
         request: InstallRequest,
         operation: &OperationCoordinator,
-        mut emit: F,
+        emit: F,
     ) -> Result<InstallRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        match self
+            .install_to(request, operation, emit, InstallLimit::Complete)
+            .await?
+        {
+            InstallProgress::Installed(install) => Ok(install),
+            InstallProgress::Generated(_) => Err(PortcoveError::state(
+                "complete install yielded unexpectedly",
+            )),
+        }
+    }
+
+    pub async fn generate_managed_install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        emit: F,
+    ) -> Result<ManagedInstallContinuation>
+    where
+        F: FnMut(OperationEvent),
+    {
+        if request.managed.is_none() || request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "staged PS1 generation requires a retained managed contract",
+            ));
+        }
+        match self
+            .install_to(request, operation, emit, InstallLimit::Generated)
+            .await?
+        {
+            InstallProgress::Generated(continuation) => Ok(continuation),
+            InstallProgress::Installed(_) => Err(PortcoveError::state(
+                "private generation published unexpectedly",
+            )),
+        }
+    }
+
+    /// Validate private generation by lifecycle identity. Callers supply no
+    /// preparation bytes, paths, hashes or reusable acquisition grant.
+    pub fn managed_install_continuation(
+        &self,
+        operation_id: &str,
+    ) -> Result<ManagedInstallContinuation> {
+        let operation =
+            OperationCoordinator::resume(operation_id, "managed-install-continuation", None);
+        let witness = OperationStore::new(self.library.clone()).psx_generation(&operation)?;
+        Ok(ManagedInstallContinuation {
+            operation_id: operation_id.to_owned(),
+            port_id: witness.port_id().to_owned(),
+        })
+    }
+
+    async fn install_to<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+        limit: InstallLimit,
+    ) -> Result<InstallProgress>
     where
         F: FnMut(OperationEvent),
     {
@@ -510,7 +607,7 @@ impl Installer {
             record,
         };
         let mut result = self
-            .install_inner(request, operation, &mut lifecycle, &mut emit)
+            .install_inner(request, operation, &mut lifecycle, &mut emit, limit)
             .await;
         if let Err(error) = &mut result {
             if lifecycle.record.phase == LifecyclePhase::Preparing {
@@ -667,7 +764,8 @@ impl Installer {
         operation: &OperationCoordinator,
         lifecycle: &mut InstallLifecycle,
         emit: &mut F,
-    ) -> Result<InstallRecord>
+        limit: InstallLimit,
+    ) -> Result<InstallProgress>
     where
         F: FnMut(OperationEvent),
     {
@@ -737,6 +835,33 @@ impl Installer {
             operation.checkpoint()?;
         }
         if let Some(preparation) = request.managed.clone() {
+            if limit == InstallLimit::Generated {
+                emit(operation.message(
+                    "info",
+                    "Generating the verified PS1 source into private staging",
+                ));
+                let managed_root = payload_root.clone();
+                let generated =
+                    run_managed_install_worker(lifecycle, operation, move |checkpoint| {
+                        crate::psx::generate_install_stage(&managed_root, &preparation, &checkpoint)
+                    })
+                    .await?;
+                operation.checkpoint()?;
+                let witness = crate::psx::GeneratedInstallWitness::new(
+                    &self.library,
+                    &lifecycle.record,
+                    generation_contract(&request, &artifact)?,
+                    generated,
+                )?;
+                lifecycle
+                    .store
+                    .commit_psx_generation(&lifecycle.record, &witness, operation)?;
+                operation.checkpoint()?;
+                return Ok(InstallProgress::Generated(ManagedInstallContinuation {
+                    operation_id: operation_id.clone(),
+                    port_id: request.port_id.clone(),
+                }));
+            }
             emit(operation.message("info", "Generating and compiling the verified PS1 source"));
             let managed_root = payload_root.clone();
             run_managed_install_worker(lifecycle, operation, move |checkpoint| {
@@ -802,10 +927,10 @@ impl Installer {
             lifecycle.record.phase = LifecyclePhase::CleanupPending;
             lifecycle.record.last_error = Some(error.to_string());
             lifecycle.store.put(&mut lifecycle.record)?;
-            return Ok(install);
+            return Ok(InstallProgress::Installed(install));
         }
         lifecycle.store.remove(&lifecycle.record.id)?;
-        Ok(install)
+        Ok(InstallProgress::Installed(install))
     }
 
     async fn prepare_asset<F>(
@@ -2448,7 +2573,7 @@ mod tests {
             };
             let worker_store = store.clone();
             let worker_staging = staging.clone();
-            let result =
+            let result: Result<()> =
                 run_managed_install_worker(&mut lifecycle, &operation, move |checkpoint| {
                     assert_eq!(
                         worker_store
