@@ -590,7 +590,15 @@ operation identity; `configure_managed_install` resumes that same identity with
 an unchanged retained request, freshly checked acquisition authority and an owned
 port lock. It joins the cancellable configure worker and durably records process
 closure before committing a separate configuration witness. The original
-generation witness remains retained. Configuration uses pinned CMake, Ninja and
+generation witness remains retained. Configuration also seals a finite dependency
+plan from bounded stable CMake/Ninja graph and rules reads. It selects only the
+`psx-runtime` executable closure, orders producers before consumers and records
+at most sixteen command targets per batch. Cycles, duplicate producers, extra
+graph includes, validations, dynamic dependencies and outputs outside the owned
+payload are refused. Loading configuration rederives the exact plan before its
+final inventory fence. A target batch is planning evidence; runtime process caps,
+actual pending commands and durable chunk closure must still be checked before
+compilation. Configuration uses pinned CMake, Ninja and
 compilers with the playable no-PGO recipe and no compiler launchers; it requires
 a fresh private build directory. Only the private build and builder-environment
 subtrees may change. Original generated inputs, source/BIOS, toolchain and

@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+mod compile_plan;
 mod stage;
 
 use crate::{
@@ -47,6 +48,7 @@ pub(crate) struct GeneratedInstall {
 pub(crate) struct ConfiguredInstall {
     tree: stage::GeneratedTree,
     arguments: Vec<String>,
+    compile_plan: compile_plan::CompilePlan,
 }
 
 pub(crate) fn configure_install_stage(
@@ -122,7 +124,13 @@ fn configure_install(
     let tree = generated
         .tree
         .configured_transition(root, operation, *quiesced)?;
-    Ok(ConfiguredInstall { tree, arguments })
+    let compile_plan = compile_plan::derive(root, &preparation.executable_basename, operation)?;
+    tree.verify(root, operation)?;
+    Ok(ConfiguredInstall {
+        tree,
+        arguments,
+        compile_plan,
+    })
 }
 
 fn configure_arguments(root: &Path, build: &Path, toolchain: &Path) -> Result<Vec<String>> {
@@ -256,6 +264,13 @@ impl PsxStageWitness for ConfiguredInstallWitness {
             )?
         {
             return Err(PortcoveError::verification("PS1 configure recipe changed"));
+        }
+        if self.configured.compile_plan
+            != compile_plan::derive(root, &preparation.executable_basename, operation)?
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained compile plan changed",
+            ));
         }
         let current = self
             .generation
@@ -2608,7 +2623,13 @@ mod tests {
         fs::create_dir(&build).unwrap();
         fs::write(
             build.join("build.ninja"),
-            "inert graph; no configure execution",
+            format!("# Inert graph; no configure execution\ninclude CMakeFiles/rules.ninja\nbuild {}: LINK\nbuild psx-runtime: phony {}\n", platform_executable(Path::new(""), &preparation.executable_basename).display(), platform_executable(Path::new(""), &preparation.executable_basename).display()),
+        )
+        .unwrap();
+        fs::create_dir(build.join("CMakeFiles")).unwrap();
+        fs::write(
+            build.join("CMakeFiles/rules.ninja"),
+            "# Inert rules; no native execution\nrule LINK\n  command = not-executed\n",
         )
         .unwrap();
         fs::write(
@@ -2622,10 +2643,16 @@ mod tests {
             .configured_transition(payload, &operation, true)
             .unwrap();
         let arguments = configure_arguments(payload, &build, &preparation.toolchain_root).unwrap();
+        let compile_plan =
+            compile_plan::derive(payload, &preparation.executable_basename, &operation).unwrap();
         let configured = ConfiguredInstallWitness {
             generation,
             generation_sha256,
-            configured: ConfiguredInstall { tree, arguments },
+            configured: ConfiguredInstall {
+                tree,
+                arguments,
+                compile_plan,
+            },
         };
         (library, operation, journal, configured)
     }
