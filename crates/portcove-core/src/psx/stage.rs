@@ -73,6 +73,51 @@ impl GeneratedTree {
         }
         operation.checkpoint()
     }
+
+    /// Configuration may add its private build/cache tree, but cannot silently
+    /// replace or rewrite any original generated input outside those subtrees.
+    pub(super) fn configured_transition(
+        &self,
+        root: &Path,
+        operation: &OperationCoordinator,
+        quiesced: bool,
+    ) -> Result<Self> {
+        let current = Self::capture(root, operation, quiesced)?;
+        if current.root != self.root || current.operation_id != self.operation_id {
+            return Err(PortcoveError::verification(
+                "PS1 configure root custody changed",
+            ));
+        }
+        let mutable = |relative: &Path| {
+            relative.starts_with("build-portcove")
+                || relative.starts_with(".portcove-builder-environment")
+        };
+        for (relative, original) in &self.entries {
+            if mutable(relative) {
+                continue;
+            }
+            let unchanged = match (original, current.entries.get(relative)) {
+                (Entry::Directory(before), Some(Entry::Directory(after))) => {
+                    before.same_object(after)
+                }
+                (Entry::File(before), Some(Entry::File(after))) => before == after,
+                _ => false,
+            };
+            if !unchanged {
+                return Err(PortcoveError::verification(
+                    "PS1 configure changed a retained generation input",
+                ));
+            }
+        }
+        for relative in current.entries.keys() {
+            if !self.entries.contains_key(relative) && !mutable(relative) {
+                return Err(PortcoveError::verification(
+                    "PS1 configure added an unexpected input path",
+                ));
+            }
+        }
+        Ok(current)
+    }
 }
 
 fn inventory(root: &Path, operation: &OperationCoordinator) -> Result<BTreeMap<PathBuf, Entry>> {
@@ -215,6 +260,48 @@ fn verify_inventory(root: &Path, entries: &BTreeMap<PathBuf, Entry>) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn configured_stage_preserves_original_inputs_and_bounds_new_paths() {
+        let root = tempfile::tempdir().unwrap();
+        let operation = OperationCoordinator::new("configure-transition", None);
+        fs::write(root.path().join("game.c"), "original generated source").unwrap();
+        let generated = GeneratedTree::capture(root.path(), &operation, true).unwrap();
+        fs::create_dir(root.path().join("build-portcove")).unwrap();
+        fs::write(
+            root.path().join("build-portcove/build.ninja"),
+            "inert graph",
+        )
+        .unwrap();
+        assert!(
+            generated
+                .configured_transition(root.path(), &operation, false)
+                .is_err()
+        );
+        fs::write(
+            root.path().join("build-portcove/CMakeCache.txt"),
+            "inert cache",
+        )
+        .unwrap();
+        let configured = generated
+            .configured_transition(root.path(), &operation, true)
+            .unwrap();
+        configured.verify(root.path(), &operation).unwrap();
+        fs::write(root.path().join("unexpected.c"), "unexpected input").unwrap();
+        assert!(
+            generated
+                .configured_transition(root.path(), &operation, true)
+                .is_err()
+        );
+        fs::remove_file(root.path().join("unexpected.c")).unwrap();
+        fs::write(root.path().join("game.c"), "changed generated source").unwrap();
+        assert!(
+            generated
+                .configured_transition(root.path(), &operation, true)
+                .is_err()
+        );
+        assert!(!root.path().join(".portcove-managed.json").exists());
+    }
 
     #[test]
     fn generated_stage_refuses_uncertain_closure_and_changed_inputs() {

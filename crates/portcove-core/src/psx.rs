@@ -40,6 +40,147 @@ pub(crate) struct GeneratedInstall {
     staged_bios: Option<PathBuf>,
 }
 
+/// Private successful configure output. No installation or publication follows
+/// merely from possession of this operation-bound inventory.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ConfiguredInstall {
+    generated: GeneratedInstall,
+    tree: stage::GeneratedTree,
+    arguments: Vec<String>,
+}
+
+pub(crate) fn configure_install_stage(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    generated: GeneratedInstall,
+) -> (Result<ConfiguredInstall>, bool) {
+    let mut quiesced = true;
+    let result = configure_install(root, preparation, operation, &mut quiesced, generated);
+    (result, quiesced)
+}
+
+fn configure_install(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    generated: GeneratedInstall,
+) -> Result<ConfiguredInstall> {
+    if generated.inputs != preparation_identity(preparation)? {
+        return Err(PortcoveError::verification("PS1 configure inputs changed"));
+    }
+    generated.tree.verify(root, operation)?;
+    generated
+        .toolchain
+        .verify(&preparation.toolchain_root, operation)?;
+    generated
+        .normalized_disc
+        .verify(generated.normalized_disc.root(), operation)?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    if let Some(bios) = &preparation.bios {
+        verify_raw_bios(bios, &|| operation.checkpoint())?;
+    }
+    PreparationConfiguration::from_preparation(preparation)?;
+    let build = root.join("build-portcove");
+    // Configuration is admitted only once into a fresh operation-owned tree.
+    // Never invoke CMake's relocated-cache deletion or repair another build.
+    match fs::symlink_metadata(&build) {
+        Ok(_) => {
+            return Err(PortcoveError::conflict(
+                "PS1 configure build directory already exists",
+            ));
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    let arguments = configure_arguments(root, &build, &preparation.toolchain_root)?;
+    let cmake = platform_executable(&preparation.toolchain_root.join("bin"), "cmake");
+    run_pinned_builder(
+        &cmake,
+        root,
+        &preparation.toolchain_root,
+        arguments.clone(),
+        operation,
+        quiesced,
+    )?;
+    generated
+        .toolchain
+        .verify(&preparation.toolchain_root, operation)?;
+    generated
+        .normalized_disc
+        .verify(generated.normalized_disc.root(), operation)?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    if let Some(bios) = &preparation.bios {
+        verify_raw_bios(bios, &|| operation.checkpoint())?;
+    }
+    if !build.join("build.ninja").is_file() || !build.join("CMakeCache.txt").is_file() {
+        return Err(PortcoveError::install(
+            "PS1 configure completed without its Ninja graph and cache",
+        ));
+    }
+    let tree = generated
+        .tree
+        .configured_transition(root, operation, *quiesced)?;
+    Ok(ConfiguredInstall {
+        generated,
+        tree,
+        arguments,
+    })
+}
+
+fn configure_arguments(root: &Path, build: &Path, toolchain: &Path) -> Result<Vec<String>> {
+    let bin = toolchain.join("bin");
+    let mut arguments = vec![
+        "-S".into(),
+        crate::path::unicode(root, "managed configure root")?,
+        "-B".into(),
+        crate::path::unicode(build, "managed configure directory")?,
+        "-G".into(),
+        "Ninja".into(),
+        format!(
+            "-DCMAKE_MAKE_PROGRAM={}",
+            crate::path::unicode(&platform_executable(&bin, "ninja"), "pinned Ninja")?
+        ),
+        format!(
+            "-DCMAKE_C_COMPILER={}",
+            crate::path::unicode(&platform_executable(&bin, "clang"), "pinned C compiler")?
+        ),
+        format!(
+            "-DCMAKE_CXX_COMPILER={}",
+            crate::path::unicode(&platform_executable(&bin, "clang++"), "pinned C++ compiler")?
+        ),
+        "-DCMAKE_BUILD_TYPE=Release".into(),
+        "-DPSX_PGO=".into(),
+        "-DBPE_FORCE_SETUP_HOST=OFF".into(),
+        "-DPSXRECOMP_FORCE_SETUP_HOST=OFF".into(),
+        "-DPSXRECOMP_ALLOW_NO_BIOS=OFF".into(),
+        "-DPSXRECOMP_REQUIRE_GAME_C=ON".into(),
+        "-DPSX_DEBUG_TOOLS=OFF".into(),
+        "-DCMAKE_C_COMPILER_LAUNCHER:STRING=".into(),
+        "-DCMAKE_CXX_COMPILER_LAUNCHER:STRING=".into(),
+    ];
+    // Match the SDK's Linux pack sysroot contract; Windows uses pack clang.cfg.
+    if cfg!(target_os = "linux") && toolchain.join("sysroot/usr/include").is_dir() {
+        arguments.push(format!(
+            "-DCMAKE_SYSROOT={}",
+            crate::path::unicode(&toolchain.join("sysroot"), "pinned sysroot")?
+        ));
+        arguments.push("-DOpenGL_GL_PREFERENCE=LEGACY".into());
+    }
+    for name in ["cmake", "ninja", "clang", "clang++"] {
+        let path = platform_executable(&bin, name);
+        crate::path::refuse_symlink_ancestors(&path)?;
+        if !fs::symlink_metadata(path)?.is_file() {
+            return Err(PortcoveError::verification(
+                "PS1 configure requires regular pinned tools",
+            ));
+        }
+    }
+    Ok(arguments)
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct GeneratedInstallWitness {
@@ -1483,6 +1624,24 @@ fn run_cli(
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
+    run_pinned_builder(
+        python,
+        project_root,
+        toolchain_root,
+        std::iter::once(crate::path::unicode(cli, "managed PS1 CLI")?).chain(arguments),
+        operation,
+        quiesced,
+    )
+}
+
+fn run_pinned_builder(
+    executable: &Path,
+    project_root: &Path,
+    toolchain_root: &Path,
+    arguments: impl IntoIterator<Item = String>,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+) -> Result<()> {
     operation.checkpoint()?;
     let platform = Platform::current()?;
     if !validate_toolchain_with_checkpoint(
@@ -1490,7 +1649,13 @@ fn run_cli(
         platform,
         toolchain_artifact(platform)?,
         || operation.checkpoint(),
-    )? || toolchain_python(toolchain_root)? != python
+    )? || ![
+        toolchain_python(toolchain_root)?,
+        platform_executable(&toolchain_root.join("bin"), "cmake"),
+        platform_executable(&toolchain_root.join("bin"), "ninja"),
+    ]
+    .iter()
+    .any(|allowed| allowed == executable)
     {
         return Err(PortcoveError::verification(
             "managed PS1 builder requires its unchanged pinned toolchain",
@@ -1513,16 +1678,15 @@ fn run_cli(
     }
     let path = std::env::join_paths([
         toolchain_root.join("bin"),
-        python
+        toolchain_python(toolchain_root)?
             .parent()
             .expect("bundled Python has a parent")
             .to_path_buf(),
     ])
     .map_err(|_| PortcoveError::verification("pinned PS1 toolchain PATH is invalid"))?;
     let mut command =
-        ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, python)?;
+        ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, executable)?;
     command
-        .arg(cli)
         .args(arguments)
         .current_dir(project_root)
         .env("RETCOMM_TOOLCHAIN_DIR", toolchain_root)
@@ -2218,6 +2382,76 @@ mod tests {
         )
         .unwrap();
         (library, operation, journal, witness, preparation)
+    }
+
+    #[test]
+    fn configure_stage_refuses_changed_generation_before_any_tool_or_output() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (_, operation, journal, witness, preparation) =
+            generation_witness_fixture(temporary.path());
+        let root = journal.paths.staging.unwrap().join("payload");
+        fs::write(root.join("generated.c"), "changed generated source").unwrap();
+        let (result, quiesced) =
+            configure_install_stage(&root, &preparation, &operation, witness.generated);
+        assert!(result.is_err());
+        assert!(quiesced);
+        assert!(!root.join("build-portcove").exists());
+        assert!(!root.join(".portcove-builder-environment").exists());
+        assert!(!root.join(".portcove-managed.json").exists());
+    }
+
+    #[test]
+    fn configure_stage_pins_playable_recipe_and_refuses_missing_compiler() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        let toolchain = temporary.path().join("toolchain");
+        toolchain_fixture(&toolchain, None);
+        let build = root.join("build-portcove");
+        assert!(configure_arguments(&root, &build, &toolchain).is_err());
+        for name in ["clang", "clang++"] {
+            fs::write(
+                platform_executable(&toolchain.join("bin"), name),
+                "inert compiler; not executed",
+            )
+            .unwrap();
+        }
+        let arguments = configure_arguments(&root, &build, &toolchain).unwrap();
+        assert_eq!(
+            &arguments[..6],
+            &[
+                "-S",
+                root.to_str().unwrap(),
+                "-B",
+                build.to_str().unwrap(),
+                "-G",
+                "Ninja"
+            ]
+        );
+        for required in [
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DPSX_PGO=",
+            "-DPSXRECOMP_FORCE_SETUP_HOST=OFF",
+            "-DBPE_FORCE_SETUP_HOST=OFF",
+            "-DPSXRECOMP_REQUIRE_GAME_C=ON",
+            "-DPSXRECOMP_ALLOW_NO_BIOS=OFF",
+            "-DPSX_DEBUG_TOOLS=OFF",
+            "-DCMAKE_C_COMPILER_LAUNCHER:STRING=",
+            "-DCMAKE_CXX_COMPILER_LAUNCHER:STRING=",
+        ] {
+            assert!(arguments.iter().any(|value| value == required));
+        }
+        assert!(
+            !arguments
+                .iter()
+                .any(|value| value == "--build" || value == "rebuild")
+        );
+        assert!(arguments.iter().any(|value| value
+            == &format!(
+                "-DCMAKE_C_COMPILER={}",
+                platform_executable(&toolchain.join("bin"), "clang").display()
+            )));
+        fs::remove_file(platform_executable(&toolchain.join("bin"), "clang")).unwrap();
+        assert!(configure_arguments(&root, &build, &toolchain).is_err());
     }
 
     #[test]

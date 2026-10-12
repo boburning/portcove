@@ -60,6 +60,12 @@ pub(crate) struct InspectedDirectory {
     changed_at: (i64, i64),
 }
 
+impl InspectedDirectory {
+    pub(crate) fn same_object(&self, other: &Self) -> bool {
+        self.identity == other.identity
+    }
+}
+
 enum InspectionPass<'a> {
     Hash(&'a dyn Fn() -> Result<()>),
     Recheck(BTreeSet<String>),
