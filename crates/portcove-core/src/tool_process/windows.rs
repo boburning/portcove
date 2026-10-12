@@ -438,13 +438,18 @@ fn spawn_with_options(
             // remains incomplete custody; it cannot publish successful cleanup.
             {
                 let mut proof = control.lock();
-                proof.first_failure.get_or_insert(("controller_readiness", None));
+                proof
+                    .first_failure
+                    .get_or_insert(("controller_readiness", None));
                 proof.quiesced = false;
             }
             Err(ToolSpawnFailure {
-                error: with_control_proof(&control, PortcoveError::state(
-                    "native tool controller did not establish creation custody",
-                )),
+                error: with_control_proof(
+                    &control,
+                    PortcoveError::state(
+                        "native tool controller did not establish creation custody",
+                    ),
+                ),
                 quiesced: false,
                 io_kind: None,
             })
@@ -700,8 +705,14 @@ fn test_process_image(handle: HANDLE) -> Option<String> {
     use windows_sys::Win32::System::Threading::QueryFullProcessImageNameW;
     // One bounded query against the retained lifetime handle before continuation.
     // No PID reopening, substitution, trust decision or production behavior.
-    let mut buffer=[0u16;1024];let mut length=buffer.len() as u32;
-    if unsafe{QueryFullProcessImageNameW(handle,0,buffer.as_mut_ptr(),&mut length)}==0 || length==0 || length as usize>buffer.len() {return None;}
+    let mut buffer = [0u16; 1024];
+    let mut length = buffer.len() as u32;
+    if unsafe { QueryFullProcessImageNameW(handle, 0, buffer.as_mut_ptr(), &mut length) } == 0
+        || length == 0
+        || length as usize > buffer.len()
+    {
+        return None;
+    }
     String::from_utf16(&buffer[..length as usize]).ok()
 }
 
@@ -1039,7 +1050,18 @@ impl Controller {
         let mut proof = self.control.lock();
         proof.publish_members(self.slots(), self.members.keys().copied());
         #[cfg(test)]
-        {proof.images=self.members.iter().filter_map(|(identity,member)|member.image.as_ref().map(|image|(*identity,image.clone()))).collect();}
+        {
+            proof.images = self
+                .members
+                .iter()
+                .filter_map(|(identity, member)| {
+                    member
+                        .image
+                        .as_ref()
+                        .map(|image| (*identity, image.clone()))
+                })
+                .collect();
+        }
     }
 
     fn retain(
@@ -1442,23 +1464,36 @@ impl Controller {
 
     #[cfg(test)]
     fn panic_after_owned_creation(&self, event: &DEBUG_EVENT) {
-        let Some(observation) = &self.options.panic_tree else { return; };
+        let Some(observation) = &self.options.panic_tree else {
+            return;
+        };
         if event.dwDebugEventCode != CREATE_PROCESS_DEBUG_EVENT
             || self.root.is_none_or(|root| root.pid == event.dwProcessId)
             || self.control.lock().first_failure.is_some()
-            || !self.members.iter().any(|(key, member)|
-                key.pid == event.dwProcessId && member.creation_seen)
+            || !self
+                .members
+                .iter()
+                .any(|(key, member)| key.pid == event.dwProcessId && member.creation_seen)
         {
             return;
         }
         // Capture independent fixture handles after real Core CREATE capture,
         // before continuation. They never repair the controller's proof.
-        let members = self.members.iter().map(|(identity, member)| {
-            (*identity, duplicate(member.handle.as_raw_handle()).expect("owned panic fixture handle"))
-        }).collect();
+        let members = self
+            .members
+            .iter()
+            .map(|(identity, member)| {
+                (
+                    *identity,
+                    duplicate(member.handle.as_raw_handle()).expect("owned panic fixture handle"),
+                )
+            })
+            .collect();
         *observation.captured.lock().unwrap() = Some(PanickedTree {
             root_pid: self.root.unwrap().pid,
-            event_pid: event.dwProcessId, event_thread: event.dwThreadId, members,
+            event_pid: event.dwProcessId,
+            event_thread: event.dwThreadId,
+            members,
         });
         panic!("owned fixture live controller panic before descendant CREATE continuation");
     }
@@ -1569,22 +1604,34 @@ mod native_control_tests {
         let program = crate::test_fixture::build_probe(native.path());
         let working = tempfile::tempdir().unwrap();
         let output = working.path().join("orphan-output");
-        let mut spec = ChildProcessPolicy::native_tool_spec(
-            ChildProcessClass::UpstreamSetup, &program,
-        ).unwrap();
-        spec.args(["--setup-tree", &output.display().to_string(), "observed-wait"])
-            .current_dir(working.path());
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args([
+            "--setup-tree",
+            &output.display().to_string(),
+            "observed-wait",
+        ])
+        .current_dir(working.path());
         let observation = Arc::new(PanicTreeObservation::default());
-        let (mut child, group) = spawn_with_options(&spec, TestOptions {
-            panic_tree: Some(observation.clone()), ..Default::default()
-        }).map_err(|failure| failure.error).unwrap();
+        let (mut child, group) = spawn_with_options(
+            &spec,
+            TestOptions {
+                panic_tree: Some(observation.clone()),
+                ..Default::default()
+            },
+        )
+        .map_err(|failure| failure.error)
+        .unwrap();
         // Do not request stop before the real event-pump panic has occurred.
         let deadline = Instant::now() + Duration::from_secs(4);
         while !group.control.lock().done && Instant::now() < deadline {
             thread::sleep(Duration::from_millis(1));
         }
         let done = group.control.lock().done;
-        if !done { let _ = group.terminate_and_wait(&mut child); }
+        if !done {
+            let _ = group.terminate_and_wait(&mut child);
+        }
         let proof = crate::tool_process::copy_proof_details(
             &group.with_proof_details(PortcoveError::state("live event-pump panic control")),
         );
@@ -1607,30 +1654,54 @@ mod native_control_tests {
                 "members":members})
         });
         let closure_timely = Instant::now() < closure_deadline;
-        eprintln!("native_live_panic_proof:{}", serde_json::json!({
-            "done":done,"quiesced":quiesced,"proof":proof,"observed_tree":actual,
-            "fixture_closure_timely":closure_timely,
-            "root_wait_error":root_wait_error,"orphan_output":output.exists(),
-        }));
+        eprintln!(
+            "native_live_panic_proof:{}",
+            serde_json::json!({
+                "done":done,"quiesced":quiesced,"proof":proof,"observed_tree":actual,
+                "fixture_closure_timely":closure_timely,
+                "root_wait_error":root_wait_error,"orphan_output":output.exists(),
+            })
+        );
         assert!(done && captured.is_some());
-        assert!(closure_timely, "positive fixture closure must fit the shared deadline");
+        assert!(
+            closure_timely,
+            "positive fixture closure must fit the shared deadline"
+        );
         assert!(!quiesced);
-        assert!(root_wait_error.is_some(), "Core cannot invent a positive root exit after panic");
+        assert!(
+            root_wait_error.is_some(),
+            "Core cannot invent a positive root exit after panic"
+        );
         assert_eq!(proof["process_tree_first_failure"], "controller_panic");
         assert_eq!(proof["process_tree_membership_complete"], "false");
         assert_eq!(proof["process_tree_retained_members"], "2");
         let tree = captured.as_ref().unwrap();
         assert_eq!(tree.members.len(), 2);
         assert_ne!(tree.root_pid, tree.event_pid);
-        assert!(tree.members.iter().any(|(identity, _)| identity.pid == tree.root_pid));
-        assert!(tree.members.iter().any(|(identity, _)| identity.pid == tree.event_pid));
+        assert!(
+            tree.members
+                .iter()
+                .any(|(identity, _)| identity.pid == tree.root_pid)
+        );
+        assert!(
+            tree.members
+                .iter()
+                .any(|(identity, _)| identity.pid == tree.event_pid)
+        );
         for member in actual.as_ref().unwrap()["members"].as_array().unwrap() {
             assert_eq!(member["wait_result"], WAIT_OBJECT_0);
             assert_ne!(member["exit_query"], 0);
         }
-        for absent in ["process_tree_active", "process_tree_total", "process_tree_root_exit",
-            "process_tree_all_retained_signaled"] {
-            assert!(!proof.contains_key(absent), "panic cannot fabricate {absent}");
+        for absent in [
+            "process_tree_active",
+            "process_tree_total",
+            "process_tree_root_exit",
+            "process_tree_all_retained_signaled",
+        ] {
+            assert!(
+                !proof.contains_key(absent),
+                "panic cannot fabricate {absent}"
+            );
         }
         assert!(!output.exists());
     }
@@ -1640,19 +1711,30 @@ mod native_control_tests {
     fn controller_panics_preserve_failure_without_fabricating_cleanup() {
         let native = tempfile::tempdir().unwrap();
         let program = crate::test_fixture::build_probe(native.path());
-        for fault in [RootFailure::PanicBeforeAssignment, RootFailure::PanicAfterAssignment] {
+        for fault in [
+            RootFailure::PanicBeforeAssignment,
+            RootFailure::PanicAfterAssignment,
+        ] {
             let working = tempfile::tempdir().unwrap();
             let output = working.path().join("orphan-output");
-            let mut spec = ChildProcessPolicy::native_tool_spec(
-                ChildProcessClass::UpstreamSetup, &program,
-            ).unwrap();
-            spec.args(["--setup-tree", &output.display().to_string(), "observed-wait"])
-                .current_dir(working.path());
+            let mut spec =
+                ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                    .unwrap();
+            spec.args([
+                "--setup-tree",
+                &output.display().to_string(),
+                "observed-wait",
+            ])
+            .current_dir(working.path());
             let observed = Arc::new(RefusedMember::default());
-            let failure = match spawn_with_options(&spec, TestOptions {
-                root_failure: Some(fault), root_observation: Some(observed.clone()),
-                ..Default::default()
-            }) {
+            let failure = match spawn_with_options(
+                &spec,
+                TestOptions {
+                    root_failure: Some(fault),
+                    root_observation: Some(observed.clone()),
+                    ..Default::default()
+                },
+            ) {
                 Err(failure) => failure,
                 Ok((mut child, group)) => {
                     let _ = group.terminate_and_wait(&mut child);
@@ -1671,10 +1753,13 @@ mod native_control_tests {
                     "created_filetime":identity.created.to_string(),"wait_result":waited,
                     "exit_query":queried,"exit_code":exit_code})
             });
-            eprintln!("native_controller_panic_proof:{}", serde_json::json!({
-                "fault":format!("{fault:?}"),"quiesced":failure.quiesced,
-                "proof":proof,"observed_root":observation,"orphan_output":output.exists(),
-            }));
+            eprintln!(
+                "native_controller_panic_proof:{}",
+                serde_json::json!({
+                    "fault":format!("{fault:?}"),"quiesced":failure.quiesced,
+                    "proof":proof,"observed_root":observation,"orphan_output":output.exists(),
+                })
+            );
             assert!(actual.is_some());
             let observation = observation.as_ref().unwrap();
             assert_eq!(observation["wait_result"], WAIT_OBJECT_0);
@@ -1683,9 +1768,16 @@ mod native_control_tests {
             assert_eq!(proof["process_tree_first_failure"], "controller_panic");
             assert_eq!(proof["process_tree_membership_complete"], "false");
             assert_eq!(proof["process_tree_retained_members"], "1");
-            for absent in ["process_tree_active", "process_tree_total",
-                "process_tree_root_exit", "process_tree_all_retained_signaled"] {
-                assert!(!proof.contains_key(absent), "panic cannot fabricate {absent}");
+            for absent in [
+                "process_tree_active",
+                "process_tree_total",
+                "process_tree_root_exit",
+                "process_tree_all_retained_signaled",
+            ] {
+                assert!(
+                    !proof.contains_key(absent),
+                    "panic cannot fabricate {absent}"
+                );
             }
             assert!(!output.exists());
         }
@@ -1703,17 +1795,24 @@ mod native_control_tests {
         ] {
             let working = tempfile::tempdir().unwrap();
             let output = working.path().join("orphan-output");
-            let mut spec = ChildProcessPolicy::native_tool_spec(
-                ChildProcessClass::UpstreamSetup, &program,
-            ).unwrap();
-            spec.args(["--setup-tree", &output.display().to_string(), "observed-wait"])
-                .current_dir(working.path());
+            let mut spec =
+                ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                    .unwrap();
+            spec.args([
+                "--setup-tree",
+                &output.display().to_string(),
+                "observed-wait",
+            ])
+            .current_dir(working.path());
             let observed = Arc::new(RefusedMember::default());
-            let failure = match spawn_with_options(&spec, TestOptions {
-                root_failure: Some(fault),
-                root_observation: Some(observed.clone()),
-                ..Default::default()
-            }) {
+            let failure = match spawn_with_options(
+                &spec,
+                TestOptions {
+                    root_failure: Some(fault),
+                    root_observation: Some(observed.clone()),
+                    ..Default::default()
+                },
+            ) {
                 Err(failure) => failure,
                 Ok((mut child, group)) => {
                     let _ = group.terminate_and_wait(&mut child);
@@ -1722,15 +1821,20 @@ mod native_control_tests {
             };
             let proof = crate::tool_process::copy_proof_details(&failure.error);
             let actual = observed.member.lock().unwrap().take();
-            let observation = actual.as_ref().map(|(identity, handle)| serde_json::json!({
-                "pid":identity.pid, "created_filetime":identity.created.to_string(),
-                "wait_result":unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) },
-            }));
-            eprintln!("native_root_refusal_proof:{}", serde_json::json!({
-                "fault":format!("{fault:?}"), "quiesced":failure.quiesced,
-                "proof":proof, "observed_root":observation, "orphan_output":output.exists(),
-                "injection":"one actual Win32 call with a null handle; real root remains suspended",
-            }));
+            let observation = actual.as_ref().map(|(identity, handle)| {
+                serde_json::json!({
+                    "pid":identity.pid, "created_filetime":identity.created.to_string(),
+                    "wait_result":unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) },
+                })
+            });
+            eprintln!(
+                "native_root_refusal_proof:{}",
+                serde_json::json!({
+                    "fault":format!("{fault:?}"), "quiesced":failure.quiesced,
+                    "proof":proof, "observed_root":observation, "orphan_output":output.exists(),
+                    "injection":"one actual Win32 call with a null handle; real root remains suspended",
+                })
+            );
             assert!(actual.is_some());
             assert_eq!(observation.as_ref().unwrap()["wait_result"], WAIT_OBJECT_0);
             assert!(!failure.quiesced);
@@ -1740,7 +1844,11 @@ mod native_control_tests {
             let identities: Vec<serde_json::Value> =
                 serde_json::from_str(&proof["process_tree_identities"]).unwrap();
             let (actual_identity, _) = actual.as_ref().unwrap();
-            assert!(identities.iter().all(|identity| identity["pid"] == actual_identity.pid));
+            assert!(
+                identities
+                    .iter()
+                    .all(|identity| identity["pid"] == actual_identity.pid)
+            );
             let retained: usize = proof["process_tree_retained_members"].parse().unwrap();
             assert_eq!(retained, identities.len());
             if fault == RootFailure::Identity {
@@ -1748,16 +1856,30 @@ mod native_control_tests {
                 // retain a second handle with the actual FILETIME; neither the
                 // zero entry nor these two handles establishes two lifetimes.
                 assert!((1..=2).contains(&retained));
-                assert_eq!(identities.iter().filter(|identity|
-                    identity["created_filetime"] == "0").count(), 1);
-                assert!(identities.iter().all(|identity|
-                    identity["created_filetime"] == "0"
-                    || identity["created_filetime"] == actual_identity.created.to_string()));
+                assert_eq!(
+                    identities
+                        .iter()
+                        .filter(|identity| identity["created_filetime"] == "0")
+                        .count(),
+                    1
+                );
+                assert!(
+                    identities
+                        .iter()
+                        .all(|identity| identity["created_filetime"] == "0"
+                            || identity["created_filetime"] == actual_identity.created.to_string())
+                );
             } else {
                 assert_eq!(retained, 1);
-                assert_eq!(identities[0]["created_filetime"], actual_identity.created.to_string());
+                assert_eq!(
+                    identities[0]["created_filetime"],
+                    actual_identity.created.to_string()
+                );
             }
-            assert!(!output.exists(), "suspended root must not execute user code");
+            assert!(
+                !output.exists(),
+                "suspended root must not execute user code"
+            );
         }
     }
 
@@ -1770,9 +1892,13 @@ mod native_control_tests {
         let mut spec =
             ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
                 .unwrap();
-        let dll = std::path::PathBuf::from(std::env::var_os("PORTCOVE_HOST_TOOL_DLL_FIXTURE").expect("prepared owned DLL required"));
+        let dll = std::path::PathBuf::from(
+            std::env::var_os("PORTCOVE_HOST_TOOL_DLL_FIXTURE")
+                .expect("prepared owned DLL required"),
+        );
         assert!(dll.is_absolute() && dll.is_file());
-        spec.arg("--owned-dll-exceptions").arg(&dll)
+        spec.arg("--owned-dll-exceptions")
+            .arg(&dll)
             .current_dir(working.path());
         let trace = Arc::new(Mutex::new(Vec::new()));
         let (mut child, group) = spawn_with_options(
@@ -2055,10 +2181,19 @@ mod native_control_tests {
         );
         assert!(observed.is_some(), "real refused member was observed");
         assert_eq!(observation.as_ref().unwrap()["wait_result"], WAIT_OBJECT_0);
-        assert!(!quiesced, "duplicate handles cannot supply lifetime coverage");
+        assert!(
+            !quiesced,
+            "duplicate handles cannot supply lifetime coverage"
+        );
         assert_eq!(stopped.unwrap().code(), Some(1));
-        assert_eq!(proof["process_tree_first_failure"], "retained_handle_capacity");
-        assert_eq!(proof["process_tree_retained_members"], MEMBER_LIMIT.to_string());
+        assert_eq!(
+            proof["process_tree_first_failure"],
+            "retained_handle_capacity"
+        );
+        assert_eq!(
+            proof["process_tree_retained_members"],
+            MEMBER_LIMIT.to_string()
+        );
         assert_eq!(proof["process_tree_total"], "2");
         assert_eq!(proof["process_tree_active"], "0");
         assert_eq!(proof["process_tree_all_retained_signaled"], "true");
@@ -2124,9 +2259,15 @@ mod native_control_tests {
                 "orphan_output":working.path().join("orphan-output").exists(),
             })
         );
-        assert!(observed.is_some(), "actual descendant CREATE refusal was observed");
+        assert!(
+            observed.is_some(),
+            "actual descendant CREATE refusal was observed"
+        );
         assert_eq!(observation.as_ref().unwrap()["wait_result"], WAIT_OBJECT_0);
-        assert!(!quiesced, "positive exits cannot clear the sticky capture refusal");
+        assert!(
+            !quiesced,
+            "positive exits cannot clear the sticky capture refusal"
+        );
         assert_eq!(stopped.unwrap().code(), Some(1));
         assert_eq!(proof["process_tree_first_failure"], "creation_capture");
         assert_eq!(proof["process_tree_total"], "2");

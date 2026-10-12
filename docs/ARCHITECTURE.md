@@ -2193,7 +2193,9 @@ initial-generation boundary.
 
 The Windows tool supervisor retains the leader handle before resuming it and
 collects handles for verified members of its exact containment job during execution.
-Membership storage is bounded to 512 processes. After requesting termination it
+Membership handle storage is bounded to 512 slots. Duplicate handles or failed
+creation-time metadata do not establish additional admitted process lifetimes.
+After requesting termination it
 waits for every retained handle to signal exit, within one shared two-second bound,
 and requires zero active processes plus a lifetime process count matching its
 complete handle coverage. Only this proof permits its quiescence callback.
@@ -2232,6 +2234,10 @@ Job observations for descendants that start their own debugger. Cleanup proof
 requires positive retained-handle waits, zero active members and equality between
 the Job's lifetime count and retained identities, within one two-second closure
 deadline. Missing coverage, API failure or expiry preserves failure. Startup
+readiness failures and controller panics project the available locked proof
+without an additional wait. Unobserved active counts, root exits or retained-handle
+closure stay absent; independently closed fixture handles cannot repair Core's
+missing cleanup proof. Startup
 exception classification is limited to the admitted native x64 system-module,
 initial-thread and one-shot state; application exceptions are forwarded. Fixed
 host-tool probes use this same controller and require cleanup proof before

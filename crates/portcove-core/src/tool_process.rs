@@ -89,7 +89,8 @@ pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, Stri
         #[cfg(test)]
         "process_tree_image_identities",
     ];
-    KEYS.iter().copied()
+    KEYS.iter()
+        .copied()
         .filter_map(|key| {
             error
                 .details
