@@ -623,9 +623,20 @@ and port-lock boundary. An exhausted plan is refused before worker dispatch or
 journal mutation. Each successor atomically compares its exact predecessor and
 appends the old witness to bounded history; an ordered digest binds historical
 bytes to the current checkpoint. History integrity and identity are fenced at
-commit and final load. Serialization cannot restore store admission. Installer
-finalization remains pending; compile checkpoints prove no installed runtime or
-native qualification.
+commit and final load. Serialization cannot restore store admission.
+`finalize_managed_install` requires every batch complete, fresh authority and a
+complete zero-pending runtime observation before joined packaging. Generation-only
+disc and staged BIOS copies move into the operation's retained input sibling;
+original sources and normalized evidence remain intact. The finalized tree and
+retained inputs are verified before manifest creation. Exact compilation, history,
+configuration, generation, library and journal custody are fenced atomically when
+entering the existing `Prepared` installation recovery contract. Normal installer
+publication, registration and successful cleanup then apply. Failure before that
+handoff retains the private journal and evidence without granting retry. Bounded
+multi-disc runtime extraction still requires its own supervised stage; this new
+continuation refuses that branch before launching its inherited extractor. Ordinary
+installation retains its existing route. Native installed/lifecycle qualification
+remains separate from these checkpoint and inert-control facts.
 Failures retain data/error/closure; the fresh observation grants no compilation,
 retry, publication or native qualification. Configuration uses pinned CMake, Ninja and
 compilers with the playable no-PGO recipe and no compiler launchers; it requires

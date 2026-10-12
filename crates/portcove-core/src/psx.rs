@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 mod compile_plan;
 mod compile_stage;
-pub(crate) use compile_stage::CompiledInstall;
+pub(crate) use compile_stage::{CompiledInstall, FinalizedInstall};
 mod pending;
 mod stage;
 
@@ -1187,6 +1187,27 @@ fn finish_generated_install(
         operation,
         quiesced,
     )?;
+    prepare_built_runtime(root, preparation, operation, quiesced, staged_bios, None)?;
+    Ok(())
+}
+
+fn prepare_built_runtime(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    staged_bios: Option<PathBuf>,
+    sealed_inputs: Option<&stage::GeneratedTree>,
+) -> Result<Vec<(PathBuf, PathBuf)>> {
+    let retain_inputs = sealed_inputs.is_some();
+    if retain_inputs && preparation.runtime_source_directory.is_some() {
+        return Err(PortcoveError::unsupported(
+            "bounded multi-disc runtime extraction requires a separate supervised stage",
+        ));
+    }
+    let configuration = PreparationConfiguration::from_preparation(preparation)?;
+    let config = root.join("game.toml");
+    let build_dir = root.join("build-portcove");
     let executable = platform_executable(&build_dir, configuration.executable_basename);
     if !executable.is_file() {
         return Err(PortcoveError::install(format!(
@@ -1209,12 +1230,62 @@ fn finish_generated_install(
     let runtime_config = build_dir.join("game.toml");
     prepare_runtime_config(&config, &runtime_config, &runtime_sources)?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    let mut removed = Vec::new();
+    let retained_root = root
+        .parent()
+        .ok_or_else(|| PortcoveError::state("PS1 payload owner missing"))?
+        .join("finalization-inputs");
+    if retain_inputs {
+        crate::path::refuse_symlink_ancestors(&retained_root)?;
+        fs::create_dir(&retained_root)?;
+    }
     let prepared_disc = root.join("disc");
     if prepared_disc.is_dir() {
-        fs::remove_dir_all(prepared_disc)?;
+        if let Some(sealed) = sealed_inputs {
+            sealed.archive_input(Path::new("disc"), &retained_root.join("disc"), operation)?;
+            removed.push((PathBuf::from("disc"), PathBuf::from("disc")));
+        } else {
+            fs::remove_dir_all(prepared_disc)?;
+        }
     }
     if let (Some(staged), Some(bios)) = (&staged_bios, &preparation.bios) {
-        remove_staged_bios(staged, bios, &|| operation.checkpoint())?;
+        if let Some(sealed) = sealed_inputs {
+            verify_raw_bios(bios, &|| operation.checkpoint())?;
+            if fs::canonicalize(staged)? == fs::canonicalize(&bios.path)? {
+                return Err(PortcoveError::verification(
+                    "PS1 staged BIOS aliases its original",
+                ));
+            }
+            let before =
+                crate::external_runtime::hash_stable_file(staged, bios.storage_size, &|| {
+                    operation.checkpoint()
+                })?;
+            if before.sha256 != bios.storage_sha256 || before.size() != bios.storage_size {
+                return Err(PortcoveError::verification(
+                    "PS1 staged BIOS changed before retention",
+                ));
+            }
+            let relative = staged
+                .strip_prefix(root)
+                .map_err(|_| PortcoveError::verification("PS1 staged BIOS escaped payload"))?
+                .to_path_buf();
+            let destination = retained_root.join("staged-bios.bin");
+            sealed.archive_input(&relative, &destination, operation)?;
+            let after = crate::external_runtime::hash_stable_file(
+                &destination,
+                bios.storage_size,
+                &|| operation.checkpoint(),
+            )?;
+            if !before.same_content_object(&after) {
+                return Err(PortcoveError::verification(
+                    "PS1 retained BIOS object changed",
+                ));
+            }
+            verify_raw_bios(bios, &|| operation.checkpoint())?;
+            removed.push((relative, PathBuf::from("staged-bios.bin")));
+        } else {
+            remove_staged_bios(staged, bios, &|| operation.checkpoint())?;
+        }
     }
     fs::write(
         root.join(".portcove-managed.json"),
@@ -1227,7 +1298,7 @@ fn finish_generated_install(
             toolchain_version: TOOLCHAIN_VERSION,
         })?,
     )?;
-    Ok(())
+    Ok(removed)
 }
 
 pub(crate) fn rewrite_game_discs(config: &Path, sources: &[PathBuf]) -> Result<()> {
@@ -2630,6 +2701,13 @@ mod tests {
         fs::create_dir_all(&payload).unwrap();
         fs::create_dir_all(&normalized).unwrap();
         fs::write(payload.join("generated.c"), "inert generated source").unwrap();
+        fs::write(
+            payload.join("game.toml"),
+            "[game]\nname='inert fixture'\ndisc='initial.cue'\n",
+        )
+        .unwrap();
+        fs::create_dir(payload.join("disc")).unwrap();
+        fs::write(payload.join("disc/owned.bin"), "inert generated disc copy").unwrap();
         fs::write(normalized.join("disc.bin"), "inert normalized disc").unwrap();
         let mut preparation = preparation_input_fixture(root, false);
         preparation.toolchain_root = root.join("inert-toolchain");

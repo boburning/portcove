@@ -54,6 +54,13 @@ pub(crate) struct InspectedFile {
 }
 
 impl InspectedFile {
+    /// Object and bytes across an explicitly owned rename; rename may change ctime.
+    pub(crate) fn same_content_object(&self, other: &Self) -> bool {
+        self.snapshot.identity == other.snapshot.identity
+            && self.snapshot.size == other.snapshot.size
+            && self.snapshot.modified == other.snapshot.modified
+            && self.sha256 == other.sha256
+    }
     pub(crate) fn size(&self) -> u64 {
         self.snapshot.size
     }

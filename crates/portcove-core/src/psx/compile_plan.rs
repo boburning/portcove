@@ -25,6 +25,9 @@ pub(super) struct CompilePlan {
 }
 
 impl CompilePlan {
+    pub(super) fn runtime_target(&self) -> &str {
+        &self.runtime
+    }
     pub(super) fn batch_count(&self) -> usize {
         self.batches.len()
     }

@@ -488,6 +488,72 @@ impl OperationStore {
         )
     }
 
+    /// Consume private finalized custody into the existing Prepared recovery contract.
+    pub(crate) fn prepare_psx_publication(
+        &self,
+        journal: &mut LifecycleOperation,
+        finalized: &crate::psx::FinalizedInstall,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        let install = journal
+            .install
+            .as_ref()
+            .ok_or_else(|| PortcoveError::state("PS1 finalized installation record missing"))?;
+        if install.id != journal.id
+            || install.port_id != journal.port_id
+            || Some(&install.path) != journal.paths.final_path.as_ref()
+            || install.staged == journal.activate
+        {
+            return Err(PortcoveError::verification(
+                "PS1 finalized installation identity changed",
+            ));
+        }
+        let mut before = journal.clone();
+        before.install = None;
+        finalized.verify(&self.library, &before, operation)?;
+        let compiled = finalized.compilation();
+        let (sha, json, history) = compiled.publication_receipt()?;
+        let parent = psx_parent_json(compiled)?
+            .ok_or_else(|| PortcoveError::state("PS1 configuration parent missing"))?;
+        let ancestor = psx_bound_parent(crate::psx::PsxStageWitness::ancestor(compiled)?)?
+            .ok_or_else(|| PortcoveError::state("PS1 generation ancestor missing"))?;
+        let install_json = serde_json::to_string(install)?;
+        let updated_at = Library::now();
+        operation.checkpoint()?;
+        let mut connection = database::connect(self.library.root())?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if psx_compile_history_digest(&transaction, operation, compiled.completed_batches() - 1)?
+            != history
+        {
+            return Err(PortcoveError::conflict(
+                "PS1 history changed before publication intent",
+            ));
+        }
+        let changed = transaction.execute(
+            "UPDATE lifecycle_operations SET phase='prepared',install_json=?1,updated_at=?2
+             WHERE id=?3 AND kind='install' AND phase='staged_preparing' AND port_id=?4
+               AND staging_path IS ?5 AND final_path IS ?6 AND activate=?7
+               AND updated_at=?8 AND created_at=?9 AND preparation_process_quiesced=1
+               AND install_json IS NULL AND preparation_json IS NULL AND quarantine_path IS NULL
+               AND last_error IS NULL AND relocation_json IS NULL AND source_import_json IS NULL AND original_paths_json='[]'
+               AND EXISTS(SELECT 1 FROM library_identity WHERE singleton=1 AND id=?10)
+               AND EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=?3 AND witness_sha256=?11 AND witness_json=?12)
+               AND EXISTS(SELECT 1 FROM managed_psx_configuration WHERE operation_id=?3 AND witness_sha256=?13 AND witness_json=?14)
+               AND EXISTS(SELECT 1 FROM managed_psx_generation WHERE operation_id=?3 AND witness_sha256=?15 AND witness_json=?16)",
+            params![install_json,updated_at,journal.id,journal.port_id,path_string(journal.paths.staging.as_ref())?,path_string(journal.paths.final_path.as_ref())?,journal.activate as i64,journal.updated_at,journal.created_at,crate::psx::PsxStageWitness::library_id(compiled),sha,json,parent.0,parent.1,ancestor.0,ancestor.1],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "PS1 custody changed before publication intent",
+            ));
+        }
+        operation.checkpoint()?;
+        transaction.commit()?;
+        journal.phase = LifecyclePhase::Prepared;
+        journal.updated_at = updated_at;
+        Ok(())
+    }
+
     fn commit_psx_stage(
         &self,
         table: PsxStageTable,

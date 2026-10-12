@@ -2,6 +2,50 @@
 //! this private primitive cannot publish an installation or grant a retry.
 use super::*;
 
+/// Joined private packaging result; it cannot publish or bypass the installer.
+pub(crate) struct FinalizedInstall {
+    compilation: CompiledInstall,
+    tree: stage::GeneratedTree,
+    retained_inputs: stage::GeneratedTree,
+}
+
+impl FinalizedInstall {
+    pub(crate) fn compilation(&self) -> &CompiledInstall {
+        &self.compilation
+    }
+    pub(crate) fn seal_manifest(&mut self, operation: &OperationCoordinator) -> Result<()> {
+        self.tree = self.tree.manifest_transition(operation)?;
+        self.retained_inputs
+            .verify(self.retained_inputs.root(), operation)
+    }
+    pub(crate) fn verify(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.compilation
+            .configuration
+            .generation
+            .verify_inputs(library, journal, operation)?;
+        let preparation =
+            preparation_from_identity(&self.compilation.configuration.generation.generated.inputs)?;
+        verify_inputs(&self.compilation.configuration, &preparation, operation)?;
+        if self.compilation.configuration.configured.compile_plan
+            != compile_plan::derive(
+                self.tree.root(),
+                &preparation.executable_basename,
+                operation,
+            )?
+        {
+            return Err(PortcoveError::verification("PS1 finalized graph changed"));
+        }
+        self.tree.verify(self.tree.root(), operation)?;
+        self.retained_inputs
+            .verify(self.retained_inputs.root(), operation)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct CompiledInstall {
@@ -91,6 +135,146 @@ impl PsxStageWitness for CompiledInstall {
 }
 
 impl CompiledInstall {
+    pub(crate) fn require_complete(&self) -> Result<()> {
+        if self.persisted_sha256.is_none()
+            || self.persisted_json.is_none()
+            || self.persisted_history_sha256.is_none()
+        {
+            return Err(PortcoveError::state(
+                "PS1 finalization requires store-loaded compilation",
+            ));
+        }
+        if self.completed_batches == 0
+            || self.completed_batches != self.configuration.configured.compile_plan.batch_count()
+        {
+            return Err(PortcoveError::state(
+                "PS1 finalization requires every compile batch",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn require_finalizable(&self, preparation: &PsxManagedPreparation) -> Result<()> {
+        self.require_complete()?;
+        if preparation.runtime_source_directory.is_some() {
+            return Err(PortcoveError::unsupported(
+                "bounded multi-disc runtime extraction requires a separate supervised stage",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn publication_receipt(&self) -> Result<(&str, &str, &str)> {
+        self.require_complete()?;
+        Ok((
+            self.persisted_sha256
+                .as_deref()
+                .ok_or_else(|| PortcoveError::state("PS1 loaded digest missing"))?,
+            self.persisted_json
+                .as_deref()
+                .ok_or_else(|| PortcoveError::state("PS1 loaded bytes missing"))?,
+            self.persisted_history_sha256
+                .as_deref()
+                .ok_or_else(|| PortcoveError::state("PS1 loaded history missing"))?,
+        ))
+    }
+
+    pub(crate) fn finalize(
+        self,
+        preparation: &PsxManagedPreparation,
+        operation: &OperationCoordinator,
+    ) -> (Result<FinalizedInstall>, bool) {
+        let mut quiesced = true;
+        let result = (|| {
+            self.require_finalizable(preparation)?;
+            self.tree.verify(self.tree.root(), operation)?;
+            verify_inputs(&self.configuration, preparation, operation)?;
+            let targets = vec![
+                self.configuration
+                    .configured
+                    .compile_plan
+                    .runtime_target()
+                    .to_owned(),
+            ];
+            let ninja = platform_executable(&preparation.toolchain_root.join("bin"), "ninja");
+            let observed = capture_pinned_builder(
+                &ninja,
+                self.tree.root(),
+                &preparation.toolchain_root,
+                pending::arguments(&targets, true),
+                operation,
+                &mut quiesced,
+                true,
+            )?;
+            let pending = pending::inspect(&observed, quiesced)?;
+            self.finish_completed(preparation, operation, quiesced, pending.count)
+        })();
+        (result, quiesced)
+    }
+
+    fn finish_completed(
+        self,
+        preparation: &PsxManagedPreparation,
+        operation: &OperationCoordinator,
+        quiesced: bool,
+        pending: usize,
+    ) -> Result<FinalizedInstall> {
+        self.require_finalizable(preparation)?;
+        if !quiesced || pending != 0 {
+            return Err(PortcoveError::verification(
+                "PS1 finalization requires complete zero-pending runtime and positive closure",
+            ));
+        }
+        let root = self.tree.root();
+        self.tree.verify(root, operation)?;
+        verify_inputs(&self.configuration, preparation, operation)?;
+        if self.configuration.configured.compile_plan
+            != compile_plan::derive(root, &preparation.executable_basename, operation)?
+        {
+            return Err(PortcoveError::verification("PS1 completion graph changed"));
+        }
+        let marker = root.join(".portcove-managed.json");
+        let retained = root
+            .parent()
+            .ok_or_else(|| PortcoveError::state("PS1 payload owner missing"))?
+            .join("finalization-inputs");
+        if fs::symlink_metadata(&marker).is_ok()
+            || fs::symlink_metadata(&retained).is_ok()
+            || fs::symlink_metadata(root.join(".portcove-manifest.json")).is_ok()
+        {
+            return Err(PortcoveError::conflict(
+                "PS1 finalization material already exists",
+            ));
+        }
+        let mut closed = quiesced;
+        let removed = prepare_built_runtime(
+            root,
+            preparation,
+            operation,
+            &mut closed,
+            self.configuration.generation.generated.staged_bios.clone(),
+            Some(&self.tree),
+        )?;
+        if !closed {
+            return Err(PortcoveError::verification(
+                "PS1 finalization lost positive closure",
+            ));
+        }
+        verify_inputs(&self.configuration, preparation, operation)?;
+        let removed_paths = removed
+            .iter()
+            .map(|(source, _)| source.clone())
+            .collect::<Vec<_>>();
+        let tree = self.tree.finalized_transition(operation, &removed_paths)?;
+        let retained_inputs = self.tree.retained_inputs(&retained, &removed, operation)?;
+        tree.verify(root, operation)?;
+        retained_inputs.verify(&retained, operation)?;
+        Ok(FinalizedInstall {
+            compilation: self,
+            tree,
+            retained_inputs,
+        })
+    }
     fn seal_first(
         configuration: ConfiguredInstallWitness,
         operation: &OperationCoordinator,
@@ -355,6 +539,319 @@ mod tests {
         assert!(result.is_err());
         assert!(quiesced);
         assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    fn completed_fixture() -> (
+        tempfile::TempDir,
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        CompiledInstall,
+        PsxManagedPreparation,
+    ) {
+        let (temporary, library, operation, journal, configured) = fixture();
+        let preparation =
+            preparation_from_identity(&configured.generation.generated.inputs).unwrap();
+        fs::write(
+            platform_executable(
+                &configured.configured.tree.root().join("build-portcove"),
+                &preparation.executable_basename,
+            ),
+            "inert runtime bytes; not an executed game",
+        )
+        .unwrap();
+        let compiled = CompiledInstall::seal_first(configured, &operation, true, 0).unwrap();
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_compilation(&journal, &compiled, &operation)
+            .unwrap();
+        let compiled = store.psx_compilation(&operation).unwrap();
+        (
+            temporary,
+            library,
+            operation,
+            journal,
+            compiled,
+            preparation,
+        )
+    }
+
+    #[test]
+    fn finalization_refuses_incomplete_and_reconstructed_receipts_before_native() {
+        let (_temporary, library, operation, journal, configured) = fixture_with_batches(true);
+        let preparation =
+            preparation_from_identity(&configured.generation.generated.inputs).unwrap();
+        let first = CompiledInstall::seal_first(configured, &operation, true, 0).unwrap();
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_compilation(&journal, &first, &operation)
+            .unwrap();
+        let loaded = store.psx_compilation(&operation).unwrap();
+        let (result, closed) = loaded.finalize(&preparation, &operation);
+        assert!(result.is_err());
+        assert!(closed);
+        let reconstructed: CompiledInstall =
+            serde_json::from_str(&crate::operation::psx_witness_json(&first).unwrap()).unwrap();
+        let (result, closed) = reconstructed.finalize(&preparation, &operation);
+        assert!(result.is_err());
+        assert!(closed);
+        assert!(library.all_installs().unwrap().is_empty());
+        assert!(
+            !journal
+                .paths
+                .staging
+                .unwrap()
+                .join("finalization-inputs")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn finalization_refuses_pending_runtime_and_uncertain_closure_without_packaging() {
+        let (_temporary, _library, operation, journal, compiled, preparation) = completed_fixture();
+        assert!(
+            compiled
+                .finish_completed(&preparation, &operation, true, 1)
+                .is_err()
+        );
+        assert!(
+            !journal
+                .paths
+                .staging
+                .unwrap()
+                .join("finalization-inputs")
+                .exists()
+        );
+        let (_temporary, _library, operation, journal, compiled, preparation) = completed_fixture();
+        assert!(
+            compiled
+                .finish_completed(&preparation, &operation, false, 0)
+                .is_err()
+        );
+        assert!(
+            !journal
+                .paths
+                .staging
+                .unwrap()
+                .join("finalization-inputs")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn finalization_refuses_disc_drift_between_precheck_and_archival() {
+        let (_temporary, _library, operation, journal, compiled, _preparation) =
+            completed_fixture();
+        let staging = journal.paths.staging.unwrap();
+        compiled
+            .tree
+            .verify(compiled.tree.root(), &operation)
+            .unwrap();
+        fs::write(
+            staging.join("payload/disc/owned.bin"),
+            b"changed after precheck",
+        )
+        .unwrap();
+        let destination = staging.join("retained-disc");
+        assert!(
+            compiled
+                .tree
+                .archive_input(Path::new("disc"), &destination, &operation)
+                .is_err()
+        );
+        assert!(!destination.exists());
+        assert!(staging.join("payload/disc/owned.bin").is_file());
+    }
+
+    #[test]
+    fn finalization_refuses_removed_path_reappearance() {
+        let (_temporary, _library, operation, journal, compiled, _preparation) =
+            completed_fixture();
+        let staging = journal.paths.staging.unwrap();
+        compiled
+            .tree
+            .archive_input(
+                Path::new("disc"),
+                &staging.join("retained-disc"),
+                &operation,
+            )
+            .unwrap();
+        fs::create_dir(staging.join("payload/disc")).unwrap();
+        fs::write(staging.join("payload/disc/new.bin"), b"reappeared").unwrap();
+        assert!(
+            compiled
+                .tree
+                .finalized_transition(&operation, &[PathBuf::from("disc")])
+                .is_err()
+        );
+        assert!(staging.join("retained-disc/owned.bin").is_file());
+    }
+
+    #[test]
+    fn finalization_refuses_retained_drift_before_inventory_sealing() {
+        let (_temporary, _library, operation, journal, compiled, _preparation) =
+            completed_fixture();
+        let staging = journal.paths.staging.unwrap();
+        let retained = staging.join("retained-inputs");
+        fs::create_dir(&retained).unwrap();
+        compiled
+            .tree
+            .archive_input(Path::new("disc"), &retained.join("disc"), &operation)
+            .unwrap();
+        fs::write(retained.join("disc/owned.bin"), b"changed after archive").unwrap();
+        assert!(
+            compiled
+                .tree
+                .retained_inputs(
+                    &retained,
+                    &[(PathBuf::from("disc"), PathBuf::from("disc"))],
+                    &operation
+                )
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn finalization_retains_generation_inputs_and_binds_private_runtime() {
+        let (_temporary, library, operation, journal, compiled, preparation) = completed_fixture();
+        let finalized = compiled
+            .finish_completed(&preparation, &operation, true, 0)
+            .unwrap();
+        finalized.verify(&library, &journal, &operation).unwrap();
+        let staging = journal.paths.staging.unwrap();
+        assert_eq!(
+            fs::read(staging.join("finalization-inputs/disc/owned.bin")).unwrap(),
+            b"inert generated disc copy"
+        );
+        assert!(!staging.join("payload/disc").exists());
+        assert!(staging.join("payload/.portcove-managed.json").is_file());
+        assert!(staging.join("payload/build-portcove/game.toml").is_file());
+        assert!(library.all_installs().unwrap().is_empty());
+        fs::write(
+            staging.join("finalization-inputs/disc/owned.bin"),
+            "changed retained input",
+        )
+        .unwrap();
+        assert!(
+            finalized
+                .verify(
+                    &library,
+                    &crate::operation::OperationStore::new(library.clone())
+                        .get(operation.operation_id())
+                        .unwrap()
+                        .unwrap(),
+                    &operation
+                )
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn finalization_manifest_transition_refuses_runtime_change() {
+        let (_temporary, _library, operation, _journal, compiled, preparation) =
+            completed_fixture();
+        let mut finalized = compiled
+            .finish_completed(&preparation, &operation, true, 0)
+            .unwrap();
+        fs::write(
+            finalized.tree.root().join(".portcove-manifest.json"),
+            "inert manifest fixture",
+        )
+        .unwrap();
+        fs::write(
+            platform_executable(
+                &finalized.tree.root().join("build-portcove"),
+                &preparation.executable_basename,
+            ),
+            "changed runtime",
+        )
+        .unwrap();
+        assert!(finalized.seal_manifest(&operation).is_err());
+    }
+
+    fn fixture_install(journal: &crate::operation::LifecycleOperation) -> crate::InstallRecord {
+        crate::InstallRecord {
+            id: journal.id.clone(),
+            port_id: journal.port_id.clone(),
+            version: "inert".into(),
+            path: journal.paths.final_path.clone().unwrap(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: Library::now(),
+            verified: true,
+            staged: !journal.activate,
+            artifact: crate::ArtifactIdentity {
+                asset_name: "inert.zip".into(),
+                sha256: "1".repeat(64),
+                size: 1,
+            },
+            runtime: None,
+            manifest_sha256: "2".repeat(64),
+            selected_executable: PathBuf::from("build-portcove/inert.exe"),
+        }
+    }
+
+    #[test]
+    fn finalization_publication_intent_fences_compilation_and_preserves_recovery_record() {
+        let (_temporary, library, operation, mut journal, compiled, preparation) =
+            completed_fixture();
+        let mut finalized = compiled
+            .finish_completed(&preparation, &operation, true, 0)
+            .unwrap();
+        fs::write(
+            finalized.tree.root().join(".portcove-manifest.json"),
+            "inert manifest; not installed acceptance",
+        )
+        .unwrap();
+        finalized.seal_manifest(&operation).unwrap();
+        let store = OperationStore::new(library.clone());
+        journal.install = Some(fixture_install(&journal));
+        store
+            .prepare_psx_publication(&mut journal, &finalized, &operation)
+            .unwrap();
+        assert_eq!(journal.phase, crate::operation::LifecyclePhase::Prepared);
+        let retained = store.get(&journal.id).unwrap().unwrap();
+        assert_eq!(retained.phase, crate::operation::LifecyclePhase::Prepared);
+        assert!(retained.install.is_some());
+        assert!(library.all_installs().unwrap().is_empty());
+        assert!(
+            store
+                .prepare_psx_publication(&mut journal, &finalized, &operation)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn finalization_publication_intent_refuses_changed_compilation() {
+        let (_temporary, library, operation, mut journal, compiled, preparation) =
+            completed_fixture();
+        let mut finalized = compiled
+            .finish_completed(&preparation, &operation, true, 0)
+            .unwrap();
+        fs::write(
+            finalized.tree.root().join(".portcove-manifest.json"),
+            "inert manifest",
+        )
+        .unwrap();
+        finalized.seal_manifest(&operation).unwrap();
+        journal.install = Some(fixture_install(&journal));
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE managed_psx_compilation SET witness_sha256=?1",
+                ["0".repeat(64)],
+            )
+            .unwrap();
+        let store = OperationStore::new(library.clone());
+        assert!(
+            store
+                .prepare_psx_publication(&mut journal, &finalized, &operation)
+                .is_err()
+        );
+        assert_eq!(
+            store.get(&journal.id).unwrap().unwrap().phase,
+            crate::operation::LifecyclePhase::StagedPreparing
+        );
     }
 
     #[test]

@@ -15,7 +15,7 @@ const MAX_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_DEPTH: usize = 32;
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 enum Entry {
     Directory(crate::external_runtime::InspectedDirectory),
     File(crate::external_runtime::InspectedFile),
@@ -110,15 +110,72 @@ impl GeneratedTree {
         operation: &OperationCoordinator,
         quiesced: bool,
     ) -> Result<Self> {
+        self.output_transition(root, operation, quiesced, &[], false)
+    }
+
+    pub(super) fn finalized_transition(
+        &self,
+        operation: &OperationCoordinator,
+        removed: &[PathBuf],
+    ) -> Result<Self> {
+        self.output_transition(&self.root, operation, true, removed, true)
+    }
+
+    pub(super) fn manifest_transition(&self, operation: &OperationCoordinator) -> Result<Self> {
+        let current = Self::capture(&self.root, operation, true)?;
+        for (relative, original) in &self.entries {
+            let unchanged = match (original, current.entries.get(relative)) {
+                (Entry::Directory(before), Some(Entry::Directory(after))) => {
+                    before.same_object(after)
+                }
+                (Entry::File(before), Some(Entry::File(after))) => before == after,
+                _ => false,
+            };
+            if !unchanged {
+                return Err(PortcoveError::verification(
+                    "PS1 finalized payload changed during manifest creation",
+                ));
+            }
+        }
+        if current.entries.keys().any(|relative| {
+            !self.entries.contains_key(relative) && relative != Path::new(".portcove-manifest.json")
+        }) {
+            return Err(PortcoveError::verification(
+                "PS1 finalized payload gained an unexpected file",
+            ));
+        }
+        current.verify(&self.root, operation)?;
+        Ok(current)
+    }
+
+    fn output_transition(
+        &self,
+        root: &Path,
+        operation: &OperationCoordinator,
+        quiesced: bool,
+        removed: &[PathBuf],
+        finalized: bool,
+    ) -> Result<Self> {
         let current = Self::capture(root, operation, quiesced)?;
         if current.root != self.root || current.operation_id != self.operation_id {
             return Err(PortcoveError::verification(
                 "PS1 configure root custody changed",
             ));
         }
+        if current
+            .entries
+            .keys()
+            .any(|relative| removed.iter().any(|path| relative.starts_with(path)))
+        {
+            return Err(PortcoveError::verification(
+                "PS1 removed input path reappeared in finalized payload",
+            ));
+        }
         let mutable = |relative: &Path| {
             relative.starts_with("build-portcove")
                 || relative.starts_with(".portcove-builder-environment")
+                || removed.iter().any(|path| relative.starts_with(path))
+                || (finalized && relative == Path::new(".portcove-managed.json"))
         };
         for (relative, original) in &self.entries {
             if mutable(relative) {
@@ -144,6 +201,143 @@ impl GeneratedTree {
                 ));
             }
         }
+        Ok(current)
+    }
+
+    /// Archive an input using its sealed inventory, never a fresh admission.
+    pub(super) fn archive_input(
+        &self,
+        relative: &Path,
+        destination: &Path,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        let original = self
+            .entries
+            .get(relative)
+            .ok_or_else(|| PortcoveError::verification("PS1 archived input was not sealed"))?;
+        match original {
+            Entry::Directory(_) => {
+                let entries = self
+                    .entries
+                    .iter()
+                    .filter_map(|(path, entry)| {
+                        path.strip_prefix(relative)
+                            .ok()
+                            .map(|suffix| (suffix.to_path_buf(), entry.clone()))
+                    })
+                    .collect();
+                Self {
+                    root: self.root.join(relative),
+                    operation_id: self.operation_id.clone(),
+                    entries,
+                }
+                .archive(destination, operation)?;
+            }
+            Entry::File(before) => {
+                let source = self.root.join(relative);
+                let current =
+                    crate::external_runtime::hash_stable_file(&source, before.size(), &|| {
+                        operation.checkpoint()
+                    })?;
+                if before != &current {
+                    return Err(PortcoveError::verification(
+                        "PS1 archived file changed before retention",
+                    ));
+                }
+                crate::path::refuse_symlink_ancestors(destination)?;
+                crate::durability::rename_noreplace(&source, destination)?;
+                let after =
+                    crate::external_runtime::hash_stable_file(destination, before.size(), &|| {
+                        operation.checkpoint()
+                    })?;
+                if !before.same_content_object(&after) {
+                    return Err(PortcoveError::verification(
+                        "PS1 retained file object changed",
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Rebind the complete retained inventory to original names and objects.
+    pub(super) fn retained_inputs(
+        &self,
+        root: &Path,
+        mappings: &[(PathBuf, PathBuf)],
+        operation: &OperationCoordinator,
+    ) -> Result<Self> {
+        let current = Self::capture(root, operation, true)?;
+        let mut expected = BTreeMap::new();
+        for (source, destination) in mappings {
+            for (relative, entry) in &self.entries {
+                if let Ok(suffix) = relative.strip_prefix(source) {
+                    if expected.insert(destination.join(suffix), entry).is_some() {
+                        return Err(PortcoveError::verification(
+                            "PS1 retained input mapping collision",
+                        ));
+                    }
+                }
+            }
+        }
+        if current.entries.len() != expected.len() + 1 {
+            return Err(PortcoveError::verification(
+                "PS1 retained input inventory changed",
+            ));
+        }
+        for (relative, before) in expected {
+            let unchanged = match (before, current.entries.get(&relative)) {
+                (Entry::Directory(before), Some(Entry::Directory(after))) => {
+                    before.same_object(after)
+                }
+                (Entry::File(before), Some(Entry::File(after))) => {
+                    before.same_content_object(after)
+                }
+                _ => false,
+            };
+            if !unchanged {
+                return Err(PortcoveError::verification(
+                    "PS1 retained input differs from sealed compilation",
+                ));
+            }
+        }
+        current.verify(root, operation)?;
+        Ok(current)
+    }
+
+    /// Move only this freshly verified private tree, retaining its exact objects.
+    pub(super) fn archive(
+        self,
+        destination: &Path,
+        operation: &OperationCoordinator,
+    ) -> Result<Self> {
+        self.verify(&self.root, operation)?;
+        crate::path::refuse_symlink_ancestors(destination)?;
+        crate::durability::rename_noreplace(&self.root, destination)?;
+        let current = Self::capture(destination, operation, true)?;
+        if current.operation_id != self.operation_id || current.entries.len() != self.entries.len()
+        {
+            return Err(PortcoveError::verification(
+                "PS1 archived input inventory changed",
+            ));
+        }
+        for (relative, before) in &self.entries {
+            let unchanged = match (before, current.entries.get(relative)) {
+                (Entry::Directory(before), Some(Entry::Directory(after))) => {
+                    before.same_object(after)
+                }
+                (Entry::File(before), Some(Entry::File(after))) => {
+                    before.same_content_object(after)
+                }
+                _ => false,
+            };
+            if !unchanged {
+                return Err(PortcoveError::verification(
+                    "PS1 archived input object changed",
+                ));
+            }
+        }
+        current.verify(destination, operation)?;
         Ok(current)
     }
 }

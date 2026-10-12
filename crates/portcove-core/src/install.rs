@@ -957,6 +957,103 @@ impl Installer {
         }
     }
 
+    pub async fn finalize_managed_install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<InstallRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let preparation = request.managed.as_ref().ok_or_else(|| {
+            PortcoveError::unsupported("PS1 finalization requires managed preparation")
+        })?;
+        if request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 finalization requires retained contract",
+            ));
+        }
+        let scope = self.require_acquisition(&request)?;
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let _guard = self
+            .library
+            .try_lock_port(&request.port_id, "finalize-managed-install")?;
+        let store = OperationStore::new(self.library.clone());
+        let witness = store.psx_compilation(operation)?;
+        witness.require_finalizable(preparation)?;
+        let artifact = witness.artifact()?;
+        if artifact.asset_name != request.release.asset.name
+            || !artifact
+                .sha256
+                .eq_ignore_ascii_case(&request.release.asset.sha256)
+            || (request.release.asset.size != 0 && request.release.asset.size != artifact.size)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained artifact and live release differ",
+            ));
+        }
+        let contract = generation_contract(&request, &artifact)?;
+        witness.require_request(&contract, preparation)?;
+        let record = store
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 finalization lifecycle owner missing"))?;
+        let operation_root = record
+            .paths
+            .staging
+            .clone()
+            .ok_or_else(|| PortcoveError::state("PS1 finalization staging missing"))?;
+        let archive = crate::external_runtime::hash_stable_file(
+            &operation_root.join("artifact.download"),
+            artifact.size,
+            &|| operation.checkpoint(),
+        )?;
+        if archive.sha256 != artifact.sha256 {
+            return Err(PortcoveError::verification(
+                "PS1 retained archive changed before finalization",
+            ));
+        }
+        let destination = record
+            .paths
+            .final_path
+            .clone()
+            .ok_or_else(|| PortcoveError::state("PS1 finalization destination missing"))?;
+        let mut lifecycle = InstallLifecycle {
+            destination,
+            operation_root,
+            store,
+            record,
+        };
+        let preparation = preparation.clone();
+        self.require_acquisition(&request)?;
+        operation.checkpoint()?;
+        emit(operation.message("info", "Finalizing the completed private runtime"));
+        let result = run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
+            witness.finalize(&preparation, &checkpoint)
+        })
+        .await;
+        let result = result.and_then(|mut finalized| {
+            self.require_acquisition(&request)?;
+            self.publish_payload(
+                &request,
+                &mut lifecycle,
+                artifact,
+                operation,
+                Some(&mut finalized),
+            )
+        });
+        if let Err(error) = &result {
+            if lifecycle.record.phase == LifecyclePhase::StagedPreparing {
+                retain_staged_failure(&mut lifecycle, error)?;
+            } else {
+                lifecycle.record.last_error = Some(error.message.clone());
+                lifecycle.store.put(&mut lifecycle.record)?;
+            }
+        }
+        result
+    }
+
     /// Read validation only; adapters retain no reusable execution permission.
     pub fn managed_install_configured(
         &self,
@@ -1301,6 +1398,24 @@ impl Installer {
             .await?;
             operation.checkpoint()?;
         }
+        self.publish_payload(&request, lifecycle, artifact, operation, None)
+            .map(InstallProgress::Installed)
+    }
+
+    fn publish_payload(
+        &self,
+        request: &InstallRequest,
+        lifecycle: &mut InstallLifecycle,
+        artifact: ArtifactIdentity,
+        operation: &OperationCoordinator,
+        mut finalized: Option<&mut crate::psx::FinalizedInstall>,
+    ) -> Result<InstallRecord> {
+        let operation_id = operation.operation_id().to_owned();
+        let payload_root = lifecycle.operation_root.join("payload");
+        self.require_acquisition(request)?;
+        if let Some(finalized) = finalized.as_deref() {
+            finalized.verify(&self.library, &lifecycle.record, operation)?;
+        }
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
             &operation_id,
             &request.port_id,
@@ -1323,14 +1438,23 @@ impl Installer {
             manifest_sha256,
             selected_executable,
         };
+        if let Some(finalized) = finalized.as_deref_mut() {
+            finalized.seal_manifest(operation)?;
+        }
         lifecycle.record.install = Some(install.clone());
         self.faults
             .check(LifecycleFaultPoint::InstallReadyToPublish)?;
         operation.begin_publication()?;
-        lifecycle.record.phase = LifecyclePhase::Prepared;
-        lifecycle.store.put(&mut lifecycle.record)?;
+        if let Some(finalized) = finalized.as_deref_mut() {
+            lifecycle
+                .store
+                .prepare_psx_publication(&mut lifecycle.record, finalized, operation)?;
+        } else {
+            lifecycle.record.phase = LifecyclePhase::Prepared;
+            lifecycle.store.put(&mut lifecycle.record)?;
+        }
         self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
-        self.require_acquisition(&request)?;
+        self.require_acquisition(request)?;
         fs::create_dir_all(
             lifecycle
                 .destination
@@ -1348,7 +1472,7 @@ impl Installer {
         lifecycle.record.phase = LifecyclePhase::PayloadPublished;
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPublished)?;
-        self.require_acquisition(&request)?;
+        self.require_acquisition(request)?;
         self.library.register_install(&install, request.activate)?;
         lifecycle.record.phase = LifecyclePhase::MetadataCommitted;
         lifecycle.store.put(&mut lifecycle.record)?;
@@ -1358,10 +1482,10 @@ impl Installer {
             lifecycle.record.phase = LifecyclePhase::CleanupPending;
             lifecycle.record.last_error = Some(error.to_string());
             lifecycle.store.put(&mut lifecycle.record)?;
-            return Ok(InstallProgress::Installed(install));
+            return Ok(install);
         }
         lifecycle.store.remove(&lifecycle.record.id)?;
-        Ok(InstallProgress::Installed(install))
+        Ok(install)
     }
 
     async fn prepare_asset<F>(
