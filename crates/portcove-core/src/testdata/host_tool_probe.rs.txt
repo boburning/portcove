@@ -141,7 +141,9 @@ fn main() {
                 thread::sleep(Duration::from_millis(10));
             }
             let mut child = if args[0] == "--setup-unobserved-image" {
-                assert_eq!(args.len(), 2);
+                // run_setup appends its admitted source after explicit arguments.
+                assert_eq!(args.len(), 3);
+                assert!(std::path::Path::new(&args[2]).is_absolute());
                 let image = std::path::Path::new(&args[1]);
                 assert!(image.is_absolute() && image.is_file());
                 let mut command = Command::new(image);

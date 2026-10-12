@@ -709,6 +709,7 @@ fn windows_different_image_child_exits_while_the_caller_checkpoint_is_blocked() 
     )
     .unwrap();
     let mut confirmed = false;
+    let mut last_diagnostic = None;
     let overall_deadline = Instant::now() + Duration::from_secs(8);
     let result = run_setup(
         &program,
@@ -738,7 +739,14 @@ fn windows_different_image_child_exits_while_the_caller_checkpoint_is_blocked() 
             Ok(())
         },
         ToolProcessObserver {
-            diagnostics: None,
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-different-image-control",
+                phase: "first-party-fixture",
+                record: &mut |value| {
+                    last_diagnostic = Some(value.clone());
+                    Ok(())
+                },
+            }),
             quiesced: Some(&mut || {
                 confirmed = true;
                 Ok(())
@@ -751,7 +759,10 @@ fn windows_different_image_child_exits_while_the_caller_checkpoint_is_blocked() 
     };
     eprintln!(
         "native_different_image_proof:{}",
-        serde_json::json!({"quiesced":confirmed,"proof":proof})
+        serde_json::json!({
+            "quiesced":confirmed,"proof":proof,"diagnostic":last_diagnostic,
+            "operation_error":result.as_ref().err().map(|error| error.message.as_str()),
+        })
     );
     let output = result.expect("different-image creation remains captured while caller blocks");
     assert!(output.status.success());
