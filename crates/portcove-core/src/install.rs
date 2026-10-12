@@ -58,6 +58,14 @@ pub struct ManagedInstallCompilePending {
     pub pending_commands: usize,
 }
 
+/// A durably retained private compile checkpoint, not an installed runtime.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ManagedInstallCompileProgress {
+    pub operation_id: String,
+    pub port_id: String,
+    pub completed_batches: usize,
+}
+
 enum InstallProgress {
     Installed(InstallRecord),
     Generated(ManagedInstallContinuation),
@@ -764,6 +772,107 @@ impl Installer {
                 port_id: request.port_id,
                 batch,
                 pending_commands,
+            }),
+            Err(error) => {
+                lifecycle.record.last_error = Some(error.message.clone());
+                lifecycle.store.put(&mut lifecycle.record)?;
+                Err(error)
+            }
+        }
+    }
+
+    /// Compile and durably retain only the first bounded private target batch.
+    pub async fn compile_managed_install_first_batch<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<ManagedInstallCompileProgress>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let preparation = request.managed.as_ref().ok_or_else(|| {
+            PortcoveError::unsupported("PS1 compile continuation requires managed preparation")
+        })?;
+        if request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 compile continuation requires retained contract",
+            ));
+        }
+        let scope = self.require_acquisition(&request)?;
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let _guard = self
+            .library
+            .try_lock_port(&request.port_id, "compile-managed-first-batch")?;
+        let store = OperationStore::new(self.library.clone());
+        if store.has_psx_compilation(operation)? {
+            return Err(PortcoveError::conflict(
+                "PS1 first compile checkpoint already retained",
+            ));
+        }
+        let witness = store.psx_configuration(operation)?;
+        let artifact = witness.artifact()?;
+        if artifact.asset_name != request.release.asset.name
+            || !artifact
+                .sha256
+                .eq_ignore_ascii_case(&request.release.asset.sha256)
+            || (request.release.asset.size != 0 && request.release.asset.size != artifact.size)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained artifact and live release differ",
+            ));
+        }
+        witness.require_request(&generation_contract(&request, &artifact)?, preparation)?;
+        let record = store.get(operation.operation_id())?.ok_or_else(|| {
+            PortcoveError::state("PS1 compile continuation lifecycle owner missing")
+        })?;
+        let operation_root = record
+            .paths
+            .staging
+            .clone()
+            .ok_or_else(|| PortcoveError::state("PS1 compile continuation staging missing"))?;
+        let archive = crate::external_runtime::hash_stable_file(
+            &operation_root.join("artifact.download"),
+            artifact.size,
+            &|| operation.checkpoint(),
+        )?;
+        if archive.sha256 != artifact.sha256 {
+            return Err(PortcoveError::verification(
+                "PS1 retained archive changed before compile continuation",
+            ));
+        }
+        let destination =
+            record.paths.final_path.clone().ok_or_else(|| {
+                PortcoveError::state("PS1 compile continuation destination missing")
+            })?;
+        let mut lifecycle = InstallLifecycle {
+            destination,
+            operation_root,
+            store,
+            record,
+        };
+        let preparation = preparation.clone();
+        self.require_acquisition(&request)?;
+        operation.checkpoint()?;
+        emit(operation.message("info", "Compiling the first bounded private target batch"));
+        let result = run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
+            witness.compile_first_batch(&preparation, &checkpoint)
+        })
+        .await;
+        let observed = result.and_then(|compiled| {
+            self.require_acquisition(&request)?;
+            lifecycle
+                .store
+                .commit_psx_compilation(&lifecycle.record, &compiled, operation)?;
+            lifecycle.store.psx_compilation(operation)?;
+            Ok(())
+        });
+        match observed {
+            Ok(()) => Ok(ManagedInstallCompileProgress {
+                operation_id: operation.operation_id().to_owned(),
+                port_id: request.port_id,
+                completed_batches: 1,
             }),
             Err(error) => {
                 lifecycle.record.last_error = Some(error.message.clone());

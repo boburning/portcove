@@ -194,6 +194,7 @@ const MAX_PSX_WITNESS_BYTES: usize = 64 * 1024 * 1024;
 enum PsxStageTable {
     Generation,
     Configuration,
+    Compilation,
 }
 
 impl PsxStageTable {
@@ -201,14 +202,21 @@ impl PsxStageTable {
         match self {
             Self::Generation => "managed_psx_generation",
             Self::Configuration => "managed_psx_configuration",
+            Self::Compilation => "managed_psx_compilation",
         }
     }
     fn has_parent(self) -> bool {
-        matches!(self, Self::Configuration)
+        !matches!(self, Self::Generation)
+    }
+    fn parent_name(self) -> &'static str {
+        match self {
+            Self::Compilation => "managed_psx_configuration",
+            _ => "managed_psx_generation",
+        }
     }
 }
 
-fn psx_witness_json(witness: &impl serde::Serialize) -> Result<String> {
+pub(crate) fn psx_witness_json(witness: &impl serde::Serialize) -> Result<String> {
     let mut writer = WitnessWriter(Vec::new());
     serde_json::to_writer(&mut writer, witness)?;
     String::from_utf8(writer.0)
@@ -216,10 +224,12 @@ fn psx_witness_json(witness: &impl serde::Serialize) -> Result<String> {
 }
 
 fn psx_parent_json(witness: &impl crate::psx::PsxStageWitness) -> Result<Option<(&str, String)>> {
-    witness
-        .parent()
-        .map(|(sha256, parent)| {
-            let json = psx_witness_json(parent)?;
+    psx_bound_parent(witness.parent()?)
+}
+
+fn psx_bound_parent(parent: Option<(&str, String)>) -> Result<Option<(&str, String)>> {
+    parent
+        .map(|(sha256, json)| {
             if hex::encode(Sha256::digest(json.as_bytes())) != sha256 {
                 return Err(PortcoveError::verification(
                     "PS1 configuration generation binding changed",
@@ -380,6 +390,15 @@ impl OperationStore {
         self.commit_psx_stage(PsxStageTable::Configuration, journal, witness, operation)
     }
 
+    pub(crate) fn commit_psx_compilation(
+        &self,
+        journal: &LifecycleOperation,
+        witness: &crate::psx::CompiledInstall,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.commit_psx_stage(PsxStageTable::Compilation, journal, witness, operation)
+    }
+
     fn commit_psx_stage(
         &self,
         table: PsxStageTable,
@@ -390,6 +409,7 @@ impl OperationStore {
         witness.verify(&self.library, journal, operation)?;
         let json = psx_witness_json(witness)?;
         let parent = psx_parent_json(witness)?;
+        let ancestor = psx_bound_parent(witness.ancestor()?)?;
         if table.has_parent() != parent.is_some() {
             return Err(PortcoveError::state("PS1 stage parent identity is missing"));
         }
@@ -410,8 +430,10 @@ impl OperationStore {
                AND quarantine_path IS NULL AND last_error IS NULL
                AND relocation_json IS NULL AND source_import_json IS NULL
                AND original_paths_json='[]'
-               AND (?11 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_generation
-                   WHERE operation_id=?2 AND witness_sha256=?11 AND witness_json=?12))", table.name()),
+               AND (?11 IS NULL OR EXISTS(SELECT 1 FROM {}
+                   WHERE operation_id=?2 AND witness_sha256=?11 AND witness_json=?12))
+               AND (?13 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_generation
+                   WHERE operation_id=?2 AND witness_sha256=?13 AND witness_json=?14))", table.name(), table.parent_name()),
             params![
                 json,
                 journal.id,
@@ -424,7 +446,9 @@ impl OperationStore {
                 journal.created_at,
                 witness.library_id(),
                 parent.as_ref().map(|(sha, _)| *sha),
-                parent.as_ref().map(|(_, json)| json.as_str())
+                parent.as_ref().map(|(_, json)| json.as_str()),
+                ancestor.as_ref().map(|(sha, _)| *sha),
+                ancestor.as_ref().map(|(_, json)| json.as_str())
             ],
         )?;
         if changed != 1 {
@@ -449,6 +473,32 @@ impl OperationStore {
         operation: &OperationCoordinator,
     ) -> Result<crate::psx::ConfiguredInstallWitness> {
         self.psx_stage_fenced(PsxStageTable::Configuration, operation, || Ok(()))
+    }
+
+    pub(crate) fn psx_compilation(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<crate::psx::CompiledInstall> {
+        self.psx_stage_fenced(PsxStageTable::Compilation, operation, || Ok(()))
+    }
+
+    pub(crate) fn has_psx_compilation(&self, operation: &OperationCoordinator) -> Result<bool> {
+        database::connect(self.library.root())?
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=?1)",
+                [operation.operation_id()],
+                |row| row.get(0),
+            )
+            .map_err(Into::into)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn psx_compilation_before_fence(
+        &self,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+    ) -> Result<crate::psx::CompiledInstall> {
+        self.psx_stage_fenced(PsxStageTable::Compilation, operation, before_fence)
     }
 
     #[cfg(test)]
@@ -488,9 +538,9 @@ impl OperationStore {
                 &format!(
                     "SELECT g.witness_json,g.witness_sha256,{PSX_JOURNAL_SNAPSHOT},{parent_selection}
                  FROM {} g JOIN lifecycle_operations l ON l.id=g.operation_id
-                 LEFT JOIN managed_psx_generation p ON p.operation_id=g.operation_id
+                 LEFT JOIN {} p ON p.operation_id=g.operation_id
                  WHERE g.operation_id=?1 AND length(CAST(g.witness_json AS BLOB)) BETWEEN 1 AND ?2
-                   AND (?3=0 OR length(CAST(p.witness_json AS BLOB)) BETWEEN 1 AND ?2)", table.name()
+                   AND (?3=0 OR length(CAST(p.witness_json AS BLOB)) BETWEEN 1 AND ?2)", table.name(), table.parent_name()
                 ),
                 params![operation.operation_id(), MAX_PSX_WITNESS_BYTES as i64, table.has_parent() as i64],
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
@@ -507,6 +557,7 @@ impl OperationStore {
         }
         let mut witness: T = serde_json::from_str(&json)?;
         let bound_parent = psx_parent_json(&witness)?;
+        let ancestor = psx_bound_parent(witness.ancestor()?)?;
         if table.has_parent() != bound_parent.is_some()
             || bound_parent.as_ref().map(|(sha, _)| *sha) != parent_sha256.as_deref()
             || bound_parent.as_ref().map(|(_, json)| json.as_str()) != parent_json.as_deref()
@@ -527,12 +578,15 @@ impl OperationStore {
             &format!(
                 "SELECT EXISTS(SELECT 1 FROM {} g
                 JOIN lifecycle_operations l ON l.id=g.operation_id
-                LEFT JOIN managed_psx_generation p ON p.operation_id=g.operation_id
+                LEFT JOIN {} p ON p.operation_id=g.operation_id
                 WHERE g.operation_id=?1 AND g.witness_json=?2 AND g.witness_sha256=?3
                 AND {PSX_JOURNAL_SNAPSHOT}=?4
                 AND EXISTS(SELECT 1 FROM library_identity WHERE singleton=1 AND id=?5)
-                AND (?6 IS NULL OR (p.witness_json=?6 AND p.witness_sha256=?7)))",
-                table.name()
+                AND (?6 IS NULL OR (p.witness_json=?6 AND p.witness_sha256=?7))
+                AND (?8 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_generation a
+                    WHERE a.operation_id=g.operation_id AND a.witness_sha256=?8 AND a.witness_json=?9)))",
+                table.name(),
+                table.parent_name()
             ),
             params![
                 operation.operation_id(),
@@ -541,7 +595,9 @@ impl OperationStore {
                 journal_snapshot,
                 witness.library_id(),
                 parent_json,
-                parent_sha256
+                parent_sha256,
+                ancestor.as_ref().map(|(sha, _)| *sha),
+                ancestor.as_ref().map(|(_, json)| json.as_str())
             ],
             |row| row.get(0),
         )?;

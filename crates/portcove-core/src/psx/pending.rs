@@ -6,6 +6,17 @@ use crate::{ActivityDiagnostic, PortcoveError, Result};
 pub(super) const STATUS: &str = "[portcove:%t] ";
 const MAX_COMMANDS: usize = 64;
 
+pub(super) fn arguments(targets: &[String], dry_run: bool) -> Vec<String> {
+    let mut arguments = vec!["-f".into(), "build.ninja".into(), "-j".into(), "2".into()];
+    if dry_run {
+        arguments.push("-n".into());
+    }
+    // Graph output names are positional targets, including names beginning '-'.
+    arguments.push("--".into());
+    arguments.extend(targets.iter().cloned());
+    arguments
+}
+
 pub(super) struct PendingCommands {
     pub(super) count: usize,
 }
@@ -55,6 +66,41 @@ pub(super) fn inspect(capture: &ActivityDiagnostic, quiesced: bool) -> Result<Pe
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ninja_pending_arguments_keep_graph_targets_out_of_option_parsing() {
+        let targets = vec![
+            "-tclean".into(),
+            "-Cforeign".into(),
+            "object with spaces.o".into(),
+        ];
+        assert_eq!(
+            arguments(&targets, true),
+            vec![
+                "-f",
+                "build.ninja",
+                "-j",
+                "2",
+                "-n",
+                "--",
+                "-tclean",
+                "-Cforeign",
+                "object with spaces.o"
+            ]
+        );
+        assert_eq!(
+            arguments(&targets, false),
+            vec![
+                "-f",
+                "build.ninja",
+                "-j",
+                "2",
+                "--",
+                "-tclean",
+                "-Cforeign",
+                "object with spaces.o"
+            ]
+        );
+    }
     fn capture(text: &str) -> ActivityDiagnostic {
         ActivityDiagnostic {
             activity_id: "inert-pending".into(),

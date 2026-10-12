@@ -9,6 +9,8 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 mod compile_plan;
+mod compile_stage;
+pub(crate) use compile_stage::CompiledInstall;
 mod pending;
 mod stage;
 
@@ -220,8 +222,11 @@ pub(crate) trait PsxStageWitness: Serialize + serde::de::DeserializeOwned {
         journal: &crate::operation::LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()>;
-    fn parent(&self) -> Option<(&str, &GeneratedInstallWitness)> {
-        None
+    fn parent(&self) -> Result<Option<(&str, String)>> {
+        Ok(None)
+    }
+    fn ancestor(&self) -> Result<Option<(&str, String)>> {
+        Ok(None)
     }
     fn record_load(&mut self, _sha256: String) {}
 }
@@ -250,8 +255,11 @@ impl PsxStageWitness for ConfiguredInstallWitness {
     fn library_id(&self) -> &str {
         &self.generation.library_id
     }
-    fn parent(&self) -> Option<(&str, &GeneratedInstallWitness)> {
-        Some((&self.generation_sha256, &self.generation))
+    fn parent(&self) -> Result<Option<(&str, String)>> {
+        Ok(Some((
+            &self.generation_sha256,
+            crate::operation::psx_witness_json(&self.generation)?,
+        )))
     }
     fn verify(
         &self,
@@ -333,15 +341,7 @@ impl ConfiguredInstallWitness {
                 verify_raw_bios(bios, &|| operation.checkpoint())?;
             }
             let targets = self.configured.compile_plan.batch(batch)?;
-            let arguments = [
-                "-f".to_owned(),
-                "build.ninja".into(),
-                "-n".into(),
-                "-j".into(),
-                "2".into(),
-            ]
-            .into_iter()
-            .chain(targets.iter().cloned());
+            let arguments = pending::arguments(targets, true);
             let capture = capture_pinned_builder(
                 &platform_executable(&preparation.toolchain_root.join("bin"), "ninja"),
                 root,
@@ -1897,7 +1897,7 @@ fn capture_pinned_builder(
     arguments: impl IntoIterator<Item = String>,
     operation: &OperationCoordinator,
     quiesced: &mut bool,
-    ninja_pending: bool,
+    owned_ninja: bool,
 ) -> Result<crate::ActivityDiagnostic> {
     operation.checkpoint()?;
     let platform = Platform::current()?;
@@ -1968,10 +1968,10 @@ fn capture_pinned_builder(
         .env("TEMP", environment_root.join("temp"))
         .env("TMP", environment_root.join("temp"))
         .env("TMPDIR", environment_root.join("temp"));
-    if ninja_pending {
+    if owned_ninja {
         if executable != platform_executable(&toolchain_root.join("bin"), "ninja") {
             return Err(PortcoveError::verification(
-                "pending-command observation requires pinned Ninja",
+                "owned compile stage requires pinned Ninja",
             ));
         }
         command
@@ -2715,7 +2715,7 @@ mod tests {
         );
     }
 
-    fn configuration_witness_fixture(
+    pub(super) fn configuration_witness_fixture(
         root: &Path,
     ) -> (
         Library,

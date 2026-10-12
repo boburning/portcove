@@ -603,6 +603,17 @@ fresh acquisition/request/artifact checks and one port lock. It joins a pinned
 Ninja dry run with an owned status format, requires complete untruncated output,
 fixed command totals, one status line per command and positive closure, and refuses more than sixty-four
 pending commands. Inputs and durable configuration are fenced again afterward.
+Ninja target arguments follow a fixed option terminator, so graph names cannot
+select command-line options or tools. `compile_managed_install_first_batch`
+uses the same fresh authority and lock boundary, requires a complete bounded
+pending observation before dispatch, joins the first compile chunk and requires
+a fresh zero-pending observation afterward. Only positive closure and unchanged
+graph, retained inputs and bounded private-output transitions can yield a separate
+durable first-chunk checkpoint. The immutable configuration and generation rows
+remain retained and their exact bytes and digests are fenced at checkpoint commit
+and final load. Partial failure retains evidence without advancing a cursor or
+granting retry. Sequential later chunks and installer finalization remain pending;
+the first checkpoint proves no installed runtime or native qualification.
 Failures retain data/error/closure; the fresh observation grants no compilation,
 retry, publication or native qualification. Configuration uses pinned CMake, Ninja and
 compilers with the playable no-PGO recipe and no compiler launchers; it requires
