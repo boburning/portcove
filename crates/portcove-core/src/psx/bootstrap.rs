@@ -274,6 +274,51 @@ impl BootstrapWitness {
         journal: &LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()> {
+        if journal.last_error.is_some() {
+            return Err(PortcoveError::state("PS1 bootstrap custody changed"));
+        }
+        self.require_closed_context(library, journal, operation)
+    }
+
+    pub(super) fn verify_generation_context(
+        &self,
+        library: &Library,
+        predecessor: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.require_closed_context(library, predecessor.journal(), operation)
+    }
+
+    pub(super) fn verify_generation_predecessor(
+        &self,
+        library: &Library,
+        predecessor: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.verify_generation_context(library, predecessor, operation)?;
+        let staging = predecessor
+            .journal()
+            .paths
+            .staging
+            .as_ref()
+            .expect("checked staging");
+        let archive = crate::external_runtime::hash_stable_file(
+            &archive_path(staging)?,
+            self.artifact.size,
+            &|| operation.checkpoint(),
+        )?;
+        if archive != self.archive || archive.sha256 != self.artifact.sha256 {
+            return Err(PortcoveError::verification("PS1 bootstrap archive changed"));
+        }
+        self.payload.verify(&staging.join("payload"), operation)
+    }
+
+    fn require_closed_context(
+        &self,
+        library: &Library,
+        journal: &LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
         let staging = journal
             .paths
             .staging
@@ -299,7 +344,6 @@ impl BootstrapWitness {
             || journal.source_import.is_some()
             || journal.paths.quarantine.is_some()
             || !journal.original_paths.is_empty()
-            || journal.last_error.is_some()
             || journal.preparation_process_quiesced != Some(true)
         {
             return Err(PortcoveError::state("PS1 bootstrap custody changed"));

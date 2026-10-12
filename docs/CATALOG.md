@@ -624,6 +624,24 @@ Core runtime-config rewrite and complete positively closed output inventory yiel
 only `ManagedInstallProvisionalGeneration`, not configure or installation authority.
 Schema 44 retains that result beneath the normalized predecessor and blocks
 generation replay even before full sealing.
+Schema 45 additionally retains bounded failed-attempt history for this normalized
+continuation alone. Its private predecessor context preserves the original error
+and requires positive closure. Under the port lock, one immediate transaction
+compares the complete 17-field journal, exact normalized/acquired bytes, library
+identity, prior attempt history and vacant later stages, compile history and
+install records. It retains the failed journal before acknowledging its error
+and marking the new worker nonquiescent. The normalized checkpoint retains an
+atomic digest anchor for the complete ordered history, so deletion, truncation
+or rewriting also refuses on a fresh invocation before a new token exists.
+Acknowledgement grants no successful
+checkpoint or executable authority: the unchanged complete content checks and
+fresh owner fences still precede generator dispatch. History is limited to 32
+receipts, 64 KiB per receipt and 1 MiB total; exceeding a bound refuses atomically
+without discarding failures. Joined completion and error retention compare the
+exact owned journal and history instead of overwriting changed custody, including
+after accepted cancellation. Attempt history remains bound through provisional
+generation, sealing and all later stages. Ordinary getters and other staged
+routes still reject an error-bearing journal; no helper replay is authorized.
 `seal_generated_managed_install` dispatches no external process. It freshly
 verifies archive, source/BIOS, helper, normalized disc, toolchain and generated
 bytes; rederives the fixed recipe and output policy from authenticated original
@@ -646,8 +664,10 @@ hashes or grant authority for a later execution window. This concurrency alone
 does not establish native performance or generator continuation acceptance.
 Ordinary service startup and cancellation retain that intent, private data and
 exact closure facts, including failed generation before any witness exists.
-Retention grants no resume or automatic cleanup authority; stage loaders still
-refuse missing, malformed, failed or changed custody. Before sealing initial generation, Core
+Retention grants no automatic cleanup authority. Stage loaders still refuse
+missing, malformed, failed or changed custody; only the explicit normalized
+continuation above can acknowledge an exact positively closed failed predecessor.
+Before sealing initial generation, Core
 normalizes future file modification times only in the positively closed private
 payload, through inspected no-follow handles. Timestamp writes to shared
 hard-linked objects are refused; file bytes, object identity and the complete bounded inventory must

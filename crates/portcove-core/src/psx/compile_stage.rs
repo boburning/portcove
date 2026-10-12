@@ -66,6 +66,9 @@ pub(crate) struct CompiledInstall {
 }
 
 impl PsxStageWitness for CompiledInstall {
+    fn generation_attempt_history(&self) -> Option<&crate::operation::GenerationAttemptHistory> {
+        self.configuration.generation_attempt_history()
+    }
     fn normalized_parent(&self) -> Option<(&str, &str)> {
         self.configuration.normalized_parent()
     }

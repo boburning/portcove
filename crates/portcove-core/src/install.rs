@@ -534,6 +534,67 @@ async fn run_managed_install_worker_with_journal<T: Send + 'static>(
     result
 }
 
+// This route has already made its exact atomic start. Completion and failure
+// retention must not overwrite a concurrently changed owner or attempt history.
+async fn run_started_normalized_generation_worker<T: Send + 'static>(
+    lifecycle: &mut InstallLifecycle,
+    history: &crate::operation::GenerationAttemptHistory,
+    operation: &OperationCoordinator,
+    worker: impl FnOnce(OperationCoordinator, LifecycleOperation) -> (Result<T>, bool) + Send + 'static,
+) -> Result<T> {
+    let checkpoint = operation.clone();
+    let owned_start = lifecycle.record.clone();
+    let joined = tokio::task::spawn_blocking(move || worker(checkpoint, owned_start)).await;
+    let (result, quiesced) = match joined {
+        Ok(value) => value,
+        Err(error) => (Err(PortcoveError::install(error.to_string())), false),
+    };
+    let mut completed = lifecycle.record.clone();
+    completed.preparation_process_quiesced = Some(quiesced);
+    completed.last_error = result.as_ref().err().map(|error| error.message.clone());
+    if let Err(persist) = lifecycle.store.put_psx_generation_outcome(
+        &lifecycle.record,
+        &mut completed,
+        history,
+        operation,
+    ) {
+        let mut refusal = persist.detail("operation_id", &lifecycle.record.id);
+        if let Err(error) = &result {
+            refusal = refusal.detail("preparation_error", &error.message);
+            refusal
+                .details
+                .extend(crate::tool_process::copy_proof_details(error));
+        }
+        return Err(refusal);
+    }
+    lifecycle.record = completed;
+    result
+}
+
+fn retain_normalized_generation_failure(
+    lifecycle: &mut InstallLifecycle,
+    history: &crate::operation::GenerationAttemptHistory,
+    operation: &OperationCoordinator,
+    error: &PortcoveError,
+) -> Result<()> {
+    let mut failed = lifecycle.record.clone();
+    failed.last_error = Some(error.message.clone());
+    lifecycle
+        .store
+        .put_psx_generation_outcome(&lifecycle.record, &mut failed, history, operation)
+        .map_err(|persist| {
+            let mut refusal = persist
+                .detail("operation_id", &lifecycle.record.id)
+                .detail("preparation_error", &error.message);
+            refusal
+                .details
+                .extend(crate::tool_process::copy_proof_details(error));
+            refusal
+        })?;
+    lifecycle.record = failed;
+    Ok(())
+}
+
 // Full file verification and the exact SQLite sealing fence must not block
 // the async cancellation executor. This is joined even when cancellation arrives;
 // it dispatches no external child and changes no preparation closure evidence.
@@ -1024,7 +1085,7 @@ impl Installer {
         let store = OperationStore::new(self.library.clone());
         store.require_psx_generation_vacant(operation)?;
         let load_store = store.clone();
-        let decoded = join_psx_witness_worker(operation, move |checkpoint| {
+        let mut decoded = join_psx_witness_worker(operation, move |checkpoint| {
             load_store.psx_inputs_for_generation(&checkpoint)
         })
         .await?;
@@ -1063,8 +1124,13 @@ impl Installer {
         ));
         let library = self.library.clone();
         let prior = lifecycle.record.clone();
-        let result = run_managed_install_worker_with_journal(
+        lifecycle.record = lifecycle
+            .store
+            .start_psx_generation(&mut decoded, &prior, operation)?;
+        let history = decoded.attempt_history();
+        let result = run_started_normalized_generation_worker(
             &mut lifecycle,
+            &history,
             operation,
             move |checkpoint, owned_start| {
                 crate::psx::NormalizedInputWitness::generate(
@@ -1080,10 +1146,7 @@ impl Installer {
         .await;
         let generated = match result {
             Ok(generated) => generated,
-            Err(error) => {
-                retain_staged_failure(&mut lifecycle, &error)?;
-                return Err(error);
-            }
+            Err(error) => return Err(error),
         };
         let retained = match self.require_acquisition(&request) {
             Ok(_) => {
@@ -1097,7 +1160,7 @@ impl Installer {
             Err(error) => Err(error),
         };
         if let Err(error) = retained {
-            retain_staged_failure(&mut lifecycle, &error)?;
+            retain_normalized_generation_failure(&mut lifecycle, &history, operation, &error)?;
             return Err(error);
         }
         Ok(ManagedInstallProvisionalGeneration {
@@ -3850,6 +3913,142 @@ mod tests {
     #[tokio::test]
     async fn staged_preparing_closed_generation_cancellation_retains_tree_and_journal() {
         assert_staged_worker_failure_retained(crate::ErrorCode::Cancelled).await;
+    }
+
+    #[tokio::test]
+    async fn generation_continuation_cancellation_joins_before_outcome_retention() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("inert-generation"),
+            )
+            .unwrap();
+        let staging = library.staging_dir().join(operation.operation_id());
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(
+            staging.join("owned-input"),
+            b"unchanged during cancellation",
+        )
+        .unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut record = LifecycleOperation::new(
+            operation.operation_id(),
+            LifecycleOperationKind::Install,
+            "inert-generation",
+        );
+        record.phase = LifecyclePhase::StagedPreparing;
+        record.paths.staging = Some(staging.clone());
+        record.preparation_process_quiesced = Some(false);
+        store.put(&mut record).unwrap();
+        // The fixture has no earlier failed attempts. This serialized observation
+        // still has to match the actual store; it grants no predecessor admission.
+        let history: crate::operation::GenerationAttemptHistory =
+            serde_json::from_value(serde_json::json!({
+                "count":0,"bytes":0,"sha256":hex::encode(Sha256::digest([])),
+            }))
+            .unwrap();
+        let mut lifecycle = InstallLifecycle {
+            destination: staging.join("unused"),
+            operation_root: staging.clone(),
+            store: store.clone(),
+            record,
+        };
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::sync_channel(0);
+        let future = run_started_normalized_generation_worker::<()>(
+            &mut lifecycle,
+            &history,
+            &operation,
+            move |checkpoint, _| {
+                started_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+                (checkpoint.checkpoint(), true)
+            },
+        );
+        tokio::pin!(future);
+        tokio::select! {
+            result = &mut future => panic!("worker completed before latch: {result:?}"),
+            started = started_rx => started.unwrap(),
+        }
+        service.request_cancellation(&activity.id).unwrap();
+        assert!(
+            tokio::time::timeout(Duration::from_millis(55), &mut future)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            store
+                .get(operation.operation_id())
+                .unwrap()
+                .unwrap()
+                .preparation_process_quiesced,
+            Some(false)
+        );
+        assert_eq!(
+            fs::read(staging.join("owned-input")).unwrap(),
+            b"unchanged during cancellation"
+        );
+        release_tx.send(()).unwrap();
+        let error = future.await.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        let retained = store.get(operation.operation_id()).unwrap().unwrap();
+        assert_eq!(retained.preparation_process_quiesced, Some(true));
+        assert_eq!(retained.last_error.as_deref(), Some(error.message.as_str()));
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn generation_continuation_second_persistence_failure_retains_original_error_and_process_proof()
+    {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let operation = OperationCoordinator::new("inert-generation-retention", None);
+        let store = OperationStore::new(library.clone());
+        let mut record = LifecycleOperation::new(
+            operation.operation_id(),
+            LifecycleOperationKind::Install,
+            "inert",
+        );
+        record.phase = LifecyclePhase::StagedPreparing;
+        record.preparation_process_quiesced = Some(true);
+        store.put(&mut record).unwrap();
+        let history: crate::operation::GenerationAttemptHistory =
+            serde_json::from_value(serde_json::json!({
+                "count":0,"bytes":0,"sha256":hex::encode(Sha256::digest([])),
+            }))
+            .unwrap();
+        let mut lifecycle = InstallLifecycle {
+            destination: library.root().join("unused"),
+            operation_root: library.root().join("unused"),
+            store,
+            record,
+        };
+        library
+            .connection()
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER refuse_generation_outcome BEFORE UPDATE ON lifecycle_operations
+             BEGIN SELECT RAISE(ABORT,'inert second persistence refusal'); END;",
+            )
+            .unwrap();
+        let original = PortcoveError::verification("original pending commit refusal")
+            .detail("process_tree_all_retained_signaled", "true")
+            .detail("process_tree_active", "0");
+        let error =
+            retain_normalized_generation_failure(&mut lifecycle, &history, &operation, &original)
+                .unwrap_err();
+        assert_eq!(
+            error.details["preparation_error"],
+            "original pending commit refusal"
+        );
+        assert_eq!(error.details["process_tree_all_retained_signaled"], "true");
+        assert_eq!(error.details["process_tree_active"], "0");
+        assert!(lifecycle.record.last_error.is_none());
+        assert!(library.all_installs().unwrap().is_empty());
     }
 
     #[tokio::test]

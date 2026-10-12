@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 44;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 45;
 
 struct Migration {
     version: i64,
@@ -288,7 +288,42 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_44,
         verify: verify_migration_44,
     },
+    Migration {
+        version: 45,
+        name: "retained managed PS1 generation attempts",
+        apply: migration_45,
+        verify: verify_migration_45,
+    },
 ];
+
+fn migration_45(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "ALTER TABLE managed_psx_normalized_inputs ADD COLUMN generation_attempt_history_sha256
+            TEXT NOT NULL DEFAULT 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+            CHECK(length(generation_attempt_history_sha256)=64);
+         CREATE TABLE managed_psx_generation_attempts (
+            operation_id TEXT NOT NULL REFERENCES lifecycle_operations(id) ON DELETE CASCADE,
+            attempt INTEGER NOT NULL CHECK(attempt BETWEEN 1 AND 32),
+            receipt_json TEXT NOT NULL CHECK(length(CAST(receipt_json AS BLOB)) BETWEEN 1 AND 65536),
+            receipt_sha256 TEXT NOT NULL CHECK(length(receipt_sha256)=64),
+            PRIMARY KEY(operation_id,attempt)
+         );",
+    )?;
+    verify_migration_45(transaction)
+}
+
+fn verify_migration_45(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_normalized_inputs",
+        &["generation_attempt_history_sha256"],
+    )?;
+    require_columns(
+        connection,
+        "managed_psx_generation_attempts",
+        &["operation_id", "attempt", "receipt_json", "receipt_sha256"],
+    )
+}
 
 fn migration_44(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -1996,6 +2031,7 @@ mod tests {
         schema_41: 41,
         schema_42: 42,
         schema_43: 43,
+        schema_44: 44,
     }
 
     #[test]

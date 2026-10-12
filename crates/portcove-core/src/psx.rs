@@ -229,6 +229,9 @@ pub(crate) struct ConfiguredInstallWitness {
 
 /// Private store interface; deserialization alone never admits a stage.
 pub(crate) trait PsxStageWitness: Serialize + serde::de::DeserializeOwned {
+    fn generation_attempt_history(&self) -> Option<&crate::operation::GenerationAttemptHistory> {
+        None
+    }
     fn library_id(&self) -> &str;
     fn verify(
         &self,
@@ -260,6 +263,11 @@ pub(crate) trait PsxStageWitness: Serialize + serde::de::DeserializeOwned {
 }
 
 impl PsxStageWitness for GeneratedInstallWitness {
+    fn generation_attempt_history(&self) -> Option<&crate::operation::GenerationAttemptHistory> {
+        self.normalized
+            .as_ref()
+            .and_then(|binding| binding.attempt_history())
+    }
     fn normalized_parent(&self) -> Option<(&str, &str)> {
         self.normalized.as_ref().map(|binding| binding.receipt())
     }
@@ -283,6 +291,9 @@ impl PsxStageWitness for GeneratedInstallWitness {
 }
 
 impl PsxStageWitness for ConfiguredInstallWitness {
+    fn generation_attempt_history(&self) -> Option<&crate::operation::GenerationAttemptHistory> {
+        self.generation.generation_attempt_history()
+    }
     fn normalized_parent(&self) -> Option<(&str, &str)> {
         self.generation.normalized_parent()
     }
@@ -2549,6 +2560,7 @@ mod tests {
     }
 
     use super::*;
+    use sha2::Digest;
     use std::{
         thread,
         time::{Duration, Instant},
@@ -3064,13 +3076,13 @@ mod tests {
         (library, operation, journal, witness, preparation)
     }
 
-    fn provisional_generation_fixture(
+    fn normalized_generation_fixture(
         root: &Path,
     ) -> (
         Library,
         OperationCoordinator,
         crate::operation::LifecycleOperation,
-        ProvisionalGeneratedInstall,
+        NormalizedInputWitness,
         PsxManagedPreparation,
     ) {
         let (library, operation, journal, _, mut preparation) = generation_witness_fixture(root);
@@ -3149,6 +3161,20 @@ mod tests {
             .commit_psx_normalized_inputs(&journal, &normalized, &operation)
             .unwrap();
         let loaded = store.psx_normalized_inputs(&operation).unwrap();
+        (library, operation, journal, loaded, preparation)
+    }
+
+    fn provisional_generation_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ProvisionalGeneratedInstall,
+        PsxManagedPreparation,
+    ) {
+        let (library, operation, journal, loaded, preparation) =
+            normalized_generation_fixture(root);
         let candidate = loaded
             .inert_generated_fixture(&preparation, &operation)
             .unwrap();
@@ -3214,18 +3240,22 @@ mod tests {
 
     #[test]
     fn pending_generation_fences_exact_receipts_full_journal_and_library_after_hashing() {
-        for selected in [
+        assert_pending_generation_fences(&[
             "pending",
             "normalized",
             "bootstrap",
             "created",
             "updated",
-            "activate",
-            "quiesced",
-            "error",
-            "original",
-            "library",
-        ] {
+        ]);
+    }
+
+    #[test]
+    fn pending_generation_fences_owner_closure_error_and_library_after_hashing() {
+        assert_pending_generation_fences(&["activate", "quiesced", "error", "original", "library"]);
+    }
+
+    fn assert_pending_generation_fences(cases: &[&str]) {
+        for &selected in cases {
             let temporary = tempfile::tempdir().unwrap();
             let (library, operation, journal, candidate, _) =
                 provisional_generation_fixture(temporary.path());
@@ -3981,6 +4011,687 @@ mod tests {
                 "{drift}"
             );
             assert!(store.psx_generation(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn generation_continuation_preserves_failed_journal_and_seals_strictly() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut prior, _, preparation) =
+            normalized_generation_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        prior.last_error = Some("Operation cancelled before publication".into());
+        store.put(&mut prior).unwrap();
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+        assert!(store.psx_bootstrap(&operation).is_err());
+        let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+        let worker = store
+            .start_psx_generation(&mut decoded, &prior, &operation)
+            .unwrap();
+        assert!(worker.last_error.is_none());
+        assert_eq!(worker.preparation_process_quiesced, Some(false));
+        assert!(store.psx_inputs_for_generation(&operation).is_err());
+        let decoded = decoded
+            .verify_for_generation(&library, &prior, &worker, &operation)
+            .unwrap();
+        let history = decoded.attempt_history();
+        let receipt: String = library.connection().unwrap().query_row(
+            "SELECT receipt_json FROM managed_psx_generation_attempts WHERE operation_id=?1 AND attempt=1",
+            [operation.operation_id()], |row| row.get(0),
+        ).unwrap();
+        let receipt: serde_json::Value = serde_json::from_str(&receipt).unwrap();
+        assert_eq!(
+            receipt["prior_journal"][12],
+            prior.last_error.as_deref().unwrap()
+        );
+        assert_eq!(receipt["prior_journal"][16], 1);
+        assert_eq!(receipt["prior_journal"].as_array().unwrap().len(), 17);
+        let mut candidate = decoded
+            .into_witness()
+            .inert_generated_fixture(&preparation, &operation)
+            .unwrap();
+        candidate.retain_attempt_history(history.clone());
+        let mut completed = worker.clone();
+        completed.preparation_process_quiesced = Some(true);
+        store
+            .put_psx_generation_outcome(&worker, &mut completed, &history, &operation)
+            .unwrap();
+        store
+            .commit_psx_pending_generation(&completed, &candidate, &operation)
+            .unwrap();
+        let pending = store.psx_pending_generation(&operation).unwrap();
+        store
+            .seal_psx_generation(&completed, pending, &operation)
+            .unwrap();
+        let generation = store.psx_generation(&operation).unwrap();
+        assert_eq!(generation.generation_attempt_history(), Some(&history));
+        assert!(store.psx_inputs_for_generation(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+        assert!(!completed.paths.final_path.as_ref().unwrap().exists());
+        assert_eq!(
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT count(*) FROM managed_psx_generation_attempts",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn generation_continuation_acknowledgement_never_replaces_content_verification() {
+        for drift in ["archive", "payload", "disc", "helper", "source"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, witness, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&prior, &witness, &operation)
+                .unwrap();
+            prior.last_error = Some("retained prior failure".into());
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let worker = store
+                .start_psx_generation(&mut decoded, &prior, &operation)
+                .unwrap();
+            let history = decoded.attempt_history();
+            let staging = prior.paths.staging.as_ref().unwrap();
+            let path = match drift {
+                "archive" => Some(staging.join("artifact.download")),
+                "payload" => Some(staging.join("payload/generated.c")),
+                "disc" => Some(staging.join("psx-source-inert/disc.cue")),
+                "helper" => Some(temporary.path().join("inert-chd-helper")),
+                "source" => Some(preparation.source.path.clone()),
+                _ => None,
+            };
+            if let Some(path) = path {
+                let timestamp = fs::metadata(&path).unwrap().modified().unwrap();
+                let mut bytes = fs::read(&path).unwrap();
+                bytes[0] ^= 1;
+                fs::write(&path, bytes).unwrap();
+                fs::File::options()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_times(fs::FileTimes::new().set_modified(timestamp))
+                    .unwrap();
+            }
+            let error = match decoded.verify_for_generation(&library, &prior, &worker, &operation) {
+                Err(error) => error,
+                Ok(_) => panic!("fresh verification accepted {drift}"),
+            };
+            let mut completed = worker.clone();
+            completed.preparation_process_quiesced = Some(true);
+            completed.last_error = Some(error.message);
+            store
+                .put_psx_generation_outcome(&worker, &mut completed, &history, &operation)
+                .unwrap();
+            assert!(store.psx_generation(&operation).is_err());
+            assert!(store.psx_pending_generation(&operation).is_err());
+            assert!(library.all_installs().unwrap().is_empty());
+            let receipt: String = library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT receipt_json FROM managed_psx_generation_attempts",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(
+                serde_json::from_str::<serde_json::Value>(&receipt).unwrap()["prior_journal"][12],
+                "retained prior failure"
+            );
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .preparation_process_quiesced,
+                Some(true)
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "qualification-fixtures")]
+    fn generation_continuation_cancelled_before_dispatch_retains_both_failures() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut prior, witness, _) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&prior, &witness, &operation)
+            .unwrap();
+        prior.last_error = Some("historical failed attempt".into());
+        store.put(&mut prior).unwrap();
+        let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+        let worker = store
+            .start_psx_generation(&mut decoded, &prior, &operation)
+            .unwrap();
+        let history = decoded.attempt_history();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let (activity, control) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some(&prior.port_id),
+            )
+            .unwrap();
+        let cancellation =
+            control.retained_child(operation.operation_id(), "cancel-generation-continuation");
+        service.request_cancellation(&activity.id).unwrap();
+        let error = match decoded.verify_for_generation(&library, &prior, &worker, &cancellation) {
+            Err(error) => error,
+            Ok(_) => panic!("cancelled predecessor was admitted"),
+        };
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        let mut completed = worker.clone();
+        completed.preparation_process_quiesced = Some(true);
+        completed.last_error = Some(error.message);
+        store
+            .put_psx_generation_outcome(&worker, &mut completed, &history, &cancellation)
+            .unwrap();
+        assert!(
+            store
+                .get(operation.operation_id())
+                .unwrap()
+                .unwrap()
+                .last_error
+                .is_some()
+        );
+        history.require_current(&library, &operation).unwrap();
+        assert!(store.psx_pending_generation(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn generation_continuation_start_refuses_whole_journal_parent_and_replay_drift() {
+        assert_generation_start_refuses_drift(&[
+            "error", "port", "staging", "final", "created", "updated",
+        ]);
+    }
+
+    #[test]
+    fn generation_continuation_start_refuses_closure_and_parent_drift() {
+        assert_generation_start_refuses_drift(&[
+            "activate",
+            "closed",
+            "phase",
+            "original",
+            "normalized",
+            "parent",
+        ]);
+    }
+
+    #[test]
+    fn generation_continuation_start_refuses_advanced_or_installed_custody() {
+        assert_generation_start_refuses_drift(&[
+            "library",
+            "pending",
+            "advanced",
+            "compile-history",
+            "install",
+        ]);
+    }
+
+    fn assert_generation_start_refuses_drift(drifts: &[&str]) {
+        for &drift in drifts {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, witness, _) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&prior, &witness, &operation)
+                .unwrap();
+            prior.last_error = Some("unchanged historical failure".into());
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let connection = library.connection().unwrap();
+            match drift {
+                "error" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET last_error='different failure'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "port" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET port_id='different-port'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "staging" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET staging_path='different-stage'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "final" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET final_path='different-final'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "created" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET created_at=created_at+1",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "updated" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET updated_at=updated_at+1",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "activate" => {
+                    connection
+                        .execute("UPDATE lifecycle_operations SET activate=1-activate", [])
+                        .unwrap();
+                }
+                "closed" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET preparation_process_quiesced=0",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "phase" => {
+                    connection
+                        .execute("UPDATE lifecycle_operations SET phase='prepared'", [])
+                        .unwrap();
+                }
+                "original" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET original_paths_json='[\"unowned\"]'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "normalized" | "parent" => {
+                    let table = if drift == "normalized" {
+                        "managed_psx_normalized_inputs"
+                    } else {
+                        "managed_psx_bootstrap"
+                    };
+                    connection
+                        .execute(
+                            &format!("UPDATE {table} SET witness_sha256=?1"),
+                            ["f".repeat(64)],
+                        )
+                        .unwrap();
+                }
+                "library" => {
+                    connection
+                        .execute(
+                            "UPDATE library_identity SET id='ffffffffffffffffffffffffffffffff'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "pending" | "advanced" => {
+                    let table = if drift == "pending" {
+                        "managed_psx_pending_generation"
+                    } else {
+                        "managed_psx_generation"
+                    };
+                    connection.execute(&format!("INSERT INTO {table}(operation_id,witness_json,witness_sha256) VALUES (?1,'{{}}',?2)"),
+                        rusqlite::params![operation.operation_id(), "f".repeat(64)]).unwrap();
+                }
+                "compile-history" => {
+                    for table in [
+                        "managed_psx_generation",
+                        "managed_psx_configuration",
+                        "managed_psx_compilation",
+                    ] {
+                        connection.execute(&format!("INSERT INTO {table}(operation_id,witness_json,witness_sha256) VALUES (?1,'{{}}',?2)"), rusqlite::params![operation.operation_id(), "f".repeat(64)]).unwrap();
+                    }
+                    connection.execute("INSERT INTO managed_psx_compile_history(operation_id,completed_batches,witness_json,witness_sha256) VALUES (?1,1,'{}',?2)", rusqlite::params![operation.operation_id(), "f".repeat(64)]).unwrap();
+                }
+                "install" => {
+                    connection.execute("INSERT INTO installs(id,port_id,version,path,channel,installed_at,verified) VALUES ('another',?1,'inert','unowned','inert',0,0)", [&prior.port_id]).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                store
+                    .start_psx_generation(&mut decoded, &prior, &operation)
+                    .is_err(),
+                "{drift}"
+            );
+            assert_eq!(
+                connection
+                    .query_row(
+                        "SELECT count(*) FROM managed_psx_generation_attempts",
+                        [],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                0,
+                "{drift}"
+            );
+        }
+    }
+
+    #[test]
+    fn generation_continuation_start_rolls_back_retention_when_acknowledgement_fails() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut prior, witness, _) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&prior, &witness, &operation)
+            .unwrap();
+        prior.last_error = Some("must survive rollback".into());
+        store.put(&mut prior).unwrap();
+        let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute_batch(
+                "CREATE TRIGGER refuse_generation_ack BEFORE UPDATE ON lifecycle_operations
+             WHEN NEW.last_error IS NULL BEGIN SELECT RAISE(ABORT,'inert refusal'); END;",
+            )
+            .unwrap();
+        assert!(
+            store
+                .start_psx_generation(&mut decoded, &prior, &operation)
+                .is_err()
+        );
+        assert_eq!(
+            store
+                .get(operation.operation_id())
+                .unwrap()
+                .unwrap()
+                .last_error,
+            prior.last_error
+        );
+        assert_eq!(
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT count(*) FROM managed_psx_generation_attempts",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn generation_continuation_history_drift_refuses_dispatch_completion_and_pending_commit() {
+        for drift in ["delete", "rewrite", "reorder"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, _, preparation) =
+                normalized_generation_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            prior.last_error = Some("retained before history drift".into());
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let worker = store
+                .start_psx_generation(&mut decoded, &prior, &operation)
+                .unwrap();
+            let history = decoded.attempt_history();
+            decoded
+                .require_owned_worker(&library, &prior, &worker, &operation)
+                .unwrap();
+            let connection = library.connection().unwrap();
+            match drift {
+                "delete" => {
+                    connection
+                        .execute("DELETE FROM managed_psx_generation_attempts", [])
+                        .unwrap();
+                }
+                "rewrite" => {
+                    connection
+                        .execute(
+                            "UPDATE managed_psx_generation_attempts SET receipt_json='{}'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "reorder" => {
+                    connection
+                        .execute("UPDATE managed_psx_generation_attempts SET attempt=2", [])
+                        .unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                decoded
+                    .require_owned_worker(&library, &prior, &worker, &operation)
+                    .is_err()
+            );
+            let mut completed = worker.clone();
+            completed.preparation_process_quiesced = Some(true);
+            assert!(
+                store
+                    .put_psx_generation_outcome(&worker, &mut completed, &history, &operation)
+                    .is_err()
+            );
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .preparation_process_quiesced,
+                Some(false)
+            );
+            // An inert output fixture cannot bypass the missing historical binding.
+            let mut candidate = decoded
+                .into_witness()
+                .inert_generated_fixture(&preparation, &operation)
+                .unwrap();
+            candidate.retain_attempt_history(history);
+            store.put(&mut completed).unwrap();
+            assert!(
+                store
+                    .commit_psx_pending_generation(&completed, &candidate, &operation)
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn generation_continuation_attempt_count_byte_and_row_caps_preserve_current_failure() {
+        for size in [16usize, 60_000, 65_536] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, witness, _) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&prior, &witness, &operation)
+                .unwrap();
+            prior.last_error = Some("real initial fixture failure".into());
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            let worker = store
+                .start_psx_generation(&mut decoded, &prior, &operation)
+                .unwrap();
+            let mut completed = worker.clone();
+            completed.preparation_process_quiesced = Some(true);
+            store
+                .put_psx_generation_outcome(
+                    &worker,
+                    &mut completed,
+                    &decoded.attempt_history(),
+                    &operation,
+                )
+                .unwrap();
+            prior = completed;
+            let mut connection = library.connection().unwrap();
+            let receipt: String = connection
+                .query_row(
+                    "SELECT receipt_json FROM managed_psx_generation_attempts",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            let mut receipt: serde_json::Value = serde_json::from_str(&receipt).unwrap();
+            // Seed a valid bounded history fixture at the boundary directly;
+            // repeated start/stop cycles are not needed to test one refusal.
+            receipt["prior_journal"][12] = serde_json::json!("e".repeat(size.min(60_000)));
+            let receipt = serde_json::to_string(&receipt).unwrap();
+            let count = if size == 65_536 {
+                1
+            } else {
+                (1024 * 1024 / receipt.len()).min(32)
+            };
+            let transaction = connection.transaction().unwrap();
+            transaction
+                .execute(
+                    "UPDATE managed_psx_generation_attempts SET receipt_json=?1,receipt_sha256=?2",
+                    rusqlite::params![
+                        receipt,
+                        hex::encode(sha2::Sha256::digest(receipt.as_bytes()))
+                    ],
+                )
+                .unwrap();
+            let mut digest = sha2::Sha256::new();
+            for attempt in 1..=count {
+                if attempt != 1 {
+                    transaction.execute("INSERT INTO managed_psx_generation_attempts(operation_id,attempt,receipt_json,receipt_sha256) VALUES (?1,?2,?3,?4)", rusqlite::params![operation.operation_id(), attempt as i64, receipt, hex::encode(sha2::Sha256::digest(receipt.as_bytes()))]).unwrap();
+                }
+                digest.update((attempt as i64).to_le_bytes());
+                digest.update((receipt.len() as u64).to_le_bytes());
+                digest.update(receipt.as_bytes());
+            }
+            transaction
+                .execute(
+                    "UPDATE managed_psx_normalized_inputs SET generation_attempt_history_sha256=?1",
+                    [hex::encode(digest.finalize())],
+                )
+                .unwrap();
+            transaction.commit().unwrap();
+            prior.last_error = Some("e".repeat(size));
+            store.put(&mut prior).unwrap();
+            let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+            assert!(
+                store
+                    .start_psx_generation(&mut decoded, &prior, &operation)
+                    .is_err(),
+                "{size}"
+            );
+            let retained = store.get(operation.operation_id()).unwrap().unwrap();
+            assert_eq!(retained.last_error, prior.last_error);
+            assert_eq!(retained.preparation_process_quiesced, Some(true));
+            let (count, bytes): (i64, i64) = library.connection().unwrap().query_row(
+                "SELECT count(*),coalesce(sum(length(CAST(receipt_json AS BLOB))),0) FROM managed_psx_generation_attempts", [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            ).unwrap();
+            assert_eq!(
+                count as usize,
+                if size == 65_536 {
+                    1
+                } else {
+                    (1024 * 1024 / receipt.len()).min(32)
+                }
+            );
+            assert!(bytes <= 1024 * 1024);
+        }
+    }
+
+    #[test]
+    fn generation_continuation_fresh_load_refuses_deleted_rewritten_or_truncated_history() {
+        for drift in ["delete", "rewrite", "truncate"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut prior, witness, _) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&prior, &witness, &operation)
+                .unwrap();
+            for error in ["first preserved failure", "second preserved failure"] {
+                prior.last_error = Some(error.into());
+                store.put(&mut prior).unwrap();
+                let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
+                let worker = store
+                    .start_psx_generation(&mut decoded, &prior, &operation)
+                    .unwrap();
+                let mut completed = worker.clone();
+                completed.preparation_process_quiesced = Some(true);
+                completed.last_error = Some("current closed failed attempt".into());
+                store
+                    .put_psx_generation_outcome(
+                        &worker,
+                        &mut completed,
+                        &decoded.attempt_history(),
+                        &operation,
+                    )
+                    .unwrap();
+                prior = completed;
+            }
+            let reopened =
+                crate::operation::OperationStore::new(Library::open(library.root()).unwrap());
+            assert!(reopened.psx_inputs_for_generation(&operation).is_ok());
+            let connection = library.connection().unwrap();
+            let anchor: String = connection
+                .query_row(
+                    "SELECT generation_attempt_history_sha256 FROM managed_psx_normalized_inputs",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            match drift {
+                "delete" => {
+                    connection
+                        .execute("DELETE FROM managed_psx_generation_attempts", [])
+                        .unwrap();
+                }
+                "truncate" => {
+                    connection
+                        .execute(
+                            "DELETE FROM managed_psx_generation_attempts WHERE attempt=2",
+                            [],
+                        )
+                        .unwrap();
+                }
+                "rewrite" => {
+                    let receipt: String = connection.query_row("SELECT receipt_json FROM managed_psx_generation_attempts WHERE attempt=1", [], |row| row.get(0)).unwrap();
+                    let mut receipt: serde_json::Value = serde_json::from_str(&receipt).unwrap();
+                    receipt["prior_journal"][12] =
+                        serde_json::json!("validly rehashed replacement error");
+                    let json = serde_json::to_string(&receipt).unwrap();
+                    connection.execute("UPDATE managed_psx_generation_attempts SET receipt_json=?1,receipt_sha256=?2 WHERE attempt=1", rusqlite::params![json, hex::encode(sha2::Sha256::digest(json.as_bytes()))]).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                reopened.psx_inputs_for_generation(&operation).is_err(),
+                "{drift}"
+            );
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .last_error,
+                prior.last_error
+            );
+            assert_eq!(connection.query_row("SELECT generation_attempt_history_sha256 FROM managed_psx_normalized_inputs", [], |row| row.get::<_, String>(0)).unwrap(), anchor);
+            assert!(store.psx_pending_generation(&operation).is_err());
+            assert!(library.all_installs().unwrap().is_empty());
         }
     }
 

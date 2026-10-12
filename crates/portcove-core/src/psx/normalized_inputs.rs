@@ -37,6 +37,8 @@ pub(crate) struct ProvisionalGeneratedInstall {
     normalized_json: String,
     generated: super::GeneratedInstall,
     outputs: super::generation_outputs::GenerationOutputs,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    attempt_history: Option<crate::operation::GenerationAttemptHistory>,
     #[serde(skip)]
     persisted_sha256: Option<String>,
     #[serde(skip)]
@@ -50,14 +52,26 @@ pub(super) struct NormalizedGenerationBinding {
     sha256: String,
     json: String,
     outputs: super::generation_outputs::GenerationOutputs,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    attempt_history: Option<crate::operation::GenerationAttemptHistory>,
 }
 
 impl NormalizedGenerationBinding {
+    pub(super) fn attempt_history(&self) -> Option<&crate::operation::GenerationAttemptHistory> {
+        self.attempt_history.as_ref()
+    }
     pub(super) fn receipt(&self) -> (&str, &str) {
         (&self.sha256, &self.json)
     }
 
     pub(super) fn require_current(&self, library: &Library, operation_id: &str) -> Result<()> {
+        let operation =
+            OperationCoordinator::resume(operation_id, "verify-generation-history", None);
+        crate::operation::GenerationAttemptHistory::require_binding_in(
+            self.attempt_history.as_ref(),
+            &library.connection()?,
+            &operation,
+        )?;
         require_normalized_parent(library, operation_id, &self.sha256, &self.json)
     }
 
@@ -135,6 +149,9 @@ fn require_normalized_parent(
 }
 
 impl PsxStageWitness for ProvisionalGeneratedInstall {
+    fn generation_attempt_history(&self) -> Option<&crate::operation::GenerationAttemptHistory> {
+        self.attempt_history.as_ref()
+    }
     fn library_id(&self) -> &str {
         self.normalized.library_id()
     }
@@ -167,6 +184,13 @@ impl PsxStageWitness for ProvisionalGeneratedInstall {
 }
 
 impl ProvisionalGeneratedInstall {
+    #[cfg(test)]
+    pub(super) fn retain_attempt_history(
+        &mut self,
+        history: crate::operation::GenerationAttemptHistory,
+    ) {
+        self.attempt_history = Some(history);
+    }
     pub(crate) fn artifact(&self) -> &crate::ArtifactIdentity {
         self.normalized.artifact()
     }
@@ -198,6 +222,11 @@ impl ProvisionalGeneratedInstall {
         journal: &LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()> {
+        crate::operation::GenerationAttemptHistory::require_binding_in(
+            self.attempt_history.as_ref(),
+            &library.connection()?,
+            operation,
+        )?;
         self.normalized
             .verify_materialized_context(library, journal, operation)?;
         require_normalized_parent(
@@ -242,6 +271,7 @@ impl ProvisionalGeneratedInstall {
             sha256: self.normalized_sha256,
             json: self.normalized_json,
             outputs: self.outputs,
+            attempt_history: self.attempt_history,
         });
         Ok(witness)
     }
@@ -418,6 +448,7 @@ impl NormalizedInputWitness {
             normalized_json,
             generated,
             outputs,
+            attempt_history: None,
             persisted_sha256: None,
             persisted_json: None,
         })
@@ -551,6 +582,7 @@ impl NormalizedInputWitness {
                 .as_ref()
                 .map(|_| super::staged_bios_path(root))
                 .transpose()?;
+            let attempt_history = Some(decoded.attempt_history());
             let normalized = decoded.into_witness();
             let generated = super::GeneratedInstall {
                 tree,
@@ -566,6 +598,7 @@ impl NormalizedInputWitness {
                 normalized_json,
                 generated,
                 outputs,
+                attempt_history,
                 persisted_sha256: None,
                 persisted_json: None,
             })
@@ -715,10 +748,49 @@ impl NormalizedInputWitness {
         journal: &LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()> {
+        self.bootstrap.verify_context(library, journal, operation)?;
+        self.require_materialized_binding(library, journal, operation)
+    }
+
+    pub(crate) fn verify_generation_context(
+        &self,
+        library: &Library,
+        predecessor: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.bootstrap
+            .verify_generation_context(library, predecessor, operation)?;
+        self.require_materialized_binding(library, predecessor.journal(), operation)
+    }
+
+    pub(crate) fn verify_generation_predecessor(
+        &self,
+        library: &Library,
+        predecessor: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.verify_generation_context(library, predecessor, operation)?;
+        self.bootstrap
+            .verify_generation_predecessor(library, predecessor, operation)?;
+        let preparation = preparation_from_identity(&self.inputs)?;
+        verify_sources(&preparation, operation)?;
+        if inspect_helper(&self.helper_path, operation)? != self.helper {
+            return Err(PortcoveError::verification(
+                "PS1 normalized input helper changed",
+            ));
+        }
+        self.disc.verify(self.disc.root(), operation)
+    }
+
+    fn require_materialized_binding(
+        &self,
+        library: &Library,
+        journal: &LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
         self.binding
             .require_current(library, operation.operation_id())?;
         require_bound_bootstrap(&self.bootstrap, &self.binding)?;
-        self.bootstrap.verify_context(library, journal, operation)?;
         let staging = journal
             .paths
             .staging

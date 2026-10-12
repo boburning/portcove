@@ -68,6 +68,14 @@ and a positively closed, error-free `StagedPreparing` owner loaded from that
 same library. No old failed monolithic producer, copied library, caller-supplied
 preparation or deserialized witness acquires continuation authority.
 
+The separate `generate-normalized` stage may reach Core's explicit schema-45
+failed-attempt acknowledgement for a positively closed normalized predecessor.
+The helper's coarse owner check grants no retry: the Installer must admit the
+exact parent/journal/history under the port lock and retain the failed journal
+atomically with its owned start. Complete fresh input and toolchain verification
+still precede dispatch. Other stages retain their error-free owner requirement.
+This source contract is not native continuation or lifecycle acceptance.
+
 Each invocation opens current service state, requires the full immutable catalog
 and official historical release, rechecks publisher/acquisition authority and
 uses the maintained Installer stage gateway. Reopening verifies the original

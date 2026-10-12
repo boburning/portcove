@@ -13,6 +13,9 @@ use rusqlite::{OptionalExtension, TransactionBehavior, params};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+mod generation_continuation;
+pub(crate) use generation_continuation::{ClosedGenerationPredecessor, GenerationAttemptHistory};
+
 #[cfg(test)]
 thread_local! {
     static ALL_READ_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
@@ -455,6 +458,9 @@ pub(crate) struct UnverifiedNormalizationBootstrap {
 pub(crate) struct UnverifiedGenerationInputs {
     witness: crate::psx::NormalizedInputWitness,
     journal_snapshot: String,
+    predecessor: ClosedGenerationPredecessor,
+    attempt_history: GenerationAttemptHistory,
+    started: bool,
 }
 
 impl UnverifiedGenerationInputs {
@@ -464,6 +470,9 @@ impl UnverifiedGenerationInputs {
 
     pub(crate) fn into_witness(self) -> crate::psx::NormalizedInputWitness {
         self.witness
+    }
+    pub(crate) fn attempt_history(&self) -> GenerationAttemptHistory {
+        self.attempt_history.clone()
     }
     pub(crate) fn artifact(&self) -> &crate::ArtifactIdentity {
         self.witness.artifact()
@@ -485,8 +494,10 @@ impl UnverifiedGenerationInputs {
         operation: &OperationCoordinator,
     ) -> Result<()> {
         OperationStore::new(library.clone()).require_psx_generation_vacant(operation)?;
+        self.predecessor.require_same(prior)?;
         self.witness
-            .verify_materialized_context(library, prior, operation)?;
+            .verify_generation_context(library, &self.predecessor, operation)?;
+        self.attempt_history.require_current(library, operation)?;
         let (sha, json) = self.witness.loaded_receipt()?;
         let (bootstrap_sha, bootstrap_json) =
             crate::psx::PsxStageWitness::bootstrap_parent(&self.witness)
@@ -506,11 +517,19 @@ impl UnverifiedGenerationInputs {
         }
         expected[14] = serde_json::json!(worker.updated_at);
         expected[16] = serde_json::json!(0);
+        if self.started {
+            expected[12] = serde_json::Value::Null;
+        } else if prior.last_error.is_some() {
+            return Err(PortcoveError::conflict(
+                "PS1 failed predecessor was not admitted",
+            ));
+        }
         // The exact normalized and bootstrap bytes, library identity and complete
         // owner journal are read in one SQLite statement. Earlier context reads
         // cannot replace this final durable observation.
-        let current: Option<String> = library
-            .connection()?
+        let mut connection = library.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Deferred)?;
+        let current: Option<String> = transaction
             .query_row(
                 &format!(
                     "SELECT {PSX_JOURNAL_SNAPSHOT} FROM lifecycle_operations l
@@ -522,7 +541,9 @@ impl UnverifiedGenerationInputs {
                 AND NOT EXISTS(SELECT 1 FROM managed_psx_pending_generation WHERE operation_id=l.id)
                 AND NOT EXISTS(SELECT 1 FROM managed_psx_generation WHERE operation_id=l.id)
                 AND NOT EXISTS(SELECT 1 FROM managed_psx_configuration WHERE operation_id=l.id)
-                AND NOT EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=l.id)"
+                AND NOT EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=l.id)
+                AND NOT EXISTS(SELECT 1 FROM managed_psx_compile_history WHERE operation_id=l.id)
+                AND NOT EXISTS(SELECT 1 FROM installs WHERE id=l.id OR port_id=l.port_id)"
                 ),
                 params![
                     operation.operation_id(),
@@ -545,6 +566,9 @@ impl UnverifiedGenerationInputs {
                 "PS1 generation predecessor or journal drifted",
             ));
         }
+        self.attempt_history
+            .require_current_in(&transaction, operation)?;
+        transaction.commit()?;
         operation.checkpoint()
     }
 
@@ -556,7 +580,8 @@ impl UnverifiedGenerationInputs {
         operation: &OperationCoordinator,
     ) -> Result<Self> {
         self.require_owned_worker(library, prior, worker, operation)?;
-        crate::psx::PsxStageWitness::verify(&self.witness, library, prior, operation)?;
+        self.witness
+            .verify_generation_predecessor(library, &self.predecessor, operation)?;
         self.require_owned_worker(library, prior, worker, operation)?;
         Ok(self)
     }
@@ -854,12 +879,25 @@ impl OperationStore {
             operation,
             || Ok(()),
             |candidate: &crate::psx::NormalizedInputWitness, journal| {
-                candidate.verify_materialized_context(&self.library, journal, operation)
+                candidate.verify_generation_context(
+                    &self.library,
+                    &ClosedGenerationPredecessor::new(journal.clone())?,
+                    operation,
+                )
             },
         )?;
+        let journal = self
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 generation predecessor is missing"))?;
+        let predecessor = ClosedGenerationPredecessor::new(journal)?;
+        let attempt_history =
+            GenerationAttemptHistory::load(&self.library.connection()?, operation)?;
         Ok(UnverifiedGenerationInputs {
             witness,
             journal_snapshot,
+            predecessor,
+            attempt_history,
+            started: false,
         })
     }
 
@@ -1061,6 +1099,11 @@ impl OperationStore {
                 "PS1 history changed before publication intent",
             ));
         }
+        GenerationAttemptHistory::require_binding_in(
+            crate::psx::PsxStageWitness::generation_attempt_history(compiled),
+            &transaction,
+            operation,
+        )?;
         let changed = transaction.execute(
             "UPDATE lifecycle_operations SET phase='prepared',install_json=?1,updated_at=?2
              WHERE id=?3 AND kind='install' AND phase='staged_preparing' AND port_id=?4
@@ -1175,6 +1218,19 @@ impl OperationStore {
         operation.checkpoint()?;
         let mut connection = database::connect(self.library.root())?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if matches!(
+            table,
+            PsxStageTable::PendingGeneration
+                | PsxStageTable::Generation
+                | PsxStageTable::Configuration
+                | PsxStageTable::Compilation
+        ) {
+            GenerationAttemptHistory::require_binding_in(
+                witness.generation_attempt_history(),
+                &transaction,
+                operation,
+            )?;
+        }
         let successor_sql = if predecessor.is_some() {
             " AND EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=?2 AND witness_sha256=?15 AND witness_json=?16)
               ON CONFLICT(operation_id) DO UPDATE SET witness_json=excluded.witness_json,witness_sha256=excluded.witness_sha256
@@ -1506,6 +1562,19 @@ impl OperationStore {
         before_fence()?;
         operation.checkpoint()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if matches!(
+            table,
+            PsxStageTable::PendingGeneration
+                | PsxStageTable::Generation
+                | PsxStageTable::Configuration
+                | PsxStageTable::Compilation
+        ) {
+            GenerationAttemptHistory::require_binding_in(
+                witness.generation_attempt_history(),
+                &transaction,
+                operation,
+            )?;
+        }
         if let Some(expected) = &history {
             let count = witness.retained_compile_batches().expect("history cursor");
             if psx_compile_history_digest(&transaction, operation, count - 1)? != *expected {

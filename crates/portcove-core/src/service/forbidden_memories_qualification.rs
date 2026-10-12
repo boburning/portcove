@@ -197,7 +197,9 @@ impl PortcoveService {
                 || owner.phase != crate::operation::LifecyclePhase::StagedPreparing
                 || owner.port_id != port_id
                 || owner.preparation_process_quiesced != Some(true)
-                || owner.last_error.is_some()
+                // The normalized gateway alone has a store-owned failed-attempt
+                // acknowledgement. Every other stage retains its strict guard.
+                || (owner.last_error.is_some() && stage != "generate-normalized")
             {
                 return Err(PortcoveError::conflict(
                     "retained stage custody is not resumable",
