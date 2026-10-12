@@ -4750,6 +4750,7 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
          DROP TABLE curated_artifact_admissions;
          DROP TABLE curated_artifact_history;
          DROP TABLE curated_transition_receipts;
+         DROP TABLE managed_psx_pending_generation;
          DROP TABLE managed_psx_normalized_inputs;
          DROP TABLE managed_psx_materialized_inputs;
          DROP TABLE managed_psx_bootstrap;

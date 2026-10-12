@@ -66,6 +66,9 @@ pub(crate) struct CompiledInstall {
 }
 
 impl PsxStageWitness for CompiledInstall {
+    fn normalized_parent(&self) -> Option<(&str, &str)> {
+        self.configuration.normalized_parent()
+    }
     fn bootstrap_parent(&self) -> Option<(&str, &str)> {
         self.configuration.bootstrap_parent()
     }

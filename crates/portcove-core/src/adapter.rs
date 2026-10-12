@@ -951,7 +951,7 @@ pub(crate) fn generated_metadata(port: &PortDefinition) -> Result<Vec<String>> {
     Ok(paths)
 }
 
-fn psx_launch_path(path: &Path) -> Result<String> {
+pub(crate) fn psx_launch_path(path: &Path) -> Result<String> {
     let text = crate::path::unicode(path, "managed PS1 launch")?;
     #[cfg(windows)]
     {

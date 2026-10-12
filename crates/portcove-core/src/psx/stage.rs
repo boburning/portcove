@@ -24,7 +24,7 @@ enum Entry {
 /// Only Core can create this value, after the generator has positively closed.
 /// Serialized values must be loaded through the lifecycle owner, which binds
 /// library custody and positive process closure before this inventory is used.
-#[derive(PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct GeneratedTree {
     root: PathBuf,
@@ -33,6 +33,108 @@ pub(super) struct GeneratedTree {
 }
 
 impl GeneratedTree {
+    pub(super) fn require_file_bytes(&self, relative: &Path, bytes: &[u8]) -> Result<()> {
+        use sha2::Digest;
+        if !matches!(self.entries.get(relative), Some(Entry::File(file))
+            if file.size() == bytes.len() as u64
+                && file.sha256 == hex::encode(sha2::Sha256::digest(bytes)))
+        {
+            return Err(PortcoveError::verification(
+                "PS1 historical package input bytes changed",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Compare two complete byte inventories around positively closed setup.
+    /// Only exact declared generated files and the exact Core config rewrite
+    /// may change. Original input objects remain bound even in output parents.
+    pub(super) fn require_generation_transition(
+        &self,
+        current: &Self,
+        outputs: &super::generation_outputs::GenerationOutputs,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        operation.checkpoint()?;
+        if self
+            .entries
+            .contains_key(Path::new(".portcove-builder-environment"))
+        {
+            return Err(PortcoveError::verification(
+                "PS1 package aliases owned generation environment",
+            ));
+        }
+        if self.root != current.root
+            || self.operation_id != current.operation_id
+            || current.operation_id != operation.operation_id()
+        {
+            return Err(PortcoveError::verification(
+                "PS1 generation root custody changed",
+            ));
+        }
+        for (relative, original) in &self.entries {
+            operation.checkpoint()?;
+            if outputs.mutable_file(relative) {
+                if matches!(original, Entry::Directory(_))
+                    || current
+                        .entries
+                        .get(relative)
+                        .is_some_and(|entry| !matches!(entry, Entry::File(_)))
+                {
+                    return Err(PortcoveError::verification(
+                        "PS1 output aliases an input directory",
+                    ));
+                }
+                continue;
+            }
+            let unchanged = match (original, current.entries.get(relative)) {
+                (Entry::Directory(before), Some(Entry::Directory(after))) => {
+                    before.same_object(after)
+                }
+                (Entry::File(before), Some(Entry::File(after))) => before.same_bytes_object(after),
+                _ => false,
+            };
+            if !unchanged {
+                return Err(PortcoveError::verification(
+                    "PS1 setup changed a retained package input",
+                ));
+            }
+        }
+        for (relative, entry) in &current.entries {
+            operation.checkpoint()?;
+            if self.entries.contains_key(relative) {
+                continue;
+            }
+            let declared = match entry {
+                Entry::File(_) => outputs.mutable_file(relative),
+                Entry::Directory(_) => {
+                    outputs.output_directory(relative) && !outputs.declared_file(relative)
+                }
+            };
+            if !declared {
+                return Err(PortcoveError::verification(
+                    "PS1 setup added an undeclared output",
+                ));
+            }
+        }
+        for required in outputs.required_files() {
+            if !matches!(current.entries.get(required), Some(Entry::File(file)) if file.size() > 0)
+            {
+                return Err(PortcoveError::verification(
+                    "PS1 setup omitted a required output",
+                ));
+            }
+        }
+        if !matches!(current.entries.get(Path::new("game.toml")),
+            Some(Entry::File(file)) if file.sha256 == outputs.config_sha256())
+        {
+            return Err(PortcoveError::verification(
+                "PS1 setup config differs from exact Core rewrite",
+            ));
+        }
+        operation.checkpoint()
+    }
+
     /// Only initial generation uses this transition, before durable sealing.
     /// Failure retains any partial normalization; it grants no retry authority.
     pub(super) fn capture_normalized_generation(

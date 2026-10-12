@@ -115,6 +115,8 @@ fn require_stage_request(stage: &str, retained_operation_id: Option<&str>) -> Re
             | "normalize-inputs"
             | "materialize-inputs"
             | "seal-inputs"
+            | "generate-normalized"
+            | "seal-generation"
             | "generate-acquired"
             | "generate"
             | "configure"
@@ -266,6 +268,8 @@ impl PortcoveService {
                 "normalize-inputs" => serde_json::to_value(installer.normalize_acquired_managed_install(request, &operation, &mut emit).await?)?,
                 "materialize-inputs" => serde_json::to_value(installer.materialize_acquired_managed_inputs(request, &operation, &mut emit).await?)?,
                 "seal-inputs" => serde_json::to_value(installer.seal_materialized_managed_inputs(request, &operation, &mut emit).await?)?,
+                "generate-normalized" => serde_json::to_value(installer.generate_normalized_managed_install(request, &operation, &mut emit).await?)?,
+                "seal-generation" => serde_json::to_value(installer.seal_generated_managed_install(request, &operation, &mut emit).await?)?,
                 "generate-acquired" => serde_json::to_value(installer.generate_acquired_managed_install(request, &operation, &mut emit).await?)?,
                 "generate" => serde_json::to_value(installer.generate_managed_install(request, &operation, &mut emit).await?)?,
                 "configure" => serde_json::to_value(installer.configure_managed_install(request, &operation, &mut emit).await?)?,
@@ -546,6 +550,11 @@ mod tests {
         assert!(require_stage_request("generate-acquired", Some(&id)).is_ok());
         assert!(require_stage_request("generate-acquired", None).is_err());
         assert!(require_stage_request("generate-acquired", Some("caller-reconstructed")).is_err());
+        for stage in ["generate-normalized", "seal-generation"] {
+            assert!(require_stage_request(stage, Some(&id)).is_ok());
+            assert!(require_stage_request(stage, None).is_err());
+            assert!(require_stage_request(stage, Some("caller-reconstructed")).is_err());
+        }
     }
 
     #[cfg(feature = "qualification-fixtures")]

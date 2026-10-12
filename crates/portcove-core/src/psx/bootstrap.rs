@@ -62,6 +62,37 @@ impl BootstrapBinding {
 }
 
 impl BootstrapWitness {
+    pub(super) fn contract(&self) -> &serde_json::Value {
+        &self.contract
+    }
+
+    pub(super) fn payload(&self) -> &GeneratedTree {
+        &self.payload
+    }
+
+    pub(super) fn verify_archive(
+        &self,
+        library: &Library,
+        journal: &LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.require_context(library, journal, operation)?;
+        let staging = journal
+            .paths
+            .staging
+            .as_ref()
+            .expect("context checked staging");
+        let archive = crate::external_runtime::hash_stable_file(
+            &archive_path(staging)?,
+            self.artifact.size,
+            &|| operation.checkpoint(),
+        )?;
+        if archive != self.archive || archive.sha256 != self.artifact.sha256 {
+            return Err(PortcoveError::verification("PS1 bootstrap archive changed"));
+        }
+        operation.checkpoint()
+    }
+
     pub(crate) fn require_current_parent(
         &self,
         library: &Library,

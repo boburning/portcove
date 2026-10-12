@@ -164,7 +164,7 @@ pub use install::{
     InstallQualification, InstallRequest, Installer, ManagedInstallBootstrap,
     ManagedInstallCompilePending, ManagedInstallCompileProgress, ManagedInstallConfigured,
     ManagedInstallContinuation, ManagedInstallMaterializedInputs, ManagedInstallNormalizedInputs,
-    VerificationReport,
+    ManagedInstallProvisionalGeneration, VerificationReport,
 };
 pub use launch::forward_launch_signal;
 pub use library::{

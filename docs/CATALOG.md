@@ -610,6 +610,32 @@ committing the normalized witness. Original provisional evidence is retained.
 Provisional presence refuses repeated materialization and legacy generation;
 failed or cancelled custody cannot be replayed or restored automatically. The
 original one-call normalization API and verification obligations are unchanged.
+`generate_normalized_managed_install` consumes the exact normalized checkpoint
+under fresh acquisition/request checks and the port lock. Its opaque loader
+binds the normalized and acquired bytes, library identity and full journal;
+the joined worker permits only its exact start transition. Complete fresh
+normalized-input verification and pinned-toolchain validation join before
+dispatch, followed by repeated content-inventory and owner fences. The fixed
+packaged generator receives the retained cue, with no Core CHD helper replay.
+Core pins the packaged emitters, disables Python bytecode writes and restricts
+outputs to the exact disc, game and enabled BIOS recipe plus its initially vacant
+builder environment. Original input bytes and objects are preserved. The exact
+Core runtime-config rewrite and complete positively closed output inventory yield
+only `ManagedInstallProvisionalGeneration`, not configure or installation authority.
+Schema 44 retains that result beneath the normalized predecessor and blocks
+generation replay even before full sealing.
+`seal_generated_managed_install` dispatches no external process. It freshly
+verifies archive, source/BIOS, helper, normalized disc, toolchain and generated
+bytes; rederives the fixed recipe and output policy from authenticated original
+config; and atomically fences exact provisional, normalized and acquired bytes
+with the full owner journal and library identity before promoting Generation.
+Provisional evidence remains retained. Normalized ancestry and its output policy
+remain bound through configure, compile and publication; omitting that binding
+cannot reinterpret a normalized operation as legacy. Older operations without
+normalized ancestry retain their original wire format. Upstream Windows path
+arguments use the existing identity-checked ordinary spelling, while canonical
+paths remain the inspection identity. These source contracts and inert controls
+do not establish real generation, resource fit or native lifecycle acceptance.
 Generated-stage verification admits the owned output path before running its
 complete input and output checks with one scoped read worker and the caller.
 Both checks settle on success, error, cancellation or panic. After joining,

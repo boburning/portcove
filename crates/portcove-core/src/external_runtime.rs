@@ -54,6 +54,14 @@ pub(crate) struct InspectedFile {
 }
 
 impl InspectedFile {
+    /// Freshly hashed bytes and object identity across an owned timestamp
+    /// normalization. This comparison is not a metadata-only content check.
+    pub(crate) fn same_bytes_object(&self, other: &Self) -> bool {
+        self.snapshot.identity == other.snapshot.identity
+            && self.snapshot.size == other.snapshot.size
+            && self.sha256 == other.sha256
+    }
+
     /// Object and bytes across an explicitly owned rename; rename may change ctime.
     pub(crate) fn same_content_object(&self, other: &Self) -> bool {
         self.snapshot.identity == other.snapshot.identity

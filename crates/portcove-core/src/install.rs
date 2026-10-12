@@ -55,6 +55,13 @@ pub struct ManagedInstallMaterializedInputs {
     pub port_id: String,
 }
 
+/// Positively closed generation capture; full sealing must precede configure.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ManagedInstallProvisionalGeneration {
+    pub operation_id: String,
+    pub port_id: String,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum NormalizationLimit {
     Materialized,
@@ -986,6 +993,195 @@ impl Installer {
         Ok(ManagedInstallNormalizedInputs {
             operation_id: operation_id.to_owned(),
             port_id: witness.port_id().to_owned(),
+        })
+    }
+
+    /// Generate from an exact normalized checkpoint without replaying its CHD
+    /// helper. Retain provisional output only; a separate full seal is required.
+    pub async fn generate_normalized_managed_install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<ManagedInstallProvisionalGeneration>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let preparation = request.managed.as_ref().ok_or_else(|| {
+            PortcoveError::unsupported("PS1 normalized generation requires managed preparation")
+        })?;
+        if request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 normalized generation requires a retained contract",
+            ));
+        }
+        let scope = self.require_acquisition(&request)?;
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let _port_guard = self
+            .library
+            .try_lock_port(&request.port_id, "generate-normalized-managed-install")?;
+        let store = OperationStore::new(self.library.clone());
+        store.require_psx_generation_vacant(operation)?;
+        let load_store = store.clone();
+        let decoded = join_psx_witness_worker(operation, move |checkpoint| {
+            load_store.psx_inputs_for_generation(&checkpoint)
+        })
+        .await?;
+        let artifact = decoded.artifact();
+        if artifact.asset_name != request.release.asset.name
+            || !artifact
+                .sha256
+                .eq_ignore_ascii_case(&request.release.asset.sha256)
+            || (request.release.asset.size != 0 && request.release.asset.size != artifact.size)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained artifact and live release differ",
+            ));
+        }
+        decoded.require_request(&generation_contract(&request, artifact)?, preparation)?;
+        let record = store
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 normalized generation owner is missing"))?;
+        let mut lifecycle = InstallLifecycle {
+            destination: record.paths.final_path.clone().ok_or_else(|| {
+                PortcoveError::state("PS1 normalized generation destination is missing")
+            })?,
+            operation_root: record.paths.staging.clone().ok_or_else(|| {
+                PortcoveError::state("PS1 normalized generation staging is missing")
+            })?,
+            store,
+            record,
+        };
+        let preparation = preparation.clone();
+        self.require_acquisition(&request)?;
+        lifecycle.store.require_psx_generation_vacant(operation)?;
+        operation.checkpoint()?;
+        emit(operation.message(
+            "info",
+            "Generating from retained normalized inputs; no helper replay or publication",
+        ));
+        let library = self.library.clone();
+        let prior = lifecycle.record.clone();
+        let result = run_managed_install_worker_with_journal(
+            &mut lifecycle,
+            operation,
+            move |checkpoint, owned_start| {
+                crate::psx::NormalizedInputWitness::generate(
+                    decoded,
+                    &library,
+                    &prior,
+                    &owned_start,
+                    &preparation,
+                    &checkpoint,
+                )
+            },
+        )
+        .await;
+        let generated = match result {
+            Ok(generated) => generated,
+            Err(error) => {
+                retain_staged_failure(&mut lifecycle, &error)?;
+                return Err(error);
+            }
+        };
+        let retained = match self.require_acquisition(&request) {
+            Ok(_) => {
+                let store = lifecycle.store.clone();
+                let journal = lifecycle.record.clone();
+                join_psx_witness_worker(operation, move |checkpoint| {
+                    store.commit_psx_pending_generation(&journal, &generated, &checkpoint)
+                })
+                .await
+            }
+            Err(error) => Err(error),
+        };
+        if let Err(error) = retained {
+            retain_staged_failure(&mut lifecycle, &error)?;
+            return Err(error);
+        }
+        Ok(ManagedInstallProvisionalGeneration {
+            operation_id: operation.operation_id().to_owned(),
+            port_id: request.port_id,
+        })
+    }
+
+    /// Freshly verify retained output and promote Generation atomically. No
+    /// generator, compiler, registration or publication is dispatched here.
+    pub async fn seal_generated_managed_install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<ManagedInstallContinuation>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let preparation = request.managed.as_ref().ok_or_else(|| {
+            PortcoveError::unsupported("PS1 generation sealing requires managed preparation")
+        })?;
+        if request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 generation sealing requires a retained contract",
+            ));
+        }
+        let scope = self.require_acquisition(&request)?;
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let _port_guard = self
+            .library
+            .try_lock_port(&request.port_id, "seal-generated-managed-install")?;
+        let store = OperationStore::new(self.library.clone());
+        let load_store = store.clone();
+        let decoded = join_psx_witness_worker(operation, move |checkpoint| {
+            load_store.psx_pending_generation(&checkpoint)
+        })
+        .await?;
+        let artifact = decoded.artifact();
+        if artifact.asset_name != request.release.asset.name
+            || !artifact
+                .sha256
+                .eq_ignore_ascii_case(&request.release.asset.sha256)
+            || (request.release.asset.size != 0 && request.release.asset.size != artifact.size)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained artifact and live release differ",
+            ));
+        }
+        decoded.require_request(&generation_contract(&request, artifact)?, preparation)?;
+        let record = store
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 generation sealing owner is missing"))?;
+        let mut lifecycle =
+            InstallLifecycle {
+                destination: record.paths.final_path.clone().ok_or_else(|| {
+                    PortcoveError::state("PS1 generation sealing destination is missing")
+                })?,
+                operation_root: record.paths.staging.clone().ok_or_else(|| {
+                    PortcoveError::state("PS1 generation sealing staging is missing")
+                })?,
+                store,
+                record,
+            };
+        self.require_acquisition(&request)?;
+        operation.checkpoint()?;
+        emit(operation.message(
+            "info",
+            "Verifying and sealing retained generation; no tool dispatch",
+        ));
+        let store = lifecycle.store.clone();
+        let journal = lifecycle.record.clone();
+        if let Err(error) = join_psx_witness_worker(operation, move |checkpoint| {
+            store.seal_psx_generation(&journal, decoded, &checkpoint)
+        })
+        .await
+        {
+            retain_staged_failure(&mut lifecycle, &error)?;
+            return Err(error);
+        }
+        Ok(ManagedInstallContinuation {
+            operation_id: operation.operation_id().to_owned(),
+            port_id: request.port_id,
         })
     }
 
