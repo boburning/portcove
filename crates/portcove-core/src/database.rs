@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 39;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 40;
 
 struct Migration {
     version: i64,
@@ -258,7 +258,39 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_39,
         verify: verify_migration_39,
     },
+    Migration {
+        version: 40,
+        name: "retained managed PS1 compile history",
+        apply: migration_40,
+        verify: verify_migration_40,
+    },
 ];
+
+fn migration_40(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_compile_history (
+            operation_id TEXT NOT NULL REFERENCES managed_psx_compilation(operation_id) ON DELETE CASCADE,
+            completed_batches INTEGER NOT NULL CHECK(completed_batches BETWEEN 1 AND 10000),
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64),
+            PRIMARY KEY(operation_id,completed_batches)
+         );",
+    )?;
+    verify_migration_40(transaction)
+}
+
+fn verify_migration_40(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_compile_history",
+        &[
+            "operation_id",
+            "completed_batches",
+            "witness_json",
+            "witness_sha256",
+        ],
+    )
+}
 
 fn migration_39(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(

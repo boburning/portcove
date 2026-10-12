@@ -195,6 +195,84 @@ pub(crate) struct OperationStore {
 
 const MAX_PSX_WITNESS_BYTES: usize = 64 * 1024 * 1024;
 
+pub(crate) fn psx_empty_history_digest() -> String {
+    hex::encode(Sha256::digest(b"Portcove private compile history v1\0"))
+}
+
+pub(crate) fn psx_extend_history_digest(
+    previous: &str,
+    cursor: usize,
+    json: &str,
+) -> Result<String> {
+    let previous = hex::decode(previous)
+        .map_err(|_| PortcoveError::verification("PS1 history digest changed"))?;
+    if previous.len() != 32 || json.len() > MAX_PSX_WITNESS_BYTES || cursor == 0 || cursor > 10000 {
+        return Err(PortcoveError::verification(
+            "PS1 history identity exceeds bounds",
+        ));
+    }
+    let mut digest = Sha256::new();
+    digest.update(b"Portcove private compile history link v1\0");
+    digest.update(previous);
+    digest.update((cursor as u64).to_le_bytes());
+    digest.update((json.len() as u64).to_le_bytes());
+    digest.update(Sha256::digest(json.as_bytes()));
+    Ok(hex::encode(digest.finalize()))
+}
+
+// Verify one bounded row at a time; retain only a domain-separated ordered digest.
+// The caller holds an Immediate transaction when this identity grants mutation.
+fn psx_compile_history_digest(
+    connection: &rusqlite::Connection,
+    operation: &OperationCoordinator,
+    expected: usize,
+) -> Result<String> {
+    if expected > 10000 {
+        return Err(PortcoveError::verification(
+            "PS1 history cursor exceeds graph bound",
+        ));
+    }
+    let mut statement = connection.prepare("SELECT completed_batches,witness_json,witness_sha256 FROM managed_psx_compile_history WHERE operation_id=?1 AND length(CAST(witness_json AS BLOB)) BETWEEN 1 AND ?2 ORDER BY completed_batches LIMIT 10001")?;
+    let mut rows = statement.query(params![
+        operation.operation_id(),
+        MAX_PSX_WITNESS_BYTES as i64
+    ])?;
+    let mut digest = psx_empty_history_digest();
+    let mut count = 0usize;
+    let mut bytes = 0u64;
+    while let Some(row) = rows.next()? {
+        operation.checkpoint()?;
+        count += 1;
+        let cursor: i64 = row.get(0)?;
+        let json: String = row.get(1)?;
+        let sha256: String = row.get(2)?;
+        bytes = bytes
+            .checked_add(json.len() as u64)
+            .ok_or_else(|| PortcoveError::verification("PS1 history byte overflow"))?;
+        if count > expected
+            || cursor != count as i64
+            || bytes > 16 * 1024 * 1024 * 1024
+            || hex::encode(Sha256::digest(json.as_bytes())) != sha256
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained compile history changed",
+            ));
+        }
+        digest = psx_extend_history_digest(&digest, count, &json)?;
+    }
+    let actual: i64 = connection.query_row(
+        "SELECT count(*) FROM managed_psx_compile_history WHERE operation_id=?1",
+        [operation.operation_id()],
+        |row| row.get(0),
+    )?;
+    if count != expected || actual != count as i64 {
+        return Err(PortcoveError::verification(
+            "PS1 retained compile history is incomplete",
+        ));
+    }
+    Ok(digest)
+}
+
 #[derive(Clone, Copy)]
 enum PsxStageTable {
     Generation,
@@ -401,7 +479,13 @@ impl OperationStore {
         witness: &crate::psx::CompiledInstall,
         operation: &OperationCoordinator,
     ) -> Result<()> {
-        self.commit_psx_stage(PsxStageTable::Compilation, journal, witness, operation)
+        self.commit_psx_stage_with_predecessor(
+            PsxStageTable::Compilation,
+            journal,
+            witness,
+            operation,
+            witness.predecessor()?,
+        )
     }
 
     fn commit_psx_stage(
@@ -411,6 +495,28 @@ impl OperationStore {
         witness: &impl crate::psx::PsxStageWitness,
         operation: &OperationCoordinator,
     ) -> Result<()> {
+        self.commit_psx_stage_with_predecessor(table, journal, witness, operation, None)
+    }
+
+    fn commit_psx_stage_with_predecessor(
+        &self,
+        table: PsxStageTable,
+        journal: &LifecycleOperation,
+        witness: &impl crate::psx::PsxStageWitness,
+        operation: &OperationCoordinator,
+        predecessor: Option<(&str, &str, usize, &str)>,
+    ) -> Result<()> {
+        if let Some((sha, json, _, _)) = predecessor {
+            if !matches!(table, PsxStageTable::Compilation)
+                || predecessor.is_some_and(|(_, _, cursor, _)| cursor == 0 || cursor > 10000)
+                || json.len() > MAX_PSX_WITNESS_BYTES
+                || hex::encode(Sha256::digest(json.as_bytes())) != sha
+            {
+                return Err(PortcoveError::verification(
+                    "PS1 compile predecessor bytes changed",
+                ));
+            }
+        }
         witness.verify(&self.library, journal, operation)?;
         let json = psx_witness_json(witness)?;
         let parent = psx_parent_json(witness)?;
@@ -422,6 +528,20 @@ impl OperationStore {
         operation.checkpoint()?;
         let mut connection = database::connect(self.library.root())?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let successor_sql = if predecessor.is_some() {
+            " AND EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=?2 AND witness_sha256=?15 AND witness_json=?16)
+              ON CONFLICT(operation_id) DO UPDATE SET witness_json=excluded.witness_json,witness_sha256=excluded.witness_sha256
+              WHERE witness_sha256=?15 AND witness_json=?16"
+        } else {
+            " AND ?15 IS NULL AND ?16 IS NULL"
+        };
+        if let Some((_, _, cursor, history_sha256)) = predecessor {
+            if psx_compile_history_digest(&transaction, operation, cursor - 1)? != history_sha256 {
+                return Err(PortcoveError::conflict(
+                    "PS1 compile history changed before advancement",
+                ));
+            }
+        }
         // The join owner has already durably recorded positive closure. Bind
         // that exact private journal while installing the witness atomically.
         let changed = transaction.execute(
@@ -438,7 +558,7 @@ impl OperationStore {
                AND (?11 IS NULL OR EXISTS(SELECT 1 FROM {}
                    WHERE operation_id=?2 AND witness_sha256=?11 AND witness_json=?12))
                AND (?13 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_generation
-                   WHERE operation_id=?2 AND witness_sha256=?13 AND witness_json=?14))", table.name(), table.parent_name()),
+                   WHERE operation_id=?2 AND witness_sha256=?13 AND witness_json=?14)){successor_sql}", table.name(), table.parent_name()),
             params![
                 json,
                 journal.id,
@@ -453,13 +573,38 @@ impl OperationStore {
                 parent.as_ref().map(|(sha, _)| *sha),
                 parent.as_ref().map(|(_, json)| json.as_str()),
                 ancestor.as_ref().map(|(sha, _)| *sha),
-                ancestor.as_ref().map(|(_, json)| json.as_str())
+                ancestor.as_ref().map(|(_, json)| json.as_str()),
+                predecessor.map(|(sha, _, _, _)| sha),
+                predecessor.map(|(_, json, _, _)| json)
             ],
         )?;
         if changed != 1 {
             return Err(PortcoveError::conflict(
                 "PS1 generation journal changed before commit",
             ));
+        }
+        if let Some((sha, json, cursor, _)) = predecessor {
+            let retained = transaction.execute(
+                "INSERT INTO managed_psx_compile_history(operation_id,completed_batches,witness_json,witness_sha256)
+                 SELECT ?1,?2,?3,?4 WHERE
+                 (SELECT coalesce(sum(length(CAST(witness_json AS BLOB))),0) FROM managed_psx_compile_history WHERE operation_id=?1)
+                   + length(CAST(?3 AS BLOB)) + ?5 <= 17179869184",
+                params![journal.id, cursor as i64, json, sha, psx_witness_json(witness)?.len() as i64],
+            )?;
+            if retained != 1 {
+                return Err(PortcoveError::state(
+                    "PS1 compile history exceeds retained evidence budget",
+                ));
+            }
+        }
+        if let Some(cursor) = witness.retained_compile_batches() {
+            if Some(psx_compile_history_digest(&transaction, operation, cursor - 1)?.as_str())
+                != witness.compile_history_identity()
+            {
+                return Err(PortcoveError::verification(
+                    "PS1 committed history differs from sealed checkpoint",
+                ));
+            }
         }
         operation.checkpoint()?;
         transaction.commit()?;
@@ -532,7 +677,7 @@ impl OperationStore {
         before_fence: impl FnOnce() -> Result<()>,
     ) -> Result<T> {
         operation.checkpoint()?;
-        let connection = database::connect(self.library.root())?;
+        let mut connection = database::connect(self.library.root())?;
         let parent_selection = if table.has_parent() {
             "p.witness_json,p.witness_sha256"
         } else {
@@ -571,15 +716,38 @@ impl OperationStore {
                 "PS1 stage retained parent changed",
             ));
         }
+        let history = witness
+            .retained_compile_batches()
+            .map(|count| {
+                let previous = count
+                    .checked_sub(1)
+                    .ok_or_else(|| PortcoveError::verification("PS1 compile cursor is zero"))?;
+                psx_compile_history_digest(&connection, operation, previous)
+            })
+            .transpose()?;
+        if history.as_deref() != witness.compile_history_identity() {
+            return Err(PortcoveError::verification(
+                "PS1 history differs from sealed checkpoint",
+            ));
+        }
         let journal = self
             .get(operation.operation_id())?
             .ok_or_else(|| PortcoveError::state("PS1 generation lifecycle owner is missing"))?;
         witness.verify(&self.library, &journal, operation)?;
         before_fence()?;
         operation.checkpoint()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(expected) = &history {
+            let count = witness.retained_compile_batches().expect("history cursor");
+            if psx_compile_history_digest(&transaction, operation, count - 1)? != *expected {
+                return Err(PortcoveError::conflict(
+                    "PS1 compile history changed during verification",
+                ));
+            }
+        }
         // One SQLite statement observes both exact witness bytes and all durable
         // journal fields together, after the potentially lengthy filesystem checks.
-        let unchanged: bool = connection.query_row(
+        let unchanged: bool = transaction.query_row(
             &format!(
                 "SELECT EXISTS(SELECT 1 FROM {} g
                 JOIN lifecycle_operations l ON l.id=g.operation_id
@@ -589,7 +757,10 @@ impl OperationStore {
                 AND EXISTS(SELECT 1 FROM library_identity WHERE singleton=1 AND id=?5)
                 AND (?6 IS NULL OR (p.witness_json=?6 AND p.witness_sha256=?7))
                 AND (?8 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_generation a
-                    WHERE a.operation_id=g.operation_id AND a.witness_sha256=?8 AND a.witness_json=?9)))",
+                    WHERE a.operation_id=g.operation_id AND a.witness_sha256=?8 AND a.witness_json=?9))
+                AND (?10 IS NULL OR (
+                    (SELECT count(*) FROM managed_psx_compile_history WHERE operation_id=g.operation_id)=?10-1
+                    AND NOT EXISTS(SELECT 1 FROM managed_psx_compile_history WHERE operation_id=g.operation_id AND completed_batches>=?10))))",
                 table.name(),
                 table.parent_name()
             ),
@@ -602,7 +773,8 @@ impl OperationStore {
                 parent_json,
                 parent_sha256,
                 ancestor.as_ref().map(|(sha, _)| *sha),
-                ancestor.as_ref().map(|(_, json)| json.as_str())
+                ancestor.as_ref().map(|(_, json)| json.as_str()),
+                witness.retained_compile_batches().map(|count| count as i64)
             ],
             |row| row.get(0),
         )?;
@@ -611,7 +783,12 @@ impl OperationStore {
                 "PS1 generation custody changed during verification",
             ));
         }
+        transaction.commit()?;
         witness.record_load(sha256);
+        witness.record_load_json(json);
+        if let Some(history) = history {
+            witness.record_compile_history(history);
+        }
         Ok(witness)
     }
 

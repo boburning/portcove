@@ -25,6 +25,9 @@ pub(super) struct CompilePlan {
 }
 
 impl CompilePlan {
+    pub(super) fn batch_count(&self) -> usize {
+        self.batches.len()
+    }
     pub(super) fn batch(&self, index: usize) -> Result<&[String]> {
         self.batches
             .get(index)

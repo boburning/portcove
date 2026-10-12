@@ -617,8 +617,15 @@ graph, retained inputs and bounded private-output transitions can yield a separa
 durable first-chunk checkpoint. The immutable configuration and generation rows
 remain retained and their exact bytes and digests are fenced at checkpoint commit
 and final load. Partial failure retains evidence without advancing a cursor or
-granting retry. Sequential later chunks and installer finalization remain pending;
-the first checkpoint proves no installed runtime or native qualification.
+granting retry. `compile_managed_install_next_batch` resumes one subsequent batch
+from a store-loaded checkpoint under the same fresh authority, request, archive
+and port-lock boundary. An exhausted plan is refused before worker dispatch or
+journal mutation. Each successor atomically compares its exact predecessor and
+appends the old witness to bounded history; an ordered digest binds historical
+bytes to the current checkpoint. History integrity and identity are fenced at
+commit and final load. Serialization cannot restore store admission. Installer
+finalization remains pending; compile checkpoints prove no installed runtime or
+native qualification.
 Failures retain data/error/closure; the fresh observation grants no compilation,
 retry, publication or native qualification. Configuration uses pinned CMake, Ninja and
 compilers with the playable no-PGO recipe and no compiler launchers; it requires

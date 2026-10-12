@@ -1137,6 +1137,10 @@ async fn curated_other_scope_cannot_transition_or_accept_another_ports_history()
         .unwrap_err();
     assert!(refusal.message.contains("authority scope"));
     assert_eq!(count(&library, "curated_transition_receipts"), 0);
+    assert_eq!(count(&library, "managed_psx_compile_history"), 0);
+    assert_eq!(count(&library, "managed_psx_compilation"), 0);
+    assert_eq!(count(&library, "managed_psx_configuration"), 0);
+    assert_eq!(count(&library, "managed_psx_generation"), 0);
     assert_eq!(count(&library, "curated_artifact_scopes"), 2);
     // The hash is globally accepted, but this port has never admitted it.
     let transition = serde_json::json!({"future_acceptance_lost":true, "artifacts":[]});
@@ -4742,6 +4746,10 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
          DROP TABLE curated_artifact_admissions;
          DROP TABLE curated_artifact_history;
          DROP TABLE curated_transition_receipts;
+         DROP TABLE managed_psx_compile_history;
+         DROP TABLE managed_psx_compilation;
+         DROP TABLE managed_psx_configuration;
+         DROP TABLE managed_psx_generation;
          DELETE FROM schema_migrations WHERE version>33;
          COMMIT;"
     ).unwrap();

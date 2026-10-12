@@ -229,6 +229,14 @@ pub(crate) trait PsxStageWitness: Serialize + serde::de::DeserializeOwned {
         Ok(None)
     }
     fn record_load(&mut self, _sha256: String) {}
+    fn retained_compile_batches(&self) -> Option<usize> {
+        None
+    }
+    fn record_compile_history(&mut self, _sha256: String) {}
+    fn compile_history_identity(&self) -> Option<&str> {
+        None
+    }
+    fn record_load_json(&mut self, _json: String) {}
 }
 
 impl PsxStageWitness for GeneratedInstallWitness {

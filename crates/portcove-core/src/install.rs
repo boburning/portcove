@@ -810,7 +810,35 @@ impl Installer {
         &self,
         request: InstallRequest,
         operation: &OperationCoordinator,
+        emit: F,
+    ) -> Result<ManagedInstallCompileProgress>
+    where
+        F: FnMut(OperationEvent),
+    {
+        self.compile_managed_install_batch(request, operation, emit, true)
+            .await
+    }
+
+    /// Continue exactly one additional batch from a store-verified private checkpoint.
+    pub async fn compile_managed_install_next_batch<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        emit: F,
+    ) -> Result<ManagedInstallCompileProgress>
+    where
+        F: FnMut(OperationEvent),
+    {
+        self.compile_managed_install_batch(request, operation, emit, false)
+            .await
+    }
+
+    async fn compile_managed_install_batch<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
         mut emit: F,
+        first: bool,
     ) -> Result<ManagedInstallCompileProgress>
     where
         F: FnMut(OperationEvent),
@@ -828,15 +856,28 @@ impl Installer {
             .await?;
         let _guard = self
             .library
-            .try_lock_port(&request.port_id, "compile-managed-first-batch")?;
+            .try_lock_port(&request.port_id, "compile-managed-batch")?;
         let store = OperationStore::new(self.library.clone());
-        if store.has_psx_compilation(operation)? {
+        if first && store.has_psx_compilation(operation)? {
             return Err(PortcoveError::conflict(
                 "PS1 first compile checkpoint already retained",
             ));
         }
-        let witness = store.psx_configuration(operation)?;
-        let artifact = witness.artifact()?;
+        enum CompileStart {
+            First(crate::psx::ConfiguredInstallWitness),
+            Next(crate::psx::CompiledInstall),
+        }
+        let witness = if first {
+            CompileStart::First(store.psx_configuration(operation)?)
+        } else {
+            let compiled = store.psx_compilation(operation)?;
+            compiled.require_next_batch()?;
+            CompileStart::Next(compiled)
+        };
+        let artifact = match &witness {
+            CompileStart::First(w) => w.artifact()?,
+            CompileStart::Next(w) => w.artifact()?,
+        };
         if artifact.asset_name != request.release.asset.name
             || !artifact
                 .sha256
@@ -847,7 +888,11 @@ impl Installer {
                 "PS1 retained artifact and live release differ",
             ));
         }
-        witness.require_request(&generation_contract(&request, &artifact)?, preparation)?;
+        let contract = generation_contract(&request, &artifact)?;
+        match &witness {
+            CompileStart::First(w) => w.require_request(&contract, preparation)?,
+            CompileStart::Next(w) => w.require_request(&contract, preparation)?,
+        };
         let record = store.get(operation.operation_id())?.ok_or_else(|| {
             PortcoveError::state("PS1 compile continuation lifecycle owner missing")
         })?;
@@ -879,24 +924,30 @@ impl Installer {
         let preparation = preparation.clone();
         self.require_acquisition(&request)?;
         operation.checkpoint()?;
-        emit(operation.message("info", "Compiling the first bounded private target batch"));
-        let result = run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
-            witness.compile_first_batch(&preparation, &checkpoint)
-        })
-        .await;
+        emit(operation.message("info", "Compiling one bounded private target batch"));
+        let result =
+            run_managed_install_worker(
+                &mut lifecycle,
+                operation,
+                move |checkpoint| match witness {
+                    CompileStart::First(w) => w.compile_first_batch(&preparation, &checkpoint),
+                    CompileStart::Next(w) => w.compile_next_batch(&preparation, &checkpoint),
+                },
+            )
+            .await;
         let observed = result.and_then(|compiled| {
             self.require_acquisition(&request)?;
             lifecycle
                 .store
                 .commit_psx_compilation(&lifecycle.record, &compiled, operation)?;
-            lifecycle.store.psx_compilation(operation)?;
-            Ok(())
+            let retained = lifecycle.store.psx_compilation(operation)?;
+            Ok(retained.completed_batches())
         });
         match observed {
-            Ok(()) => Ok(ManagedInstallCompileProgress {
+            Ok(completed_batches) => Ok(ManagedInstallCompileProgress {
                 operation_id: operation.operation_id().to_owned(),
                 port_id: request.port_id,
-                completed_batches: 1,
+                completed_batches,
             }),
             Err(error) => {
                 lifecycle.record.last_error = Some(error.message.clone());
