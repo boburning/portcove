@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+mod stage;
+
 use crate::{
     ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
     OperationResult, Platform, PortcoveError, Result, SourceRecord,
@@ -25,6 +27,23 @@ pub struct PsxManagedPreparation {
     pub runtime_source_directory: Option<PathBuf>,
     pub toolchain_root: PathBuf,
     pub executable_basename: String,
+}
+
+struct GeneratedInstall {
+    tree: stage::GeneratedTree,
+    inputs: Vec<u8>,
+    staged_bios: Option<PathBuf>,
+}
+
+fn preparation_identity(preparation: &PsxManagedPreparation) -> Result<Vec<u8>> {
+    Ok(serde_json::to_vec(&(
+        &preparation.source,
+        &preparation.bios,
+        &preparation.source_paths,
+        &preparation.runtime_source_directory,
+        &preparation.toolchain_root,
+        &preparation.executable_basename,
+    ))?)
 }
 
 struct PreparationConfiguration<'a> {
@@ -511,6 +530,16 @@ fn prepare_install_inner(
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
+    let generated = generate_install(root, preparation, operation, quiesced)?;
+    finish_generated_install(root, preparation, operation, quiesced, generated)
+}
+
+fn generate_install(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+) -> Result<GeneratedInstall> {
     operation.checkpoint()?;
     crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
     if let Some(bios) = &preparation.bios {
@@ -524,19 +553,18 @@ fn prepare_install_inner(
             "PS1 setup package is missing its fixed psxrecomp CLI contract",
         ));
     }
-    let staged_bios = preparation
-        .bios
-        .as_ref()
-        .map(|bios| {
-            let staged = staged_bios_path(root)?;
-            if crate::path::resolve_existing_ancestor(&staged)? == fs::canonicalize(&bios.path)? {
-                return Err(PortcoveError::verification(
-                    "staged PS1 BIOS aliases its original",
-                ));
-            }
-            Ok(staged)
-        })
-        .transpose()?;
+    let inputs = preparation_identity(preparation)?;
+    let staged_bios = if let Some(bios) = &preparation.bios {
+        let staged = staged_bios_path(root)?;
+        if crate::path::resolve_existing_ancestor(&staged)? == fs::canonicalize(&bios.path)? {
+            return Err(PortcoveError::verification(
+                "staged PS1 BIOS aliases its original",
+            ));
+        }
+        Some(staged)
+    } else {
+        None
+    };
     let python = toolchain_python(&preparation.toolchain_root)?;
     operation.checkpoint()?;
     let temporary = retained_source_workspace(root)?;
@@ -568,6 +596,36 @@ fn prepare_install_inner(
         verify_raw_bios(bios, &|| operation.checkpoint())?;
     }
     rewrite_game_discs(&config, configuration.source_paths)?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    Ok(GeneratedInstall {
+        tree: stage::GeneratedTree::capture(root, operation, *quiesced)?,
+        inputs,
+        staged_bios,
+    })
+}
+
+fn finish_generated_install(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    generated: GeneratedInstall,
+) -> Result<()> {
+    if generated.inputs != preparation_identity(preparation)? {
+        return Err(PortcoveError::verification(
+            "PS1 preparation inputs changed before continuation",
+        ));
+    }
+    generated.tree.verify(root, operation)?;
+    crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+    if let Some(bios) = &preparation.bios {
+        verify_raw_bios(bios, &|| operation.checkpoint())?;
+    }
+    let configuration = PreparationConfiguration::from_preparation(preparation)?;
+    let config = root.join("game.toml");
+    let cli = root.join("psxrecomp").join("psxrecomp_cli.py");
+    let python = toolchain_python(&preparation.toolchain_root)?;
+    let staged_bios = generated.staged_bios;
     let build_dir = root.join("build-portcove");
     run_cli(
         &python,
@@ -1941,6 +1999,35 @@ mod tests {
             crate::adapter::source_storage_identity(&preparation.source.path).unwrap(),
             identity
         );
+    }
+
+    #[test]
+    fn generated_stage_refuses_another_valid_source_before_compilation() {
+        let root = tempfile::tempdir().unwrap();
+        let original = preparation_input_fixture(root.path(), false);
+        let other_root = tempfile::tempdir().unwrap();
+        let other = preparation_input_fixture(other_root.path(), false);
+        let payload = root.path().join("owned-payload");
+        fs::create_dir(&payload).unwrap();
+        fs::write(payload.join("generated.c"), "inert generated fixture").unwrap();
+        let operation = OperationCoordinator::new("owned-generation", None);
+        // Inert stage fixture, not native generation evidence.
+        let generated = GeneratedInstall {
+            tree: stage::GeneratedTree::capture(&payload, &operation, true).unwrap(),
+            inputs: preparation_identity(&original).unwrap(),
+            staged_bios: None,
+        };
+        let mut quiesced = true;
+        let error =
+            finish_generated_install(&payload, &other, &operation, &mut quiesced, generated)
+                .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("inputs changed"));
+        assert!(quiesced);
+        assert!(!payload.join("build-portcove").exists());
+        assert!(!payload.join(".portcove-managed.json").exists());
+        crate::adapter::verify_source_storage_identity(&original.source, "original").unwrap();
+        crate::adapter::verify_source_storage_identity(&other.source, "other").unwrap();
     }
 
     #[test]

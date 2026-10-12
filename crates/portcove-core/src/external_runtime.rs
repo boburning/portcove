@@ -42,10 +42,19 @@ struct FileSnapshot {
     changed_at: (i64, i64),
 }
 
-struct InspectedFile {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InspectedFile {
     path: PathBuf,
     snapshot: FileSnapshot,
-    sha256: String,
+    pub(crate) sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct InspectedDirectory {
+    identity: ObjectIdentity,
+    modified: SystemTime,
+    #[cfg(unix)]
+    changed_at: (i64, i64),
 }
 
 enum InspectionPass<'a> {
@@ -344,6 +353,49 @@ fn hash_bounded(
         path: path.to_owned(),
         snapshot,
         sha256: hex::encode(digest.finalize()),
+    })
+}
+
+/// Reuse object-bound, no-follow hashing for other Core-owned private trees.
+/// This supplies read evidence only; it grants no mutation or resume authority.
+pub(crate) fn hash_stable_file(
+    path: &Path,
+    expected_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<InspectedFile> {
+    hash_bounded(path, expected_size, checkpoint)
+}
+
+pub(crate) fn verify_inspected_file(file: &InspectedFile) -> Result<()> {
+    if file_snapshot(&open_object(&file.path, false)?)? != file.snapshot {
+        return Err(changed_during_inspection());
+    }
+    Ok(())
+}
+
+pub(crate) fn inspect_directory(path: &Path) -> Result<InspectedDirectory> {
+    let reader = open_object(path, true)?;
+    let before = directory_snapshot(&reader)?;
+    if directory_snapshot(&reader)? != before
+        || directory_snapshot(&open_object(path, true)?)? != before
+    {
+        return Err(changed_during_inspection());
+    }
+    Ok(before)
+}
+
+fn directory_snapshot(reader: &fs::File) -> Result<InspectedDirectory> {
+    let metadata = reader.metadata()?;
+    if !metadata.is_dir() {
+        return Err(changed_during_inspection());
+    }
+    #[cfg(unix)]
+    use std::os::unix::fs::MetadataExt;
+    Ok(InspectedDirectory {
+        identity: object_identity(reader)?,
+        modified: metadata.modified()?,
+        #[cfg(unix)]
+        changed_at: (metadata.ctime(), metadata.ctime_nsec()),
     })
 }
 
