@@ -79,6 +79,7 @@ pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, Stri
         "process_tree_api_error",
         "process_tree_retained_members",
         "process_tree_membership_complete",
+        "process_tree_membership_pending",
         "process_tree_membership_assigned",
         "process_tree_membership_returned",
         "process_tree_membership_buffer_bytes",

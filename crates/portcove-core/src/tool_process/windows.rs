@@ -75,6 +75,7 @@ struct Proof {
     membership_snapshot: Option<MembershipSnapshotCounts>,
     membership_attempts: [Option<MembershipQueryObservation>; 3],
     membership_context: Option<MembershipQueryContext>,
+    membership_pending: bool,
     retained: usize,
     identities: Vec<Identity>,
     #[cfg(test)]
@@ -90,6 +91,13 @@ struct Proof {
 }
 
 impl Proof {
+    fn observe_membership_episode(&mut self, episode: &MembershipQueryEpisode) {
+        self.membership_pending = episode.pending();
+        if self.first_failure.is_none() {
+            self.membership_attempts = episode.attempts;
+        }
+    }
+
     fn record_membership_failure(
         &mut self,
         reason: &'static str,
@@ -120,6 +128,10 @@ impl Proof {
 
     fn finish(&mut self, complete: bool, now: Instant) {
         self.latch_deadline(now);
+        if self.membership_pending {
+            self.quiesced = false;
+            return;
+        }
         self.quiesced = complete && !self.deadline_exhausted && self.first_failure.is_none();
         self.done = true;
     }
@@ -273,7 +285,11 @@ fn with_control_proof(control: &Control, mut error: PortcoveError) -> PortcoveEr
         .detail("process_tree_retained_members", proof.retained.to_string())
         .detail(
             "process_tree_membership_complete",
-            proof.first_failure.is_none().to_string(),
+            (proof.first_failure.is_none() && !proof.membership_pending).to_string(),
+        )
+        .detail(
+            "process_tree_membership_pending",
+            proof.membership_pending.to_string(),
         )
         .detail(
             "process_tree_deadline_exhausted",
@@ -1186,17 +1202,29 @@ impl Controller {
         Ok(key)
     }
 
-    fn observe_non_debug_members(&mut self, mut context: MembershipQueryContext) {
+    fn observe_non_debug_members(
+        &mut self,
+        episode: &mut MembershipQueryEpisode,
+        mut context: MembershipQueryContext,
+    ) {
         // Descendants that themselves become debuggers do not inherit our debug
         // port. Retain any observed exact Job identity in the SAME store. Missing
         // short lifetimes still fail the terminal total=retained equality.
-        let ids = match membership_snapshot(self.job.as_raw_handle()) {
-            Ok(ids) => ids,
+        let ids = match episode.poll(|| membership_snapshot_once(self.job.as_raw_handle())) {
+            Ok(Some(ids)) => {
+                self.control.lock().observe_membership_episode(episode);
+                ids
+            }
+            Ok(None) => {
+                self.control.lock().observe_membership_episode(episode);
+                return;
+            }
             Err((reason, code, counts, attempts)) => {
                 context.terminating = self.terminating;
                 context.retained_members = self.slots();
                 context.live_debug_members = self.live_debug_members.len();
                 let mut proof = self.control.lock();
+                proof.observe_membership_episode(episode);
                 if proof.first_failure.is_none() {
                     proof.membership_context = Some(context);
                 }
@@ -1351,6 +1379,7 @@ impl Controller {
 
     fn run(&mut self) {
         let mut context = MembershipQueryContext::default();
+        let mut membership_episode = MembershipQueryEpisode::default();
         loop {
             self.terminate_if_requested();
             let mut event = DEBUG_EVENT::default();
@@ -1387,7 +1416,9 @@ impl Controller {
                 }
             }
             if self.job_assigned {
-                self.observe_non_debug_members(context);
+                // One fresh read per existing event-loop turn. A partial episode
+                // retains its attempt budget while CREATE/EXIT events continue.
+                self.observe_non_debug_members(&mut membership_episode, context);
             }
             if let Some(root) = self.root {
                 let handle = self.members[&root].handle.as_raw_handle();
@@ -1444,13 +1475,11 @@ impl Controller {
                 self.control.changed.notify_all();
                 return;
             }
-            if all_signaled
-                && self.live_debug_members.is_empty()
-                && self
-                    .control
-                    .lock()
-                    .accounting
-                    .is_some_and(|(active, _)| active == 0)
+            let membership_settled_and_inactive = {
+                let proof = self.control.lock();
+                !proof.membership_pending && proof.accounting.is_some_and(|(active, _)| active == 0)
+            };
+            if all_signaled && self.live_debug_members.is_empty() && membership_settled_and_inactive
             {
                 let complete = self
                     .control
@@ -1638,30 +1667,71 @@ fn parse_membership_snapshot(
     complete_ids().map(MembershipSnapshotAttempt::Complete)
 }
 
-fn collect_membership_snapshot(
-    mut query: impl FnMut() -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure>,
-) -> Result<Vec<u32>, MembershipSnapshotFailure> {
-    let mut first_partial = None;
-    let mut attempts = [None; 3];
-    // Same fixed buffer on each read, no sleep or deadline reset. Never union
-    // partial observations. Final accounting and retained handles remain gates.
-    for index in 0..3 {
-        let attempt = match query() {
-            Ok(attempt) => attempt,
-            Err((reason, code, counts, _)) => {
-                attempts[index] = counts.map(MembershipSnapshotCounts::observation);
-                return Err((reason, code, counts, attempts));
+#[derive(Default)]
+struct MembershipQueryEpisode {
+    first_partial: Option<MembershipSnapshotCounts>,
+    attempts: [Option<MembershipQueryObservation>; 3],
+    queries: usize,
+    failure: Option<MembershipSnapshotFailure>,
+}
+
+impl MembershipQueryEpisode {
+    fn pending(&self) -> bool {
+        self.queries != 0 && self.failure.is_none()
+    }
+
+    fn poll(
+        &mut self,
+        query: impl FnOnce() -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure>,
+    ) -> Result<Option<Vec<u32>>, MembershipSnapshotFailure> {
+        if let Some(failure) = self.failure {
+            return Err(failure);
+        }
+        let index = self.queries;
+        self.queries += 1;
+        match query() {
+            Ok(MembershipSnapshotAttempt::Complete(ids)) => {
+                // Only one fresh complete snapshot closes an unresolved episode.
+                // Partial observations are never combined or decoded as IDs.
+                *self = Self::default();
+                Ok(Some(ids))
             }
-        };
-        match attempt {
-            MembershipSnapshotAttempt::Complete(ids) => return Ok(ids),
-            MembershipSnapshotAttempt::Partial(counts) => {
-                attempts[index] = Some(counts.observation());
-                first_partial.get_or_insert(counts);
+            Ok(MembershipSnapshotAttempt::Partial(counts)) => {
+                self.attempts[index] = Some(counts.observation());
+                self.first_partial.get_or_insert(counts);
+                if self.queries < 3 {
+                    return Ok(None);
+                }
+                let failure = (
+                    "membership_capacity",
+                    None,
+                    self.first_partial,
+                    self.attempts,
+                );
+                self.failure = Some(failure);
+                Err(failure)
+            }
+            Err((reason, code, counts, _)) => {
+                self.attempts[index] = counts.map(MembershipSnapshotCounts::observation);
+                let failure = (reason, code, counts, self.attempts);
+                self.failure = Some(failure);
+                Err(failure)
             }
         }
     }
-    Err(("membership_capacity", None, first_partial, attempts))
+}
+
+#[cfg(test)]
+fn collect_membership_snapshot(
+    mut query: impl FnMut() -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure>,
+) -> Result<Vec<u32>, MembershipSnapshotFailure> {
+    let mut episode = MembershipQueryEpisode::default();
+    for _ in 0..3 {
+        if let Some(ids) = episode.poll(&mut query)? {
+            return Ok(ids);
+        }
+    }
+    unreachable!("third partial must refuse without a fourth query")
 }
 
 fn require_membership_return_length(
@@ -1684,6 +1754,7 @@ fn require_membership_snapshot_counts(
     Ok(())
 }
 
+#[cfg(test)]
 fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, MembershipSnapshotFailure> {
     collect_membership_snapshot(|| membership_snapshot_once(job))
 }
@@ -1738,6 +1809,132 @@ fn membership_snapshot_once(
 #[cfg(test)]
 mod membership_snapshot_diagnostic_tests {
     use super::*;
+
+    #[test]
+    fn membership_episode_queries_once_per_turn_and_only_complete_ids_close_pending() {
+        let mut episode = MembershipQueryEpisode::default();
+        let calls = std::cell::Cell::new(0);
+        let first = episode
+            .poll(|| {
+                calls.set(calls.get() + 1);
+                parse_membership_snapshot(counts(2, 1), || panic!("partial identifiers"))
+            })
+            .unwrap();
+        assert!(first.is_none());
+        assert_eq!(calls.get(), 1);
+        assert!(episode.pending());
+        let mut proof = Proof::default();
+        proof.observe_membership_episode(&episode);
+        assert!(proof.membership_pending);
+        let second = episode
+            .poll(|| {
+                calls.set(calls.get() + 1);
+                parse_membership_snapshot(counts(1, 1), || Ok(vec![42]))
+            })
+            .unwrap();
+        assert_eq!(calls.get(), 2);
+        assert_eq!(second.unwrap(), vec![42]);
+        assert!(!episode.pending());
+        proof.observe_membership_episode(&episode);
+        proof.finish(true, Instant::now());
+        assert!(proof.done && proof.quiesced);
+    }
+
+    #[test]
+    fn membership_episode_three_partial_turns_latch_refusal_without_fourth_query() {
+        let mut episode = MembershipQueryEpisode::default();
+        for turn in 1..=2 {
+            assert!(
+                episode
+                    .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+                    .unwrap()
+                    .is_none()
+            );
+            assert_eq!(episode.queries, turn);
+            assert!(episode.pending());
+        }
+        let error = episode
+            .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+            .unwrap_err();
+        assert_eq!(error.0, "membership_capacity");
+        assert_eq!(episode.queries, 3);
+        assert!(!episode.pending());
+        let repeated = episode
+            .poll(|| panic!("fourth query forbidden"))
+            .unwrap_err();
+        assert_eq!(repeated.0, error.0);
+        assert_eq!(episode.queries, 3);
+        assert!(repeated.3.iter().all(Option::is_some));
+    }
+
+    #[test]
+    fn membership_episode_root_exit_and_complete_accounting_cannot_finish_while_pending() {
+        let mut episode = MembershipQueryEpisode::default();
+        assert!(
+            episode
+                .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+                .unwrap()
+                .is_none()
+        );
+        let control = Control::default();
+        {
+            let mut proof = control.lock();
+            proof.observe_membership_episode(&episode);
+            proof.root_status = Some(ExitStatus::from_raw(0));
+            proof.accounting = Some((0, 3));
+            proof.retained = 3;
+            proof.all_retained_signaled = Some(true);
+            proof.finish(true, Instant::now());
+            assert!(!proof.done && !proof.quiesced);
+        }
+        let copied = crate::tool_process::copy_proof_details(&with_control_proof(
+            &control,
+            PortcoveError::state("inert root exit while pending"),
+        ));
+        assert_eq!(copied["process_tree_membership_complete"], "false");
+        assert_eq!(copied["process_tree_membership_pending"], "true");
+    }
+
+    #[test]
+    fn membership_episode_pending_cancellation_preserves_single_deadline_and_refuses() {
+        let mut episode = MembershipQueryEpisode::default();
+        episode
+            .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+            .unwrap();
+        let control = Control::default();
+        control.lock().observe_membership_episode(&episode);
+        control.request_stop();
+        let deadline = control.lock().deadline.unwrap();
+        control.request_stop();
+        assert_eq!(control.lock().deadline.unwrap(), deadline);
+        assert!(control.stop.load(Ordering::Acquire));
+        control
+            .lock()
+            .finish(true, deadline + Duration::from_millis(1));
+        let proof = control.lock();
+        assert!(!proof.quiesced && proof.deadline_exhausted && !proof.done);
+        assert_eq!(proof.first_failure, Some(("closure_deadline", None)));
+        assert!(proof.membership_pending);
+    }
+
+    #[test]
+    fn membership_episode_complete_read_does_not_override_sticky_prior_failure() {
+        let mut episode = MembershipQueryEpisode::default();
+        episode
+            .poll(|| parse_membership_snapshot(counts(2, 1), || panic!("partial IDs")))
+            .unwrap();
+        let mut proof = Proof::default();
+        proof.first_failure = Some(("creation_capture", None));
+        proof.observe_membership_episode(&episode);
+        episode
+            .poll(|| parse_membership_snapshot(counts(1, 1), || Ok(vec![42])))
+            .unwrap();
+        proof.observe_membership_episode(&episode);
+        proof.finish(true, Instant::now());
+        assert_eq!(proof.first_failure, Some(("creation_capture", None)));
+        assert!(proof.done && !proof.quiesced);
+        assert!(!proof.membership_pending);
+    }
 
     #[test]
     fn membership_snapshot_returned_lengths_refuse_before_identifier_decode() {
