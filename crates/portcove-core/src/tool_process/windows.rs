@@ -311,6 +311,10 @@ pub(super) fn spawn_with_occupied_slots(
 #[derive(Default, Clone)]
 struct TestOptions {
     #[cfg(test)]
+    root_failure: Option<RootFailure>,
+    #[cfg(test)]
+    root_observation: Option<Arc<RefusedMember>>,
+    #[cfg(test)]
     reserved_slots: usize,
     #[cfg(test)]
     fail_capture: bool,
@@ -320,6 +324,14 @@ struct TestOptions {
     pending_creation: Option<Arc<PendingCreation>>,
     #[cfg(test)]
     exception_trace: Option<Arc<Mutex<Vec<ExceptionObservation>>>>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RootFailure {
+    Identity,
+    Assignment,
+    Resume,
 }
 
 #[cfg(test)]
@@ -846,7 +858,23 @@ impl Controller {
             #[cfg(test)]
             reserved: Vec::new(),
         };
-        let root_identity = identity(root_handle.as_raw_handle());
+        #[cfg(test)]
+        if let Some(observation) = &controller.options.root_observation {
+            // Independently retain the real suspended root for fixture closure.
+            // This handle and metadata never repair Core's injected failure.
+            *observation.member.lock().unwrap() = Some((
+                identity(root_handle.as_raw_handle()).expect("fixture root identity"),
+                duplicate(root_handle.as_raw_handle()).expect("fixture root handle"),
+            ));
+        }
+        let identity_handle = root_handle.as_raw_handle();
+        #[cfg(test)]
+        let identity_handle = if controller.options.root_failure == Some(RootFailure::Identity) {
+            std::ptr::null_mut()
+        } else {
+            identity_handle
+        };
+        let root_identity = identity(identity_handle);
         if let Ok(root) = root_identity {
             controller.root = Some(root);
             controller.members.insert(
@@ -883,9 +911,16 @@ impl Controller {
             controller.fail("root_identity", Some(unsafe { GetLastError() }));
         }
         let root = controller.root.expect("owned root retained");
+        let assignment_job = controller.job.as_raw_handle();
+        #[cfg(test)]
+        let assignment_job = if controller.options.root_failure == Some(RootFailure::Assignment) {
+            std::ptr::null_mut()
+        } else {
+            assignment_job
+        };
         if unsafe {
             AssignProcessToJobObject(
-                controller.job.as_raw_handle(),
+                assignment_job,
                 controller.members[&root].handle.as_raw_handle(),
             )
         } == 0
@@ -909,9 +944,14 @@ impl Controller {
             controller.fail("creation_cancelled", None);
         }
         if controller.control.lock().first_failure.is_none() {
-            let previous = unsafe {
-                ResumeThread(controller.primary_thread.as_ref().unwrap().as_raw_handle())
+            let resume_thread = controller.primary_thread.as_ref().unwrap().as_raw_handle();
+            #[cfg(test)]
+            let resume_thread = if controller.options.root_failure == Some(RootFailure::Resume) {
+                std::ptr::null_mut()
+            } else {
+                resume_thread
             };
+            let previous = unsafe { ResumeThread(resume_thread) };
             if previous != 1 {
                 controller.fail(
                     "owned_primary_resume",
@@ -1457,6 +1497,76 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
 mod native_control_tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    #[ignore = "requires separately admitted prepared root-failure packet"]
+    fn suspended_root_api_refusals_preserve_failed_custody() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        for (fault, reason) in [
+            (RootFailure::Identity, "root_identity"),
+            (RootFailure::Assignment, "job_assignment"),
+            (RootFailure::Resume, "owned_primary_resume"),
+        ] {
+            let working = tempfile::tempdir().unwrap();
+            let output = working.path().join("orphan-output");
+            let mut spec = ChildProcessPolicy::native_tool_spec(
+                ChildProcessClass::UpstreamSetup, &program,
+            ).unwrap();
+            spec.args(["--setup-tree", &output.display().to_string(), "observed-wait"])
+                .current_dir(working.path());
+            let observed = Arc::new(RefusedMember::default());
+            let failure = match spawn_with_options(&spec, TestOptions {
+                root_failure: Some(fault),
+                root_observation: Some(observed.clone()),
+                ..Default::default()
+            }) {
+                Err(failure) => failure,
+                Ok((mut child, group)) => {
+                    let _ = group.terminate_and_wait(&mut child);
+                    panic!("injected root API refusal unexpectedly launched");
+                }
+            };
+            let proof = crate::tool_process::copy_proof_details(&failure.error);
+            let actual = observed.member.lock().unwrap().take();
+            let observation = actual.as_ref().map(|(identity, handle)| serde_json::json!({
+                "pid":identity.pid, "created_filetime":identity.created.to_string(),
+                "wait_result":unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) },
+            }));
+            eprintln!("native_root_refusal_proof:{}", serde_json::json!({
+                "fault":format!("{fault:?}"), "quiesced":failure.quiesced,
+                "proof":proof, "observed_root":observation, "orphan_output":output.exists(),
+                "injection":"one actual Win32 call with a null handle; real root remains suspended",
+            }));
+            assert!(actual.is_some());
+            assert_eq!(observation.as_ref().unwrap()["wait_result"], WAIT_OBJECT_0);
+            assert!(!failure.quiesced);
+            assert_eq!(proof["process_tree_first_failure"], reason);
+            assert_eq!(proof["process_tree_all_retained_signaled"], "true");
+            assert_eq!(proof["process_tree_deadline_exhausted"], "false");
+            let identities: Vec<serde_json::Value> =
+                serde_json::from_str(&proof["process_tree_identities"]).unwrap();
+            let (actual_identity, _) = actual.as_ref().unwrap();
+            assert!(identities.iter().all(|identity| identity["pid"] == actual_identity.pid));
+            let retained: usize = proof["process_tree_retained_members"].parse().unwrap();
+            assert_eq!(retained, identities.len());
+            if fault == RootFailure::Identity {
+                // Failed root metadata remains zero. A real CREATE event may
+                // retain a second handle with the actual FILETIME; neither the
+                // zero entry nor these two handles establishes two lifetimes.
+                assert!((1..=2).contains(&retained));
+                assert_eq!(identities.iter().filter(|identity|
+                    identity["created_filetime"] == "0").count(), 1);
+                assert!(identities.iter().all(|identity|
+                    identity["created_filetime"] == "0"
+                    || identity["created_filetime"] == actual_identity.created.to_string()));
+            } else {
+                assert_eq!(retained, 1);
+                assert_eq!(identities[0]["created_filetime"], actual_identity.created.to_string());
+            }
+            assert!(!output.exists(), "suspended root must not execute user code");
+        }
+    }
 
     #[test]
     #[ignore = "requires separately admitted prepared first-party DLL packet"]
