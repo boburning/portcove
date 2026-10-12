@@ -64,6 +64,10 @@ impl InspectedFile {
     pub(crate) fn size(&self) -> u64 {
         self.snapshot.size
     }
+
+    pub(crate) fn modified_after(&self, cutoff: SystemTime) -> bool {
+        self.snapshot.modified > cutoff
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -42,8 +42,21 @@ impl GeneratedTree {
     ) -> Result<Self> {
         let cutoff = SystemTime::now();
         let mut tree = Self::capture(root, operation, quiesced)?;
+        // The completed capture already hashes every object and fences every
+        // directory and name. With no timestamp mutation, it is the ordinary
+        // capture receipt; a second identical inventory adds no transition.
+        let needs_normalization = tree
+            .entries
+            .values()
+            .any(|entry| matches!(entry, Entry::File(file) if file.modified_after(cutoff)));
+        if !needs_normalization {
+            operation.checkpoint()?;
+            return Ok(tree);
+        }
         for entry in tree.entries.values_mut() {
-            if let Entry::File(file) = entry {
+            if let Entry::File(file) = entry
+                && file.modified_after(cutoff)
+            {
                 *file = crate::external_runtime::normalize_generated_mtime(file, cutoff, &|| {
                     operation.checkpoint()
                 })?;
@@ -509,6 +522,47 @@ fn verify_inventory(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn generation_timestamp_normalization_without_mutation_keeps_full_capture_fence() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("generated.c");
+        fs::write(&path, "original").unwrap();
+        let past = SystemTime::now() - std::time::Duration::from_secs(60);
+        fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(past))
+            .unwrap();
+        let operation = OperationCoordinator::new("normalize-unmodified-generation", None);
+        assert!(
+            GeneratedTree::capture_normalized_generation(root.path(), &operation, false).is_err()
+        );
+        let tree =
+            GeneratedTree::capture_normalized_generation(root.path(), &operation, true).unwrap();
+        assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), past);
+        let output = super::super::qualification_trace::qualification_psx_preparation_diagnostics(
+            operation.operation_id(),
+        );
+        let records = output["records"].as_array().unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0]["completed"], true);
+        assert_eq!(records[0]["files_hashed"], 1);
+        assert_eq!(records[0]["bytes_hashed"], 8);
+        assert!(
+            records[0]["marks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|mark| { mark["phase"] == "final_fence" })
+        );
+        // Retaining the initial receipt cannot turn it into future authority:
+        // even same-size content drift is refused at continuation.
+        fs::write(&path, "modified").unwrap();
+        assert!(tree.verify(root.path(), &operation).is_err());
+    }
 
     #[test]
     fn generation_timestamp_normalization_requires_closure_and_preserves_inputs() {
