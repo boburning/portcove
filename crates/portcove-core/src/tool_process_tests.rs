@@ -684,6 +684,113 @@ fn windows_creation_capture_continues_while_the_caller_checkpoint_is_blocked() {
 
 #[cfg(windows)]
 #[test]
+#[ignore = "owned different-image child selected explicitly by the blocked-caller control"]
+fn different_image_fixture_child() {
+    assert!(Path::new("different-image-admitted").is_file());
+    fs::write("different-image-pid", std::process::id().to_string()).unwrap();
+    fs::write(
+        "different-image-executable",
+        std::env::current_exe().unwrap().display().to_string(),
+    )
+    .unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_different_image_child_exits_while_the_caller_checkpoint_is_blocked() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    let other_image = std::env::current_exe().unwrap();
+    assert_ne!(program, other_image);
+    let working = tempfile::tempdir().unwrap();
+    fs::write(
+        working.path().join("different-image-admitted"),
+        b"owned control",
+    )
+    .unwrap();
+    let mut confirmed = false;
+    let overall_deadline = Instant::now() + Duration::from_secs(8);
+    let result = run_setup(
+        &program,
+        &[
+            "--setup-unobserved-image".into(),
+            other_image.display().to_string(),
+        ],
+        &working.path().join("owned.iso"),
+        working.path(),
+        &Default::default(),
+        &|| {
+            if Instant::now() >= overall_deadline {
+                return Err(PortcoveError::state("different-image control deadline"));
+            }
+            if working.path().join("leader-ready").is_file() {
+                fs::write(working.path().join("spawn-child"), b"spawn")?;
+                let deadline = overall_deadline.min(Instant::now() + Duration::from_secs(5));
+                while !working.path().join("child-finished").is_file() {
+                    if Instant::now() >= deadline {
+                        return Err(PortcoveError::state(
+                            "owned different-image child did not finish",
+                        ));
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+            }
+            Ok(())
+        },
+        ToolProcessObserver {
+            diagnostics: None,
+            quiesced: Some(&mut || {
+                confirmed = true;
+                Ok(())
+            }),
+        },
+    );
+    let proof = match &result {
+        Ok(output) => output.process_tree_proof.clone(),
+        Err(error) => copy_proof_details(error),
+    };
+    eprintln!(
+        "native_different_image_proof:{}",
+        serde_json::json!({"quiesced":confirmed,"proof":proof})
+    );
+    let output = result.expect("different-image creation remains captured while caller blocks");
+    assert!(output.status.success());
+    assert!(confirmed);
+    assert_eq!(output.process_tree_proof["process_tree_active"], "0");
+    assert_eq!(output.process_tree_proof["process_tree_total"], "2");
+    assert_eq!(
+        output.process_tree_proof["process_tree_retained_members"],
+        "2"
+    );
+    assert_eq!(
+        output.process_tree_proof["process_tree_all_retained_signaled"],
+        "true"
+    );
+    assert!(
+        !output
+            .process_tree_proof
+            .contains_key("process_tree_first_failure")
+    );
+    let identities: Vec<serde_json::Value> =
+        serde_json::from_str(&output.process_tree_proof["process_tree_identities"]).unwrap();
+    let child_pid: u32 = fs::read_to_string(working.path().join("different-image-pid"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        identities
+            .iter()
+            .any(|identity| identity["pid"] == child_pid)
+    );
+    assert_eq!(
+        fs::read_to_string(working.path().join("different-image-executable")).unwrap(),
+        other_image.display().to_string()
+    );
+    assert!(working.path().join("child-finished").is_file());
+}
+
+#[cfg(windows)]
+#[test]
 fn windows_retained_handle_capacity_refuses_one_more_member_without_cleanup_proof() {
     use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
     use windows_sys::Win32::{

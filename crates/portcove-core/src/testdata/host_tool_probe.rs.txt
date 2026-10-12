@@ -133,15 +133,26 @@ fn main() {
                 thread::sleep(Duration::from_secs(8));
             }
         }
-        Some("--setup-unobserved-child") => {
+        Some("--setup-unobserved-child" | "--setup-unobserved-image") => {
             fs::write("leader-ready", b"ready").unwrap();
             let deadline = std::time::Instant::now() + Duration::from_secs(5);
             while !std::path::Path::new("spawn-child").is_file() {
                 if std::time::Instant::now() >= deadline { std::process::exit(9); }
                 thread::sleep(Duration::from_millis(10));
             }
-            let status = Command::new(env::current_exe().unwrap())
-                .arg("--success").status().unwrap();
+            let mut child = if args[0] == "--setup-unobserved-image" {
+                assert_eq!(args.len(), 2);
+                let image = std::path::Path::new(&args[1]);
+                assert!(image.is_absolute() && image.is_file());
+                let mut command = Command::new(image);
+                command.args(["tool_process::tests::different_image_fixture_child", "--exact", "--ignored", "--test-threads=1"]);
+                command
+            } else {
+                let mut command = Command::new(env::current_exe().unwrap());
+                command.arg("--success");
+                command
+            };
+            let status = child.status().unwrap();
             assert!(status.success());
             fs::write("child-finished", b"exited before the next membership snapshot").unwrap();
         }
