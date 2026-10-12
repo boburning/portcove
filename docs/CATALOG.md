@@ -578,6 +578,23 @@ contracts refuse rather than retrying with weaker arguments. This is builder
 acquisition/environment policy, not title-native qualification or a general OS
 sandbox. Retained workspaces and existing cancellation/closure guards still apply.
 
+Core's staged managed PS1 API can retain generation and configuration separately
+without publishing an installation. `generate_managed_install` returns a private
+operation identity; `configure_managed_install` resumes that same identity with
+an unchanged retained request, freshly checked acquisition authority and an owned
+port lock. It joins the cancellable configure worker and durably records process
+closure before committing a separate configuration witness. The original
+generation witness remains retained. Configuration uses pinned CMake, Ninja and
+compilers with the playable no-PGO recipe and no compiler launchers; it requires
+a fresh private build directory. Only the private build and builder-environment
+subtrees may change. Original generated inputs, source/BIOS, toolchain and
+normalized disc remain bound. Loading either stage checks bounded witness bytes,
+library/journal custody, exact parent evidence and complete file inventories,
+then fences the durable state again. A typed partial result proves neither
+publication nor native title qualification. Failed configure data and closure
+evidence are retained; this API grants no automatic retry or deletion. Compile
+continuation and final installation still require their own successful stages.
+
 Managed PS1 ports pass their reviewed runtime configuration with `--game` and
 an explicit `--memcard-dir` inside the managed runtime's `saves` directory.
 This applies both to referenced discs and to materialized raw disc sets. It

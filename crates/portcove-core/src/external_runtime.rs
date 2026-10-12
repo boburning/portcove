@@ -51,6 +51,12 @@ pub(crate) struct InspectedFile {
     pub(crate) sha256: String,
 }
 
+impl InspectedFile {
+    pub(crate) fn size(&self) -> u64 {
+        self.snapshot.size
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct InspectedDirectory {

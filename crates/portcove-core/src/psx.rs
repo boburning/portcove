@@ -45,7 +45,6 @@ pub(crate) struct GeneratedInstall {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ConfiguredInstall {
-    generated: GeneratedInstall,
     tree: stage::GeneratedTree,
     arguments: Vec<String>,
 }
@@ -54,7 +53,7 @@ pub(crate) fn configure_install_stage(
     root: &Path,
     preparation: &PsxManagedPreparation,
     operation: &OperationCoordinator,
-    generated: GeneratedInstall,
+    generated: &GeneratedInstall,
 ) -> (Result<ConfiguredInstall>, bool) {
     let mut quiesced = true;
     let result = configure_install(root, preparation, operation, &mut quiesced, generated);
@@ -66,7 +65,7 @@ fn configure_install(
     preparation: &PsxManagedPreparation,
     operation: &OperationCoordinator,
     quiesced: &mut bool,
-    generated: GeneratedInstall,
+    generated: &GeneratedInstall,
 ) -> Result<ConfiguredInstall> {
     if generated.inputs != preparation_identity(preparation)? {
         return Err(PortcoveError::verification("PS1 configure inputs changed"));
@@ -123,11 +122,7 @@ fn configure_install(
     let tree = generated
         .tree
         .configured_transition(root, operation, *quiesced)?;
-    Ok(ConfiguredInstall {
-        generated,
-        tree,
-        arguments,
-    })
+    Ok(ConfiguredInstall { tree, arguments })
 }
 
 fn configure_arguments(root: &Path, build: &Path, toolchain: &Path) -> Result<Vec<String>> {
@@ -193,13 +188,104 @@ pub(crate) struct GeneratedInstallWitness {
     created_at: i64,
     contract: serde_json::Value,
     generated: GeneratedInstall,
+    #[serde(skip)]
+    persisted_sha256: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ConfiguredInstallWitness {
+    generation: GeneratedInstallWitness,
+    generation_sha256: String,
+    configured: ConfiguredInstall,
+}
+
+/// Private store interface; deserialization alone never admits a stage.
+pub(crate) trait PsxStageWitness: Serialize + serde::de::DeserializeOwned {
+    fn library_id(&self) -> &str;
+    fn verify(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()>;
+    fn parent(&self) -> Option<(&str, &GeneratedInstallWitness)> {
+        None
+    }
+    fn record_load(&mut self, _sha256: String) {}
+}
+
+impl PsxStageWitness for GeneratedInstallWitness {
+    fn library_id(&self) -> &str {
+        &self.library_id
+    }
+    fn verify(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        GeneratedInstallWitness::verify(self, library, journal, operation)
+    }
+    fn record_load(&mut self, sha256: String) {
+        self.persisted_sha256 = Some(sha256);
+    }
+}
+
+impl PsxStageWitness for ConfiguredInstallWitness {
+    fn library_id(&self) -> &str {
+        &self.generation.library_id
+    }
+    fn parent(&self) -> Option<(&str, &GeneratedInstallWitness)> {
+        Some((&self.generation_sha256, &self.generation))
+    }
+    fn verify(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.generation.verify_inputs(library, journal, operation)?;
+        let root = self.generation.generated.tree.root();
+        let preparation = preparation_from_identity(&self.generation.generated.inputs)?;
+        if self.configured.arguments
+            != configure_arguments(
+                root,
+                &root.join("build-portcove"),
+                &preparation.toolchain_root,
+            )?
+        {
+            return Err(PortcoveError::verification("PS1 configure recipe changed"));
+        }
+        let current = self
+            .generation
+            .generated
+            .tree
+            .configured_transition(root, operation, true)?;
+        if current != self.configured.tree {
+            return Err(PortcoveError::verification(
+                "PS1 configured stage identity changed",
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl ConfiguredInstallWitness {
+    pub(crate) fn port_id(&self) -> &str {
+        self.generation.port_id()
+    }
 }
 
 impl GeneratedInstallWitness {
-    pub(crate) fn library_id(&self) -> &str {
-        &self.library_id
+    pub(crate) fn artifact(&self) -> Result<crate::ArtifactIdentity> {
+        serde_json::from_value(
+            self.contract.get("artifact").cloned().ok_or_else(|| {
+                PortcoveError::state("PS1 generation retained artifact is missing")
+            })?,
+        )
+        .map_err(Into::into)
     }
-
     pub(crate) fn port_id(&self) -> &str {
         &self.port_id
     }
@@ -221,7 +307,49 @@ impl GeneratedInstallWitness {
             created_at: journal.created_at,
             contract,
             generated,
+            persisted_sha256: None,
         })
+    }
+
+    pub(crate) fn require_request(
+        &self,
+        contract: &serde_json::Value,
+        preparation: &PsxManagedPreparation,
+    ) -> Result<()> {
+        if &self.contract != contract || self.generated.inputs != preparation_identity(preparation)?
+        {
+            return Err(PortcoveError::conflict("PS1 continuation request changed"));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn configure(
+        self,
+        preparation: &PsxManagedPreparation,
+        operation: &OperationCoordinator,
+    ) -> (Result<ConfiguredInstallWitness>, bool) {
+        let Some(generation_sha256) = self.persisted_sha256.clone() else {
+            return (
+                Err(PortcoveError::state(
+                    "PS1 configure requires a store-loaded generation witness",
+                )),
+                true,
+            );
+        };
+        let (result, quiesced) = configure_install_stage(
+            self.generated.tree.root(),
+            preparation,
+            operation,
+            &self.generated,
+        );
+        (
+            result.map(|configured| ConfiguredInstallWitness {
+                generation: self,
+                generation_sha256,
+                configured,
+            }),
+            quiesced,
+        )
     }
 
     pub(crate) fn require_owner(
@@ -270,6 +398,24 @@ impl GeneratedInstallWitness {
         journal: &crate::operation::LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()> {
+        self.verify_inputs(library, journal, operation)?;
+        self.generated.tree.verify(
+            &journal
+                .paths
+                .staging
+                .as_ref()
+                .expect("owner checked staging")
+                .join("payload"),
+            operation,
+        )
+    }
+
+    fn verify_inputs(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
         self.require_owner(library, journal)?;
         let preparation = preparation_from_identity(&self.generated.inputs)?;
         let platform = Platform::current()?;
@@ -294,15 +440,7 @@ impl GeneratedInstallWitness {
         self.generated
             .normalized_disc
             .verify(self.generated.normalized_disc.root(), operation)?;
-        self.generated.tree.verify(
-            &journal
-                .paths
-                .staging
-                .as_ref()
-                .expect("owner checked staging")
-                .join("payload"),
-            operation,
-        )
+        Ok(())
     }
 }
 
@@ -2358,6 +2496,13 @@ mod tests {
         let mut preparation = preparation_input_fixture(root, false);
         preparation.toolchain_root = root.join("inert-toolchain");
         toolchain_fixture(&preparation.toolchain_root, None);
+        for name in ["clang", "clang++"] {
+            fs::write(
+                platform_executable(&preparation.toolchain_root.join("bin"), name),
+                "inert compiler; not executed",
+            )
+            .unwrap();
+        }
         journal.paths.staging = Some(staging);
         journal.paths.final_path = Some(root.join("unpublished-install"));
         journal.preparation_process_quiesced = Some(true);
@@ -2385,6 +2530,185 @@ mod tests {
     }
 
     #[test]
+    fn configuration_witness_roundtrip_keeps_generation_and_private_ownership() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        let before: String = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT witness_json FROM managed_psx_generation WHERE operation_id=?1",
+                [&journal.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        let reopened = Library::open(library.root()).unwrap();
+        let continuation = crate::Installer::new(reopened.clone())
+            .unwrap()
+            .managed_install_configured(&operation)
+            .unwrap();
+        assert_eq!(continuation.operation_id, journal.id);
+        assert_eq!(continuation.port_id, journal.port_id);
+        assert!(reopened.all_installs().unwrap().is_empty());
+        assert!(!journal.paths.final_path.unwrap().exists());
+        assert!(
+            !journal
+                .paths
+                .staging
+                .unwrap()
+                .join("payload/.portcove-managed.json")
+                .exists()
+        );
+        let after: String = reopened
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT witness_json FROM managed_psx_generation WHERE operation_id=?1",
+                [&journal.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(before, after);
+        assert!(
+            store
+                .commit_psx_configuration(
+                    &store.get(&journal.id).unwrap().unwrap(),
+                    &configured,
+                    &operation
+                )
+                .is_err()
+        );
+    }
+
+    fn configuration_witness_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ConfiguredInstallWitness,
+    ) {
+        use crate::operation::OperationStore;
+        let (library, operation, journal, generation, preparation) =
+            generation_witness_fixture(root);
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_generation(&journal, &generation, &operation)
+            .unwrap();
+        let generation = store.psx_generation(&operation).unwrap();
+        let generation_sha256 = generation.persisted_sha256.clone().unwrap();
+        let payload = generation.generated.tree.root();
+        let build = payload.join("build-portcove");
+        fs::create_dir(&build).unwrap();
+        fs::write(
+            build.join("build.ninja"),
+            "inert graph; no configure execution",
+        )
+        .unwrap();
+        fs::write(
+            build.join("CMakeCache.txt"),
+            "inert cache; no configure execution",
+        )
+        .unwrap();
+        let tree = generation
+            .generated
+            .tree
+            .configured_transition(payload, &operation, true)
+            .unwrap();
+        let arguments = configure_arguments(payload, &build, &preparation.toolchain_root).unwrap();
+        let configured = ConfiguredInstallWitness {
+            generation,
+            generation_sha256,
+            configured: ConfiguredInstall { tree, arguments },
+        };
+        (library, operation, journal, configured)
+    }
+
+    #[test]
+    fn configuration_witness_refuses_uncertain_closure_and_parent_drift() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        journal.preparation_process_quiesced = Some(false);
+        store.put(&mut journal).unwrap();
+        assert!(
+            store
+                .commit_psx_configuration(&journal, &configured, &operation)
+                .is_err()
+        );
+        journal.preparation_process_quiesced = Some(true);
+        store.put(&mut journal).unwrap();
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        library.connection().unwrap().execute("UPDATE managed_psx_generation SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id]).unwrap();
+        assert!(store.psx_configuration(&operation).is_err());
+        let count: i64 = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT count(*) FROM managed_psx_configuration",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+        assert!(store.get(&journal.id).unwrap().is_some());
+    }
+
+    #[test]
+    fn configuration_witness_refuses_parent_drift_during_verification_and_cascades_with_owner() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        assert!(store.psx_configuration_before_fence(&operation, || {
+            library.connection()?.execute("UPDATE managed_psx_generation SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id])?;
+            Ok(())
+        }).is_err());
+        assert!(store.get(&journal.id).unwrap().is_some());
+        store.remove(&journal.id).unwrap();
+        let count: i64 = library.connection().unwrap().query_row("SELECT (SELECT count(*) FROM managed_psx_generation)+(SELECT count(*) FROM managed_psx_configuration)", [], |row| row.get(0)).unwrap();
+        assert_eq!(count, 0);
+        assert!(
+            journal
+                .paths
+                .staging
+                .unwrap()
+                .join("payload/build-portcove/build.ninja")
+                .is_file()
+        );
+    }
+
+    #[test]
+    fn configuration_witness_refuses_generated_and_configured_input_drift() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        let payload = journal.paths.staging.unwrap().join("payload");
+        fs::write(payload.join("build-portcove/build.ninja"), "changed graph").unwrap();
+        assert!(store.psx_configuration(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
     fn configure_stage_refuses_changed_generation_before_any_tool_or_output() {
         let temporary = tempfile::tempdir().unwrap();
         let (_, operation, journal, witness, preparation) =
@@ -2392,7 +2716,7 @@ mod tests {
         let root = journal.paths.staging.unwrap().join("payload");
         fs::write(root.join("generated.c"), "changed generated source").unwrap();
         let (result, quiesced) =
-            configure_install_stage(&root, &preparation, &operation, witness.generated);
+            configure_install_stage(&root, &preparation, &operation, &witness.generated);
         assert!(result.is_err());
         assert!(quiesced);
         assert!(!root.join("build-portcove").exists());

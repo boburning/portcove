@@ -42,6 +42,13 @@ pub struct ManagedInstallContinuation {
     pub port_id: String,
 }
 
+/// Private configured stage, still without publication or registration.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ManagedInstallConfigured {
+    pub operation_id: String,
+    pub port_id: String,
+}
+
 enum InstallProgress {
     Installed(InstallRecord),
     Generated(ManagedInstallContinuation),
@@ -545,6 +552,126 @@ impl Installer {
         let witness = OperationStore::new(self.library.clone()).psx_generation(&operation)?;
         Ok(ManagedInstallContinuation {
             operation_id: operation_id.to_owned(),
+            port_id: witness.port_id().to_owned(),
+        })
+    }
+
+    /// Resume the same private operation with fresh live acquisition authority.
+    /// This method owns the port lock; adapters must not acquire it twice.
+    pub async fn configure_managed_install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<ManagedInstallConfigured>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let preparation = request.managed.as_ref().ok_or_else(|| {
+            PortcoveError::unsupported("PS1 configuration requires managed preparation")
+        })?;
+        if request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 configuration requires a retained contract",
+            ));
+        }
+        let scope = self.require_acquisition(&request)?;
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let _port_guard = self
+            .library
+            .try_lock_port(&request.port_id, "configure-managed-install")?;
+        operation.checkpoint()?;
+        let store = OperationStore::new(self.library.clone());
+        let witness = store.psx_generation(operation)?;
+        let artifact = witness.artifact()?;
+        if artifact.asset_name != request.release.asset.name
+            || !artifact
+                .sha256
+                .eq_ignore_ascii_case(&request.release.asset.sha256)
+            || (request.release.asset.size != 0 && request.release.asset.size != artifact.size)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained artifact and live release differ",
+            ));
+        }
+        witness.require_request(&generation_contract(&request, &artifact)?, preparation)?;
+        let record = store
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 configure lifecycle owner is missing"))?;
+        let operation_root = record
+            .paths
+            .staging
+            .clone()
+            .ok_or_else(|| PortcoveError::state("PS1 configure staging is missing"))?;
+        let archive = operation_root.join("artifact.download");
+        let retained_archive =
+            crate::external_runtime::hash_stable_file(&archive, artifact.size, &|| {
+                operation.checkpoint()
+            })?;
+        if retained_archive.sha256 != artifact.sha256 || retained_archive.size() != artifact.size {
+            return Err(PortcoveError::verification(
+                "PS1 retained archive changed before configure",
+            ));
+        }
+        let destination = record
+            .paths
+            .final_path
+            .clone()
+            .ok_or_else(|| PortcoveError::state("PS1 configure destination is missing"))?;
+        let mut lifecycle = InstallLifecycle {
+            destination,
+            operation_root,
+            store,
+            record,
+        };
+        let preparation = preparation.clone();
+        // Revalidate the live grant after lengthy private-file checks, before
+        // recording a writer and dispatching any setup process.
+        self.require_acquisition(&request)?;
+        operation.checkpoint()?;
+        emit(operation.message(
+            "info",
+            "Configuring private game build; compilation remains pending",
+        ));
+        let result = run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
+            witness.configure(&preparation, &checkpoint)
+        })
+        .await;
+        let configured = match result {
+            Ok(configured) => configured,
+            Err(error) => {
+                // Preserve the failed stage and closure evidence. This method
+                // grants neither automatic retry nor deletion of private data.
+                lifecycle.record.last_error = Some(error.message.clone());
+                lifecycle.store.put(&mut lifecycle.record)?;
+                return Err(error);
+            }
+        };
+        let retained = self.require_acquisition(&request).and_then(|_| {
+            lifecycle
+                .store
+                .commit_psx_configuration(&lifecycle.record, &configured, operation)
+        });
+        if let Err(error) = retained {
+            lifecycle.record.last_error = Some(error.message.clone());
+            lifecycle.store.put(&mut lifecycle.record)?;
+            return Err(error);
+        }
+        Ok(ManagedInstallConfigured {
+            operation_id: operation.operation_id().to_owned(),
+            port_id: request.port_id,
+        })
+    }
+
+    /// Read validation only; adapters retain no reusable execution permission.
+    pub fn managed_install_configured(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<ManagedInstallConfigured> {
+        let witness = OperationStore::new(self.library.clone()).psx_configuration(operation)?;
+        Ok(ManagedInstallConfigured {
+            operation_id: operation.operation_id().to_owned(),
             port_id: witness.port_id().to_owned(),
         })
     }

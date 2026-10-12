@@ -23,7 +23,7 @@ enum Entry {
 /// Only Core can create this value, after the generator has positively closed.
 /// Serialized values must be loaded through the lifecycle owner, which binds
 /// library custody and positive process closure before this inventory is used.
-#[derive(Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct GeneratedTree {
     root: PathBuf,
