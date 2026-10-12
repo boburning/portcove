@@ -319,6 +319,11 @@ impl CompiledInstall {
     pub(crate) fn completed_batches(&self) -> usize {
         self.completed_batches
     }
+
+    #[cfg(feature = "qualification-fixtures")]
+    pub(crate) fn total_batches(&self) -> usize {
+        self.configuration.configured.compile_plan.batch_count()
+    }
     pub(crate) fn require_next_batch(&self) -> Result<()> {
         self.configuration
             .configured

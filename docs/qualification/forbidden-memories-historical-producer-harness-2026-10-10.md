@@ -52,6 +52,40 @@ applicable setup, launch, runtime persistence and progression evidence. This
 helper grants no #246 protected delivery or #534 production authority, and
 does not lift the Linux GLib security hold.
 
+## Bounded stage caller — October 12, 2026
+
+The qualification-only example additionally supports one independently admitted
+stage per invocation:
+
+```text
+--supervise-stage <reviewed-binary-sha256> <stage> <retained-operation-or-dash> <isolated-library> <original-CHD>
+```
+
+Stages are exactly `generate`, `configure`, `compile-first`, `compile-next` and
+`finalize`. Generation uses `-` and requires an exclusively fresh library. Each
+other stage requires the exact canonical operation UUID returned by generation
+and a positively closed, error-free `StagedPreparing` owner loaded from that
+same library. No old failed monolithic producer, copied library, caller-supplied
+preparation or deserialized witness acquires continuation authority.
+
+Each invocation opens current service state, requires the full immutable catalog
+and official historical release, rechecks publisher/acquisition authority and
+uses the maintained Installer stage gateway. Reopening verifies the original
+registered source without rewriting its registration timestamp. The worker keeps
+the retained lifecycle identity; a fresh durable activity owns cancellation and
+root event ancestry. Compile progress includes the store-loaded sealed total
+batch count so a controller can select the next finite phase explicitly.
+
+The existing private child environment, 150-second cooperative deadline,
+180-second Core work bound, bounded process supervision and output/failure
+preservation apply to each selected invocation. There is no internal orchestration
+loop, automatic retry, cap enlargement or authorization to execute a game.
+Frozen executable/controller identity, literal root/source/environment bindings,
+fresh uncontended native admission and positive exit proof remain required.
+These interfaces do not prove actual generation, Ninja format/resource fit,
+usable installation, native lifecycle acceptance or beta readiness. Historical
+failed producer evidence remains unchanged and Unknown.
+
 ## First actual attempt and repaired boundary
 
 The separately admitted one-attempt script at SHA-256

@@ -1096,6 +1096,21 @@ impl OperationCoordinator {
         }
     }
 
+    /// A caller must first load the retained lifecycle owner. Its worker keeps
+    /// that durable ID while cancellation and event ancestry belong to this
+    /// fresh activity, rather than an already finished historical activity.
+    #[cfg(feature = "qualification-fixtures")]
+    pub(crate) fn retained_child(&self, operation_id: &str, operation: impl Into<String>) -> Self {
+        Self {
+            operation_id: operation_id.to_owned(),
+            parent_operation_id: Some(self.operation_id.clone()),
+            operation: operation.into(),
+            target: self.target.clone(),
+            next_sequence: Arc::new(AtomicU64::new(0)),
+            cancellation: self.cancellation.clone(),
+        }
+    }
+
     pub(crate) fn cancellable(
         library: &Library,
         activity: &ActivityRecord,

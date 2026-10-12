@@ -69,6 +69,27 @@ fn retain_boundary_event(event: &portcove_core::OperationEvent, emitted: u64) ->
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+    if args.len() == 6 && args[0] == "--supervise-stage" {
+        let digest = args[1].to_str().ok_or("digest must be UTF-8")?;
+        let stage = args[2].to_str().ok_or("stage must be UTF-8")?;
+        let retained = args[3].to_str().ok_or("operation must be UTF-8")?;
+        let receipt = PortcoveService::qualification_forbidden_memories_supervise_stage(
+            &std::env::current_exe()?,
+            digest,
+            &PathBuf::from(&args[4]),
+            &PathBuf::from(&args[5]),
+            stage,
+            (retained != "-").then_some(retained),
+        )?;
+        emit(receipt.clone())?;
+        if receipt["process_tree_quiesced"] != true
+            || receipt["outcome"]["child_success"] != true
+            || receipt["outcome"]["output_truncated"] != false
+        {
+            return Err("owned producer stage held; preserve all evidence".into());
+        }
+        return Ok(());
+    }
     if args.len() == 4 && args[0] == "--supervise" {
         let digest = args[1].to_str().ok_or("digest must be UTF-8")?;
         let receipt = PortcoveService::qualification_forbidden_memories_supervise(
@@ -86,14 +107,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         return Ok(());
     }
-    if args.len() != 3 || args[0] != "--owned-child" {
+    let selected_stage = if args.len() == 5 && args[0] == "--owned-stage" {
+        let stage = args[1].to_str().ok_or("stage must be UTF-8")?;
+        let retained = args[2].to_str().ok_or("operation must be UTF-8")?;
+        Some((stage, (retained != "-").then_some(retained)))
+    } else {
+        None
+    };
+    if selected_stage.is_none() && (args.len() != 3 || args[0] != "--owned-child") {
         return Err(
             "requires --supervise <reviewed binary SHA256> <fresh library> <original CHD source>"
                 .into(),
         );
     }
-    let root = PathBuf::from(&args[1]);
-    let source = PathBuf::from(&args[2]);
+    let root = PathBuf::from(&args[if selected_stage.is_some() { 3 } else { 1 }]);
+    let source = PathBuf::from(&args[if selected_stage.is_some() { 4 } else { 2 }]);
     if !root.is_absolute() || !source.is_absolute() {
         return Err("root and source must be absolute".into());
     }
@@ -114,21 +142,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let emitted_events = Arc::new(AtomicU64::new(0));
     let event_seen = Arc::clone(&seen_events);
     let event_emitted = Arc::clone(&emitted_events);
-    let operation =
-        PortcoveService::qualification_forbidden_memories_baseline(&root, &source, move |event| {
-            capture_root_activity(&event_id, &event);
-            event_seen.fetch_add(1, Ordering::Relaxed);
-            // Core owns activity and bounded diagnostic evidence.
-            // Keep this child's bounded output for boundaries and final result;
-            // per-chunk download progress must not displace the terminal receipt.
-            if !retain_boundary_event(&event, event_emitted.load(Ordering::Relaxed)) {
-                return;
-            }
-            event_emitted.fetch_add(1, Ordering::Relaxed);
-            if let Err(error) = emit(json!({"kind": "operation", "event": event})) {
-                *event_error.lock().expect("output error lock poisoned") = Some(error);
-            }
-        });
+    let reporter = move |event| {
+        capture_root_activity(&event_id, &event);
+        event_seen.fetch_add(1, Ordering::Relaxed);
+        // Core owns activity and bounded diagnostic evidence.
+        // Keep this child's bounded output for boundaries and final result;
+        // per-chunk download progress must not displace the terminal receipt.
+        if !retain_boundary_event(&event, event_emitted.load(Ordering::Relaxed)) {
+            return;
+        }
+        event_emitted.fetch_add(1, Ordering::Relaxed);
+        if let Err(error) = emit(json!({"kind": "operation", "event": event})) {
+            *event_error.lock().expect("output error lock poisoned") = Some(error);
+        }
+    };
+    let operation = async {
+        if let Some((stage, retained)) = selected_stage {
+            PortcoveService::qualification_forbidden_memories_stage(
+                &root, &source, stage, retained, reporter,
+            )
+            .await
+        } else {
+            PortcoveService::qualification_forbidden_memories_baseline(&root, &source, reporter)
+                .await
+                .map(|(_, install)| serde_json::to_value(install))
+                .and_then(|value| value.map_err(Into::into))
+        }
+    };
     tokio::pin!(operation);
     let mut deadline_reached = false;
     let result = tokio::select! {
@@ -150,7 +190,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     source_identity(&source)?;
     emit(
         json!({"kind": "terminal", "deadline_reached": deadline_reached,
-        "result": result.as_ref().map(|(_, install)| install).map_err(|error| error.to_string()),
+        "selected_stage": selected_stage.map(|(stage, _)| stage),
+        "result": result.as_ref().map_err(|error| error.to_string()),
         "source_container_sha256": SOURCE_SHA256,
         "expected_normalized_track_sha256": "6e22494a45bf50fa2d239cd3819a57163a5f9b91e0365babc3e101509b5c3a7c",
         "normalized_track_validation_requirement": "existing Core source inspection and validation; not observed by this field",

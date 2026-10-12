@@ -108,7 +108,174 @@ fn create_owned_root(root: &Path, catalog_override_present: bool) -> Result<Path
 }
 
 #[cfg(feature = "qualification-fixtures")]
+fn require_stage_request(stage: &str, retained_operation_id: Option<&str>) -> Result<()> {
+    if !matches!(
+        stage,
+        "generate" | "configure" | "compile-first" | "compile-next" | "finalize"
+    ) || (stage == "generate") != retained_operation_id.is_none()
+        || retained_operation_id.is_some_and(|id| {
+            uuid::Uuid::parse_str(id).map_or(true, |parsed| parsed.to_string() != id)
+        })
+    {
+        return Err(PortcoveError::usage(
+            "invalid fixed historical stage request",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "qualification-fixtures")]
 impl PortcoveService {
+    /// One independently admitted historical stage. This never loops through
+    /// multiple native phases or reuses the old failed monolithic producer.
+    pub async fn qualification_forbidden_memories_stage(
+        root: &Path,
+        source: &Path,
+        stage: &str,
+        retained_operation_id: Option<&str>,
+        mut emit: impl FnMut(OperationEvent),
+    ) -> Result<serde_json::Value> {
+        require_stage_request(stage, retained_operation_id)?;
+        if Platform::current()? != Platform::WindowsX86_64 {
+            return Err(PortcoveError::unsupported(
+                "historical stages are Windows x64 only",
+            ));
+        }
+        let override_present = std::env::vars_os().any(|(name, _)| {
+            name.to_string_lossy()
+                .eq_ignore_ascii_case("PORTCOVE_QUALIFICATION_CATALOG")
+        });
+        if override_present
+            || !root.is_absolute()
+            || !source.is_absolute()
+            || source.starts_with(root)
+            || root.components().any(|part| {
+                matches!(
+                    part,
+                    std::path::Component::ParentDir | std::path::Component::CurDir
+                )
+            })
+        {
+            return Err(PortcoveError::usage("invalid historical stage custody"));
+        }
+        #[cfg(windows)]
+        if !matches!(root.components().next(), Some(std::path::Component::Prefix(prefix))
+            if matches!(prefix.kind(), std::path::Prefix::Disk(_) | std::path::Prefix::UNC(_, _)))
+        {
+            return Err(PortcoveError::unsupported(
+                "historical stage requires an ordinary Windows path",
+            ));
+        }
+        refuse_symlink_ancestors(root)?;
+        refuse_symlink_ancestors(source)?;
+        let root = if stage == "generate" {
+            create_owned_root(root, override_present)?
+        } else {
+            if !root.is_dir() {
+                return Err(PortcoveError::state("retained stage library is missing"));
+            }
+            root.to_path_buf()
+        };
+        let library = Library::open(&root)?;
+        let port_id = "yu-gi-oh-forbidden-memories-recompiled";
+        if let Some(id) = retained_operation_id {
+            let owner = crate::operation::OperationStore::new(library.clone())
+                .get(id)?
+                .ok_or_else(|| PortcoveError::state("retained stage owner is missing"))?;
+            if owner.kind != crate::operation::LifecycleOperationKind::Install
+                || owner.phase != crate::operation::LifecyclePhase::StagedPreparing
+                || owner.port_id != port_id
+                || owner.preparation_process_quiesced != Some(true)
+                || owner.last_error.is_some()
+            {
+                return Err(PortcoveError::conflict(
+                    "retained stage custody is not resumable",
+                ));
+            }
+        }
+        let service = Self::new(library)?;
+        let immutable = Catalog::from_json(include_str!("../../catalog/catalog.json"))?;
+        require_immutable_catalog(&service.catalog, &immutable)?;
+        let (activity, control) = service.begin_cancellable_activity(
+            ActivityOperation::Install,
+            ActivityTargetKind::Port,
+            Some(port_id),
+        )?;
+        let operation = retained_operation_id.map_or_else(
+            || control.clone(),
+            |id| control.retained_child(id, format!("historical-{stage}")),
+        );
+        emit(control.started());
+        let result = async {
+            let require_legacy = || -> Result<()> {
+                let (current, _) = service.library.load_catalog()?;
+                require_immutable_catalog(&current, &immutable)?;
+                if crate::definition_repository::publisher_policy::acquisition_scope(
+                    &service.library, &current, port_id,
+                )?.is_some() {
+                    return Err(PortcoveError::unsupported("historical stage cannot bypass publisher admission"));
+                }
+                Ok(())
+            };
+            require_legacy()?;
+            let port = service.catalog.port(port_id)?;
+            service.require_definition_operation(&service.catalog, port,
+                DefinitionOperationContext::observed(DefinitionOperation::Install, false, true))?;
+            if service.status(port_id)?.active.is_some() || service.status(port_id)?.staged.is_some()
+                || service.status(port_id)?.previous.is_some()
+            {
+                return Err(PortcoveError::conflict("historical stage already has an installation"));
+            }
+            let provider = crate::GithubReleaseProvider::for_library(&service.library)?;
+            let release = operation.interruptible(provider.forbidden_memories_baseline(port)).await?;
+            require_legacy()?;
+            let source = if stage == "generate" {
+                service.validate_and_remember_source(port, Some(source), &operation)?
+            } else {
+                let profile = port.source_profile.as_deref().ok_or_else(|| {
+                    PortcoveError::state("historical source profile missing")
+                })?;
+                let registered = service.verified_source_record_with_checkpoint(
+                    &immutable, profile, &|| operation.checkpoint(),
+                )?;
+                if registered.path != source {
+                    return Err(PortcoveError::verification("retained source coordinate differs from admission"));
+                }
+                Some(registered)
+            };
+            let managed = service.managed_preparation(port, source, None, Platform::current()?, &operation, &mut emit).await?;
+            require_legacy()?;
+            let request = InstallRequest {
+                port_id: port_id.to_owned(), release,
+                output_root: service.output_location(port_id, None)?.effective_output_directory,
+                activate: true, managed,
+                qualification: InstallQualification::from_catalog(&immutable, port_id, Platform::current()?)?,
+            };
+            let installer = Installer::new(service.library.clone())?;
+            let outcome = match stage {
+                "generate" => serde_json::to_value(installer.generate_managed_install(request, &operation, &mut emit).await?)?,
+                "configure" => serde_json::to_value(installer.configure_managed_install(request, &operation, &mut emit).await?)?,
+                "compile-first" | "compile-next" => {
+                    let progress = if stage == "compile-first" {
+                        installer.compile_managed_install_first_batch(request, &operation, &mut emit).await?
+                    } else {
+                        installer.compile_managed_install_next_batch(request, &operation, &mut emit).await?
+                    };
+                    let witness = crate::operation::OperationStore::new(service.library.clone()).psx_compilation(&operation)?;
+                    serde_json::json!({"progress": progress, "total_batches": witness.total_batches()})
+                }
+                "finalize" => serde_json::to_value(installer.finalize_managed_install(request, &operation, &mut emit).await?)?,
+                _ => unreachable!("validated fixed stage"),
+            };
+            require_legacy()?;
+            Ok(serde_json::json!({"stage": stage, "lifecycle_operation_id": operation.operation_id(),
+                "control_activity_id": activity.id, "outcome": outcome}))
+        }.await;
+        let result = service.finish_activity(activity, result);
+        emit(control.finished(OperationResult::from_result(&result)));
+        result
+    }
+
     /// Supervise the reviewed first-party child through the existing native
     /// process authority. A local digest binds the admitted build; it is not
     /// independently an authenticity or qualification grant.
@@ -117,6 +284,42 @@ impl PortcoveService {
         expected_program_sha256: &str,
         root: &Path,
         source: &Path,
+    ) -> Result<serde_json::Value> {
+        Self::qualification_forbidden_memories_supervise_bound(
+            program,
+            expected_program_sha256,
+            root,
+            source,
+            None,
+        )
+    }
+
+    /// One finite admitted stage, using the same native process authority and
+    /// limits as the original producer session. This is not dispatch admission.
+    pub fn qualification_forbidden_memories_supervise_stage(
+        program: &Path,
+        expected_program_sha256: &str,
+        root: &Path,
+        source: &Path,
+        stage: &str,
+        retained_operation_id: Option<&str>,
+    ) -> Result<serde_json::Value> {
+        require_stage_request(stage, retained_operation_id)?;
+        Self::qualification_forbidden_memories_supervise_bound(
+            program,
+            expected_program_sha256,
+            root,
+            source,
+            Some((stage, retained_operation_id)),
+        )
+    }
+
+    fn qualification_forbidden_memories_supervise_bound(
+        program: &Path,
+        expected_program_sha256: &str,
+        root: &Path,
+        source: &Path,
+        selected_stage: Option<(&str, Option<&str>)>,
     ) -> Result<serde_json::Value> {
         if Platform::current()? != Platform::WindowsX86_64
             || !program.is_absolute()
@@ -132,7 +335,12 @@ impl PortcoveService {
         refuse_symlink_ancestors(program)?;
         refuse_symlink_ancestors(root)?;
         refuse_symlink_ancestors(source)?;
-        if root.exists() || source.starts_with(root) || program.starts_with(root) {
+        let fresh = selected_stage.is_none_or(|(stage, _)| stage == "generate");
+        if (fresh && root.exists())
+            || (!fresh && !root.is_dir())
+            || source.starts_with(root)
+            || program.starts_with(root)
+        {
             return Err(PortcoveError::conflict("producer custody is not fresh"));
         }
         if sha256_file(program)? != expected_program_sha256 {
@@ -140,7 +348,16 @@ impl PortcoveService {
         }
         let started = std::time::Instant::now();
         let mut command = owned_producer_command(program, std::env::vars_os())?;
-        command.arg("--owned-child").arg(root).arg(source);
+        if let Some((stage, retained_operation_id)) = selected_stage {
+            command
+                .arg("--owned-stage")
+                .arg(stage)
+                .arg(retained_operation_id.unwrap_or("-"))
+                .arg(root)
+                .arg(source);
+        } else {
+            command.arg("--owned-child").arg(root).arg(source);
+        }
         let mut quiesced = false;
         let mut final_diagnostic = None;
         let activity_id = uuid::Uuid::new_v4().to_string();
@@ -190,6 +407,8 @@ impl PortcoveService {
         Ok(serde_json::json!({
             "schema_version": 1,
             "kind": "owned_producer_session",
+            "selected_stage": selected_stage.map(|(stage, _)| stage),
+            "retained_operation_id": selected_stage.and_then(|(_, id)| id),
             "program_sha256": expected_program_sha256,
             "library": root,
             "source": source,
@@ -300,6 +519,95 @@ impl PortcoveService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[tokio::test]
+    async fn historical_stage_refuses_unrecognized_phase_before_root_creation() {
+        let fixture = tempfile::tempdir().unwrap();
+        let root = fixture.path().join("must-not-create");
+        let result = PortcoveService::qualification_forbidden_memories_stage(
+            &root,
+            &fixture.path().join("source.chd"),
+            "generate-and-build",
+            None,
+            |_| {},
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(!root.exists());
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[tokio::test]
+    async fn historical_stage_refuses_reconstructed_owner_before_library_open() {
+        let fixture = tempfile::tempdir().unwrap();
+        fs::write(fixture.path().join("preserved.txt"), b"original custody").unwrap();
+        let result = PortcoveService::qualification_forbidden_memories_stage(
+            fixture.path(),
+            &fixture.path().join("source.chd"),
+            "configure",
+            Some("not-an-operation"),
+            |_| {},
+        )
+        .await;
+        assert!(result.is_err());
+        assert_eq!(fs::read_dir(fixture.path()).unwrap().count(), 1);
+        assert_eq!(
+            fs::read(fixture.path().join("preserved.txt")).unwrap(),
+            b"original custody"
+        );
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn historical_stage_retained_child_uses_fresh_cancellation_and_ancestry() {
+        let fixture = tempfile::tempdir().unwrap();
+        let library = Library::open(fixture.path()).unwrap();
+        let service = PortcoveService::new_read_only(library.clone()).unwrap();
+        let port = "yu-gi-oh-forbidden-memories-recompiled";
+        let old = library
+            .begin_activity(
+                ActivityOperation::Install,
+                ActivityTargetKind::Port,
+                Some(port),
+            )
+            .unwrap();
+        library
+            .finish_activity(&old.id, ActivityStatus::Succeeded, None)
+            .unwrap();
+        let (_activity, control) = service
+            .begin_cancellable_activity(
+                ActivityOperation::Install,
+                ActivityTargetKind::Port,
+                Some(port),
+            )
+            .unwrap();
+        let retained = control.retained_child(&old.id, "historical-configure");
+        let event = retained.started();
+        assert_eq!(event.operation_id, old.id);
+        assert_eq!(
+            event.parent_operation_id.as_deref(),
+            Some(control.operation_id())
+        );
+        assert_ne!(control.operation_id(), old.id);
+        service
+            .request_cancellation(control.operation_id())
+            .unwrap();
+        assert_eq!(
+            retained.checkpoint().unwrap_err().code,
+            crate::ErrorCode::Cancelled
+        );
+        assert_eq!(
+            library
+                .activities(10)
+                .unwrap()
+                .into_iter()
+                .find(|item| item.id == old.id)
+                .unwrap()
+                .status,
+            ActivityStatus::Succeeded
+        );
+    }
 
     #[cfg(all(windows, feature = "qualification-fixtures"))]
     #[test]
