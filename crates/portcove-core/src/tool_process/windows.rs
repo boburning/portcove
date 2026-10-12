@@ -581,6 +581,42 @@ struct Member {
     system_module: Option<(usize, usize)>,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum ExceptionDisposition {
+    Startup,
+    Application,
+    Unclassified,
+}
+
+impl Member {
+    fn classify_exception(
+        &mut self,
+        thread: u32,
+        code: i32,
+        first_chance: u32,
+        address: usize,
+    ) -> ExceptionDisposition {
+        if self.startup_handled {
+            return ExceptionDisposition::Application;
+        }
+        if code == STATUS_BREAKPOINT
+            && first_chance == 1
+            && self.initial_thread == Some(thread)
+            && self.creation_seen
+            && self.system_module.is_some_and(|(base, size)| {
+                address
+                    .checked_sub(base)
+                    .is_some_and(|offset| offset < size)
+            })
+        {
+            self.startup_handled = true;
+            ExceptionDisposition::Startup
+        } else {
+            ExceptionDisposition::Unclassified
+        }
+    }
+}
+
 fn identity(handle: HANDLE) -> io::Result<Identity> {
     let (mut created, mut exited, mut kernel, mut user) = (
         FILETIME::default(),
@@ -999,26 +1035,19 @@ impl Controller {
                     let exception = event.u.Exception;
                     if let Some(key) = self.live_debug_members.get(&event.dwProcessId).copied() {
                         let member = self.members.get_mut(&key).unwrap();
-                        let is_startup = !member.startup_handled;
-                        if is_startup
-                            && exception.ExceptionRecord.ExceptionCode == STATUS_BREAKPOINT
-                            && exception.dwFirstChance == 1
-                            && member.initial_thread == Some(event.dwThreadId)
-                            && member.creation_seen
-                            && member.system_module.is_some_and(|(base, size)| {
-                                (exception.ExceptionRecord.ExceptionAddress as usize)
-                                    .checked_sub(base)
-                                    .is_some_and(|offset| offset < size)
-                            })
-                        {
-                            // Documented initial breakpoint precedes DLL initialization.
-                            // Restrict the one-shot to the actual created identity,
+                        match member.classify_exception(
+                            event.dwThreadId,
+                            exception.ExceptionRecord.ExceptionCode,
+                            exception.dwFirstChance,
+                            exception.ExceptionRecord.ExceptionAddress as usize,
+                        ) {
+                            // The one-shot is limited to the positively identified
                             // initial thread and architecture-bound system image.
-                            member.startup_handled = true;
-                            return DBG_CONTINUE;
-                        }
-                        if is_startup {
-                            self.fail("startup_exception_unclassified", None);
+                            ExceptionDisposition::Startup => return DBG_CONTINUE,
+                            ExceptionDisposition::Unclassified => {
+                                self.fail("startup_exception_unclassified", None);
+                            }
+                            ExceptionDisposition::Application => {}
                         }
                     } else {
                         self.fail("exception_identity", None);
@@ -1263,6 +1292,266 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
         return Err(io::Error::other("system module image range is invalid"));
     }
     Ok(Some((base, size)))
+}
+
+#[cfg(test)]
+mod native_control_tests {
+    use super::*;
+    use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    fn child_observes_exact_unicode_argv_filtered_environment_and_cwd() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        // A finite complete environment makes ambient additions observable.
+        // Preserve only the host's SystemRoot needed by Windows runtime loading.
+        let system_root = spec
+            .environment
+            .iter()
+            .find(|(key, _)| crate::process::environment_names_equal(key, OsStr::new("SystemRoot")))
+            .map(|(_, value)| value.clone())
+            .unwrap();
+        spec.environment.clear();
+        spec.env("SystemRoot", system_root);
+        spec.env("PORTCOVE_PARITY_TEXT", "雪 café=literal");
+        spec.env("PORTCOVE_PARITY_EMPTY", "");
+        spec.env("Path", "controlled empty discovery");
+        spec.env_remove("path");
+        let arguments = ["", "雪 café", "a\"b", "a\\", "\twith space", "x\\\"y"];
+        spec.arg("--observe-launch")
+            .args(arguments)
+            .current_dir(working.path());
+        let expected_environment: Vec<_> = spec
+            .environment
+            .iter()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect();
+        let mut quiesced = false;
+        let execution_deadline = Instant::now() + Duration::from_secs(10);
+        let result = crate::tool_process::run_tool(
+            &mut spec,
+            &|| {
+                if Instant::now() >= execution_deadline {
+                    return Err(crate::PortcoveError::state(
+                        "first-party launch control exceeded its execution bound",
+                    ));
+                }
+                Ok(())
+            },
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        )
+        .unwrap();
+        assert!(result.status.success());
+        assert!(quiesced);
+        assert_eq!(result.process_tree_proof["process_tree_active"], "0");
+        assert_eq!(result.process_tree_proof["process_tree_total"], "1");
+        assert_eq!(
+            result.process_tree_proof["process_tree_retained_members"],
+            "1"
+        );
+        assert_eq!(
+            std::fs::read_to_string(working.path().join("launch-arguments")).unwrap(),
+            format!("{arguments:?}")
+        );
+        assert_eq!(
+            std::fs::read_to_string(working.path().join("launch-environment")).unwrap(),
+            format!("{expected_environment:?}")
+        );
+        assert_eq!(
+            std::fs::read_to_string(working.path().join("launch-directory")).unwrap(),
+            format!("{:?}", working.path())
+        );
+    }
+}
+
+#[cfg(test)]
+mod launch_tests {
+    use super::*;
+    use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    fn spec() -> NativeToolLaunchSpec {
+        let mut spec = ChildProcessPolicy::native_tool_spec(
+            ChildProcessClass::UpstreamSetup,
+            r"E:\owned fixture\probe.exe",
+        )
+        .unwrap();
+        spec.environment.clear();
+        spec
+    }
+
+    #[test]
+    fn literal_argv_uses_crt_escaping_for_empty_unicode_quotes_and_trailing_slashes() {
+        // Independent expected encodings follow Microsoft's CRT argument rules.
+        for (literal, encoded) in [
+            ("", "\"\""),
+            ("雪 café", "\"雪 café\""),
+            ("a\"b", "\"a\\\"b\""),
+            ("a\\\"b", "\"a\\\\\\\"b\""),
+            ("a\\", "\"a\\\\\""),
+            ("\twith space", "\"\twith space\""),
+        ] {
+            let argument: Vec<_> = literal.encode_utf16().collect();
+            assert_eq!(
+                String::from_utf16(&quote_argument(&argument)).unwrap(),
+                encoded
+            );
+        }
+        let mut spec = spec();
+        spec.args(["", "雪 café", "a\"b", "a\\"]);
+        spec.current_dir(r"E:\isolated 雪");
+        let launch = EncodedLaunch::new(&spec).unwrap();
+        assert_eq!(
+            String::from_utf16(&launch.command[..launch.command.len() - 1]).unwrap(),
+            "\"E:\\owned fixture\\probe.exe\" \"\" \"雪 café\" \"a\\\"b\" \"a\\\\\""
+        );
+        assert_eq!(
+            launch.directory.unwrap(),
+            wide(OsStr::new(r"E:\isolated 雪")).unwrap()
+        );
+    }
+
+    #[test]
+    fn environment_is_complete_sorted_unicode_and_double_nul_terminated() {
+        let mut spec = spec();
+        assert_eq!(EncodedLaunch::new(&spec).unwrap().environment, vec![0, 0]);
+        spec.env("zeta", "雪=café");
+        spec.env("Alpha", "");
+        spec.env("Path", "controlled");
+        spec.env("PATH", "replacement");
+        let launch = EncodedLaunch::new(&spec).unwrap();
+        assert_eq!(
+            String::from_utf16(&launch.environment).unwrap(),
+            "Alpha=\0PATH=replacement\0zeta=雪=café\0\0"
+        );
+        assert_eq!(spec.environment.len(), 3);
+        assert_eq!(
+            launch.application,
+            wide(OsStr::new(r"E:\owned fixture\probe.exe")).unwrap()
+        );
+    }
+
+    #[test]
+    fn invalid_or_unbounded_input_is_refused_before_native_creation() {
+        for argument in [
+            OsString::from("has\0nul"),
+            OsString::from("x".repeat(32767)),
+        ] {
+            let mut spec = spec();
+            spec.arg(argument);
+            assert!(EncodedLaunch::new(&spec).is_err());
+        }
+        let mut relative = spec();
+        relative.program = "relative.exe".into();
+        assert!(EncodedLaunch::new(&relative).is_err());
+        for name in ["", "bad=name", "bad\0name", "SERVICE_TOKEN"] {
+            let mut spec = spec();
+            spec.environment.insert(name.into(), "value".into());
+            assert!(EncodedLaunch::new(&spec).is_err());
+        }
+        let mut spec = spec();
+        spec.environment
+            .insert("oversized".into(), "x".repeat(32767).into());
+        assert!(EncodedLaunch::new(&spec).is_err());
+    }
+
+    fn member() -> Member {
+        Member {
+            // Open only this test's process; the pseudo-handle value -1 is
+            // deliberately refused by the production duplication boundary.
+            handle: owned(unsafe {
+                OpenProcess(
+                    PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
+                    0,
+                    windows_sys::Win32::System::Threading::GetCurrentProcessId(),
+                )
+            })
+            .unwrap(),
+            initial_thread: Some(7),
+            creation_seen: true,
+            startup_handled: false,
+            system_module: Some((0x1000, 0x100)),
+        }
+    }
+
+    #[test]
+    fn startup_is_one_shot_and_later_first_and_second_chance_exceptions_are_forwarded() {
+        let mut member = member();
+        assert_eq!(
+            member.classify_exception(7, STATUS_BREAKPOINT, 1, 0x1010),
+            ExceptionDisposition::Startup
+        );
+        for (thread, code, chance, address) in [
+            (7, STATUS_BREAKPOINT, 1, 0x1010),
+            (7, STATUS_BREAKPOINT, 2, 0x1010),
+            (8, STATUS_BREAKPOINT, 1, 0x2010),
+            (7, 0x1234, 1, 0x1010),
+            (7, 0x1234, 2, 0x1010),
+        ] {
+            assert_eq!(
+                member.classify_exception(thread, code, chance, address),
+                ExceptionDisposition::Application
+            );
+        }
+    }
+
+    #[test]
+    fn unknown_initial_events_do_not_consume_the_startup_gate() {
+        for (thread, code, chance, address) in [
+            (8, STATUS_BREAKPOINT, 1, 0x1010),
+            (7, STATUS_BREAKPOINT, 2, 0x1010),
+            (7, 0x1234, 1, 0x1010),
+            (7, STATUS_BREAKPOINT, 1, 0x0fff),
+            (7, STATUS_BREAKPOINT, 1, 0x1100),
+        ] {
+            let mut member = member();
+            assert_eq!(
+                member.classify_exception(thread, code, chance, address),
+                ExceptionDisposition::Unclassified
+            );
+            assert!(!member.startup_handled);
+        }
+        for missing_creation in [false, true] {
+            let mut member = member();
+            if missing_creation {
+                member.creation_seen = false;
+            } else {
+                member.system_module = None;
+            }
+            assert_eq!(
+                member.classify_exception(7, STATUS_BREAKPOINT, 1, 0x1010),
+                ExceptionDisposition::Unclassified
+            );
+            assert!(!member.startup_handled);
+        }
+    }
+
+    #[test]
+    fn retained_identity_distinguishes_reused_pid_lifetimes() {
+        let old = Identity {
+            pid: 42,
+            created: 100,
+        };
+        let new = Identity {
+            pid: 42,
+            created: 101,
+        };
+        let mut store = BTreeMap::new();
+        store.insert(old, "old retained identity");
+        store.insert(new, "new retained identity");
+        assert_eq!(store.len(), 2);
+        assert_eq!(store[&old], "old retained identity");
+        assert_eq!(store[&new], "new retained identity");
+    }
 }
 
 #[cfg(test)]

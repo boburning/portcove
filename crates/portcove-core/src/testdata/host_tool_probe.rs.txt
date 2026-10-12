@@ -5,6 +5,15 @@ use std::process::Stdio;
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
+        Some("--observe-launch") => {
+            // First-party launch-parity control: inputs are bounded by the
+            // admitted test packet; no helper, network or game is invoked.
+            fs::write("launch-arguments", format!("{:?}", &args[1..])).unwrap();
+            let mut environment = env::vars_os().collect::<Vec<_>>();
+            environment.sort();
+            fs::write("launch-environment", format!("{environment:?}")).unwrap();
+            fs::write("launch-directory", format!("{:?}", env::current_dir().unwrap())).unwrap();
+        }
         Some("extractdvd") => owned_conversion(&args),
         Some("extractcd") => owned_psx_conversion(&args),
         Some("--owned-preparation") => owned_preparation(&args),
