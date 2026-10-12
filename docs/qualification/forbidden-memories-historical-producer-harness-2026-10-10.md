@@ -86,6 +86,15 @@ These interfaces do not prove actual generation, Ninja format/resource fit,
 usable installation, native lifecycle acceptance or beta readiness. Historical
 failed producer evidence remains unchanged and Unknown.
 
+The qualification sampler retains root informational phase messages of at most
+512 UTF-8 bytes under the existing 32-event limit, alongside monotonic elapsed
+milliseconds from reporter creation. Descendant information and chunk progress
+remain omitted; root terminal events remain unconditional and omitted counts
+remain visible. Existing asset-verification and generation-entry messages can
+locate the preparation boundary reached before cancellation. They do not prove
+extraction, toolkit inventory, generation completion or a resumable witness.
+The stream/projection and controller bounds remain unchanged.
+
 ## First actual attempt and repaired boundary
 
 The separately admitted one-attempt script at SHA-256

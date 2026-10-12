@@ -62,8 +62,14 @@ fn retain_boundary_event(event: &portcove_core::OperationEvent, emitted: u64) ->
     ) {
         return event.parent_operation_id.is_none() || emitted < 32;
     }
-    matches!(&event.event, OperationEventKind::Message { level, .. } if level == "error")
+    matches!(&event.event, OperationEventKind::Message { level, message }
+        if level == "error" || (level == "info" && event.parent_operation_id.is_none() && message.len() <= 512))
         && emitted < 32
+}
+
+fn boundary_output(event: &portcove_core::OperationEvent, elapsed: Duration) -> serde_json::Value {
+    json!({"kind": "operation", "event": event,
+        "elapsed_ms": u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX)})
 }
 
 #[tokio::main]
@@ -142,6 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let emitted_events = Arc::new(AtomicU64::new(0));
     let event_seen = Arc::clone(&seen_events);
     let event_emitted = Arc::clone(&emitted_events);
+    let reporter_started = std::time::Instant::now();
     let reporter = move |event| {
         capture_root_activity(&event_id, &event);
         event_seen.fetch_add(1, Ordering::Relaxed);
@@ -152,7 +159,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             return;
         }
         event_emitted.fetch_add(1, Ordering::Relaxed);
-        if let Err(error) = emit(json!({"kind": "operation", "event": event})) {
+        if let Err(error) = emit(boundary_output(&event, reporter_started.elapsed())) {
             *event_error.lock().expect("output error lock poisoned") = Some(error);
         }
     };
@@ -268,5 +275,33 @@ mod tests {
         };
         assert!(retain_boundary_event(&event, 0));
         assert!(!retain_boundary_event(&event, 32));
+    }
+
+    #[test]
+    fn root_phase_information_is_bounded_and_keeps_its_timing() {
+        let mut event: portcove_core::OperationEvent = serde_json::from_value(json!({
+            "schema_version": 3, "operation_id": "root", "parent_operation_id": null,
+            "sequence": 9, "timestamp_ms": 1000, "operation": "install", "target": null,
+            "type": "message", "level": "info", "message": "Generating verified source"
+        }))
+        .unwrap();
+        assert!(retain_boundary_event(&event, 31));
+        assert!(!retain_boundary_event(&event, 32));
+        let output = boundary_output(&event, Duration::from_millis(5130));
+        assert_eq!(output["elapsed_ms"], 5130);
+        assert_eq!(output["event"]["timestamp_ms"], 1000);
+        event.parent_operation_id = Some("root".into());
+        assert!(!retain_boundary_event(&event, 0));
+        event.parent_operation_id = None;
+        event.event = OperationEventKind::Message {
+            level: "info".into(),
+            message: "é".repeat(256),
+        };
+        assert!(retain_boundary_event(&event, 0));
+        event.event = OperationEventKind::Message {
+            level: "info".into(),
+            message: "é".repeat(257),
+        };
+        assert!(!retain_boundary_event(&event, 0));
     }
 }
