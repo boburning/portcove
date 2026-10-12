@@ -315,7 +315,7 @@ struct TestOptions {
     #[cfg(test)]
     fail_capture: bool,
     #[cfg(test)]
-    refused_creation: Option<Arc<RefusedCreation>>,
+    refused_member: Option<Arc<RefusedMember>>,
     #[cfg(test)]
     pending_creation: Option<Arc<PendingCreation>>,
     #[cfg(test)]
@@ -340,8 +340,8 @@ struct PendingCreation {
 
 #[cfg(test)]
 #[derive(Default)]
-struct RefusedCreation {
-    // An independent fixture observation of the refused CREATE handle. It is
+struct RefusedMember {
+    // An independent fixture observation of a refused member handle. It is
     // never inserted into Core membership or used to grant cleanup proof.
     member: Mutex<Option<(Identity, OwnedHandle)>>,
 }
@@ -988,7 +988,7 @@ impl Controller {
         }
         #[cfg(test)]
         if self.options.fail_capture && initial_thread.is_some() && Some(key) != self.root {
-            if let Some(observation) = &self.options.refused_creation {
+            if let Some(observation) = &self.options.refused_member {
                 *observation.member.lock().unwrap() = Some((key, duplicate(raw)?));
             }
             self.fail("creation_capture", None);
@@ -1011,6 +1011,12 @@ impl Controller {
         }
         if self.slots() >= MEMBER_LIMIT {
             self.fail("retained_handle_capacity", None);
+            #[cfg(test)]
+            if let Some(observation) = &self.options.refused_member {
+                // Validated actual lifetime handle, from either CREATE or the
+                // supplemental Job snapshot. Never repair Core's missing slot.
+                *observation.member.lock().unwrap() = Some((key, duplicate(raw)?));
+            }
             return Err(io::Error::other("native lifetime capacity exhausted"));
         }
         let handle = duplicate(raw)?;
@@ -1691,6 +1697,77 @@ mod native_control_tests {
     }
 
     #[test]
+    #[ignore = "requires separately admitted prepared first-party capacity-refusal packet"]
+    fn handle_slot_capacity_refusal_never_promotes_duplicate_lifetimes() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args([
+            "--setup-tree",
+            &working.path().join("orphan-output").display().to_string(),
+            "observed-wait",
+        ])
+        .current_dir(working.path());
+        let refused = Arc::new(RefusedMember::default());
+        let (mut child, group) = spawn_with_options(
+            &spec,
+            TestOptions {
+                // Actual duplicate HANDLE storage fills the 512-slot bound.
+                // These represent one root lifetime, never 512 lifetimes.
+                reserved_slots: MEMBER_LIMIT - 1,
+                refused_member: Some(refused.clone()),
+                ..Default::default()
+            },
+        )
+        .map_err(|failure| failure.error)
+        .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(4);
+        while refused.member.lock().unwrap().is_none() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(1));
+        }
+        let stopped = group.terminate_and_wait(&mut child);
+        let quiesced = group.proves_tree_quiescence();
+        let proof = crate::tool_process::copy_proof_details(
+            &group.with_proof_details(PortcoveError::state("handle slot capacity refusal control")),
+        );
+        let observed = refused.member.lock().unwrap().take();
+        let observation = observed.as_ref().map(|(identity, handle)| {
+            serde_json::json!({
+                "pid":identity.pid,"created_filetime":identity.created.to_string(),
+                "wait_result":unsafe { WaitForSingleObject(handle.as_raw_handle(), 0) },
+            })
+        });
+        eprintln!(
+            "native_capacity_refusal_proof:{}",
+            serde_json::json!({
+                "quiesced":quiesced,"proof":proof,"refused_member":observation,
+                "duplicate_root_slots":MEMBER_LIMIT-1,
+                "termination_error":stopped.as_ref().err().map(ToString::to_string),
+                "root_status":stopped.as_ref().ok().and_then(ExitStatus::code),
+                "orphan_output":working.path().join("orphan-output").exists(),
+            })
+        );
+        assert!(observed.is_some(), "real refused member was observed");
+        assert_eq!(observation.as_ref().unwrap()["wait_result"], WAIT_OBJECT_0);
+        assert!(!quiesced, "duplicate handles cannot supply lifetime coverage");
+        assert_eq!(stopped.unwrap().code(), Some(1));
+        assert_eq!(proof["process_tree_first_failure"], "retained_handle_capacity");
+        assert_eq!(proof["process_tree_retained_members"], MEMBER_LIMIT.to_string());
+        assert_eq!(proof["process_tree_total"], "2");
+        assert_eq!(proof["process_tree_active"], "0");
+        assert_eq!(proof["process_tree_all_retained_signaled"], "true");
+        assert_eq!(proof["process_tree_membership_complete"], "false");
+        assert_eq!(proof["process_tree_deadline_exhausted"], "false");
+        let identities: Vec<serde_json::Value> =
+            serde_json::from_str(&proof["process_tree_identities"]).unwrap();
+        assert_eq!(identities.len(), 1, "only the root lifetime fits");
+        assert!(!working.path().join("orphan-output").exists());
+    }
+
+    #[test]
     #[ignore = "requires separately admitted prepared first-party capture-refusal packet"]
     fn creation_capture_refusal_stays_failed_after_owned_handles_close() {
         let native = tempfile::tempdir().unwrap();
@@ -1705,12 +1782,12 @@ mod native_control_tests {
             "observed-wait",
         ])
         .current_dir(working.path());
-        let refused = Arc::new(RefusedCreation::default());
+        let refused = Arc::new(RefusedMember::default());
         let (mut child, group) = spawn_with_options(
             &spec,
             TestOptions {
                 fail_capture: true,
-                refused_creation: Some(refused.clone()),
+                refused_member: Some(refused.clone()),
                 ..Default::default()
             },
         )
