@@ -416,6 +416,7 @@ async function runVerification(options, selection) {
       ]);
       probe = path.join(runDirectory, `portcove-host-tool-fixture${executableSuffix()}`);
       await phase("owned-probe-build", "rustc", [
+        "--edition=2024",
         "--crate-name",
         "portcove_host_tool_fixture",
         path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),

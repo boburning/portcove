@@ -664,7 +664,7 @@ Do not qualify a native run from a session with uncontrolled input.
 To exercise explicit preparation, additionally pass `--preparation-cli
 <absolute-CLI-executable> --preparation-tool <absolute-owned-probe>`. Build the CLI
 from the same source and compile the repository's
-`crates/portcove-core/src/testdata/host_tool_probe.rs.txt` with `rustc --crate-name
+`crates/portcove-core/src/testdata/host_tool_probe.rs.txt` with `rustc --edition=2024 --crate-name
 portcove_host_tool_fixture -o <absolute-owned-probe>`. These optional scenarios
 adopt copies of that redistributable fixture into the new test library, register
 synthetic sources, review and confirm preparation through the actual UI, exercise

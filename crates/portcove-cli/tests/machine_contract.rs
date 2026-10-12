@@ -856,6 +856,7 @@ fn compile_native_fixture(directory: &std::path::Path) -> std::path::PathBuf {
         "chdman-fixture"
     });
     let compiled = Command::new("rustc")
+        .arg("--edition=2024")
         .arg(&source)
         .arg("-o")
         .arg(&executable)
