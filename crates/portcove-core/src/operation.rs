@@ -276,16 +276,24 @@ fn psx_compile_history_digest(
 #[derive(Clone, Copy)]
 enum PsxStageTable {
     Bootstrap,
+    MaterializedInputs,
     NormalizedInputs,
     Generation,
     Configuration,
     Compilation,
 }
 
+#[derive(Default)]
+struct PsxCommitParents<'a> {
+    compilation: Option<(&'a str, &'a str, usize, &'a str)>,
+    materialized: Option<(&'a str, &'a str, &'a str)>,
+}
+
 impl PsxStageTable {
     fn name(self) -> &'static str {
         match self {
             Self::Bootstrap => "managed_psx_bootstrap",
+            Self::MaterializedInputs => "managed_psx_materialized_inputs",
             Self::NormalizedInputs => "managed_psx_normalized_inputs",
             Self::Generation => "managed_psx_generation",
             Self::Configuration => "managed_psx_configuration",
@@ -295,7 +303,7 @@ impl PsxStageTable {
     fn has_parent(self) -> bool {
         !matches!(
             self,
-            Self::Bootstrap | Self::NormalizedInputs | Self::Generation
+            Self::Bootstrap | Self::MaterializedInputs | Self::NormalizedInputs | Self::Generation
         )
     }
     fn parent_name(self) -> &'static str {
@@ -376,6 +384,26 @@ const PSX_JOURNAL_SNAPSHOT: &str = "json_array(l.id,l.kind,l.port_id,l.phase,
     l.staging_path,l.final_path,l.quarantine_path,l.install_json,l.relocation_json,
     l.source_import_json,l.original_paths_json,l.activate,l.last_error,l.created_at,
     l.updated_at,l.preparation_json,l.preparation_process_quiesced)";
+
+/// Store-owned provisional bytes only. Deliberately neither serializable nor
+/// deserializable: the only promotion path performs complete fresh verification.
+pub(crate) struct UnverifiedMaterializedInputs {
+    witness: crate::psx::NormalizedInputWitness,
+    journal_snapshot: String,
+}
+
+impl UnverifiedMaterializedInputs {
+    pub(crate) fn artifact(&self) -> &crate::ArtifactIdentity {
+        self.witness.artifact()
+    }
+    pub(crate) fn require_request(
+        &self,
+        contract: &serde_json::Value,
+        preparation: &crate::PsxManagedPreparation,
+    ) -> Result<()> {
+        self.witness.require_request(contract, preparation)
+    }
+}
 
 /// Identity-fenced decoding only. This cannot be serialized or retained as a
 /// successful checkpoint; normalization must freshly verify all content.
@@ -575,6 +603,89 @@ impl OperationStore {
         self.commit_psx_stage(PsxStageTable::NormalizedInputs, journal, witness, operation)
     }
 
+    /// A joined, positively closed worker may retain provisional materialization.
+    /// Context checks do not make this a normalized-input checkpoint.
+    pub(crate) fn commit_psx_materialized_inputs(
+        &self,
+        journal: &LifecycleOperation,
+        candidate: &crate::psx::NormalizedInputWitness,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.commit_psx_stage_with_checks(
+            PsxStageTable::MaterializedInputs,
+            journal,
+            candidate,
+            operation,
+            PsxCommitParents::default(),
+            |candidate, journal| {
+                candidate.verify_materialized_context(&self.library, journal, operation)
+            },
+        )
+    }
+
+    pub(crate) fn psx_materialized_inputs(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<UnverifiedMaterializedInputs> {
+        let (witness, journal_snapshot) = self.psx_stage_fenced_with(
+            PsxStageTable::MaterializedInputs,
+            operation,
+            || Ok(()),
+            |candidate: &crate::psx::NormalizedInputWitness, journal| {
+                candidate.verify_materialized_context(&self.library, journal, operation)
+            },
+        )?;
+        Ok(UnverifiedMaterializedInputs {
+            witness,
+            journal_snapshot,
+        })
+    }
+
+    pub(crate) fn seal_psx_materialized_inputs(
+        &self,
+        journal: &LifecycleOperation,
+        decoded: UnverifiedMaterializedInputs,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.seal_psx_materialized_inputs_fenced(journal, decoded, operation, || Ok(()))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn seal_psx_materialized_inputs_before_fence(
+        &self,
+        journal: &LifecycleOperation,
+        decoded: UnverifiedMaterializedInputs,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+    ) -> Result<()> {
+        self.seal_psx_materialized_inputs_fenced(journal, decoded, operation, before_fence)
+    }
+
+    fn seal_psx_materialized_inputs_fenced(
+        &self,
+        journal: &LifecycleOperation,
+        decoded: UnverifiedMaterializedInputs,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+    ) -> Result<()> {
+        self.require_psx_generation_vacant(operation)?;
+        let (sha, json) = decoded.witness.loaded_receipt()?;
+        self.commit_psx_stage_with_checks(
+            PsxStageTable::NormalizedInputs,
+            journal,
+            &decoded.witness,
+            operation,
+            PsxCommitParents {
+                compilation: None,
+                materialized: Some((sha, json, decoded.journal_snapshot.as_str())),
+            },
+            |candidate, journal| {
+                crate::psx::PsxStageWitness::verify(candidate, &self.library, journal, operation)?;
+                before_fence()
+            },
+        )
+    }
+
     pub(crate) fn psx_normalized_inputs(
         &self,
         operation: &OperationCoordinator,
@@ -741,6 +852,30 @@ impl OperationStore {
         operation: &OperationCoordinator,
         predecessor: Option<(&str, &str, usize, &str)>,
     ) -> Result<()> {
+        self.commit_psx_stage_with_checks(
+            table,
+            journal,
+            witness,
+            operation,
+            PsxCommitParents {
+                compilation: predecessor,
+                materialized: None,
+            },
+            |witness, journal| witness.verify(&self.library, journal, operation),
+        )
+    }
+
+    fn commit_psx_stage_with_checks<T: crate::psx::PsxStageWitness>(
+        &self,
+        table: PsxStageTable,
+        journal: &LifecycleOperation,
+        witness: &T,
+        operation: &OperationCoordinator,
+        parents: PsxCommitParents<'_>,
+        verify: impl FnOnce(&T, &LifecycleOperation) -> Result<()>,
+    ) -> Result<()> {
+        let predecessor = parents.compilation;
+        let materialized = parents.materialized;
         if let Some((sha, json, _, _)) = predecessor {
             if !matches!(table, PsxStageTable::Compilation)
                 || predecessor.is_some_and(|(_, _, cursor, _)| cursor == 0 || cursor > 10000)
@@ -752,7 +887,16 @@ impl OperationStore {
                 ));
             }
         }
-        witness.verify(&self.library, journal, operation)?;
+        if let Some((sha, json, _)) = materialized
+            && (!matches!(table, PsxStageTable::NormalizedInputs)
+                || json.len() > MAX_PSX_WITNESS_BYTES
+                || hex::encode(Sha256::digest(json.as_bytes())) != sha)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 materialized predecessor bytes changed",
+            ));
+        }
+        verify(witness, journal)?;
         let json = psx_witness_json(witness)?;
         let parent = psx_parent_json(witness)?;
         let bootstrap = psx_bootstrap_parent(witness)?;
@@ -771,12 +915,24 @@ impl OperationStore {
         } else {
             " AND ?15 IS NULL AND ?16 IS NULL"
         };
-        let input_vacancy_sql = if matches!(table, PsxStageTable::NormalizedInputs) {
+        let input_vacancy_sql = if matches!(
+            table,
+            PsxStageTable::MaterializedInputs | PsxStageTable::NormalizedInputs
+        ) {
             " AND NOT EXISTS(SELECT 1 FROM managed_psx_generation WHERE operation_id=?2)
               AND NOT EXISTS(SELECT 1 FROM managed_psx_configuration WHERE operation_id=?2)
               AND NOT EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=?2)"
         } else {
             ""
+        };
+        let materialized_sql = match table {
+            PsxStageTable::MaterializedInputs => {
+                " AND NOT EXISTS(SELECT 1 FROM managed_psx_normalized_inputs WHERE operation_id=?2) AND ?19 IS NULL AND ?20 IS NULL AND ?21 IS NULL"
+            }
+            PsxStageTable::NormalizedInputs => {
+                " AND ((?19 IS NULL AND NOT EXISTS(SELECT 1 FROM managed_psx_materialized_inputs WHERE operation_id=?2)) OR (?19 IS NOT NULL AND EXISTS(SELECT 1 FROM managed_psx_materialized_inputs WHERE operation_id=?2 AND witness_sha256=?19 AND witness_json=?20))) AND (?21 IS NULL OR json_array(id,kind,port_id,phase,staging_path,final_path,quarantine_path,install_json,relocation_json,source_import_json,original_paths_json,activate,last_error,created_at,updated_at,preparation_json,preparation_process_quiesced)=?21)"
+            }
+            _ => " AND ?19 IS NULL AND ?20 IS NULL AND ?21 IS NULL",
         };
         if let Some((_, _, cursor, history_sha256)) = predecessor {
             if psx_compile_history_digest(&transaction, operation, cursor - 1)? != history_sha256 {
@@ -802,7 +958,7 @@ impl OperationStore {
                    WHERE operation_id=?2 AND witness_sha256=?11 AND witness_json=?12))
                AND (?13 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_generation
                    WHERE operation_id=?2 AND witness_sha256=?13 AND witness_json=?14))
-               AND (?17 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_bootstrap WHERE operation_id=?2 AND witness_sha256=?17 AND witness_json=?18)){input_vacancy_sql}{successor_sql}", table.name(), table.parent_name()),
+                AND (?17 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_bootstrap WHERE operation_id=?2 AND witness_sha256=?17 AND witness_json=?18)){input_vacancy_sql}{materialized_sql}{successor_sql}", table.name(), table.parent_name()),
             params![
                 json,
                 journal.id,
@@ -821,7 +977,10 @@ impl OperationStore {
                 predecessor.map(|(sha, _, _, _)| sha),
                 predecessor.map(|(_, json, _, _)| json),
                 bootstrap.map(|(sha, _)| sha),
-                bootstrap.map(|(_, json)| json)
+                bootstrap.map(|(_, json)| json),
+                materialized.map(|(sha, _, _)| sha),
+                materialized.map(|(_, json, _)| json),
+                materialized.map(|(_, _, journal)| journal)
             ],
         )?;
         if changed != 1 {
@@ -882,7 +1041,8 @@ impl OperationStore {
     ) -> Result<()> {
         self.require_psx_generation_vacant(operation)?;
         let retained: bool = database::connect(self.library.root())?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM managed_psx_normalized_inputs WHERE operation_id=?1)",
+            "SELECT EXISTS(SELECT 1 FROM managed_psx_normalized_inputs WHERE operation_id=?1)
+                OR EXISTS(SELECT 1 FROM managed_psx_materialized_inputs WHERE operation_id=?1)",
             [operation.operation_id()],
             |row| row.get(0),
         )?;

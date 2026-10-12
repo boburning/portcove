@@ -48,6 +48,24 @@ pub struct ManagedInstallNormalizedInputs {
     pub port_id: String,
 }
 
+/// Provisional materialization custody only. Full sealing is still required.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ManagedInstallMaterializedInputs {
+    pub operation_id: String,
+    pub port_id: String,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NormalizationLimit {
+    Materialized,
+    Normalized,
+}
+
+enum NormalizationProgress {
+    Materialized(ManagedInstallMaterializedInputs),
+    Normalized(ManagedInstallNormalizedInputs),
+}
+
 /// Successful private generation. No installation has been published or
 /// registered; subsequent Core work must load its lifecycle-owned witness.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -696,8 +714,61 @@ impl Installer {
         &self,
         request: InstallRequest,
         operation: &OperationCoordinator,
-        mut emit: F,
+        emit: F,
     ) -> Result<ManagedInstallNormalizedInputs>
+    where
+        F: FnMut(OperationEvent),
+    {
+        match self
+            .normalize_acquired_managed_install_inner(
+                request,
+                operation,
+                emit,
+                NormalizationLimit::Normalized,
+            )
+            .await?
+        {
+            NormalizationProgress::Normalized(value) => Ok(value),
+            NormalizationProgress::Materialized(_) => {
+                Err(PortcoveError::state("normalization stopped before sealing"))
+            }
+        }
+    }
+
+    /// Retain one actual joined materialization result, without claiming full
+    /// post-helper verification or permitting helper replay or generation.
+    pub async fn materialize_acquired_managed_inputs<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        emit: F,
+    ) -> Result<ManagedInstallMaterializedInputs>
+    where
+        F: FnMut(OperationEvent),
+    {
+        match self
+            .normalize_acquired_managed_install_inner(
+                request,
+                operation,
+                emit,
+                NormalizationLimit::Materialized,
+            )
+            .await?
+        {
+            NormalizationProgress::Materialized(value) => Ok(value),
+            NormalizationProgress::Normalized(_) => {
+                Err(PortcoveError::state("materialization sealed unexpectedly"))
+            }
+        }
+    }
+
+    async fn normalize_acquired_managed_install_inner<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+        limit: NormalizationLimit,
+    ) -> Result<NormalizationProgress>
     where
         F: FnMut(OperationEvent),
     {
@@ -790,14 +861,110 @@ impl Installer {
             Ok(_) => {
                 let store = lifecycle.store.clone();
                 let journal = lifecycle.record.clone();
-                join_psx_witness_worker(operation, move |checkpoint| {
-                    store.commit_psx_normalized_inputs(&journal, &normalized, &checkpoint)
+                join_psx_witness_worker(operation, move |checkpoint| match limit {
+                    NormalizationLimit::Materialized => {
+                        store.commit_psx_materialized_inputs(&journal, &normalized, &checkpoint)
+                    }
+                    NormalizationLimit::Normalized => {
+                        store.commit_psx_normalized_inputs(&journal, &normalized, &checkpoint)
+                    }
                 })
                 .await
             }
             Err(error) => Err(error),
         };
         if let Err(error) = retained {
+            retain_staged_failure(&mut lifecycle, &error)?;
+            return Err(error);
+        }
+        Ok(match limit {
+            NormalizationLimit::Materialized => {
+                NormalizationProgress::Materialized(ManagedInstallMaterializedInputs {
+                    operation_id: operation.operation_id().to_owned(),
+                    port_id: request.port_id,
+                })
+            }
+            NormalizationLimit::Normalized => {
+                NormalizationProgress::Normalized(ManagedInstallNormalizedInputs {
+                    operation_id: operation.operation_id().to_owned(),
+                    port_id: request.port_id,
+                })
+            }
+        })
+    }
+
+    /// Promote exact retained provisional bytes only after complete fresh
+    /// post-helper verification. No external process is dispatched here.
+    pub async fn seal_materialized_managed_inputs<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<ManagedInstallNormalizedInputs>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let preparation = request.managed.as_ref().ok_or_else(|| {
+            PortcoveError::unsupported("PS1 input sealing requires managed preparation")
+        })?;
+        if request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 input sealing requires a retained contract",
+            ));
+        }
+        let scope = self.require_acquisition(&request)?;
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let _port_guard = self
+            .library
+            .try_lock_port(&request.port_id, "seal-materialized-managed-inputs")?;
+        let store = OperationStore::new(self.library.clone());
+        let load_store = store.clone();
+        let decoded = join_psx_witness_worker(operation, move |checkpoint| {
+            load_store.psx_materialized_inputs(&checkpoint)
+        })
+        .await?;
+        let artifact = decoded.artifact();
+        if artifact.asset_name != request.release.asset.name
+            || !artifact
+                .sha256
+                .eq_ignore_ascii_case(&request.release.asset.sha256)
+            || (request.release.asset.size != 0 && request.release.asset.size != artifact.size)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained artifact and live release differ",
+            ));
+        }
+        decoded.require_request(&generation_contract(&request, artifact)?, preparation)?;
+        let record = store
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 sealing lifecycle owner is missing"))?;
+        let mut lifecycle = InstallLifecycle {
+            destination: record
+                .paths
+                .final_path
+                .clone()
+                .ok_or_else(|| PortcoveError::state("PS1 sealing destination is missing"))?,
+            operation_root: record
+                .paths
+                .staging
+                .clone()
+                .ok_or_else(|| PortcoveError::state("PS1 sealing staging is missing"))?,
+            store,
+            record,
+        };
+        self.require_acquisition(&request)?;
+        emit(operation.message(
+            "info",
+            "Verifying and sealing retained disc materialization; no tool dispatch",
+        ));
+        let store = lifecycle.store.clone();
+        let journal = lifecycle.record.clone();
+        if let Err(error) = join_psx_witness_worker(operation, move |checkpoint| {
+            store.seal_psx_materialized_inputs(&journal, decoded, &checkpoint)
+        })
+        .await
+        {
             retain_staged_failure(&mut lifecycle, &error)?;
             return Err(error);
         }

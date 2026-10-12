@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 42;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 43;
 
 struct Migration {
     version: i64,
@@ -276,7 +276,32 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_42,
         verify: verify_migration_42,
     },
+    Migration {
+        version: 43,
+        name: "provisional managed PS1 materialization custody",
+        apply: migration_43,
+        verify: verify_migration_43,
+    },
 ];
+
+fn migration_43(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_materialized_inputs (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES managed_psx_bootstrap(operation_id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_43(transaction)
+}
+
+fn verify_migration_43(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_materialized_inputs",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
 
 fn migration_42(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -1944,6 +1969,7 @@ mod tests {
         schema_39: 39,
         schema_40: 40,
         schema_41: 41,
+        schema_42: 42,
     }
 
     #[test]

@@ -2892,6 +2892,234 @@ mod tests {
     }
 
     #[test]
+    fn materialized_inputs_reopen_as_unverified_and_seal_without_tool_dispatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_materialized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+        let reopened =
+            crate::operation::OperationStore::new(Library::open(library.root()).unwrap());
+        let decoded = reopened.psx_materialized_inputs(&operation).unwrap();
+        reopened
+            .seal_psx_materialized_inputs(&journal, decoded, &operation)
+            .unwrap();
+        assert!(reopened.psx_normalized_inputs(&operation).is_ok());
+        let connection = library.connection().unwrap();
+        for table in [
+            "managed_psx_materialized_inputs",
+            "managed_psx_normalized_inputs",
+        ] {
+            assert_eq!(
+                connection
+                    .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                1
+            );
+        }
+        for table in [
+            "managed_psx_generation",
+            "managed_psx_configuration",
+            "managed_psx_compilation",
+            "installs",
+        ] {
+            assert_eq!(
+                connection
+                    .query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn materialized_inputs_restored_mtime_content_drift_refuses_sealing() {
+        for selected in ["cue", "helper", "payload", "archive", "source"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_materialized_inputs(&journal, &witness, &operation)
+                .unwrap();
+            let json: serde_json::Value =
+                serde_json::from_str(&crate::operation::psx_witness_json(&witness).unwrap())
+                    .unwrap();
+            let staging = journal.paths.staging.as_ref().unwrap();
+            let path = match selected {
+                "cue" => PathBuf::from(json["cue"].as_str().unwrap()),
+                "helper" => PathBuf::from(json["helper_path"].as_str().unwrap()),
+                "payload" => staging.join("payload/game.toml"),
+                "archive" => staging.join("artifact.download"),
+                "source" => preparation.source.path.clone(),
+                _ => unreachable!(),
+            };
+            let metadata = fs::metadata(&path).unwrap();
+            let mut bytes = fs::read(&path).unwrap();
+            assert!(!bytes.is_empty());
+            bytes[0] ^= 1;
+            fs::write(&path, bytes).unwrap();
+            fs::File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_times(fs::FileTimes::new().set_modified(metadata.modified().unwrap()))
+                .unwrap();
+            // Provisional loading deliberately grants no fresh-content authority.
+            let decoded = store.psx_materialized_inputs(&operation).unwrap();
+            assert!(
+                store
+                    .seal_psx_materialized_inputs(&journal, decoded, &operation)
+                    .is_err(),
+                "{selected}"
+            );
+            assert!(store.psx_normalized_inputs(&operation).is_err());
+            assert_eq!(
+                library
+                    .connection()
+                    .unwrap()
+                    .query_row(
+                        "SELECT count(*) FROM managed_psx_materialized_inputs",
+                        [],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                1
+            );
+        }
+    }
+
+    #[test]
+    fn materialized_inputs_exact_pending_parent_and_journal_fenced_after_verification() {
+        for selected in ["pending", "parent", "journal", "library"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, _) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_materialized_inputs(&journal, &witness, &operation)
+                .unwrap();
+            let decoded = store.psx_materialized_inputs(&operation).unwrap();
+            let result = store.seal_psx_materialized_inputs_before_fence(&journal, decoded, &operation, || {
+                let connection = library.connection()?;
+                match selected {
+                    "pending" => { connection.execute("UPDATE managed_psx_materialized_inputs SET witness_json=witness_json||' '", [])?; }
+                    "parent" => { connection.execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json||' '", [])?; }
+                    "journal" => { connection.execute("UPDATE lifecycle_operations SET updated_at=updated_at+1 WHERE id=?1", [operation.operation_id()])?; }
+                    "library" => { assert_eq!(connection.execute("UPDATE library_identity SET id=CASE WHEN id='00000000000000000000000000000000' THEN '11111111111111111111111111111111' ELSE '00000000000000000000000000000000' END", [])?, 1); }
+                    _ => unreachable!(),
+                }
+                Ok(())
+            });
+            assert!(result.is_err(), "{selected}");
+            assert_eq!(
+                library
+                    .connection()
+                    .unwrap()
+                    .query_row(
+                        "SELECT count(*) FROM managed_psx_normalized_inputs",
+                        [],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn materialized_inputs_refuse_replay_and_direct_normalization_bypass() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, preparation) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_materialized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        assert!(
+            store
+                .commit_psx_materialized_inputs(&journal, &witness, &operation)
+                .is_err()
+        );
+        assert!(store.require_psx_normalization_vacant(&operation).is_err());
+        assert!(
+            store
+                .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                .is_err()
+        );
+        let bootstrap = store.psx_bootstrap(&operation).unwrap();
+        let (result, quiesced) = bootstrap.generate(&library, &journal, &preparation, &operation);
+        assert!(result.is_err());
+        assert!(quiesced);
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn materialized_inputs_forged_candidate_cannot_become_normalized_authority() {
+        use sha2::Digest;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_materialized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        let mut value: serde_json::Value =
+            serde_json::from_str(&crate::operation::psx_witness_json(&witness).unwrap()).unwrap();
+        value["helper"]["sha256"] = serde_json::Value::String("0".repeat(64));
+        let json = serde_json::to_string(&value).unwrap();
+        let sha = hex::encode(sha2::Sha256::digest(json.as_bytes()));
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE managed_psx_materialized_inputs SET witness_json=?1,witness_sha256=?2",
+                rusqlite::params![json, sha],
+            )
+            .unwrap();
+        let decoded = store.psx_materialized_inputs(&operation).unwrap();
+        assert!(
+            store
+                .seal_psx_materialized_inputs(&journal, decoded, &operation)
+                .is_err()
+        );
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "qualification-fixtures")]
+    fn materialized_inputs_cancellation_preserves_unsealed_custody() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_materialized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let (activity, control) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("yu-gi-oh-forbidden-memories-recompiled"),
+            )
+            .unwrap();
+        let child = control.retained_child(operation.operation_id(), "seal-cancel-control");
+        let decoded = store.psx_materialized_inputs(&child).unwrap();
+        service.request_cancellation(&activity.id).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(55));
+        assert!(
+            store
+                .seal_psx_materialized_inputs(&journal, decoded, &child)
+                .is_err()
+        );
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+        assert!(store.psx_materialized_inputs(&operation).is_ok());
+    }
+
+    #[test]
     #[cfg(feature = "qualification-fixtures")]
     fn normalization_decode_cancellation_refuses_before_helper_dispatch() {
         let temporary = tempfile::tempdir().unwrap();

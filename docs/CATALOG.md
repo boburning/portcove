@@ -598,6 +598,18 @@ bytes and complete normalized inventory. It grants no generator, configure,
 compile or installation completion; existing progress or drift refuses rather
 than regenerating over retained data. The monolithic acquired-generation route
 refuses an operation that already has a normalized-input checkpoint.
+For a bounded continuation, `materialize_acquired_managed_inputs` retains the
+joined helper result in separate provisional custody. This performs the same
+full fresh pre-helper checks and positive closure, but grants retention only;
+the normalized-input getter, generation and installation remain unavailable.
+`seal_materialized_managed_inputs` loads exact provisional bytes through an
+opaque unverified value, performs the existing complete fresh post-helper
+archive/payload/source/BIOS/helper/disc checks, and atomically fences the exact
+provisional bytes, acquired predecessor and full journal/library snapshot while
+committing the normalized witness. Original provisional evidence is retained.
+Provisional presence refuses repeated materialization and legacy generation;
+failed or cancelled custody cannot be replayed or restored automatically. The
+original one-call normalization API and verification obligations are unchanged.
 Ordinary service startup and cancellation retain that intent, private data and
 exact closure facts, including failed generation before any witness exists.
 Retention grants no resume or automatic cleanup authority; stage loaders still

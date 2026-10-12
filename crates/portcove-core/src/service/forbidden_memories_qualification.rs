@@ -113,6 +113,8 @@ fn require_stage_request(stage: &str, retained_operation_id: Option<&str>) -> Re
         stage,
         "acquire"
             | "normalize-inputs"
+            | "materialize-inputs"
+            | "seal-inputs"
             | "generate-acquired"
             | "generate"
             | "configure"
@@ -262,6 +264,8 @@ impl PortcoveService {
             let outcome = match stage {
                 "acquire" => serde_json::to_value(installer.acquire_managed_install(request, &operation, &mut emit).await?)?,
                 "normalize-inputs" => serde_json::to_value(installer.normalize_acquired_managed_install(request, &operation, &mut emit).await?)?,
+                "materialize-inputs" => serde_json::to_value(installer.materialize_acquired_managed_inputs(request, &operation, &mut emit).await?)?,
+                "seal-inputs" => serde_json::to_value(installer.seal_materialized_managed_inputs(request, &operation, &mut emit).await?)?,
                 "generate-acquired" => serde_json::to_value(installer.generate_acquired_managed_install(request, &operation, &mut emit).await?)?,
                 "generate" => serde_json::to_value(installer.generate_managed_install(request, &operation, &mut emit).await?)?,
                 "configure" => serde_json::to_value(installer.configure_managed_install(request, &operation, &mut emit).await?)?,

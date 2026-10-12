@@ -163,7 +163,8 @@ pub use import_execution::LibraryImportResult;
 pub use install::{
     InstallQualification, InstallRequest, Installer, ManagedInstallBootstrap,
     ManagedInstallCompilePending, ManagedInstallCompileProgress, ManagedInstallConfigured,
-    ManagedInstallContinuation, ManagedInstallNormalizedInputs, VerificationReport,
+    ManagedInstallContinuation, ManagedInstallMaterializedInputs, ManagedInstallNormalizedInputs,
+    VerificationReport,
 };
 pub use launch::forward_launch_signal;
 pub use library::{

@@ -4725,6 +4725,7 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
     let admitted_bytes = snapshot(&library);
     // Recreate the exact historical schema-33 admission, retaining its signed
     // bytes and current policy but removing information that schema never knew.
+    assert_eq!(count(&library, "managed_psx_materialized_inputs"), 0);
     assert_eq!(count(&library, "definition_launch_assessments"), 0);
     assert_eq!(count(&library, "definition_launch_decisions"), 0);
     assert_eq!(count(&library, "curated_artifact_scopes"), 0);
@@ -4750,6 +4751,7 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
          DROP TABLE curated_artifact_history;
          DROP TABLE curated_transition_receipts;
          DROP TABLE managed_psx_normalized_inputs;
+         DROP TABLE managed_psx_materialized_inputs;
          DROP TABLE managed_psx_bootstrap;
          DROP TABLE managed_psx_compile_history;
          DROP TABLE managed_psx_compilation;

@@ -20,6 +20,10 @@ pub(crate) struct NormalizedInputWitness {
     helper: crate::external_runtime::InspectedFile,
     disc: GeneratedTree,
     cue: PathBuf,
+    #[serde(skip)]
+    persisted_sha256: Option<String>,
+    #[serde(skip)]
+    persisted_json: Option<String>,
 }
 
 impl NormalizedInputWitness {
@@ -41,11 +45,17 @@ impl NormalizedInputWitness {
             helper_path,
             cue: fs::canonicalize(disc.join("disc.cue"))?,
             disc: GeneratedTree::capture(disc, operation, true)?,
+            persisted_sha256: None,
+            persisted_json: None,
         })
     }
 
     pub(crate) fn port_id(&self) -> &str {
         self.bootstrap.port_id()
+    }
+
+    pub(crate) fn artifact(&self) -> &crate::ArtifactIdentity {
+        self.bootstrap.artifact()
     }
 
     pub(crate) fn prepare(
@@ -116,12 +126,74 @@ impl NormalizedInputWitness {
                 helper,
                 disc,
                 cue: fs::canonicalize(cue)?,
+                persisted_sha256: None,
+                persisted_json: None,
             };
             #[cfg(feature = "qualification-fixtures")]
             trace.complete();
             Ok(witness)
         })();
         (result, quiesced)
+    }
+
+    pub(crate) fn require_request(
+        &self,
+        contract: &serde_json::Value,
+        preparation: &PsxManagedPreparation,
+    ) -> Result<()> {
+        self.bootstrap.require_request(contract, preparation)?;
+        if self.inputs != preparation_identity(preparation)? {
+            return Err(PortcoveError::conflict(
+                "PS1 materialization request changed",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn loaded_receipt(&self) -> Result<(&str, &str)> {
+        Ok((
+            self.persisted_sha256
+                .as_deref()
+                .ok_or_else(|| PortcoveError::state("PS1 materialization was not store-loaded"))?,
+            self.persisted_json.as_deref().ok_or_else(|| {
+                PortcoveError::state("PS1 materialization bytes were not store-loaded")
+            })?,
+        ))
+    }
+
+    /// Ownership checks only. This grants provisional retention, never fresh
+    /// normalization or authority to replay the helper or invoke a generator.
+    pub(crate) fn verify_materialized_context(
+        &self,
+        library: &Library,
+        journal: &LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.binding
+            .require_current(library, operation.operation_id())?;
+        require_bound_bootstrap(&self.bootstrap, &self.binding)?;
+        self.bootstrap.verify_context(library, journal, operation)?;
+        let staging = journal
+            .paths
+            .staging
+            .as_ref()
+            .expect("bootstrap checked staging");
+        let expected_parent = fs::canonicalize(staging)?;
+        crate::path::refuse_symlink_ancestors(&self.cue)?;
+        if self.schema_version != 1
+            || self.disc.operation_id() != journal.id
+            || self.disc.root().parent() != Some(expected_parent.as_path())
+            || self.cue != self.disc.root().join("disc.cue")
+            || fs::canonicalize(&self.cue)? != self.cue
+        {
+            return Err(PortcoveError::verification(
+                "PS1 normalized input custody changed",
+            ));
+        }
+        let preparation = preparation_from_identity(&self.inputs)?;
+        super::PreparationConfiguration::from_preparation(&preparation)?;
+        self.bootstrap.require_preparation(&preparation)?;
+        operation.checkpoint()
     }
 }
 
@@ -163,6 +235,13 @@ fn verify_sources(
 }
 
 impl PsxStageWitness for NormalizedInputWitness {
+    fn record_load(&mut self, sha256: String) {
+        self.persisted_sha256 = Some(sha256);
+    }
+
+    fn record_load_json(&mut self, json: String) {
+        self.persisted_json = Some(json);
+    }
     fn library_id(&self) -> &str {
         self.bootstrap.library_id()
     }
@@ -177,30 +256,9 @@ impl PsxStageWitness for NormalizedInputWitness {
         journal: &LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()> {
-        self.binding
-            .require_current(library, operation.operation_id())?;
-        require_bound_bootstrap(&self.bootstrap, &self.binding)?;
+        self.verify_materialized_context(library, journal, operation)?;
         self.bootstrap.verify(library, journal, operation)?;
-        let staging = journal
-            .paths
-            .staging
-            .as_ref()
-            .expect("bootstrap checked staging");
-        let expected_parent = fs::canonicalize(staging)?;
-        crate::path::refuse_symlink_ancestors(&self.cue)?;
-        if self.schema_version != 1
-            || self.disc.operation_id() != journal.id
-            || self.disc.root().parent() != Some(expected_parent.as_path())
-            || self.cue != self.disc.root().join("disc.cue")
-            || fs::canonicalize(&self.cue)? != self.cue
-        {
-            return Err(PortcoveError::verification(
-                "PS1 normalized input custody changed",
-            ));
-        }
         let preparation = preparation_from_identity(&self.inputs)?;
-        super::PreparationConfiguration::from_preparation(&preparation)?;
-        self.bootstrap.require_preparation(&preparation)?;
         verify_sources(&preparation, operation)?;
         if inspect_helper(&self.helper_path, operation)? != self.helper {
             return Err(PortcoveError::verification(
