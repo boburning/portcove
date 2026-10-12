@@ -1296,7 +1296,7 @@ fn run_cli(
     ])
     .map_err(|_| PortcoveError::verification("pinned PS1 toolchain PATH is invalid"))?;
     let mut command =
-        ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, python)?;
+        ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, python)?;
     command
         .arg(cli)
         .args(arguments)

@@ -80,19 +80,182 @@ impl LaunchSpec {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ChildProcessPolicy;
 
-impl ChildProcessPolicy {
-    pub fn native_command(class: ChildProcessClass, program: impl AsRef<OsStr>) -> Result<Command> {
-        if LaunchKind::for_executable(Path::new(program.as_ref())) == LaunchKind::WindowsBatch {
-            return Err(PortcoveError::launch(
-                "scripts cannot be used where a native child executable is required",
-            )
-            .detail("process_class", format!("{class:?}")));
+/// Complete private launch input for supervised native tools. Unlike `Command`,
+/// this has no implicit ambient environment or hidden platform launch options.
+/// The Windows controller can consume it without guessing Command's state.
+pub(crate) struct NativeToolLaunchSpec {
+    pub(crate) program: OsString,
+    pub(crate) arguments: Vec<OsString>,
+    pub(crate) environment: BTreeMap<OsString, OsString>,
+    pub(crate) working_directory: Option<PathBuf>,
+    #[cfg(all(windows, test))]
+    raw_arguments: Vec<OsString>,
+}
+
+impl std::fmt::Debug for NativeToolLaunchSpec {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("NativeToolLaunchSpec")
+            .field("program", &self.program)
+            .field("argument_count", &self.arguments.len())
+            .field("environment_count", &self.environment.len())
+            .field("working_directory", &self.working_directory)
+            .finish_non_exhaustive()
+    }
+}
+
+impl NativeToolLaunchSpec {
+    pub(crate) fn arg(&mut self, argument: impl AsRef<OsStr>) -> &mut Self {
+        self.arguments.push(argument.as_ref().to_owned());
+        self
+    }
+
+    pub(crate) fn args<I, S>(&mut self, arguments: I) -> &mut Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        for argument in arguments {
+            self.arg(argument);
         }
+        self
+    }
+
+    pub(crate) fn current_dir(&mut self, directory: impl AsRef<Path>) -> &mut Self {
+        self.working_directory = Some(directory.as_ref().to_owned());
+        self
+    }
+
+    pub(crate) fn env(&mut self, name: impl AsRef<OsStr>, value: impl AsRef<OsStr>) -> &mut Self {
+        self.env_remove(name.as_ref());
+        self.environment
+            .insert(name.as_ref().to_owned(), value.as_ref().to_owned());
+        self
+    }
+
+    pub(crate) fn envs<I, K, V>(&mut self, environment: I) -> &mut Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>,
+    {
+        for (name, value) in environment {
+            self.env(name, value);
+        }
+        self
+    }
+
+    pub(crate) fn env_remove(&mut self, name: impl AsRef<OsStr>) -> &mut Self {
+        self.environment
+            .retain(|key, _| !environment_names_equal(key, name.as_ref()));
+        self
+    }
+
+    // Only the existing guarded junction fixtures need shell-native syntax.
+    // Production native tools cannot opt into raw arguments or shell expansion.
+    #[cfg(all(windows, test))]
+    pub(crate) fn raw_arg(&mut self, argument: impl AsRef<OsStr>) -> &mut Self {
+        self.raw_arguments.push(argument.as_ref().to_owned());
+        self
+    }
+
+    pub(crate) fn command(&self) -> Result<Command> {
+        for name in self.environment.keys() {
+            if name.to_str().is_some_and(is_credential_name) {
+                return Err(PortcoveError::launch(
+                    "a credential-shaped variable cannot be added to a child process",
+                )
+                .detail("variable", name.to_string_lossy()));
+            }
+        }
+        let mut command = Command::new(&self.program);
+        command
+            .env_clear()
+            .envs(&self.environment)
+            .args(&self.arguments);
+        if let Some(directory) = &self.working_directory {
+            command.current_dir(directory);
+        }
+        #[cfg(all(windows, test))]
+        {
+            use std::os::windows::process::CommandExt;
+            for argument in &self.raw_arguments {
+                command.raw_arg(argument);
+            }
+        }
+        Ok(command)
+    }
+}
+
+fn environment_names_equal(left: &OsStr, right: &OsStr) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Globalization::{CSTR_EQUAL, CompareStringOrdinal};
+        let left: Vec<_> = left.encode_wide().collect();
+        let right: Vec<_> = right.encode_wide().collect();
+        let (Ok(left_len), Ok(right_len)) = (i32::try_from(left.len()), i32::try_from(right.len()))
+        else {
+            return false;
+        };
+        // SAFETY: both buffers have exactly the supplied lengths. Ordinal Windows
+        // environment comparison is case-insensitive, including Unicode names.
+        unsafe {
+            CompareStringOrdinal(left.as_ptr(), left_len, right.as_ptr(), right_len, 1)
+                == CSTR_EQUAL
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        left == right
+    }
+}
+
+impl ChildProcessPolicy {
+    pub(crate) fn native_tool_spec(
+        class: ChildProcessClass,
+        program: impl AsRef<OsStr>,
+    ) -> Result<NativeToolLaunchSpec> {
+        Self::require_native(class, program.as_ref())?;
+        Ok(Self::tool_spec_with_environment(
+            program,
+            std::env::vars_os(),
+        ))
+    }
+
+    fn tool_spec_with_environment(
+        program: impl AsRef<OsStr>,
+        environment: impl IntoIterator<Item = (OsString, OsString)>,
+    ) -> NativeToolLaunchSpec {
+        let mut spec = NativeToolLaunchSpec {
+            program: program.as_ref().to_owned(),
+            arguments: Vec::new(),
+            environment: BTreeMap::new(),
+            working_directory: None,
+            #[cfg(all(windows, test))]
+            raw_arguments: Vec::new(),
+        };
+        spec.envs(reviewed_environment(environment));
+        spec
+    }
+
+    pub fn native_command(class: ChildProcessClass, program: impl AsRef<OsStr>) -> Result<Command> {
+        Self::require_native(class, program.as_ref())?;
         Ok(Self::command_with_environment(
             class,
             program,
             std::env::vars_os(),
         ))
+    }
+
+    fn require_native(class: ChildProcessClass, program: &OsStr) -> Result<()> {
+        if LaunchKind::for_executable(Path::new(program)) == LaunchKind::WindowsBatch {
+            return Err(PortcoveError::launch(
+                "scripts cannot be used where a native child executable is required",
+            )
+            .detail("process_class", format!("{class:?}")));
+        }
+        Ok(())
     }
 
     pub fn game_command(spec: &GameProcessSpec, forwarded_arguments: &[String]) -> Result<Command> {
@@ -137,12 +300,18 @@ impl ChildProcessPolicy {
     ) -> Command {
         let mut command = Command::new(program);
         command.env_clear();
-        command.envs(environment.into_iter().filter(|(name, _)| {
-            name.to_str()
-                .is_some_and(|name| !is_credential_name(name) && is_reviewed_session_variable(name))
-        }));
+        command.envs(reviewed_environment(environment));
         command
     }
+}
+
+fn reviewed_environment(
+    environment: impl IntoIterator<Item = (OsString, OsString)>,
+) -> impl Iterator<Item = (OsString, OsString)> {
+    environment.into_iter().filter(|(name, _)| {
+        name.to_str()
+            .is_some_and(|name| !is_credential_name(name) && is_reviewed_session_variable(name))
+    })
 }
 
 pub(crate) fn is_credential_name(name: &str) -> bool {
@@ -269,6 +438,109 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+
+    #[test]
+    fn tool_spec_carries_complete_filtered_launch_input() {
+        let environment = [
+            ("PATH".into(), "reviewed-path".into()),
+            ("DISPLAY".into(), ":42".into()),
+            ("GITHUB_TOKEN".into(), "fixture-secret".into()),
+            ("UNREVIEWED_HOST_SETTING".into(), "fixture-secret".into()),
+        ];
+        let mut spec = ChildProcessPolicy::tool_spec_with_environment("native-tool", environment);
+        spec.args(["", "quoted \"argument\"", "Unicode 日本語", "trailing\\"])
+            .current_dir("private preparation")
+            .env_remove("DISPLAY")
+            .env("HOME", "private home");
+        let command = spec.command().unwrap();
+        assert_eq!(command.get_program(), "native-tool");
+        assert_eq!(
+            command.get_current_dir(),
+            Some(Path::new("private preparation"))
+        );
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            spec.arguments
+                .iter()
+                .map(OsString::as_os_str)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            command
+                .get_envs()
+                .map(|(key, value)| (key.to_owned(), value.unwrap().to_owned()))
+                .collect::<BTreeMap<_, _>>(),
+            BTreeMap::from([
+                ("HOME".into(), "private home".into()),
+                ("PATH".into(), "reviewed-path".into())
+            ])
+        );
+        assert!(!format!("{spec:?}").contains("fixture-secret"));
+    }
+
+    #[test]
+    fn tool_spec_and_existing_commands_share_session_inheritance() {
+        let environment = [
+            ("PATH".into(), "reviewed-path".into()),
+            ("HOME".into(), "reviewed-home".into()),
+            ("LD_LIBRARY_PATH".into(), "reviewed-runtime".into()),
+            ("STEAMAPPID".into(), "480".into()),
+            ("FUTURE_SERVICE_TOKEN".into(), "fixture-secret".into()),
+            ("PORTCOVE_UNREVIEWED".into(), "fixture-secret".into()),
+        ];
+        let old = ChildProcessPolicy::command_with_environment(
+            ChildProcessClass::ManagedBuilder,
+            "native-tool",
+            environment.clone(),
+        );
+        let new = ChildProcessPolicy::tool_spec_with_environment("native-tool", environment)
+            .command()
+            .unwrap();
+        let collect = |command: &Command| {
+            command
+                .get_envs()
+                .map(|(key, value)| (key.to_owned(), value.map(OsStr::to_owned)))
+                .collect::<BTreeMap<_, _>>()
+        };
+        assert_eq!(collect(&new), collect(&old));
+    }
+
+    #[test]
+    fn tool_spec_refuses_credential_overlays_before_command_construction() {
+        let mut spec = ChildProcessPolicy::tool_spec_with_environment("never-spawned", []);
+        spec.env("FUTURE_SERVICE_TOKEN", "fixture-secret");
+        let error = spec.command().unwrap_err();
+        assert_eq!(error.details["variable"], "FUTURE_SERVICE_TOKEN");
+        assert!(!format!("{error:?}").contains("fixture-secret"));
+        assert!(!format!("{spec:?}").contains("fixture-secret"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn tool_spec_windows_overlays_replace_and_remove_case_aliases() {
+        let mut spec = ChildProcessPolicy::tool_spec_with_environment(
+            "never-spawned",
+            [("Path".into(), "host".into())],
+        );
+        spec.env("PATH", "pinned")
+            .env("日本Ä", "first")
+            .env("日本ä", "second");
+        assert_eq!(spec.environment.len(), 2);
+        assert_eq!(spec.environment[OsStr::new("PATH")], "pinned");
+        assert_eq!(spec.environment[OsStr::new("日本ä")], "second");
+        spec.env_remove("path").env_remove("日本Ä");
+        assert!(spec.environment.is_empty());
+    }
+
+    #[test]
+    fn tool_spec_rejects_batch_programs() {
+        for program in ["setup.cmd", "setup.BAT"] {
+            assert!(
+                ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, program)
+                    .is_err()
+            );
+        }
+    }
 
     fn build_probe(directory: &Path) -> PathBuf {
         let source = directory.join("process_probe.rs");

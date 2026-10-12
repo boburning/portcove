@@ -1158,7 +1158,7 @@ fn materialize_ps2_iso(
     let program = pinned_tool
         .map(Path::to_path_buf)
         .map_or_else(resolve_chdman, Ok)?;
-    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?;
+    let mut command = ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, &program)?;
     command
         .arg("extractdvd")
         .arg("-i")
@@ -2113,7 +2113,7 @@ fn materialize_gamecube_iso_with_tool(
         .map(Path::to_path_buf)
         .map_or_else(resolve_dolphin_tool, Ok)?;
     let temporary = destination.with_extension(format!("tmp-{}.iso", Uuid::new_v4()));
-    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?;
+    let mut command = ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, &program)?;
     command
         .arg("convert")
         .arg("-i")
@@ -2415,7 +2415,7 @@ pub(crate) fn materialize_psx_chd_with_tool(
     let program = pinned_tool
         .map(Path::to_path_buf)
         .map_or_else(resolve_chdman, Ok)?;
-    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?;
+    let mut command = ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, &program)?;
     command
         .arg("extractcd")
         .arg("-i")

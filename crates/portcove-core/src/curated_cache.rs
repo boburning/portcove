@@ -299,13 +299,12 @@ mod tests {
         std::os::unix::fs::symlink(&target, &link).unwrap();
         #[cfg(windows)]
         {
-            use std::os::windows::process::CommandExt;
             let target = target.to_str().unwrap();
             let link = link.to_str().unwrap();
             for path in [target, link] {
                 assert!(!path.contains(['"', '%', '!', '&', '|', '<', '>', '^', '\r', '\n']));
             }
-            let mut command = crate::ChildProcessPolicy::native_command(
+            let mut command = crate::ChildProcessPolicy::native_tool_spec(
                 crate::ChildProcessClass::HostTool,
                 "cmd.exe",
             )

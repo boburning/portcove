@@ -360,13 +360,17 @@ fn run_fixed_probe(
     path: &Path,
     cancelled: impl Fn() -> bool,
 ) -> std::result::Result<(), ProbeFailure> {
-    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, path)
+    let mut specification = ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, path)
         .map_err(|error| ProbeFailure {
             state: HostToolProbeState::Blocked,
             message: error.message,
         })?;
+    specification.args(&definition.probe.arguments);
+    let mut command = specification.command().map_err(|error| ProbeFailure {
+        state: HostToolProbeState::Blocked,
+        message: error.message,
+    })?;
     command
-        .args(&definition.probe.arguments)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

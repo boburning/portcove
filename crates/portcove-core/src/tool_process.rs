@@ -58,7 +58,7 @@ pub(crate) fn run_setup(
     observer: ToolProcessObserver<'_>,
 ) -> Result<SetupOutput> {
     let mut command =
-        ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, program)?;
+        ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, program)?;
     command
         .args(arguments)
         .arg(source)
@@ -82,7 +82,7 @@ pub(crate) struct ToolProcessObserver<'a> {
 /// Supervise an admitted command and report durable process-tree quiescence
 /// only on paths where no owned child or descendant can remain active.
 pub(crate) fn run_tool(
-    command: &mut Command,
+    specification: &mut crate::process::NativeToolLaunchSpec,
     checkpoint: &dyn Fn() -> Result<()>,
     observer: ToolProcessObserver<'_>,
 ) -> Result<SetupOutput> {
@@ -117,11 +117,21 @@ pub(crate) fn run_tool(
         }
         return Err(error);
     }
+    let mut command = match specification.command() {
+        Ok(command) => command,
+        Err(error) => {
+            // Launch validation failed before any process exists.
+            if let Some(confirm) = quiesced.as_mut() {
+                confirm()?;
+            }
+            return Err(error);
+        }
+    };
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    ToolProcessGroup::prepare(command);
+    ToolProcessGroup::prepare(&mut command);
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(error) => {
