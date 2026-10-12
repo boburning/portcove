@@ -406,6 +406,27 @@ Pages/feed permissions remain disabled pending #534. The checked-in fixture test
 are nonproduction evidence, not proof that a subscription task or production
 credential path is active.
 
+`node scripts/release-run-evidence.mjs REQUEST.json` collects bounded read-only
+API evidence for an exact completed current `Release` run and attempt. The
+request contains only schema version `1`, numeric `repository_id`, `run_id` and
+`attempt`, and independently reviewed `revision`, `tree` and `workflow_sha256`
+hexadecimal digests (40, 40 and 64 characters). It verifies the commit/tree and
+workflow source bytes at that commit, reads every job page for that attempt and
+every artifact page for the run, then rechecks current run identity. A changed
+attempt, missing page, inconsistent total, duplicate identity or exhausted
+bound refuses the receipt. Bounds are 1,600 records per inventory, 40 GET
+requests, 120 seconds and 2 MiB per API reply.
+
+The content-digested receipt records source workflow bytes, not authenticated
+execution lineage. Artifact scope covers all attempts of the run; GitHub's
+[artifact API](https://docs.github.com/en/rest/actions/artifacts) reports no
+producing job or attempt, so those bindings remain explicitly unknown. Missing
+archive digests and expired artifacts remain visible. An archive digest does not
+qualify its package contents. This collector downloads and executes no candidate
+bytes and establishes no runner/cache isolation, custody, signing, eligibility
+or publication authority. A protected controller must separately prove those
+bindings and refresh current state at the action boundary.
+
 ## Standalone CLI integration artifact
 
 Every released external-client claim points to an exact standalone CLI archive,
