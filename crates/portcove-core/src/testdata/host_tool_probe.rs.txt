@@ -267,7 +267,8 @@ mod console_fixture {
             fs::write("console-root-pid",ids[0].to_string())?;
             let window=unsafe{GetConsoleWindow()};let mut host=0;
             if window.is_null() || unsafe{GetWindowThreadProcessId(window,&mut host)}==0 || host==0 {return Err(io::Error::other("owned console host window identity unavailable"));}
-            fs::write("console-host-pid",host.to_string())?;
+            // Window owner is diagnostic only; it need not be the console host.
+            fs::write("console-window-owner-pid",host.to_string())?;
             fs::write("console-session-ready",b"actual new hidden console; owned root only")?;
             Ok(session)
         }

@@ -742,6 +742,20 @@ fn console_image_fixture_child() {
     fs::write("console-image-executable",std::env::current_exe().unwrap().display().to_string()).unwrap();
 }
 
+#[test]
+fn retained_image_projection_preserves_lifetime_metadata_without_unrelated_details() {
+    let images=r#"[{"pid":42,"created_filetime":"134362482769661130","image":"C:\\Windows\\System32\\conhost.exe"}]"#;
+    let original=PortcoveError::new(crate::ErrorCode::Cancelled,"owned cancellation")
+        .detail("process_tree_image_identities",images)
+        .detail("unrelated_private_detail","fixture-only-value");
+    let proof=copy_proof_details(&original);
+    assert_eq!(proof["process_tree_image_identities"],images);
+    assert!(!proof.contains_key("unrelated_private_detail"));
+    let projected=attach_process_tree_proof(PortcoveError::new(crate::ErrorCode::Cancelled,"owned cancellation"),&proof);
+    assert_eq!(projected.code,original.code);assert_eq!(projected.message,original.message);
+    assert_eq!(copy_proof_details(&projected),proof);
+}
+
 #[cfg(windows)]
 #[test]
 #[ignore = "requires separately admitted actual hidden console infrastructure"]
@@ -807,7 +821,10 @@ fn windows_console_image_child_exits_while_the_caller_checkpoint_is_blocked() {
         Ok(output) => output.process_tree_proof.clone(),
         Err(error) => copy_proof_details(error),
     };
-    let console_host = fs::read_to_string(working.path().join("console-host-pid")).ok().and_then(|value| value.parse::<u32>().ok());
+    let console_window_owner = fs::read_to_string(working.path().join("console-window-owner-pid")).ok().and_then(|value| value.parse::<u32>().ok());
+    let images=proof.get("process_tree_image_identities").and_then(|value|serde_json::from_str::<Vec<serde_json::Value>>(value).ok());
+    let hosts=images.as_ref().map(|images|images.iter().filter(|entry|entry["image"].as_str().is_some_and(|image|image.eq_ignore_ascii_case("C:\\Windows\\System32\\conhost.exe"))).collect::<Vec<_>>());
+    let console_host=hosts.as_ref().filter(|hosts|hosts.len()==1).and_then(|hosts|hosts[0]["pid"].as_u64()).and_then(|pid|u32::try_from(pid).ok());
     let console_root = fs::read_to_string(working.path().join("console-root-pid")).ok().and_then(|value| value.parse::<u32>().ok());
     let clients = fs::read_to_string(working.path().join("console-image-clients")).ok().and_then(|value| serde_json::from_str::<Vec<u32>>(&value).ok());
     let detached = working.path().join("console-session-detached").is_file();
@@ -816,6 +833,7 @@ fn windows_console_image_child_exits_while_the_caller_checkpoint_is_blocked() {
         serde_json::json!({
             "quiesced":confirmed,"proof":proof,"diagnostic":last_diagnostic,
             "console_host":console_host,"console_root":console_root,"clients":clients,
+            "console_window_owner":console_window_owner,"images":images,
             "detached":detached,"blocked_child_exit_observed":blocked_child_exit.get(),
             "operation_error":result.as_ref().err().map(|error| error.message.as_str()),
         })
@@ -851,6 +869,10 @@ fn windows_console_image_child_exits_while_the_caller_checkpoint_is_blocked() {
     );
     let host = console_host.expect("actual console host required");
     let root = console_root.expect("actual console root required");
+    let images=images.unwrap();assert_eq!(images.len(),identities.len());
+    for image in &images {
+        assert!(identities.iter().any(|identity|identity["pid"]==image["pid"] && identity["created_filetime"]==image["created_filetime"]));
+    }
     assert_ne!(host,root); assert_ne!(host,child_pid);
     assert!(identities.iter().any(|identity| identity["pid"] == host));
     assert!(identities.iter().any(|identity| identity["pid"] == root));

@@ -74,7 +74,7 @@ pub(crate) fn spawn_tool(
 }
 
 pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, String> {
-    const KEYS: [&str; 11] = [
+    const KEYS: &[&str] = &[
         "process_tree_first_failure",
         "process_tree_api_error",
         "process_tree_retained_members",
@@ -86,8 +86,10 @@ pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, Stri
         "process_tree_all_retained_signaled",
         "process_tree_root_exit",
         "process_tree_identities",
+        #[cfg(test)]
+        "process_tree_image_identities",
     ];
-    KEYS.into_iter()
+    KEYS.iter().copied()
         .filter_map(|key| {
             error
                 .details

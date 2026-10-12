@@ -74,6 +74,8 @@ struct Proof {
     first_failure: Option<(&'static str, Option<u32>)>,
     retained: usize,
     identities: Vec<Identity>,
+    #[cfg(test)]
+    images: Vec<(Identity, String)>,
     accounting: Option<(u32, u32)>,
     all_retained_signaled: Option<bool>,
     wait_result: Option<u32>,
@@ -254,6 +256,12 @@ impl ToolProcessGroup {
                 .collect::<Vec<_>>()
                 .join(",");
             error = error.detail("process_tree_identities", format!("[{identities}]"));
+        }
+        #[cfg(test)]
+        if let Ok(images) = serde_json::to_string(&proof.images.iter().map(|(identity,image)| {
+            serde_json::json!({"pid":identity.pid,"created_filetime":identity.created.to_string(),"image":image})
+        }).collect::<Vec<_>>()) {
+            error = error.detail("process_tree_image_identities",images);
         }
         error
     }
@@ -628,10 +636,22 @@ struct Identity {
 
 struct Member {
     handle: OwnedHandle,
+    #[cfg(test)]
+    image: Option<String>,
     initial_thread: Option<u32>,
     creation_seen: bool,
     startup_handled: bool,
     system_module: Option<(usize, usize)>,
+}
+
+#[cfg(test)]
+fn test_process_image(handle: HANDLE) -> Option<String> {
+    use windows_sys::Win32::System::Threading::QueryFullProcessImageNameW;
+    // One bounded query against the retained lifetime handle before continuation.
+    // No PID reopening, substitution, trust decision or production behavior.
+    let mut buffer=[0u16;1024];let mut length=buffer.len() as u32;
+    if unsafe{QueryFullProcessImageNameW(handle,0,buffer.as_mut_ptr(),&mut length)}==0 || length==0 || length as usize>buffer.len() {return None;}
+    String::from_utf16(&buffer[..length as usize]).ok()
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -822,6 +842,8 @@ impl Controller {
             controller.members.insert(
                 root,
                 Member {
+                    #[cfg(test)]
+                    image: test_process_image(root_handle.as_raw_handle()),
                     handle: root_handle,
                     initial_thread: Some(info.dwThreadId),
                     creation_seen: false,
@@ -839,6 +861,8 @@ impl Controller {
             controller.members.insert(
                 root,
                 Member {
+                    #[cfg(test)]
+                    image: test_process_image(root_handle.as_raw_handle()),
                     handle: root_handle,
                     initial_thread: Some(info.dwThreadId),
                     creation_seen: false,
@@ -925,6 +949,8 @@ impl Controller {
     fn publish_counts(&self) {
         let mut proof = self.control.lock();
         proof.publish_members(self.slots(), self.members.keys().copied());
+        #[cfg(test)]
+        {proof.images=self.members.iter().filter_map(|(identity,member)|member.image.as_ref().map(|image|(*identity,image.clone()))).collect();}
     }
 
     fn retain(
@@ -978,6 +1004,8 @@ impl Controller {
         self.members.insert(
             key,
             Member {
+                #[cfg(test)]
+                image: test_process_image(handle.as_raw_handle()),
                 handle,
                 initial_thread,
                 creation_seen: initial_thread.is_some(),
@@ -1897,6 +1925,7 @@ mod launch_tests {
 
     fn member() -> Member {
         Member {
+            image: None,
             // Open only this test's process; the pseudo-handle value -1 is
             // deliberately refused by the production duplication boundary.
             handle: owned(unsafe {
