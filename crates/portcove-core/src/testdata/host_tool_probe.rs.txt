@@ -139,21 +139,24 @@ fn main() {
                 thread::sleep(Duration::from_secs(8));
             }
         }
-        Some("--setup-unobserved-child" | "--setup-unobserved-image") => {
+        Some("--setup-unobserved-child" | "--setup-unobserved-image" | "--setup-console-image") => {
+            #[cfg(windows)]
+            let console=if args[0]=="--setup-console-image" {Some(console_fixture::Session::allocate().unwrap())} else {None};
             fs::write("leader-ready", b"ready").unwrap();
             let deadline = std::time::Instant::now() + Duration::from_secs(5);
             while !std::path::Path::new("spawn-child").is_file() {
                 if std::time::Instant::now() >= deadline { std::process::exit(9); }
                 thread::sleep(Duration::from_millis(10));
             }
-            let mut child = if args[0] == "--setup-unobserved-image" {
+            let mut child = if args[0] == "--setup-unobserved-image" || args[0]=="--setup-console-image" {
                 // run_setup appends its admitted source after explicit arguments.
                 assert_eq!(args.len(), 3);
                 assert!(std::path::Path::new(&args[2]).is_absolute());
                 let image = std::path::Path::new(&args[1]);
                 assert!(image.is_absolute() && image.is_file());
                 let mut command = Command::new(image);
-                command.args(["tool_process::tests::different_image_fixture_child", "--exact", "--ignored", "--test-threads=1"]);
+                let test=if args[0]=="--setup-console-image" {"tool_process::tests::console_image_fixture_child"} else {"tool_process::tests::different_image_fixture_child"};
+                command.args([test, "--exact", "--ignored", "--test-threads=1"]);
                 command
             } else {
                 let mut command = Command::new(env::current_exe().unwrap());
@@ -162,6 +165,8 @@ fn main() {
             };
             let status = child.status().unwrap();
             assert!(status.success());
+            #[cfg(windows)]
+            if let Some(console)=console {console.finish().unwrap();}
             fs::write("child-finished", b"exited before the next membership snapshot").unwrap();
         }
         #[cfg(unix)]
@@ -205,6 +210,77 @@ fn main() {
             fs::write(&args[1], b"orphaned").unwrap();
         }
         _ => println!("wrong program"),
+    }
+}
+
+#[cfg(windows)]
+mod console_fixture {
+    use std::{ffi::c_void, fs, io, os::windows::io::{FromRawHandle, IntoRawHandle, OwnedHandle}};
+    #[repr(C)] struct Options {mode:i32,use_show:i32,show:u16}
+    #[link(name="kernel32")] unsafe extern "system" {
+        fn GetModuleHandleW(name:*const u16)->*mut c_void;
+        fn GetProcAddress(module:*mut c_void,name:*const core::ffi::c_char)->*mut c_void;
+        fn GetCurrentProcess()->*mut c_void;
+        fn DuplicateHandle(source_process:*mut c_void,source:*mut c_void,target_process:*mut c_void,target:*mut *mut c_void,access:u32,inherit:i32,options:u32)->i32;
+        fn GetStdHandle(which:u32)->*mut c_void;
+        fn SetStdHandle(which:u32,handle:*mut c_void)->i32;
+        fn FreeConsole()->i32;
+        fn GetConsoleProcessList(pids:*mut u32,count:u32)->u32;
+        fn GetConsoleWindow()->*mut c_void;
+    }
+    #[link(name="user32")] unsafe extern "system" {fn GetWindowThreadProcessId(window:*mut c_void,pid:*mut u32)->u32;}
+    pub struct Session {attached:bool}
+    impl Drop for Session {fn drop(&mut self){if self.attached {unsafe{FreeConsole()};}}}
+    impl Session {
+        pub fn allocate()->io::Result<Self> {
+            let name="kernel32.dll\0".encode_utf16().collect::<Vec<_>>();
+            let module=unsafe{GetModuleHandleW(name.as_ptr())};
+            if module.is_null(){return Err(io::Error::last_os_error());}
+            let function=unsafe{GetProcAddress(module,c"AllocConsoleWithOptions".as_ptr())};
+            if function.is_null(){return Err(io::Error::new(io::ErrorKind::Unsupported,"owned hidden console API unavailable"));}
+            let allocate:unsafe extern "system" fn(*const Options,*mut i32)->i32=unsafe{std::mem::transmute(function)};
+            // Preserve each owned standard stream before allocation replaces it.
+            // Duplicates are transferred to process standard-handle ownership;
+            // kernel teardown at the positively waited process exit closes them.
+            let mut streams=Vec::new();
+            for which in [-10i32,-11,-12] {
+                let handle=unsafe{GetStdHandle(which as u32)};
+                if handle.is_null() || handle as isize == -1 {return Err(io::Error::new(io::ErrorKind::InvalidInput,"owned standard handle absent"));}
+                let mut copy=std::ptr::null_mut();let process=unsafe{GetCurrentProcess()};
+                if unsafe{DuplicateHandle(process,handle,process,&mut copy,0,0,2)}==0 {return Err(io::Error::last_os_error());}
+                streams.push((which as u32,unsafe{OwnedHandle::from_raw_handle(copy)}));
+            }
+            unsafe{FreeConsole()}; // Detach only this process, never another client.
+            let mut ids=[0u32;8];
+            if unsafe{GetConsoleProcessList(ids.as_mut_ptr(),8)}!=0 {return Err(io::Error::other("old console remains attached"));}
+            let options=Options{mode:1,use_show:1,show:0};let mut result=0;
+            let status=unsafe{allocate(&options,&mut result)};
+            if status!=0 || result!=1 {return Err(io::Error::other(format!("owned console allocation refused: {status}/{result}")));}
+            let session=Self{attached:true};
+            for (which,handle) in streams {
+                use std::os::windows::io::AsRawHandle;
+                if unsafe{SetStdHandle(which,handle.as_raw_handle())}==0 {return Err(io::Error::last_os_error());}
+                let _=handle.into_raw_handle();
+            }
+            let count=unsafe{GetConsoleProcessList(ids.as_mut_ptr(),8)};
+            if count!=1 || ids[0]!=std::process::id() {return Err(io::Error::other("new console is not private to the owned root"));}
+            fs::write("console-root-pid",ids[0].to_string())?;
+            let window=unsafe{GetConsoleWindow()};let mut host=0;
+            if window.is_null() || unsafe{GetWindowThreadProcessId(window,&mut host)}==0 || host==0 {return Err(io::Error::other("owned console host window identity unavailable"));}
+            fs::write("console-host-pid",host.to_string())?;
+            fs::write("console-session-ready",b"actual new hidden console; owned root only")?;
+            Ok(session)
+        }
+        pub fn finish(mut self)->io::Result<()> {
+            let mut ids=[0u32;8];
+            let count=unsafe{GetConsoleProcessList(ids.as_mut_ptr(),8)};
+            if count!=1 || ids[0]!=std::process::id() {return Err(io::Error::other("console child did not detach before caller resumed"));}
+            if unsafe{FreeConsole()}==0 {return Err(io::Error::last_os_error());}
+            self.attached=false;
+            if unsafe{GetConsoleProcessList(ids.as_mut_ptr(),8)}!=0 {return Err(io::Error::other("owned console remains after detach"));}
+            fs::write("console-session-detached",b"last owned client detached")?;
+            Ok(())
+        }
     }
 }
 

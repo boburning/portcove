@@ -724,6 +724,145 @@ fn different_image_fixture_child() {
 
 #[cfg(windows)]
 #[test]
+#[ignore = "requires separately admitted actual hidden console infrastructure"]
+fn console_image_fixture_child() {
+    assert!(Path::new("console-image-admitted").is_file());
+    assert!(Path::new("console-session-ready").is_file());
+    #[link(name="kernel32")]
+    unsafe extern "system" {fn GetConsoleProcessList(pids:*mut u32,count:u32)->u32;}
+    let mut pids=[0u32;8];
+    let count=unsafe{GetConsoleProcessList(pids.as_mut_ptr(),8)};
+    assert_eq!(count,2,"exact owned root and different-image client required");
+    let root: u32=fs::read_to_string("console-root-pid").unwrap().parse().unwrap();
+    let mut expected=vec![root,std::process::id()];expected.sort();
+    let mut clients=pids[..2].to_vec();clients.sort();
+    assert_eq!(clients,expected);
+    fs::write("console-image-clients",serde_json::to_vec(&clients).unwrap()).unwrap();
+    fs::write("console-image-pid",std::process::id().to_string()).unwrap();
+    fs::write("console-image-executable",std::env::current_exe().unwrap().display().to_string()).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "requires separately admitted actual hidden console infrastructure"]
+fn windows_console_image_child_exits_while_the_caller_checkpoint_is_blocked() {
+    let native = tempfile::tempdir().unwrap();
+    let program = crate::test_fixture::build_probe(native.path());
+    let other_image = std::env::current_exe().unwrap();
+    assert_ne!(program, other_image);
+    let working = tempfile::tempdir().unwrap();
+    fs::write(
+        working.path().join("console-image-admitted"),
+        b"owned control",
+    )
+    .unwrap();
+    let blocked_child_exit = std::cell::Cell::new(false);
+    let mut confirmed = false;
+    let mut last_diagnostic = None;
+    let overall_deadline = Instant::now() + Duration::from_secs(8);
+    let result = run_setup(
+        &program,
+        &[
+            "--setup-console-image".into(),
+            other_image.display().to_string(),
+        ],
+        &working.path().join("owned.iso"),
+        working.path(),
+        &Default::default(),
+        &|| {
+            if Instant::now() >= overall_deadline {
+                return Err(PortcoveError::state("console-image control deadline"));
+            }
+            if working.path().join("leader-ready").is_file() {
+                fs::write(working.path().join("spawn-child"), b"spawn")?;
+                let deadline = overall_deadline.min(Instant::now() + Duration::from_secs(5));
+                while !working.path().join("child-finished").is_file() {
+                    if Instant::now() >= deadline {
+                        return Err(PortcoveError::state(
+                            "owned console-image child did not finish",
+                        ));
+                    }
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                blocked_child_exit.set(true);
+            }
+            Ok(())
+        },
+        ToolProcessObserver {
+            diagnostics: Some(ToolDiagnosticSink {
+                activity_id: "owned-console-image-control",
+                phase: "first-party-fixture",
+                record: &mut |value| {
+                    last_diagnostic = Some(value.clone());
+                    Ok(())
+                },
+            }),
+            quiesced: Some(&mut || {
+                confirmed = true;
+                Ok(())
+            }),
+        },
+    );
+    let proof = match &result {
+        Ok(output) => output.process_tree_proof.clone(),
+        Err(error) => copy_proof_details(error),
+    };
+    let console_host = fs::read_to_string(working.path().join("console-host-pid")).ok().and_then(|value| value.parse::<u32>().ok());
+    let console_root = fs::read_to_string(working.path().join("console-root-pid")).ok().and_then(|value| value.parse::<u32>().ok());
+    let clients = fs::read_to_string(working.path().join("console-image-clients")).ok().and_then(|value| serde_json::from_str::<Vec<u32>>(&value).ok());
+    let detached = working.path().join("console-session-detached").is_file();
+    eprintln!(
+        "native_console_image_proof:{}",
+        serde_json::json!({
+            "quiesced":confirmed,"proof":proof,"diagnostic":last_diagnostic,
+            "console_host":console_host,"console_root":console_root,"clients":clients,
+            "detached":detached,"blocked_child_exit_observed":blocked_child_exit.get(),
+            "operation_error":result.as_ref().err().map(|error| error.message.as_str()),
+        })
+    );
+    let output = result.expect("console-image creation remains captured while caller blocks");
+    assert!(output.status.success());
+    assert!(confirmed);
+    assert_eq!(output.process_tree_proof["process_tree_active"], "0");
+    assert_eq!(output.process_tree_proof["process_tree_total"], output.process_tree_proof["process_tree_retained_members"]);
+    assert_eq!(
+        output.process_tree_proof["process_tree_all_retained_signaled"],
+        "true"
+    );
+    assert!(
+        !output
+            .process_tree_proof
+            .contains_key("process_tree_first_failure")
+    );
+    let identities: Vec<serde_json::Value> =
+        serde_json::from_str(&output.process_tree_proof["process_tree_identities"]).unwrap();
+    let child_pid: u32 = fs::read_to_string(working.path().join("console-image-pid"))
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        identities
+            .iter()
+            .any(|identity| identity["pid"] == child_pid)
+    );
+    assert_eq!(
+        fs::read_to_string(working.path().join("console-image-executable")).unwrap(),
+        other_image.display().to_string()
+    );
+    let host = console_host.expect("actual console host required");
+    let root = console_root.expect("actual console root required");
+    assert_ne!(host,root); assert_ne!(host,child_pid);
+    assert!(identities.iter().any(|identity| identity["pid"] == host));
+    assert!(identities.iter().any(|identity| identity["pid"] == root));
+    let mut expected_clients=vec![root,child_pid];expected_clients.sort();
+    assert_eq!(clients.unwrap(),expected_clients);
+    assert!(detached && blocked_child_exit.get());
+    assert!(identities.len()>=3 && identities.len()<=7);
+    assert!(working.path().join("child-finished").is_file());
+}
+
+#[cfg(windows)]
+#[test]
 fn windows_different_image_child_exits_while_the_caller_checkpoint_is_blocked() {
     let native = tempfile::tempdir().unwrap();
     let program = crate::test_fixture::build_probe(native.path());
