@@ -6,7 +6,9 @@ fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
     match args.first().map(String::as_str) {
         #[cfg(windows)]
-        Some("--owned-exceptions") => owned_exceptions(&args[1]),
+        Some("--owned-exceptions") => exception_fixture::run(&args[1]),
+        #[cfg(windows)]
+        Some("--owned-tls-exceptions") => exception_fixture::verify_tls(),
         Some("--observe-launch") => {
             // First-party launch-parity control: inputs are bounded by the
             // admitted test packet; no helper, network or game is invoked.
@@ -205,8 +207,8 @@ fn main() {
 }
 
 #[cfg(windows)]
-fn owned_exceptions(mode: &str) {
-    assert!(cfg!(target_arch="x86_64"));
+mod exception_fixture {
+    use super::fs;
     use std::{ffi::c_void, sync::atomic::{AtomicU32, Ordering}};
     #[repr(C)] struct ExceptionRecord { code:u32, flags:u32, nested:*mut c_void, address:*const u8 }
     #[repr(C,align(16))] struct ContextPrefix {
@@ -216,6 +218,7 @@ fn owned_exceptions(mode: &str) {
     const _:()=assert!(std::mem::offset_of!(ContextPrefix,rip)==248);
     #[repr(C)] struct ExceptionPointers { record:*const ExceptionRecord, context:*mut ContextPrefix }
     static HANDLED:AtomicU32=AtomicU32::new(0);
+    static TLS_PHASE:AtomicU32=AtomicU32::new(0);
     unsafe extern "system" fn handler(info:*mut ExceptionPointers)->i32 {
         if info.is_null() || unsafe{(*info).record.is_null()} { return 0; }
         let code=unsafe{(*(*info).record).code};
@@ -231,7 +234,7 @@ fn owned_exceptions(mode: &str) {
             if rip==at { unsafe{(*context).rip=after}; }
             else if rip!=after { return 0; }
         }
-        if code==0xe042_3333 || code==0x8000_0003 {
+        if code==0xe042_3333 || code==0xe042_5555 || code==0x8000_0003 {
             HANDLED.fetch_add(1,Ordering::Relaxed);
             -1 // EXCEPTION_CONTINUE_EXECUTION; application handler owns this.
         } else { 0 } // EXCEPTION_CONTINUE_SEARCH; never swallow terminal exception.
@@ -246,6 +249,8 @@ fn owned_exceptions(mode: &str) {
         fn GetCurrentProcess()->*mut c_void;
         fn ReadProcessMemory(process:*mut c_void,address:*const c_void,buffer:*mut c_void,size:usize,read:*mut usize)->i32;
     }
+    pub fn run(mode: &str) {
+    assert!(cfg!(target_arch="x86_64"));
     assert!(mode=="handled" || mode=="unhandled");
     unsafe { SetErrorMode(0x0001|0x0002); } // No critical-error or fault dialog.
     assert!(unsafe{WerSetFlags(0x20)}>=0); // Current-process WER_FAULT_REPORTING_NO_UI.
@@ -263,6 +268,47 @@ fn owned_exceptions(mode: &str) {
     }
 }
 
+    pub fn verify_tls() {
+        assert_eq!(TLS_PHASE.load(Ordering::Acquire),2,"PE TLS callback did not complete");
+        assert_eq!(HANDLED.load(Ordering::Relaxed),2,"TLS exception was substituted or swallowed");
+        fs::write("tls-exceptions-handled",b"custom exception and DebugBreak handled inside TLS callback").unwrap();
+    }
+    #[link(name="kernel32")] unsafe extern "system" {
+        fn GetCommandLineW()->*const u16;
+        fn ExitProcess(code:u32)->!;
+    }
+    unsafe extern "system" fn tls_handler(info:*mut ExceptionPointers)->i32 {
+        if TLS_PHASE.load(Ordering::Acquire)!=1 || info.is_null() || unsafe{(*info).record.is_null()} {return 0;}
+        let code=unsafe{(*(*info).record).code};
+        if code!=0xe042_5555 && code!=0x8000_0003 {return 0;}
+        unsafe{handler(info)}
+    }
+    unsafe extern "system" fn tls_callback(_: *mut c_void,reason:u32,_:*mut c_void) {
+        if reason!=1 || !cfg!(target_arch="x86_64") {return;}
+        let command=unsafe{GetCommandLineW()};
+        if command.is_null() {return;}
+        let mut len=0usize;
+        while len<32768 && unsafe{*command.add(len)}!=0 {len+=1;}
+        if len>=32768 {return;}
+        // Only the exact owned flag at the command-line suffix admits this hook.
+        const SUFFIX:&[u16]=&[32,34,45,45,111,119,110,101,100,45,116,108,115,45,101,120,99,101,112,116,105,111,110,115,34];
+        if len<SUFFIX.len() {return;}
+        if unsafe{std::slice::from_raw_parts(command.add(len-SUFFIX.len()),SUFFIX.len())}!=SUFFIX {return;}
+        unsafe{SetErrorMode(1|2);}
+        TLS_PHASE.store(1,Ordering::Release);
+        let handle=unsafe{AddVectoredExceptionHandler(1,tls_handler)};
+        if handle.is_null() {unsafe{ExitProcess(31)}}
+        unsafe{RaiseException(0xe042_5555,0,0,std::ptr::null());}
+        if HANDLED.load(Ordering::Relaxed)!=1 {unsafe{ExitProcess(32)}}
+        unsafe{DebugBreak();}
+        if HANDLED.load(Ordering::Relaxed)!=2 {unsafe{ExitProcess(33)}}
+        if unsafe{RemoveVectoredExceptionHandler(handle)}==0 {unsafe{ExitProcess(34)}}
+        TLS_PHASE.store(2,Ordering::Release);
+    }
+    #[used]
+    #[unsafe(link_section=".CRT$XLB")]
+    static TLS_CALLBACK:unsafe extern "system" fn(*mut c_void,u32,*mut c_void)=tls_callback;
+}
 fn owned_preparation(args: &[String]) {
     let game = args.windows(2).find(|pair| pair[0] == "--game").map(|pair| pair[1].as_str()).unwrap_or("jak1");
     assert!(["jak1", "jak2", "jak3"].contains(&game));

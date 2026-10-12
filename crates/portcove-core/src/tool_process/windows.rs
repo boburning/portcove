@@ -1412,6 +1412,80 @@ mod native_control_tests {
     use crate::{ChildProcessClass, ChildProcessPolicy};
 
     #[test]
+    fn tls_initialization_exceptions_reach_the_phase_bound_application_handler() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.arg("--owned-tls-exceptions")
+            .current_dir(working.path());
+        let trace = Arc::new(Mutex::new(Vec::new()));
+        let (mut child, group) = spawn_with_options(
+            &spec,
+            TestOptions {
+                exception_trace: Some(trace.clone()),
+                ..Default::default()
+            },
+        )
+        .map_err(|failure| failure.error)
+        .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(4);
+        let observed = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break Ok(status),
+                Err(error) => break Err(error.to_string()),
+                Ok(None) if Instant::now() >= deadline => {
+                    break Err("TLS exception control deadline".into());
+                }
+                Ok(None) => thread::sleep(Duration::from_millis(1)),
+            }
+        };
+        let stopped = group.terminate_and_wait(&mut child);
+        let quiesced = group.proves_tree_quiescence();
+        let proof = crate::tool_process::copy_proof_details(
+            &group.with_proof_details(PortcoveError::state("TLS exception control")),
+        );
+        let events = trace.lock().unwrap().clone();
+        let marker = working.path().join("tls-exceptions-handled").is_file();
+        eprintln!(
+            "native_tls_exception_proof:{}",
+            serde_json::json!({
+                "quiesced":quiesced,"proof":proof,"tls_completion_marker":marker,
+                "observation_error":observed.as_ref().err(),
+                "termination_error":stopped.as_ref().err().map(ToString::to_string),
+                "events":events.iter().map(|event|serde_json::json!({
+                    "pid":event.pid,"code":event.code,"first_chance":event.first_chance,
+                    "continuation":event.continuation,
+                })).collect::<Vec<_>>(),
+            })
+        );
+        assert!(observed.is_ok());
+        assert!(quiesced);
+        assert_eq!(stopped.unwrap().code(), Some(0));
+        assert!(marker);
+        assert_eq!(proof["process_tree_total"], "1");
+        assert_eq!(proof["process_tree_retained_members"], "1");
+        assert_eq!(proof["process_tree_all_retained_signaled"], "true");
+        assert_eq!(proof["process_tree_active"], "0");
+        assert!(!proof.contains_key("process_tree_first_failure"));
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| event.continuation == DBG_CONTINUE)
+                .count(),
+            1
+        );
+        let forwarded = events
+            .iter()
+            .filter(|event| event.continuation == DBG_EXCEPTION_NOT_HANDLED)
+            .map(|event| (event.code, event.first_chance))
+            .collect::<Vec<_>>();
+        assert_eq!(forwarded, [(0xe042_5555, 1), (0x8000_0003, 1)]);
+    }
+
+    #[test]
     fn application_handlers_and_second_chance_failure_receive_forwarded_exceptions() {
         let native = tempfile::tempdir().unwrap();
         let program = crate::test_fixture::build_probe(native.path());
