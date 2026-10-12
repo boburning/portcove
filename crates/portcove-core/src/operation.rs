@@ -276,6 +276,7 @@ fn psx_compile_history_digest(
 #[derive(Clone, Copy)]
 enum PsxStageTable {
     Bootstrap,
+    NormalizedInputs,
     Generation,
     Configuration,
     Compilation,
@@ -285,13 +286,17 @@ impl PsxStageTable {
     fn name(self) -> &'static str {
         match self {
             Self::Bootstrap => "managed_psx_bootstrap",
+            Self::NormalizedInputs => "managed_psx_normalized_inputs",
             Self::Generation => "managed_psx_generation",
             Self::Configuration => "managed_psx_configuration",
             Self::Compilation => "managed_psx_compilation",
         }
     }
     fn has_parent(self) -> bool {
-        !matches!(self, Self::Bootstrap | Self::Generation)
+        !matches!(
+            self,
+            Self::Bootstrap | Self::NormalizedInputs | Self::Generation
+        )
     }
     fn parent_name(self) -> &'static str {
         match self {
@@ -487,6 +492,31 @@ impl OperationStore {
         self.psx_stage_fenced(PsxStageTable::Bootstrap, operation, || Ok(()))
     }
 
+    pub(crate) fn commit_psx_normalized_inputs(
+        &self,
+        journal: &LifecycleOperation,
+        witness: &crate::psx::NormalizedInputWitness,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.commit_psx_stage(PsxStageTable::NormalizedInputs, journal, witness, operation)
+    }
+
+    pub(crate) fn psx_normalized_inputs(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<crate::psx::NormalizedInputWitness> {
+        self.psx_stage_fenced(PsxStageTable::NormalizedInputs, operation, || Ok(()))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn psx_normalized_inputs_before_fence(
+        &self,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+    ) -> Result<crate::psx::NormalizedInputWitness> {
+        self.psx_stage_fenced(PsxStageTable::NormalizedInputs, operation, before_fence)
+    }
+
     #[cfg(test)]
     pub(crate) fn psx_bootstrap_before_fence(
         &self,
@@ -667,6 +697,13 @@ impl OperationStore {
         } else {
             " AND ?15 IS NULL AND ?16 IS NULL"
         };
+        let input_vacancy_sql = if matches!(table, PsxStageTable::NormalizedInputs) {
+            " AND NOT EXISTS(SELECT 1 FROM managed_psx_generation WHERE operation_id=?2)
+              AND NOT EXISTS(SELECT 1 FROM managed_psx_configuration WHERE operation_id=?2)
+              AND NOT EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=?2)"
+        } else {
+            ""
+        };
         if let Some((_, _, cursor, history_sha256)) = predecessor {
             if psx_compile_history_digest(&transaction, operation, cursor - 1)? != history_sha256 {
                 return Err(PortcoveError::conflict(
@@ -691,7 +728,7 @@ impl OperationStore {
                    WHERE operation_id=?2 AND witness_sha256=?11 AND witness_json=?12))
                AND (?13 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_generation
                    WHERE operation_id=?2 AND witness_sha256=?13 AND witness_json=?14))
-               AND (?17 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_bootstrap WHERE operation_id=?2 AND witness_sha256=?17 AND witness_json=?18)){successor_sql}", table.name(), table.parent_name()),
+               AND (?17 IS NULL OR EXISTS(SELECT 1 FROM managed_psx_bootstrap WHERE operation_id=?2 AND witness_sha256=?17 AND witness_json=?18)){input_vacancy_sql}{successor_sql}", table.name(), table.parent_name()),
             params![
                 json,
                 journal.id,
@@ -760,6 +797,24 @@ impl OperationStore {
         if advanced {
             return Err(PortcoveError::conflict(
                 "PS1 acquired generation already advanced",
+            ));
+        }
+        operation.checkpoint()
+    }
+
+    pub(crate) fn require_psx_normalization_vacant(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.require_psx_generation_vacant(operation)?;
+        let retained: bool = database::connect(self.library.root())?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM managed_psx_normalized_inputs WHERE operation_id=?1)",
+            [operation.operation_id()],
+            |row| row.get(0),
+        )?;
+        if retained {
+            return Err(PortcoveError::conflict(
+                "PS1 normalized inputs already retained",
             ));
         }
         operation.checkpoint()

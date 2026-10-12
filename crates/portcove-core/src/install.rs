@@ -41,6 +41,13 @@ pub struct ManagedInstallBootstrap {
     pub port_id: String,
 }
 
+/// Private normalized disc inputs, without generator or installation completion.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ManagedInstallNormalizedInputs {
+    pub operation_id: String,
+    pub port_id: String,
+}
+
 /// Successful private generation. No installation has been published or
 /// registered; subsequent Core work must load its lifecycle-owned witness.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -671,6 +678,131 @@ impl Installer {
         })
     }
 
+    /// Materialize private disc inputs under the exact acquired predecessor.
+    /// No generator, compiler or installation is dispatched or published.
+    pub async fn normalize_acquired_managed_install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<ManagedInstallNormalizedInputs>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let preparation = request.managed.as_ref().ok_or_else(|| {
+            PortcoveError::unsupported("PS1 input normalization requires managed preparation")
+        })?;
+        if request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 input normalization requires a retained contract",
+            ));
+        }
+        let scope = self.require_acquisition(&request)?;
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let _port_guard = self
+            .library
+            .try_lock_port(&request.port_id, "normalize-acquired-managed-install")?;
+        let store = OperationStore::new(self.library.clone());
+        store.require_psx_normalization_vacant(operation)?;
+        let load_store = store.clone();
+        let witness = join_psx_witness_worker(operation, move |checkpoint| {
+            load_store.psx_bootstrap(&checkpoint)
+        })
+        .await?;
+        let artifact = witness.artifact();
+        if artifact.asset_name != request.release.asset.name
+            || !artifact
+                .sha256
+                .eq_ignore_ascii_case(&request.release.asset.sha256)
+            || (request.release.asset.size != 0 && request.release.asset.size != artifact.size)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained artifact and live release differ",
+            ));
+        }
+        witness.require_request(&generation_contract(&request, artifact)?, preparation)?;
+        let record = store.get(operation.operation_id())?.ok_or_else(|| {
+            PortcoveError::state("PS1 input normalization lifecycle owner is missing")
+        })?;
+        let operation_root =
+            record.paths.staging.clone().ok_or_else(|| {
+                PortcoveError::state("PS1 input normalization staging is missing")
+            })?;
+        let destination = record.paths.final_path.clone().ok_or_else(|| {
+            PortcoveError::state("PS1 input normalization destination is missing")
+        })?;
+        let mut lifecycle = InstallLifecycle {
+            destination,
+            operation_root,
+            store,
+            record,
+        };
+        let preparation = preparation.clone();
+        self.require_acquisition(&request)?;
+        lifecycle
+            .store
+            .require_psx_normalization_vacant(operation)?;
+        operation.checkpoint()?;
+        emit(operation.message(
+            "info",
+            "Normalizing retained disc inputs; no generation or publication",
+        ));
+        let library = self.library.clone();
+        let prior = lifecycle.record.clone();
+        let result = run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
+            crate::psx::NormalizedInputWitness::prepare(
+                witness,
+                &library,
+                &prior,
+                &preparation,
+                &checkpoint,
+            )
+        })
+        .await;
+        let normalized = match result {
+            Ok(normalized) => normalized,
+            Err(error) => {
+                retain_staged_failure(&mut lifecycle, &error)?;
+                return Err(error);
+            }
+        };
+        let retained = match self.require_acquisition(&request) {
+            Ok(_) => {
+                let store = lifecycle.store.clone();
+                let journal = lifecycle.record.clone();
+                join_psx_witness_worker(operation, move |checkpoint| {
+                    store.commit_psx_normalized_inputs(&journal, &normalized, &checkpoint)
+                })
+                .await
+            }
+            Err(error) => Err(error),
+        };
+        if let Err(error) = retained {
+            retain_staged_failure(&mut lifecycle, &error)?;
+            return Err(error);
+        }
+        Ok(ManagedInstallNormalizedInputs {
+            operation_id: operation.operation_id().to_owned(),
+            port_id: request.port_id,
+        })
+    }
+
+    /// Reopen only the normalized-input witness; it grants no generator dispatch.
+    pub fn managed_install_normalized_inputs(
+        &self,
+        operation_id: &str,
+    ) -> Result<ManagedInstallNormalizedInputs> {
+        let operation =
+            OperationCoordinator::resume(operation_id, "managed-install-normalized-inputs", None);
+        let witness =
+            OperationStore::new(self.library.clone()).psx_normalized_inputs(&operation)?;
+        Ok(ManagedInstallNormalizedInputs {
+            operation_id: operation_id.to_owned(),
+            port_id: witness.port_id().to_owned(),
+        })
+    }
+
     /// Generate from an exact store-owned acquired checkpoint, with fresh
     /// acquisition authority and the port lock. No bytes are reacquired.
     pub async fn generate_acquired_managed_install<F>(
@@ -698,7 +830,7 @@ impl Installer {
             .try_lock_port(&request.port_id, "generate-acquired-managed-install")?;
         operation.checkpoint()?;
         let store = OperationStore::new(self.library.clone());
-        store.require_psx_generation_vacant(operation)?;
+        store.require_psx_normalization_vacant(operation)?;
         let load_store = store.clone();
         let witness = join_psx_witness_worker(operation, move |checkpoint| {
             load_store.psx_bootstrap(&checkpoint)
@@ -736,7 +868,9 @@ impl Installer {
         // Revalidate the live grant after lengthy private-file checks, before
         // recording a writer and dispatching any setup process.
         self.require_acquisition(&request)?;
-        lifecycle.store.require_psx_generation_vacant(operation)?;
+        lifecycle
+            .store
+            .require_psx_normalization_vacant(operation)?;
         operation.checkpoint()?;
         emit(operation.message(
             "info",

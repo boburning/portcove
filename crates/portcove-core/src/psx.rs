@@ -10,6 +10,8 @@ use uuid::Uuid;
 
 mod bootstrap;
 pub(crate) use bootstrap::BootstrapWitness;
+mod normalized_inputs;
+pub(crate) use normalized_inputs::NormalizedInputWitness;
 mod compile_plan;
 mod compile_stage;
 pub(crate) use compile_stage::{CompiledInstall, FinalizedInstall};
@@ -2853,6 +2855,203 @@ mod tests {
         )
         .unwrap();
         assert!(store.psx_bootstrap(&operation).is_err());
+    }
+
+    fn normalized_input_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        NormalizedInputWitness,
+        PsxManagedPreparation,
+    ) {
+        let (library, operation, journal, bootstrap, _, preparation) = bootstrap_fixture(root);
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &bootstrap, &operation)
+            .unwrap();
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        let disc = journal
+            .paths
+            .staging
+            .as_ref()
+            .unwrap()
+            .join("psx-source-inert");
+        fs::write(
+            disc.join("disc.cue"),
+            "inert cue descriptor; no helper executed",
+        )
+        .unwrap();
+        let helper = root.join("inert-chd-helper");
+        fs::write(&helper, "inert helper; not executed").unwrap();
+        let witness =
+            NormalizedInputWitness::inert_fixture(loaded, &preparation, &disc, &helper, &operation)
+                .unwrap();
+        (library, operation, journal, witness, preparation)
+    }
+
+    #[test]
+    fn normalized_inputs_reopen_without_generation_or_publication() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        let reopened = crate::Installer::new(library.clone())
+            .unwrap()
+            .managed_install_normalized_inputs(operation.operation_id())
+            .unwrap();
+        assert_eq!(reopened.operation_id, operation.operation_id());
+        assert_eq!(reopened.port_id, witness.port_id());
+        assert!(store.psx_generation(&operation).is_err());
+        assert!(store.psx_configuration(&operation).is_err());
+        assert!(store.psx_compilation(&operation).is_err());
+        let retained = store.get(operation.operation_id()).unwrap().unwrap();
+        assert_eq!(
+            retained.phase,
+            crate::operation::LifecyclePhase::StagedPreparing
+        );
+        assert_eq!(retained.preparation_process_quiesced, Some(true));
+        assert!(
+            retained.install.is_none()
+                && retained.preparation.is_none()
+                && retained.last_error.is_none()
+        );
+    }
+
+    #[test]
+    fn normalized_inputs_refuse_disc_helper_source_and_archive_drift() {
+        for changed in ["disc", "helper", "source", "archive"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            store
+                .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                .unwrap();
+            let path = match changed {
+                "disc" => journal
+                    .paths
+                    .staging
+                    .as_ref()
+                    .unwrap()
+                    .join("psx-source-inert/disc.bin"),
+                "helper" => temporary.path().join("inert-chd-helper"),
+                "source" => preparation.source.path,
+                _ => journal
+                    .paths
+                    .staging
+                    .as_ref()
+                    .unwrap()
+                    .join("artifact.download"),
+            };
+            fs::write(path, "changed after sealing").unwrap();
+            assert!(
+                store.psx_normalized_inputs(&operation).is_err(),
+                "{changed}"
+            );
+            assert!(store.psx_generation(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn normalized_inputs_refuse_failed_or_unclosed_journal() {
+        for failed in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, mut journal, witness, _) =
+                normalized_input_fixture(temporary.path());
+            if failed {
+                journal.last_error = Some("retained failure".into());
+            } else {
+                journal.preparation_process_quiesced = Some(false);
+            }
+            let store = crate::operation::OperationStore::new(library.clone());
+            store.put(&mut journal).unwrap();
+            assert!(
+                store
+                    .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                    .is_err()
+            );
+            assert!(store.psx_normalized_inputs(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn normalized_inputs_refuse_repeat_or_legacy_generation_before_dispatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, preparation) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        assert!(store.require_psx_normalization_vacant(&operation).is_err());
+        assert!(
+            store
+                .commit_psx_normalized_inputs(&journal, &witness, &operation)
+                .is_err()
+        );
+        let loaded = store.psx_bootstrap(&operation).unwrap();
+        let (result, quiesced) = loaded.generate(&library, &journal, &preparation, &operation);
+        assert!(quiesced);
+        assert!(
+            result
+                .err()
+                .unwrap()
+                .message
+                .contains("normalized inputs already retained")
+        );
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn normalized_inputs_atomic_fence_refuses_changed_acquired_predecessor() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        let result = store.psx_normalized_inputs_before_fence(&operation, || {
+            library.connection()?.execute(
+                "UPDATE managed_psx_bootstrap SET witness_sha256=?1 WHERE operation_id=?2",
+                rusqlite::params!["f".repeat(64), operation.operation_id()],
+            )?;
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert!(store.psx_generation(&operation).is_err());
+    }
+
+    #[test]
+    fn normalized_inputs_refuse_coherently_changed_embedded_context_with_valid_child_hash() {
+        use sha2::Digest;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness, mut preparation) =
+            normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        store
+            .commit_psx_normalized_inputs(&journal, &witness, &operation)
+            .unwrap();
+        // Change both embedded contexts coherently, while retaining the valid
+        // acquired binding and recomputing the child's ordinary integrity hash.
+        // This must not invent a new source contract for the same predecessor.
+        preparation.source.profile_id = "different-source-contract".into();
+        let inputs = serde_json::to_value(preparation_identity(&preparation).unwrap()).unwrap();
+        let mut changed = serde_json::to_value(&witness).unwrap();
+        changed["inputs"] = inputs.clone();
+        changed["bootstrap"]["inputs"] = inputs;
+        let json = serde_json::to_string(&changed).unwrap();
+        let sha = hex::encode(sha2::Sha256::digest(json.as_bytes()));
+        library.connection().unwrap().execute(
+            "UPDATE managed_psx_normalized_inputs SET witness_json=?1,witness_sha256=?2 WHERE operation_id=?3",
+            rusqlite::params![json, sha, operation.operation_id()],
+        ).unwrap();
+        let error = store.psx_normalized_inputs(&operation).err().unwrap();
+        assert!(error.message.contains("predecessor context changed"));
+        assert!(store.psx_generation(&operation).is_err());
     }
 
     #[test]

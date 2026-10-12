@@ -62,6 +62,17 @@ impl BootstrapBinding {
 }
 
 impl BootstrapWitness {
+    pub(super) fn payload_root(&self) -> &std::path::Path {
+        self.payload.root()
+    }
+
+    pub(super) fn require_preparation(&self, preparation: &PsxManagedPreparation) -> Result<()> {
+        if self.inputs != preparation_identity(preparation)? {
+            return Err(PortcoveError::conflict("PS1 acquired preparation changed"));
+        }
+        Ok(())
+    }
+
     pub(crate) fn capture(
         library: &Library,
         journal: &LifecycleOperation,
@@ -149,7 +160,7 @@ impl BootstrapWitness {
     ) -> (Result<(super::GeneratedInstall, BootstrapBinding)>, bool) {
         let checked = self.binding().and_then(|binding| {
             crate::operation::OperationStore::new(library.clone())
-                .require_psx_generation_vacant(operation)?;
+                .require_psx_normalization_vacant(operation)?;
             binding.require_current(library, operation.operation_id())?;
             self.verify(library, journal, operation)?;
             Ok(binding)

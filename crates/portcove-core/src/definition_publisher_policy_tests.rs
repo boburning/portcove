@@ -1138,6 +1138,7 @@ async fn curated_other_scope_cannot_transition_or_accept_another_ports_history()
     assert!(refusal.message.contains("authority scope"));
     assert_eq!(count(&library, "curated_transition_receipts"), 0);
     assert_eq!(count(&library, "managed_psx_bootstrap"), 0);
+    assert_eq!(count(&library, "managed_psx_normalized_inputs"), 0);
     assert_eq!(count(&library, "managed_psx_compile_history"), 0);
     assert_eq!(count(&library, "managed_psx_compilation"), 0);
     assert_eq!(count(&library, "managed_psx_configuration"), 0);
@@ -4729,6 +4730,7 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
     assert_eq!(count(&library, "curated_artifact_scopes"), 0);
     assert_eq!(count(&library, "curated_artifact_admissions"), 0);
     assert_eq!(count(&library, "curated_transition_receipts"), 0);
+    assert_eq!(count(&library, "managed_psx_normalized_inputs"), 0);
     library.connection().unwrap().execute_batch(
         "BEGIN IMMEDIATE;
          CREATE TABLE historical_admission (
@@ -4747,6 +4749,7 @@ async fn managed_historical_admission_upgrade_preserves_retained_installation_an
          DROP TABLE curated_artifact_admissions;
          DROP TABLE curated_artifact_history;
          DROP TABLE curated_transition_receipts;
+         DROP TABLE managed_psx_normalized_inputs;
          DROP TABLE managed_psx_bootstrap;
          DROP TABLE managed_psx_compile_history;
          DROP TABLE managed_psx_compilation;

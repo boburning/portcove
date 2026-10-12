@@ -112,6 +112,7 @@ fn require_stage_request(stage: &str, retained_operation_id: Option<&str>) -> Re
     if !matches!(
         stage,
         "acquire"
+            | "normalize-inputs"
             | "generate-acquired"
             | "generate"
             | "configure"
@@ -260,6 +261,7 @@ impl PortcoveService {
             let installer = Installer::new(service.library.clone())?;
             let outcome = match stage {
                 "acquire" => serde_json::to_value(installer.acquire_managed_install(request, &operation, &mut emit).await?)?,
+                "normalize-inputs" => serde_json::to_value(installer.normalize_acquired_managed_install(request, &operation, &mut emit).await?)?,
                 "generate-acquired" => serde_json::to_value(installer.generate_acquired_managed_install(request, &operation, &mut emit).await?)?,
                 "generate" => serde_json::to_value(installer.generate_managed_install(request, &operation, &mut emit).await?)?,
                 "configure" => serde_json::to_value(installer.configure_managed_install(request, &operation, &mut emit).await?)?,
@@ -533,6 +535,9 @@ mod tests {
     fn historical_acquired_stages_require_exact_fresh_or_retained_custody() {
         let id = uuid::Uuid::new_v4().to_string();
         assert!(require_stage_request("acquire", None).is_ok());
+        assert!(require_stage_request("normalize-inputs", Some(&id)).is_ok());
+        assert!(require_stage_request("normalize-inputs", None).is_err());
+        assert!(require_stage_request("normalize-inputs", Some("caller-reconstructed")).is_err());
         assert!(require_stage_request("acquire", Some(&id)).is_err());
         assert!(require_stage_request("generate-acquired", Some(&id)).is_ok());
         assert!(require_stage_request("generate-acquired", None).is_err());

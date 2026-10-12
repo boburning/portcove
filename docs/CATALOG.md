@@ -581,6 +581,15 @@ sandbox. Retained workspaces and existing cancellation/closure guards still appl
 Core's staged managed PS1 API can retain generation and configuration separately
 without publishing an installation. Core persists a distinct staged-preparing
 lifecycle intent before its first worker.
+Acquired setup can separately yield normalized disc inputs before generation.
+`normalize_acquired_managed_install` consumes the exact store-owned acquired
+checkpoint under fresh acquisition/request checks and the port lock, supervises
+only the selected disc helper, joins its worker and seals a separate input witness.
+That witness binds the acquired predecessor, source/BIOS context, actual helper
+bytes and complete normalized inventory. It grants no generator, configure,
+compile or installation completion; existing progress or drift refuses rather
+than regenerating over retained data. The monolithic acquired-generation route
+refuses an operation that already has a normalized-input checkpoint.
 Ordinary service startup and cancellation retain that intent, private data and
 exact closure facts, including failed generation before any witness exists.
 Retention grants no resume or automatic cleanup authority; stage loaders still
