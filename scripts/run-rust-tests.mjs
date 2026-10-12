@@ -364,7 +364,7 @@ export async function runRustTests(args, dependencies = {}) {
         product: "host-tool-probe",
         source: "crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
         output: fixtureExecutable,
-        rustcArgs: ["--crate-name", "portcove_host_tool_fixture"],
+        rustcArgs: ["--edition=2024", "--crate-name", "portcove_host_tool_fixture"],
       });
     }
     if (prepareOnly) {
