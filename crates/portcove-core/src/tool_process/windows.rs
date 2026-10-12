@@ -295,16 +295,26 @@ pub(super) fn spawn_with_occupied_slots(
         TestOptions {
             reserved_slots: occupied - 1,
             fail_capture: false,
+            ..Default::default()
         },
     )
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone)]
 struct TestOptions {
     #[cfg(test)]
     reserved_slots: usize,
     #[cfg(test)]
     fail_capture: bool,
+    #[cfg(test)]
+    pending_creation: Option<Arc<PendingCreation>>,
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct PendingCreation {
+    identity: Mutex<Option<Identity>>,
+    cancellation_observed: AtomicBool,
 }
 
 fn spawn_with_options(
@@ -841,7 +851,7 @@ impl Controller {
             root_guard.contained = true;
         }
         #[cfg(test)]
-        for _ in 0..options.reserved_slots {
+        for _ in 0..controller.options.reserved_slots {
             match duplicate(controller.members[&root].handle.as_raw_handle()) {
                 Ok(handle) => controller.reserved.push(handle),
                 Err(error) => controller.fail(
@@ -1128,6 +1138,8 @@ impl Controller {
             let mut event = DEBUG_EVENT::default();
             if unsafe { WaitForDebugEventEx(&mut event, 1) } != 0 {
                 let continuation = self.event(&event);
+                #[cfg(test)]
+                self.observe_pending_creation(&event);
                 self.terminate_if_requested();
                 if unsafe { ContinueDebugEvent(event.dwProcessId, event.dwThreadId, continuation) }
                     == 0
@@ -1233,6 +1245,36 @@ impl Controller {
             }
         }
     }
+
+    #[cfg(test)]
+    fn observe_pending_creation(&mut self, event: &DEBUG_EVENT) {
+        if event.dwDebugEventCode != CREATE_PROCESS_DEBUG_EVENT {
+            return;
+        }
+        let Some(identity) = self.live_debug_members.get(&event.dwProcessId).copied() else {
+            return;
+        };
+        if Some(identity) == self.root {
+            return;
+        }
+        let Some(observation) = self.options.pending_creation.take() else {
+            return;
+        };
+        // The real CREATE event has been captured and is still uncontinued.
+        // This per-launch test rendezvous changes no proof or process authority.
+        *observation.identity.lock().unwrap() = Some(identity);
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while !self.control.stop.load(Ordering::Acquire) {
+            if Instant::now() >= deadline {
+                self.fail("pending_creation_fixture_deadline", None);
+                return;
+            }
+            thread::sleep(Duration::from_millis(1));
+        }
+        observation
+            .cancellation_observed
+            .store(true, Ordering::Release);
+    }
 }
 
 fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
@@ -1332,6 +1374,76 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
 mod native_control_tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    fn cancellation_closes_a_captured_uncontinued_descendant_creation_event() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args([
+            "--setup-tree",
+            &working.path().join("orphan-output").display().to_string(),
+            "observed-wait",
+        ])
+        .current_dir(working.path());
+        let pending = Arc::new(PendingCreation::default());
+        let (mut child, group) = spawn_with_options(
+            &spec,
+            TestOptions {
+                pending_creation: Some(pending.clone()),
+                ..Default::default()
+            },
+        )
+        .map_err(|failure| failure.error)
+        .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(4);
+        let captured = loop {
+            let captured = *pending.identity.lock().unwrap();
+            if captured.is_some() || Instant::now() >= deadline {
+                break captured;
+            }
+            thread::sleep(Duration::from_millis(1));
+        };
+        // Request cancellation only after the controller publishes the real
+        // captured CREATE identity, before it continues that debug event.
+        let stopped = group.terminate_and_wait(&mut child);
+        let quiesced = group.proves_tree_quiescence();
+        let proof = crate::tool_process::copy_proof_details(
+            &group.with_proof_details(PortcoveError::state("pending creation control")),
+        );
+        let cancellation_observed = pending.cancellation_observed.load(Ordering::Acquire);
+        eprintln!(
+            "native_pending_creation_proof:{}",
+            serde_json::json!({
+                "quiesced":quiesced,"proof":proof,
+                "pending_identity":captured.map(|identity|serde_json::json!({
+                    "pid":identity.pid,"created_filetime":identity.created.to_string(),
+                })),
+                "cancellation_observed_before_continue":cancellation_observed,
+                "termination_error":stopped.as_ref().err().map(ToString::to_string),
+            })
+        );
+        assert!(captured.is_some());
+        assert!(cancellation_observed);
+        assert!(quiesced);
+        assert_eq!(stopped.unwrap().code(), Some(1));
+        assert_eq!(proof["process_tree_total"], "2");
+        assert_eq!(proof["process_tree_retained_members"], "2");
+        assert_eq!(proof["process_tree_all_retained_signaled"], "true");
+        assert_eq!(proof["process_tree_active"], "0");
+        assert!(!proof.contains_key("process_tree_first_failure"));
+        let identities: Vec<serde_json::Value> =
+            serde_json::from_str(&proof["process_tree_identities"]).unwrap();
+        let captured = captured.unwrap();
+        assert!(identities.iter().any(|identity| {
+            identity["pid"] == captured.pid
+                && identity["created_filetime"] == captured.created.to_string()
+        }));
+        assert!(!working.path().join("orphan-output").exists());
+    }
 
     #[test]
     fn child_observes_exact_unicode_argv_filtered_environment_and_cwd() {
