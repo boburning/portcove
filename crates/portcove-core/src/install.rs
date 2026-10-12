@@ -473,12 +473,24 @@ async fn run_managed_install_worker<T: Send + 'static>(
     operation: &OperationCoordinator,
     worker: impl FnOnce(OperationCoordinator) -> (Result<T>, bool) + Send + 'static,
 ) -> Result<T> {
+    run_managed_install_worker_with_journal(lifecycle, operation, move |checkpoint, _| {
+        worker(checkpoint)
+    })
+    .await
+}
+
+async fn run_managed_install_worker_with_journal<T: Send + 'static>(
+    lifecycle: &mut InstallLifecycle,
+    operation: &OperationCoordinator,
+    worker: impl FnOnce(OperationCoordinator, LifecycleOperation) -> (Result<T>, bool) + Send + 'static,
+) -> Result<T> {
     lifecycle.record.preparation_process_quiesced = Some(false);
     lifecycle.store.put(&mut lifecycle.record)?;
     let checkpoint = operation.clone();
+    let owned_start = lifecycle.record.clone();
     // A mutation worker must be joined, including cancellation. A join failure
     // or unwind leaves both the in-memory and durable proof false.
-    let (result, quiesced) = tokio::task::spawn_blocking(move || worker(checkpoint))
+    let (result, quiesced) = tokio::task::spawn_blocking(move || worker(checkpoint, owned_start))
         .await
         .map_err(|error| PortcoveError::install(error.to_string()))?;
     let mut completed = lifecycle.record.clone();
@@ -707,10 +719,10 @@ impl Installer {
         store.require_psx_normalization_vacant(operation)?;
         let load_store = store.clone();
         let witness = join_psx_witness_worker(operation, move |checkpoint| {
-            load_store.psx_bootstrap(&checkpoint)
+            load_store.psx_bootstrap_for_normalization(&checkpoint)
         })
         .await?;
-        let artifact = witness.artifact();
+        let artifact = witness.witness().artifact();
         if artifact.asset_name != request.release.asset.name
             || !artifact
                 .sha256
@@ -721,7 +733,9 @@ impl Installer {
                 "PS1 retained artifact and live release differ",
             ));
         }
-        witness.require_request(&generation_contract(&request, artifact)?, preparation)?;
+        witness
+            .witness()
+            .require_request(&generation_contract(&request, artifact)?, preparation)?;
         let record = store.get(operation.operation_id())?.ok_or_else(|| {
             PortcoveError::state("PS1 input normalization lifecycle owner is missing")
         })?;
@@ -750,15 +764,20 @@ impl Installer {
         ));
         let library = self.library.clone();
         let prior = lifecycle.record.clone();
-        let result = run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
-            crate::psx::NormalizedInputWitness::prepare(
-                witness,
-                &library,
-                &prior,
-                &preparation,
-                &checkpoint,
-            )
-        })
+        let result = run_managed_install_worker_with_journal(
+            &mut lifecycle,
+            operation,
+            move |checkpoint, owned_start| {
+                crate::psx::NormalizedInputWitness::prepare(
+                    witness,
+                    &library,
+                    &prior,
+                    &owned_start,
+                    &preparation,
+                    &checkpoint,
+                )
+            },
+        )
         .await;
         let normalized = match result {
             Ok(normalized) => normalized,

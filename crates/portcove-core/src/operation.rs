@@ -377,6 +377,62 @@ const PSX_JOURNAL_SNAPSHOT: &str = "json_array(l.id,l.kind,l.port_id,l.phase,
     l.source_import_json,l.original_paths_json,l.activate,l.last_error,l.created_at,
     l.updated_at,l.preparation_json,l.preparation_process_quiesced)";
 
+/// Identity-fenced decoding only. This cannot be serialized or retained as a
+/// successful checkpoint; normalization must freshly verify all content.
+pub(crate) struct UnverifiedNormalizationBootstrap {
+    witness: crate::psx::BootstrapWitness,
+    journal_snapshot: String,
+}
+
+impl UnverifiedNormalizationBootstrap {
+    pub(crate) fn witness(&self) -> &crate::psx::BootstrapWitness {
+        &self.witness
+    }
+
+    pub(crate) fn into_witness(self) -> crate::psx::BootstrapWitness {
+        self.witness
+    }
+
+    pub(crate) fn require_owned_worker(
+        &self,
+        library: &Library,
+        prior: &LifecycleOperation,
+        worker: &LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        operation.checkpoint()?;
+        self.witness.require_current_parent(library, operation)?;
+        self.witness.verify_context(library, prior, operation)?;
+        let mut expected: serde_json::Value = serde_json::from_str(&self.journal_snapshot)?;
+        if prior.id != operation.operation_id()
+            || worker.id != prior.id
+            || prior.preparation_process_quiesced != Some(true)
+            || worker.preparation_process_quiesced != Some(false)
+            || expected[14] != serde_json::json!(prior.updated_at)
+            || expected[16] != serde_json::json!(1)
+        {
+            return Err(PortcoveError::conflict(
+                "PS1 normalization worker custody changed",
+            ));
+        }
+        // Only the joined owner's precise start transition is admitted. Every
+        // other durable field remains bound to the original fenced snapshot.
+        expected[14] = serde_json::json!(worker.updated_at);
+        expected[16] = serde_json::json!(0);
+        let current: String = library.connection()?.query_row(
+            &format!("SELECT {PSX_JOURNAL_SNAPSHOT} FROM lifecycle_operations l WHERE l.id=?1"),
+            [operation.operation_id()],
+            |row| row.get(0),
+        )?;
+        if serde_json::from_str::<serde_json::Value>(&current)? != expected {
+            return Err(PortcoveError::conflict(
+                "PS1 normalization worker journal drifted",
+            ));
+        }
+        operation.checkpoint()
+    }
+}
+
 impl OperationStore {
     pub fn new(library: Library) -> Self {
         Self { library }
@@ -490,6 +546,24 @@ impl OperationStore {
         operation: &OperationCoordinator,
     ) -> Result<crate::psx::BootstrapWitness> {
         self.psx_stage_fenced(PsxStageTable::Bootstrap, operation, || Ok(()))
+    }
+
+    pub(crate) fn psx_bootstrap_for_normalization(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<UnverifiedNormalizationBootstrap> {
+        let (witness, journal_snapshot) = self.psx_stage_fenced_with(
+            PsxStageTable::Bootstrap,
+            operation,
+            || Ok(()),
+            |witness: &crate::psx::BootstrapWitness, journal| {
+                witness.verify_context(&self.library, journal, operation)
+            },
+        )?;
+        Ok(UnverifiedNormalizationBootstrap {
+            witness,
+            journal_snapshot,
+        })
     }
 
     pub(crate) fn commit_psx_normalized_inputs(
@@ -885,6 +959,19 @@ impl OperationStore {
         operation: &OperationCoordinator,
         before_fence: impl FnOnce() -> Result<()>,
     ) -> Result<T> {
+        self.psx_stage_fenced_with(table, operation, before_fence, |witness: &T, journal| {
+            witness.verify(&self.library, journal, operation)
+        })
+        .map(|(witness, _)| witness)
+    }
+
+    fn psx_stage_fenced_with<T: crate::psx::PsxStageWitness>(
+        &self,
+        table: PsxStageTable,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+        verify: impl FnOnce(&T, &LifecycleOperation) -> Result<()>,
+    ) -> Result<(T, String)> {
         operation.checkpoint()?;
         let mut connection = database::connect(self.library.root())?;
         let parent_selection = if table.has_parent() {
@@ -943,7 +1030,7 @@ impl OperationStore {
         let journal = self
             .get(operation.operation_id())?
             .ok_or_else(|| PortcoveError::state("PS1 generation lifecycle owner is missing"))?;
-        witness.verify(&self.library, &journal, operation)?;
+        verify(&witness, &journal)?;
         before_fence()?;
         operation.checkpoint()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1003,7 +1090,7 @@ impl OperationStore {
         if let Some(history) = history {
             witness.record_compile_history(history);
         }
-        Ok(witness)
+        Ok((witness, journal_snapshot))
     }
 
     fn read(&self, id: Option<&str>) -> Result<Vec<LifecycleOperation>> {

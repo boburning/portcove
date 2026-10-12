@@ -62,6 +62,26 @@ impl BootstrapBinding {
 }
 
 impl BootstrapWitness {
+    pub(crate) fn require_current_parent(
+        &self,
+        library: &Library,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.binding()?
+            .require_current(library, operation.operation_id())
+    }
+
+    /// Validate decoded ownership only. This is not fresh content verification
+    /// and cannot authorize a helper, generator or successful checkpoint.
+    pub(crate) fn verify_context(
+        &self,
+        library: &Library,
+        journal: &LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.require_context(library, journal, operation)
+    }
+
     pub(super) fn payload_root(&self) -> &std::path::Path {
         self.payload.root()
     }
@@ -192,6 +212,37 @@ impl PsxStageWitness for BootstrapWitness {
         journal: &LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()> {
+        self.require_context(library, journal, operation)?;
+        let staging = journal
+            .paths
+            .staging
+            .as_ref()
+            .expect("context checked staging");
+        let archive = crate::external_runtime::hash_stable_file(
+            &archive_path(staging)?,
+            self.artifact.size,
+            &|| operation.checkpoint(),
+        )?;
+        if archive != self.archive || archive.sha256 != self.artifact.sha256 {
+            return Err(PortcoveError::verification("PS1 bootstrap archive changed"));
+        }
+        self.payload.verify(&staging.join("payload"), operation)
+    }
+}
+
+fn archive_path(staging: &std::path::Path) -> Result<PathBuf> {
+    let path = staging.join("artifact.download");
+    crate::path::refuse_symlink_ancestors(&path)?;
+    Ok(fs::canonicalize(path)?)
+}
+
+impl BootstrapWitness {
+    fn require_context(
+        &self,
+        library: &Library,
+        journal: &LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
         let staging = journal
             .paths
             .staging
@@ -222,20 +273,6 @@ impl PsxStageWitness for BootstrapWitness {
         {
             return Err(PortcoveError::state("PS1 bootstrap custody changed"));
         }
-        let archive = crate::external_runtime::hash_stable_file(
-            &archive_path(staging)?,
-            self.artifact.size,
-            &|| operation.checkpoint(),
-        )?;
-        if archive != self.archive || archive.sha256 != self.artifact.sha256 {
-            return Err(PortcoveError::verification("PS1 bootstrap archive changed"));
-        }
-        self.payload.verify(&staging.join("payload"), operation)
+        operation.checkpoint()
     }
-}
-
-fn archive_path(staging: &std::path::Path) -> Result<PathBuf> {
-    let path = staging.join("artifact.download");
-    crate::path::refuse_symlink_ancestors(&path)?;
-    Ok(fs::canonicalize(path)?)
 }

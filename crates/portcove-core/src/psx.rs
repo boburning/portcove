@@ -2892,6 +2892,185 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "qualification-fixtures")]
+    fn normalization_decode_cancellation_refuses_before_helper_dispatch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, _, preparation) =
+            normalized_input_fixture(temporary.path());
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        let (activity, control) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("yu-gi-oh-forbidden-memories-recompiled"),
+            )
+            .unwrap();
+        let child =
+            control.retained_child(operation.operation_id(), "normalization-cancel-control");
+        let store = crate::operation::OperationStore::new(library.clone());
+        let decoded = store.psx_bootstrap_for_normalization(&child).unwrap();
+        let mut worker = journal.clone();
+        worker.preparation_process_quiesced = Some(false);
+        store.put(&mut worker).unwrap();
+        service.request_cancellation(&activity.id).unwrap();
+        // Let the existing bounded cancellation cache expire, without changing
+        // its production interval or dispatching any executable fixture.
+        std::thread::sleep(std::time::Duration::from_millis(55));
+        let staging = journal.paths.staging.as_ref().unwrap();
+        let before = fs::read_dir(staging).unwrap().count();
+        let (result, quiesced) = NormalizedInputWitness::prepare(
+            decoded,
+            &library,
+            &journal,
+            &worker,
+            &preparation,
+            &child,
+        );
+        assert!(quiesced);
+        assert_eq!(result.err().unwrap().code, crate::ErrorCode::Cancelled);
+        assert_eq!(fs::read_dir(staging).unwrap().count(), before);
+        assert!(store.psx_normalized_inputs(&operation).is_err());
+    }
+
+    #[test]
+    fn normalization_decode_does_not_grant_content_acceptance() {
+        for changed in ["archive", "payload"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, _, preparation) =
+                normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            let decoded = store.psx_bootstrap_for_normalization(&operation).unwrap();
+            let path = journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join(if changed == "archive" {
+                    "artifact.download"
+                } else {
+                    "payload/generated.c"
+                });
+            let original = fs::read(&path).unwrap();
+            let timestamp = fs::metadata(&path).unwrap().modified().unwrap();
+            let mut different = original.clone();
+            different[0] ^= 1;
+            fs::write(&path, different).unwrap();
+            fs::File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_times(fs::FileTimes::new().set_modified(timestamp))
+                .unwrap();
+            assert_eq!(fs::metadata(&path).unwrap().len(), original.len() as u64);
+            assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), timestamp);
+            // Bounded decoding is deliberately not executable or content evidence.
+            let mut worker = journal.clone();
+            worker.preparation_process_quiesced = Some(false);
+            store.put(&mut worker).unwrap();
+            let staging = journal.paths.staging.as_ref().unwrap();
+            let before = fs::read_dir(staging).unwrap().count();
+            let (result, quiesced) = NormalizedInputWitness::prepare(
+                decoded,
+                &library,
+                &journal,
+                &worker,
+                &preparation,
+                &operation,
+            );
+            assert!(quiesced, "no helper was dispatched: {changed}");
+            assert_eq!(
+                result.err().unwrap().code,
+                crate::ErrorCode::Verification,
+                "{changed}"
+            );
+            assert_eq!(fs::read_dir(staging).unwrap().count(), before);
+            #[cfg(feature = "qualification-fixtures")]
+            {
+                let diagnostics =
+                    qualification_psx_preparation_diagnostics(operation.operation_id());
+                let preparation = diagnostics["records"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|record| record["scope"] == "normalized_inputs")
+                    .unwrap();
+                assert_eq!(preparation["phase"], "bootstrap_verification");
+                assert_eq!(preparation["completed"], false);
+            }
+            assert!(
+                store.psx_bootstrap(&operation).is_err(),
+                "ordinary loader remains fresh"
+            );
+            assert!(store.psx_normalized_inputs(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn normalization_decode_binds_only_the_exact_owned_worker_transition() {
+        for drift in ["none", "parent", "journal", "operation", "library"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, _, _) = normalized_input_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            let decoded = store.psx_bootstrap_for_normalization(&operation).unwrap();
+            let mut worker = journal.clone();
+            worker.preparation_process_quiesced = Some(false);
+            store.put(&mut worker).unwrap();
+            let other_operation = OperationCoordinator::new("wrong-normalization-owner", None);
+            let selected = if drift == "operation" {
+                &other_operation
+            } else {
+                &operation
+            };
+            match drift {
+                "parent" => {
+                    library.connection().unwrap().execute(
+                    "UPDATE managed_psx_bootstrap SET witness_sha256=?1 WHERE operation_id=?2",
+                    rusqlite::params!["f".repeat(64), operation.operation_id()],
+                ).unwrap();
+                }
+                "journal" => {
+                    let mut changed = worker.clone();
+                    changed.last_error = Some("retained failure".into());
+                    store.put(&mut changed).unwrap();
+                }
+                "library" => {
+                    library
+                        .connection()
+                        .unwrap()
+                        .execute(
+                            "UPDATE library_identity SET id='ffffffffffffffffffffffffffffffff'",
+                            [],
+                        )
+                        .unwrap();
+                }
+                _ => {}
+            }
+            let result = decoded.require_owned_worker(&library, &journal, &worker, selected);
+            assert_eq!(result.is_ok(), drift == "none", "{drift}");
+            assert!(store.psx_normalized_inputs(&operation).is_err());
+        }
+    }
+
+    #[test]
+    fn normalization_decode_retains_failed_journal_refusal() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, _, _) = normalized_input_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library);
+        journal.last_error = Some("retained cancellation".into());
+        store.put(&mut journal).unwrap();
+        assert!(store.psx_bootstrap_for_normalization(&operation).is_err());
+        assert_eq!(
+            store
+                .get(operation.operation_id())
+                .unwrap()
+                .unwrap()
+                .last_error
+                .as_deref(),
+            Some("retained cancellation")
+        );
+    }
+
+    #[test]
     fn normalized_inputs_reopen_without_generation_or_publication() {
         let temporary = tempfile::tempdir().unwrap();
         let (library, operation, journal, witness, _) = normalized_input_fixture(temporary.path());

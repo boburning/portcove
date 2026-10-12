@@ -49,30 +49,45 @@ impl NormalizedInputWitness {
     }
 
     pub(crate) fn prepare(
-        bootstrap: BootstrapWitness,
+        decoded: crate::operation::UnverifiedNormalizationBootstrap,
         library: &Library,
         journal: &LifecycleOperation,
+        owned_start: &LifecycleOperation,
         preparation: &PsxManagedPreparation,
         operation: &OperationCoordinator,
     ) -> (Result<Self>, bool) {
         let mut quiesced = true;
+        #[cfg(feature = "qualification-fixtures")]
+        let mut trace =
+            super::qualification_trace::Trace::new(operation.operation_id(), "normalized_inputs");
         let result = (|| {
+            decoded.require_owned_worker(library, journal, owned_start, operation)?;
+            let bootstrap = decoded.witness();
+            #[cfg(feature = "qualification-fixtures")]
+            trace.phase("predecessor_binding");
             let binding = bootstrap.binding()?;
             require_bound_bootstrap(&bootstrap, &binding)?;
             let store = crate::operation::OperationStore::new(library.clone());
             store.require_psx_normalization_vacant(operation)?;
             binding.require_current(library, operation.operation_id())?;
+            #[cfg(feature = "qualification-fixtures")]
+            trace.phase("bootstrap_verification");
             bootstrap.verify(library, journal, operation)?;
             bootstrap.require_preparation(preparation)?;
             let configuration = super::PreparationConfiguration::from_preparation(preparation)?;
             let inputs = preparation_identity(preparation)?;
             // Source objects are freshly verified around the one supervised helper.
+            #[cfg(feature = "qualification-fixtures")]
+            trace.phase("source_and_helper_verification");
             verify_sources(preparation, operation)?;
             let selected = crate::adapter::resolve_chdman()?;
             crate::path::refuse_symlink_ancestors(&selected)?;
             let helper_path = fs::canonicalize(selected)?;
             let helper = inspect_helper(&helper_path, operation)?;
             let temporary = super::retained_source_workspace(bootstrap.payload_root())?;
+            decoded.require_owned_worker(library, journal, owned_start, operation)?;
+            #[cfg(feature = "qualification-fixtures")]
+            trace.phase("disc_materialization");
             let cue = super::materialize_managed_disc(
                 configuration.primary_source,
                 &temporary,
@@ -80,7 +95,11 @@ impl NormalizedInputWitness {
                 operation,
                 &mut quiesced,
             )?;
+            #[cfg(feature = "qualification-fixtures")]
+            trace.phase("disc_capture");
             let disc = GeneratedTree::capture(&temporary, operation, quiesced)?;
+            #[cfg(feature = "qualification-fixtures")]
+            trace.phase("post_materialization_verification");
             verify_sources(preparation, operation)?;
             if inspect_helper(&helper_path, operation)? != helper {
                 return Err(PortcoveError::verification(
@@ -88,16 +107,19 @@ impl NormalizedInputWitness {
                 ));
             }
             binding.require_current(library, operation.operation_id())?;
-            Ok(Self {
+            let witness = Self {
                 schema_version: 1,
-                bootstrap,
+                bootstrap: decoded.into_witness(),
                 binding,
                 inputs,
                 helper_path,
                 helper,
                 disc,
                 cue: fs::canonicalize(cue)?,
-            })
+            };
+            #[cfg(feature = "qualification-fixtures")]
+            trace.complete();
+            Ok(witness)
         })();
         (result, quiesced)
     }

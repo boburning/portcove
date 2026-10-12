@@ -72,6 +72,15 @@ fn boundary_output(event: &portcove_core::OperationEvent, elapsed: Duration) -> 
         "elapsed_ms": u64::try_from(elapsed.as_millis()).unwrap_or(u64::MAX)})
 }
 
+fn diagnostic_operation_id<'a>(
+    selected_stage: Option<(&str, Option<&'a str>)>,
+    activity_id: Option<&'a str>,
+) -> Option<&'a str> {
+    selected_stage
+        .and_then(|(_, retained)| retained)
+        .or(activity_id)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
@@ -195,14 +204,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     source_identity(&source)?;
-    let preparation_diagnostics = operation_id
+    let activity_id = operation_id
         .lock()
         .expect("event identity lock poisoned")
-        .as_deref()
-        .map(portcove_core::qualification_psx_preparation_diagnostics);
+        .clone();
+    // Retained preparation runs under its original lifecycle identity. The
+    // fresh activity still owns cancellation; diagnostics cannot change it.
+    let diagnostic_id = diagnostic_operation_id(selected_stage, activity_id.as_deref());
+    let preparation_diagnostics =
+        diagnostic_id.map(portcove_core::qualification_psx_preparation_diagnostics);
     emit(
         json!({"kind": "terminal", "deadline_reached": deadline_reached,
         "selected_stage": selected_stage.map(|(stage, _)| stage),
+        "preparation_diagnostic_operation_id": diagnostic_id,
         "result": result.as_ref().map_err(|error| error.to_string()),
         "preparation_diagnostics": preparation_diagnostics,
         "source_container_sha256": SOURCE_SHA256,
@@ -231,6 +245,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn retained_diagnostics_use_lifecycle_identity_without_changing_cancellation() {
+        let id = Mutex::new(Some("fresh-activity".to_owned()));
+        let activity = id.lock().unwrap();
+        assert_eq!(
+            diagnostic_operation_id(
+                Some(("normalize-inputs", Some("retained-owner"))),
+                activity.as_deref()
+            ),
+            Some("retained-owner")
+        );
+        assert_eq!(
+            diagnostic_operation_id(Some(("acquire", None)), activity.as_deref()),
+            Some("fresh-activity")
+        );
+        assert_eq!(
+            diagnostic_operation_id(None, activity.as_deref()),
+            Some("fresh-activity")
+        );
+        assert_eq!(activity.as_deref(), Some("fresh-activity"));
+        assert_eq!(diagnostic_operation_id(None, None), None);
+    }
 
     #[test]
     fn child_events_never_replace_the_durable_cancellation_activity() {

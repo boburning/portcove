@@ -585,6 +585,14 @@ Acquired setup can separately yield normalized disc inputs before generation.
 `normalize_acquired_managed_install` consumes the exact store-owned acquired
 checkpoint under fresh acquisition/request checks and the port lock, supervises
 only the selected disc helper, joins its worker and seals a separate input witness.
+Its private normalization loader binds bounded parent bytes and the complete
+library/journal SQL snapshot, but returns an explicitly unverified, nonserializable
+value. The joined worker admits only its exact quiescence/update-time transition,
+then fully hashes the acquired archive and payload before helper dispatch. Sealing
+still performs complete fresh post-helper verification; ordinary bootstrap and
+generation loaders retain their full content checks. No metadata-only fence can
+replace either required content scan. Qualification diagnostics use the retained
+lifecycle identity while cancellation continues to use the fresh activity identity.
 That witness binds the acquired predecessor, source/BIOS context, actual helper
 bytes and complete normalized inventory. It grants no generator, configure,
 compile or installation completion; existing progress or drift refuses rather
