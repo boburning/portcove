@@ -273,6 +273,24 @@ impl GeneratedTree {
         Ok(())
     }
 
+    /// Repeat object metadata and the complete name set after joined read-only
+    /// checks. This is an inspection-time fence, never a substitute for fresh
+    /// byte hashing or authority for a later execution window.
+    pub(super) fn verify_capture_fence(
+        &self,
+        root: &Path,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        operation.checkpoint()?;
+        crate::path::refuse_symlink_ancestors(root)?;
+        if operation.operation_id() != self.operation_id || fs::canonicalize(root)? != self.root {
+            return Err(PortcoveError::verification(
+                "PS1 stage fence custody changed",
+            ));
+        }
+        verify_inventory(&self.root, &self.entries, &|| operation.checkpoint())
+    }
+
     /// Rebind the complete retained inventory to original names and objects.
     pub(super) fn retained_inputs(
         &self,

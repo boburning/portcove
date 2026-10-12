@@ -610,6 +610,14 @@ committing the normalized witness. Original provisional evidence is retained.
 Provisional presence refuses repeated materialization and legacy generation;
 failed or cancelled custody cannot be replayed or restored automatically. The
 original one-call normalization API and verification obligations are unchanged.
+Generated-stage verification admits the owned output path before running its
+complete input and output checks with one scoped read worker and the caller.
+Both checks settle on success, error, cancellation or panic. After joining,
+Core repeats cancellable object/metadata and complete-name fences over the fully
+hashed toolchain, normalized disc and generated payload before the existing
+exact durable-row fence. These inspection-time fences never replace fresh byte
+hashes or grant authority for a later execution window. This concurrency alone
+does not establish native performance or generator continuation acceptance.
 Ordinary service startup and cancellation retain that intent, private data and
 exact closure facts, including failed generation before any witness exists.
 Retention grants no resume or automatic cleanup authority; stage loaders still

@@ -19,6 +19,7 @@ mod pending;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_trace;
 mod stage;
+mod verification;
 #[cfg(feature = "qualification-fixtures")]
 pub use qualification_trace::qualification_psx_preparation_diagnostics;
 
@@ -531,16 +532,51 @@ impl GeneratedInstallWitness {
         journal: &crate::operation::LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()> {
-        self.verify_inputs(library, journal, operation)?;
-        self.generated.tree.verify(
-            &journal
-                .paths
-                .staging
-                .as_ref()
-                .expect("owner checked staging")
-                .join("payload"),
-            operation,
-        )
+        self.verify_fenced(library, journal, operation, || Ok(()), || Ok(()))
+    }
+
+    fn verify_fenced(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+        operation: &OperationCoordinator,
+        after_inputs: impl FnOnce() -> Result<()> + Send,
+        after_outputs: impl FnOnce() -> Result<()>,
+    ) -> Result<()> {
+        operation.checkpoint()?;
+        // Admit the private output path before starting either read. These
+        // complete inventories are independent and dispatch no child process;
+        // keep both joined under the same cancellation scope and final store
+        // fence instead of paying their combined sequential verification cost.
+        self.require_owner(library, journal)?;
+        let root = journal
+            .paths
+            .staging
+            .as_ref()
+            .expect("owner checked staging")
+            .join("payload");
+        verification::joined_pair(
+            || {
+                self.verify_inputs(library, journal, operation)?;
+                after_inputs()
+            },
+            || {
+                self.generated.tree.verify(&root, operation)?;
+                after_outputs()
+            },
+        )?;
+        // The earlier-finishing inventory cannot remain unchecked while the
+        // other verifier runs. Fence all three fully hashed inventories again
+        // after both settle, before the existing exact durable store fence.
+        self.generated
+            .toolchain
+            .verify_capture_fence(self.generated.toolchain.root(), operation)?;
+        self.generated
+            .normalized_disc
+            .verify_capture_fence(self.generated.normalized_disc.root(), operation)?;
+        self.generated.tree.verify_capture_fence(&root, operation)?;
+        self.require_owner(library, journal)?;
+        operation.checkpoint()
     }
 
     fn verify_inputs(
@@ -2718,6 +2754,83 @@ mod tests {
             crate::adapter::source_storage_identity(&preparation.source.path).unwrap(),
             identity
         );
+    }
+
+    #[test]
+    fn generation_witness_join_fence_refuses_drift_after_output_hashing() {
+        use std::sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+            mpsc,
+        };
+        use std::time::Duration;
+        for kind in ["output-file", "output-name", "toolchain-file", "disc-file"] {
+            let root = tempfile::tempdir().unwrap();
+            let (library, operation, journal, witness, _) = generation_witness_fixture(root.path());
+            let (entered_tx, entered_rx) = mpsc::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            let mutated = Arc::new(AtomicBool::new(false));
+            let observed = mutated.clone();
+            let result = witness.verify_fenced(
+                &library,
+                &journal,
+                &operation,
+                move || {
+                    entered_tx.send(()).unwrap();
+                    release_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+                    Ok(())
+                },
+                || {
+                    // Both complete content checks have run, but the input
+                    // worker is still held. This mutation cannot be concealed
+                    // by the owner check or the later durable-row SQL fence.
+                    entered_rx.recv_timeout(Duration::from_secs(2)).unwrap();
+                    if kind == "output-name" {
+                        fs::write(witness.generated.tree.root().join("inserted.c"), "inserted")?;
+                    } else {
+                        let path = match kind {
+                            "output-file" => witness.generated.tree.root().join("generated.c"),
+                            "toolchain-file" => witness
+                                .generated
+                                .toolchain
+                                .root()
+                                .join("bin")
+                                .join(if cfg!(windows) { "cmake.exe" } else { "cmake" }),
+                            "disc-file" => {
+                                witness.generated.normalized_disc.root().join("disc.bin")
+                            }
+                            _ => unreachable!(),
+                        };
+                        let modified = fs::metadata(&path)?.modified()?;
+                        let mut bytes = fs::read(&path)?;
+                        bytes[0] ^= 1;
+                        fs::write(&path, bytes)?;
+                        // Make the metadata drift deterministic even on a
+                        // coarse-timestamp filesystem; size remains unchanged.
+                        fs::File::options().write(true).open(path)?.set_times(
+                            fs::FileTimes::new().set_modified(modified + Duration::from_secs(1)),
+                        )?;
+                    }
+                    observed.store(true, Ordering::SeqCst);
+                    release_tx.send(()).unwrap();
+                    Ok(())
+                },
+            );
+            assert!(
+                mutated.load(Ordering::SeqCst),
+                "mutation was not reached: {kind}"
+            );
+            assert!(result.is_err(), "post-hash drift was admitted: {kind}");
+            let rows: i64 = library
+                .connection()
+                .unwrap()
+                .query_row("SELECT count(*) FROM managed_psx_generation", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(rows, 0);
+            assert!(!journal.paths.final_path.as_ref().unwrap().exists());
+        }
     }
 
     fn generation_witness_fixture(
