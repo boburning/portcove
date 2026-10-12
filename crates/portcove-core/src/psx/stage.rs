@@ -3,6 +3,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
+    time::SystemTime,
 };
 
 use crate::{OperationCoordinator, PortcoveError, Result};
@@ -32,6 +33,33 @@ pub(super) struct GeneratedTree {
 }
 
 impl GeneratedTree {
+    /// Only initial generation uses this transition, before durable sealing.
+    /// Failure retains any partial normalization; it grants no retry authority.
+    pub(super) fn capture_normalized_generation(
+        root: &Path,
+        operation: &OperationCoordinator,
+        quiesced: bool,
+    ) -> Result<Self> {
+        let cutoff = SystemTime::now();
+        let mut tree = Self::capture(root, operation, quiesced)?;
+        for entry in tree.entries.values_mut() {
+            if let Entry::File(file) = entry {
+                *file = crate::external_runtime::normalize_generated_mtime(file, cutoff, &|| {
+                    operation.checkpoint()
+                })?;
+            }
+        }
+        // Re-enumerate the full bounded tree, including names and directories;
+        // no new/replaced object may be silently admitted by normalization.
+        let current = Self::capture(root, operation, quiesced)?;
+        if current != tree {
+            return Err(PortcoveError::verification(
+                "PS1 generation changed during timestamp normalization",
+            ));
+        }
+        Ok(current)
+    }
+
     pub(super) fn operation_id(&self) -> &str {
         &self.operation_id
     }
@@ -260,6 +288,96 @@ fn verify_inventory(root: &Path, entries: &BTreeMap<PathBuf, Entry>) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generation_timestamp_normalization_requires_closure_and_preserves_inputs() {
+        let root = tempfile::tempdir().unwrap();
+        let future = root.path().join("generated.c");
+        let past = root.path().join("original.txt");
+        fs::write(&future, "generated source").unwrap();
+        fs::write(&past, "original package").unwrap();
+        let future_time = SystemTime::now() + std::time::Duration::from_secs(86_400);
+        fs::File::options()
+            .write(true)
+            .open(&future)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(future_time))
+            .unwrap();
+        let past_time = fs::metadata(&past).unwrap().modified().unwrap();
+        let operation = OperationCoordinator::new("normalize-owned-generation", None);
+        assert!(
+            GeneratedTree::capture_normalized_generation(root.path(), &operation, false).is_err()
+        );
+        assert_eq!(
+            fs::metadata(&future).unwrap().modified().unwrap(),
+            future_time
+        );
+        let before = SystemTime::now();
+        let tree =
+            GeneratedTree::capture_normalized_generation(root.path(), &operation, true).unwrap();
+        let modified = fs::metadata(&future).unwrap().modified().unwrap();
+        assert!(modified >= before && modified <= SystemTime::now());
+        assert_eq!(fs::metadata(&past).unwrap().modified().unwrap(), past_time);
+        assert_eq!(fs::read_to_string(&future).unwrap(), "generated source");
+        tree.verify(root.path(), &operation).unwrap();
+        assert!(!root.path().join(".portcove-managed.json").exists());
+    }
+
+    #[test]
+    fn generation_timestamp_normalization_refuses_shared_objects_without_mutation() {
+        let root = tempfile::tempdir().unwrap();
+        let original = root.path().join("original.c");
+        let alias = root.path().join("alias.c");
+        fs::write(&original, "shared source").unwrap();
+        fs::hard_link(&original, &alias).unwrap();
+        let future = SystemTime::now() + std::time::Duration::from_secs(86_400);
+        fs::File::options()
+            .write(true)
+            .open(&original)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(future))
+            .unwrap();
+        let operation = OperationCoordinator::new("normalize-owned-generation", None);
+        assert!(
+            GeneratedTree::capture_normalized_generation(root.path(), &operation, true).is_err()
+        );
+        assert_eq!(fs::metadata(&original).unwrap().modified().unwrap(), future);
+        assert_eq!(fs::read_to_string(&alias).unwrap(), "shared source");
+    }
+
+    #[test]
+    fn generation_timestamp_normalization_refuses_replacement_before_write() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("generated.c");
+        let retained = root.path().join("retained.c");
+        fs::write(&path, "original source").unwrap();
+        let future = SystemTime::now() + std::time::Duration::from_secs(86_400);
+        fs::File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(future))
+            .unwrap();
+        let path = fs::canonicalize(&path).unwrap();
+        let expected = crate::external_runtime::hash_stable_file(&path, 15, &|| Ok(())).unwrap();
+        let calls = std::cell::Cell::new(0);
+        let result = crate::external_runtime::normalize_generated_mtime(
+            &expected,
+            SystemTime::now(),
+            &|| {
+                calls.set(calls.get() + 1);
+                if calls.get() == 2 {
+                    fs::rename(&path, &retained)?;
+                    fs::write(&path, "replacement source")?;
+                }
+                Ok(())
+            },
+        );
+        assert!(result.is_err());
+        assert_eq!(fs::metadata(&retained).unwrap().modified().unwrap(), future);
+        assert_eq!(fs::read_to_string(&retained).unwrap(), "original source");
+        assert_eq!(fs::read_to_string(&path).unwrap(), "replacement source");
+    }
 
     #[test]
     fn configured_stage_preserves_original_inputs_and_bounds_new_paths() {

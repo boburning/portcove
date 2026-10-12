@@ -4,6 +4,8 @@
 //! metadata inventory without callbacks. Cancellation is checked immediately
 //! before that final pass; it cannot interrupt the pass itself. These sequential
 //! observations do not freeze external writes or form an atomic tree snapshot.
+//! The private timestamp helper is used only by Core-owned PS1 generation;
+//! inspected player-runtime evidence never authorizes that mutation.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -384,6 +386,83 @@ pub(crate) fn hash_stable_file(
 pub(crate) fn verify_inspected_file(file: &InspectedFile) -> Result<()> {
     if file_snapshot(&open_object(&file.path, false)?)? != file.snapshot {
         return Err(changed_during_inspection());
+    }
+    Ok(())
+}
+
+/// Caller must own the positively closed generation tree. Mutate only the
+/// inspected object's future modified time, never its bytes or another path.
+pub(crate) fn normalize_generated_mtime(
+    expected: &InspectedFile,
+    cutoff: SystemTime,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<InspectedFile> {
+    checkpoint()?;
+    verify_inspected_file(expected)?;
+    if expected.snapshot.modified <= cutoff {
+        return Ok(expected.clone());
+    }
+    let mut options = fs::File::options();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK);
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_FLAG_OPEN_REPARSE_POINT, FILE_GENERIC_READ, FILE_WRITE_ATTRIBUTES,
+        };
+        options.access_mode(FILE_GENERIC_READ | FILE_WRITE_ATTRIBUTES);
+        options.custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    let handle = options.open(&expected.path)?;
+    checkpoint()?;
+    if file_snapshot(&handle)? != expected.snapshot {
+        return Err(changed_during_inspection());
+    }
+    refuse_shared_timestamp_object(&handle)?;
+    verify_inspected_file(expected)?;
+    handle.set_times(fs::FileTimes::new().set_modified(cutoff))?;
+    let after = hash_stable_file(&expected.path, expected.snapshot.size, checkpoint)?;
+    if after.snapshot.identity != expected.snapshot.identity
+        || after.snapshot.modified != cutoff
+        || after.sha256 != expected.sha256
+        || file_snapshot(&handle)? != after.snapshot
+    {
+        return Err(changed_during_inspection());
+    }
+    refuse_shared_timestamp_object(&handle)?;
+    Ok(after)
+}
+
+fn refuse_shared_timestamp_object(file: &fs::File) -> Result<()> {
+    #[cfg(unix)]
+    let links = {
+        use std::os::unix::fs::MetadataExt;
+        file.metadata()?.nlink()
+    };
+    #[cfg(windows)]
+    let links = {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            BY_HANDLE_FILE_INFORMATION, GetFileInformationByHandle,
+        };
+        // SAFETY: initialized output and live borrowed handle for this call.
+        let mut information: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+        if unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, &mut information) } == 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        u64::from(information.nNumberOfLinks)
+    };
+    #[cfg(not(any(unix, windows)))]
+    let links = 0;
+    if links != 1 {
+        return Err(PortcoveError::verification(
+            "PS1 timestamp normalization refuses shared filesystem objects",
+        ));
     }
     Ok(())
 }

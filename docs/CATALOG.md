@@ -579,7 +579,13 @@ acquisition/environment policy, not title-native qualification or a general OS
 sandbox. Retained workspaces and existing cancellation/closure guards still apply.
 
 Core's staged managed PS1 API can retain generation and configuration separately
-without publishing an installation. `generate_managed_install` returns a private
+without publishing an installation. Before sealing initial generation, Core
+normalizes future file modification times only in the positively closed private
+payload, through inspected no-follow handles. Timestamp writes to shared
+hard-linked objects are refused; file bytes, object identity and the complete bounded inventory must
+remain unchanged apart from those timestamps. Source/BIOS and toolchain objects
+are not normalized. Partial failures remain retained without a retry grant.
+`generate_managed_install` returns a private
 operation identity; `configure_managed_install` resumes that same identity with
 an unchanged retained request, freshly checked acquisition authority and an owned
 port lock. It joins the cancellable configure worker and durably records process

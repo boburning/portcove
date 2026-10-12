@@ -1034,7 +1034,7 @@ fn generate_install(
     toolchain.verify(&preparation.toolchain_root, operation)?;
     normalized_disc.verify(&temporary, operation)?;
     Ok(GeneratedInstall {
-        tree: stage::GeneratedTree::capture(root, operation, *quiesced)?,
+        tree: stage::GeneratedTree::capture_normalized_generation(root, operation, *quiesced)?,
         toolchain,
         normalized_disc,
         inputs,
