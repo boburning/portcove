@@ -386,6 +386,13 @@ test("application release records run after the maintained SemVer dependency is 
   assert.ok(!catalog.includes("scripts/reconstruct-application-update-records.test.mjs"));
 });
 
+test("full repository contracts run the bounded release evidence collector controls", () => {
+  assert.match(
+    catalog,
+    /- name: Test bounded release run evidence\r?\n +run: node --test --test-timeout=30000 --test-reporter=\.\/scripts\/test-duration-reporter\.mjs scripts\/release-run-evidence\.test\.mjs/u,
+  );
+});
+
 test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(workflow, /^permissions:\r?\n {2}contents: read$/m);
   assert.match(

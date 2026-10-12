@@ -262,7 +262,10 @@ export function collectReleaseRunEvidence(request, options = {}) {
 }
 
 export async function readReleaseEvidenceRequest(filename, { openFile = open } = {}) {
-  const handle = await openFile(filename, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  const handle = await openFile(
+    filename,
+    constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+  );
   try {
     const metadata = await handle.stat();
     if (!metadata.isFile() || metadata.size < 1 || metadata.size > 16 * 1024)

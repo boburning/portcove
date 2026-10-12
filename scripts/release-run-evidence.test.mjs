@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { constants } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -526,6 +528,54 @@ test("request reader caps actual growth and closes the same handle on drift", as
   assert.equal(opened, 1);
   assert.equal(closed, 1);
 });
+
+test("request reader opens without following links or blocking on a POSIX FIFO", async () => {
+  let closed = false;
+  await assert.rejects(
+    readReleaseEvidenceRequest("fifo", {
+      openFile: async (_filename, flags) => {
+        for (const flag of [constants.O_NOFOLLOW, constants.O_NONBLOCK]) {
+          if (flag !== undefined) assert.equal(flags & flag, flag);
+        }
+        return {
+          async stat() {
+            return { isFile: () => false };
+          },
+          async read() {
+            assert.fail("nonregular handles must never be read");
+          },
+          async close() {
+            closed = true;
+          },
+        };
+      },
+    }),
+    /bounded regular file/u,
+  );
+  assert.equal(closed, true);
+});
+
+test(
+  "actual POSIX FIFO is refused without waiting for a writer",
+  { skip: process.platform === "win32" },
+  async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-release-fifo-"));
+    const fifo = path.join(directory, "request.fifo");
+    const created = spawnSync("mkfifo", [fifo], { timeout: 3000, encoding: "utf8" });
+    assert.equal(created.status, 0, created.stderr);
+    const moduleUrl = new URL("./release-run-evidence.mjs", import.meta.url).href;
+    const code = `import assert from "node:assert/strict";
+    import {readReleaseEvidenceRequest} from ${JSON.stringify(moduleUrl)};
+    await assert.rejects(readReleaseEvidenceRequest(process.argv[1]), /bounded regular file/u);`;
+    const refused = spawnSync(process.execPath, ["--input-type=module", "-e", code, fifo], {
+      timeout: 3000,
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    assert.equal(refused.error, undefined);
+    assert.equal(refused.status, 0, refused.stderr);
+  },
+);
 
 test("request reader refuses same-size mutation and never reopens a replaced pathname", async () => {
   const bytes = Buffer.from(JSON.stringify(request));
