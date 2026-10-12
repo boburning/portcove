@@ -443,15 +443,20 @@ fn inventory(root: &Path, operation: &OperationCoordinator) -> Result<BTreeMap<P
             "PS1 stage root changed during inventory",
         ));
     }
-    verify_inventory(root, &entries)?;
+    verify_inventory(root, &entries, &|| operation.checkpoint())?;
     #[cfg(feature = "qualification-fixtures")]
     trace.complete();
     Ok(entries)
 }
 
-fn verify_inventory(root: &Path, entries: &BTreeMap<PathBuf, Entry>) -> Result<()> {
+fn verify_inventory(
+    root: &Path,
+    entries: &BTreeMap<PathBuf, Entry>,
+    checkpoint: &impl Fn() -> Result<()>,
+) -> Result<()> {
     let mut observed = BTreeSet::from([PathBuf::new()]);
     for (relative, entry) in entries {
+        checkpoint()?;
         match entry {
             Entry::Directory(expected) => {
                 let directory = root.join(relative);
@@ -463,6 +468,7 @@ fn verify_inventory(root: &Path, entries: &BTreeMap<PathBuf, Entry>) -> Result<(
                 // Repeat names as well as object metadata: timestamp precision
                 // alone cannot prove that no child was inserted or removed.
                 for child in fs::read_dir(&directory)? {
+                    checkpoint()?;
                     if observed.len() >= MAX_ENTRIES {
                         return Err(PortcoveError::verification(
                             "PS1 stage fence limit exceeded",
@@ -481,6 +487,7 @@ fn verify_inventory(root: &Path, entries: &BTreeMap<PathBuf, Entry>) -> Result<(
                         ));
                     }
                 }
+                checkpoint()?;
                 if crate::external_runtime::inspect_directory(&directory)? != *expected {
                     return Err(PortcoveError::verification(
                         "PS1 stage directory changed during fence",
@@ -490,6 +497,7 @@ fn verify_inventory(root: &Path, entries: &BTreeMap<PathBuf, Entry>) -> Result<(
             Entry::File(file) => crate::external_runtime::verify_inspected_file(file)?,
         }
     }
+    checkpoint()?;
     if observed.len() != entries.len() {
         return Err(PortcoveError::verification(
             "PS1 stage inventory is incomplete",
@@ -710,7 +718,58 @@ mod tests {
             PathBuf::new(),
             Entry::Directory(crate::external_runtime::inspect_directory(&canonical).unwrap()),
         );
-        assert!(verify_inventory(&canonical, &entries).is_err());
+        assert!(verify_inventory(&canonical, &entries, &|| operation.checkpoint()).is_err());
+    }
+
+    #[test]
+    fn generated_stage_final_fence_observes_cancellation_inside_directory_names() {
+        use std::cell::Cell;
+        let root = tempfile::tempdir().unwrap();
+        for name in ["first.c", "second.c", "third.c"] {
+            fs::write(root.path().join(name), "retained input").unwrap();
+        }
+        let operation = OperationCoordinator::new("stage-owner", None);
+        let canonical = fs::canonicalize(root.path()).unwrap();
+        let entries = inventory(&canonical, &operation).unwrap();
+        let calls = Cell::new(0);
+        let error = verify_inventory(&canonical, &entries, &|| {
+            calls.set(calls.get() + 1);
+            if calls.get() == 3 {
+                Err(PortcoveError::state("cancelled during name fence"))
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap_err();
+        assert_eq!(error.message, "cancelled during name fence");
+        assert_eq!(calls.get(), 3);
+        // Cancellation never supplies a partial inventory as a successful seal.
+        verify_inventory(&canonical, &entries, &|| Ok(())).unwrap();
+        fs::write(root.path().join("inserted.c"), "unsealed input").unwrap();
+        assert!(verify_inventory(&canonical, &entries, &|| Ok(())).is_err());
+    }
+
+    #[test]
+    fn generated_stage_final_fence_observes_cancellation_before_file_checks() {
+        use std::cell::Cell;
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("input.c"), "retained input").unwrap();
+        let operation = OperationCoordinator::new("stage-owner", None);
+        let canonical = fs::canonicalize(root.path()).unwrap();
+        let entries = inventory(&canonical, &operation).unwrap();
+        let calls = Cell::new(0);
+        let error = verify_inventory(&canonical, &entries, &|| {
+            calls.set(calls.get() + 1);
+            if calls.get() == 4 {
+                Err(PortcoveError::state("cancelled before file fence"))
+            } else {
+                Ok(())
+            }
+        })
+        .unwrap_err();
+        assert_eq!(error.message, "cancelled before file fence");
+        assert_eq!(calls.get(), 4);
+        verify_inventory(&canonical, &entries, &|| Ok(())).unwrap();
     }
 
     #[cfg(unix)]
