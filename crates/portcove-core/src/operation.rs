@@ -275,6 +275,7 @@ fn psx_compile_history_digest(
 
 #[derive(Clone, Copy)]
 enum PsxStageTable {
+    Bootstrap,
     Generation,
     Configuration,
     Compilation,
@@ -283,13 +284,14 @@ enum PsxStageTable {
 impl PsxStageTable {
     fn name(self) -> &'static str {
         match self {
+            Self::Bootstrap => "managed_psx_bootstrap",
             Self::Generation => "managed_psx_generation",
             Self::Configuration => "managed_psx_configuration",
             Self::Compilation => "managed_psx_compilation",
         }
     }
     fn has_parent(self) -> bool {
-        !matches!(self, Self::Generation)
+        !matches!(self, Self::Bootstrap | Self::Generation)
     }
     fn parent_name(self) -> &'static str {
         match self {
@@ -453,6 +455,31 @@ impl OperationStore {
 
     pub fn get(&self, id: &str) -> Result<Option<LifecycleOperation>> {
         Ok(self.read(Some(id))?.pop())
+    }
+
+    pub(crate) fn commit_psx_bootstrap(
+        &self,
+        journal: &LifecycleOperation,
+        witness: &crate::psx::BootstrapWitness,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.commit_psx_stage(PsxStageTable::Bootstrap, journal, witness, operation)
+    }
+
+    pub(crate) fn psx_bootstrap(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<crate::psx::BootstrapWitness> {
+        self.psx_stage_fenced(PsxStageTable::Bootstrap, operation, || Ok(()))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn psx_bootstrap_before_fence(
+        &self,
+        operation: &OperationCoordinator,
+        before_fence: impl FnOnce() -> Result<()>,
+    ) -> Result<crate::psx::BootstrapWitness> {
+        self.psx_stage_fenced(PsxStageTable::Bootstrap, operation, before_fence)
     }
 
     pub(crate) fn commit_psx_generation(

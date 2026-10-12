@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 40;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 41;
 
 struct Migration {
     version: i64,
@@ -264,7 +264,32 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_40,
         verify: verify_migration_40,
     },
+    Migration {
+        version: 41,
+        name: "lifecycle-owned managed PS1 acquired input checkpoints",
+        apply: migration_41,
+        verify: verify_migration_41,
+    },
 ];
+
+fn migration_41(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE managed_psx_bootstrap (
+            operation_id TEXT PRIMARY KEY NOT NULL REFERENCES lifecycle_operations(id) ON DELETE CASCADE,
+            witness_json TEXT NOT NULL CHECK(length(CAST(witness_json AS BLOB)) BETWEEN 1 AND 67108864),
+            witness_sha256 TEXT NOT NULL CHECK(length(witness_sha256)=64)
+         );",
+    )?;
+    verify_migration_41(transaction)
+}
+
+fn verify_migration_41(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "managed_psx_bootstrap",
+        &["operation_id", "witness_json", "witness_sha256"],
+    )
+}
 
 fn migration_40(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -1892,6 +1917,7 @@ mod tests {
         schema_37: 37,
         schema_38: 38,
         schema_39: 39,
+        schema_40: 40,
     }
 
     #[test]

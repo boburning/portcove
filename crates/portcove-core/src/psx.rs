@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+mod bootstrap;
+pub(crate) use bootstrap::BootstrapWitness;
 mod compile_plan;
 mod compile_stage;
 pub(crate) use compile_stage::{CompiledInstall, FinalizedInstall};
@@ -2763,6 +2765,123 @@ mod tests {
         )
         .unwrap();
         (library, operation, journal, witness, preparation)
+    }
+
+    fn bootstrap_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        BootstrapWitness,
+    ) {
+        let (library, operation, journal, _, preparation) = generation_witness_fixture(root);
+        let bytes = b"inert authenticated archive fixture";
+        fs::write(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("artifact.download"),
+            bytes,
+        )
+        .unwrap();
+        use sha2::Digest;
+        let artifact = crate::ArtifactIdentity {
+            asset_name: "inert.zip".into(),
+            sha256: hex::encode(sha2::Sha256::digest(bytes)),
+            size: bytes.len() as u64,
+        };
+        let witness = BootstrapWitness::capture(
+            &library,
+            &journal,
+            serde_json::json!({"inert": true}),
+            &preparation,
+            artifact,
+            &operation,
+        )
+        .unwrap();
+        (library, operation, journal, witness)
+    }
+
+    #[test]
+    fn bootstrap_reopen_grants_no_generation_and_rejects_changed_archive() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness) = bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &witness, &operation)
+            .unwrap();
+        let reopened = Library::open(library.root()).unwrap();
+        OperationStore::new(reopened)
+            .psx_bootstrap(&operation)
+            .unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+        fs::write(
+            journal
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join("artifact.download"),
+            b"changed archive",
+        )
+        .unwrap();
+        assert!(store.psx_bootstrap(&operation).is_err());
+    }
+
+    #[test]
+    fn bootstrap_refuses_payload_replacement_and_unclosed_or_failed_journal() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, witness) = bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        journal.preparation_process_quiesced = Some(false);
+        store.put(&mut journal).unwrap();
+        assert!(
+            store
+                .commit_psx_bootstrap(&journal, &witness, &operation)
+                .is_err()
+        );
+        journal.preparation_process_quiesced = Some(true);
+        store.put(&mut journal).unwrap();
+        store
+            .commit_psx_bootstrap(&journal, &witness, &operation)
+            .unwrap();
+        journal.last_error = Some("retained failure".into());
+        store.put(&mut journal).unwrap();
+        assert!(store.psx_bootstrap(&operation).is_err());
+        journal.last_error = None;
+        store.put(&mut journal).unwrap();
+        let payload = journal
+            .paths
+            .staging
+            .as_ref()
+            .unwrap()
+            .join("payload/generated.c");
+        let bytes = fs::read(&payload).unwrap();
+        fs::rename(&payload, payload.with_extension("retained")).unwrap();
+        fs::write(&payload, bytes).unwrap();
+        assert!(store.psx_bootstrap(&operation).is_err());
+    }
+
+    #[test]
+    fn bootstrap_exact_witness_and_journal_fence_rejects_concurrent_drift() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, witness) = bootstrap_fixture(temporary.path());
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_bootstrap(&journal, &witness, &operation)
+            .unwrap();
+        let result = store.psx_bootstrap_before_fence(&operation, || {
+            library.connection()?.execute("UPDATE managed_psx_bootstrap SET witness_json=witness_json || ' ' WHERE operation_id=?1", [&journal.id])?;
+            Ok(())
+        });
+        assert!(result.is_err());
     }
 
     #[test]

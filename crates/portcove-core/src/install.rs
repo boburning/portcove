@@ -34,6 +34,13 @@ pub struct InstallRequest {
     pub qualification: InstallQualification,
 }
 
+/// Acquired setup bytes only. No generator, compilation or installation grant.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ManagedInstallBootstrap {
+    pub operation_id: String,
+    pub port_id: String,
+}
+
 /// Successful private generation. No installation has been published or
 /// registered; subsequent Core work must load its lifecycle-owned witness.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -67,12 +74,14 @@ pub struct ManagedInstallCompileProgress {
 }
 
 enum InstallProgress {
+    Bootstrap(ManagedInstallBootstrap),
     Installed(InstallRecord),
     Generated(ManagedInstallContinuation),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum InstallLimit {
+    Bootstrap,
     Complete,
     Generated,
 }
@@ -465,6 +474,19 @@ async fn run_managed_install_worker<T: Send + 'static>(
     result
 }
 
+// Full file verification and the exact SQLite sealing fence must not block
+// the async cancellation executor. This is joined even when cancellation arrives;
+// it dispatches no external child and changes no preparation closure evidence.
+async fn join_psx_witness_worker<T: Send + 'static>(
+    operation: &OperationCoordinator,
+    worker: impl FnOnce(OperationCoordinator) -> Result<T> + Send + 'static,
+) -> Result<T> {
+    let checkpoint = operation.clone();
+    tokio::task::spawn_blocking(move || worker(checkpoint))
+        .await
+        .map_err(|error| PortcoveError::state(format!("PS1 witness worker failed: {error}")))?
+}
+
 // Artifact transfers can legitimately run for hours, so they have no total
 // request deadline. Connection and no-progress intervals remain bounded.
 const DOWNLOAD_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -551,10 +573,46 @@ impl Installer {
             .await?
         {
             InstallProgress::Installed(install) => Ok(install),
-            InstallProgress::Generated(_) => Err(PortcoveError::state(
-                "complete install yielded unexpectedly",
-            )),
+            InstallProgress::Bootstrap(_) | InstallProgress::Generated(_) => Err(
+                PortcoveError::state("complete install yielded unexpectedly"),
+            ),
         }
+    }
+
+    /// Authenticate and retain setup bytes, then yield before managed generation.
+    pub async fn acquire_managed_install<F>(
+        &self,
+        request: InstallRequest,
+        operation: &OperationCoordinator,
+        emit: F,
+    ) -> Result<ManagedInstallBootstrap>
+    where
+        F: FnMut(OperationEvent),
+    {
+        if request.managed.is_none() || request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 acquired inputs require a retained managed contract",
+            ));
+        }
+        match self
+            .install_to(request, operation, emit, InstallLimit::Bootstrap)
+            .await?
+        {
+            InstallProgress::Bootstrap(checkpoint) => Ok(checkpoint),
+            _ => Err(PortcoveError::state("PS1 bootstrap advanced unexpectedly")),
+        }
+    }
+
+    /// Reopen only the lifecycle-owned acquired input checkpoint. This result
+    /// does not admit generation; all later tool and input verification remains due.
+    pub fn managed_install_bootstrap(&self, operation_id: &str) -> Result<ManagedInstallBootstrap> {
+        let operation =
+            OperationCoordinator::resume(operation_id, "managed-install-bootstrap", None);
+        let witness = OperationStore::new(self.library.clone()).psx_bootstrap(&operation)?;
+        Ok(ManagedInstallBootstrap {
+            operation_id: operation_id.to_owned(),
+            port_id: witness.port_id().to_owned(),
+        })
     }
 
     pub async fn generate_managed_install<F>(
@@ -576,9 +634,9 @@ impl Installer {
             .await?
         {
             InstallProgress::Generated(continuation) => Ok(continuation),
-            InstallProgress::Installed(_) => Err(PortcoveError::state(
-                "private generation published unexpectedly",
-            )),
+            InstallProgress::Bootstrap(_) | InstallProgress::Installed(_) => Err(
+                PortcoveError::state("private generation published unexpectedly"),
+            ),
         }
     }
 
@@ -1115,7 +1173,7 @@ impl Installer {
         record.paths.staging = Some(operation_root.clone());
         record.paths.final_path = Some(destination.clone());
         record.activate = request.activate;
-        if limit == InstallLimit::Generated {
+        if limit != InstallLimit::Complete {
             record.phase = LifecyclePhase::StagedPreparing;
         }
         let store = OperationStore::new(self.library.clone());
@@ -1363,6 +1421,38 @@ impl Installer {
             operation.checkpoint()?;
         }
         if let Some(preparation) = request.managed.clone() {
+            if limit == InstallLimit::Bootstrap {
+                let library = self.library.clone();
+                let journal = lifecycle.record.clone();
+                let contract = generation_contract(&request, &artifact)?;
+                let witness = run_managed_install_worker(lifecycle, operation, move |checkpoint| {
+                    // Observation only: this stage dispatches no external tool.
+                    // Its provisional value cannot reach the store before join.
+                    (
+                        crate::psx::BootstrapWitness::capture(
+                            &library,
+                            &journal,
+                            contract,
+                            &preparation,
+                            artifact,
+                            &checkpoint,
+                        ),
+                        true,
+                    )
+                })
+                .await?;
+                self.require_acquisition(&request)?;
+                let store = lifecycle.store.clone();
+                let journal = lifecycle.record.clone();
+                join_psx_witness_worker(operation, move |checkpoint| {
+                    store.commit_psx_bootstrap(&journal, &witness, &checkpoint)
+                })
+                .await?;
+                return Ok(InstallProgress::Bootstrap(ManagedInstallBootstrap {
+                    operation_id,
+                    port_id: request.port_id,
+                }));
+            }
             if limit == InstallLimit::Generated {
                 emit(operation.message(
                     "info",
@@ -3321,6 +3411,57 @@ mod tests {
             assert_eq!(staging.exists(), !quiesced);
             assert_eq!(store.get(&id).unwrap().is_some(), !quiesced);
         }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn bootstrap_sealing_worker_keeps_cancellation_responsive_and_waits_for_join() {
+        use std::sync::{Condvar, Mutex};
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = crate::PortcoveService::new(library).unwrap();
+        let (activity, operation) = service
+            .begin_cancellable_activity(
+                crate::ActivityOperation::Install,
+                crate::ActivityTargetKind::Port,
+                Some("sample"),
+            )
+            .unwrap();
+        let latch = Arc::new((Mutex::new((false, false)), Condvar::new()));
+        let worker_latch = latch.clone();
+        let pending = tokio::spawn(async move {
+            join_psx_witness_worker(&operation, move |checkpoint| {
+                let (lock, condition) = &*worker_latch;
+                let mut state = lock.lock().unwrap();
+                state.0 = true;
+                condition.notify_all();
+                while !state.1 {
+                    state = condition.wait(state).unwrap();
+                }
+                checkpoint.checkpoint()
+            })
+            .await
+        });
+        // The control itself runs on the same single-thread executor as the
+        // awaiting caller; its timer can fire while bulk verification is held.
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while !latch.0.lock().unwrap().0 {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+        service.request_cancellation(&activity.id).unwrap();
+        let finished_before_join = pending.is_finished();
+        {
+            let (lock, condition) = &*latch;
+            lock.lock().unwrap().1 = true;
+            condition.notify_all();
+        }
+        assert_eq!(
+            pending.await.unwrap().unwrap_err().code,
+            crate::ErrorCode::Cancelled
+        );
+        assert!(!finished_before_join);
     }
 
     fn create_test_install(

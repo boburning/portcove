@@ -161,9 +161,9 @@ pub use host_tools::{
 };
 pub use import_execution::LibraryImportResult;
 pub use install::{
-    InstallQualification, InstallRequest, Installer, ManagedInstallCompilePending,
-    ManagedInstallCompileProgress, ManagedInstallConfigured, ManagedInstallContinuation,
-    VerificationReport,
+    InstallQualification, InstallRequest, Installer, ManagedInstallBootstrap,
+    ManagedInstallCompilePending, ManagedInstallCompileProgress, ManagedInstallConfigured,
+    ManagedInstallContinuation, VerificationReport,
 };
 pub use launch::forward_launch_signal;
 pub use library::{

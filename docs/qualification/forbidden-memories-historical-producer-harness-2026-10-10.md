@@ -153,3 +153,29 @@ coordinate. Earlier run `0387b70e-04b4-4b04-a18a-ce1d8ea172f4` had four passes a
 one faulty fixture assertion: Rust PathBuf joining normalized the verbatim
 components before lookup. That failed test evidence remains distinct from the
 actual upstream failure and the repaired native lookup control.
+
+## Acquired input boundary after generation6 (October 12)
+
+Generation6 on `42b37e95` completed toolkit inventory (15,684 files,
+798,215,456 bytes) with its full final fence in 94,802 ms, but acquisition
+and this inventory consumed the 150-second cooperative budget. Cancellation
+left no generation witness. Positive closure released only that reservation;
+all failed roots remain preserved. The [canonical result](https://github.com/boburning/portcove/issues/141#issuecomment-6128672837)
+and [separate result review](https://github.com/boburning/portcove/issues/141#issuecomment-6128684404)
+grant no retry or failed-root adoption.
+
+The first added boundary is acquired setup bytes only: `acquire_managed_install`
+uses the existing authenticated acquisition/extraction route, then schema41
+retains the exact archive object/content and complete extracted payload inventory
+under its unchanged `StagedPreparing` journal and request/preparation identity.
+`managed_install_bootstrap` reopens through the same bounded witness serializer,
+full file verification and exact witness/journal SQLite fence. No generator,
+toolkit inventory, source materialization, installation or support qualification
+is established by this checkpoint. Changed archive/payload, incomplete closure,
+failed journal or concurrent witness drift refuses reopening.
+
+Generation from this acquired checkpoint and subsequent finite input/post-process
+verification remain implementation work. All fresh content/object/name checks
+after generation and on later continuation remain mandatory; persistent partial
+inventory must grant no execution. No native packet may replay the failed root,
+raise resource caps, or infer acceptance from the acquired checkpoint.
