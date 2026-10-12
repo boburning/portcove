@@ -534,10 +534,11 @@ enum ObjectAccess {
 fn open_checked_object(path: &Path, directory: bool, access: ObjectAccess) -> Result<fs::File> {
     crate::path::refuse_symlink_ancestors(path)?;
     let metadata = fs::symlink_metadata(path)?;
-    if (directory && !metadata.is_dir())
-        || (!directory && !metadata.is_file())
-        || fs::canonicalize(path)? != path
-    {
+    if (directory && !metadata.is_dir()) || (!directory && !metadata.is_file()) {
+        return Err(changed_during_inspection());
+    }
+    #[cfg(not(windows))]
+    if fs::canonicalize(path)? != path {
         return Err(changed_during_inspection());
     }
     let file = match access {
@@ -550,7 +551,7 @@ fn open_checked_object(path: &Path, directory: bool, access: ObjectAccess) -> Re
         || (!directory && (!opened.is_file() || !current.is_file()))
         || opened.file_type().is_symlink()
         || current.file_type().is_symlink()
-        || fs::canonicalize(path)? != path
+        || !canonical_object_path_matches(path, &file)?
     {
         return Err(changed_during_inspection());
     }
@@ -571,13 +572,59 @@ fn open_checked_object(path: &Path, directory: bool, access: ObjectAccess) -> Re
             || current.file_type().is_symlink()
             || (directory && !current.is_dir())
             || (!directory && !current.is_file())
-            || fs::canonicalize(path)? != path
+            || !canonical_object_path_matches(path, &at_path)?
+            || !canonical_object_path_matches(path, &file)?
         {
             return Err(changed_during_inspection());
         }
         crate::path::refuse_symlink_ancestors(path)?;
     }
     Ok(file)
+}
+
+/// Query the freshly opened object's normalized name instead of opening the
+/// same Windows path again merely to canonicalize it. This is not a cached path
+/// proof: both the inspected handle and the fresh at-path handle are checked,
+/// alongside the unchanged identity, type and no-reparse ancestry fences.
+fn canonical_object_path_matches(path: &Path, file: &fs::File) -> Result<bool> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::{ffi::OsStringExt, io::AsRawHandle};
+        use windows_sys::Win32::Storage::FileSystem::GetFinalPathNameByHandleW;
+
+        // FILE_NAME_NORMALIZED | VOLUME_NAME_DOS are both zero. Never fall back
+        // to an opened spelling or a different volume namespace on failure.
+        const MAX_NAME_UNITS: usize = 32_768;
+        let mut name = vec![0_u16; 512];
+        for _ in 0..2 {
+            // SAFETY: the borrowed handle and writable UTF-16 buffer remain
+            // valid for the call; the supplied capacity is bounded below u32.
+            let length = unsafe {
+                GetFinalPathNameByHandleW(
+                    file.as_raw_handle() as _,
+                    name.as_mut_ptr(),
+                    name.len() as u32,
+                    0,
+                )
+            } as usize;
+            if length == 0 {
+                return Err(std::io::Error::last_os_error().into());
+            }
+            if length < name.len() {
+                return Ok(PathBuf::from(std::ffi::OsString::from_wide(&name[..length])) == path);
+            }
+            if length > MAX_NAME_UNITS {
+                return Err(changed_during_inspection());
+            }
+            name.resize(length, 0);
+        }
+        Err(changed_during_inspection())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = file;
+        Ok(fs::canonicalize(path)? == path)
+    }
 }
 
 /// Bounded metadata read using the existing stable, no-follow object authority.
@@ -744,6 +791,53 @@ fn object_identity(_file: &fs::File) -> Result<ObjectIdentity> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn canonical_handle_names_bind_current_objects_and_refuse_aliases() {
+        let temporary = tempfile::tempdir().unwrap();
+        let ordinary = temporary.path().join("named-object.bin");
+        fs::write(&ordinary, b"fresh object bytes").unwrap();
+        let canonical = fs::canonicalize(&ordinary).unwrap();
+        let handle = open_metadata_object(&canonical, false).unwrap();
+        assert!(canonical_object_path_matches(&canonical, &handle).unwrap());
+        assert!(!canonical_object_path_matches(&ordinary, &handle).unwrap());
+        assert!(open_metadata_object(&ordinary, false).is_err());
+
+        let moved = temporary.path().join("retained-object.bin");
+        fs::rename(&ordinary, &moved).unwrap();
+        fs::write(&ordinary, b"fresh object bytes").unwrap();
+        assert!(!canonical_object_path_matches(&canonical, &handle).unwrap());
+        let moved = fs::canonicalize(&moved).unwrap();
+        assert!(canonical_object_path_matches(&moved, &handle).unwrap());
+        let replacement = open_metadata_object(&canonical, false).unwrap();
+        assert_ne!(
+            object_identity(&handle).unwrap(),
+            object_identity(&replacement).unwrap()
+        );
+        assert!(canonical_object_path_matches(&canonical, &replacement).unwrap());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn canonical_handle_names_resize_for_long_file_and_directory_coordinates() {
+        use std::os::windows::ffi::OsStrExt;
+        let temporary = tempfile::tempdir().unwrap();
+        let mut directory = fs::canonicalize(temporary.path()).unwrap();
+        for n in 0..5 {
+            directory.push(format!("{n}-{}", "x".repeat(110)));
+        }
+        fs::create_dir_all(&directory).unwrap();
+        let file = directory.join("unicode-λ.bin");
+        fs::write(&file, b"long coordinate still hashes fresh bytes").unwrap();
+        let file = fs::canonicalize(&file).unwrap();
+        assert!(file.as_os_str().encode_wide().count() > 512);
+        let inspected = hash_stable_file(&file, 40, &|| Ok(())).unwrap();
+        verify_inspected_file(&inspected).unwrap();
+        let directory = fs::canonicalize(&directory).unwrap();
+        let handle = open_metadata_object(&directory, true).unwrap();
+        assert!(canonical_object_path_matches(&directory, &handle).unwrap());
+    }
 
     #[cfg(windows)]
     #[test]
