@@ -1544,6 +1544,41 @@ struct MembershipSnapshotCounts {
 
 type MembershipSnapshotFailure = (&'static str, Option<u32>, Option<MembershipSnapshotCounts>);
 
+enum MembershipSnapshotAttempt {
+    Complete(Vec<u32>),
+    Partial(MembershipSnapshotCounts),
+}
+
+fn parse_membership_snapshot(
+    counts: MembershipSnapshotCounts,
+    complete_ids: impl FnOnce() -> Result<Vec<u32>, MembershipSnapshotFailure>,
+) -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure> {
+    if counts.returned < counts.assigned && counts.assigned as usize <= MEMBER_LIMIT {
+        // A successful query may return a partial list. It supplies no IDs or
+        // membership authority; a fresh complete query is still required.
+        return Ok(MembershipSnapshotAttempt::Partial(counts));
+    }
+    require_membership_snapshot_counts(counts)?;
+    complete_ids().map(MembershipSnapshotAttempt::Complete)
+}
+
+fn collect_membership_snapshot(
+    mut query: impl FnMut() -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure>,
+) -> Result<Vec<u32>, MembershipSnapshotFailure> {
+    let mut first_partial = None;
+    // Same fixed buffer on each read, no sleep or deadline reset. Never union
+    // partial observations. Final accounting and retained handles remain gates.
+    for _ in 0..3 {
+        match query()? {
+            MembershipSnapshotAttempt::Complete(ids) => return Ok(ids),
+            MembershipSnapshotAttempt::Partial(counts) => {
+                first_partial.get_or_insert(counts);
+            }
+        }
+    }
+    Err(("membership_capacity", None, first_partial))
+}
+
 fn require_membership_snapshot_counts(
     counts: MembershipSnapshotCounts,
 ) -> Result<(), MembershipSnapshotFailure> {
@@ -1554,6 +1589,12 @@ fn require_membership_snapshot_counts(
 }
 
 fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, MembershipSnapshotFailure> {
+    collect_membership_snapshot(|| membership_snapshot_once(job))
+}
+
+fn membership_snapshot_once(
+    job: HANDLE,
+) -> Result<MembershipSnapshotAttempt, MembershipSnapshotFailure> {
     let mut buffer = [0_usize; MEMBER_LIMIT + 1];
     let buffer_bytes = std::mem::size_of_val(&buffer) as u32;
     let mut returned_bytes = 0;
@@ -1570,21 +1611,24 @@ fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, MembershipSnapshotFailur
         return Err(("membership_query", Some(unsafe { GetLastError() }), None));
     }
     let list = unsafe { &*buffer.as_ptr().cast::<JOBOBJECT_BASIC_PROCESS_ID_LIST>() };
-    require_membership_snapshot_counts(MembershipSnapshotCounts {
+    let counts = MembershipSnapshotCounts {
         assigned: list.NumberOfAssignedProcesses,
         returned: list.NumberOfProcessIdsInList,
         buffer_bytes,
         returned_bytes,
-    })?;
-    let ids = unsafe {
-        std::slice::from_raw_parts(
-            list.ProcessIdList.as_ptr(),
-            list.NumberOfProcessIdsInList as usize,
-        )
     };
-    ids.iter()
-        .map(|&pid| u32::try_from(pid).map_err(|_| ("member_id_range", None, None)))
-        .collect()
+    parse_membership_snapshot(counts, || {
+        // Only an equal-count, in-bound result reaches this slice.
+        let ids = unsafe {
+            std::slice::from_raw_parts(
+                list.ProcessIdList.as_ptr(),
+                list.NumberOfProcessIdsInList as usize,
+            )
+        };
+        ids.iter()
+            .map(|&pid| u32::try_from(pid).map_err(|_| ("member_id_range", None, None)))
+            .collect()
+    })
 }
 
 #[cfg(test)]
@@ -1645,6 +1689,76 @@ mod membership_snapshot_diagnostic_tests {
         proof.record_membership_failure("membership_capacity", None, Some(counts(3, 2)));
         proof.record_membership_failure("membership_capacity", None, Some(counts(4, 2)));
         assert_eq!(proof.membership_snapshot.unwrap().assigned, 3);
+    }
+
+    #[test]
+    fn membership_snapshot_bounded_partial_then_complete_uses_only_complete_ids() {
+        let mut queries = 0;
+        let mut id_reads = 0;
+        let ids = collect_membership_snapshot(|| {
+            queries += 1;
+            let observed = if queries == 1 {
+                counts(2, 1)
+            } else {
+                counts(1, 1)
+            };
+            parse_membership_snapshot(observed, || {
+                id_reads += 1;
+                assert_eq!(queries, 2, "partial IDs must never be read");
+                Ok(vec![42])
+            })
+        })
+        .unwrap();
+        assert_eq!(queries, 2);
+        assert_eq!(id_reads, 1);
+        assert_eq!(ids, vec![42]);
+    }
+
+    #[test]
+    fn membership_snapshot_bounded_three_partials_refuse_with_first_counts() {
+        let mut queries = 0;
+        let error = collect_membership_snapshot(|| {
+            queries += 1;
+            parse_membership_snapshot(counts(queries + 1, 1), || {
+                panic!("partial IDs must not escape")
+            })
+        })
+        .unwrap_err();
+        assert_eq!(queries, 3);
+        assert_eq!(error.0, "membership_capacity");
+        assert_eq!(error.2.unwrap().assigned, 2);
+    }
+
+    #[test]
+    fn membership_snapshot_bounded_partial_then_api_error_refuses_immediately() {
+        let mut queries = 0;
+        let error = collect_membership_snapshot(|| {
+            queries += 1;
+            if queries == 1 {
+                parse_membership_snapshot(counts(2, 1), || panic!("partial IDs must not escape"))
+            } else {
+                Err(("membership_query", Some(5), None))
+            }
+        })
+        .unwrap_err();
+        assert_eq!(queries, 2);
+        assert_eq!(error.0, "membership_query");
+        assert_eq!(error.1, Some(5));
+    }
+
+    #[test]
+    fn membership_snapshot_bounded_malformed_and_overlimit_counts_refuse_immediately() {
+        for observed in [counts(1, 2), counts(513, 512), counts(513, 513)] {
+            let mut queries = 0;
+            let error = collect_membership_snapshot(|| {
+                queries += 1;
+                parse_membership_snapshot(observed, || panic!("invalid IDs must not escape"))
+            })
+            .unwrap_err();
+            assert_eq!(queries, 1);
+            assert_eq!(error.0, "membership_capacity");
+            assert_eq!(error.2.unwrap().assigned, observed.assigned);
+        }
     }
 }
 
