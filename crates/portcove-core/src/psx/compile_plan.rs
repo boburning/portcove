@@ -24,6 +24,15 @@ pub(super) struct CompilePlan {
     batches: Vec<Vec<String>>,
 }
 
+impl CompilePlan {
+    pub(super) fn batch(&self, index: usize) -> Result<&[String]> {
+        self.batches
+            .get(index)
+            .map(Vec::as_slice)
+            .ok_or_else(|| refused("unknown compile batch"))
+    }
+}
+
 struct Edge {
     outputs: Vec<String>,
     dependencies: Vec<String>,

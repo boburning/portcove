@@ -598,7 +598,13 @@ graph includes, validations, dynamic dependencies and outputs outside the owned
 payload are refused. Loading configuration rederives the exact plan before its
 final inventory fence. A target batch is planning evidence; runtime process caps,
 actual pending commands and durable chunk closure must still be checked before
-compilation. Configuration uses pinned CMake, Ninja and
+compilation. `observe_managed_compile_batch` loads the same sealed operation under
+fresh acquisition/request/artifact checks and one port lock. It joins a pinned
+Ninja dry run with an owned status format, requires complete untruncated output,
+fixed command totals, one status line per command and positive closure, and refuses more than sixty-four
+pending commands. Inputs and durable configuration are fenced again afterward.
+Failures retain data/error/closure; the fresh observation grants no compilation,
+retry, publication or native qualification. Configuration uses pinned CMake, Ninja and
 compilers with the playable no-PGO recipe and no compiler launchers; it requires
 a fresh private build directory. Only the private build and builder-environment
 subtrees may change. Original generated inputs, source/BIOS, toolchain and

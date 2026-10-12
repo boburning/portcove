@@ -9,6 +9,7 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 mod compile_plan;
+mod pending;
 mod stage;
 
 use crate::{
@@ -206,6 +207,8 @@ pub(crate) struct ConfiguredInstallWitness {
     generation: GeneratedInstallWitness,
     generation_sha256: String,
     configured: ConfiguredInstall,
+    #[serde(skip)]
+    persisted_sha256: Option<String>,
 }
 
 /// Private store interface; deserialization alone never admits a stage.
@@ -241,6 +244,9 @@ impl PsxStageWitness for GeneratedInstallWitness {
 }
 
 impl PsxStageWitness for ConfiguredInstallWitness {
+    fn record_load(&mut self, sha256: String) {
+        self.persisted_sha256 = Some(sha256);
+    }
     fn library_id(&self) -> &str {
         &self.generation.library_id
     }
@@ -287,6 +293,82 @@ impl PsxStageWitness for ConfiguredInstallWitness {
 }
 
 impl ConfiguredInstallWitness {
+    pub(crate) fn artifact(&self) -> Result<crate::ArtifactIdentity> {
+        self.generation.artifact()
+    }
+    pub(crate) fn require_request(
+        &self,
+        contract: &serde_json::Value,
+        preparation: &PsxManagedPreparation,
+    ) -> Result<()> {
+        self.generation.require_request(contract, preparation)
+    }
+    pub(crate) fn observe_pending(
+        self,
+        preparation: &PsxManagedPreparation,
+        batch: usize,
+        operation: &OperationCoordinator,
+    ) -> (Result<usize>, bool) {
+        let mut quiesced = true;
+        let result = (|| {
+            if self.persisted_sha256.is_none()
+                || self.generation.generated.inputs != preparation_identity(preparation)?
+            {
+                return Err(PortcoveError::state(
+                    "PS1 pending query requires unchanged store-loaded configuration",
+                ));
+            }
+            let root = self.configured.tree.root();
+            self.configured.tree.verify(root, operation)?;
+            self.generation
+                .generated
+                .toolchain
+                .verify(&preparation.toolchain_root, operation)?;
+            self.generation
+                .generated
+                .normalized_disc
+                .verify(self.generation.generated.normalized_disc.root(), operation)?;
+            crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+            if let Some(bios) = &preparation.bios {
+                verify_raw_bios(bios, &|| operation.checkpoint())?;
+            }
+            let targets = self.configured.compile_plan.batch(batch)?;
+            let arguments = [
+                "-f".to_owned(),
+                "build.ninja".into(),
+                "-n".into(),
+                "-j".into(),
+                "2".into(),
+            ]
+            .into_iter()
+            .chain(targets.iter().cloned());
+            let capture = capture_pinned_builder(
+                &platform_executable(&preparation.toolchain_root.join("bin"), "ninja"),
+                root,
+                &preparation.toolchain_root,
+                arguments,
+                operation,
+                &mut quiesced,
+                true,
+            )?;
+            let pending = pending::inspect(&capture, quiesced)?;
+            self.configured.tree.verify(root, operation)?;
+            self.generation
+                .generated
+                .toolchain
+                .verify(&preparation.toolchain_root, operation)?;
+            self.generation
+                .generated
+                .normalized_disc
+                .verify(self.generation.generated.normalized_disc.root(), operation)?;
+            crate::adapter::verify_source_storage_identity(&preparation.source, "PS1 source")?;
+            if let Some(bios) = &preparation.bios {
+                verify_raw_bios(bios, &|| operation.checkpoint())?;
+            }
+            Ok(pending.count)
+        })();
+        (result, quiesced)
+    }
     pub(crate) fn port_id(&self) -> &str {
         self.generation.port_id()
     }
@@ -362,6 +444,7 @@ impl GeneratedInstallWitness {
                 generation: self,
                 generation_sha256,
                 configured,
+                persisted_sha256: None,
             }),
             quiesced,
         )
@@ -1795,6 +1878,27 @@ fn run_pinned_builder(
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
+    capture_pinned_builder(
+        executable,
+        project_root,
+        toolchain_root,
+        arguments,
+        operation,
+        quiesced,
+        false,
+    )
+    .map(|_| ())
+}
+
+fn capture_pinned_builder(
+    executable: &Path,
+    project_root: &Path,
+    toolchain_root: &Path,
+    arguments: impl IntoIterator<Item = String>,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    ninja_pending: bool,
+) -> Result<crate::ActivityDiagnostic> {
     operation.checkpoint()?;
     let platform = Platform::current()?;
     if !validate_toolchain_with_checkpoint(
@@ -1864,6 +1968,16 @@ fn run_pinned_builder(
         .env("TEMP", environment_root.join("temp"))
         .env("TMP", environment_root.join("temp"))
         .env("TMPDIR", environment_root.join("temp"));
+    if ninja_pending {
+        if executable != platform_executable(&toolchain_root.join("bin"), "ninja") {
+            return Err(PortcoveError::verification(
+                "pending-command observation requires pinned Ninja",
+            ));
+        }
+        command
+            .current_dir(project_root.join("build-portcove"))
+            .env("NINJA_STATUS", pending::STATUS);
+    }
     let previous_quiescence = *quiesced;
     *quiesced = false;
     let mut command_quiesced = false;
@@ -1889,7 +2003,7 @@ fn run_pinned_builder(
     *quiesced = previous_quiescence && command_quiesced;
     let output = output.map_err(builder_supervision_error)?;
     if output.status.success() {
-        return Ok(());
+        return captured.ok_or_else(|| PortcoveError::state("builder final capture missing"));
     }
     // Preserve the builder's stderr/stdout failure ordering while using the
     // existing bounded, redacted per-stream capture, not unbounded output().
@@ -2648,6 +2762,7 @@ mod tests {
         let configured = ConfiguredInstallWitness {
             generation,
             generation_sha256,
+            persisted_sha256: None,
             configured: ConfiguredInstall {
                 tree,
                 arguments,
@@ -2655,6 +2770,34 @@ mod tests {
             },
         };
         (library, operation, journal, configured)
+    }
+
+    #[test]
+    fn configuration_pending_query_refuses_unloaded_evidence_and_unknown_batch_before_native() {
+        use crate::operation::OperationStore;
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            configuration_witness_fixture(temporary.path());
+        let preparation =
+            preparation_from_identity(&configured.generation.generated.inputs).unwrap();
+        let store = OperationStore::new(library.clone());
+        store
+            .commit_psx_configuration(&journal, &configured, &operation)
+            .unwrap();
+        let (result, quiesced) = configured.observe_pending(&preparation, 0, &operation);
+        assert!(result.is_err());
+        assert!(quiesced);
+        let loaded = store.psx_configuration(&operation).unwrap();
+        assert!(loaded.persisted_sha256.is_some());
+        let bytes = serde_json::to_vec(&loaded).unwrap();
+        let reconstructed: ConfiguredInstallWitness = serde_json::from_slice(&bytes).unwrap();
+        assert!(reconstructed.persisted_sha256.is_none());
+        let (result, quiesced) = loaded.observe_pending(&preparation, usize::MAX, &operation);
+        assert!(result.is_err());
+        assert!(quiesced);
+        assert!(library.all_installs().unwrap().is_empty());
+        assert!(store.psx_configuration(&operation).is_ok());
+        assert!(!journal.paths.final_path.unwrap().exists());
     }
 
     #[test]

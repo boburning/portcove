@@ -49,6 +49,15 @@ pub struct ManagedInstallConfigured {
     pub port_id: String,
 }
 
+/// Fresh query only; this result is neither compile completion nor a reusable grant.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ManagedInstallCompilePending {
+    pub operation_id: String,
+    pub port_id: String,
+    pub batch: usize,
+    pub pending_commands: usize,
+}
+
 enum InstallProgress {
     Installed(InstallRecord),
     Generated(ManagedInstallContinuation),
@@ -662,6 +671,106 @@ impl Installer {
             operation_id: operation.operation_id().to_owned(),
             port_id: request.port_id,
         })
+    }
+
+    /// Supervised pending-work query only, with fresh authority and an owned lock.
+    /// The result grants neither compilation nor a reusable retry permission.
+    pub async fn observe_managed_compile_batch<F>(
+        &self,
+        request: InstallRequest,
+        batch: usize,
+        operation: &OperationCoordinator,
+        mut emit: F,
+    ) -> Result<ManagedInstallCompilePending>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let preparation = request.managed.as_ref().ok_or_else(|| {
+            PortcoveError::unsupported("PS1 pending query requires managed preparation")
+        })?;
+        if request.qualification.retained_contract.is_none() {
+            return Err(PortcoveError::unsupported(
+                "PS1 pending query requires retained contract",
+            ));
+        }
+        let scope = self.require_acquisition(&request)?;
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let _guard = self
+            .library
+            .try_lock_port(&request.port_id, "observe-managed-compile-batch")?;
+        let store = OperationStore::new(self.library.clone());
+        let witness = store.psx_configuration(operation)?;
+        let artifact = witness.artifact()?;
+        if artifact.asset_name != request.release.asset.name
+            || !artifact
+                .sha256
+                .eq_ignore_ascii_case(&request.release.asset.sha256)
+            || (request.release.asset.size != 0 && request.release.asset.size != artifact.size)
+        {
+            return Err(PortcoveError::verification(
+                "PS1 retained artifact and live release differ",
+            ));
+        }
+        witness.require_request(&generation_contract(&request, &artifact)?, preparation)?;
+        let record = store
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 pending query lifecycle owner missing"))?;
+        let operation_root = record
+            .paths
+            .staging
+            .clone()
+            .ok_or_else(|| PortcoveError::state("PS1 pending query staging missing"))?;
+        let archive = crate::external_runtime::hash_stable_file(
+            &operation_root.join("artifact.download"),
+            artifact.size,
+            &|| operation.checkpoint(),
+        )?;
+        if archive.sha256 != artifact.sha256 {
+            return Err(PortcoveError::verification(
+                "PS1 retained archive changed before pending query",
+            ));
+        }
+        let destination = record
+            .paths
+            .final_path
+            .clone()
+            .ok_or_else(|| PortcoveError::state("PS1 pending query destination missing"))?;
+        let mut lifecycle = InstallLifecycle {
+            destination,
+            operation_root,
+            store,
+            record,
+        };
+        let preparation = preparation.clone();
+        self.require_acquisition(&request)?;
+        operation.checkpoint()?;
+        emit(operation.message(
+            "info",
+            "Checking pending private compile work; no compilation dispatched",
+        ));
+        let result = run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
+            witness.observe_pending(&preparation, batch, &checkpoint)
+        })
+        .await;
+        let observed = result.and_then(|count| {
+            self.require_acquisition(&request)?;
+            lifecycle.store.psx_configuration(operation)?;
+            Ok(count)
+        });
+        match observed {
+            Ok(pending_commands) => Ok(ManagedInstallCompilePending {
+                operation_id: operation.operation_id().to_owned(),
+                port_id: request.port_id,
+                batch,
+                pending_commands,
+            }),
+            Err(error) => {
+                lifecycle.record.last_error = Some(error.message.clone());
+                lifecycle.store.put(&mut lifecycle.record)?;
+                Err(error)
+            }
+        }
     }
 
     /// Read validation only; adapters retain no reusable execution permission.
