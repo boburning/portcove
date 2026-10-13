@@ -27,7 +27,7 @@ bytes.workspace = true
 fs2.workspace = true
 futures-util.workspace = true
 hex.workspace = true
-jiff = "0.2.37"
+jiff = "0.2.38"
 minisign-verify = "0.3.0"
 portcove-core = { path = "../../../crates/portcove-core" }
 reqwest.workspace = true
