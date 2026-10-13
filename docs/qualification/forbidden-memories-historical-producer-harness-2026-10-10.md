@@ -212,7 +212,6 @@ caps. Acquiring a checkpoint is distinct from accepted generation. The existing
 full toolkit checks still require a finite input/post-process boundary to prove
 resource fit; this wiring alone supplies no such native acceptance.
 
-
 ## Checked-open cost repair — October 13, 2026
 
 Windows checked opens use their two live no-reparse handles for type/identity
