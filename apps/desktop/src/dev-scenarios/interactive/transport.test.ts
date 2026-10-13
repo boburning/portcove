@@ -15,7 +15,7 @@ afterEach(() => {
 it("refuses unknown and malformed commands visibly without forwarding IPC", async () => {
   const refuse = vi.fn();
   transport = installInteractiveTransport("library", refuse);
-  await expect(desktopApi.launch("sample", "")).rejects.toThrow("Unsupported fixture action");
+  await expect(desktopApi.launch("sample", "", 1)).rejects.toThrow("Unsupported fixture action");
   await expect(desktopApi.workspaceSnapshot(2)).rejects.toThrow("unexpected arguments");
   await expect(invoke("get_bootstrap_status", { extra: true })).rejects.toThrow(
     "unexpected arguments",

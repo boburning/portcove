@@ -1044,7 +1044,9 @@ function CurrentView({
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {
-        void operations.perform("launch", () => desktopApi.launch(portId, ""));
+        void operations.perform("launch", () =>
+          desktopApi.launch(portId, "", bootstrap.generation),
+        );
       }}
       onBrowseCatalog={() => ui.setView("catalog")}
       onConnectGameFiles={() => {

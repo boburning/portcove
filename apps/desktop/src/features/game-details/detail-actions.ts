@@ -63,6 +63,7 @@ export function detailActions({
             sourcePath,
             biosPath,
             false,
+            libraryGeneration,
           ),
         );
       } finally {
@@ -71,9 +72,10 @@ export function detailActions({
         dismissInstallReview();
       }
     },
-    launch: () => perform("launch", () => desktopApi.launch(port.id, sourcePath)),
+    launch: () =>
+      perform("launch", () => desktopApi.launch(port.id, sourcePath, libraryGeneration)),
     openUserData: () =>
-      perform("open data folder", () => desktopApi.openUserData(port.id), {
+      perform("open data folder", () => desktopApi.openUserData(port.id, libraryGeneration), {
         refresh: "none",
         invalidateDiagnostics: false,
       }),
@@ -108,6 +110,6 @@ export function detailActions({
       perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
     setPolicy: (policy) =>
       perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),
-    verify: () => perform("verify", () => desktopApi.verify(port.id)),
+    verify: () => perform("verify", () => desktopApi.verify(port.id, libraryGeneration)),
   };
 }

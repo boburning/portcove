@@ -1648,8 +1648,11 @@ try {
     artifacts.push(environmentArtifact);
   });
   await scenario("native-error-recovery", async () => {
+    const bootstrap = await invoke("get_bootstrap_status");
+    assert.equal(bootstrap.ok, true);
     const failed = await invoke("verify_port", {
       portId: "nonexistent-fixture-port",
+      generation: bootstrap.value.generation,
     });
     assert.equal(failed.ok, false);
     assert.ok(failed.error.code);

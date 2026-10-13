@@ -823,6 +823,14 @@ library is rejected with the existing library-changed conflict instead of being
 redirected to the newly selected library. Core retains backup and rollback
 authorization, locking and durable behavior.
 
+Install, verification and opening the data directory also carry the detail
+context's generation into their workers. Launch from game details or the browser
+Continue action resolves the library and generation together inside its worker;
+the completion observer retains that selected library. A library switch rejects
+an obsolete request before it enters these actions, rather than changing their
+target. Work already admitted against a captured library retains its existing
+Core operation and supervisor lifetime.
+
 ## Existing-install adoption review
 
 Core's adoption preview binds both the source copy plan and the destination:
