@@ -291,9 +291,137 @@ export async function readReleaseEvidenceRequest(filename, { openFile = open } =
   }
 }
 
+/** Compare retained opaque artifact bytes with fresh provider metadata. No
+ * extraction, execution, producing-job attribution or release eligibility. */
+export async function verifyReleaseArtifactBytes(request, artifactId, filename, options = {}) {
+  const expected = structuredClone(validateRequest(request));
+  positive(artifactId, "artifact ID");
+  const elapsed = options.elapsed ?? (() => performance.now());
+  const started = elapsed();
+  const withinBound = () => {
+    if (elapsed() - started >= maximumDurationMs)
+      throw new Error("artifact byte verification exhausted its bound");
+  };
+  const api =
+    options.api ?? new GitHubApiClient(createGitHubRunner({ maxBuffer: 2 * 1024 * 1024 }));
+  let requests = 0;
+  const collectionOptions = {
+    ...options,
+    elapsed,
+    api: {
+      request(...args) {
+        withinBound();
+        if (++requests > maximumRequests)
+          throw new Error("artifact byte verification exhausted its request bound");
+        const response = api.request(...args);
+        withinBound();
+        return response;
+      },
+    },
+  };
+  const before = collectReleaseRunEvidence(expected, collectionOptions);
+  withinBound();
+  const selected = before.artifacts.find((artifact) => artifact.id === artifactId);
+  const maximumBytes = 512 * 1024 * 1024;
+  if (
+    !selected ||
+    selected.expired ||
+    !selected.archive_sha256 ||
+    selected.bytes < 1 ||
+    selected.bytes > maximumBytes
+  )
+    throw new Error("artifact has no current bounded provider byte identity");
+  const selectedIdentity = JSON.stringify(selected);
+  const handle = await (options.openFile ?? open)(
+    filename,
+    constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+  );
+  let digest;
+  try {
+    withinBound();
+    const metadata = await handle.stat();
+    if (!metadata.isFile() || metadata.size !== selected.bytes)
+      throw new Error("artifact must be a regular file with the provider byte count");
+    const hash = createHash("sha256");
+    const buffer = Buffer.alloc(64 * 1024);
+    let length = 0;
+    while (length <= selected.bytes) {
+      withinBound();
+      const { bytesRead } = await handle.read(
+        buffer,
+        0,
+        Math.min(buffer.length, selected.bytes + 1 - length),
+        null,
+      );
+      if (bytesRead === 0) break;
+      length += bytesRead;
+      if (length > selected.bytes) throw new Error("artifact grew during verification");
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+    const final = await handle.stat();
+    if (
+      length !== selected.bytes ||
+      final.size !== metadata.size ||
+      final.mtimeMs !== metadata.mtimeMs ||
+      final.ctimeMs !== metadata.ctimeMs ||
+      final.dev !== metadata.dev ||
+      final.ino !== metadata.ino
+    )
+      throw new Error("artifact changed during verification");
+    digest = hash.digest("hex");
+    if (digest !== selected.archive_sha256)
+      throw new Error("artifact bytes differ from provider digest");
+  } finally {
+    await handle.close();
+  }
+  withinBound();
+  const after = collectReleaseRunEvidence(expected, collectionOptions);
+  withinBound();
+  if (
+    JSON.stringify(after.artifacts.find((artifact) => artifact.id === artifactId)) !==
+      selectedIdentity ||
+    JSON.stringify(after.run) !== JSON.stringify(before.run)
+  )
+    throw new Error("artifact or run changed during byte verification");
+  const evidence = {
+    schema_version: 1,
+    kind: "release-artifact-byte-evidence",
+    repository,
+    repository_id: expected.repository_id,
+    run_id: expected.run_id,
+    attempt: expected.attempt,
+    revision: expected.revision,
+    source_tree: expected.tree,
+    source_workflow_sha256: expected.workflow_sha256,
+    artifact_id: artifactId,
+    artifact_name: selected.name,
+    bytes: selected.bytes,
+    sha256: digest,
+    before_api_evidence_sha256: before.evidence_sha256,
+    after_api_evidence_sha256: after.evidence_sha256,
+    before_api_evidence: before,
+    after_api_evidence: after,
+    producer_attempt: null,
+    producer_job_id: null,
+    qualification:
+      "Opaque provider byte identity only; producer attempt/job, execution lineage, package contents, isolation, custody, signing and publication remain unproven",
+  };
+  const receipt = {
+    ...evidence,
+    evidence_sha256: createHash("sha256").update(JSON.stringify(evidence)).digest("hex"),
+  };
+  withinBound();
+  return receipt;
+}
+
 const scriptPath = fileURLToPath(import.meta.url);
 if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  if (process.argv.length !== 3) throw new Error("usage: release-run-evidence.mjs REQUEST.json");
+  if (![3, 5].includes(process.argv.length))
+    throw new Error("usage: release-run-evidence.mjs REQUEST.json [ARTIFACT_ID RETAINED_FILE]");
   const request = await readReleaseEvidenceRequest(process.argv[2]);
-  console.log(JSON.stringify(collectReleaseRunEvidence(request), null, 2));
+  const evidence =
+    process.argv.length === 3
+      ? collectReleaseRunEvidence(request)
+      : await verifyReleaseArtifactBytes(request, Number(process.argv[3]), process.argv[4]);
+  console.log(JSON.stringify(evidence, null, 2));
 }
