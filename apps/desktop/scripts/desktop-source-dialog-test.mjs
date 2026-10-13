@@ -1082,10 +1082,10 @@ async function hashResumeScenario(context) {
       );
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
-      await browser.wait(
-        async () => (await browser.findElement(button("Continue scan"))).isEnabled(),
-        5_000,
-      );
+      await browser.wait(async () => {
+        const controls = await browser.findElements(button("Continue scan"));
+        return controls.length === 1 && (await controls[0].isEnabled());
+      }, 5_000);
       const initial = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(initial.freshness, "inputs_match");
       assert.deepEqual(initial.report, fixture.hashResumeInitial.report);
@@ -1112,10 +1112,10 @@ async function hashResumeScenario(context) {
           ),
         15_000,
       );
-      await browser.wait(
-        async () => (await browser.findElement(button("Scan saved folders"))).isEnabled(),
-        5_000,
-      );
+      await browser.wait(async () => {
+        const controls = await browser.findElements(button("Scan saved folders"));
+        return controls.length === 1 && (await controls[0].isEnabled());
+      }, 5_000);
       const continued = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(continued.freshness, "inputs_match");
       assert.equal(continued.coverage.batches, 2);
