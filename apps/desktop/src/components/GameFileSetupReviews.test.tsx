@@ -109,3 +109,60 @@ it("bounds selection without hiding eligible ports, and replaces it with the lib
   await act(async () => render("new"));
   expect(element.textContent).not.toContain("ports selected");
 });
+
+it("offers independent Core-eligible ports when a scanned BIOS completes previously registered game inputs", async () => {
+  const bios = { ...source, profile_id: "bios", path: "D:/new-folder/bios.bin" };
+  const choices = [
+    { ...ports[0], bios_source_profile: "bios" },
+    { ...ports[1], bios_source_profile: "bios" },
+  ];
+  const open = vi.fn();
+  const render = (current = true, records = [source, bios], held = false) =>
+    root.render(
+      <SetupReviewSelectionProvider>
+        <GameFileSetupReviews
+          ports={choices}
+          statuses={
+            held
+              ? new Map(
+                  choices.map((port) => [
+                    port.id,
+                    {
+                      ...statuses.get(port.id)!,
+                      port_actions: [
+                        {
+                          action: "install" as const,
+                          availability: "waiting" as const,
+                          reason: "missing_source" as const,
+                        },
+                      ],
+                    },
+                  ]),
+                )
+              : statuses
+          }
+          candidates={[bios]}
+          registeredSources={records}
+          current={current}
+          busy={false}
+          onOpenPort={open}
+        />
+      </SetupReviewSelectionProvider>,
+    );
+  await act(async () => render());
+  expect(element.querySelectorAll("[data-setup-review-port]")).toHaveLength(2);
+  await act(async () => element.querySelector<HTMLInputElement>("input")!.click());
+  await act(async () => button("Review Port 0 setup").click());
+  expect(open).toHaveBeenCalledWith("p0", "game-file-libraries-setup");
+  await act(async () => render(false));
+  expect(button("Review Port 0 setup").disabled).toBe(true);
+  await act(async () => render(true, [source]));
+  expect(button("Review Port 0 setup").disabled).toBe(true);
+  await act(async () => render(true, [source, { ...bios, sha256: "b".repeat(64) }]));
+  expect(button("Review Port 0 setup").disabled).toBe(true);
+  await act(async () => render(true, [bios], true));
+  expect(button("Review Port 0 setup").disabled).toBe(true);
+  await act(async () => render());
+  expect(button("Review Port 0 setup").disabled).toBe(false);
+  expect(element.textContent).toContain("1 of 16 ports selected");
+});

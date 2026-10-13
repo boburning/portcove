@@ -745,7 +745,7 @@ snapshots and restart-required checkpoints do not carry matches into the live
 view. These observations still require ordinary registration and Core plan
 revalidation; continuing a scan grants no additional setup authority.
 Desktop also keeps an ephemeral selection of at most sixteen independent ports
-for setup review within the current library workspace. A matching observed source
+for setup review within the current library workspace. A matching observed game or BIOS source
 must already be registered, and current Core action availability must allow
 installation before a selected item can request its existing game-details review.
 The explicit review request is consumed once after the matching detail is active

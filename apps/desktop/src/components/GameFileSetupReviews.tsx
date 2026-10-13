@@ -47,7 +47,9 @@ export function GameFileSetupReviews({
       .map((candidate) => candidate.profile_id),
   );
   const compatible = ports.filter(
-    (port) => port.source_profile && profiles.has(port.source_profile),
+    (port) =>
+      (port.source_profile && profiles.has(port.source_profile)) ||
+      (port.bios_source_profile && profiles.has(port.bios_source_profile)),
   );
   const canReview = (id: string) => {
     const status = statuses.get(id);
