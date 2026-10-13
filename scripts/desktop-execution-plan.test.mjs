@@ -342,7 +342,11 @@ test("coordinator consumes supplied order and obtains browser at each invocation
       assert.equal(c.browser, "replacement");
       trace.push("selected-setup");
     },
-    selectedSetupCompletion: async () => trace.push("selected-setup-completion"),
+    selectedSetupCompletion: async (c) => {
+      assert.equal(c.browser, "replacement");
+      assert.equal(c.restartApplication, context.restartApplication);
+      trace.push("selected-setup-completion");
+    },
     preparation: async (c) => {
       assert.equal(c.browser, "replacement");
       assert.equal(c.cli, "cli");
