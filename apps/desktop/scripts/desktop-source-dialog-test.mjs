@@ -1248,15 +1248,25 @@ async function preliminarySelectedSetupScenario(context) {
           await browser.executeScript(() => {
             if (window.__portcove244FocusTrace) throw new Error("Focus trace already owned");
             const events = [];
+            const dialog = document.querySelector('[aria-labelledby="install-review-title"]');
+            const guards = [dialog?.previousElementSibling, dialog?.nextElementSibling];
+            if (
+              !guards.every(
+                (guard) =>
+                  guard?.matches(
+                    'span[data-base-ui-focus-guard][data-type="inside"][aria-hidden="true"]',
+                  ) && guard.tabIndex === 0,
+              )
+            )
+              throw new Error("The setup popup must have its two associated inside focus guards");
             const capture = (event) => {
               const target = event.target;
-              const dialog = document.querySelector('[aria-labelledby="install-review-title"]');
               events.push({
                 type: event.type,
                 key: event.key,
                 shift: event.shiftKey,
                 inside: !!dialog && dialog.contains(target),
-                guard: target?.hasAttribute?.("data-base-ui-focus-guard") ?? false,
+                guard: guards.includes(target),
                 html: target?.outerHTML?.slice(0, 1200),
                 document_focused: document.hasFocus(),
               });
@@ -1265,6 +1275,7 @@ async function preliminarySelectedSetupScenario(context) {
             document.addEventListener("keydown", capture, true);
             window.__portcove244FocusTrace = {
               events,
+              guards: guards.map((guard) => guard.outerHTML),
               close() {
                 document.removeEventListener("focusin", capture, true);
                 document.removeEventListener("keydown", capture, true);
@@ -1289,6 +1300,7 @@ async function preliminarySelectedSetupScenario(context) {
               html: active?.outerHTML?.slice(0, 1200),
               document_focused: document.hasFocus(),
               events: window.__portcove244FocusTrace.events,
+              guards: window.__portcove244FocusTrace.guards,
             };
           });
           await browser.executeScript(() => {
