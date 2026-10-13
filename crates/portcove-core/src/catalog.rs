@@ -3892,7 +3892,10 @@ mod tests {
                 port.platforms,
                 [crate::Platform::WindowsX86_64, crate::Platform::LinuxX86_64]
             );
-            assert_eq!(port.executable_hints[&crate::Platform::LinuxX86_64], [executable]);
+            assert_eq!(
+                port.executable_hints[&crate::Platform::LinuxX86_64],
+                [executable]
+            );
             assert_eq!(port.runtime_subdirectory.as_deref(), Some("build-portcove"));
             assert_eq!(port.launch_arguments, ["--no-launcher"]);
             assert!(port.automated_tested_platforms.is_empty());
@@ -3912,11 +3915,13 @@ mod tests {
                 format!("{}/releases/download/{version}/{asset}", port.project_url)
             );
             let evidence_id = format!("{id}-{}-linux-static-contract", version.replace('.', "-"));
-            assert!(document["source_catalog"]["evidence"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|evidence| evidence["id"].as_str() == Some(evidence_id.as_str())));
+            assert!(
+                document["source_catalog"]["evidence"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|evidence| evidence["id"].as_str() == Some(evidence_id.as_str()))
+            );
             let contracts = document["source_catalog"]["contracts"]
                 .as_array()
                 .unwrap()
@@ -3927,17 +3932,21 @@ mod tests {
             for contract in contracts {
                 assert_eq!(contract["applicability"].as_array().unwrap().len(), 2);
                 assert_eq!(contract["applicability"][1]["artifact_sha256"], sha256);
-                assert!(contract["evidence_ids"]
+                assert!(
+                    contract["evidence_ids"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|evidence| evidence.as_str() == Some(evidence_id.as_str()))
+                );
+            }
+            assert!(
+                !document["source_catalog"]["qualification"]
                     .as_array()
                     .unwrap()
                     .iter()
-                    .any(|evidence| evidence.as_str() == Some(evidence_id.as_str())));
-            }
-            assert!(!document["source_catalog"]["qualification"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|record| record["scope"]["port_id"] == id));
+                    .any(|record| record["scope"]["port_id"] == id)
+            );
         }
     }
 
