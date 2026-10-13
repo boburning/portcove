@@ -286,8 +286,9 @@ function stopBackupFocusDriver() {
   driver = undefined;
 }
 
-function validateBackupFocusInventory(captured) {
+function validateBackupFocusInventory(captured, requireQualified = false) {
   if (
+    requireQualified ||
     savedLibraryRecoverySession ||
     checks.some(
       (check) =>
@@ -971,7 +972,10 @@ async function restartApplication(name, prepareWhileStopped, childEnvironment = 
         "Identity-bound restart cannot rewrite fixture state",
       );
     const inventory = captureBackupFocusCleanup(selectedSetupRestart ? name : cleanupName);
-    validateBackupFocusInventory(JSON.parse(await readFile(inventory, "utf8")));
+    validateBackupFocusInventory(
+      JSON.parse(await readFile(inventory, "utf8")),
+      selectedSetupRestart,
+    );
     await browser.quit();
     browser = undefined;
     stopBackupFocusDriver();
