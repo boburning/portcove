@@ -3663,11 +3663,29 @@ mod tests {
                 "bios.cfg",
                 "mods",
                 "overlay-captures",
+                "overlay_captures.json",
+                "overlay_captures.json.d",
+                "overlay_captures.addendum.jsonl",
             ] {
                 assert!(port.persistent_paths.iter().any(|p| p == owned));
                 assert!(!port.runtime_mutable_paths.iter().any(|p| p == owned));
             }
             assert!(port.runtime_mutable_paths.iter().any(|p| p == "cache"));
+            let fallback_temp = port
+                .runtime_mutable_file_patterns
+                .iter()
+                .find(|pattern| {
+                    pattern.prefix == "overlay_captures.json." && pattern.suffix == ".tmp"
+                })
+                .unwrap();
+            assert!(fallback_temp.matches("overlay_captures.json.42.1.tmp"));
+            for persistent in [
+                "overlay_captures.json",
+                "overlay_captures.json.d",
+                "overlay_captures.addendum.jsonl",
+            ] {
+                assert!(!fallback_temp.matches(persistent));
+            }
             assert!(port.runtime_source_filename.is_none());
             assert!(port.runtime_source_materialization.is_none());
             assert_eq!(

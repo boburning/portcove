@@ -15976,7 +15976,10 @@
         "disc.cfg",
         "bios.cfg",
         "mods",
-        "overlay-captures"
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
       ],
       "runtime_mutable_paths": [
         "cache",
@@ -15990,6 +15993,10 @@
         {
           "prefix": "psx_freeze_dump_psx-runtime_",
           "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
         }
       ],
       "launch_environment": {
@@ -16063,7 +16070,10 @@
         "disc.cfg",
         "bios.cfg",
         "mods",
-        "overlay-captures"
+        "overlay-captures",
+        "overlay_captures.json",
+        "overlay_captures.json.d",
+        "overlay_captures.addendum.jsonl"
       ],
       "runtime_mutable_paths": [
         "cache",
@@ -16077,6 +16087,10 @@
         {
           "prefix": "psx_freeze_dump_psx-runtime_",
           "suffix": ".json"
+        },
+        {
+          "prefix": "overlay_captures.json.",
+          "suffix": ".tmp"
         }
       ],
       "launch_environment": {

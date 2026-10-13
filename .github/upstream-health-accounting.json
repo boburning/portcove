@@ -243,7 +243,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-recomp",
-      "port_contract_sha256": "97e780e963c56ec29430b2b7a842c8df6ad471d71f9405cb272195b883264298",
+      "port_contract_sha256": "c144016db4a238423f25008750c7cab6a92c696d2226b445176e72bd950b6ca7",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
       "tag": "v0.1.1",
@@ -260,7 +260,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-2-recomp",
-      "port_contract_sha256": "1eda025fc50b1ef7d24a7fa02081a155b6dd1ac9857a832893fd8ad0e8d09af5",
+      "port_contract_sha256": "54e6cf01bd2abcaa5f781bd1bd143d46a7d6ffef9f07dc665af11c8a864495ba",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
       "tag": "v0.1.1",
