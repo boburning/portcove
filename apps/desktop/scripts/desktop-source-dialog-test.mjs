@@ -1232,6 +1232,17 @@ async function preliminarySelectedSetupScenario(context) {
       // Axe cannot determine the runtime tab trap for aria-hidden background
       // controls and Base UI focus guards. Observe actual native keyboard focus.
       const keyboardFocus = [];
+      const installControl = await review.findElement(
+        By.xpath('.//button[starts-with(normalize-space(.),"Install ·")]'),
+      );
+      const cancelControl = await review.findElement(
+        By.xpath('.//button[normalize-space(.)="Cancel review"]'),
+      );
+      await browser.wait(
+        () =>
+          browser.executeScript((element) => document.activeElement === element, installControl),
+        5_000,
+      );
       for (const reverse of [false, true]) {
         for (let index = 0; index < 8; index += 1) {
           const keys = browser.actions();
@@ -1251,6 +1262,15 @@ async function preliminarySelectedSetupScenario(context) {
           assert.equal(focus.inside, true, "Native Tab must stay in the topmost setup review");
           assert.equal(focus.disabled, false);
           assert.ok(focus.label === "Cancel review" || focus.label.startsWith("Install ·"));
+          const expectedControl = index % 2 === 0 ? cancelControl : installControl;
+          assert.equal(
+            await browser.executeScript(
+              (element) => document.activeElement === element,
+              expectedControl,
+            ),
+            true,
+            "Every native Tab must alternate between the two enabled review controls",
+          );
           keyboardFocus.push({ reverse, ...focus });
         }
       }
@@ -1260,11 +1280,10 @@ async function preliminarySelectedSetupScenario(context) {
         async () => (await browser.findElements(installLocator)).length === 0,
         5_000,
       );
+      const setupOpener = await enabled(button("Review installation"));
+      assert.equal(await setupOpener.isDisplayed(), true);
       await browser.wait(
-        () =>
-          browser.executeScript(
-            () => document.activeElement?.textContent?.trim() === "Review installation",
-          ),
+        () => browser.executeScript((element) => document.activeElement === element, setupOpener),
         5_000,
       );
       report.observations.neutral_setup_cancel_restored_opener_focus = true;
