@@ -542,7 +542,8 @@ export const desktopApi = {
     invoke<void>("report_frontend_error", { message, componentStack }),
   plan: (portId: string, channel: ReleaseChannel) =>
     invoke<InstallPlan>("plan_port", { portId, channel }),
-  openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),
+  openUserData: (portId: string, generation: number) =>
+    invoke<string>("open_user_data", { portId, generation }),
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
   setChannel: (portId: string, channel: ReleaseChannel, generation: number) =>
     invoke<PortStatus>("set_channel", { portId, channel, generation }),
@@ -554,8 +555,10 @@ export const desktopApi = {
     source: string,
     bios: string,
     stage: boolean,
+    generation: number,
   ) =>
     invoke<InstallRecord>("install_port", {
+      generation,
       input: {
         portId,
         channel,
@@ -564,7 +567,7 @@ export const desktopApi = {
         stage,
       } satisfies InstallInput,
     }),
-  verify: (portId: string) => invoke("verify_port", { portId }),
+  verify: (portId: string, generation: number) => invoke("verify_port", { portId, generation }),
   activate: (
     portId: string,
     expectedActive: string | null,
@@ -608,9 +611,10 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  launch: (portId: string, source: string) =>
+  launch: (portId: string, source: string, generation: number) =>
     invoke<LaunchResult>("launch_port", {
       portId,
+      generation,
       source: source || null,
       arguments: [],
     }),
