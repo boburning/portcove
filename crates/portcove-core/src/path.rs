@@ -12,6 +12,8 @@ pub(crate) fn is_portcove_metadata(path: &Path) -> bool {
 }
 
 pub(crate) fn refuse_symlink_ancestors(path: &Path) -> Result<()> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.ancestry);
     for candidate in path.ancestors() {
         if std::fs::symlink_metadata(candidate)
             .is_ok_and(|metadata| metadata.file_type().is_symlink())

@@ -32,12 +32,14 @@ struct Record {
     files_hashed: u64,
     bytes_hashed: u64,
     hashing_ms: u64,
+    verification_costs: VerificationCosts,
     marks_omitted: u64,
     marks: Vec<Mark>,
 }
 
 pub(super) struct Trace {
     started: Instant,
+    starting_costs: VerificationCosts,
     record: Record,
 }
 
@@ -49,6 +51,7 @@ impl Trace {
     pub(super) fn new(operation_id: &str, scope: &'static str) -> Self {
         Self {
             started: Instant::now(),
+            starting_costs: current_costs(),
             record: Record {
                 // Core operation IDs are UUIDs. Refuse to retain unbounded caller text.
                 operation_id: if operation_id.len() <= 128 {
@@ -64,6 +67,7 @@ impl Trace {
                 files_hashed: 0,
                 bytes_hashed: 0,
                 hashing_ms: 0,
+                verification_costs: VerificationCosts::default(),
                 marks_omitted: 0,
                 marks: Vec::with_capacity(MAX_MARKS),
             },
@@ -109,6 +113,7 @@ impl Drop for Trace {
         // Cancellation/error still publishes the last entered phase, but never
         // changes the original Result or waits for a diagnostic lock.
         self.record.elapsed_ms = milliseconds(self.started);
+        self.record.verification_costs = current_costs().since(&self.starting_costs);
         let Ok(mut records) = RECORDS.try_lock() else {
             OMITTED.fetch_add(1, Ordering::Relaxed);
             return;
@@ -134,6 +139,7 @@ impl Drop for Trace {
                 files_hashed: 0,
                 bytes_hashed: 0,
                 hashing_ms: 0,
+                verification_costs: VerificationCosts::default(),
                 marks_omitted: 0,
                 marks: Vec::new(),
             },
@@ -180,6 +186,20 @@ mod tests {
         trace.record.bytes_hashed = u64::MAX;
         trace.record.hashing_ms = u64::MAX;
         trace.record.marks_omitted = u64::MAX;
+        for cost in [
+            &mut trace.record.verification_costs.ancestry,
+            &mut trace.record.verification_costs.checked_open,
+            &mut trace.record.verification_costs.content_open,
+            &mut trace.record.verification_costs.metadata_open,
+            &mut trace.record.verification_costs.metadata,
+            &mut trace.record.verification_costs.identity,
+            &mut trace.record.verification_costs.canonical_name,
+            &mut trace.record.verification_costs.content,
+            &mut trace.record.verification_costs.final_fence,
+        ] {
+            cost.calls = u64::MAX;
+            cost.nanos = u64::MAX;
+        }
         for mark in &mut trace.record.marks {
             mark.elapsed_ms = u64::MAX;
         }
@@ -220,5 +240,77 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+}
+
+// Thread-local aggregate costs contain no paths, bytes or execution authority.
+// Inclusive scopes are reported separately; their times must not be summed.
+#[derive(Clone, Default, Serialize)]
+pub(crate) struct VerificationCosts {
+    pub(crate) ancestry: Cost,
+    pub(crate) checked_open: Cost,
+    pub(crate) content_open: Cost,
+    pub(crate) metadata_open: Cost,
+    pub(crate) metadata: Cost,
+    pub(crate) identity: Cost,
+    pub(crate) canonical_name: Cost,
+    pub(crate) content: Cost,
+    pub(crate) final_fence: Cost,
+}
+#[derive(Clone, Default, Serialize)]
+pub(crate) struct Cost {
+    pub(crate) calls: u64,
+    nanos: u64,
+}
+thread_local! {
+    static COSTS: std::cell::RefCell<VerificationCosts> = std::cell::RefCell::new(VerificationCosts::default());
+}
+pub(crate) struct CostScope {
+    started: Instant,
+    select: fn(&mut VerificationCosts) -> &mut Cost,
+}
+pub(crate) fn cost(select: fn(&mut VerificationCosts) -> &mut Cost) -> CostScope {
+    CostScope {
+        started: Instant::now(),
+        select,
+    }
+}
+impl Drop for CostScope {
+    fn drop(&mut self) {
+        COSTS.with(|costs| {
+            let mut costs = costs.borrow_mut();
+            let value = (self.select)(&mut costs);
+            value.calls = value.calls.saturating_add(1);
+            value.nanos = value.nanos.saturating_add(
+                u64::try_from(self.started.elapsed().as_nanos()).unwrap_or(u64::MAX),
+            );
+        });
+    }
+}
+#[cfg(test)]
+pub(crate) fn take_costs() -> VerificationCosts {
+    COSTS.with(|costs| std::mem::take(&mut *costs.borrow_mut()))
+}
+
+fn current_costs() -> VerificationCosts {
+    COSTS.with(|costs| costs.borrow().clone())
+}
+impl VerificationCosts {
+    fn since(mut self, before: &Self) -> Self {
+        for (value, previous) in [
+            (&mut self.ancestry, &before.ancestry),
+            (&mut self.checked_open, &before.checked_open),
+            (&mut self.content_open, &before.content_open),
+            (&mut self.metadata_open, &before.metadata_open),
+            (&mut self.metadata, &before.metadata),
+            (&mut self.identity, &before.identity),
+            (&mut self.canonical_name, &before.canonical_name),
+            (&mut self.content, &before.content),
+            (&mut self.final_fence, &before.final_fence),
+        ] {
+            value.calls = value.calls.saturating_sub(previous.calls);
+            value.nanos = value.nanos.saturating_sub(previous.nanos);
+        }
+        self
     }
 }

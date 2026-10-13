@@ -587,6 +587,8 @@ fn verify_inventory(
     entries: &BTreeMap<PathBuf, Entry>,
     checkpoint: &impl Fn() -> Result<()>,
 ) -> Result<()> {
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = super::qualification_trace::cost(|costs| &mut costs.final_fence);
     let mut observed = BTreeSet::from([PathBuf::new()]);
     for (relative, entry) in entries {
         checkpoint()?;
@@ -642,6 +644,90 @@ fn verify_inventory(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn post_join_fence_refuses_mutation_after_first_reader_finishes() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("input.c");
+        fs::write(&path, b"original").unwrap();
+        let operation = OperationCoordinator::new("joined-late-mutation", None);
+        let tree = GeneratedTree::capture(root.path(), &operation, true).unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        super::super::verification::joined_pair(
+            || {
+                tree.verify(root.path(), &operation)?;
+                tx.send(()).unwrap();
+                Ok(())
+            },
+            || {
+                rx.recv_timeout(std::time::Duration::from_secs(2)).unwrap();
+                fs::write(&path, b"changed-and-longer")?;
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert!(tree.verify_capture_fence(root.path(), &operation).is_err());
+    }
+
+    #[test]
+    fn fresh_tree_verification_hashes_mutation_with_restored_timestamp() {
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join("input.c");
+        fs::write(&file, b"original").unwrap();
+        let operation = OperationCoordinator::new("restored-time-verification", None);
+        let tree = GeneratedTree::capture(root.path(), &operation, true).unwrap();
+        let modified = fs::metadata(&file).unwrap().modified().unwrap();
+        fs::write(&file, b"modified").unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&file)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+        assert!(tree.verify(root.path(), &operation).is_err());
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    #[ignore = "representative read-only verifier measurement"]
+    fn representative_verification_costs() {
+        if let Some(root) = std::env::var_os("PORTCOVE_VERIFIER_PROFILE_ROOT") {
+            let operation = OperationCoordinator::new("readonly-representative-verification", None);
+            super::super::qualification_trace::take_costs();
+            let started = std::time::Instant::now();
+            let captured = GeneratedTree::capture(Path::new(&root), &operation, true).unwrap();
+            let costs = super::super::qualification_trace::take_costs();
+            println!(
+                "VERIFIER_READONLY {}",
+                serde_json::json!({"elapsed_ms": started.elapsed().as_millis(), "entries": captured.entries.len(), "costs": costs, "diagnostics": super::super::qualification_trace::qualification_psx_preparation_diagnostics(operation.operation_id())})
+            );
+            return;
+        }
+        let fixture = tempfile::tempdir().unwrap();
+        for directory in 0..24 {
+            let path = fixture.path().join(format!("dir{directory}/nested"));
+            fs::create_dir_all(&path).unwrap();
+            for file in 0..100 {
+                fs::write(path.join(format!("file{file}.c")), vec![b'x'; 4096]).unwrap();
+            }
+        }
+        let operation = OperationCoordinator::new("representative-verification", None);
+        super::super::qualification_trace::take_costs();
+        let started = std::time::Instant::now();
+        let captured = GeneratedTree::capture(fixture.path(), &operation, true).unwrap();
+        let costs = super::super::qualification_trace::take_costs();
+        println!(
+            "VERIFIER_CAPTURE {}",
+            serde_json::json!({"elapsed_ms": started.elapsed().as_millis(), "files": 2400, "bytes": 2400*4096, "costs": costs})
+        );
+        let started = std::time::Instant::now();
+        captured.verify(fixture.path(), &operation).unwrap();
+        let costs = super::super::qualification_trace::take_costs();
+        println!(
+            "VERIFIER_VERIFY {}",
+            serde_json::json!({"elapsed_ms": started.elapsed().as_millis(), "costs": costs})
+        );
+    }
 
     #[cfg(feature = "qualification-fixtures")]
     #[test]

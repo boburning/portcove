@@ -18,7 +18,7 @@ mod compile_stage;
 pub(crate) use compile_stage::{CompiledInstall, FinalizedInstall};
 mod pending;
 #[cfg(feature = "qualification-fixtures")]
-mod qualification_trace;
+pub(crate) mod qualification_trace;
 mod stage;
 mod verification;
 #[cfg(feature = "qualification-fixtures")]

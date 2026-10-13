@@ -211,3 +211,58 @@ command loops stages, grants retry, adopts failed libraries or raises resource
 caps. Acquiring a checkpoint is distinct from accepted generation. The existing
 full toolkit checks still require a finite input/post-process boundary to prove
 resource fit; this wiring alone supplies no such native acceptance.
+
+
+## Checked-open cost repair — October 13, 2026
+
+Windows checked opens use their two live no-reparse handles for type/identity
+inspection, then query both final normalized names and freshly inspect ancestry.
+This consolidates repeated pathname metadata queries, the intermediate ancestry
+walk and the earlier name query within one callback-free opening phase. It keeps
+initial and final ancestry, independently opened current-name identity, complete
+content hashing, post-read snapshots/reopening and complete post-join tree fences.
+Unix opening behavior remains unchanged. No handle/snapshot becomes authority
+across a content read, checkpoint, joined verifier or later stage.
+
+Qualification diagnostics retain fixed thread-local operation counts and elapsed
+nanoseconds for ancestry walks, checked opens, content/metadata handle opens,
+metadata snapshots, identities, canonical names, content reads/hashing and final
+fences. Scopes are inclusive and must not be summed. Enumeration/path validation
+is included in the enclosing inventory time. Records/marks/output limits remain
+unchanged; missing or incomplete diagnostics grant no acceptance.
+
+The ignored `psx::stage::tests::representative_verification_costs` control uses
+production capture/verification on an isolated 2,400-file, 9,830,400-byte fixture.
+With an explicit `PORTCOVE_VERIFIER_PROFILE_ROOT`, it only captures the selected
+existing tree read-only and reports aggregate diagnostics; it does not create,
+modify, seal or authorize that tree. Use the existing guarded test runner and an
+immutable test executable while measuring; settle builds before timing.
+
+On this Windows host, the isolated fixture capture changed from 4,610 to 3,590 ms;
+fresh verification changed from 4,512 to 4,009 ms. The original capture spent
+3,553 ms in checked opens, including 2,378 ms in ancestry, and 233 ms in content
+reads/hashing. Each checked open now performs two ancestry walks and two final
+name queries. Baseline ancestry counters covered external-runtime callers only;
+current counters include all ancestry callers, so their totals are not a direct
+before/after comparison. These observations are performance feedback, not test
+thresholds or installation acceptance.
+
+A read-only retained toolchain capture completed all 15,684 files/798,215,456 bytes
+in 46,468 ms after the measurement binary was frozen and builds settled. Aggregate
+ancestry time was 24,091 ms, checked opens 22,738 ms and content reads/hashing
+15,451 ms. An earlier contended observation took 226,792 ms; its concurrent linker
+failed on the running test executable. Both failures/observations are preserved;
+the timing difference is not attributed solely to this repair. Warm filesystem
+conditions are not a byte-verification cache and every read remains fresh.
+
+Deterministic controls cover same-content/restored-time replacement between
+opens, rename after the current-name open, reparse ancestry inserted after initial
+inspection, fresh hashing of content mutation with restored timestamps and a
+size-changing mutation after one joined reader finishes. Existing membership,
+cancellation, joining, inventory-name and closure controls remain required.
+Windows metadata-only final fences retain their existing identity/size/mtime
+semantics; this repair does not claim detection of a late same-object mutation
+that restores mtime after hashing. The delivered #1941 root-exit patch is composed
+with the candidate's pending membership episode safeguards, not substituted for
+them. Actual generation, sealing and the later usable lifecycle still require
+fresh source-bound native evidence within unchanged budgets.
