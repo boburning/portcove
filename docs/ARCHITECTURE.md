@@ -934,6 +934,12 @@ declared completion file as a private cause for the shared safe summary. These
 causes are never inferred from diagnostic text, details or error codes; original
 machine fields, mutation outcomes and recovery actions remain unchanged. Older
 stored reports retain their original presentation.
+When preparation has resolved its authoritative definition, the same summary
+names its bounded display title and exact port ID. Retained failure/recovery and
+cleanup use matching reviewed-plan, installation and activity identities before
+reading that retained definition. Unresolved or mismatched targets remain
+generic; diagnostic fields never supply a title or target, and display context
+does not authorize a recovery action or change an observed mutation outcome.
 Not started, no requested changes, committed and recovery-required observations
 must be assigned where the operation owner has matching evidence. These states
 do not make blanket claims about diagnostic or lock-file bookkeeping.

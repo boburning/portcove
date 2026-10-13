@@ -104,115 +104,126 @@ impl PortcoveService {
             .transpose()?;
         let catalog = retained_catalog.as_ref().unwrap_or(self.catalog());
         let port = catalog.port(port_id)?;
-        let host = Platform::current()?;
-        if !managed(port) {
-            return Err(PortcoveError::unsupported(
-                "this port has no managed preparation operation",
-            )
-            .detail("port_id", port_id));
-        }
-        if port.setup_output_paths.is_empty() {
-            return Err(PortcoveError::unsupported(
-                "this definition has no reviewed managed preparation output contract",
-            ));
-        }
-        if options.target != host || !port.platforms.contains(&host) {
-            return Err(PortcoveError::unsupported(
-                "managed preparation requires an available artifact for this host; target selection does not enable cross-compilation",
-            ));
-        }
-        let install = active.ok_or_else(|| {
-            PortcoveError::not_found("install this port before preparing its source")
-                .detail("port_id", port_id)
-        })?;
-        crate::output_root::validate_install_path(self.library(), port_id, &install.path)?;
-        let qualification = InstallQualification::from_port(port, host)?;
-        let installer = Installer::new(self.library().clone())?;
-        let selected = installer.verify_critical(&install, &qualification)?;
-        let working =
-            crate::adapter::launch_working_directory(port.adapter, port, &install.path, &selected)?;
-        let nested_upstream_runtime = port.adapter == crate::AdapterKind::UpstreamManagedSetup
-            && port.runtime_subdirectory.is_some()
-            && working != install.path
-            && working.starts_with(&install.path);
-        if working != install.path && !nested_upstream_runtime {
-            return Err(PortcoveError::unsupported(
-                "managed preparation requires a reviewed install-root or nested upstream runtime directory",
-            ));
-        }
-        if !installer.verify_managed(&install, &qualification)?.valid {
-            return Err(PortcoveError::verification(
-                "installed setup inputs do not match their admitted manifest; repair the installation before preparation",
-            ));
-        }
-        crate::runtime::require_ready(port, host, &install)?;
-        let profile_id = port
-            .source_profile
-            .as_deref()
-            .ok_or_else(|| PortcoveError::state("managed preparation has no source contract"))?;
-        let source = self.library().source(profile_id)?.ok_or_else(|| {
-            PortcoveError::source("register the required source before preparation")
-                .detail("profile_id", profile_id)
-        })?;
-        crate::source_inspection::verify_registered(catalog, &source)?;
-        let source_inspection = crate::source_report::registered_report(catalog, source.clone())?;
-        self.require_definition_operation(
-            catalog,
-            port,
-            crate::definition_eligibility::DefinitionOperationContext::observed(
-                crate::DefinitionOperation::Prepare,
-                true,
-                install.verified,
-            ),
-        )?;
-        let hints = port.setup_executable_hints.get(&host).ok_or_else(|| {
-            PortcoveError::unsupported("this host has no declared setup executable")
-        })?;
-        let setup =
-            crate::install::resolve_executable_hints(&working, host, hints, "setup executable")?;
-        let setup_tool = tool_identity(setup, ChildProcessClass::UpstreamSetup)?;
-        let conversion_tool_path = match port.runtime_source_materialization {
-            Some(crate::RuntimeSourceMaterialization::Ps2Iso)
-                if source
-                    .path
-                    .extension()
-                    .is_some_and(|extension| extension.eq_ignore_ascii_case("chd")) =>
-            {
-                Some(crate::adapter::resolve_chdman()?)
+        let result = (|| -> Result<PreparationPlan> {
+            let host = Platform::current()?;
+            if !managed(port) {
+                return Err(PortcoveError::unsupported(
+                    "this port has no managed preparation operation",
+                )
+                .detail("port_id", port_id));
             }
-            Some(crate::RuntimeSourceMaterialization::GamecubeIso)
-                if crate::adapter::gamecube_source_requires_conversion(&source.path) =>
-            {
-                Some(crate::adapter::resolve_dolphin_tool()?)
+            if port.setup_output_paths.is_empty() {
+                return Err(PortcoveError::unsupported(
+                    "this definition has no reviewed managed preparation output contract",
+                ));
             }
-            _ => None,
-        };
-        let conversion_tool = conversion_tool_path
-            .map(|path| tool_identity(path, ChildProcessClass::HostTool))
-            .transpose()?;
-        let definition_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
-            port,
-            catalog.source_profile(profile_id)?,
-        ))?);
-        let copy = crate::library_transfer::reviewed_tree(&install.path)?;
-        let mut plan = PreparationPlan {
-            format_version: 1,
-            port_id: port_id.into(),
-            inputs: PreparationInputs {
-                install,
-                definition_sha256,
-                source,
-                source_inspection,
-                setup_tool,
-                conversion_tool,
+            if options.target != host || !port.platforms.contains(&host) {
+                return Err(PortcoveError::unsupported(
+                    "managed preparation requires an available artifact for this host; target selection does not enable cross-compilation",
+                ));
+            }
+            let install = active.ok_or_else(|| {
+                PortcoveError::not_found("install this port before preparing its source")
+                    .detail("port_id", port_id)
+            })?;
+            crate::output_root::validate_install_path(self.library(), port_id, &install.path)?;
+            let qualification = InstallQualification::from_port(port, host)?;
+            let installer = Installer::new(self.library().clone())?;
+            let selected = installer.verify_critical(&install, &qualification)?;
+            let working = crate::adapter::launch_working_directory(
+                port.adapter,
+                port,
+                &install.path,
+                &selected,
+            )?;
+            let nested_upstream_runtime = port.adapter == crate::AdapterKind::UpstreamManagedSetup
+                && port.runtime_subdirectory.is_some()
+                && working != install.path
+                && working.starts_with(&install.path);
+            if working != install.path && !nested_upstream_runtime {
+                return Err(PortcoveError::unsupported(
+                    "managed preparation requires a reviewed install-root or nested upstream runtime directory",
+                ));
+            }
+            if !installer.verify_managed(&install, &qualification)?.valid {
+                return Err(PortcoveError::verification(
+                    "installed setup inputs do not match their admitted manifest; repair the installation before preparation",
+                ));
+            }
+            crate::runtime::require_ready(port, host, &install)?;
+            let profile_id = port.source_profile.as_deref().ok_or_else(|| {
+                PortcoveError::state("managed preparation has no source contract")
+            })?;
+            let source = self.library().source(profile_id)?.ok_or_else(|| {
+                PortcoveError::source("register the required source before preparation")
+                    .detail("profile_id", profile_id)
+            })?;
+            crate::source_inspection::verify_registered(catalog, &source)?;
+            let source_inspection =
+                crate::source_report::registered_report(catalog, source.clone())?;
+            self.require_definition_operation(
+                catalog,
+                port,
+                crate::definition_eligibility::DefinitionOperationContext::observed(
+                    crate::DefinitionOperation::Prepare,
+                    true,
+                    install.verified,
+                ),
+            )?;
+            let hints = port.setup_executable_hints.get(&host).ok_or_else(|| {
+                PortcoveError::unsupported("this host has no declared setup executable")
+            })?;
+            let setup = crate::install::resolve_executable_hints(
+                &working,
                 host,
-                options,
-            },
-            copy,
-            plan_sha256: String::new(),
-        };
-        plan.plan_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&plan)?);
-        Ok(plan)
+                hints,
+                "setup executable",
+            )?;
+            let setup_tool = tool_identity(setup, ChildProcessClass::UpstreamSetup)?;
+            let conversion_tool_path = match port.runtime_source_materialization {
+                Some(crate::RuntimeSourceMaterialization::Ps2Iso)
+                    if source
+                        .path
+                        .extension()
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("chd")) =>
+                {
+                    Some(crate::adapter::resolve_chdman()?)
+                }
+                Some(crate::RuntimeSourceMaterialization::GamecubeIso)
+                    if crate::adapter::gamecube_source_requires_conversion(&source.path) =>
+                {
+                    Some(crate::adapter::resolve_dolphin_tool()?)
+                }
+                _ => None,
+            };
+            let conversion_tool = conversion_tool_path
+                .map(|path| tool_identity(path, ChildProcessClass::HostTool))
+                .transpose()?;
+            let definition_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
+                port,
+                catalog.source_profile(profile_id)?,
+            ))?);
+            let copy = crate::library_transfer::reviewed_tree(&install.path)?;
+            let mut plan = PreparationPlan {
+                format_version: 1,
+                port_id: port_id.into(),
+                inputs: PreparationInputs {
+                    install,
+                    definition_sha256,
+                    source,
+                    source_inspection,
+                    setup_tool,
+                    conversion_tool,
+                    host,
+                    options,
+                },
+                copy,
+                plan_sha256: String::new(),
+            };
+            plan.plan_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&plan)?);
+            Ok(plan)
+        })();
+        result.map_err(|error| error.with_preparation_target(port))
     }
 }
 

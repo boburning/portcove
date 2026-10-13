@@ -446,7 +446,7 @@ fn assert_private_failure(mode: &str) {
             );
             assert_eq!(
                 error.presentation().summary,
-                "Checking prepared files: Setup finished, but its required completion file could not be confirmed."
+                "Game preparation for Synthetic upstream preparation (opengoal-jak1): Checking prepared files: Setup finished, but its required completion file could not be confirmed."
             );
             assert_eq!(error.code, ErrorCode::Verification);
         }
@@ -454,7 +454,7 @@ fn assert_private_failure(mode: &str) {
             assert_eq!(error.presentation().presentation_key, "setup_unsuccessful");
             assert_eq!(
                 error.presentation().summary,
-                "Running game setup: The setup process ended unsuccessfully."
+                "Game preparation for Synthetic upstream preparation (opengoal-jak1): Running game setup: The setup process ended unsuccessfully."
             );
             assert_eq!(error.code, ErrorCode::SourceInvalid);
         }
@@ -468,6 +468,12 @@ fn assert_private_failure(mode: &str) {
         .find(|activity| activity.operation == crate::ActivityOperation::Prepare)
         .unwrap();
     assert_eq!(activity.failure.as_ref().unwrap(), &error.report());
+    assert!(
+        error
+            .presentation()
+            .summary
+            .starts_with("Game preparation for Synthetic upstream preparation (opengoal-jak1): ")
+    );
     let captures = reopened.activity_diagnostic(&activity.id).unwrap();
     let capture = captures.last().unwrap();
     assert!(capture.complete);
@@ -572,6 +578,125 @@ fn retained_cleanup_fixture() -> (Fixture, String, std::path::PathBuf) {
 }
 
 #[test]
+fn cleanup_failure_target_keeps_retained_names_and_refuses_unreadable_definitions() {
+    let (mut fixture, operation_id, _) = retained_cleanup_fixture();
+    let store = OperationStore::new(fixture.service.library().clone());
+    let mut journal = store.all().unwrap().remove(0);
+    journal.preparation_process_quiesced = Some(false);
+    store.put(&mut journal).unwrap();
+    let mut document = fixture.service.catalog().authoritative_document();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap()
+        .name = "A newer catalog title".into();
+    fixture.service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    let original = fixture
+        .service
+        .preview_preparation_cleanup(&operation_id)
+        .unwrap_err();
+    assert_eq!(original.code, ErrorCode::Conflict);
+    assert!(
+        original
+            .presentation()
+            .summary
+            .starts_with("Game preparation for OpenGOAL: Jak and Daxter (opengoal-jak1): ")
+    );
+    assert!(
+        !original
+            .presentation()
+            .summary
+            .contains("A newer catalog title")
+    );
+    fs::write(
+        fixture.install.path.join(".portcove-manifest.json"),
+        b"owned unreadable manifest",
+    )
+    .unwrap();
+    let unreadable = fixture
+        .service
+        .preview_preparation_cleanup(&operation_id)
+        .unwrap_err();
+    assert_eq!(unreadable.code, original.code);
+    assert_eq!(unreadable.message, original.message);
+    assert_eq!(unreadable.details, original.details);
+    assert_eq!(
+        unreadable.presentation().mutation_state,
+        original.presentation().mutation_state
+    );
+    assert!(
+        !unreadable
+            .presentation()
+            .summary
+            .starts_with("Game preparation for ")
+    );
+    assert!(
+        !unreadable
+            .presentation()
+            .summary
+            .contains("A newer catalog title")
+    );
+}
+
+#[test]
+fn cleanup_failure_target_does_not_inherit_mismatched_plan_install_or_activity() {
+    for mismatch in ["plan", "install", "activity", "published", "digest"] {
+        let (fixture, operation_id, _) = retained_cleanup_fixture();
+        let library = fixture.service.library();
+        let store = OperationStore::new(library.clone());
+        let mut journal = store.all().unwrap().remove(0);
+        journal.preparation_process_quiesced = Some(false);
+        store.put(&mut journal).unwrap();
+        assert!(
+            fixture
+                .service
+                .preview_preparation_cleanup(&operation_id)
+                .unwrap_err()
+                .presentation()
+                .summary
+                .starts_with("Game preparation for ")
+        );
+        match mismatch {
+            "plan" => journal.preparation.as_mut().unwrap().port_id = "other-port".into(),
+            "install" => {
+                journal.preparation.as_mut().unwrap().inputs.install.port_id = "other-port".into()
+            }
+            "activity" => {
+                library
+                    .connection()
+                    .unwrap()
+                    .execute(
+                        "UPDATE activity_history SET target_id='other-port' WHERE id=?1",
+                        [&operation_id],
+                    )
+                    .unwrap();
+            }
+            "published" => {
+                journal.install = Some(fixture.install.clone());
+            }
+            "digest" => journal.preparation.as_mut().unwrap().plan_sha256 = "unconfirmed".into(),
+            _ => unreachable!(),
+        }
+        store.put(&mut journal).unwrap();
+        let error = fixture
+            .service
+            .preview_preparation_cleanup(&operation_id)
+            .unwrap_err();
+        assert!(
+            !error
+                .presentation()
+                .summary
+                .starts_with("Game preparation for "),
+            "{mismatch}"
+        );
+        assert_eq!(store.all().unwrap()[0].port_id, journal.port_id);
+    }
+}
+
+#[test]
 fn reviewed_preparation_cleanup_is_exact_and_preserves_other_library_state() {
     let (fixture, operation_id, retained) = retained_cleanup_fixture();
     let library = fixture.service.library();
@@ -610,6 +735,12 @@ fn reviewed_preparation_cleanup_is_exact_and_preserves_other_library_state() {
         .cleanup_preparation(&operation_id, &authorization.token)
         .unwrap_err();
     assert_eq!(stale.code, ErrorCode::Conflict);
+    assert!(
+        stale
+            .presentation()
+            .summary
+            .starts_with("Game preparation for OpenGOAL: Jak and Daxter (opengoal-jak1): ")
+    );
     assert!(retained.exists());
 
     let current = fixture
@@ -1483,6 +1614,12 @@ fn interrupted_private_preparation_gets_a_truthful_terminal_report_after_reconne
             "preparation_interrupted"
         );
         assert_eq!(failure.presentation.tone, crate::FailureTone::Error);
+        assert!(
+            failure
+                .presentation
+                .summary
+                .starts_with("Game preparation for OpenGOAL: Jak and Daxter (opengoal-jak1): ")
+        );
         assert_eq!(
             failure.presentation.mutation_state,
             crate::MutationState::RecoveryRequired
@@ -1574,6 +1711,12 @@ fn preparation_recovery_preserves_existing_outcomes_and_rejects_an_owned_activit
         .unwrap();
     let error = super::super::recover(&fixture.service, &store, &mut journal).unwrap_err();
     assert_eq!(error.code, ErrorCode::Verification);
+    assert!(
+        !error
+            .presentation()
+            .summary
+            .starts_with("Game preparation for ")
+    );
     assert_eq!(
         library.activities(1).unwrap()[0].status,
         crate::ActivityStatus::Running
