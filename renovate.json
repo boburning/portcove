@@ -62,7 +62,7 @@
     },
     {
       "description": "Keep Tauri JavaScript and Rust packages in one qualification unit",
-      "matchPackageNames": ["/^@tauri-apps\\//", "/^tauri(?:-|$)/"],
+      "matchPackageNames": ["/^@tauri-apps\\//", "/^tauri(?:-|$)/", "webview2-com"],
       "groupName": "tauri",
       "schedule": ["at any time"]
     },
