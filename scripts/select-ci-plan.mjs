@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { windowsHelperChecksRequired } from "./windows-helper-checks.mjs";
 
 import {
   buildValidationPlan,
@@ -201,6 +202,7 @@ export async function writeGithubOutputs(outputPath, plan) {
   if (!outputPath) throw new Error("GITHUB_OUTPUT is required");
   const fields = {
     mode: plan.mode,
+    windows_helpers: String(windowsHelperChecksRequired(plan)),
     reason: plan.reason,
     files_json: JSON.stringify(plan.changed_files),
     groups_json: JSON.stringify(plan.groups),

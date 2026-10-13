@@ -11,6 +11,10 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  nativeHelperDependencies,
+  nativeHelperRegistryPath,
+} from "./native-helper-dependencies.mjs";
 
 import {
   buildValidationPlan,
@@ -187,6 +191,26 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map([
+  ...[...Object.keys(nativeHelperDependencies), nativeHelperRegistryPath].map((file) => [
+    file,
+    [
+      "scripts/native-helper-dependencies.test.mjs",
+      "scripts/native-confirmation.test.mjs",
+      "scripts/desktop-execution-plan.test.mjs",
+      "scripts/windows-helper-checks.test.mjs",
+    ],
+  ]),
+  ...["scripts/frontend-command-preflight.mjs", "apps/desktop/scripts/build-frontend.mjs"].map(
+    (file) => [
+      file,
+      [
+        "scripts/frontend-command-preflight.test.mjs",
+        "scripts/desktop-verify.test.mjs",
+        "scripts/desktop-execution-plan.test.mjs",
+        "scripts/windows-helper-checks.test.mjs",
+      ],
+    ],
+  ),
   [
     "scripts/desktop-execution-plan.test.mjs",
     ["scripts/desktop-scenarios.test.mjs", "scripts/desktop-verify.test.mjs"],
@@ -203,6 +227,9 @@ const explicitNodeTests = new Map([
       "scripts/desktop-execution-plan.test.mjs",
       "scripts/desktop-scenarios.test.mjs",
       "scripts/desktop-verify.test.mjs",
+      "scripts/frontend-command-preflight.test.mjs",
+      "scripts/native-helper-dependencies.test.mjs",
+      "scripts/windows-helper-checks.test.mjs",
     ],
   ]),
   ...[

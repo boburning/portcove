@@ -11,6 +11,7 @@ import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
+import { validateNativeHelperDependencies } from "../../../scripts/native-helper-dependencies.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mjs";
 import {
@@ -1457,15 +1458,14 @@ try {
       prepared.immutable_tree_sha256,
       "Actual prepared fixture bytes must match the declared immutable tree before launch",
     );
-    for (const name of [
-      "desktop-external-runtime-test.mjs",
-      "desktop-native-confirmation.mjs",
-      "native-confirmation.ps1",
-      "native-window-discovery.ps1",
-    ])
-      inputs.push(await fileIdentity(fileURLToPath(new URL(`./${name}`, import.meta.url))));
+    inputs.push(
+      await fileIdentity(
+        fileURLToPath(new URL("./desktop-external-runtime-test.mjs", import.meta.url)),
+      ),
+    );
     inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
   }
+  await validateNativeHelperDependencies({ root });
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
   await startDriver();

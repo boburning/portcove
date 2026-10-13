@@ -81,6 +81,7 @@ export function baselineIntegrityCommands(plan, options) {
     ["scripts/check-release-metadata.test.mjs", ["scripts/check-release-metadata.mjs"]],
     ["scripts/generate-catalog.test.mjs", ["scripts/generate-catalog.mjs", "--check"]],
     ["scripts/generate-catalog.test.mjs", ["scripts/check-retcomm-upstreams.mjs", "--offline"]],
+    ["scripts/native-helper-dependencies.test.mjs", ["scripts/native-helper-dependencies.mjs"]],
   ];
   return checks.filter(([test]) => tests.has(test)).map(([, args]) => args);
 }
