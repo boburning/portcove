@@ -132,6 +132,14 @@ capability and use the reviewed `external preview/register/remove` CLI route.
 means uninstalling the external files. An external path is host-local and is
 rechecked against its retained accepted contract before each launch.
 
+Desktop's external folder choice consumes the same unique setup assessment as
+the catalog. A partial or contradictory current projection, an unknown tuple,
+or a missing status is shown as unknown and cannot open the folder picker. A
+fresh `waiting/review_required` assessment restores the ordinary review path.
+Legacy status contracts that omitted assessments or serialized an empty list
+retain their existing folder-review behavior. These presentation decisions never
+replace Core's reviewed registration, generation or ownership checks.
+
 Headless calls select noninteractive behavior deliberately. Documentation must
 cover confirmation, previews and stale-plan rejection, timeouts, fail-fast
 conflicts, cancellation, safe retries, and mutations that require fresh consent.
