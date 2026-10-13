@@ -191,6 +191,112 @@ retain their before-1.0 obligations, outside the initial-beta gate.
 [bounded preservation #1306](https://github.com/boburning/portcove/issues/1306)
 retain their independent commitments.
 
+## Local-first diagnostics
+
+This is planned specification work, not a claim that the following machinery
+has shipped. Runtime diagnostics explain behavior; Core activity/lifecycle
+persistence establishes committed outcomes, recovery and safe continuation;
+captured preparation/tool/game output retains its own supervision, storage,
+retention and completeness contract. Neither a missing completion log nor a
+completion event determines mutation success. Logging failure must not change
+an otherwise successful operation. Do not migrate these stores merely for
+uniformity or make diagnostic logs another application authority.
+
+The bounded inspection at main `eea77d8d16a8adad8456346c598e4f3a32159fce`
+found synchronous desktop per-event metadata/open/write/sync work, ignored span
+context/string-only fields, initialization after library opening, and fail-fast
+support-bundle section collection. CLI tracing writes to stderr with explicit
+verbosity. This is source evidence, not proof that logging caused any previous
+timeout. Existing redaction, rotation, bounded activity captures, snapshot-rewrite
+avoidance [#990](https://github.com/boburning/portcove/issues/990), early safe stderr
+[#1465](https://github.com/boburning/portcove/issues/1465), retained log readback
+[#1494](https://github.com/boburning/portcove/issues/1494), and diagnostic copy/fallback
+[#1704](https://github.com/boburning/portcove/pull/1704) remain credited at their actual
+scope. [#566–#570](https://github.com/boburning/portcove/issues/566) retain structured
+failure, adapter parity, activity, capture and interrupted-recovery foundations.
+
+The independent delivery slices are:
+
+| Outcome                                                 | Canonical owner                                            | Interface dependency                                                                                                        |
+| ------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Bounded writer and independent health                   | [#1922](https://github.com/boburning/portcove/issues/1922) | Consume #33 measurements where useful; no profiling prerequisite.                                                           |
+| Shared host policy, early startup and isolated sessions | [#1923](https://github.com/boburning/portcove/issues/1923) | Shared bounded backend when adopted; early fallback can ship independently.                                                 |
+| Safe typed operation and frontend correlation           | [#1924](https://github.com/boburning/portcove/issues/1924) | Approved formatting/classification and existing operation IDs; no blanket host migration gate.                              |
+| Resilient support bundles and focused controls          | [#1925](https://github.com/boburning/portcove/issues/1925) | Each exported class needs #34 policy; startup-only sections need host log access, existing-library partial export does not. |
+
+These are approved long-term improvements, with live priorities and release
+classifications in the Project rather than a copied scheduling table here.
+[#33](https://github.com/boburning/portcove/issues/33) retains its bounded
+durability measurement and evidence-backed keep/change decision;
+[#34](https://github.com/boburning/portcove/issues/34) retains typed export data
+classification. Neither investigation becomes an umbrella or a blanket gate.
+[#202](https://github.com/boburning/portcove/issues/202) retains Required Public beta
+semantic errors, truthful committed/unknown/recovery outcomes and its finite
+remaining acceptance. These new diagnostics enhancements do not defer that
+acceptance or silently add beta requirements. Live Project fields own scheduling.
+
+### Planned policy and boundaries
+
+- Retain tracing/tracing-subscriber. Executables initialize subscribers; Core
+  emits instrumentation. Share only useful host policy/formatting/redaction,
+  bounded writing, retention and health; no Tauri dependency in Core/CLI, new
+  event bus, or plugin replacement for consolidation. CLI JSON/JSONL stdout and
+  raw child-process stream contracts remain exact.
+- Runtime writing is best-effort with bounded queue, fields, record size and
+  producer work; disk work stays off application-critical paths. Saturation
+  drops/truncates explicitly rather than waiting indefinitely. Independent,
+  nonrecursive health reports omissions and writer/rotation failures. A finite
+  shutdown flush can lose records on abrupt exit; do not promise crash-proof
+  delivery. Disk/permission failures do not change committed outcomes.
+- Initialize in an appropriate per-user host location before settings/library/
+  database startup, retaining early safe stderr. Isolate process/session files
+  with aggregate retention across sessions; library switching attaches safe
+  context without replacing logging authority. An unclean session has no
+  inferred cause; Core owns recovery.
+- Use a small versioned envelope, preserving numbers/booleans and approved span
+  context. Bind meaningful phase events to existing activity/operation identities,
+  session/process, surface/build/component, useful request and port/release facts,
+  monotonic duration, typed error and observed result/unknown limits. One owning
+  boundary reports each failure; lower layers add typed context. Avoid tick/file/
+  function noise and invented parallel operation identities.
+- Privacy applies before persistence and again at export. Approved fields and
+  symbolic path roles replace indiscriminate Debug/object/argument serialization.
+  Cover messages, spans, nested errors, frontend payloads and captures; omit
+  credentials, auth headers, signed query parameters, environments, game contents,
+  broad source inventories and unnecessary absolute paths. Exports are redacted,
+  not anonymous; preserve existing canaries/redaction while adding typed policy.
+- Support bundles collect independent bounded sections through established
+  activity/capture reads, with a versioned manifest recording scope, build/platform,
+  provenance, omissions, failures and completeness/truncation. An unavailable
+  library or failed doctor section must not prevent available diagnostics from
+  exporting. Prefer streaming, safe entry names and atomic completed publication;
+  tolerate rotation and incomplete trailing records. Do not copy the database or
+  arbitrary filesystem content. Export/sharing stays user-initiated.
+- Keep frontend reporting on the existing backend command with typed size/rate
+  limits and recursion protection, without console/state/IPC-argument forwarding.
+  Correlation grants no operation authority. Large child output remains in bounded
+  captures; reaching retention limits must not stop pipe draining or supervision.
+  Existing activity captures use separate 2 MiB per-stream/64 MiB retained-library
+  bounds at the inspected revision; runtime settings must not redefine them.
+
+Candidate defaults to evaluate are application INFO/noisy dependency WARN,
+temporary DEBUG that resets at session end, 4 MiB runtime segments, 32 MiB aggregate
+runtime bytes and seven-day age retention. Desktop currently uses 4 MiB plus five
+rotated generations; CLI defaults WARN with explicit verbosity. These proposals
+are not implemented defaults: each owner records measured capacities, active-file
+retention/failure behavior, DEBUG reset/expiry and CLI compatibility before changes.
+No unrelated CI-policy, dependency, remote telemetry, hosted logging, account,
+query service, comprehensive viewer or universal game-capture project is implied.
+
+Start with a bounded writer/failure fixture and independent health evidence;
+partial export fixes and early startup fallback can proceed independently.
+Only genuine interface/data-class dependencies constrain their matching changes,
+not a four-phase waterfall. Typed classification is required for each newly exported
+class; existing-class export resilience need not wait for complete enrichment.
+Focused owned Windows/Linux fixtures, privacy canaries, exact CLI/operation outcome
+controls and separate review provide evidence. No owner playtest, proprietary game
+data, paid Actions or owner-operated Mac requirement is introduced.
+
 ## Later independent directions
 
 - [Remembered goals #965](https://github.com/boburning/portcove/issues/965) and
