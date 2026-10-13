@@ -4,6 +4,7 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
+import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mjs";
 import {
   assertCompactReview,
   assertPrimaryReviewAction,
@@ -498,7 +499,7 @@ export async function selectedSetupCompletionScenario({
       await writeFile(biosOnlyPath, await readFile(owned.biosBefore), { flag: "wx" });
       const rootsBefore = await read("get_game_file_roots");
       assert.equal(rootsBefore.length, 1);
-      assert.equal(path.resolve(rootsBefore[0].path), path.resolve(owned.directory));
+      assertOwnedSelectedSetupPath(rootsBefore[0].path, owned.directory);
       const relinked = core(["source", "roots", "relink", rootsBefore[0].id, biosOnly]);
       assert.equal(relinked.id, rootsBefore[0].id);
       assert.deepEqual(await read("get_sources"), report.observations.completed_sources);
@@ -521,10 +522,7 @@ export async function selectedSetupCompletionScenario({
             observations.report.candidates.map((item) => item.profile_id),
             [owned.profiles[1]],
           );
-          assert.equal(
-            path.resolve(observations.report.candidates[0].path),
-            path.resolve(biosOnlyPath),
-          );
+          assertOwnedSelectedSetupPath(observations.report.candidates[0].path, biosOnlyPath);
           report.observations.bios_only_scan = { snapshot: observations, activity };
           return (
             (await browser.findElements(By.css("[data-completed-candidate]"))).length === 1 &&
@@ -583,13 +581,13 @@ export async function selectedSetupCompletionScenario({
       );
       const biosSources = await read("get_sources");
       assert.equal(biosSources.length, 2);
-      assert.equal(
-        path.resolve(biosSources.find((item) => item.profile_id === owned.profiles[0]).path),
-        path.resolve(owned.gamePath),
+      assertOwnedSelectedSetupPath(
+        biosSources.find((item) => item.profile_id === owned.profiles[0]).path,
+        owned.gamePath,
       );
-      assert.equal(
-        path.resolve(biosSources.find((item) => item.profile_id === owned.profiles[1]).path),
-        path.resolve(biosOnlyPath),
+      assertOwnedSelectedSetupPath(
+        biosSources.find((item) => item.profile_id === owned.profiles[1]).path,
+        biosOnlyPath,
       );
       assert.deepEqual(core(["source", "list"]), biosSources);
       await click(By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`));
