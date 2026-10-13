@@ -3606,7 +3606,7 @@ mod tests {
                     .as_array()
                     .unwrap()
                     .iter()
-                    .any(|q| q["port_id"] == id)
+                    .any(|q| q["scope"]["port_id"] == id)
             );
             let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
             assert!(legacy.port(id).is_err());
