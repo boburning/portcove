@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, copyFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
@@ -11,6 +11,8 @@ import {
   nativeHelperFiles,
   nativeHelperSourceDependencies,
   validateNativeHelperDependencies,
+  nativeHelperRoots,
+  captureDesktopReceiptInputs,
 } from "./native-helper-dependencies.mjs";
 import { planDesktopExecution } from "./desktop-execution-plan.mjs";
 import { resolveDesktopSelection } from "./desktop-scenarios.mjs";
@@ -20,7 +22,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const prefix = "apps/desktop/scripts/";
 test("actual declarations cover wrappers and every transitive conditional helper", async () => {
   await validateNativeHelperDependencies({ root });
-  const files = nativeHelperFiles([`${prefix}desktop-test.mjs`]);
+  const files = nativeHelperFiles(nativeHelperRoots);
   assert.equal(files.length, Object.keys(nativeHelperDependencies).length);
   for (const name of [
     "native-process-tree.ps1",
@@ -30,6 +32,72 @@ test("actual declarations cover wrappers and every transitive conditional helper
     "native-startup-observation.ps1",
   ])
     assert(files.includes(prefix + name));
+});
+
+test("native wrapper imports reject added dynamic URLs and unregistered local modules", () => {
+  const file = prefix + "desktop-native-confirmation.mjs";
+  const literal = 'new URL("./native-confirmation.ps1", import.meta.url);';
+  for (const extra of [
+    "new URL(helperVariable, import.meta.url)",
+    'new URL("./" + helperVariable, import.meta.url)',
+    'import { extra } from "./unregistered-helper.mjs";',
+    'import "./unregistered-helper.mjs";',
+    "await import(variable)",
+  ])
+    assert.throws(
+      () => nativeHelperSourceDependencies(file, literal + extra),
+      /Unsupported|Undeclared/,
+    );
+});
+
+test("production capture retains partial failed evidence before any native acquisition", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-missing-helper-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const plan = {
+    receiptInputs: expandNativeHelperInputs([
+      { kind: "executable", name: "app" },
+      { kind: "file", path: prefix + "desktop-test.mjs" },
+    ]),
+    selection: { selected_scenarios: ["native-fixture"] },
+  };
+  for (const input of plan.receiptInputs.filter((input) => input.kind === "file")) {
+    const destination = path.join(directory, input.path);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await copyFile(path.join(root, input.path), destination);
+  }
+  const missing = path.join(directory, prefix + "native-window-discovery.ps1");
+  await rm(missing);
+  const output = path.join(directory, "failed");
+  await mkdir(output);
+  await assert.rejects(
+    captureDesktopReceiptInputs({
+      root: directory,
+      values: { app: process.execPath },
+      plan,
+      output,
+      revision: "a".repeat(40),
+    }),
+    /ENOENT/,
+  );
+  const receipt = JSON.parse(await readFile(path.join(output, "evidence.json"), "utf8"));
+  assert.equal(receipt.format_version, 2);
+  assert.equal(receipt.outcome, "failed");
+  assert.equal(receipt.qualification_complete, false);
+  assert(receipt.inputs.length > 1);
+  assert(!receipt.inputs.some((input) => input.path === missing));
+  assert.equal(receipt.executable.sha256, (await fileIdentity(process.execPath)).sha256);
+  for (const input of receipt.inputs) assert.deepEqual(input, await fileIdentity(input.path));
+  const failure = JSON.parse(
+    await readFile(path.join(output, "input-capture-failure.json"), "utf8"),
+  );
+  assert.equal(failure.failed_path, missing);
+  assert.equal(failure.complete, false);
+  assert(failure.captured_inputs < failure.declared_inputs);
+  const harness = await readFile(path.join(root, prefix + "desktop-test.mjs"), "utf8");
+  assert(
+    harness.indexOf("await captureDesktopReceiptInputs") <
+      harness.indexOf("await acquireNativeSessionLock"),
+  );
 });
 test("declaration check rejects undeclared, dynamic, inline and escaping imports", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-helper-deps-"));

@@ -1,8 +1,8 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fileIdentity } from "./development-evidence.mjs";
+import { fileIdentity, writeEvidence } from "./development-evidence.mjs";
 
 const desktop = "apps/desktop/scripts/";
 const helper = (name) => `${desktop}${name}`;
@@ -11,17 +11,8 @@ const helper = (name) => `${desktop}${name}`;
 export const nativeHelperDependencies = Object.freeze(
   Object.fromEntries(
     [
-      [
-        "desktop-test.mjs",
-        [
-          "desktop-native-confirmation.mjs",
-          "desktop-owned-native-session.mjs",
-          "desktop-startup-observation.mjs",
-          "native-session.ps1",
-        ],
-      ],
       ["desktop-native-confirmation.mjs", ["native-confirmation.ps1"]],
-      ["desktop-owned-native-session.mjs", []],
+      ["desktop-owned-native-session.mjs", ["native-session.ps1"]],
       ["desktop-startup-observation.mjs", ["native-startup-observation.ps1"]],
       ["native-confirmation.ps1", ["native-process-tree.ps1", "native-window-discovery.ps1"]],
       ["native-session.ps1", ["native-process-tree.ps1"]],
@@ -32,6 +23,13 @@ export const nativeHelperDependencies = Object.freeze(
   ),
 );
 export const nativeHelperRegistryPath = "scripts/native-helper-dependencies.mjs";
+export const nativeHelperRoots = Object.freeze(
+  [
+    "desktop-native-confirmation.mjs",
+    "desktop-owned-native-session.mjs",
+    "desktop-startup-observation.mjs",
+  ].map(helper),
+);
 
 function safeFile(file) {
   if (
@@ -85,14 +83,19 @@ export function nativeHelperSourceDependencies(
       result.add(relativeHelper(match[1]));
     }
   } else {
-    for (const match of source.matchAll(
-      /new URL\(\s*["']([^"']+\.ps1)["']\s*,\s*import\.meta\.url\s*\)/gu,
-    ))
+    for (const expression of source.matchAll(/\bnew\s+URL\s*\(([^)]*)\)/gu)) {
+      const match = expression[1].match(/^\s*["']([^"']+\.ps1)["']\s*,\s*import\.meta\.url\s*$/u);
+      if (!match) throw new Error(`Unsupported native wrapper URL in ${file}: ${expression[0]}`);
       result.add(relativeHelper(match[1]));
-    for (const match of source.matchAll(/\bfrom\s+["'](\.\/[^"']+)["']/gu)) {
-      const candidate = relativeHelper(match[1]);
-      if (Object.hasOwn(registry, candidate)) result.add(candidate);
     }
+    for (const match of source.matchAll(/\b(?:from|import)\s+["'](\.\/[^"']+)["']/gu)) {
+      const candidate = relativeHelper(match[1]);
+      if (!Object.hasOwn(registry, candidate))
+        throw new Error(`Undeclared native wrapper import in ${file}: ${candidate}`);
+      result.add(candidate);
+    }
+    if (/\bimport\s*\(/u.test(source))
+      throw new Error(`Unsupported dynamic native wrapper import in ${file}`);
   }
   return [...result].sort();
 }
@@ -118,6 +121,21 @@ export async function validateNativeHelperDependencies({
   registry = nativeHelperDependencies,
 } = {}) {
   const files = nativeHelperFiles(Object.keys(registry), registry);
+  if (registry === nativeHelperDependencies) {
+    const consumer = await readFile(path.join(root, helper("desktop-test.mjs")), "utf8");
+    const imports = new Set(
+      [...consumer.matchAll(/\bfrom\s+["'](\.\/[^"']+)["']/gu)].map((match) =>
+        helper(match[1].slice(2)),
+      ),
+    );
+    for (const wrapper of nativeHelperRoots)
+      if (!imports.has(wrapper))
+        throw new Error(`Native coordinator omitted declared wrapper: ${wrapper}`);
+    if (/new\s+URL\s*\([^)]*\.ps1|["'`]\.\/native-[^"'`]+\.ps1/u.test(consumer))
+      throw new Error(
+        "Native coordinator must resolve PowerShell helpers through declared wrappers",
+      );
+  }
   for (const file of files) {
     await fileIdentity(path.join(root, file)); // Missing/symlink/non-file inputs fail.
     const actual = nativeHelperSourceDependencies(
@@ -142,9 +160,56 @@ export function expandNativeHelperInputs(inputs) {
   const roots = inputs
     .map((input) => input.path)
     .filter((file) => Object.hasOwn(nativeHelperDependencies, file));
+  if (inputs.some((input) => input.path === helper("desktop-test.mjs")))
+    roots.push(...nativeHelperRoots);
   for (const file of [...nativeHelperFiles(roots), nativeHelperRegistryPath])
     unique.set(file, unique.get(file) ?? { kind: "file", path: file });
   return [...unique.values()];
+}
+
+// Production pre-launch capture boundary. If a source/helper fails, retain the
+// partial observed identities and fail the receipt; unavailable bytes stay absent.
+export async function captureDesktopReceiptInputs({
+  root,
+  values,
+  plan,
+  output,
+  revision,
+  validate = validateNativeHelperDependencies,
+}) {
+  const inputs = [];
+  let failedPath;
+  try {
+    for (const input of plan.receiptInputs) {
+      failedPath = input.kind === "executable" ? values[input.name] : path.join(root, input.path);
+      inputs.push(await fileIdentity(failedPath));
+    }
+    failedPath = "native-helper-dependency-validation";
+    await validate({ root });
+    return inputs;
+  } catch (error) {
+    const artifact = path.join(output, "input-capture-failure.json");
+    await writeFile(
+      artifact,
+      `${JSON.stringify({ complete: false, failed_path: failedPath, message: error.message, captured_inputs: inputs.length, declared_inputs: plan.receiptInputs.length }, null, 2)}\n`,
+      { flag: "wx" },
+    );
+    if (inputs[0])
+      await writeEvidence(output, {
+        revision,
+        executable: values.app,
+        capturedExecutable: inputs[0],
+        checks: [{ scenario: "native-input-capture", outcome: "failed", message: error.message }],
+        artifacts: [artifact],
+        inputs,
+        method: "native-desktop-input-capture",
+        context: {
+          selected_scenarios: plan.selection.selected_scenarios,
+          source_state: { revision, clean: null },
+        },
+      });
+    throw error;
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

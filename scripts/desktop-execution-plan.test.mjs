@@ -1,9 +1,11 @@
 import {
   nativeHelperDependencies,
   nativeHelperRegistryPath,
+  captureDesktopReceiptInputs,
 } from "./native-helper-dependencies.mjs";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
 import test from "node:test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -424,12 +426,12 @@ test("coordinator preserves gap position and leaves attempt attribution to its c
   );
 });
 
-test("harness hashes preserved inputs and the current planner/coordinator bytes", async () => {
+test("harness hashes preserved inputs and the current planner/coordinator bytes", async (t) => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-test.mjs", import.meta.url),
     "utf8",
   );
-  const start = source.indexOf("const executionPlan =");
+  const start = source.indexOf("const inputs = await captureDesktopReceiptInputs");
   const end = source.indexOf("let runnerMetadata = {}");
   assert(start > 0 && end > start);
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -437,6 +439,8 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
   const values = Object.fromEntries(
     Object.keys(executableNames).map((name) => [name, process.execPath]),
   );
+  const output = await mkdtemp(path.join(os.tmpdir(), "pcv-harness-inputs-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
   const inputs = await runInNewContext(`(async()=>{${source.slice(start, end)}return inputs})()`, {
     selection,
     planDesktopExecution,
@@ -446,6 +450,10 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
     port: 4455,
     fileIdentity,
     Promise,
+    executionPlan: planDesktopExecution(selection),
+    captureDesktopReceiptInputs,
+    output,
+    revision: "a".repeat(40),
   });
   const expectedFiles = planDesktopExecution(selection).receiptInputs.map((input) =>
     input.kind === "executable" ? process.execPath : path.join(root, input.path),

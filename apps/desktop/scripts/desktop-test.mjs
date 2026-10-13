@@ -11,7 +11,7 @@ import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
-import { validateNativeHelperDependencies } from "../../../scripts/native-helper-dependencies.mjs";
+import { captureDesktopReceiptInputs } from "../../../scripts/native-helper-dependencies.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mjs";
 import {
@@ -19,7 +19,7 @@ import {
   normalPackageBoundaryScenario,
   verifyNormalPackageEvidence,
 } from "./desktop-main-webview-boundary.mjs";
-import { OwnedNativeSession } from "./desktop-owned-native-session.mjs";
+import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mjs";
 import { observeStartupNetwork } from "./desktop-startup-network-diagnostic.mjs";
 import {
   prepareLibrarySwitchRecoveryFixture,
@@ -166,11 +166,20 @@ if (executionPlan.fixtures.owned) {
       throw new Error(`--${name} requires an absolute path`);
   }
 }
-const inputs = await Promise.all(
-  executionPlan.receiptInputs.map((input) =>
-    fileIdentity(input.kind === "executable" ? values[input.name] : path.join(root, input.path)),
-  ),
-);
+const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
+  cwd: root,
+  encoding: "utf8",
+  windowsHide: true,
+}).stdout.trim();
+const output = path.resolve(values.output);
+await mkdir(output); // Existing output is never reused, including after failed runs.
+const inputs = await captureDesktopReceiptInputs({
+  root,
+  values,
+  plan: executionPlan,
+  output,
+  revision,
+});
 for (const name of [
   "scripts/desktop-execution-plan.mjs",
   "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
@@ -184,13 +193,6 @@ if (values["run-metadata"]) {
   inputs.push(await fileIdentity(values["run-metadata"]));
   runnerMetadata = JSON.parse(await readFile(values["run-metadata"], "utf8"));
 }
-const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
-  cwd: root,
-  encoding: "utf8",
-  windowsHide: true,
-}).stdout.trim();
-const output = path.resolve(values.output);
-await mkdir(output); // Existing output is never reused, including after failed runs.
 let installFixture;
 let externalFixture;
 let bootstrapRecoveryFixture;
@@ -1134,7 +1136,7 @@ function observeNativeSession(mode, snapshot) {
     [
       "-NoProfile",
       "-File",
-      fileURLToPath(new URL("./native-session.ps1", import.meta.url)),
+      nativeSessionScript,
       "-Mode",
       mode,
       "-DriverProcessId",
@@ -1465,7 +1467,6 @@ try {
     );
     inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
   }
-  await validateNativeHelperDependencies({ root });
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
   await startDriver();
