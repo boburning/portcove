@@ -13820,7 +13820,8 @@
         "graphics.json",
         "audio.json",
         "controls.json",
-        "rom_path.txt"
+        "rom_path.txt",
+        "cheats.cfg"
       ],
       "runtime_mutable_paths": [
         "castlevania2.n64.us.z64",
