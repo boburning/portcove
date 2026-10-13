@@ -444,10 +444,33 @@ export async function selectedSetupCompletionScenario({
         await browser.findElement(button(`Review ${port.name} setup`)).isEnabled(),
         false,
       );
-      assert.equal(
-        await browser.findElement(button(`Review ${owned.reviewPort.name} setup`)).isEnabled(),
-        true,
+      const returnedAlternative = (await read("get_statuses")).find(
+        (item) => item.port_id === owned.reviewPort.id,
       );
+      assert.equal(returnedAlternative.active, null);
+      assert.equal(Boolean(returnedAlternative.external_runtime), false);
+      assert.ok(
+        returnedAlternative.port_actions.some(
+          (item) => item.action === "install" && item.availability === "allowed",
+        ),
+      );
+      const returnedSnapshot = await read("get_game_file_scan_snapshot");
+      assert.equal(returnedSnapshot.freshness, "inputs_match");
+      await browser.wait(
+        async () => {
+          const controls = await browser.findElements(
+            button(`Review ${owned.reviewPort.name} setup`),
+          );
+          return controls.length === 1 && (await controls[0].isEnabled());
+        },
+        15_000,
+        "The fresh return read must restore the Core-eligible alternative review",
+      );
+      report.observations.returned_alternative_review = {
+        status: returnedAlternative,
+        snapshot: returnedSnapshot,
+        review_enabled: true,
+      };
       const afterCompletion = await read("get_statuses");
       await click(button(`Review ${owned.reviewPort.name} setup`));
       await browser.wait(
