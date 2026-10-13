@@ -24,6 +24,7 @@ if (@($output | Where-Object { $_ -notin @('Portcove.Playnite.dll', 'extension.y
 if ($ContractsOnly) { return }
 node (Join-Path $projectRoot 'lifecycle-check.mjs')
 if ($LASTEXITCODE -ne 0) { throw 'Reference-client real lifecycle qualification failed.' }
-$packageRoot = Join-Path (Join-Path $projectRoot '../../outputs/playnite') ([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+$outputRoot = if ($env:PORTCOVE_OUTPUT_DIR) { [IO.Path]::GetFullPath($env:PORTCOVE_OUTPUT_DIR) } else { [IO.Path]::GetFullPath((Join-Path $projectRoot '../../outputs')) }
+$packageRoot = Join-Path (Join-Path $outputRoot 'playnite') ([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 & (Join-Path $projectRoot 'pack.ps1') -OutputDirectory $packageRoot
 if ($LASTEXITCODE -ne 0) { throw 'Playnite package creation failed.' }
