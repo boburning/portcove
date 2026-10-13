@@ -1229,11 +1229,45 @@ async function preliminarySelectedSetupScenario(context) {
       report.observations.setup_review_text = reviewText;
       assert.deepEqual(await read("get_statuses"), statuses);
       await screenshot("preliminary-setup-review");
+      // Axe cannot determine the runtime tab trap for aria-hidden background
+      // controls and Base UI focus guards. Observe actual native keyboard focus.
+      const keyboardFocus = [];
+      for (const reverse of [false, true]) {
+        for (let index = 0; index < 8; index += 1) {
+          const keys = browser.actions();
+          if (reverse) keys.keyDown(Key.SHIFT);
+          keys.sendKeys(Key.TAB);
+          if (reverse) keys.keyUp(Key.SHIFT);
+          await keys.perform();
+          const focus = await browser.executeScript(() => {
+            const dialog = document.querySelector('[aria-labelledby="install-review-title"]');
+            const active = document.activeElement;
+            return {
+              inside: !!dialog && dialog.contains(active),
+              label: active?.textContent?.trim(),
+              disabled: active?.disabled ?? false,
+            };
+          });
+          assert.equal(focus.inside, true, "Native Tab must stay in the topmost setup review");
+          assert.equal(focus.disabled, false);
+          assert.ok(focus.label === "Cancel review" || focus.label.startsWith("Install ·"));
+          keyboardFocus.push({ reverse, ...focus });
+        }
+      }
+      report.observations.native_keyboard_focus = keyboardFocus;
       await click(button("Cancel review"));
       await browser.wait(
         async () => (await browser.findElements(installLocator)).length === 0,
         5_000,
       );
+      await browser.wait(
+        () =>
+          browser.executeScript(
+            () => document.activeElement?.textContent?.trim() === "Review installation",
+          ),
+        5_000,
+      );
+      report.observations.neutral_setup_cancel_restored_opener_focus = true;
       await click(By.css('[aria-label="Back to previous workspace"]'));
       const returned = await enabled(checkboxLocator);
       assert.equal(await returned.isSelected(), true);
