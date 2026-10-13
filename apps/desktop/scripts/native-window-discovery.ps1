@@ -168,8 +168,8 @@ function Invoke-NativeLibraryPickerButton([IntPtr]$Window, [IntPtr]$ButtonHandle
     Assert-LiveApplication
     [PortcoveNativeWindows]::PressFolderButton($Window, $ButtonHandle, $applicationId, $Title)
 }
-function Get-NativePickerEditEvidence($Window) {
-    foreach ($edit in [PortcoveNativeWindows]::InspectEdits([IntPtr]$Window.Current.NativeWindowHandle, $applicationId, $Title)) {
+function Get-NativePickerEditEvidence($Window, [string]$PickerTitle = $Title) {
+    foreach ($edit in [PortcoveNativeWindows]::InspectEdits([IntPtr]$Window.Current.NativeWindowHandle, $applicationId, $PickerTitle)) {
         $type = 0; $owned = $null; $available = $null
         try {
             $element = Get-NativePickerElement $edit.handle

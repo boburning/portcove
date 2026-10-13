@@ -107,6 +107,68 @@ foreach ($script:case in @('valid', 'native-pane', 'native-late-driver', 'foreig
 
 const helper = path.resolve("apps/desktop/scripts/native-confirmation.ps1");
 
+test(
+  "actual observation field projection uses its explicit window and title without input",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-observe-projection-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const script = path.join(root, "probe.ps1");
+    const confirmation = path
+      .resolve("apps/desktop/scripts/native-confirmation.ps1")
+      .replaceAll("'", "''");
+    const discovery = path
+      .resolve("apps/desktop/scripts/native-window-discovery.ps1")
+      .replaceAll("'", "''");
+    await writeFile(
+      script,
+      `
+$ErrorActionPreference='Stop'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$ast=[Management.Automation.Language.Parser]::ParseFile('${confirmation}',[ref]$null,[ref]$null)
+$other=[Management.Automation.Language.Parser]::ParseFile('${discovery}',[ref]$null,[ref]$null)
+foreach($entry in @(@($ast,'Get-PickerFieldEvidence'),@($other,'Get-NativePickerEditEvidence'))){
+ $fn=$entry[0].Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $entry[1]},$true)
+ . ([scriptblock]::Create($fn.Extent.Text))
+}
+Add-Type -TypeDefinition @'
+using System;
+public static class PortcoveNativeWindows {
+ public class Observation { public IntPtr handle=new IntPtr(9); public int control_id=1152,parent_id=0; public string parent_class="other"; }
+ public static int calls=0;
+ public static Observation[] InspectEdits(IntPtr handle,int process,string title){
+  if(handle.ToInt32()!=7 || process!=42 || title!="Select Folder")throw new Exception("wrong explicit observation context");
+  calls++;return new[]{new Observation()};
+ }
+}
+'@
+function Get-NativePickerElement($handle){
+ if($handle.ToInt32() -ne 9){throw 'wrong edit'}
+ $element=[pscustomobject]@{Current=[pscustomobject]@{ControlType=[System.Windows.Automation.ControlType]::Edit;ProcessId=42}}
+ $element|Add-Member ScriptMethod TryGetCurrentPattern {param($pattern,$result) $false}
+ $element
+}
+$applicationId=42;$window=$null;$Title=$null
+$observedWindow=[pscustomobject]@{Current=[pscustomobject]@{NativeWindowHandle=7;Name='Select Folder'}}
+$controls=@();$fields=@()
+$call=[regex]::Match([IO.File]::ReadAllText('${confirmation}'),'(?m)^    \\$script:pickerFieldEvidence = Get-PickerFieldEvidence \\$controls \\$fields.Count.*$').Value
+if(-not $call){throw 'actual observation call absent'}
+. ([scriptblock]::Create($call))
+if([PortcoveNativeWindows]::calls -ne 1 -or $pickerFieldEvidence.native_edits.Count -ne 1 -or $pickerFieldEvidence.native_edits[0].control_id -ne 1152){throw 'observation context lost'}
+'explicit-observation-context-passed'
+`,
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /explicit-observation-context-passed/);
+  },
+);
+
 test("bootstrap legacy Profile binding retains choices and default without acquiring tools", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "pcv-bootstrap-binding-"));
   t.after(() => rm(root, { recursive: true, force: true }));

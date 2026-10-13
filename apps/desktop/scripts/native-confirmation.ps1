@@ -16,7 +16,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:lastNativeStage = 'setup'
 $script:pickerFieldEvidence = $null
-function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1) {
+function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1, $PickerWindow = $window, [string]$PickerTitle = $Title) {
     $all = @($Children)
     $folderLabels = @($all | Where-Object { $_.Current.Name -eq 'Folder:' })
     $edits = @($Children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit })
@@ -30,7 +30,7 @@ function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1) {
         }
     })
     [pscustomobject]@{ edit_count = $edits.Count; samples = $samples; truncated = ($edits.Count -gt 16)
-        native_edits = @(Get-NativePickerEditEvidence $window)
+        native_edits = @(Get-NativePickerEditEvidence $PickerWindow $PickerTitle)
         folder_matches = $FolderMatches
         total_count = $all.Count
         automation_element_count = @($all | Where-Object { $_ -is [System.Windows.Automation.AutomationElement] }).Count
@@ -210,7 +210,7 @@ if ($ObservePicker) {
     if (-not $observedWindow) { throw 'No unique owned native folder window observed; no input supplied.' }
     $controls = $observedWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
     $fields = @($controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
-    $script:pickerFieldEvidence = Get-PickerFieldEvidence $controls $fields.Count
+    $script:pickerFieldEvidence = Get-PickerFieldEvidence $controls $fields.Count $observedWindow $observedWindow.Current.Name
     $buttonName = if ($PreparedRuntimeDirectory) { 'Select Folder' } else { 'Cancel' }
     if ($PreparedRuntimeDirectory -and $observedWindow.Current.Name -ne 'Select Folder') { throw 'Prepared runtime selection requires the observed exact Select Folder title.' }
     $actionButton = @($controls | Where-Object { $_.Current.ProcessId -eq $applicationId -and $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $_.Current.Name -eq $buttonName -and $_.Current.IsEnabled })
