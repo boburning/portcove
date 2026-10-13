@@ -374,6 +374,7 @@ Reader closure can retain committed WAL/SHM state. Custody/readback must preserv
 those files and use a consistent SQLite snapshot/backup, rather than treating a
 main-database hash alone as complete state or deleting side files. Earlier
 failed-attempt anchors and normalized-input predecessors remain authoritative.
+
 ## Native observations under calibrated budgets — October 13, 2026
 
 Candidate `b8c5bca036096c0af1b09628d00a4abfd7e76eb5`, tree
