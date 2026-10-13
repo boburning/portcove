@@ -56,7 +56,7 @@ tar.workspace = true
 tempfile.workspace = true
 
 [target.'cfg(windows)'.dependencies]
-webview2-com = "=0.38.2"
+webview2-com = "=0.39.1"
 windows = { version = "0.62.2", features = [
   "Win32_Networking_NetworkListManager",
   "Win32_System_Com",
