@@ -29,6 +29,7 @@ import {
   sourceImportRefreshNotice,
 } from "./SourceDiscovery";
 import { Button } from "./ui/button";
+import { GameFileSetupReviews } from "./GameFileSetupReviews";
 
 const setupReturnOrigin = "game-file-libraries-setup";
 
@@ -949,6 +950,19 @@ export function GameFileLibraries({
         onOpenPort={onOpenPort}
         busy={Boolean(busy)}
         review={(candidate) => void review(candidate)}
+      />
+      <GameFileSetupReviews
+        ports={ports}
+        statuses={statuses}
+        candidates={scanning ? liveCandidates : (snapshot?.report.candidates ?? [])}
+        registeredSources={registeredSources}
+        current={
+          refreshConfirmed &&
+          !workspaceRefreshFailed &&
+          (scanning || (readConfirmed && snapshot?.freshness === "inputs_match"))
+        }
+        busy={Boolean(busy) || Boolean(plan)}
+        onOpenPort={onOpenPort}
       />
       <SourceImportReview
         plan={plan}

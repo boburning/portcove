@@ -208,7 +208,7 @@ export async function selectedSetupCompletionScenario({
       assert.deepEqual(await read("get_sources"), [], "Review must not register inputs");
       await click(button("Use current location"));
       const continuation = By.css('[aria-label="Continue to a game"]');
-      const choices = [fixture.port, fixture.refreshPort]
+      const choices = [fixture.port, fixture.refreshPort, owned.reviewPort]
         .map((item) => `Open ${item.name} details`)
         .sort();
       await browser.wait(
@@ -236,9 +236,33 @@ export async function selectedSetupCompletionScenario({
         (item) => item.port_id === fixture.refreshPort.id,
       );
       assert.ok(incomplete.readiness.blockers.includes("missing_bios"));
-      await click(button(`Open ${port.name} details`));
+      const queue = By.css('[aria-label="Selected setup reviews"]');
+      await browser.wait(until.elementLocated(queue), 5_000);
+      const beforeSelection = await read("get_statuses");
+      for (const id of [port.id, owned.reviewPort.id])
+        await click(By.css(`input[data-setup-review-port="${id}"]`));
+      assert.deepEqual(await read("get_statuses"), beforeSelection, "Selection grants no mutation");
+      report.observations.setup_selection = [port.id, owned.reviewPort.id];
+      await click(button(`Review ${port.name} setup`));
       await browser.wait(until.elementLocated(By.id("port-detail-title")), 5_000);
       assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
+      await browser.wait(
+        until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
+        15_000,
+      );
+      assert.deepEqual(
+        await read("get_statuses"),
+        beforeSelection,
+        "Core planning grants no mutation",
+      );
+      await screenshot("selected-setup-queue-review");
+      await click(button("Cancel review"));
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[aria-labelledby="install-review-title"]')))
+            .length === 0,
+        5_000,
+      );
 
       const installDialog = By.css('[aria-labelledby="install-review-title"]');
       const install = By.xpath('//button[starts-with(normalize-space(.),"Install ·")]');
@@ -413,6 +437,40 @@ export async function selectedSetupCompletionScenario({
       for (const label of choices)
         assert.equal(await browser.findElement(button(label)).isEnabled(), true);
       report.observations.returned_choices = choices;
+      assert.equal(
+        await browser.findElement(button(`Review ${port.name} setup`)).isEnabled(),
+        false,
+      );
+      assert.equal(
+        await browser.findElement(button(`Review ${owned.reviewPort.name} setup`)).isEnabled(),
+        true,
+      );
+      const afterCompletion = await read("get_statuses");
+      await click(button(`Review ${owned.reviewPort.name} setup`));
+      await browser.wait(
+        until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
+        15_000,
+      );
+      assert.equal(
+        await browser.findElement(By.id("port-detail-title")).getText(),
+        owned.reviewPort.name,
+      );
+      await click(button("Cancel review"));
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[aria-labelledby="install-review-title"]')))
+            .length === 0,
+        5_000,
+      );
+      assert.deepEqual(
+        await read("get_statuses"),
+        afterCompletion,
+        "Alternative review dismissal preserves installations",
+      );
+      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await browser.wait(until.elementLocated(queue), 5_000);
+      assert.match(await browser.findElement(queue).getText(), /2 of 16 ports selected/);
+      await screenshot("selected-setup-queue-return");
       const accessibilityFile = path.join(output, "selected-setup-completion-accessibility.json");
       await captureAccessibilityReport(browser, accessibilityFile, artifacts);
       const accessibility = JSON.parse(await readFile(accessibilityFile, "utf8"));
