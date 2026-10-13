@@ -19,6 +19,24 @@ Ordering changes are explicit. The same report accompanies `--compare-historical
 These groups describe declared fields, not acceptance or inferred dependency
 impact. The complete `differences` and Core receipts remain necessary: unkeyed
 qualification facts and other catalog fields are outside this named-record report.
+Full proposals also include `declaration_cases`: complete before/after ports,
+shared source tables, unchanged port fields, accepted peers referencing the same
+declared adapter, and the exact inspector receipts for each case. Shared source
+records and adapter peers appear once. Per-case source references name identity
+and contract IDs and qualification ordinals in that side's source table; follow
+their declared validator/evidence IDs to reconstruct the complete scoped records.
+No shared evidence or peer list is copied into every case. Cases include unchanged
+port definitions when their declared source/evidence/qualification relationships
+change. They are ordered by stable port ID; source-record order and exact scoped
+qualification remain preserved. Unreferenced source changes stay in the complete
+diff rather than being assigned to an unrelated port. These relationships are
+not validation impact, capability fit or permission to reuse qualification.
+Declared evidence is neither authenticated nor executed by proposal preparation;
+an absent per-port inspector receipt remains null. Existing preparation/artwork
+costs are linked separately. Engineering, application/harness changes,
+interventions, maintenance execution, eliminated work and comparative savings
+remain explicitly unmeasured. Preparation does not establish subsequent artifact
+compatibility or delivery speedup.
 All files remain unsigned proposals. No publisher grant, artifact authenticity,
 actual source/operation/gameplay qualification or production delivery is inferred.
 The `compatibility_fixture_review` report compares proposed source and port IDs

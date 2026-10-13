@@ -19,7 +19,7 @@ const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 // Fixed declarations and inert validator/provider controls measure the generator,
 // independently of live catalog counts. No upstream executable or network runs.
-function fixture(mode = "success", failAt = "input") {
+function fixture(mode = "success", failAt = "input", declarations = () => {}) {
   const scratch = mkdtempSync(join(tmpdir(), "portcove-proposal-costs-"));
   const scripts = join(scratch, "scripts");
   const catalogs = join(scratch, "crates", "portcove-core", "catalog");
@@ -43,6 +43,7 @@ function fixture(mode = "success", failAt = "input") {
       qualification: [],
     },
   };
+  declarations(catalog);
   const accepted = Buffer.from(JSON.stringify(catalog));
   const input = Buffer.from(`${JSON.stringify(catalog, null, 2)}\n`);
   const source = join(catalogs, "catalog-current-authoring.json");
@@ -248,3 +249,200 @@ test("retry refuses existing output without replacing prior measured failure evi
   assert.deepEqual(readFileSync(path), retained);
   assertInputsPreserved(f);
 });
+
+test("proposal cases retain changed and shared-source declarations without claiming reusable qualification", () => {
+  const f = fixture("success", "input", (catalog) => {
+    catalog.ports[0].adapter = "shared-fixture-adapter";
+    catalog.ports[1].adapter = "shared-fixture-adapter";
+    catalog.source_catalog.contracts = [
+      {
+        id: "frozen-contract",
+        port_id: "frozen-port",
+        profile_id: "frozen-source",
+        evidence_ids: ["shared-evidence"],
+      },
+      {
+        id: "added-contract",
+        port_id: "added-port",
+        profile_id: "frozen-source",
+        evidence_ids: ["shared-evidence"],
+      },
+    ];
+    catalog.source_catalog.evidence = [{ id: "shared-evidence", claim: "old scoped declaration" }];
+    catalog.source_catalog.qualification = [
+      { scope: { port_id: "frozen-port" }, kind: "fixture", outcome: "unknown" },
+    ];
+  });
+  const proposed = JSON.parse(readFileSync(f.proposal));
+  proposed.ports[1].persistent_paths = ["saves"];
+  proposed.source_catalog.evidence[0].claim = "corrected scoped declaration";
+  proposed.source_catalog.qualification[0].outcome = "failed";
+  writeFileSync(f.proposal, JSON.stringify(proposed));
+  const result = f.run();
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(readFileSync(join(f.output, "proposal-evidence.json")));
+  const review = report.declaration_cases;
+  assert.deepEqual(
+    review.cases.map((item) => item.port_id),
+    ["added-port", "frozen-port"],
+  );
+  const [added, frozen] = review.cases;
+  assert.deepEqual(added.reasons, ["port-declaration", "source-record-relationship"]);
+  assert.deepEqual(frozen.reasons, ["source-record-relationship"]);
+  assert.deepEqual(frozen.before.port, frozen.after.port);
+  assert.deepEqual(frozen.unchanged_port_fields, ["adapter", "id", "name"]);
+  assert.deepEqual(added.unchanged_port_fields, ["adapter", "id", "name"]);
+  assert.equal(
+    review.source_tables.after.qualification[frozen.after.source_record_refs.qualification[0]]
+      .outcome,
+    "failed",
+  );
+  assert.equal(review.source_tables.after.evidence[0].claim, "corrected scoped declaration");
+  assert.deepEqual(added.adapter_references, ["shared-fixture-adapter"]);
+  assert.deepEqual(review.adapter_references, [
+    { adapter: "shared-fixture-adapter", accepted_port_ids: ["added-port", "frozen-port"] },
+  ]);
+  assert.equal(frozen.checks.output, null, "the inert inspector did not report this port");
+  assert.match(review.scope, /not validation impact, capability fit or reusable qualification/u);
+  assert.deepEqual(review.unmeasured, [
+    "new engineering",
+    "application/harness changes",
+    "interventions",
+    "maintenance execution",
+    "work eliminated",
+    "comparative savings",
+  ]);
+  assert.equal(
+    report.preparation_costs.scope,
+    "Observed preparation only; reuse counts do not establish time saved or delivery improvement.",
+  );
+  assert.deepEqual(readFileSync(f.source), f.accepted);
+});
+
+for (const [label, edit, expected] of [
+  [
+    "identity correction",
+    (catalog) => {
+      catalog.source_catalog.identities[0].label = "corrected";
+    },
+    ["frozen-port"],
+  ],
+  [
+    "validator correction",
+    (catalog) => {
+      catalog.source_catalog.validators[0].protocol_version = "changed";
+    },
+    ["frozen-port"],
+  ],
+  [
+    "qualification only",
+    (catalog) => {
+      catalog.source_catalog.qualification[0].outcome = "failed";
+    },
+    ["added-port"],
+  ],
+  [
+    "unreferenced evidence",
+    (catalog) => {
+      catalog.source_catalog.evidence.push({ id: "unrelated", claim: "not used" });
+    },
+    [],
+  ],
+  [
+    "removed port",
+    (catalog) => {
+      catalog.ports.shift();
+      catalog.source_catalog.contracts.shift();
+    },
+    ["frozen-port"],
+  ],
+  ["unchanged batch", () => {}, []],
+]) {
+  test(`declaration relationship cases distinguish ${label} from unrelated ports`, () => {
+    const f = fixture("success", "input", (catalog) => {
+      catalog.source_catalog.contracts = [
+        {
+          id: "frozen-contract",
+          port_id: "frozen-port",
+          profile_id: "frozen-source",
+          validator_contract_id: "validator",
+        },
+      ];
+      catalog.source_catalog.validators = [{ id: "validator", protocol_version: "original" }];
+      catalog.source_catalog.qualification = [
+        { scope: { port_id: "added-port" }, outcome: "unknown" },
+      ];
+    });
+    const proposed = JSON.parse(readFileSync(f.proposal));
+    edit(proposed);
+    writeFileSync(f.proposal, JSON.stringify(proposed));
+    const result = f.run();
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(readFileSync(join(f.output, "proposal-evidence.json")));
+    assert.deepEqual(
+      report.declaration_cases.cases.map((item) => item.port_id),
+      expected,
+    );
+    if (label === "removed port") {
+      const [removed] = report.declaration_cases.cases;
+      assert.equal(removed.after.port, null);
+      assert.deepEqual(removed.unchanged_port_fields, []);
+    }
+    assert.deepEqual(readFileSync(f.source), f.accepted);
+  });
+}
+
+test("many shared references retain exact records with linear report growth", () => {
+  const sizes = [];
+  for (const count of [16, 128]) {
+    const originalClaim = "retained scoped claim ".repeat(3200);
+    const f = fixture("success", "input", (catalog) => {
+      catalog.ports = Array.from({ length: count }, (_, index) => ({
+        id: `port-${index}`,
+        adapter: "shared-adapter",
+        source_profile: "frozen-source",
+      }));
+      catalog.source_catalog.identities[0].evidence_ids = ["shared-evidence"];
+      catalog.source_catalog.evidence = [{ id: "shared-evidence", claim: originalClaim }];
+      catalog.source_catalog.qualification = catalog.ports.map((port) => ({
+        scope: { port_id: port.id },
+        outcome: "unknown",
+      }));
+    });
+    const proposed = JSON.parse(readFileSync(f.proposal));
+    proposed.source_catalog.evidence[0].claim += " correction";
+    writeFileSync(f.proposal, JSON.stringify(proposed));
+    const result = f.run();
+    assert.equal(result.status, 0, result.stderr);
+    const review = JSON.parse(
+      readFileSync(join(f.output, "proposal-evidence.json")),
+    ).declaration_cases;
+    assert.equal(review.cases.length, count);
+    assert.deepEqual(review.adapter_references, [
+      { adapter: "shared-adapter", accepted_port_ids: catalogPortIds(count).sort() },
+    ]);
+    for (const item of review.cases) {
+      for (const side of ["before", "after"]) {
+        const table = review.source_tables[side];
+        const identity = table.identities.find(
+          (record) => record.id === item[side].source_record_refs.identities[0],
+        );
+        const evidence = table.evidence.find((record) => record.id === identity.evidence_ids[0]);
+        assert.equal(evidence.claim, originalClaim + (side === "after" ? " correction" : ""));
+        const [ordinal] = item[side].source_record_refs.qualification;
+        assert.equal(table.qualification[ordinal].scope.port_id, item.port_id);
+      }
+    }
+    const size = Buffer.byteLength(JSON.stringify(review));
+    assert.ok(
+      size < originalClaim.length * 2 + count * 2500 + 10000,
+      `shared records amplified output to ${size} bytes`,
+    );
+    sizes.push(size);
+  }
+  assert.ok(sizes[1] - sizes[0] < (128 - 16) * 2500);
+});
+
+function catalogPortIds(count) {
+  return Array.from({ length: count }, (_, index) => `port-${index}`);
+}
