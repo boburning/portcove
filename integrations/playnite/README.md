@@ -94,8 +94,9 @@ User-prepared runtimes use **schema 67 plus `external.review`**. Register any
 requested original game/BIOS inputs, then choose the already prepared runtime
 folder in management. Review its accepted version/package identity and checked
 extracted-tree identity before consenting. Portcove uses these files in place;
-it does not download, copy, update, back up or delete them. Their game-owned saves
-and settings remain outside managed save protection. Registration is separate
+it does not download, copy, update, back up or delete them. Game-owned files in that external folder remain outside managed save protection.
+Save location and protection follow the retained runtime contract; library-owned
+save locations keep their existing protection. Registration is separate
 from readiness and Play. Playnite Uninstall removes only this reviewed
 registration and verifies the installed route is absent before changing its
 installed state. External files remain. Cancel makes no mutation; Playnite's

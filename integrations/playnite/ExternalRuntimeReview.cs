@@ -76,7 +76,7 @@ namespace Portcove.ReferenceClient
                     "\nChecked immutable files: " + Json.Number(value, "immutable_file_count") + "\n";
             }
             review.Description += "Folder: " + path + "\nVersion: " + review.version +
-                "\n\nPortcove does not copy, update, back up or delete these external files. Game-owned saves and settings remain in this folder and are outside managed save protection. Original game files remain in place. Registration does not guarantee launch readiness or gameplay compatibility.";
+                "\n\nPortcove does not copy, update, back up or delete these external files. Game-owned files in this external folder remain outside managed save protection. Save location and protection follow the retained runtime contract; library-owned save locations keep their existing protection. Original game files remain in place. Registration does not guarantee launch readiness or gameplay compatibility.";
             return review;
         }
 
