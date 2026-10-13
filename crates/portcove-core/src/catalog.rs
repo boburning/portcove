@@ -3696,6 +3696,145 @@ mod tests {
     }
 
     #[test]
+    fn alien_resurrection_and_musashi_bind_distinct_four_track_retail_bios_sources() {
+        let catalog = Catalog::embedded().unwrap();
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        for (
+            id,
+            profile_id,
+            serial,
+            track_sha1,
+            track_sha256,
+            bios,
+            bios_variant,
+            exe,
+            version,
+            size,
+            digest,
+            commit,
+        ) in [
+            (
+                "alexbeav-alien-resurrection-recomp",
+                "alien-resurrection-europe-psx",
+                "SLES-02913",
+                "5642c4f4ba6f06323778ae29c59c6dc863d49f55",
+                "af3da8902c6d3f55aaeff960adbeda61c7a630e820e34bc133ffe972cd100237",
+                "psx-scph-5552-bios",
+                "europe-v3-0",
+                "Alien_Resurrection_Recompiled.exe",
+                "v0.1.4",
+                29907400u64,
+                "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
+                "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
+            ),
+            (
+                "alexbeav-brave-fencer-musashi-recomp",
+                "brave-fencer-musashi-usa-psx",
+                "SLUS-00726",
+                "b44f0f0a19936f23b26188b658e13201a6a9c211",
+                "5455c324a026e22a8e53ca38f673e9e96e2cf653686ae553f933683aa16d4401",
+                "psx-scph-1001-bios",
+                "legacy-accepted",
+                "Brave_Fencer_Musashi_Recompiled.exe",
+                "v0.1.3",
+                29900215u64,
+                "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
+                "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+            assert_eq!(port.platforms, [crate::Platform::WindowsX86_64]);
+            assert!(port.automated_tested_platforms.is_empty());
+            assert!(port.manually_validated_platforms.is_empty());
+            assert_eq!(
+                port.executable_hints[&crate::Platform::WindowsX86_64],
+                [exe]
+            );
+            assert_eq!(port.bios_source_profile.as_deref(), Some(bios));
+            assert_eq!(port.launch_arguments, ["--no-launcher"]);
+            assert_eq!(port.runtime_subdirectory.as_deref(), Some("build-portcove"));
+            for owned in [
+                "saves",
+                "settings.toml",
+                "bios.cfg",
+                "disc.cfg",
+                "overlay-captures",
+                "overlay_captures.json.d",
+            ] {
+                assert!(port.persistent_paths.iter().any(|path| path == owned));
+                assert!(!port.runtime_mutable_paths.iter().any(|path| path == owned));
+            }
+            let declaration = document["ports"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|value| value["id"] == id)
+                .unwrap();
+            let pin = &declaration["release"]["direct"]["windows-x86-64"];
+            assert_eq!(pin["version"], version);
+            assert_eq!(pin["size"], size);
+            assert_eq!(pin["sha256"], digest);
+            assert_eq!(
+                declaration["release"]["direct"].as_object().unwrap().len(),
+                1
+            );
+            let identity = document["source_catalog"]["identities"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|value| value["id"] == profile_id)
+                .unwrap();
+            let variant = &identity["variants"][0];
+            assert_eq!(variant["product_codes"], serde_json::json!([serial]));
+            let representation = &variant["representations"][0];
+            assert_eq!(representation["track_counts"], serde_json::json!([4]));
+            assert_eq!(representation["extensions"], serde_json::json!(["chd"]));
+            assert_eq!(
+                representation["identities"],
+                serde_json::json!([{
+                    "scope": "psx-normalized-track-set", "sha1": track_sha1,
+                    "sha256": track_sha256, "crc32": null
+                }])
+            );
+            let contracts = document["source_catalog"]["contracts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|value| value["port_id"] == id)
+                .collect::<Vec<_>>();
+            assert_eq!(contracts.len(), 2);
+            for contract in contracts {
+                assert_eq!(contract["admission_mode"], "enforced");
+                assert_eq!(contract["authority_ref"], commit);
+                assert_eq!(
+                    contract["applicability"],
+                    serde_json::json!([{
+                        "upstream_ref": version, "artifact_sha256": digest
+                    }])
+                );
+                if contract["role"] == "game" {
+                    assert_eq!(contract["profile_id"], profile_id);
+                } else {
+                    assert_eq!(contract["role"], "bios");
+                    assert_eq!(contract["profile_id"], bios);
+                    assert_eq!(
+                        contract["supported_variant_ids"],
+                        serde_json::json!([bios_variant])
+                    );
+                }
+            }
+            assert!(
+                !document["source_catalog"]["qualification"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|value| value["scope"]["port_id"] == id)
+            );
+        }
+    }
+
+    #[test]
     fn newly_qualified_psx_ports_use_exact_hash_only_disc_contracts() {
         let catalog = Catalog::embedded().expect("catalog should load");
         for (port_id, profile_id, sha1, executable) in [
