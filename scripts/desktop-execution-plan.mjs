@@ -41,6 +41,7 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
     "native-normal-package-webview-boundary",
   );
   const identityBoundSession =
+    selection.selected_scenarios.includes("native-preliminary-selected-setup") ||
     selection.selected_scenarios.includes("native-saved-folder-hash-resume") ||
     selection.selected_scenarios.includes("native-preliminary-source-review") ||
     (platform === "win32" && selection.selected_scenarios.includes("native-game-update-review")) ||
@@ -59,43 +60,46 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
     preferencesRecoverySession ||
     bootstrapRecoverySession ||
     librarySwitchRecoverySession;
-  const cleanupName = selection.selected_scenarios.includes("native-saved-folder-hash-resume")
-    ? "saved-folder-hash-resume"
-    : selection.selected_scenarios.includes("native-preliminary-source-review")
-      ? "preliminary-source-review"
-      : platform === "win32" &&
-          selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
-        ? "backup-review"
-        : platform === "win32" && selection.selected_scenarios.includes("native-game-update-review")
-          ? "game-update-review"
-          : selection.selected_scenarios.includes("native-external-runtime-review")
-            ? "external-runtime-review"
-            : selection.selected_scenarios.includes("native-startup-network-diagnostic")
-              ? "startup-network-diagnostic"
-              : preferencesRecoverySession
-                ? "startup-preferences-recovery"
-                : librarySwitchRecoverySession
-                  ? "library-switch-recovery"
-                  : bootstrapRecoverySession
-                    ? "startup-library-recovery"
-                    : normalPackageSession
-                      ? "normal-package-boundary"
-                      : ordinaryCloseSession
-                        ? "ordinary-close-preparation"
-                        : hostInterruptionSession
-                          ? "host-interruption"
-                          : minimizedPreparationSession
-                            ? "minimized-preparation"
-                            : selection.selected_scenarios.includes(
-                                  "native-selected-setup-completion",
-                                )
-                              ? "selected-setup-completion"
-                              : platform === "win32" &&
-                                  selection.selected_scenarios.includes(
-                                    "native-retained-contract-repair-state",
+  const cleanupName = selection.selected_scenarios.includes("native-preliminary-selected-setup")
+    ? "preliminary-selected-setup"
+    : selection.selected_scenarios.includes("native-saved-folder-hash-resume")
+      ? "saved-folder-hash-resume"
+      : selection.selected_scenarios.includes("native-preliminary-source-review")
+        ? "preliminary-source-review"
+        : platform === "win32" &&
+            selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
+          ? "backup-review"
+          : platform === "win32" &&
+              selection.selected_scenarios.includes("native-game-update-review")
+            ? "game-update-review"
+            : selection.selected_scenarios.includes("native-external-runtime-review")
+              ? "external-runtime-review"
+              : selection.selected_scenarios.includes("native-startup-network-diagnostic")
+                ? "startup-network-diagnostic"
+                : preferencesRecoverySession
+                  ? "startup-preferences-recovery"
+                  : librarySwitchRecoverySession
+                    ? "library-switch-recovery"
+                    : bootstrapRecoverySession
+                      ? "startup-library-recovery"
+                      : normalPackageSession
+                        ? "normal-package-boundary"
+                        : ordinaryCloseSession
+                          ? "ordinary-close-preparation"
+                          : hostInterruptionSession
+                            ? "host-interruption"
+                            : minimizedPreparationSession
+                              ? "minimized-preparation"
+                              : selection.selected_scenarios.includes(
+                                    "native-selected-setup-completion",
                                   )
-                                ? "retained-contract-repair"
-                                : "backup-focus";
+                                ? "selected-setup-completion"
+                                : platform === "win32" &&
+                                    selection.selected_scenarios.includes(
+                                      "native-retained-contract-repair-state",
+                                    )
+                                  ? "retained-contract-repair"
+                                  : "backup-focus";
   const inputs = ["app", "driver", "native-driver"].map((name) => ({ kind: "executable", name }));
   inputs.push(receiptSource(harnessUrl));
   if (
@@ -103,6 +107,7 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
       [
         "native-saved-folder-selected-setup",
         "native-preliminary-source-review",
+        "native-preliminary-selected-setup",
         "native-saved-folder-hash-resume",
       ].includes(id),
     )
@@ -178,7 +183,9 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
 
   const executed = new Set([...selection.selected_scenarios, ...selection.setup_scenarios]);
   const needs = (requirement) => selection.prerequisites.includes(requirement);
-  const preliminaryJourney = executed.has("native-preliminary-source-review");
+  const preliminarySetupJourney = executed.has("native-preliminary-selected-setup");
+  const preliminaryJourney =
+    executed.has("native-preliminary-source-review") || preliminarySetupJourney;
   const hashResumeJourney = executed.has("native-saved-folder-hash-resume");
   const sourceJourney =
     executed.has("native-saved-folder-selected-setup") || preliminaryJourney || hashResumeJourney;
@@ -221,6 +228,7 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
         [
           "native-saved-folder-selected-setup",
           "native-preliminary-source-review",
+          "native-preliminary-selected-setup",
           "native-saved-folder-hash-resume",
         ].includes(id),
       ),
@@ -240,6 +248,7 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
                 ![
                   "native-saved-folder-selected-setup",
                   "native-preliminary-source-review",
+                  "native-preliminary-selected-setup",
                   "native-saved-folder-hash-resume",
                   "native-selected-setup-completion",
                 ].includes(id),
@@ -271,6 +280,7 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
       externalRuntime: needs("external-runtime-fixture"),
       sourceJourney,
       preliminaryJourney,
+      ...(preliminarySetupJourney ? { preliminarySetupJourney: true } : {}),
       completionJourney,
       ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
       holdFirstDownload: completionJourney,

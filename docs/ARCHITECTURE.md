@@ -1969,6 +1969,18 @@ read leaves readiness unavailable; a match alone cannot imply that a source is
 registered, a port is installed, or installation will succeed. The player still
 enters the existing source or game setup review before any mutation.
 
+Preliminary pinned-validator selections retain their separate NotRun presentation.
+After deliberate registration, a consistent preliminary record with the same
+profile, original path and digest in the current registry can expose related
+ports' Core-owned setup guidance and eligible setup reviews. The view repeats
+that validation has not run; registration does not establish an exact edition or
+compatibility. Stale snapshots, changed or missing registrations, and unavailable
+Core actions cannot open a queued setup review. Preliminary choices wait for a
+completed scan batch rather than carrying an old observation into an active scan.
+The existing sixteen-port selection bound and independent implementations apply;
+each selected port opens its fresh Core plan without automatic registration or
+installation.
+
 ## Install transaction
 
 SQLite schema 28 adds a durable preparation-process quiescence fact. Core clears
