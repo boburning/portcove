@@ -9,6 +9,7 @@ import {
   useGameFileScanObserver,
 } from "../features/game-file-discovery/use-game-file-scan";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
+import { SetupReviewSelectionProvider } from "../features/game-file-discovery/setup-review-selection";
 import * as picker from "../file-picker";
 import { portDefinition, portStatus } from "../test-fixtures";
 import type {
@@ -164,6 +165,102 @@ it("continues Core's saved frontier without discarding matches or changing scan 
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
+
+it.each(["continued", "fresh", "stale", "restart"] as const)(
+  "keeps earlier setup reviews available only during a confirmed continuation: %s",
+  async (mode) => {
+    const prior = resumableSnapshot();
+    const source = prior.report.candidates[0];
+    const open = vi.fn();
+    const port = { ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" };
+    const status = {
+      ...portStatus(),
+      port_id: port.id,
+      port_actions: [
+        {
+          action: "install" as const,
+          availability: "allowed" as const,
+          reason: "available" as const,
+        },
+      ],
+    };
+    let finish: ((result: GameFileScanSnapshot) => void) | undefined;
+    let emit: ((event: OperationEvent) => void) | undefined;
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(prior);
+    vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+      emit = callback;
+      return new Promise((resolve) => {
+        finish = resolve;
+      });
+    });
+    await act(async () =>
+      root.render(
+        <SetupReviewSelectionProvider>
+          <GameFileLibraries
+            ports={[port]}
+            profiles={[]}
+            registeredSources={[source]}
+            statuses={new Map([[port.id, status]])}
+            onOpenPort={open}
+          />
+        </SetupReviewSelectionProvider>,
+      ),
+    );
+    await act(async () =>
+      document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
+    );
+    expect(button("Review Game A setup").disabled).toBe(false);
+    // The start reads current Core state again; the displayed old view cannot authorize reuse.
+    const current = structuredClone(prior);
+    if (mode === "fresh") current.coverage!.can_resume = false;
+    if (mode === "stale") current.freshness = "inputs_changed";
+    if (mode === "restart") current.coverage!.restart_required = true;
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(current);
+    await click("Continue scan");
+    expect(document.body.textContent).toContain("Scanning selected folders…");
+    expect(button("Review Game A setup").disabled).toBe(mode !== "continued");
+    expect(desktopApi.scanGameFileRoots).toHaveBeenCalledTimes(1);
+    expect(desktopApi.importSource).not.toHaveBeenCalled();
+    if (mode === "continued") {
+      await click("Review Game A setup");
+      expect(open).toHaveBeenCalledWith(port.id, "game-file-libraries-setup");
+      // New observations join the carried matches without duplicating a prior observation.
+      await act(async () =>
+        emit?.({
+          schema_version: 3,
+          type: "source_candidate",
+          operation_id: "continued-scan",
+          parent_operation_id: null,
+          target: null,
+          sequence: 1,
+          timestamp_ms: 1,
+          operation: "discover_sources",
+          ...source,
+        }),
+      );
+      await act(async () =>
+        emit?.({
+          schema_version: 3,
+          type: "source_candidate",
+          operation_id: "continued-scan",
+          parent_operation_id: null,
+          target: null,
+          sequence: 2,
+          timestamp_ms: 2,
+          operation: "discover_sources",
+          ...source,
+          profile_id: "other-game",
+          path: "D:/Games/other.z64",
+          sha256: "c".repeat(64),
+        }),
+      );
+      expect(document.querySelectorAll("[data-live-candidate]")).toHaveLength(2);
+      expect(button("Review Game A setup").disabled).toBe(false);
+    }
+    await act(async () => finish?.(current));
+    expect(document.body.textContent).not.toContain("Scanning selected folders…");
+  },
+);
 
 it("preserves a CLI-created bounded scan budget when continuing through Desktop", async () => {
   const continued = resumableSnapshot();

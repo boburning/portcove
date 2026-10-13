@@ -739,6 +739,11 @@ request's progress, provisional matches and cancellation target, and does not
 start another scan. Settled or disposed-workspace callbacks cannot populate a
 new observer. Library replacement disposes observation without automatically
 cancelling core work; this is not a durable scan intent or restart guarantee.
+When Core confirms a fresh resumable snapshot, Desktop keeps its earlier matches
+visible alongside new events during the next bounded batch. Fresh scans, stale
+snapshots and restart-required checkpoints do not carry matches into the live
+view. These observations still require ordinary registration and Core plan
+revalidation; continuing a scan grants no additional setup authority.
 Desktop also keeps an ephemeral selection of at most sixteen independent ports
 for setup review within the current library workspace. A matching observed source
 must already be registered, and current Core action availability must allow

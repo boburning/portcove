@@ -68,13 +68,14 @@ export function useGameFileScan() {
         // A corrupt old observation must not prevent Core's explicit fresh-scan recovery.
         const snapshot = await desktopApi.gameFileScanSnapshot().catch(() => null);
         if (!accepts()) return;
-        const limits =
+        const continuing =
           snapshot?.freshness === "inputs_match" &&
           snapshot.coverage?.can_resume &&
           !snapshot.coverage.restart_required &&
           snapshot.limits
-            ? snapshot.limits
-            : gameFileScanLimits;
+            ? snapshot
+            : undefined;
+        const limits = continuing?.limits ?? gameFileScanLimits;
         if (
           Object.entries(gameFileScanLimits).some(
             ([name, cap]) => limits[name as keyof typeof limits] > cap,
@@ -83,6 +84,14 @@ export function useGameFileScan() {
           throw new Error(
             "The saved scan exceeds Desktop's scan budgets. Continue it with the CLI or select narrower saved folders.",
           );
+        }
+        if (continuing) {
+          // Core carries prior matches without re-emitting them in the next batch.
+          // Only the fresh resumable checkpoint can keep those review choices live.
+          setState((previous) => ({
+            ...previous,
+            candidates: continuing.report.candidates.slice(0, limits.max_candidates),
+          }));
         }
         let acceptingEvents = true;
         result = await desktopApi
