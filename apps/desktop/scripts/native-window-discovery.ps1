@@ -112,6 +112,17 @@ public static class PortcoveNativeWindows {
         GetWindowText(window, text, text.Capacity);
         return String.Equals(text.ToString(), title, StringComparison.Ordinal);
     }
+    public static IntPtr[] FindFolderDialogs(int process, string title) {
+        var dialogs = new List<IntPtr>();
+        foreach (var window in Find(process, title)) {
+            if (Class(window) != "#32770" || !IsWindowEnabled(window)) continue;
+            var edit = GetDlgItem(window, 1152);
+            var button = GetDlgItem(window, 1);
+            if (MatchesFolderEdit(window, edit, process) && MatchesFolderButton(window, button, process))
+                dialogs.Add(window);
+        }
+        return dialogs.ToArray();
+    }
     public static IntPtr[] Find(int process, string title) {
         var roots = new List<IntPtr>();
         var matches = new HashSet<IntPtr>();

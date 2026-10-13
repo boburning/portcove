@@ -550,7 +550,7 @@ $pattern = '(?m)^    \\[DllImport[^\\r\\n]+private static extern[^\\r\\n]+;'
 if ([regex]::Matches($code, $pattern).Count -ne 15) { throw 'OS boundary inventory changed' }
 $code = [regex]::Replace($code, $pattern, '')
 $boundary = @'
-    public static bool overflow = false, failed = false, disappeared = false;
+    public static bool overflow = false, failed = false, disappeared = false, pickerTitle = false, secondDialog = false;
     public static string fieldCase = "valid", sentText = null;
     public static int sends = 0, itemCalls = 0;
     public static int clicks = 0;
@@ -563,23 +563,23 @@ $boundary = @'
     }
     private static bool EnumChildWindows(IntPtr parent, Visitor visit, IntPtr state) {
         if (parent.ToInt32() == 1) { visit(new IntPtr(2), state); visit(new IntPtr(5), state); }
-        if (parent.ToInt32() == 2) { visit(new IntPtr(5), state); visit(new IntPtr(3), state); }
+        if (parent.ToInt32() == 2) { visit(new IntPtr(5), state); visit(new IntPtr(3), state); visit(new IntPtr(11), state); }
         return true;
     }
     private static uint GetWindowThreadProcessId(IntPtr handle, out uint process) {
         process = handle.ToInt32() == 3 || (handle.ToInt32() == 11 && (fieldCase == "button-foreign" || (fieldCase == "late-button-foreign" && reads > 0))) || (handle.ToInt32() == 9 && (fieldCase == "foreign" || (fieldCase == "late-foreign" && itemCalls > 1))) ? 99u : 42u; return 1;
     }
     private static int GetWindowText(IntPtr handle, StringBuilder text, int capacity) {
-        string title = handle.ToInt32() == 11 ? (fieldCase == "button-caption" ? "other" : "Select Folder") : handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : "Choose Portcove library";
+        string title = handle.ToInt32() == 11 || handle.ToInt32() == 16 ? (fieldCase == "button-caption" ? "other" : "Select Folder") : handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : pickerTitle ? "Select Folder" : "Choose Portcove library";
         text.Append(title); return title.Length;
     }
     private static bool IsWindow(IntPtr handle) { return !disappeared; }
     private static int GetClassName(IntPtr handle, StringBuilder name, int capacity) {
-        name.Append(handle.ToInt32() == 11 ? (fieldCase == "button-class" ? "other" : "Button") : handle.ToInt32() == 2 ? (fieldCase == "root-class" ? "other" : "#32770") : handle.ToInt32() == 6 ? "ComboBox" : handle.ToInt32() == 9 && fieldCase == "field-class" ? "other" : "Edit"); return name.Length;
+        name.Append(handle.ToInt32() == 11 || handle.ToInt32() == 16 ? (fieldCase == "button-class" ? "other" : "Button") : handle.ToInt32() == 2 || (handle.ToInt32() == 5 && secondDialog) ? (fieldCase == "root-class" ? "other" : "#32770") : handle.ToInt32() == 6 ? "ComboBox" : handle.ToInt32() == 9 && fieldCase == "field-class" ? "other" : "Edit"); return name.Length;
     }
-    private static int GetDlgCtrlID(IntPtr handle) { return handle.ToInt32() == 11 ? (fieldCase == "button-id" ? 99 : 1) : handle.ToInt32() == 9 && fieldCase == "field-id" ? 99 : handle.ToInt32() == 6 ? 1148 : 1152; }
-    private static IntPtr GetParent(IntPtr handle) { return new IntPtr(handle.ToInt32() == 11 ? (fieldCase == "button-parent" ? 6 : 2) : handle.ToInt32() == 9 && fieldCase != "parent" ? 2 : 6); }
-    private static IntPtr GetDlgItem(IntPtr window, int id) { if (id == 1) return new IntPtr(fieldCase == "button-replacement" ? 12 : 11); itemCalls++; return new IntPtr(fieldCase == "replacement" && itemCalls > 1 ? 10 : fieldCase == "absent" ? 0 : 9); }
+    private static int GetDlgCtrlID(IntPtr handle) { return handle.ToInt32() == 11 || handle.ToInt32() == 16 ? (fieldCase == "button-id" ? 99 : 1) : handle.ToInt32() == 9 && fieldCase == "field-id" ? 99 : handle.ToInt32() == 6 ? 1148 : 1152; }
+    private static IntPtr GetParent(IntPtr handle) { return new IntPtr(handle.ToInt32() == 15 || handle.ToInt32() == 16 ? 5 : handle.ToInt32() == 11 ? (fieldCase == "button-parent" ? 6 : 2) : handle.ToInt32() == 9 && fieldCase != "parent" ? 2 : 6); }
+    private static IntPtr GetDlgItem(IntPtr window, int id) { if (window.ToInt32() == 5 && secondDialog) return new IntPtr(id == 1 ? 16 : 15); if (id == 1) return new IntPtr(fieldCase == "button-replacement" ? 12 : 11); itemCalls++; return new IntPtr(fieldCase == "replacement" && itemCalls > 1 ? 10 : fieldCase == "absent" ? 0 : 9); }
     private static bool IsWindowEnabled(IntPtr window) { return !(window.ToInt32() == 11 && fieldCase == "button-disabled") && fieldCase != "disabled" && !(fieldCase == "late-disabled" && itemCalls > 1) && !(window.ToInt32() == 2 && (fieldCase == "root-disabled" || (fieldCase == "late-root-disabled" && itemCalls > 0))); }
     private static int GetWindowStyle(IntPtr window, int index) {
         if (index != -16) throw new Exception("wrong style index");
@@ -595,7 +595,7 @@ $boundary = @'
         clicks++; result = UIntPtr.Zero; return fieldCase == "click-timeout" ? IntPtr.Zero : new IntPtr(1);
     }
     private static IntPtr ReadCaption(IntPtr window, uint message, UIntPtr capacity, StringBuilder text, uint flags, uint timeout, out UIntPtr result) {
-        if (window.ToInt32() != 11 || message != 13 || capacity.ToUInt64() != 512 || flags != 34 || timeout != 1000) throw new Exception("wrong native caption read");
+        if ((window.ToInt32() != 11 && window.ToInt32() != 16) || message != 13 || capacity.ToUInt64() != 512 || flags != 34 || timeout != 1000) throw new Exception("wrong native caption read");
         reads++;
         text.Append(fieldCase == "button-caption" ? "other" : "Select Folder");
         result = new UIntPtr((uint)text.Length); return fieldCase == "read-timeout" ? IntPtr.Zero : new IntPtr(1);
@@ -606,6 +606,19 @@ $code = $code.Insert($insertion, $boundary + [Environment]::NewLine)
 Add-Type -TypeDefinition $code
 $handles = @([PortcoveNativeWindows]::Find(42, 'Choose Portcove library') | ForEach-Object { $_.ToInt32() } | Sort-Object)
 if (($handles -join ',') -cne '2,5') { throw 'PID/title/child filtering or deduplication changed' }
+[PortcoveNativeWindows]::pickerTitle = $true
+$raw = @([PortcoveNativeWindows]::Find(42, 'Select Folder'))
+if ($raw.Count -ne 3) { throw 'same-title dialog/edit/button oracle changed' }
+$dialogs = @([PortcoveNativeWindows]::FindFolderDialogs(42, 'Select Folder'))
+if ($dialogs.Count -ne 1 -or $dialogs[0].ToInt32() -ne 2) { throw 'same-title non-dialog was accepted' }
+[PortcoveNativeWindows]::secondDialog = $true
+if (@([PortcoveNativeWindows]::FindFolderDialogs(42, 'Select Folder')).Count -ne 2) { throw 'two valid dialog ambiguity hidden' }
+[PortcoveNativeWindows]::secondDialog = $false
+foreach ($case in @('foreign','disabled','root-class','root-disabled','field-class','field-id','parent','absent','readonly','button-foreign','button-class','button-id','button-parent','button-caption','button-disabled')) {
+    [PortcoveNativeWindows]::fieldCase = $case; [PortcoveNativeWindows]::itemCalls = 0; [PortcoveNativeWindows]::reads = 0
+    if (@([PortcoveNativeWindows]::FindFolderDialogs(42, 'Select Folder')).Count -ne 0) { throw "invalid picker shape accepted $case" }
+}
+[PortcoveNativeWindows]::fieldCase = 'valid'; [PortcoveNativeWindows]::pickerTitle = $false
 $edits = @([PortcoveNativeWindows]::InspectEdits([IntPtr]2, 42, 'Choose Portcove library'))
 if ($edits.Count -ne 1 -or $edits[0].handle.ToInt32() -ne 5 -or $edits[0].control_id -ne 1152 -or $edits[0].parent_id -ne 1148 -or $edits[0].parent_class -cne 'ComboBox') { throw 'Owned structural edit inspection changed' }
 foreach ($case in @('valid', 'foreign', 'root-class', 'field-class', 'field-id', 'parent', 'replacement', 'absent', 'disabled', 'readonly', 'root-disabled', 'late-root-disabled', 'late-foreign', 'late-disabled', 'late-readonly', 'timeout')) {

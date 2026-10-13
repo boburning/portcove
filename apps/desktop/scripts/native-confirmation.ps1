@@ -122,6 +122,7 @@ function Assert-CapturedPickerDriver([string]$DriverPath, [string]$DriverStarted
     }
 }
 if ($ObservePicker) {
+    . (Join-Path $PSScriptRoot 'native-window-discovery.ps1')
     if (-not [IO.Path]::IsPathFullyQualified($ObservationPath) -or [IO.File]::Exists($ObservationPath) -or
         -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ObservationPath))) { throw 'Picker observation requires a fresh owned output file.' }
     Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
@@ -195,6 +196,12 @@ if ($ObservePicker) {
                     $windows[[string]$ancestor.Current.NativeWindowHandle] = $ancestor
                 }
             }
+        }
+        # A native folder dialog can be absent from the parent's labeled UIA
+        # edit projection. Qualify its exact owned HWND and existing direct
+        # controls; a same-title button is not another dialog.
+        foreach ($handle in [PortcoveNativeWindows]::FindFolderDialogs($applicationId, 'Select Folder')) {
+            $windows[[string]$handle] = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
         }
         if ($windows.Count -gt 1) { throw 'Ambiguous owned native folder window; no input supplied.' }
         if ($windows.Count -eq 1) { $observedWindow = @($windows.Values)[0]; break }
