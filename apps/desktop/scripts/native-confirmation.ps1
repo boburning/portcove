@@ -210,6 +210,7 @@ if ($ObservePicker) {
     if (-not $observedWindow) { throw 'No unique owned native folder window observed; no input supplied.' }
     $controls = $observedWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
     $fields = @($controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
+    $script:pickerFieldEvidence = Get-PickerFieldEvidence $controls $fields.Count
     $buttonName = if ($PreparedRuntimeDirectory) { 'Select Folder' } else { 'Cancel' }
     if ($PreparedRuntimeDirectory -and $observedWindow.Current.Name -ne 'Select Folder') { throw 'Prepared runtime selection requires the observed exact Select Folder title.' }
     $actionButton = @($controls | Where-Object { $_.Current.ProcessId -eq $applicationId -and $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $_.Current.Name -eq $buttonName -and $_.Current.IsEnabled })
