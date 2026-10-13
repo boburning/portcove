@@ -739,6 +739,18 @@ request's progress, provisional matches and cancellation target, and does not
 start another scan. Settled or disposed-workspace callbacks cannot populate a
 new observer. Library replacement disposes observation without automatically
 cancelling core work; this is not a durable scan intent or restart guarantee.
+Desktop also keeps an ephemeral selection of at most sixteen independent ports
+for setup review within the current library workspace. A matching observed source
+must already be registered, and current Core action availability must allow
+installation before a selected item can request its existing game-details review.
+The explicit review request is consumed once after the matching detail is active
+and calls the existing Core installation planner; leaving that detail invalidates
+the request. Applying installation still requires the ordinary review consent.
+Details/back preserves the selection; library replacement discards it. A changed
+scan, missing registration, unavailable action or failed workspace refresh pauses
+the affected review without deleting the choice. Selecting or opening an item
+does not register files or apply installation, or imply completed setup. Choosing
+Review requests a fresh plan for that item; plans are never batched into consent.
 Desktop presents core's optional completed-scan coverage with cumulative batch
 counts and explicit unknown remaining-entry counts. A refreshed, matching
 snapshot with a resumable frontier offers Continue scan; a required restart
