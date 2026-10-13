@@ -356,6 +356,7 @@ enum ExternalCommand {
         /// Require the exact external preview reviewed by the caller.
         #[arg(long)]
         expected_preview: Option<String>,
+        /// Confirm the freshly reviewed registration without a prompt; files are rechecked.
         #[arg(long)]
         yes: bool,
     },
@@ -368,6 +369,7 @@ enum ExternalCommand {
         /// Require the exact removal preview reviewed by the caller.
         #[arg(long)]
         expected_preview: Option<String>,
+        /// Confirm forgetting the registration without a prompt; external files stay in place.
         #[arg(long)]
         yes: bool,
     },
