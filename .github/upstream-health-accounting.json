@@ -240,6 +240,40 @@
       "release_facts_sha256": "571b826c649c60035e48635c2b094e1831066b1a7b483c5f2ea5e9df5f18f70c",
       "asset_id": 544443633,
       "asset_facts_sha256": "d39146a5cec209e3e8b1a1a94c2c9a4fd5e8dd4b9c77e3b3d8f1f0eb1809f1c9"
+    },
+    {
+      "port_id": "alexbeav-dino-crisis-recomp",
+      "port_contract_sha256": "97e780e963c56ec29430b2b7a842c8df6ad471d71f9405cb272195b883264298",
+      "platform": "windows-x86-64",
+      "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
+      "tag": "v0.1.1",
+      "name": "dino-crisis-0.1.1-windows-x64.zip",
+      "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-windows-x64.zip",
+      "size": 26206145,
+      "sha256": "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
+      "repository_id": 1359598591,
+      "archived": false,
+      "release_id": 399976421,
+      "asset_id": 600756803,
+      "asset_facts_sha256": "df7c7d2296a685778837ca488c89a06aaa2f8e65b572a588b2265b9986d6435a",
+      "release_facts_sha256": "60d5a43dcc3e4b0409b055808d514f64d9a9d4cc678b1fd0b0acbe4e39d840fc"
+    },
+    {
+      "port_id": "alexbeav-dino-crisis-2-recomp",
+      "port_contract_sha256": "1eda025fc50b1ef7d24a7fa02081a155b6dd1ac9857a832893fd8ad0e8d09af5",
+      "platform": "windows-x86-64",
+      "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
+      "tag": "v0.1.1",
+      "name": "dino-crisis-2-0.1.1-windows-x64.zip",
+      "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-windows-x64.zip",
+      "size": 26205977,
+      "sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
+      "repository_id": 1359598636,
+      "archived": false,
+      "release_id": 399976888,
+      "asset_id": 600758315,
+      "asset_facts_sha256": "056703a7e54caf59253c12dcffb1123b2745e5bf99d472a6e7bbe77d97db9d6d",
+      "release_facts_sha256": "30bdb18ae350c14bfd5e6da865b2b8a87e8e8cf7f5ec046930396c21104ee727"
     }
   ],
   "original_conditions": [

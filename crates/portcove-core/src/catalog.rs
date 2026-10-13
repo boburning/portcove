@@ -3487,6 +3487,197 @@ mod tests {
     }
 
     #[test]
+    fn dino_crisis_admissions_bind_independent_windows_and_two_track_contracts() {
+        let catalog = Catalog::embedded().unwrap();
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        let cases = [
+            (
+                "alexbeav-dino-crisis-recomp",
+                "dino-crisis-usa-rev1-psx",
+                "usa-rev1",
+                "SLUS-00922",
+                "0ef3326f26f1d97f4ab467023ac6be5e1189a6d3",
+                "Dino_Crisis_Recompiled.exe",
+                "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
+                26206145u64,
+                "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
+                "dino-crisis-0.1.1-windows-x64.zip",
+            ),
+            (
+                "alexbeav-dino-crisis-2-recomp",
+                "dino-crisis-2-usa-psx",
+                "usa",
+                "SLUS-01279",
+                "f7c71427c4c8726c9114514746c42f10928fbaee",
+                "Dino_Crisis_2_Recompiled.exe",
+                "38514024f3a7cea54ff05ae3afdad0929920cb5a",
+                26205977u64,
+                "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
+                "dino-crisis-2-0.1.1-windows-x64.zip",
+            ),
+        ];
+        for (id, profile_id, variant, serial, data_sha1, executable, commit, size, sha256, asset) in
+            cases
+        {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+            assert_eq!(port.platforms, [crate::Platform::WindowsX86_64]);
+            assert_eq!(port.support_tier, crate::SupportTier::Beta);
+            assert!(port.automated_tested_platforms.is_empty());
+            assert!(port.manually_validated_platforms.is_empty());
+            assert_eq!(
+                port.executable_hints[&crate::Platform::WindowsX86_64],
+                [executable]
+            );
+            let declaration = document["ports"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["id"] == id)
+                .unwrap();
+            let pin = &declaration["release"]["direct"]["windows-x86-64"];
+            assert_eq!(pin["version"], "v0.1.1");
+            assert_eq!(pin["size"], size);
+            assert_eq!(pin["sha256"], sha256);
+            assert_eq!(
+                pin["url"],
+                format!("{}/releases/download/v0.1.1/{asset}", port.project_url)
+            );
+            assert_eq!(
+                declaration["release"]["direct"].as_object().unwrap().len(),
+                1
+            );
+            let profile = document["source_catalog"]["identities"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["id"] == profile_id)
+                .unwrap();
+            assert_eq!(profile["variants"].as_array().unwrap().len(), 1);
+            let source = &profile["variants"][0];
+            assert_eq!(source["id"], variant);
+            assert_eq!(source["product_codes"], serde_json::json!([serial]));
+            let representation = &source["representations"][0];
+            assert_eq!(source["representations"].as_array().unwrap().len(), 1);
+            assert_eq!(representation["extensions"], serde_json::json!(["chd"]));
+            assert_eq!(representation["track_counts"], serde_json::json!([2]));
+            assert_eq!(
+                representation["identities"],
+                serde_json::json!([{
+                    "scope": "psx-normalized-track-set", "sha1": data_sha1,
+                    "sha256": null, "crc32": null
+                }])
+            );
+            // This digest authenticates the first data track, not Track 2 or
+            // a combined-disc representation from upstream's unpaired arrays.
+            let contracts = document["source_catalog"]["contracts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|c| c["port_id"] == id)
+                .collect::<Vec<_>>();
+            assert_eq!(contracts.len(), 2);
+            for contract in contracts {
+                assert_eq!(contract["admission_mode"], "enforced");
+                assert_eq!(contract["authority_ref"], commit);
+                assert_eq!(
+                    contract["applicability"],
+                    serde_json::json!([{
+                        "upstream_ref": "v0.1.1", "artifact_sha256": sha256
+                    }])
+                );
+                if contract["role"] == "game" {
+                    assert_eq!(contract["profile_id"], profile_id);
+                    assert_eq!(
+                        contract["supported_variant_ids"],
+                        serde_json::json!([variant])
+                    );
+                } else {
+                    assert_eq!(contract["role"], "bios");
+                    assert_eq!(contract["profile_id"], "psx-scph-5552-bios");
+                    assert_eq!(
+                        contract["supported_variant_ids"],
+                        serde_json::json!(["europe-v3-0"])
+                    );
+                }
+            }
+            assert!(
+                !document["source_catalog"]["qualification"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|q| q["port_id"] == id)
+            );
+            let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
+            assert!(legacy.port(id).is_err());
+        }
+    }
+
+    #[test]
+    fn dino_crisis_runtime_coordinates_preserve_owned_writes_and_refuse_setup_host() {
+        let catalog = Catalog::embedded().unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let runtime = root.path().join("build-portcove");
+        std::fs::create_dir(&runtime).unwrap();
+        for (id, executable) in [
+            ("alexbeav-dino-crisis-recomp", "Dino_Crisis_Recompiled.exe"),
+            (
+                "alexbeav-dino-crisis-2-recomp",
+                "Dino_Crisis_2_Recompiled.exe",
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.launch_arguments, ["--no-launcher"]);
+            let selected = runtime.join(executable);
+            let working = crate::adapter::launch_working_directory(
+                port.adapter,
+                port,
+                root.path(),
+                &selected,
+            )
+            .unwrap();
+            assert_eq!(working, runtime);
+            assert!(
+                crate::adapter::launch_working_directory(
+                    port.adapter,
+                    port,
+                    root.path(),
+                    &root.path().join(executable)
+                )
+                .is_err()
+            );
+            let capture = root
+                .path()
+                .join(&port.launch_environment["PSX_OVERLAY_CAPTURES"]);
+            assert_eq!(
+                capture,
+                working.join("overlay-captures/overlay_captures.json")
+            );
+            for owned in [
+                "saves",
+                "settings.toml",
+                "input.ini",
+                "keybinds.ini",
+                "config.ini",
+                "disc.cfg",
+                "bios.cfg",
+                "mods",
+                "overlay-captures",
+            ] {
+                assert!(port.persistent_paths.iter().any(|p| p == owned));
+                assert!(!port.runtime_mutable_paths.iter().any(|p| p == owned));
+            }
+            assert!(port.runtime_mutable_paths.iter().any(|p| p == "cache"));
+            assert!(port.runtime_source_filename.is_none());
+            assert!(port.runtime_source_materialization.is_none());
+            assert_eq!(
+                port.bios_source_profile.as_deref(),
+                Some("psx-scph-5552-bios")
+            );
+        }
+    }
+
+    #[test]
     fn newly_qualified_psx_ports_use_exact_hash_only_disc_contracts() {
         let catalog = Catalog::embedded().expect("catalog should load");
         for (port_id, profile_id, sha1, executable) in [
