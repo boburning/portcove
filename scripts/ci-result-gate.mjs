@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { validateValidationPlan } from "./validation-plan.mjs";
+import { windowsHelperChecksRequired } from "./windows-helper-checks.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 
@@ -60,7 +61,13 @@ export function evaluateCiResults({
         result,
       );
   const selected = plan.groups.includes(group);
-  const targetsAffectedPlatform = false;
+  const targetsAffectedPlatform = group === "catalog" && windowsHelperChecksRequired(plan);
+  if (targetsAffectedPlatform && targeted?.windows_helpers !== "success")
+    throw resultFailure(
+      `windows_helpers was ${targeted?.windows_helpers ?? "missing"}, expected success for affected Windows helpers`,
+      "windows_helpers",
+      targeted?.windows_helpers,
+    );
   if (plan.mode === "qualification") {
     if (!selected) throw new Error(`qualification plan omitted protected group ${group}`);
     if (prose !== "skipped")

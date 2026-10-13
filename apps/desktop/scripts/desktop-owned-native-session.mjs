@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { fileURLToPath } from "node:url";
+
+export const nativeSessionScript = fileURLToPath(new URL("./native-session.ps1", import.meta.url));
 
 // Ephemeral harness ownership, never durable operation or product authority.
 export class OwnedNativeSession {

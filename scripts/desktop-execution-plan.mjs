@@ -1,4 +1,5 @@
 import { desktopScenarioById } from "./desktop-scenarios.mjs";
+import { expandNativeHelperInputs } from "./native-helper-dependencies.mjs";
 
 const harnessUrl = new URL("../apps/desktop/scripts/desktop-test.mjs", import.meta.url);
 const rootUrl = new URL("../", import.meta.url);
@@ -108,28 +109,17 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
     ])
       inputs.push(receiptSource(new URL(name, harnessUrl)));
   if (bootstrapRecoverySession || preferencesRecoverySession)
-    for (const name of [
-      "desktop-bootstrap-recovery-test.mjs",
-      "desktop-native-confirmation.mjs",
-      "native-confirmation.ps1",
-    ])
+    for (const name of ["desktop-bootstrap-recovery-test.mjs", "desktop-native-confirmation.mjs"])
       inputs.push(receiptSource(new URL(name, harnessUrl)));
   if (librarySwitchRecoverySession)
     for (const name of [
       "desktop-library-switch-recovery-test.mjs",
       "desktop-bootstrap-recovery-test.mjs",
       "desktop-native-confirmation.mjs",
-      "native-confirmation.ps1",
     ])
       inputs.push(receiptSource(new URL(name, harnessUrl)));
   inputs.push(receiptSource(new URL("./desktop-controller-test.mjs", harnessUrl)));
-  for (const name of [
-    "native-session.ps1",
-    "native-process-tree.ps1",
-    "native-startup-observation.ps1",
-    "desktop-startup-observation.mjs",
-    "desktop-owned-native-session.mjs",
-  ])
+  for (const name of ["desktop-startup-observation.mjs", "desktop-owned-native-session.mjs"])
     inputs.push(receiptSource(new URL(name, harnessUrl)));
   inputs.push(receiptSource(new URL("desktop-reload-test.mjs", harnessUrl)));
   inputs.push(receiptSource(new URL("desktop-workspace-refresh-test.mjs", harnessUrl)));
@@ -165,16 +155,13 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
     inputs.push(receiptSource(new URL("./desktop-cli-handoff-test.mjs", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-review-controls.mjs", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-native-confirmation.mjs", harnessUrl)));
-    inputs.push(receiptSource(new URL("./native-confirmation.ps1", harnessUrl)));
   }
   if (selection.selected_scenarios.includes("native-library-browsing-context")) {
-    for (const name of ["desktop-native-confirmation.mjs", "native-confirmation.ps1"]) {
+    for (const name of ["desktop-native-confirmation.mjs"]) {
       const source = receiptSource(new URL(name, harnessUrl));
       if (!inputs.some((input) => input.path === source.path)) inputs.push(source);
     }
   }
-  if (inputs.some((input) => input.path?.endsWith("/native-confirmation.ps1")))
-    inputs.push(receiptSource(new URL("native-window-discovery.ps1", harnessUrl)));
   if (selection.prerequisites.includes("install-fixture")) {
     inputs.push(receiptSource(new URL("./desktop-install-fixture.mjs", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-install-test.mjs", harnessUrl)));
@@ -249,7 +236,7 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
   ];
   return freeze({
     selection,
-    receiptInputs: inputs,
+    receiptInputs: expandNativeHelperInputs(inputs),
     session: {
       bootstrapRecoverySession,
       preferencesRecoverySession,

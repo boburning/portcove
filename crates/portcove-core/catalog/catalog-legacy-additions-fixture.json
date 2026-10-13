@@ -25,7 +25,9 @@
     "psx-scph-5552-bios",
     "ace-combat-3-japan-psx",
     "dino-crisis-usa-rev1-psx",
-    "dino-crisis-2-usa-psx"
+    "dino-crisis-2-usa-psx",
+    "alien-resurrection-europe-psx",
+    "brave-fencer-musashi-usa-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -53,6 +55,8 @@
     "alexbeav-diablo-recomp",
     "alexbeav-ace-combat-3-electrosphere-recomp",
     "alexbeav-dino-crisis-recomp",
-    "alexbeav-dino-crisis-2-recomp"
+    "alexbeav-dino-crisis-2-recomp",
+    "alexbeav-alien-resurrection-recomp",
+    "alexbeav-brave-fencer-musashi-recomp"
   ]
 }

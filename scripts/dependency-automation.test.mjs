@@ -284,6 +284,8 @@ test("compatibility families override inherited groups without coupling unrelate
       "tauri",
       "tauri-build",
       "tauri-plugin-dialog",
+      "tauri-plugin-wdio-webdriver",
+      "webview2-com",
       "@tauri-apps/api",
       "@tauri-apps/cli",
       "@tauri-apps/plugin-dialog",

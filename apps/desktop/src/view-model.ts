@@ -303,6 +303,7 @@ const SOURCE_BLOCKERS: ReadinessBlocker[] = [
   "missing_source",
   "unreadable_source",
   "changed_source",
+  "incompatible_source",
 ];
 const BIOS_BLOCKERS: ReadinessBlocker[] = ["missing_bios", "unreadable_bios", "changed_bios"];
 

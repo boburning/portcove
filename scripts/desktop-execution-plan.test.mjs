@@ -1,5 +1,12 @@
+import {
+  nativeHelperDependencies,
+  nativeHelperRegistryPath,
+  nativeHelperSharedSources,
+  captureDesktopReceiptInputs,
+} from "./native-helper-dependencies.mjs";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
 import test from "node:test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,23 +51,22 @@ test("execution planning preserves the independently reviewed pre-change oracle"
     assert.deepEqual(historicalSelection(selection), row.selection);
     const plan = planDesktopExecution(selection, { platform: row.platform });
     assert.deepEqual(historicalSelection(plan.selection), row.selection);
-    assert.deepEqual(
-      plan.receiptInputs
-        .filter((input) => {
-          if (input.path === "apps/desktop/scripts/native-window-discovery.ps1") return false;
-          // Keep the historical oracle immutable; only these explicit missing
-          // browsing-helper receipts supplement it, without changing execution.
-          return (
-            row.initial_receipt_inputs.includes(input.path) ||
-            ![
-              "apps/desktop/scripts/desktop-native-confirmation.mjs",
-              "apps/desktop/scripts/native-confirmation.ps1",
-            ].includes(input.path)
-          );
-        })
-        .map((input) => (input.kind === "executable" ? executableNames[input.name] : input.path)),
-      row.initial_receipt_inputs,
+    // Frozen oracle retains every historical input. Registry additions and
+    // deduplication affect receipt identities only, never dispatch/acceptance.
+    const actualInputs = plan.receiptInputs.map((input) =>
+      input.kind === "executable" ? executableNames[input.name] : input.path,
     );
+    for (const historical of row.initial_receipt_inputs)
+      assert(actualInputs.includes(historical), historical);
+    for (const added of actualInputs.filter((file) => !row.initial_receipt_inputs.includes(file)))
+      assert(
+        Object.hasOwn(nativeHelperDependencies, added) ||
+          nativeHelperSharedSources.includes(added) ||
+          added === nativeHelperRegistryPath,
+        added,
+      );
+    assert.equal(new Set(actualInputs).size, actualInputs.length);
+
     if (!row.harness_admission.error) {
       const expectedSession = structuredClone(row.harness_admission);
       // Preserve the historical oracle while requiring positive cleanup for
@@ -124,6 +130,16 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       });
       const expected = structuredClone(row.serialized_verify_plan);
       expected.harness_deadline_ms = desktopHarnessDeadlineMs(selection); // Deliberately retained pre-change deadline owner.
+      // This prerequisite now runs before lease/build; preserve the old oracle.
+      delete actual.frontend_command;
+      expected.phases = [
+        "workspace-package-preflight",
+        "frontend-command-preflight",
+        "desktop-doctor",
+        ...expected.phases.filter(
+          (phase) => !["workspace-package-preflight", "desktop-doctor"].includes(phase),
+        ),
+      ];
       assert.deepEqual(historicalSelection(actual), expected);
     }
   }
@@ -413,12 +429,12 @@ test("coordinator preserves gap position and leaves attempt attribution to its c
   );
 });
 
-test("harness hashes preserved inputs and the current planner/coordinator bytes", async () => {
+test("harness hashes preserved inputs and the current planner/coordinator bytes", async (t) => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-test.mjs", import.meta.url),
     "utf8",
   );
-  const start = source.indexOf("const executionPlan =");
+  const start = source.indexOf("const inputs = await captureDesktopReceiptInputs");
   const end = source.indexOf("let runnerMetadata = {}");
   assert(start > 0 && end > start);
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -426,6 +442,8 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
   const values = Object.fromEntries(
     Object.keys(executableNames).map((name) => [name, process.execPath]),
   );
+  const output = await mkdtemp(path.join(os.tmpdir(), "pcv-harness-inputs-"));
+  t.after(() => rm(output, { recursive: true, force: true }));
   const inputs = await runInNewContext(`(async()=>{${source.slice(start, end)}return inputs})()`, {
     selection,
     planDesktopExecution,
@@ -435,25 +453,22 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
     port: 4455,
     fileIdentity,
     Promise,
+    executionPlan: planDesktopExecution(selection),
+    captureDesktopReceiptInputs,
+    output,
+    revision: "a".repeat(40),
   });
-  const golden = baseline.rows.find(
-    (row) => row.platform === process.platform && row.options.profile === "smoke",
+  const expectedFiles = planDesktopExecution(selection).receiptInputs.map((input) =>
+    input.kind === "executable" ? process.execPath : path.join(root, input.path),
   );
-  assert.equal(inputs.length, golden.initial_receipt_inputs.length + 3);
-  for (let i = 0; i < golden.initial_receipt_inputs.length; i++) {
-    const name = golden.initial_receipt_inputs[i];
-    const expected = await fileIdentity(
-      Object.values(executableNames).includes(name) ? process.execPath : path.join(root, name),
-    );
-    assert.deepEqual(inputs[i], expected);
-  }
-  for (const [index, name] of [
-    "scripts/desktop-execution-plan.mjs",
-    "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
-    "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
-  ].entries())
-    assert.deepEqual(
-      inputs[golden.initial_receipt_inputs.length + index],
-      await fileIdentity(path.join(root, name)),
-    );
+  expectedFiles.push(
+    ...[
+      "scripts/desktop-execution-plan.mjs",
+      "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+      "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
+    ].map((file) => path.join(root, file)),
+  );
+  assert.equal(inputs.length, expectedFiles.length);
+  for (const [index, file] of expectedFiles.entries())
+    assert.deepEqual(inputs[index], await fileIdentity(file));
 });

@@ -326,6 +326,18 @@ task-contract matrix or duplicate status narrative.
 
 #### Resume and diagnosis decisions
 
+For changed CLI command definitions or consent text, `just cli-help-check` runs
+the existing help-contract regression through the Heavy Rust guard. For Playnite
+protocol work, `just playnite-contract-check` builds/checks the C# output and runs
+synthetic contracts; supplying both `-Cli <executable>` and `-Library <isolated-root>`
+also checks the compiled producer/consumer boundary. It skips lifecycle fixtures
+and packaging. `just playnite-check` retains complete fixture qualification and
+packaging. These are optional early feedback; required hosted coverage is unchanged.
+
+For retained native/consumer resources and current summaries, use the read-only
+[handoff evidence checker](reference/handoff-evidence.md). It verifies references,
+not execution ownership or acceptance authority.
+
 Refresh material source/requirements changes and verify actual writers/resources
 before overlapping work. Preserve failures and use the smallest discriminating
 reproduction. An unchanged retry is not a repair. Historical operation evidence
@@ -583,6 +595,25 @@ session lock, creates a fresh run directory under
 never installs packages or provisions drivers. Follow the reported bootstrap or
 frozen-install remedy when a prerequisite is missing. Use `--require-clean` for
 final evidence; dirty source is allowed and recorded during iteration.
+
+Before acquiring its own native session lease or building, `desktop-verify`
+executes `pnpm --version` with the same Desktop cwd and signing-filtered
+environment as `build-frontend.mjs`. The observed version must match the repository
+pin; a ten-second deadline and 16 KiB per-stream cap bound the probe. The fresh
+run directory retains `frontend-command-preflight.json` even on failure.
+Corepack success and cached tool metadata cannot substitute for this command.
+`--plan` reports command-file availability and an unobserved version without
+executing pnpm, installing packages or acquiring a lease. An inherited caller
+lease remains the caller's responsibility.
+
+Native helper dependencies are declared in
+`scripts/native-helper-dependencies.mjs`. Literal PowerShell dot-source imports
+and wrapper imports are checked against the declaration (using the Windows
+PowerShell parser for dot-source enumeration). Missing, escaping, dynamic or
+undeclared imports fail. The harness captures deduplicated actual helper byte
+identities before launch, including conditional dependencies, and retains them
+in failed receipts. Format-2 historical receipts remain unchanged; declaration
+coverage proves captured source inputs, not execution of every helper branch.
 
 Frontend reuse is fail closed. A platform/architecture-specific record under the
 configured temporary directory hashes every declared Vite input, the exact Node

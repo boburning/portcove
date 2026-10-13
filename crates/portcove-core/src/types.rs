@@ -1245,6 +1245,11 @@ pub struct LaunchReadiness {
     pub launchable: bool,
     pub blockers: Vec<LaunchBlocker>,
     pub pending_setup: bool,
+    /// Original file representation required by the effective runtime contract.
+    /// This is independent of source identity health and uses the retained
+    /// definition when an external runtime is registered.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_source_extension: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceHealth>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1257,6 +1262,7 @@ pub enum LaunchBlocker {
     MissingSource,
     UnreadableSource,
     ChangedSource,
+    IncompatibleSource,
     MissingBios,
     UnreadableBios,
     ChangedBios,
@@ -1417,6 +1423,7 @@ impl CapabilityDocument {
                 "catalog".into(),
                 "catalog.check-capabilities".into(),
                 "external".into(),
+                "external.review".into(),
                 "source".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),
