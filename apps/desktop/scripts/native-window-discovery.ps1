@@ -53,6 +53,40 @@ public static class PortcoveNativeWindows {
         if (SendClick(button, 0x00F5, UIntPtr.Zero, IntPtr.Zero, 0x0022, 5000, out result) == IntPtr.Zero)
             throw new InvalidOperationException("Owned folder confirmation failed or timed out.");
     }
+    private static bool MatchesCancelButtonShape(IntPtr window, IntPtr button, int process) {
+        uint actual;
+        GetWindowThreadProcessId(button, out actual);
+        return button != IntPtr.Zero && IsWindow(button) && actual == process && Class(button) == "Button" &&
+            GetParent(button) == window && GetDlgCtrlID(button) == 2 && IsWindowEnabled(button);
+    }
+    public static IntPtr GetFolderActionButton(IntPtr window, int process, string action) {
+        if (!Matches(window, process, "Select Folder") || Class(window) != "#32770" || !IsWindowEnabled(window) ||
+            !MatchesFolderEdit(window, GetDlgItem(window, 1152), process) ||
+            !MatchesFolderButton(window, GetDlgItem(window, 1), process))
+            throw new InvalidOperationException("Exact owned folder controls changed.");
+        if (action == "Select Folder") return GetDlgItem(window, 1);
+        if (action != "Cancel") throw new InvalidOperationException("Unsupported folder action.");
+        var cancel = GetDlgItem(window, 2);
+        if (!MatchesCancelButtonShape(window, cancel, process))
+            throw new InvalidOperationException("Exact owned folder cancel absent.");
+        var caption = new StringBuilder(512);
+        UIntPtr length;
+        if (ReadCaption(cancel, 0x000D, new UIntPtr(512), caption, 0x0022, 1000, out length) == IntPtr.Zero ||
+            length.ToUInt64() >= 512 || caption.ToString() != "Cancel" ||
+            !MatchesCancelButtonShape(window, cancel, process) || GetDlgItem(window, 2) != cancel)
+            throw new InvalidOperationException("Exact owned folder cancel changed.");
+        return cancel;
+    }
+    public static void PressFolderCancel(IntPtr window, IntPtr button, int process) {
+        if (GetForegroundWindow() != window || GetFolderActionButton(window, process, "Cancel") != button)
+            throw new InvalidOperationException("Exact owned folder cancel changed before action.");
+        if (!Matches(window, process, "Select Folder") || Class(window) != "#32770" || !IsWindowEnabled(window) ||
+            GetForegroundWindow() != window || GetDlgItem(window, 2) != button || !MatchesCancelButtonShape(window, button, process))
+            throw new InvalidOperationException("Exact owned folder cancel changed during caption read.");
+        UIntPtr result;
+        if (SendClick(button, 0x00F5, UIntPtr.Zero, IntPtr.Zero, 0x0022, 5000, out result) == IntPtr.Zero)
+            throw new InvalidOperationException("Owned folder cancellation failed or timed out.");
+    }
     private static bool MatchesFolderEdit(IntPtr window, IntPtr edit, int process) {
         uint actual;
         GetWindowThreadProcessId(edit, out actual);
@@ -112,6 +146,22 @@ public static class PortcoveNativeWindows {
         GetWindowText(window, text, text.Capacity);
         return String.Equals(text.ToString(), title, StringComparison.Ordinal);
     }
+    public static bool IsOwnedWindow(IntPtr window, int process) {
+        uint actual;
+        GetWindowThreadProcessId(window, out actual);
+        return IsWindow(window) && actual == process;
+    }
+    public static IntPtr[] FindFolderDialogs(int process, string title) {
+        var dialogs = new List<IntPtr>();
+        foreach (var window in Find(process, title)) {
+            if (Class(window) != "#32770" || !IsWindowEnabled(window)) continue;
+            var edit = GetDlgItem(window, 1152);
+            var button = GetDlgItem(window, 1);
+            if (MatchesFolderEdit(window, edit, process) && MatchesFolderButton(window, button, process))
+                dialogs.Add(window);
+        }
+        return dialogs.ToArray();
+    }
     public static IntPtr[] Find(int process, string title) {
         var roots = new List<IntPtr>();
         var matches = new HashSet<IntPtr>();
@@ -157,8 +207,8 @@ function Invoke-NativeLibraryPickerButton([IntPtr]$Window, [IntPtr]$ButtonHandle
     Assert-LiveApplication
     [PortcoveNativeWindows]::PressFolderButton($Window, $ButtonHandle, $applicationId, $Title)
 }
-function Get-NativePickerEditEvidence($Window) {
-    foreach ($edit in [PortcoveNativeWindows]::InspectEdits([IntPtr]$Window.Current.NativeWindowHandle, $applicationId, $Title)) {
+function Get-NativePickerEditEvidence($Window, [string]$PickerTitle = $Title) {
+    foreach ($edit in [PortcoveNativeWindows]::InspectEdits([IntPtr]$Window.Current.NativeWindowHandle, $applicationId, $PickerTitle)) {
         $type = 0; $owned = $null; $available = $null
         try {
             $element = Get-NativePickerElement $edit.handle

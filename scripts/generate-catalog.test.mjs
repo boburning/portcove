@@ -209,6 +209,15 @@ test("unreviewed proposal identities report required fixture review without edit
   assert.equal(fixture.result.status, 0, fixture.result.stderr);
   assert.equal(fixture.processes.filter(({ inspection }) => inspection).length, 3);
   const report = JSON.parse(readFileSync(join(fixture.output, "proposal-evidence.json")));
+  assert.deepEqual(
+    report.declaration_cases.cases,
+    [],
+    "unreviewed identity bookkeeping is not a declaration change against the same accepted fixture",
+  );
+  assert.match(
+    report.declaration_cases.scope,
+    /not validation impact, capability fit or reusable qualification/u,
+  );
   const review = report.compatibility_fixture_review;
   assert.equal(review.status, "requires-review");
   assert.deepEqual(review.collections.port_ids.unreviewed_ids, ["unreviewed-proposal-port"]);

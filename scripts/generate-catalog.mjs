@@ -194,6 +194,114 @@ function proposalChanges(before, after) {
   return { ports, source_records: sourceRecords, order_changes: orderChanges };
 }
 
+// Relationships describe declarations, not the dependency graph of a check.
+// Keep complete scoped records: matching an adapter or evidence ID never grants
+// another port's qualification, maintenance authority or execution acceptance.
+function declarationCases(before, after, checks) {
+  const referencedEvidence = (value, found = new Set()) => {
+    if (!value || typeof value !== "object") return found;
+    for (const [key, nested] of Object.entries(value)) {
+      if (key === "evidence_ids" && Array.isArray(nested)) for (const id of nested) found.add(id);
+      else referencedEvidence(nested, found);
+    }
+    return found;
+  };
+  const snapshot = (catalog, portId) => {
+    const port = catalog.ports.find((item) => item.id === portId) ?? null;
+    const source = catalog.source_catalog ?? {};
+    const contracts = (source.contracts ?? []).filter((item) => item.port_id === portId);
+    const profiles = new Set([
+      port?.source_profile,
+      port?.bios_source_profile,
+      ...contracts.map((item) => item.profile_id),
+    ]);
+    const identities = (source.identities ?? []).filter((item) => profiles.has(item.id));
+    const validatorIds = new Set(contracts.map((item) => item.validator_contract_id));
+    const validators = (source.validators ?? []).filter((item) => validatorIds.has(item.id));
+    const qualification = (source.qualification ?? []).filter(
+      (item) => item.scope?.port_id === portId,
+    );
+    const evidenceIds = referencedEvidence([
+      port,
+      identities,
+      contracts,
+      validators,
+      qualification,
+    ]);
+    const evidence = (source.evidence ?? []).filter((item) => evidenceIds.has(item.id));
+    return { port, source_records: { identities, contracts, validators, evidence, qualification } };
+  };
+  const references = (snapshot, catalog) => ({
+    identities: snapshot.source_records.identities.map((record) => record.id),
+    contracts: snapshot.source_records.contracts.map((record) => record.id),
+    qualification: snapshot.source_records.qualification.map((record) =>
+      catalog.source_catalog.qualification.indexOf(record),
+    ),
+  });
+  const cases = [...new Set([...before.ports, ...after.ports].map((port) => port.id))]
+    .sort()
+    .flatMap((portId) => {
+      const old = snapshot(before, portId);
+      const proposed = snapshot(after, portId);
+      const reasons = [];
+      if (differences(old.port, proposed.port).length) reasons.push("port-declaration");
+      if (differences(old.source_records, proposed.source_records).length)
+        reasons.push("source-record-relationship");
+      if (!reasons.length) return [];
+      const adapters = [...new Set([old.port?.adapter, proposed.port?.adapter])]
+        .filter((adapter) => typeof adapter === "string")
+        .sort();
+      return [
+        {
+          port_id: portId,
+          reasons,
+          before: { port: old.port, source_record_refs: references(old, before) },
+          after: { port: proposed.port, source_record_refs: references(proposed, after) },
+          unchanged_port_fields: Object.keys(old.port ?? {})
+            .filter(
+              (key) =>
+                proposed.port &&
+                Object.hasOwn(proposed.port, key) &&
+                differences(old.port[key], proposed.port[key]).length === 0,
+            )
+            .sort(),
+          adapter_references: adapters,
+          checks: Object.fromEntries(
+            ["accepted", "input", "output"].map((name) => [
+              name,
+              checks[name].ports.find((port) => port.port_id === portId) ?? null,
+            ]),
+          ),
+        },
+      ];
+    });
+  return {
+    cases,
+    source_tables: { before: before.source_catalog ?? {}, after: after.source_catalog ?? {} },
+    adapter_references: [...new Set(cases.flatMap((item) => item.adapter_references))]
+      .sort()
+      .map((adapter) => ({
+        adapter,
+        accepted_port_ids: before.ports
+          .filter((port) => port.adapter === adapter)
+          .map((port) => port.id)
+          .sort(),
+      })),
+    preparation_costs: "#/preparation_costs",
+    artwork_evidence: "artwork-evidence.json",
+    unmeasured: [
+      "new engineering",
+      "application/harness changes",
+      "interventions",
+      "maintenance execution",
+      "work eliminated",
+      "comparative savings",
+    ],
+    scope:
+      "Exact declaration relationships and executed inspector receipts only; not validation impact, capability fit or reusable qualification. Referenced evidence remains declared, not authenticated or executed by this preparation.",
+  };
+}
+
 // Independently curated test expectations, never generated from a proposal.
 // This checks identity bookkeeping only; Rust retains full frozen equality.
 function compatibilityFixtureReview(catalog) {
@@ -506,6 +614,7 @@ async function prepareArtworkProposal(fullProposal = false) {
           proposed_catalog_sha256: digest(result.catalog),
           differences: differences(current, result.catalog),
           proposal_changes: proposalChanges(current, result.catalog),
+          declaration_cases: declarationCases(current, result.catalog, proposalChecks),
           compatibility_fixture_review: compatibilityReview,
           preparation_costs: preparationCosts,
           checks: proposalChecks,

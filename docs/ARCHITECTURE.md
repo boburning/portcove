@@ -739,6 +739,23 @@ request's progress, provisional matches and cancellation target, and does not
 start another scan. Settled or disposed-workspace callbacks cannot populate a
 new observer. Library replacement disposes observation without automatically
 cancelling core work; this is not a durable scan intent or restart guarantee.
+When Core confirms a fresh resumable snapshot, Desktop keeps its earlier matches
+visible alongside new events during the next bounded batch. Fresh scans, stale
+snapshots and restart-required checkpoints do not carry matches into the live
+view. These observations still require ordinary registration and Core plan
+revalidation; continuing a scan grants no additional setup authority.
+Desktop also keeps an ephemeral selection of at most sixteen independent ports
+for setup review within the current library workspace. A matching observed game or BIOS source
+must already be registered, and current Core action availability must allow
+installation before a selected item can request its existing game-details review.
+The explicit review request is consumed once after the matching detail is active
+and calls the existing Core installation planner; leaving that detail invalidates
+the request. Applying installation still requires the ordinary review consent.
+Details/back preserves the selection; library replacement discards it. A changed
+scan, missing registration, unavailable action or failed workspace refresh pauses
+the affected review without deleting the choice. Selecting or opening an item
+does not register files or apply installation, or imply completed setup. Choosing
+Review requests a fresh plan for that item; plans are never batched into consent.
 Desktop presents core's optional completed-scan coverage with cumulative batch
 counts and explicit unknown remaining-entry counts. A refreshed, matching
 snapshot with a resumable frontier offers Continue scan; a required restart
@@ -803,6 +820,21 @@ earlier reviews. Rejected overlapping handoffs leave the owned operation untouch
 Reviews from the previous generation must be requested again. Core still owns library leases, copy verification,
 persistence, transfer journals and durable library selection; this is host-state
 coordination, not another domain authority.
+
+Desktop backup creation and rollback carry the library generation captured by
+the detail action. Their blocking workers check that generation before resolving
+the Core service and entering the mutation. A delayed action from an earlier
+library is rejected with the existing library-changed conflict instead of being
+redirected to the newly selected library. Core retains backup and rollback
+authorization, locking and durable behavior.
+
+Install, verification and opening the data directory also carry the detail
+context's generation into their workers. Launch from game details or the browser
+Continue action resolves the library and generation together inside its worker;
+the completion observer retains that selected library. A library switch rejects
+an obsolete request before it enters these actions, rather than changing their
+target. Work already admitted against a captured library retains its existing
+Core operation and supervisor lifetime.
 
 ## Existing-install adoption review
 
@@ -897,6 +929,17 @@ vocabulary and terminal activity reports. CLI and Tauri serialize the same core
 report while preserving original machine error fields. React presents this
 information; it does not infer successful rollback or unchanged files from a
 failed operation or a particular error code. Unannotated outcomes remain Unknown.
+Preparation also supplies the observed unsuccessful setup result or unconfirmed
+declared completion file as a private cause for the shared safe summary. These
+causes are never inferred from diagnostic text, details or error codes; original
+machine fields, mutation outcomes and recovery actions remain unchanged. Older
+stored reports retain their original presentation.
+When preparation has resolved its authoritative definition, the same summary
+names its bounded display title and exact port ID. Retained failure/recovery and
+cleanup use matching reviewed-plan, installation and activity identities before
+reading that retained definition. Unresolved or mismatched targets remain
+generic; diagnostic fields never supply a title or target, and display context
+does not authorize a recovery action or change an observed mutation outcome.
 Not started, no requested changes, committed and recovery-required observations
 must be assigned where the operation owner has matching evidence. These states
 do not make blanket claims about diagnostic or lock-file bookkeeping.

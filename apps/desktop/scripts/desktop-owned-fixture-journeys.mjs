@@ -35,6 +35,7 @@ export async function runOwnedFixtureJourneys({ plan, runtime }, journeys) {
           ...shared,
           cli: context.cli,
           fixture: context.installFixture,
+          restartApplication: context.restartApplication,
         });
         break;
       case "preparation":

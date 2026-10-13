@@ -1,7 +1,7 @@
 import { FolderOpen } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
-import { definitionHoldReason } from "../features/port-actions/port-action-presentation";
+import { catalogSetupPresentation } from "../features/port-actions/port-action-presentation";
 import { pickInstallFolder } from "../file-picker";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type { PortDefinition, PortStatus } from "../types";
@@ -16,15 +16,6 @@ function ReviewCancelButton({ pending, dismiss }: { pending: boolean; dismiss: (
       Cancel
     </Button>
   );
-}
-
-function externalSetupReason(availability?: string, reason?: string, definitionReason?: string) {
-  if (availability === "not_offered" && reason === "unsupported_platform")
-    return "This installation route is unavailable on this platform.";
-  if (reason === "definition_ineligible") return definitionHoldReason("Setup", definitionReason);
-  if (reason === "already_registered") return "This installation is already in your library.";
-  if (reason === "review_required") return "Choose a folder to review before using it.";
-  return "This installation route is unavailable. Check the port details for current requirements.";
 }
 
 type ExternalRuntimeControlProps = {
@@ -85,12 +76,16 @@ function ExternalRuntimeContext({
   }, []);
   if (port.release.provider !== "user-prepared" && !status?.external_runtime) return null;
   const registered = status?.external_runtime;
-  const registration = status?.port_actions?.find(
+  const registration = catalogSetupPresentation(status).routes.find(
     (action) => action.action === "register_external",
   );
-  const canRegister =
-    !registration ||
-    (registration.availability === "waiting" && registration.reason === "review_required");
+  // Earlier status contracts omitted this projection or serialized an empty list.
+  // A missing whole status or a partial current projection is not that legacy case.
+  const legacyStatus =
+    status !== undefined &&
+    (status.port_actions === undefined ||
+      (Array.isArray(status.port_actions) && status.port_actions.length === 0));
+  const canRegister = legacyStatus || registration?.availability === "waiting";
   const select = async () => {
     const request = pickerRequests.current.begin();
     const path = await pickInstallFolder("");
@@ -117,15 +112,7 @@ function ExternalRuntimeContext({
       ) : (
         <div>
           <ExternalPreparationRequirements port={port} />
-          {!canRegister && registration?.reason && (
-            <p role="status">
-              {externalSetupReason(
-                registration.availability,
-                registration.reason,
-                registration.definition?.reason,
-              )}
-            </p>
-          )}
+          {!canRegister && <p role="status">{registration?.reason}</p>}
           <Button
             data-focusable
             variant="primary"

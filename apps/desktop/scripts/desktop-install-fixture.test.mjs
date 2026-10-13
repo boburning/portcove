@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mjs";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -26,6 +27,13 @@ import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { run as runLifecycleCommand } from "../../../integrations/playnite/lifecycle-check.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
+
+test("owned fixture path checks accept Core's extended spelling and reject a different path", () => {
+  const expected = path.join(root, "owned-source-fixture");
+  assertOwnedSelectedSetupPath(`\\\\?\\${expected}`, expected);
+  assertOwnedSelectedSetupPath(expected, expected);
+  assert.throws(() => assertOwnedSelectedSetupPath(`\\\\?\\${expected}-other`, expected));
+});
 
 for (const [focus, selector, expected, mutate] of [
   ["origin", "article", { tag: "ARTICLE", id: "", origin: true }],
@@ -182,6 +190,29 @@ test("completion fixture pins the owned executable, valid synthetic source and i
       await readFile(fixture.sourceJourney.gamePath),
     );
     const catalog = JSON.parse(await readFile(fixture.catalogPath, "utf8"));
+    const alternative = catalog.ports.find(
+      (item) => item.id === fixture.sourceJourney.reviewPort.id,
+    );
+    assert.ok(alternative, "Independent review choice must have its own catalog identity");
+    assert.equal(alternative.source_profile, fixture.port.source_profile);
+    assert.equal(
+      new Set(catalog.source_catalog.contracts.map((item) => item.id)).size,
+      catalog.source_catalog.contracts.length,
+      "Fixture source contracts must have unique identities",
+    );
+    for (const item of [fixture.port, alternative]) {
+      const contracts = catalog.source_catalog.contracts.filter(
+        (contract) =>
+          contract.port_id === item.id &&
+          contract.role === "game" &&
+          contract.profile_id === item.source_profile,
+      );
+      assert.equal(
+        contracts.length,
+        1,
+        "Every declared game source needs exactly one schema-2 contract",
+      );
+    }
     const identity = catalog.source_catalog.identities.find(
       (item) => item.id === fixture.port.source_profile,
     );

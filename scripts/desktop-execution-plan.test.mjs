@@ -245,23 +245,24 @@ test("backup review requires identity-bound Windows cleanup under the existing d
   }
 });
 
-test("successful backup and preliminary reviews reject missing or foreign native identities", async () => {
+test("qualified reviews and a running setup restart reject missing or foreign native identities", async () => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-test.mjs", import.meta.url),
     "utf8",
   );
-  const start = source.indexOf("function validateBackupFocusInventory(captured)");
-  const end = source.indexOf("function captureBackupFocusCleanup()", start);
+  const start = source.indexOf("function validateBackupFocusInventory(");
+  const end = source.indexOf("function captureBackupFocusCleanup(", start);
   assert(start >= 0 && end > start);
-  for (const scenario of [
-    "native-reviewed-backup-restore-and-delete",
-    "native-preliminary-source-review",
+  for (const { scenario, outcome = "passed", requireQualified = false } of [
+    { scenario: "native-reviewed-backup-restore-and-delete" },
+    { scenario: "native-preliminary-source-review" },
+    { scenario: "native-selected-setup-completion", outcome: "running", requireQualified: true },
   ]) {
     const validate = runInNewContext(`${source.slice(start, end)}; validateBackupFocusInventory`, {
       assert,
       path,
       savedLibraryRecoverySession: false,
-      checks: [{ scenario, outcome: "passed" }],
+      checks: [{ scenario, outcome }],
       values: { app: "/owned/app.exe", "native-driver": "/owned/driver.exe" },
     });
     const entries = [
@@ -269,12 +270,17 @@ test("successful backup and preliminary reviews reject missing or foreign native
       { path: "/owned/driver.exe" },
       { path: "/owned/msedgewebview2.exe" },
     ];
-    validate({ processes: entries });
+    validate({ processes: entries }, requireQualified);
     for (let missing = 0; missing < entries.length; missing++) {
-      assert.throws(() => validate({ processes: entries.filter((_, i) => i !== missing) }));
+      assert.throws(() =>
+        validate({ processes: entries.filter((_, i) => i !== missing) }, requireQualified),
+      );
     }
     assert.throws(() =>
-      validate({ processes: [{ path: "/foreign/app.exe" }, ...entries.slice(1)] }),
+      validate(
+        { processes: [{ path: "/foreign/app.exe" }, ...entries.slice(1)] },
+        requireQualified,
+      ),
     );
   }
 });
@@ -342,7 +348,11 @@ test("coordinator consumes supplied order and obtains browser at each invocation
       assert.equal(c.browser, "replacement");
       trace.push("selected-setup");
     },
-    selectedSetupCompletion: async () => trace.push("selected-setup-completion"),
+    selectedSetupCompletion: async (c) => {
+      assert.equal(c.browser, "replacement");
+      assert.equal(c.restartApplication, context.restartApplication);
+      trace.push("selected-setup-completion");
+    },
     preparation: async (c) => {
       assert.equal(c.browser, "replacement");
       assert.equal(c.cli, "cli");

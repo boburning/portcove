@@ -26,6 +26,10 @@ import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-wo
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import { focusSettingsTarget } from "./features/app-shell/focus-settings-target";
 import { GameFileScanProvider } from "./features/game-file-discovery/use-game-file-scan";
+import {
+  SetupReviewSelectionProvider,
+  useSetupReviewSelection,
+} from "./features/game-file-discovery/setup-review-selection";
 import { useSetupSource } from "./features/app-shell/use-setup-source";
 import { focusApplicationUpdateRoute } from "./features/application-update/focus-application-update-route";
 import {
@@ -144,19 +148,21 @@ export default function App() {
     );
   return (
     <GameFileScanProvider key={bootstrap.generation}>
-      <Workspace
-        bootstrap={bootstrap}
-        initialBrowsingContext={
-          bootstrap.library_root
-            ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
-            : undefined
-        }
-        rememberBrowsingContext={rememberBrowsingContext}
-        switchLibrary={switchFromSettings}
-        resetLibrary={resetFromSettings}
-        returnToSelection={returnToSelection}
-        consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
-      />
+      <SetupReviewSelectionProvider>
+        <Workspace
+          bootstrap={bootstrap}
+          initialBrowsingContext={
+            bootstrap.library_root
+              ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
+              : undefined
+          }
+          rememberBrowsingContext={rememberBrowsingContext}
+          switchLibrary={switchFromSettings}
+          resetLibrary={resetFromSettings}
+          returnToSelection={returnToSelection}
+          consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
+        />
+      </SetupReviewSelectionProvider>
     </GameFileScanProvider>
   );
 }
@@ -386,6 +392,31 @@ function Workspace({
     model.status?.channel ?? model.port?.channels[0],
     operations.perform,
   );
+  const setupReviews = useSetupReviewSelection();
+  useEffect(() => {
+    const request = setupReviews.pendingReview;
+    if (!request) return;
+    // Consume once, including StrictMode replay, and never plan a different detail.
+    const matches =
+      ui.selectedId === request.portId &&
+      model.port?.id === request.portId &&
+      model.status?.channel === request.channel &&
+      !data.refreshFailure &&
+      !model.status.active &&
+      !model.status.external_runtime &&
+      model.status.port_actions?.some(
+        (action) => action.action === "install" && action.availability === "allowed",
+      );
+    if (setupReviews.takeReview(request) && matches) void installPlanning.review();
+  }, [
+    setupReviews.pendingReview,
+    setupReviews.takeReview,
+    ui.selectedId,
+    model.port?.id,
+    model.status,
+    data.refreshFailure,
+    installPlanning.review,
+  ]);
   const backups = usePortBackups(model.port?.id);
   useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
@@ -1013,7 +1044,9 @@ function CurrentView({
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {
-        void operations.perform("launch", () => desktopApi.launch(portId, ""));
+        void operations.perform("launch", () =>
+          desktopApi.launch(portId, "", bootstrap.generation),
+        );
       }}
       onBrowseCatalog={() => ui.setView("catalog")}
       onConnectGameFiles={() => {

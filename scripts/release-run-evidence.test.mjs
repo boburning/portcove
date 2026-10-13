@@ -7,7 +7,11 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { collectReleaseRunEvidence, readReleaseEvidenceRequest } from "./release-run-evidence.mjs";
+import {
+  collectReleaseRunEvidence,
+  readReleaseEvidenceRequest,
+  verifyReleaseArtifactBytes,
+} from "./release-run-evidence.mjs";
 
 const revision = "1".repeat(40);
 const tree = "2".repeat(40);
@@ -102,6 +106,172 @@ function fixture(transform = (response) => response) {
   };
   return { api, calls, elapsed: () => 0, now: () => Date.parse(timestamp) };
 }
+
+function byteFixture(bytes, transform = (response) => response) {
+  return fixture((response, context) => {
+    if (context.key === artifactPath) {
+      response.body.artifacts[0].size_in_bytes = bytes.length;
+      response.body.artifacts[0].digest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+    }
+    return transform(response, context);
+  });
+}
+
+test("retained artifact bytes bind fresh API identity without attributing producer job or attempt", async () => {
+  const bytes = Buffer.alloc(150_001, 37);
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-bytes-"));
+  const filename = path.join(directory, "retained.bin");
+  await writeFile(filename, bytes);
+  const options = byteFixture(bytes);
+  const receipt = await verifyReleaseArtifactBytes(request, 21, filename, options);
+  assert.equal(receipt.bytes, bytes.length);
+  assert.equal(receipt.sha256, createHash("sha256").update(bytes).digest("hex"));
+  assert.equal(receipt.producer_attempt, null);
+  assert.equal(receipt.producer_job_id, null);
+  assert.equal(receipt.attempt, 2);
+  assert.equal(receipt.source_tree, tree);
+  assert.equal(options.calls.length, 14);
+  for (const stage of ["before", "after"]) {
+    const { evidence_sha256, ...apiEvidence } = receipt[`${stage}_api_evidence`];
+    assert.equal(evidence_sha256, receipt[`${stage}_api_evidence_sha256`]);
+    assert.equal(
+      evidence_sha256,
+      createHash("sha256").update(JSON.stringify(apiEvidence)).digest("hex"),
+    );
+    assert.equal(apiEvidence.jobs.length, 1);
+    assert.equal(apiEvidence.artifacts[0].id, 21);
+  }
+  assert.match(receipt.qualification, /package contents.*remain unproven/u);
+  await writeFile(filename, Buffer.alloc(bytes.length, 38));
+  await assert.rejects(
+    verifyReleaseArtifactBytes(request, 21, filename, byteFixture(bytes)),
+    /differ from provider digest/u,
+  );
+});
+
+test("missing, expired, undigested and oversized artifact identities refuse before local file I/O", async () => {
+  const bytes = Buffer.from("retained");
+  for (const change of [
+    (body) => {
+      body.artifacts = [];
+      body.total_count = 0;
+    },
+    (body) => {
+      body.artifacts[0].expired = true;
+    },
+    (body) => {
+      body.artifacts[0].digest = null;
+    },
+    (body) => {
+      body.artifacts[0].size_in_bytes = 512 * 1024 * 1024 + 1;
+    },
+  ]) {
+    const options = byteFixture(bytes, (response, context) => {
+      if (context.key === artifactPath) change(response.body);
+      return response;
+    });
+    options.openFile = async () => {
+      assert.fail("ineligible identity must not open local bytes");
+    };
+    await assert.rejects(
+      verifyReleaseArtifactBytes(request, 21, "unused", options),
+      /no current bounded provider byte identity/u,
+    );
+  }
+});
+
+test("late API artifact replacement and run changes refuse after byte comparison", async () => {
+  const bytes = Buffer.from("retained");
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-drift-"));
+  const filename = path.join(directory, "retained.bin");
+  await writeFile(filename, bytes);
+  for (const change of ["artifact", "run"]) {
+    const options = byteFixture(bytes, (response, context) => {
+      if (context.calls.length > 7) {
+        if (change === "artifact" && context.key === artifactPath)
+          response.body.artifacts[0].name = "replacement";
+        if (change === "run" && context.key.startsWith(runPath) && !context.key.endsWith("jobs"))
+          response.body.updated_at = "2026-10-12T07:01:00Z";
+      }
+      return response;
+    });
+    await assert.rejects(
+      verifyReleaseArtifactBytes(request, 21, filename, options),
+      /artifact or run changed/u,
+    );
+  }
+});
+
+test("artifact growth, same-size mutation and nonregular handles refuse and always close", async () => {
+  const bytes = Buffer.from("retained");
+  for (const mode of ["growth", "mutation", "nonregular", "short", "late"]) {
+    let stats = 0,
+      reads = 0,
+      closed = false;
+    const options = byteFixture(bytes);
+    options.openFile = async () => ({
+      async stat() {
+        stats += 1;
+        return {
+          isFile: () => mode !== "nonregular",
+          size: bytes.length,
+          mtimeMs: mode === "mutation" && stats > 1 ? 2 : 1,
+          ctimeMs: 1,
+          dev: 1,
+          ino: 1,
+        };
+      },
+      async read(buffer, offset, length) {
+        assert.ok(length <= 64 * 1024);
+        reads += 1;
+        if (reads > 1) return { bytesRead: mode === "growth" ? 1 : 0 };
+        bytes.copy(buffer);
+        return { bytesRead: mode === "short" ? bytes.length - 1 : bytes.length };
+      },
+      async close() {
+        closed = true;
+      },
+    });
+    if (mode === "late") options.elapsed = () => (reads ? 120_000 : 0);
+    await assert.rejects(
+      verifyReleaseArtifactBytes(request, 21, "retained", options),
+      /grew|changed|regular file|exhausted/u,
+    );
+    assert.equal(closed, true);
+  }
+});
+
+test("both API collections share one request cap rather than renewing it after local hashing", async () => {
+  const bytes = Buffer.alloc(100, 37);
+  const directory = await mkdtemp(path.join(os.tmpdir(), "portcove-artifact-request-cap-"));
+  const filename = path.join(directory, "retained.bin");
+  await writeFile(filename, bytes);
+  const options = fixture((response, context) => {
+    if ([jobsPath, artifactPath].includes(context.key)) {
+      const page = Number(context.url.searchParams.get("page") ?? 1);
+      const key = context.key === jobsPath ? "jobs" : "artifacts";
+      const record = key === "jobs" ? job : artifact;
+      response.body = {
+        total_count: 1600,
+        [key]: Array.from({ length: 100 }, (_, index) => record((page - 1) * 100 + index + 1)),
+      };
+      if (key === "artifacts" && page === 1) {
+        response.body.artifacts[20].digest = `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+      }
+      if (page < 16)
+        response.headers.set(
+          "link",
+          `<${root}${context.key}?per_page=100&page=${page + 1}>; rel="next"`,
+        );
+    }
+    return response;
+  });
+  await assert.rejects(
+    verifyReleaseArtifactBytes(request, 21, filename, options),
+    /exhausted its request bound/u,
+  );
+  assert.equal(options.calls.length, 40);
+});
 
 test("collects exact API identities while retaining unproven artifact and execution bindings", () => {
   const options = fixture();

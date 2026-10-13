@@ -275,6 +275,53 @@ fn changed_source_or_setup_bytes_cannot_acquire_a_fresh_trust_identity() {
 }
 
 #[test]
+fn preparation_failure_target_uses_the_retained_definition_after_catalog_rename() {
+    let mut fixture = Fixture::with_catalog(Some(generic_preparation_catalog(None)));
+    let mut document = fixture.service.catalog().authoritative_document();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap()
+        .name = "A newer catalog title".into();
+    fixture.service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    fs::write(&fixture.source, b"changed source").unwrap();
+    let error = fixture
+        .service
+        .plan_preparation(PORT, fixture.options())
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::SourceInvalid);
+    assert!(
+        error
+            .presentation()
+            .summary
+            .starts_with("Game preparation for Synthetic upstream preparation (opengoal-jak1): ")
+    );
+    assert!(
+        !error
+            .presentation()
+            .summary
+            .contains("A newer catalog title")
+    );
+    assert_eq!(
+        error.presentation().mutation_state,
+        crate::MutationState::Unknown
+    );
+    let unknown = fixture
+        .service
+        .plan_preparation("unknown-preparation-port", fixture.options())
+        .unwrap_err();
+    assert!(
+        !unknown
+            .presentation()
+            .summary
+            .starts_with("Game preparation for ")
+    );
+}
+
+#[test]
 fn installed_definition_survives_catalog_changes_and_options_fail_closed() {
     let mut fixture = Fixture::new();
     let before = fixture

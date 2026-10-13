@@ -286,8 +286,9 @@ function stopBackupFocusDriver() {
   driver = undefined;
 }
 
-function validateBackupFocusInventory(captured) {
+function validateBackupFocusInventory(captured, requireQualified = false) {
   if (
+    requireQualified ||
     savedLibraryRecoverySession ||
     checks.some(
       (check) =>
@@ -333,7 +334,7 @@ function validateBackupFocusInventory(captured) {
   }
 }
 
-function captureBackupFocusCleanup() {
+function captureBackupFocusCleanup(evidenceName = cleanupName) {
   if (ownedSession.inventory) return ownedSession.inventory;
   assert.ok(
     ownedSession.driver && driver?.pid,
@@ -343,7 +344,7 @@ function captureBackupFocusCleanup() {
     hostInterruptionSession || ordinaryCloseSession || savedLibraryRecoverySession
       ? `-${driver.pid}`
       : "";
-  const original = path.join(output, `${cleanupName}-final-processes${suffix}.json`);
+  const original = path.join(output, `${evidenceName}-final-processes${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriverTree", original);
   artifacts.push(original);
   assert.deepEqual(
@@ -364,7 +365,7 @@ function captureBackupFocusCleanup() {
   // Preserve the original snapshot; the existing Wait helper iterates processes.
   // Include the captured driver root in a separate, explicitly derived inventory
   // so positive exit shares the same five-second bound for root and descendants.
-  const checked = path.join(output, `${cleanupName}-exit-inventory${suffix}.json`);
+  const checked = path.join(output, `${evidenceName}-exit-inventory${suffix}.json`);
   writeFileSync(
     checked,
     JSON.stringify(
@@ -962,15 +963,19 @@ async function requestApplicationShutdown(snapshot) {
 }
 
 async function restartApplication(name, prepareWhileStopped, childEnvironment = {}) {
-  if (savedLibraryRecoverySession) {
+  const selectedSetupRestart = name === "selected-setup-inputs";
+  if (savedLibraryRecoverySession || selectedSetupRestart) {
     if (!preferencesRecoverySession)
       assert.equal(
         prepareWhileStopped,
         undefined,
-        "Library recovery restart cannot rewrite fixture state",
+        "Identity-bound restart cannot rewrite fixture state",
       );
-    const inventory = captureBackupFocusCleanup();
-    validateBackupFocusInventory(JSON.parse(await readFile(inventory, "utf8")));
+    const inventory = captureBackupFocusCleanup(selectedSetupRestart ? name : cleanupName);
+    validateBackupFocusInventory(
+      JSON.parse(await readFile(inventory, "utf8")),
+      selectedSetupRestart,
+    );
     await browser.quit();
     browser = undefined;
     stopBackupFocusDriver();
@@ -1146,7 +1151,10 @@ function observeNativeSession(mode, snapshot) {
 
 function captureBackupFocusDriverLaunch(launchStarted) {
   const suffix =
-    hostInterruptionSession || ordinaryCloseSession || savedLibraryRecoverySession
+    hostInterruptionSession ||
+    ordinaryCloseSession ||
+    savedLibraryRecoverySession ||
+    selection.selected_scenarios.includes("native-selected-setup-completion")
       ? `-${driver.pid}`
       : "";
   const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
@@ -1453,6 +1461,7 @@ try {
       "desktop-external-runtime-test.mjs",
       "desktop-native-confirmation.mjs",
       "native-confirmation.ps1",
+      "native-window-discovery.ps1",
     ])
       inputs.push(await fileIdentity(fileURLToPath(new URL(`./${name}`, import.meta.url))));
     inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
@@ -1648,8 +1657,11 @@ try {
     artifacts.push(environmentArtifact);
   });
   await scenario("native-error-recovery", async () => {
+    const bootstrap = await invoke("get_bootstrap_status");
+    assert.equal(bootstrap.ok, true);
     const failed = await invoke("verify_port", {
       portId: "nonexistent-fixture-port",
+      generation: bootstrap.value.generation,
     });
     assert.equal(failed.ok, false);
     assert.ok(failed.error.code);

@@ -413,6 +413,23 @@ async function writeFixtureCatalog({
       revision,
       completionJourney,
     });
+  if (completionJourney) {
+    const alternative = structuredClone(portDefinition);
+    alternative.id = "desktop-selected-review-alternative";
+    alternative.name = "Selected setup review alternative";
+    if (baseCatalog.ports.some((item) => item.id === alternative.id))
+      throw new Error("Selected-review alternative collides with catalog identity");
+    for (const contract of baseCatalog.source_catalog.contracts.filter(
+      (item) => item.port_id === portDefinition.id,
+    ))
+      baseCatalog.source_catalog.contracts.push({
+        ...structuredClone(contract),
+        id: `${alternative.id}-${contract.role}`,
+        port_id: alternative.id,
+      });
+    portDefinitions.push(alternative);
+    sourceJourney.reviewPort = { id: alternative.id, name: alternative.name };
+  }
   baseCatalog.ports.push(...portDefinitions);
   artifactPath = path.join(output, artifactName);
   catalogPath = path.join(output, "qualification-catalog.json");

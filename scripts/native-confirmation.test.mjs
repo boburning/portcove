@@ -107,6 +107,101 @@ foreach ($script:case in @('valid', 'native-pane', 'native-late-driver', 'foreig
 
 const helper = path.resolve("apps/desktop/scripts/native-confirmation.ps1");
 
+test(
+  "actual observation field projection uses its explicit window and title without input",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-observe-projection-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const script = path.join(root, "probe.ps1");
+    const confirmation = path
+      .resolve("apps/desktop/scripts/native-confirmation.ps1")
+      .replaceAll("'", "''");
+    const discovery = path
+      .resolve("apps/desktop/scripts/native-window-discovery.ps1")
+      .replaceAll("'", "''");
+    await writeFile(
+      script,
+      `
+$ErrorActionPreference='Stop'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$ast=[Management.Automation.Language.Parser]::ParseFile('${confirmation}',[ref]$null,[ref]$null)
+$other=[Management.Automation.Language.Parser]::ParseFile('${discovery}',[ref]$null,[ref]$null)
+foreach($entry in @(@($ast,'Get-PickerFieldEvidence'),@($other,'Get-NativePickerEditEvidence'))){
+ $fn=$entry[0].Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $entry[1]},$true)
+ . ([scriptblock]::Create($fn.Extent.Text))
+}
+Add-Type -TypeDefinition @'
+using System;
+public static class PortcoveNativeWindows {
+ public class Observation { public IntPtr handle=new IntPtr(9); public int control_id=1152,parent_id=0; public string parent_class="other"; }
+ public static int calls=0; public static bool fail=false;
+ public static int actions=0;
+ public static IntPtr GetFolderActionButton(IntPtr handle,int process,string action){
+  if(handle.ToInt32()!=7 || process!=42 || action!="Cancel")throw new Exception("wrong native action context");
+  actions++;return new IntPtr(20);
+ }
+ public static Observation[] InspectEdits(IntPtr handle,int process,string title){
+  if(handle.ToInt32()!=7 || process!=42 || title!="Select Folder")throw new Exception("wrong explicit observation context");
+  calls++;if(fail)throw new Exception("secondary diagnostic failure");return new[]{new Observation()};
+ }
+}
+'@
+function Get-NativePickerElement($handle){
+ if($handle.ToInt32() -ne 9){throw 'wrong edit'}
+ $element=[pscustomobject]@{Current=[pscustomobject]@{ControlType=[System.Windows.Automation.ControlType]::Edit;ProcessId=42}}
+ $element|Add-Member ScriptMethod TryGetCurrentPattern {param($pattern,$result) $false}
+ $element
+}
+$applicationId=42;$window=$null;$Title=$null
+$observedWindow=[pscustomobject]@{Current=[pscustomobject]@{NativeWindowHandle=7;Name='Select Folder'}}
+$controls=@();$fields=@()
+$source=[IO.File]::ReadAllText('${confirmation}')
+$call=[regex]::Match($source,'(?m)^    try \\{ \\$script:pickerFieldEvidence = Get-PickerFieldEvidence \\$controls \\$fields.Count.*$').Value
+if(-not $call){throw 'actual observation call absent'}
+. ([scriptblock]::Create($call))
+if([PortcoveNativeWindows]::calls -ne 1 -or $pickerFieldEvidence.native_edits.Count -ne 1 -or $pickerFieldEvidence.native_edits[0].control_id -ne 1152){throw 'observation context lost'}
+[PortcoveNativeWindows]::fail=$true;$script:pickerFieldEvidence=$null
+. ([scriptblock]::Create($call))
+if($null -ne $pickerFieldEvidence){throw 'failed diagnostic published evidence'}
+$actionButton=@()
+$guard=[regex]::Match($source,'(?ms)^    \\$nativeAction =.*?(?=^    \\$observation =)').Value
+if(-not $guard){throw 'actual observation guard absent'}
+$refused=$false
+try { . ([scriptblock]::Create($guard)) } catch {
+ if($_.Exception.Message -ne 'Owned picker requires one exact owned Folder field and action button.'){throw}
+ $refused=$true
+}
+if(-not $refused -or [PortcoveNativeWindows]::calls -ne 2){throw 'diagnostic masked original guard'}
+$buttonName='Cancel';$PreparedRuntimeDirectory=$null
+$pane=[pscustomobject]@{Current=[pscustomobject]@{ControlType=[System.Windows.Automation.ControlType]::Pane;ProcessId=42;Name='Folder:'}}
+$controls=@($pane);$fields=@();$actionButton=@()
+. ([scriptblock]::Create($guard))
+if($nativeAction.ToInt32() -ne 20 -or [PortcoveNativeWindows]::actions -ne 1){throw 'exact Pane fallback unavailable'}
+foreach($case in @('duplicate-pane','foreign-pane','mixed-action','wrong-title')){
+ $controls=@($pane);$observedWindow.Current.Name='Select Folder';$pane.Current.ProcessId=42;$actionButton=@()
+ if($case -eq 'duplicate-pane'){$controls=@($pane,$pane)}
+ if($case -eq 'foreign-pane'){$pane.Current.ProcessId=99}
+ if($case -eq 'mixed-action'){$actionButton=@([pscustomobject]@{})}
+ if($case -eq 'wrong-title'){$observedWindow.Current.Name='Other'}
+ $refused=$false
+ try { . ([scriptblock]::Create($guard)) } catch {$refused=$true}
+ if(-not $refused -or [PortcoveNativeWindows]::actions -ne 1){throw "ambiguous or foreign Pane accepted $case"}
+}
+'explicit-observation-context-passed'
+`,
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 10000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /explicit-observation-context-passed/);
+  },
+);
+
 test("bootstrap legacy Profile binding retains choices and default without acquiring tools", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "pcv-bootstrap-binding-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -550,7 +645,7 @@ $pattern = '(?m)^    \\[DllImport[^\\r\\n]+private static extern[^\\r\\n]+;'
 if ([regex]::Matches($code, $pattern).Count -ne 15) { throw 'OS boundary inventory changed' }
 $code = [regex]::Replace($code, $pattern, '')
 $boundary = @'
-    public static bool overflow = false, failed = false, disappeared = false;
+    public static bool overflow = false, failed = false, disappeared = false, pickerTitle = false, secondDialog = false;
     public static string fieldCase = "valid", sentText = null;
     public static int sends = 0, itemCalls = 0;
     public static int clicks = 0;
@@ -563,24 +658,24 @@ $boundary = @'
     }
     private static bool EnumChildWindows(IntPtr parent, Visitor visit, IntPtr state) {
         if (parent.ToInt32() == 1) { visit(new IntPtr(2), state); visit(new IntPtr(5), state); }
-        if (parent.ToInt32() == 2) { visit(new IntPtr(5), state); visit(new IntPtr(3), state); }
+        if (parent.ToInt32() == 2) { visit(new IntPtr(5), state); visit(new IntPtr(3), state); visit(new IntPtr(11), state); }
         return true;
     }
     private static uint GetWindowThreadProcessId(IntPtr handle, out uint process) {
-        process = handle.ToInt32() == 3 || (handle.ToInt32() == 11 && (fieldCase == "button-foreign" || (fieldCase == "late-button-foreign" && reads > 0))) || (handle.ToInt32() == 9 && (fieldCase == "foreign" || (fieldCase == "late-foreign" && itemCalls > 1))) ? 99u : 42u; return 1;
+        process = handle.ToInt32() == 3 || (handle.ToInt32() == 20 && (fieldCase == "cancel-foreign" || (fieldCase == "late-cancel-foreign" && reads > 1))) || ((handle.ToInt32() == 11 || handle.ToInt32() == 20) && (fieldCase == "button-foreign" || (fieldCase == "late-button-foreign" && reads > 0))) || (handle.ToInt32() == 9 && (fieldCase == "foreign" || (fieldCase == "late-foreign" && itemCalls > 1))) ? 99u : 42u; return 1;
     }
     private static int GetWindowText(IntPtr handle, StringBuilder text, int capacity) {
-        string title = handle.ToInt32() == 11 ? (fieldCase == "button-caption" ? "other" : "Select Folder") : handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : "Choose Portcove library";
+        string title = handle.ToInt32() == 11 || handle.ToInt32() == 16 ? (fieldCase == "button-caption" ? "other" : "Select Folder") : handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : pickerTitle ? "Select Folder" : "Choose Portcove library";
         text.Append(title); return title.Length;
     }
     private static bool IsWindow(IntPtr handle) { return !disappeared; }
     private static int GetClassName(IntPtr handle, StringBuilder name, int capacity) {
-        name.Append(handle.ToInt32() == 11 ? (fieldCase == "button-class" ? "other" : "Button") : handle.ToInt32() == 2 ? (fieldCase == "root-class" ? "other" : "#32770") : handle.ToInt32() == 6 ? "ComboBox" : handle.ToInt32() == 9 && fieldCase == "field-class" ? "other" : "Edit"); return name.Length;
+        name.Append(handle.ToInt32() == 11 || handle.ToInt32() == 16 || handle.ToInt32() == 20 ? (fieldCase == "button-class" || (handle.ToInt32() == 20 && fieldCase == "cancel-class") ? "other" : "Button") : handle.ToInt32() == 2 || (handle.ToInt32() == 5 && secondDialog) ? (fieldCase == "root-class" ? "other" : "#32770") : handle.ToInt32() == 6 ? "ComboBox" : handle.ToInt32() == 9 && fieldCase == "field-class" ? "other" : "Edit"); return name.Length;
     }
-    private static int GetDlgCtrlID(IntPtr handle) { return handle.ToInt32() == 11 ? (fieldCase == "button-id" ? 99 : 1) : handle.ToInt32() == 9 && fieldCase == "field-id" ? 99 : handle.ToInt32() == 6 ? 1148 : 1152; }
-    private static IntPtr GetParent(IntPtr handle) { return new IntPtr(handle.ToInt32() == 11 ? (fieldCase == "button-parent" ? 6 : 2) : handle.ToInt32() == 9 && fieldCase != "parent" ? 2 : 6); }
-    private static IntPtr GetDlgItem(IntPtr window, int id) { if (id == 1) return new IntPtr(fieldCase == "button-replacement" ? 12 : 11); itemCalls++; return new IntPtr(fieldCase == "replacement" && itemCalls > 1 ? 10 : fieldCase == "absent" ? 0 : 9); }
-    private static bool IsWindowEnabled(IntPtr window) { return !(window.ToInt32() == 11 && fieldCase == "button-disabled") && fieldCase != "disabled" && !(fieldCase == "late-disabled" && itemCalls > 1) && !(window.ToInt32() == 2 && (fieldCase == "root-disabled" || (fieldCase == "late-root-disabled" && itemCalls > 0))); }
+    private static int GetDlgCtrlID(IntPtr handle) { return handle.ToInt32() == 20 ? (fieldCase == "button-id" || fieldCase == "cancel-id" ? 99 : 2) : handle.ToInt32() == 11 || handle.ToInt32() == 16 ? (fieldCase == "button-id" ? 99 : 1) : handle.ToInt32() == 9 && fieldCase == "field-id" ? 99 : handle.ToInt32() == 6 ? 1148 : 1152; }
+    private static IntPtr GetParent(IntPtr handle) { return new IntPtr(handle.ToInt32() == 15 || handle.ToInt32() == 16 ? 5 : handle.ToInt32() == 11 || handle.ToInt32() == 20 ? (fieldCase == "button-parent" || (handle.ToInt32() == 20 && fieldCase == "cancel-parent") ? 6 : 2) : handle.ToInt32() == 9 && fieldCase != "parent" ? 2 : 6); }
+    private static IntPtr GetDlgItem(IntPtr window, int id) { if (window.ToInt32() == 5 && secondDialog) return new IntPtr(id == 1 ? 16 : 15); if (id == 2) return new IntPtr(fieldCase == "cancel-replacement" && reads > 1 ? 21 : fieldCase == "cancel-absent" ? 0 : 20); if (id == 1) return new IntPtr(fieldCase == "button-replacement" ? 12 : 11); itemCalls++; return new IntPtr(fieldCase == "replacement" && itemCalls > 1 ? 10 : fieldCase == "absent" ? 0 : 9); }
+    private static bool IsWindowEnabled(IntPtr window) { return !(window.ToInt32() == 20 && fieldCase == "cancel-disabled") && !((window.ToInt32() == 11 || window.ToInt32() == 20) && fieldCase == "button-disabled") && fieldCase != "disabled" && !(fieldCase == "late-disabled" && itemCalls > 1) && !(window.ToInt32() == 2 && (fieldCase == "root-disabled" || (fieldCase == "late-root-disabled" && itemCalls > 0))); }
     private static int GetWindowStyle(IntPtr window, int index) {
         if (index != -16) throw new Exception("wrong style index");
         return fieldCase == "readonly" || (fieldCase == "late-readonly" && itemCalls > 1) ? 0x0800 : 0;
@@ -591,14 +686,14 @@ $boundary = @'
     }
     private static IntPtr GetForegroundWindow() { return new IntPtr(fieldCase == "background" || (fieldCase == "late-background" && reads > 0) ? 8 : 2); }
     private static IntPtr SendClick(IntPtr window, uint message, UIntPtr parameter, IntPtr data, uint flags, uint timeout, out UIntPtr result) {
-        if (window.ToInt32() != 11 || message != 245 || flags != 34 || timeout != 5000 || data != IntPtr.Zero || parameter != UIntPtr.Zero) throw new Exception("wrong native click target");
-        clicks++; result = UIntPtr.Zero; return fieldCase == "click-timeout" ? IntPtr.Zero : new IntPtr(1);
+        if ((window.ToInt32() != 11 && window.ToInt32() != 20) || message != 245 || flags != 34 || timeout != 5000 || data != IntPtr.Zero || parameter != UIntPtr.Zero) throw new Exception("wrong native click target");
+        clicks++; result = UIntPtr.Zero; return fieldCase == "click-timeout" || (window.ToInt32() == 20 && fieldCase == "cancel-click-timeout") ? IntPtr.Zero : new IntPtr(1);
     }
     private static IntPtr ReadCaption(IntPtr window, uint message, UIntPtr capacity, StringBuilder text, uint flags, uint timeout, out UIntPtr result) {
-        if (window.ToInt32() != 11 || message != 13 || capacity.ToUInt64() != 512 || flags != 34 || timeout != 1000) throw new Exception("wrong native caption read");
+        if ((window.ToInt32() != 11 && window.ToInt32() != 16 && window.ToInt32() != 20) || message != 13 || capacity.ToUInt64() != 512 || flags != 34 || timeout != 1000) throw new Exception("wrong native caption read");
         reads++;
-        text.Append(fieldCase == "button-caption" ? "other" : "Select Folder");
-        result = new UIntPtr((uint)text.Length); return fieldCase == "read-timeout" ? IntPtr.Zero : new IntPtr(1);
+        text.Append(fieldCase == "button-caption" || (window.ToInt32() == 20 && fieldCase == "cancel-caption") ? "other" : window.ToInt32() == 20 ? "Cancel" : "Select Folder");
+        result = new UIntPtr((uint)text.Length); return fieldCase == "read-timeout" || (window.ToInt32() == 20 && fieldCase == "cancel-read-timeout") ? IntPtr.Zero : new IntPtr(1);
     }
 '@
 $insertion = $code.IndexOf('    public static bool Matches')
@@ -606,6 +701,19 @@ $code = $code.Insert($insertion, $boundary + [Environment]::NewLine)
 Add-Type -TypeDefinition $code
 $handles = @([PortcoveNativeWindows]::Find(42, 'Choose Portcove library') | ForEach-Object { $_.ToInt32() } | Sort-Object)
 if (($handles -join ',') -cne '2,5') { throw 'PID/title/child filtering or deduplication changed' }
+[PortcoveNativeWindows]::pickerTitle = $true
+$raw = @([PortcoveNativeWindows]::Find(42, 'Select Folder'))
+if ($raw.Count -ne 3) { throw 'same-title dialog/edit/button oracle changed' }
+$dialogs = @([PortcoveNativeWindows]::FindFolderDialogs(42, 'Select Folder'))
+if ($dialogs.Count -ne 1 -or $dialogs[0].ToInt32() -ne 2) { throw 'same-title non-dialog was accepted' }
+[PortcoveNativeWindows]::secondDialog = $true
+if (@([PortcoveNativeWindows]::FindFolderDialogs(42, 'Select Folder')).Count -ne 2) { throw 'two valid dialog ambiguity hidden' }
+[PortcoveNativeWindows]::secondDialog = $false
+foreach ($case in @('foreign','disabled','root-class','root-disabled','field-class','field-id','parent','absent','readonly','button-foreign','button-class','button-id','button-parent','button-caption','button-disabled')) {
+    [PortcoveNativeWindows]::fieldCase = $case; [PortcoveNativeWindows]::itemCalls = 0; [PortcoveNativeWindows]::reads = 0
+    if (@([PortcoveNativeWindows]::FindFolderDialogs(42, 'Select Folder')).Count -ne 0) { throw "invalid picker shape accepted $case" }
+}
+[PortcoveNativeWindows]::fieldCase = 'valid'; [PortcoveNativeWindows]::pickerTitle = $false
 $edits = @([PortcoveNativeWindows]::InspectEdits([IntPtr]2, 42, 'Choose Portcove library'))
 if ($edits.Count -ne 1 -or $edits[0].handle.ToInt32() -ne 5 -or $edits[0].control_id -ne 1152 -or $edits[0].parent_id -ne 1148 -or $edits[0].parent_class -cne 'ComboBox') { throw 'Owned structural edit inspection changed' }
 foreach ($case in @('valid', 'foreign', 'root-class', 'field-class', 'field-id', 'parent', 'replacement', 'absent', 'disabled', 'readonly', 'root-disabled', 'late-root-disabled', 'late-foreign', 'late-disabled', 'late-readonly', 'timeout')) {
@@ -624,10 +732,21 @@ foreach ($case in @('valid', 'button-foreign', 'late-button-foreign', 'button-cl
     $expectedClicks = if ($case -in @('valid', 'click-timeout')) { 1 } else { 0 }
     if ([PortcoveNativeWindows]::clicks -ne $expectedClicks -or $rejected -ne ($case -ne 'valid')) { throw "Native click boundary failed $case" }
 }
+[PortcoveNativeWindows]::pickerTitle = $true
+foreach ($case in @('valid','button-foreign','late-button-foreign','button-class','button-id','button-parent','button-caption','button-disabled','cancel-foreign','late-cancel-foreign','cancel-class','cancel-id','cancel-parent','cancel-caption','cancel-disabled','cancel-replacement','cancel-absent','cancel-read-timeout','cancel-click-timeout','background','late-background','root-class','root-disabled','read-timeout','click-timeout')) {
+    [PortcoveNativeWindows]::fieldCase = $case; [PortcoveNativeWindows]::clicks = 0; [PortcoveNativeWindows]::reads = 0; [PortcoveNativeWindows]::itemCalls = 0
+    $rejected = $false
+    try { [PortcoveNativeWindows]::PressFolderCancel([IntPtr]2, [IntPtr]20, 42) } catch { $rejected = $true }
+    $expectedClicks = if ($case -in @('valid','click-timeout','cancel-click-timeout')) { 1 } else { 0 }
+    if ([PortcoveNativeWindows]::clicks -ne $expectedClicks -or $rejected -ne ($case -ne 'valid')) { throw "Native cancel boundary failed $case" }
+}
+[PortcoveNativeWindows]::pickerTitle = $false
 [PortcoveNativeWindows]::fieldCase = 'valid'
 [PortcoveNativeWindows]::disappeared = $true
 if ([PortcoveNativeWindows]::Matches([IntPtr]2, 42, 'Choose Portcove library')) { throw 'disappeared HWND accepted' }
+if ([PortcoveNativeWindows]::IsOwnedWindow([IntPtr]2,42)) { throw 'closed native handle retained' }
 [PortcoveNativeWindows]::disappeared = $false
+if (-not [PortcoveNativeWindows]::IsOwnedWindow([IntPtr]2,42) -or [PortcoveNativeWindows]::IsOwnedWindow([IntPtr]3,42)) { throw 'native closure ownership changed' }
 foreach ($case in @('overflow', 'failed')) {
     if ($case -eq 'overflow') { [PortcoveNativeWindows]::overflow = $true } else { [PortcoveNativeWindows]::overflow = $false; [PortcoveNativeWindows]::failed = $true }
     $rejected = $false

@@ -281,6 +281,12 @@ fn service_at_generation(
     Ok(service)
 }
 
+fn library_at_generation(state: &DesktopState, expected_generation: u64) -> DesktopResult<Library> {
+    let (initialization, actual_generation) = initialization_snapshot(state);
+    require_library_generation(actual_generation, expected_generation)?;
+    Ok(initialization?.library)
+}
+
 fn require_library_generation(actual: u64, expected: u64) -> DesktopResult<()> {
     if actual == expected {
         return Ok(());
@@ -355,6 +361,18 @@ where
     blocking_worker(move || operation(service(&state)?)).await
 }
 
+async fn blocking_service_at_generation<T, F>(
+    state: DesktopState,
+    generation: u64,
+    operation: F,
+) -> DesktopResult<T>
+where
+    T: Send + 'static,
+    F: FnOnce(PortcoveService) -> DesktopResult<T> + Send + 'static,
+{
+    blocking_worker(move || operation(service_at_generation(&state, generation)?)).await
+}
+
 async fn blocking_async_service<T, F, Fut>(state: DesktopState, operation: F) -> DesktopResult<T>
 where
     T: Send + 'static,
@@ -363,6 +381,22 @@ where
 {
     blocking_worker(move || {
         let service = service(&state)?;
+        tokio::runtime::Handle::current().block_on(operation(service))
+    })
+    .await
+}
+
+async fn blocking_async_service_at_generation<T, F, Fut>(
+    state: DesktopState,
+    generation: u64,
+    operation: F,
+) -> DesktopResult<T>
+where
+    T: Send + 'static,
+    F: FnOnce(PortcoveService) -> Fut + Send + 'static,
+    Fut: Future<Output = DesktopResult<T>> + Send + 'static,
+{
+    blocking_service_at_generation(state, generation, move |service| {
         tokio::runtime::Handle::current().block_on(operation(service))
     })
     .await
@@ -626,9 +660,10 @@ async fn get_backups(
 async fn create_backup(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
+    generation: u64,
 ) -> DesktopResult<BackupRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         service.create_backup(&port_id).map_err(Into::into)
     })
     .await
@@ -1185,9 +1220,10 @@ async fn install_port(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     input: InstallInput,
+    generation: u64,
 ) -> DesktopResult<InstallRecord> {
     let state = state.inner().clone();
-    blocking_async_service(state, move |service| async move {
+    blocking_async_service_at_generation(state, generation, move |service| async move {
         service
             .install(
                 &input.port_id,
@@ -1209,9 +1245,10 @@ async fn install_port(
 async fn verify_port(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
+    generation: u64,
 ) -> DesktopResult<VerificationReport> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         service.verify(&port_id).map_err(Into::into)
     })
     .await
@@ -1221,9 +1258,10 @@ async fn verify_port(
 async fn rollback_port(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
+    generation: u64,
 ) -> DesktopResult<InstallRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         service.rollback(&port_id).map_err(Into::into)
     })
     .await
@@ -1284,11 +1322,13 @@ async fn launch_port(
     port_id: String,
     source: Option<PathBuf>,
     arguments: Vec<String>,
+    generation: u64,
 ) -> DesktopResult<LaunchResult> {
-    let library = ready(&state)?.library.clone();
-    let supervisor_library = library.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || {
-        request_supervised_launch(&supervisor_library, port_id, source, arguments)
+    let worker_state = state.inner().clone();
+    let (library, result) = tauri::async_runtime::spawn_blocking(move || {
+        let library = library_at_generation(&worker_state, generation)?;
+        let result = request_supervised_launch(&library, port_id, source, arguments)?;
+        Ok::<_, DesktopError>((library, result))
     })
     .await
     .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
@@ -1973,9 +2013,10 @@ fn clear_host_tool_for(
 async fn open_user_data(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
+    generation: u64,
 ) -> DesktopResult<PathBuf> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         let path = service.port_paths(&port_id)?.user_data_root;
         std::fs::create_dir_all(&path).map_err(PortcoveError::from)?;
         open_directory(&path)?;
@@ -2699,6 +2740,124 @@ mod tests {
         let error = require_library_generation(8, 7).unwrap_err();
         assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
         assert!(error.message.contains("open library changed"));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn delayed_storage_worker_rejects_the_previous_library_before_mutation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let original = initialize_desktop_at(Some(temporary.path().join("original"))).unwrap();
+        let replacement =
+            initialize_desktop_at(Some(temporary.path().join("replacement"))).unwrap();
+        let replacement_root = replacement.library.root().to_path_buf();
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(original))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(7)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        let entered = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let observed = entered.clone();
+        let mut delayed_backup = Box::pin(blocking_service_at_generation(
+            state.clone(),
+            7,
+            move |service| {
+                observed.store(true, std::sync::atomic::Ordering::Release);
+                // A mutation must never receive the replacement library from an old action.
+                service.create_backup("shipwright").map_err(Into::into)
+            },
+        ));
+        let observed = entered.clone();
+        let mut delayed_rollback = Box::pin(blocking_service_at_generation(
+            state.clone(),
+            7,
+            move |service| {
+                observed.store(true, std::sync::atomic::Ordering::Release);
+                service.rollback("shipwright").map_err(Into::into)
+            },
+        ));
+        {
+            let mut initialization = state.initialization.lock().unwrap();
+            // Poll both futures through worker dispatch while the library snapshot
+            // is locked. Checking only before dispatch would authorize generation 7
+            // but let the queued worker resolve the replacement after this unlock.
+            let mut context = std::task::Context::from_waker(futures_util::task::noop_waker_ref());
+            assert!(delayed_backup.as_mut().poll(&mut context).is_pending());
+            assert!(delayed_rollback.as_mut().poll(&mut context).is_pending());
+            *initialization = Ok(replacement);
+            state
+                .generation
+                .store(8, std::sync::atomic::Ordering::Release);
+        }
+        let error = delayed_backup.await.unwrap_err();
+        assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+        assert!(error.message.contains("open library changed"));
+        assert!(!entered.load(std::sync::atomic::Ordering::Acquire));
+        let error = delayed_rollback.await.unwrap_err();
+        assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+        assert!(!entered.load(std::sync::atomic::Ordering::Acquire));
+        let actual_root = blocking_service_at_generation(state, 8, |service| {
+            Ok(service.library().root().to_path_buf())
+        })
+        .await
+        .unwrap();
+        assert_eq!(actual_root, replacement_root);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn delayed_install_worker_and_launch_snapshot_reject_previous_library() {
+        let temporary = tempfile::tempdir().unwrap();
+        let original = initialize_desktop_at(Some(temporary.path().join("original"))).unwrap();
+        let replacement =
+            initialize_desktop_at(Some(temporary.path().join("replacement"))).unwrap();
+        let replacement_root = replacement.library.root().to_path_buf();
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(original))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(7)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        let entered = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let observed = entered.clone();
+        let mut install = Box::pin(blocking_async_service_at_generation(
+            state.clone(),
+            7,
+            move |service| async move {
+                observed.store(true, std::sync::atomic::Ordering::Release);
+                Ok(service.library().root().to_path_buf())
+            },
+        ));
+        let launch_state = state.clone();
+        let launch = {
+            let mut initialization = state.initialization.lock().unwrap();
+            let mut context = std::task::Context::from_waker(futures_util::task::noop_waker_ref());
+            assert!(install.as_mut().poll(&mut context).is_pending());
+            let launch = tauri::async_runtime::spawn_blocking(move || {
+                library_at_generation(&launch_state, 7)
+            });
+            *initialization = Ok(replacement);
+            state
+                .generation
+                .store(8, std::sync::atomic::Ordering::Release);
+            launch
+        };
+        let error = launch.await.unwrap().unwrap_err();
+        assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+        let error = install.await.unwrap_err();
+        assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+        assert!(!entered.load(std::sync::atomic::Ordering::Acquire));
+        let current_root =
+            blocking_async_service_at_generation(state.clone(), 8, |service| async move {
+                Ok(service.library().root().to_path_buf())
+            })
+            .await
+            .unwrap();
+        assert_eq!(current_root, replacement_root);
+        assert_eq!(
+            library_at_generation(&state, 8).unwrap().root(),
+            replacement_root
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]

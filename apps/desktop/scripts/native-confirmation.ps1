@@ -16,7 +16,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:lastNativeStage = 'setup'
 $script:pickerFieldEvidence = $null
-function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1) {
+function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1, $PickerWindow = $window, [string]$PickerTitle = $Title) {
     $all = @($Children)
     $folderLabels = @($all | Where-Object { $_.Current.Name -eq 'Folder:' })
     $edits = @($Children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit })
@@ -30,7 +30,7 @@ function Get-PickerFieldEvidence($Children, [int]$FolderMatches = -1) {
         }
     })
     [pscustomobject]@{ edit_count = $edits.Count; samples = $samples; truncated = ($edits.Count -gt 16)
-        native_edits = @(Get-NativePickerEditEvidence $window)
+        native_edits = @(Get-NativePickerEditEvidence $PickerWindow $PickerTitle)
         folder_matches = $FolderMatches
         total_count = $all.Count
         automation_element_count = @($all | Where-Object { $_ -is [System.Windows.Automation.AutomationElement] }).Count
@@ -122,6 +122,7 @@ function Assert-CapturedPickerDriver([string]$DriverPath, [string]$DriverStarted
     }
 }
 if ($ObservePicker) {
+    . (Join-Path $PSScriptRoot 'native-window-discovery.ps1')
     if (-not [IO.Path]::IsPathFullyQualified($ObservationPath) -or [IO.File]::Exists($ObservationPath) -or
         -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ObservationPath))) { throw 'Picker observation requires a fresh owned output file.' }
     Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
@@ -196,6 +197,12 @@ if ($ObservePicker) {
                 }
             }
         }
+        # A native folder dialog can be absent from the parent's labeled UIA
+        # edit projection. Qualify its exact owned HWND and existing direct
+        # controls; a same-title button is not another dialog.
+        foreach ($handle in [PortcoveNativeWindows]::FindFolderDialogs($applicationId, 'Select Folder')) {
+            $windows[[string]$handle] = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
+        }
         if ($windows.Count -gt 1) { throw 'Ambiguous owned native folder window; no input supplied.' }
         if ($windows.Count -eq 1) { $observedWindow = @($windows.Values)[0]; break }
         Start-Sleep -Milliseconds 100
@@ -203,18 +210,26 @@ if ($ObservePicker) {
     if (-not $observedWindow) { throw 'No unique owned native folder window observed; no input supplied.' }
     $controls = $observedWindow.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
     $fields = @($controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
+    try { $script:pickerFieldEvidence = Get-PickerFieldEvidence $controls $fields.Count $observedWindow $observedWindow.Current.Name } catch { $null = $_ }
     $buttonName = if ($PreparedRuntimeDirectory) { 'Select Folder' } else { 'Cancel' }
     if ($PreparedRuntimeDirectory -and $observedWindow.Current.Name -ne 'Select Folder') { throw 'Prepared runtime selection requires the observed exact Select Folder title.' }
     $actionButton = @($controls | Where-Object { $_.Current.ProcessId -eq $applicationId -and $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $_.Current.Name -eq $buttonName -and $_.Current.IsEnabled })
-    if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId -or $actionButton.Count -ne 1) { throw 'Owned picker requires one exact owned Folder field and action button.' }
+    $nativeAction = [IntPtr]::Zero
+    $folderPanes = @($controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Pane -and $_.Current.Name -eq 'Folder:' -and $_.Current.ProcessId -eq $applicationId })
+    if ($fields.Count -eq 0 -and $folderPanes.Count -eq 1 -and $actionButton.Count -eq 0 -and $observedWindow.Current.Name -eq 'Select Folder') {
+        # This host exposes the common dialog controls as Panes, without UIA
+        # input patterns. Bind the existing native Edit1152 and exact action.
+        $nativeAction = [PortcoveNativeWindows]::GetFolderActionButton([IntPtr]$observedWindow.Current.NativeWindowHandle, $applicationId, $buttonName)
+    } elseif ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId -or $actionButton.Count -ne 1) { throw 'Owned picker requires one exact owned Folder field and action button.' }
     $observation = [ordered]@{
         observed_at = [DateTime]::UtcNow.ToString('o'); title = $observedWindow.Current.Name
         handle = $observedWindow.Current.NativeWindowHandle; class = $observedWindow.Current.ClassName
         application_pid = $applicationId; application_created_at = $application.CreationDate.ToUniversalTime().ToString('o')
         application_path = $applicationFull; driver_pid = $DriverProcessId
         driver_created_at = $tree.driver.CreationDate.ToUniversalTime().ToString('o')
-        field_names = @($fields | ForEach-Object { $_.Current.Name })
-        button_names = @($controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button } | ForEach-Object { $_.Current.Name })
+        field_names = @(if ($nativeAction -ne [IntPtr]::Zero) { 'Folder:' } else { $fields | ForEach-Object { $_.Current.Name } })
+        field_route = if ($nativeAction -ne [IntPtr]::Zero) { 'native-direct-edit-1152' } else { 'owned-uia-edit' }
+        button_names = @(if ($nativeAction -ne [IntPtr]::Zero) { $buttonName } else { $controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button } | ForEach-Object { $_.Current.Name } })
         supplied_directory = $false; cancelled = $false; selected = $false; action = $buttonName
     }
     $freshTree = Get-OwnedNativeProcessTree $DriverProcessId $ApplicationPath
@@ -225,12 +240,17 @@ if ($ObservePicker) {
     Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
     Assert-LiveApplication
     if ($PreparedRuntimeDirectory) {
-        $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($PreparedRuntimeDirectory)
+        if ($nativeAction -ne [IntPtr]::Zero) {
+            $nativeAction = [PortcoveNativeWindows]::SetFolderText([IntPtr]$observedWindow.Current.NativeWindowHandle, $applicationId, 'Select Folder', $PreparedRuntimeDirectory)
+        } else { $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($PreparedRuntimeDirectory) }
         $observation.supplied_directory = $true
         Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
         Assert-LiveApplication
     }
-    $actionButton[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    if ($nativeAction -ne [IntPtr]::Zero) {
+        if ($PreparedRuntimeDirectory) { [PortcoveNativeWindows]::PressFolderButton([IntPtr]$observation.handle, $nativeAction, $applicationId, 'Select Folder') }
+        else { [PortcoveNativeWindows]::PressFolderCancel([IntPtr]$observation.handle, $nativeAction, $applicationId) }
+    } else { $actionButton[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
     $cancelDeadline = [DateTime]::UtcNow.AddSeconds(2)
     $closeSamples = @()
     $closeCondition = [System.Windows.Automation.AndCondition]::new([System.Windows.Automation.Condition[]]@(
@@ -253,6 +273,7 @@ if ($ObservePicker) {
             }
         }
         $present = $liveHandles.Contains([int]$observation.handle)
+        if ($nativeAction -ne [IntPtr]::Zero) { $present = $present -or [PortcoveNativeWindows]::IsOwnedWindow([IntPtr]$observation.handle, $applicationId) }
         try { $retainedHandle = $observedWindow.Current.NativeWindowHandle }
         catch [System.Windows.Automation.ElementNotAvailableException] { $retainedHandle = $null }
         $closeSamples += [pscustomobject]@{ at = [DateTime]::UtcNow.ToString('o'); retained_uia_handle = $retainedHandle; fresh_owned_window_present = $present }
