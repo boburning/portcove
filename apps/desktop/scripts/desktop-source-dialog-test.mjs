@@ -1243,6 +1243,10 @@ async function preliminarySelectedSetupScenario(context) {
           browser.executeScript((element) => document.activeElement === element, installControl),
         5_000,
       );
+      report.observations.initial_keyboard_focus = await browser.executeScript(() => ({
+        document_focused: document.hasFocus(),
+        active_html: document.activeElement?.outerHTML?.slice(0, 1200),
+      }));
       for (const reverse of [false, true]) {
         for (let index = 0; index < 8; index += 1) {
           await browser.executeScript(() => {
