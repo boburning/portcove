@@ -929,7 +929,7 @@ vocabulary and terminal activity reports. CLI and Tauri serialize the same core
 report while preserving original machine error fields. React presents this
 information; it does not infer successful rollback or unchanged files from a
 failed operation or a particular error code. Unannotated outcomes remain Unknown.
-Preparation also supplies the observed unsuccessful setup result or missing
+Preparation also supplies the observed unsuccessful setup result or unconfirmed
 declared completion file as a private cause for the shared safe summary. These
 causes are never inferred from diagnostic text, details or error codes; original
 machine fields, mutation outcomes and recovery actions remain unchanged. Older

@@ -442,11 +442,11 @@ fn assert_private_failure(mode: &str) {
         "missing-marker" => {
             assert_eq!(
                 error.presentation().presentation_key,
-                "setup_output_missing"
+                "setup_output_unconfirmed"
             );
             assert_eq!(
                 error.presentation().summary,
-                "Checking prepared files: Setup finished without the required completion file."
+                "Checking prepared files: Setup finished, but its required completion file could not be confirmed."
             );
             assert_eq!(error.code, ErrorCode::Verification);
         }

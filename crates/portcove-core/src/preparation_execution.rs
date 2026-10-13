@@ -504,7 +504,9 @@ impl PortcoveService {
             return Err(PortcoveError::verification(
                 "setup completed without its declared output marker",
             )
-            .with_preparation_cause(crate::failure::PreparationFailureCause::OutputMissing)
+            .with_preparation_cause(
+                crate::failure::PreparationFailureCause::CompletionFileUnconfirmed,
+            )
             .during("preparation.verify"));
         }
         crate::adapter::record_prepared_setup(&setup_root, &source)?;

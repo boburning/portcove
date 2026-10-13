@@ -70,7 +70,7 @@ pub(crate) struct FailureContext {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum PreparationFailureCause {
     SetupUnsuccessful,
-    OutputMissing,
+    CompletionFileUnconfirmed,
 }
 
 impl PortcoveError {
@@ -162,9 +162,9 @@ impl PortcoveError {
                 "setup_unsuccessful",
                 "The setup process ended unsuccessfully.",
             ),
-            Some(PreparationFailureCause::OutputMissing) => (
-                "setup_output_missing",
-                "Setup finished without the required completion file.",
+            Some(PreparationFailureCause::CompletionFileUnconfirmed) => (
+                "setup_output_unconfirmed",
+                "Setup finished, but its required completion file could not be confirmed.",
             ),
             None => (key, summary),
         };
@@ -368,7 +368,7 @@ mod tests {
                 )
                 .during(phase)
                 .detail("preparation_cause", "setup_unsuccessful")
-                .detail("presentation_key", "setup_output_missing")
+                .detail("presentation_key", "setup_output_unconfirmed")
                 .detail("exit_code", "23");
                 let report = error.report();
                 assert_eq!(
@@ -397,11 +397,11 @@ mod tests {
                 "Running game setup: The setup process ended unsuccessfully.",
             ),
             (
-                PreparationFailureCause::OutputMissing,
+                PreparationFailureCause::CompletionFileUnconfirmed,
                 ErrorCode::Verification,
                 "preparation.verify",
-                "setup_output_missing",
-                "Checking prepared files: Setup finished without the required completion file.",
+                "setup_output_unconfirmed",
+                "Checking prepared files: Setup finished, but its required completion file could not be confirmed.",
             ),
         ] {
             for state in [
