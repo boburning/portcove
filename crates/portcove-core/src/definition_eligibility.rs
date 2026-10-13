@@ -121,6 +121,7 @@ pub enum PortActionReason {
     MissingSource,
     UnreadableSource,
     ChangedSource,
+    IncompatibleSource,
     MissingBios,
     UnreadableBios,
     ChangedBios,

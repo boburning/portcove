@@ -1189,6 +1189,9 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
                 }
                 _ => "Review and confirm this operation before proceeding.",
             },
+            PortActionReason::IncompatibleSource => {
+                "Select and validate the uncompressed original representation required by this runtime."
+            }
             PortActionReason::MissingData => {
                 "No owned saves or settings are currently available to back up."
             }
@@ -1948,13 +1951,14 @@ fn readiness(status: &PortStatus) -> String {
             .unwrap_or_else(|| "unknown_policy_result".into());
         return format!("definition {reason}");
     }
-    readiness
+    let blockers = readiness
         .blockers
         .iter()
         .map(|blocker| match blocker {
             LaunchBlocker::MissingSource => "missing source",
             LaunchBlocker::UnreadableSource => "unreadable source",
             LaunchBlocker::ChangedSource => "changed source",
+            LaunchBlocker::IncompatibleSource => "incompatible source representation",
             LaunchBlocker::MissingBios => "missing BIOS",
             LaunchBlocker::UnreadableBios => "unreadable BIOS",
             LaunchBlocker::ChangedBios => "changed BIOS",
@@ -1963,7 +1967,11 @@ fn readiness(status: &PortStatus) -> String {
             LaunchBlocker::InvalidInstallation => "installation needs verification or repair",
         })
         .collect::<Vec<_>>()
-        .join(", ")
+        .join(", ");
+    match readiness.required_source_extension.as_deref() {
+        Some(extension) => format!("{blockers}; requires uncompressed .{extension} original file"),
+        None => blockers,
+    }
 }
 
 fn support_tier(tier: SupportTier) -> &'static str {

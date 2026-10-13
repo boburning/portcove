@@ -96,6 +96,7 @@ export type PortActionReason =
   | "missing_source"
   | "unreadable_source"
   | "changed_source"
+  | "incompatible_source"
   | "missing_bios"
   | "unreadable_bios"
   | "changed_bios"
@@ -121,6 +122,7 @@ export type LaunchBlocker =
   | "missing_source"
   | "unreadable_source"
   | "changed_source"
+  | "incompatible_source"
   | "missing_bios"
   | "unreadable_bios"
   | "changed_bios"
@@ -942,6 +944,12 @@ export interface LaunchReadiness {
   blockers: LaunchBlocker[];
   launchable: boolean;
   pending_setup: boolean;
+  /**
+   * Original file representation required by the effective runtime contract.
+   * This is independent of source identity health and uses the retained
+   * definition when an external runtime is registered.
+   */
+  required_source_extension?: string | null;
   source?: SourceHealth | null;
   [k: string]: unknown;
 }

@@ -168,6 +168,7 @@ internal static class ContractTests
         CheckManagedRemoval();
         CheckUninstallController();
         CheckInstallationReview();
+        CheckExternalRuntimeReview();
         var managedStatus = Json.Parse("{\"active\":null}");
         Check(Json.OptionalObjectField(managedStatus, "external_runtime") == null,
             "absent external runtime is a valid managed status");
@@ -206,7 +207,7 @@ internal static class ContractTests
         Reject(() => PublicCli.RequireAbsolute(@"\root-relative"), "root-relative path rejected");
         ProtocolStream.Negotiate(Json.Parse(Json.Print(Capabilities())));
         Check(true, "supported capabilities negotiated");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -214,7 +215,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var privateSchema in new[] { 58, 59, 64, 67 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 68 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -361,7 +362,7 @@ internal static class ContractTests
         bad["schema_version"] = 55;
         ProtocolStream.Negotiate(bad);
         Check(true, "external runtime API schema negotiated without requiring unused commands");
-        bad["schema_version"] = 58;
+        bad["schema_version"] = 59;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
         bad["schema_version"] = 59;
         Reject(() => ProtocolStream.Negotiate(bad), "private source-representation schema is not public compatibility");
@@ -375,7 +376,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "managed update assessment schema negotiated with actual reader support");
         bad["schema_version"] = 67;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond managed update decisions rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "public reviewed external schema negotiated with actual reader support");
+        bad["schema_version"] = 68;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond reviewed external decisions rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -464,16 +468,16 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
-            Check(real.ApiSchemaVersion == 66 && statuses.All(status =>
+            Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
-                "compiled schema66 producer and actual reader consume one rollback and update assessment per catalog status");
+                "compiled schema67 producer and actual reader consume one rollback and update assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
-                "compiled schema66 backup producer and actual strict reader consume creation assessment");
+                "compiled schema67 backup producer and actual strict reader consume creation assessment");
             Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
-                "compiled schema66 backup producer and actual strict reader consume restore assessment");
+                "compiled schema67 backup producer and actual strict reader consume restore assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -578,6 +582,84 @@ internal static class ContractTests
         capabilities["commands"] = Json.Array(Json.Field(capabilities, "commands"))
             .Cast<string>().Where(command => command != "remove.preview").ToArray();
         Reject(() => ProtocolStream.Negotiate(capabilities), "schema-56 without removal preview capability rejected");
+    }
+
+    private static void CheckExternalRuntimeReview()
+    {
+        const string folder = @"H:\Prepared runtime 雪";
+        var preview = Json.Parse(Json.Print(new
+        {
+            port_id = "shape-b", path = folder, executable = folder + @"\game.exe", version = "v1",
+            archive_sha256 = new string('a', 64), immutable_tree_sha256 = new string('b', 64),
+            immutable_file_count = 2, preview_sha256 = new string('c', 64)
+        }));
+        var review = ExternalRuntimeReview.Read(preview, "shape-b", folder);
+        Check(review.Fingerprint == new string('c', 64) && review.Description.Contains("outside managed save protection"),
+            "external review binds exact consent and explains non-owning saves");
+        Reject(() => ExternalRuntimeReview.Read(preview, "other", folder), "external preview for another port rejected");
+        Reject(() => ExternalRuntimeReview.Read(preview, "shape-b", @"H:\Other folder"), "external preview for another selected folder rejected");
+        var canonical = Json.Object(Json.Parse(Json.Print(preview)));
+        canonical["path"] = @"\\?\" + folder; canonical["executable"] = @"\\?\" + folder + @"\game.exe";
+        Check(ExternalRuntimeReview.Read(canonical, "shape-b", folder).Fingerprint == review.Fingerprint,
+            "core extended drive paths match the ordinary Windows folder picker");
+        canonical["path"] = @"\\?\UNC\server\share\Prepared 雪";
+        canonical["executable"] = @"\\server\share\Prepared 雪\game.exe";
+        Check(ExternalRuntimeReview.Read(canonical, "shape-b", @"\\server\share\Prepared 雪").Fingerprint == review.Fingerprint,
+            "equivalent extended UNC paths preserve reviewed runtime identity");
+        canonical["executable"] = @"\\?\UNC\server\share\Prepared 雪\..\outside.exe";
+        Reject(() => ExternalRuntimeReview.Read(canonical, "shape-b", @"\\server\share\Prepared 雪"),
+            "extended path normalization cannot hide an executable escaping the reviewed folder");
+        var record = Json.Object(Json.Parse(Json.Print(preview)));
+        record["id"] = "registration-a"; record["platform"] = "windows-x86-64";
+        Check(review.RequireRegistered(record) == "registration-a", "external result checks all reviewed identities");
+        foreach (var field in new[] { "port_id", "path", "executable", "version", "archive_sha256", "immutable_tree_sha256", "platform", "id" })
+        {
+            var changed = Json.Object(Json.Parse(Json.Print(record)));
+            changed[field] = field == "path" || field == "executable" ? @"H:\Other\game.exe" :
+                field == "id" ? "" : field.EndsWith("sha256", StringComparison.Ordinal) ? new string('d', 64) : "other";
+            Reject(() => review.RequireRegistered(changed), "changed external " + field + " cannot confirm registration");
+        }
+        foreach (var field in new[] { "archive_sha256", "immutable_tree_sha256", "preview_sha256" })
+        {
+            var invalid = Json.Object(Json.Parse(Json.Print(preview))); invalid[field] = "unbound";
+            Reject(() => ExternalRuntimeReview.Read(invalid, "shape-b", folder), "invalid external " + field + " rejected before consent");
+        }
+        var escaped = Json.Object(Json.Parse(Json.Print(preview))); escaped["executable"] = @"H:\Outside\game.exe";
+        Reject(() => ExternalRuntimeReview.Read(escaped, "shape-b", folder), "external executable outside reviewed folder rejected");
+        var empty = Json.Object(Json.Parse(Json.Print(preview))); empty["immutable_file_count"] = 0;
+        Reject(() => ExternalRuntimeReview.Read(empty, "shape-b", folder), "empty external identity inventory rejected");
+        var removal = Json.Object(Json.Parse(Json.Print(preview))); removal["external_files_will_be_preserved"] = true;
+        var remove = ExternalRuntimeReview.Read(removal, "shape-b", null, true);
+        remove.RequireRemoved(record);
+        Check(remove.Description.Contains("Only Portcove's registration"), "external removal has distinct file-preserving consent");
+        removal["external_files_will_be_preserved"] = false;
+        Reject(() => ExternalRuntimeReview.Read(removal, "shape-b", null, true), "external removal without preservation rejected");
+        var replaced = Json.Object(Json.Parse(Json.Print(record))); replaced["path"] = @"H:\Other";
+        Reject(() => remove.RequireRemoved(replaced), "another external registration cannot confirm removal");
+        var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        capabilities["schema_version"] = 57; capabilities["commands"] = new[] { "external", "external.review" };
+        Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "older schema cannot claim caller-bound external review");
+        capabilities["schema_version"] = 67; capabilities["commands"] = new[] { "external" };
+        Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "new schema without review capability cannot register");
+        capabilities["commands"] = new[] { "external", "external.review" };
+        Check(ProtocolStream.SupportsReviewedExternal(capabilities), "exact schema and capability enable reviewed external flow");
+        var representationStatus = Json.Parse(Json.Print(new {
+            readiness = new { required_source_extension = "z64", blockers = new[] { "incompatible_source" } },
+            port_actions = new[] {
+                new { action = "rollback", availability = "not_offered", reason = "not_installed" },
+                new { action = "update", availability = "not_offered", reason = "route_not_offered" },
+                new { action = "launch", availability = "waiting", reason = "incompatible_source" }
+            }
+        }));
+        PortActions.ValidateStatus(representationStatus, 67);
+        Check(true, "public source representation status preserves rollback and update contracts");
+        Reject(() => PortActions.ValidateStatus(representationStatus, 66),
+            "older public envelope cannot carry consequential source representation guidance");
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 68 })
+        {
+            capabilities["schema_version"] = unsupported;
+            Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
+        }
     }
 
     private static void CheckRuntimeSelection()
@@ -703,11 +785,39 @@ internal static class ContractTests
         Check(GuidedSetup.Choose(launchHeldWithMissingSource, catalog, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
             "a selected source cannot override an installed game's held launch");
         var external = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"user-prepared\"}}");
+        Check(GuidedSetup.Choose(missing, external, "", "", true).Kind == GuidedStepKind.RegisterExternal,
+            "user-prepared runtime selects reviewed folder registration without a Desktop handoff");
         Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.ReviewProblem,
-            "user-prepared runtime keeps its separate registration handoff");
+            "missing reviewed external capability offers upgrade guidance rather than registration");
+        var externalNeedsSource = Json.Object(Json.Parse(Json.Print(external))); externalNeedsSource["source_profile"] = "original";
+        Check(GuidedSetup.Choose(missing, externalNeedsSource, "", "").Kind == GuidedStepKind.ChooseSource,
+            "external onboarding keeps original-file intake before runtime registration");
+        var registerHeld = Json.Parse("{\"active\":null,\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"register_external\",\"availability\":\"held\",\"reason\":\"definition_ineligible\",\"definition\":{\"outcome\":\"hold\",\"reason\":\"publisher_revoked\"}}]}");
+        Check(GuidedSetup.Choose(registerHeld, externalNeedsSource, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
+            "selected files cannot override a held external registration");
         var registeredExternal = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"invalid_installation\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
         Check(GuidedSetup.Choose(registeredExternal, external, "", "").Detail.Contains("is registered"),
             "registered but held external runtime receives its actual review path");
+        var incompatible = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"source\":\"current\",\"required_source_extension\":\"z64\",\"blockers\":[\"incompatible_source\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"waiting\",\"reason\":\"incompatible_source\"}]}");
+        var guidance = GuidedSetup.Choose(incompatible, externalNeedsSource, "", "");
+        Check(guidance.Kind == GuidedStepKind.ChooseSource && guidance.Detail.Contains(".z64") && guidance.Detail.Contains("uncompressed"),
+            "a current but incompatible source receives the core-required original file guidance");
+        Check(GuidedSetup.Choose(incompatible, externalNeedsSource, @"C:\owned\original.Z64", "").Kind == GuidedStepKind.ValidateSources,
+            "waiting for compatible source permits explicit core validation of a replacement file");
+        var malformed = Json.Object(Json.Parse(Json.Print(incompatible)));
+        var malformedReadiness = Json.Object(Json.Field(malformed, "readiness"));
+        malformedReadiness.Remove("required_source_extension");
+        Check(GuidedSetup.Choose(malformed, externalNeedsSource, @"C:\owned\original.Z64", "").Kind == GuidedStepKind.ReviewProblem,
+            "missing consequential extension guidance fails closed before source mutation");
+        foreach (var invalidExtension in new object[] { "", ".z64", "../z64", "z64\n", 64, new string('a', 17) })
+        {
+            malformedReadiness["required_source_extension"] = invalidExtension;
+            Check(GuidedSetup.Choose(malformed, externalNeedsSource, "", "").Kind == GuidedStepKind.ReviewProblem,
+                "malformed source extension fails closed: " + invalidExtension);
+        }
+        malformedReadiness["required_source_extension"] = "N64";
+        Check(GuidedSetup.Choose(malformed, externalNeedsSource, "", "").Detail.Contains(".N64"),
+            "source representation guidance follows core instead of a title-specific client rule");
     }
 
     private static async Task ConsumerMeasurements()
@@ -1104,6 +1214,19 @@ internal static class ContractTests
         await client.Connect();
         connect.Stop();
         var port = args[3];
+
+        if (mode == "qualification-source-guidance")
+        {
+            var status = await Status(client, port);
+            var catalog = Json.Array(await client.Read("catalog.list", "catalog", "list"))
+                .Single(value => Json.Text(value, "id") == port);
+            var guided = GuidedSetup.Choose(status, catalog, "", "");
+            Check(guided.Kind == GuidedStepKind.ChooseSource && guided.Detail.Contains(".z64"),
+                "real producer incompatible-source readiness drives exact client file guidance");
+            Check(GuidedSetup.Choose(status, catalog, args[4], "").Kind == GuidedStepKind.ValidateSources,
+                "real producer waiting action permits explicit replacement validation");
+            return;
+        }
 
         if (mode == "qualification-library-busy")
         {
