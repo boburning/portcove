@@ -277,7 +277,7 @@
     },
     {
       "port_id": "alexbeav-alien-resurrection-recomp",
-      "port_contract_sha256": "705bdce28366e1a3e1d7594adb1b8b40c9660b842ffb5bdc2d9ee9184530ca74",
+      "port_contract_sha256": "9cf6f5fa922f5f722c932d0660c25f84ea7340cb1087af3f43cd05a811a86aec",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
       "tag": "v0.1.4",
