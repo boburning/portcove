@@ -607,8 +607,12 @@ export async function selectedSetupCompletionScenario({
       });
       assert.deepEqual(biosPlan.source_requirements.map((item) => item.role).sort(), [
         "bios",
-        "game",
+        "game_source",
       ]);
+      assert.deepEqual(
+        biosPlan.source_requirements.map((item) => item.profile_id).sort(),
+        [...owned.profiles].sort(),
+      );
       assert.ok(biosPlan.source_requirements.every((item) => item.registered));
       assert.deepEqual(await read("get_statuses"), statusesBeforeBiosPlan);
       assert.deepEqual(await read("get_sources"), biosSources);
