@@ -60,6 +60,6 @@ same-file.workspace = true
 [dev-dependencies]
 aws-lc-rs = "1.18.1"
 jiff = "0.2.38"
-proptest = { version = "=1.11.0", default-features = false, features = ["std"] }
+proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
 filetime.workspace = true
 tempfile.workspace = true
