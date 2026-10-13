@@ -136,10 +136,10 @@ Add-Type -TypeDefinition @'
 using System;
 public static class PortcoveNativeWindows {
  public class Observation { public IntPtr handle=new IntPtr(9); public int control_id=1152,parent_id=0; public string parent_class="other"; }
- public static int calls=0;
+ public static int calls=0; public static bool fail=false;
  public static Observation[] InspectEdits(IntPtr handle,int process,string title){
   if(handle.ToInt32()!=7 || process!=42 || title!="Select Folder")throw new Exception("wrong explicit observation context");
-  calls++;return new[]{new Observation()};
+  calls++;if(fail)throw new Exception("secondary diagnostic failure");return new[]{new Observation()};
  }
 }
 '@
@@ -152,10 +152,23 @@ function Get-NativePickerElement($handle){
 $applicationId=42;$window=$null;$Title=$null
 $observedWindow=[pscustomobject]@{Current=[pscustomobject]@{NativeWindowHandle=7;Name='Select Folder'}}
 $controls=@();$fields=@()
-$call=[regex]::Match([IO.File]::ReadAllText('${confirmation}'),'(?m)^    \\$script:pickerFieldEvidence = Get-PickerFieldEvidence \\$controls \\$fields.Count.*$').Value
+$source=[IO.File]::ReadAllText('${confirmation}')
+$call=[regex]::Match($source,'(?m)^    try \\{ \\$script:pickerFieldEvidence = Get-PickerFieldEvidence \\$controls \\$fields.Count.*$').Value
 if(-not $call){throw 'actual observation call absent'}
 . ([scriptblock]::Create($call))
 if([PortcoveNativeWindows]::calls -ne 1 -or $pickerFieldEvidence.native_edits.Count -ne 1 -or $pickerFieldEvidence.native_edits[0].control_id -ne 1152){throw 'observation context lost'}
+[PortcoveNativeWindows]::fail=$true;$script:pickerFieldEvidence=$null
+. ([scriptblock]::Create($call))
+if($null -ne $pickerFieldEvidence){throw 'failed diagnostic published evidence'}
+$actionButton=@()
+$guard=[regex]::Match($source,'(?m)^    if \\(\\$fields.Count -ne 1 -or.*Owned picker requires one exact owned Folder field and action button.*$').Value
+if(-not $guard){throw 'actual observation guard absent'}
+$refused=$false
+try { . ([scriptblock]::Create($guard)) } catch {
+ if($_.Exception.Message -ne 'Owned picker requires one exact owned Folder field and action button.'){throw}
+ $refused=$true
+}
+if(-not $refused -or [PortcoveNativeWindows]::calls -ne 2){throw 'diagnostic masked original guard'}
 'explicit-observation-context-passed'
 `,
     );
