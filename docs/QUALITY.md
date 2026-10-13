@@ -24,6 +24,15 @@ the entire Windows baseline, never an empty package selection or an automatic au
 | catalog           | Relevant cheap schema, repository and tooling contract tests                                                                  |
 | dependency-review | Relevant dependency diff, with the existing high-severity rejection policy                                                    |
 
+Affected native helper, frontend prerequisite, dependency receipt, PowerShell and
+CI routing changes also require `windows-helper-contracts` under the existing
+`catalog` aggregate. This ten-minute Windows producer runs helper unit controls
+with thirty-second per-test budgets, verifies declared dependencies and runs
+pinned PowerShell lint with its causal fixture. It builds no Desktop application
+and uses no drivers, native session or game inputs. Both rename sides select it;
+unknown-path broad fallback includes it. A failed or missing selected producer
+fails `catalog`. Exhaustive qualification retains its Windows coverage.
+
 Rust execution reuses `.config/rust-test-impact.json`. Every group is package
 qualified, has nonzero runnable tests, and contributes its exact binary/test
 identities to the verified union. Complete workspace listing and execution use
