@@ -173,12 +173,105 @@ it("does not invent a cause for an unknown external route hold", async () => {
     ),
   );
   expect(document.body.textContent).toContain(
-    "Setup is on hold. Check this port's current requirements.",
+    "Setup status unknown. View details for current requirements.",
   );
   expect(document.body.textContent).not.toContain("future_reason");
 });
 
 const otherPort = { ...port, id: "another-external-port", name: "Another game" };
+
+it.each([
+  ["missing status", undefined],
+  ["partial actions", [{ action: "install", availability: "allowed", reason: "available" }]],
+  [
+    "duplicate actions",
+    [
+      { action: "register_external", availability: "waiting", reason: "review_required" },
+      { action: "register_external", availability: "not_offered", reason: "unsupported_platform" },
+    ],
+  ],
+  [
+    "unknown availability",
+    [{ action: "register_external", availability: "future", reason: "review_required" }],
+  ],
+  [
+    "contradictory definition",
+    [
+      {
+        action: "register_external",
+        availability: "waiting",
+        reason: "review_required",
+        definition: { outcome: "hold", reason: "publisher_revoked" },
+      },
+    ],
+  ],
+] as const)("does not open the picker for %s", async (name, actions) => {
+  const picker = vi.mocked(pickInstallFolder);
+  const preview = vi.spyOn(desktopApi, "previewExternalRuntime");
+  await act(async () =>
+    root.render(
+      <ExternalRuntimeControl
+        port={port}
+        status={
+          name === "missing status"
+            ? undefined
+            : { ...portStatus(), port_actions: actions as never }
+        }
+        generation={7}
+        busy={false}
+      />,
+    ),
+  );
+  expect(document.body.textContent).toContain(
+    "Setup status unknown. View details for current requirements.",
+  );
+  expect(document.body.querySelector("button")?.disabled).toBe(true);
+  await click("Choose game folder");
+  expect(picker).not.toHaveBeenCalled();
+  expect(preview).not.toHaveBeenCalled();
+});
+
+it.each([undefined, []] as const)("preserves the legacy %s projection", async (actions) => {
+  await act(async () =>
+    root.render(
+      <ExternalRuntimeControl
+        port={port}
+        status={{ ...portStatus(), port_actions: actions as never }}
+        generation={7}
+        busy={false}
+      />,
+    ),
+  );
+  expect(document.body.querySelector("button")?.disabled).toBe(false);
+});
+
+it("recovers from a missing current route when a fresh review assessment arrives", async () => {
+  const render = (actions: NonNullable<ReturnType<typeof portStatus>["port_actions"]>) =>
+    act(async () =>
+      root.render(
+        <ExternalRuntimeControl
+          port={port}
+          status={{ ...portStatus(), port_actions: actions }}
+          generation={7}
+          busy={false}
+        />,
+      ),
+    );
+  await render([{ action: "install", availability: "allowed", reason: "available" }]);
+  expect(document.body.querySelector("button")?.disabled).toBe(true);
+  await render([
+    { action: "register_external", availability: "waiting", reason: "review_required" },
+  ]);
+  expect(document.body.querySelector("button")?.disabled).toBe(false);
+  vi.mocked(pickInstallFolder).mockResolvedValue(record.path);
+  const preview = vi
+    .spyOn(desktopApi, "previewExternalRuntime")
+    .mockResolvedValue(runtimePreview());
+  const register = vi.spyOn(desktopApi, "registerExternalRuntime");
+  await click("Choose game folder");
+  expect(preview).toHaveBeenCalledExactlyOnceWith(port.id, record.path, 7);
+  expect(register).not.toHaveBeenCalled();
+});
 
 function runtimePreview() {
   return {
