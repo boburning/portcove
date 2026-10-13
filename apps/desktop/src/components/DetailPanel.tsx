@@ -1120,7 +1120,7 @@ function RequirementsSummary({ port }: { port: PortDefinition }) {
   if (!port.presentation)
     return <p>Structured requirement details are unavailable in this catalog.</p>;
   return (
-    <div className="metadata" aria-label="Required game files and verification">
+    <div className="metadata" role="group" aria-label="Required game files and verification">
       {port.presentation.source_requirements.map((requirement) => (
         <span key={requirement.role}>
           <small>{requirement.role === "bios" ? "Required BIOS" : "Required game files"}</small>
@@ -1243,7 +1243,7 @@ function SourceFields({ controls }: { controls: SourceControls }) {
 function SourceIntakeActions({ controls, busy }: { controls: SourceControls; busy: boolean }) {
   if (!controls.inspectSource || (!controls.sourceProfile && !controls.biosProfile)) return null;
   return (
-    <div className="source-intake-shortcuts" aria-label="Check game files">
+    <div className="source-intake-shortcuts" role="group" aria-label="Check game files">
       {controls.sourceProfile && (
         <Button
           data-focusable
