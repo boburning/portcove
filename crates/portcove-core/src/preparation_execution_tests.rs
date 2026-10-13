@@ -438,6 +438,28 @@ fn assert_private_failure(mode: &str) {
         }
     };
     assert_eq!(error.message, expected);
+    match mode {
+        "missing-marker" => {
+            assert_eq!(
+                error.presentation().presentation_key,
+                "setup_output_missing"
+            );
+            assert_eq!(
+                error.presentation().summary,
+                "Checking prepared files: Setup finished without the required completion file."
+            );
+            assert_eq!(error.code, ErrorCode::Verification);
+        }
+        "failure" => {
+            assert_eq!(error.presentation().presentation_key, "setup_unsuccessful");
+            assert_eq!(
+                error.presentation().summary,
+                "Running game setup: The setup process ended unsuccessfully."
+            );
+            assert_eq!(error.code, ErrorCode::SourceInvalid);
+        }
+        _ => assert_eq!(error.presentation().presentation_key, "verification_failed"),
+    }
     let reopened = Library::open(fixture.service.library().root()).unwrap();
     let activity = reopened
         .activities(10)

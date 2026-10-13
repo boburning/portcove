@@ -63,6 +63,14 @@ pub(crate) struct FailureContext {
     pub(crate) mutation_state: MutationState,
     pub(crate) phase: Option<String>,
     pub(crate) recovery_actions: Vec<RecoveryAction>,
+    preparation_cause: Option<PreparationFailureCause>,
+}
+
+/// Facts observed by preparation, separate from error codes or diagnostic text.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum PreparationFailureCause {
+    SetupUnsuccessful,
+    OutputMissing,
 }
 
 impl PortcoveError {
@@ -90,6 +98,11 @@ impl PortcoveError {
         if !self.failure.recovery_actions.contains(&action) {
             self.failure.recovery_actions.push(action);
         }
+        self
+    }
+
+    pub(crate) fn with_preparation_cause(mut self, cause: PreparationFailureCause) -> Self {
+        self.failure.preparation_cause = Some(cause);
         self
     }
 
@@ -143,6 +156,17 @@ impl PortcoveError {
                 "The selection changed or another operation is using it. Review its current state.",
             ),
             ErrorCode::Cancelled => ("operation_cancelled", "The operation was cancelled."),
+        };
+        let (key, summary) = match self.failure.preparation_cause {
+            Some(PreparationFailureCause::SetupUnsuccessful) => (
+                "setup_unsuccessful",
+                "The setup process ended unsuccessfully.",
+            ),
+            Some(PreparationFailureCause::OutputMissing) => (
+                "setup_output_missing",
+                "Setup finished without the required completion file.",
+            ),
+            None => (key, summary),
         };
         let phase_label = match self.failure.phase.as_deref() {
             Some("preparation.review") => Some("Reviewing game preparation"),
@@ -331,6 +355,97 @@ mod tests {
                 presentation.tone == FailureTone::Neutral,
                 code == ErrorCode::Cancelled
             );
+        }
+    }
+
+    #[test]
+    fn preparation_cause_is_not_inferred_from_messages_or_details() {
+        for code in [ErrorCode::SourceInvalid, ErrorCode::Verification] {
+            for phase in ["preparation.setup", "preparation.verify"] {
+                let error = PortcoveError::new(
+                    code,
+                    "setup completed without its declared output marker; exit 23",
+                )
+                .during(phase)
+                .detail("preparation_cause", "setup_unsuccessful")
+                .detail("presentation_key", "setup_output_missing")
+                .detail("exit_code", "23");
+                let report = error.report();
+                assert_eq!(
+                    report.presentation.presentation_key,
+                    if code == ErrorCode::SourceInvalid {
+                        "source_not_accepted"
+                    } else {
+                        "verification_failed"
+                    }
+                );
+                assert_eq!(report.presentation.mutation_state, MutationState::Unknown);
+                assert_eq!(report.details, error.details);
+                assert_eq!(report.message, error.message);
+            }
+        }
+    }
+
+    #[test]
+    fn preparation_causes_preserve_machine_fields_outcomes_and_recovery() {
+        for (cause, code, phase, key, summary) in [
+            (
+                PreparationFailureCause::SetupUnsuccessful,
+                ErrorCode::SourceInvalid,
+                "preparation.setup",
+                "setup_unsuccessful",
+                "Running game setup: The setup process ended unsuccessfully.",
+            ),
+            (
+                PreparationFailureCause::OutputMissing,
+                ErrorCode::Verification,
+                "preparation.verify",
+                "setup_output_missing",
+                "Checking prepared files: Setup finished without the required completion file.",
+            ),
+        ] {
+            for state in [
+                MutationState::NotStarted,
+                MutationState::NoChanges,
+                MutationState::Committed,
+                MutationState::RecoveryRequired,
+                MutationState::Unknown,
+            ] {
+                let error = PortcoveError::new(code, "original diagnostic /private/source")
+                    .detail("path", "/private/source")
+                    .during(phase)
+                    .with_mutation_state(state)
+                    .offer_recovery(RecoveryAction::ReviewPreparation);
+                let original = error.report();
+                let report = error.with_preparation_cause(cause).report();
+                assert_eq!(report.code, original.code);
+                assert_eq!(report.message, original.message);
+                assert_eq!(report.details, original.details);
+                assert_eq!(report.presentation.presentation_key, key);
+                assert_eq!(report.presentation.summary, summary);
+                assert_eq!(report.presentation.mutation_state, state);
+                assert_eq!(report.presentation.phase, original.presentation.phase);
+                assert_eq!(report.presentation.tone, original.presentation.tone);
+                assert_eq!(
+                    report.presentation.recovery_actions,
+                    original.presentation.recovery_actions
+                );
+                assert_eq!(
+                    report.presentation.technical_message,
+                    original.presentation.technical_message
+                );
+                assert_eq!(
+                    report.presentation.technical_context,
+                    original.presentation.technical_context
+                );
+                assert_eq!(
+                    serde_json::from_value::<FailureReport>(
+                        serde_json::to_value(&original).unwrap()
+                    )
+                    .unwrap(),
+                    original
+                );
+            }
         }
     }
 

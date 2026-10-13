@@ -486,6 +486,7 @@ impl PortcoveService {
                 "upstream setup rejected or could not prepare the source (exit {})",
                 output.status.code().unwrap_or(-1)
             ))
+            .with_preparation_cause(crate::failure::PreparationFailureCause::SetupUnsuccessful)
             .during("preparation.setup")
             .detail("exit_code", output.status.code().unwrap_or(-1).to_string()));
         }
@@ -503,6 +504,7 @@ impl PortcoveService {
             return Err(PortcoveError::verification(
                 "setup completed without its declared output marker",
             )
+            .with_preparation_cause(crate::failure::PreparationFailureCause::OutputMissing)
             .during("preparation.verify"));
         }
         crate::adapter::record_prepared_setup(&setup_root, &source)?;
