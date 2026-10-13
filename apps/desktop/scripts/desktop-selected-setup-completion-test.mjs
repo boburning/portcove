@@ -1,6 +1,6 @@
 // Actual Tauri/Core journey; synthetic source and first-party probe, never a game qualification.
 import assert from "node:assert/strict";
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
@@ -489,6 +489,159 @@ export async function selectedSetupCompletionScenario({
         prohibitedAttributes,
         [],
         "The visible source result must not retain prohibited or unresolved ARIA attributes",
+      );
+      // The game remains registered outside this new root. Only a newly found
+      // BIOS can associate the incomplete port with the next setup selection.
+      const biosOnly = path.join(owned.directory, "bios-only");
+      const biosOnlyPath = path.join(biosOnly, "bios.pcbios");
+      await mkdir(biosOnly);
+      await writeFile(biosOnlyPath, await readFile(owned.biosBefore), { flag: "wx" });
+      const rootsBefore = await read("get_game_file_roots");
+      assert.equal(rootsBefore.length, 1);
+      assert.equal(path.resolve(rootsBefore[0].path), path.resolve(owned.directory));
+      const relinked = core(["source", "roots", "relink", rootsBefore[0].id, biosOnly]);
+      assert.equal(relinked.id, rootsBefore[0].id);
+      assert.deepEqual(await read("get_sources"), report.observations.completed_sources);
+      await click(button("Refresh folders"));
+      const beforeBiosScans = new Set(
+        (await read("get_activities")).records.map((item) => item.id),
+      );
+      await click(button("Scan saved folders"));
+      await browser.wait(
+        async () => {
+          const observations = await read("get_game_file_scan_snapshot");
+          const activity = (await read("get_activities")).records.find(
+            (item) =>
+              item.operation === "discover_sources" &&
+              item.status === "succeeded" &&
+              !beforeBiosScans.has(item.id),
+          );
+          if (!activity || observations?.freshness !== "inputs_match") return false;
+          assert.deepEqual(
+            observations.report.candidates.map((item) => item.profile_id),
+            [owned.profiles[1]],
+          );
+          assert.equal(
+            path.resolve(observations.report.candidates[0].path),
+            path.resolve(biosOnlyPath),
+          );
+          report.observations.bios_only_scan = { snapshot: observations, activity };
+          return (
+            (await browser.findElements(By.css("[data-completed-candidate]"))).length === 1 &&
+            (
+              await browser.findElements(
+                By.css(`[data-completed-candidate][data-profile-id="${owned.profiles[1]}"]`),
+              )
+            ).length === 1
+          );
+        },
+        15_000,
+        "The fresh real Core scan must contain only the BIOS candidate",
+      );
+      const beforeBiosRegistration = await read("get_statuses");
+      const blocked = beforeBiosRegistration.find(
+        (item) => item.port_id === fixture.refreshPort.id,
+      );
+      assert.equal(
+        blocked.port_actions.find((item) => item.action === "install").reason,
+        "missing_bios",
+      );
+      assert.equal(
+        (
+          await browser.findElements(
+            By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`),
+          )
+        ).length,
+        0,
+      );
+      await click(
+        By.css(
+          `[data-completed-candidate][data-profile-id="${owned.profiles[1]}"] [data-candidate-review]`,
+        ),
+      );
+      await browser.wait(until.elementLocated(sourceReview), 15_000);
+      assert.deepEqual(
+        await read("get_sources"),
+        report.observations.completed_sources,
+        "BIOS review alone grants no registration",
+      );
+      await click(button("Use current location"));
+      await browser.wait(
+        async () => {
+          const statuses = await read("get_statuses");
+          const completed = statuses.find((item) => item.port_id === fixture.refreshPort.id);
+          const allowed = completed.port_actions.some(
+            (item) => item.action === "install" && item.availability === "allowed",
+          );
+          const choices = await browser.findElements(
+            By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`),
+          );
+          return allowed && choices.length === 1 && (await choices[0].isEnabled());
+        },
+        15_000,
+        "Explicit BIOS registration must expose the actual Core-eligible selection",
+      );
+      const biosSources = await read("get_sources");
+      assert.equal(biosSources.length, 2);
+      assert.equal(
+        path.resolve(biosSources.find((item) => item.profile_id === owned.profiles[0]).path),
+        path.resolve(owned.gamePath),
+      );
+      assert.equal(
+        path.resolve(biosSources.find((item) => item.profile_id === owned.profiles[1]).path),
+        path.resolve(biosOnlyPath),
+      );
+      assert.deepEqual(core(["source", "list"]), biosSources);
+      await click(By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`));
+      const statusesBeforeBiosPlan = await read("get_statuses");
+      const acquisitionsBeforeBiosPlan = fixture.requests.length;
+      await click(button(`Review ${fixture.refreshPort.name} setup`));
+      await browser.wait(until.elementLocated(installDialog), 15_000);
+      assert.equal(
+        await browser.findElement(By.id("port-detail-title")).getText(),
+        fixture.refreshPort.name,
+      );
+      const biosPlan = await read("plan_port", {
+        portId: fixture.refreshPort.id,
+        channel: "stable",
+      });
+      assert.deepEqual(biosPlan.source_requirements.map((item) => item.role).sort(), [
+        "bios",
+        "game",
+      ]);
+      assert.ok(biosPlan.source_requirements.every((item) => item.registered));
+      assert.deepEqual(await read("get_statuses"), statusesBeforeBiosPlan);
+      assert.deepEqual(await read("get_sources"), biosSources);
+      assert.equal(
+        fixture.requests.length,
+        acquisitionsBeforeBiosPlan,
+        "Planning must not acquire the package",
+      );
+      report.observations.bios_completed_review = {
+        sources: biosSources,
+        plan: biosPlan,
+        statuses: statusesBeforeBiosPlan,
+      };
+      await screenshot("selected-setup-bios-completed-review");
+      await click(button("Cancel review"));
+      await browser.wait(
+        async () => (await browser.findElements(installDialog)).length === 0,
+        5_000,
+      );
+      assert.deepEqual(await read("get_statuses"), statusesBeforeBiosPlan);
+      await click(By.css('[aria-label="Back to previous workspace"]'));
+      await browser.wait(until.elementLocated(queue), 5_000);
+      assert.match(await browser.findElement(queue).getText(), /3 of 16 ports selected/);
+      report.observations.bios_return_focus = await browser.wait(
+        () => browser.executeScript(observeCompletionReturnFocus),
+        5_000,
+        "The BIOS-only journey must return focus to its current setup continuation",
+      );
+      await screenshot("selected-setup-bios-queue-return");
+      await captureAccessibilityReport(
+        browser,
+        path.join(output, "selected-setup-bios-completion-accessibility.json"),
+        artifacts,
       );
     } catch (error) {
       failure = error;
