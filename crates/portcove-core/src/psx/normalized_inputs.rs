@@ -397,6 +397,11 @@ impl ProvisionalGeneratedInstall {
 }
 
 impl NormalizedInputWitness {
+    #[cfg(feature = "qualification-fixtures")]
+    pub(crate) fn acquired_contract(&self) -> &serde_json::Value {
+        self.bootstrap.contract()
+    }
+
     #[cfg(test)]
     pub(super) fn inert_generated_fixture(
         self,

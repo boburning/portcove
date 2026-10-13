@@ -744,6 +744,27 @@ impl OperationStore {
         self.commit_psx_stage(PsxStageTable::Bootstrap, journal, witness, operation)
     }
 
+    #[cfg(feature = "qualification-fixtures")]
+    pub(crate) fn psx_historical_qualification_contract(
+        &self,
+        operation: &OperationCoordinator,
+        failed_generation: bool,
+    ) -> Result<serde_json::Value> {
+        if failed_generation {
+            Ok(self
+                .psx_inputs_for_generation(operation)?
+                .witness()
+                .acquired_contract()
+                .clone())
+        } else {
+            Ok(self
+                .psx_bootstrap_for_normalization(operation)?
+                .witness
+                .contract()
+                .clone())
+        }
+    }
+
     pub(crate) fn psx_bootstrap(
         &self,
         operation: &OperationCoordinator,

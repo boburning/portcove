@@ -62,7 +62,7 @@ impl BootstrapBinding {
 }
 
 impl BootstrapWitness {
-    pub(super) fn contract(&self) -> &serde_json::Value {
+    pub(crate) fn contract(&self) -> &serde_json::Value {
         &self.contract
     }
 

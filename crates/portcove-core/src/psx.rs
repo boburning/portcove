@@ -4024,6 +4024,34 @@ mod tests {
         store.put(&mut prior).unwrap();
         assert!(store.psx_normalized_inputs(&operation).is_err());
         assert!(store.psx_bootstrap(&operation).is_err());
+        #[cfg(feature = "qualification-fixtures")]
+        {
+            let expected = store
+                .psx_inputs_for_generation(&operation)
+                .unwrap()
+                .witness()
+                .acquired_contract()
+                .clone();
+            assert_eq!(
+                store
+                    .psx_historical_qualification_contract(&operation, true)
+                    .unwrap(),
+                expected
+            );
+            assert!(
+                store
+                    .psx_historical_qualification_contract(&operation, false)
+                    .is_err()
+            );
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .last_error,
+                prior.last_error
+            );
+        }
         let mut decoded = store.psx_inputs_for_generation(&operation).unwrap();
         let worker = store
             .start_psx_generation(&mut decoded, &prior, &operation)

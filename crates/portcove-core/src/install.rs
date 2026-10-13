@@ -195,6 +195,89 @@ impl InstallQualification {
         Ok(qualification)
     }
 
+    /// Reuse only the acquired semantic snapshot after current selected behavior
+    /// has matched. This grants no execution or publisher authority.
+    #[cfg(feature = "qualification-fixtures")]
+    pub(crate) fn historical_continuation(
+        mut self,
+        acquired: &serde_json::Value,
+        current: &crate::Catalog,
+        port_id: &str,
+    ) -> Result<Self> {
+        let retained: crate::installed_contract::InstalledContract =
+            serde_json::from_value(acquired["qualification"]["retained_contract"].clone())?;
+        let catalog = retained.catalog(port_id)?;
+        if serde_json::to_value(catalog.port(port_id)?)?
+            != serde_json::to_value(current.port(port_id)?)?
+        {
+            return Err(PortcoveError::conflict("historical selected port changed"));
+        }
+        let port = current.port(port_id)?;
+        for profile in port
+            .source_profile
+            .iter()
+            .chain(port.bios_source_profile.iter())
+        {
+            if serde_json::to_value(catalog.source_profile(profile)?)?
+                != serde_json::to_value(current.source_profile(profile)?)?
+            {
+                return Err(PortcoveError::conflict(
+                    "historical selected source changed",
+                ));
+            }
+        }
+        match (catalog.source_catalog(), current.source_catalog()) {
+            (Some(previous), Some(fresh)) => {
+                let contracts = |graph: &crate::SourceCatalog| {
+                    serde_json::to_value(
+                        graph
+                            .contracts
+                            .iter()
+                            .filter(|contract| contract.port_id == port_id)
+                            .collect::<Vec<_>>(),
+                    )
+                };
+                let identities = |graph: &crate::SourceCatalog| {
+                    serde_json::to_value(
+                        graph
+                            .identities
+                            .iter()
+                            .filter(|identity| {
+                                port.source_profile.as_ref() == Some(&identity.id)
+                                    || port.bios_source_profile.as_ref() == Some(&identity.id)
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                };
+                if contracts(previous)? != contracts(fresh)?
+                    || identities(previous)? != identities(fresh)?
+                    || previous.validators != fresh.validators
+                {
+                    return Err(PortcoveError::conflict(
+                        "historical selected source contract changed",
+                    ));
+                }
+            }
+            (None, None) => {}
+            _ => return Err(PortcoveError::conflict("historical source schema changed")),
+        }
+        let mut fresh = serde_json::to_value(&self)?;
+        let mut previous = acquired["qualification"].clone();
+        fresh
+            .as_object_mut()
+            .expect("qualification object")
+            .remove("retained_contract");
+        previous
+            .as_object_mut()
+            .ok_or_else(|| PortcoveError::verification("missing acquired qualification"))?
+            .remove("retained_contract");
+        if fresh != previous {
+            return Err(PortcoveError::conflict("historical qualification changed"));
+        }
+        self.retained_contract = Some(retained);
+        Ok(self)
+    }
+
     /// Build a verification projection. New manifests require `from_catalog`.
     pub fn from_port(port: &PortDefinition, platform: Platform) -> Result<Self> {
         crate::runtime::validate(port)?;

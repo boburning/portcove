@@ -258,11 +258,16 @@ impl PortcoveService {
             };
             let managed = service.managed_preparation(port, source, None, Platform::current()?, &operation, &mut emit).await?;
             require_legacy()?;
+            let mut qualification = InstallQualification::from_catalog(&immutable, port_id, Platform::current()?)?;
+            if retained_operation_id.is_some() {
+                let acquired = crate::operation::OperationStore::new(service.library.clone()).psx_historical_qualification_contract(&operation, stage == "generate-normalized")?;
+                qualification = qualification.historical_continuation(&acquired, &immutable, port_id)?;
+            }
             let request = InstallRequest {
                 port_id: port_id.to_owned(), release,
                 output_root: service.output_location(port_id, None)?.effective_output_directory,
                 activate: true, managed,
-                qualification: InstallQualification::from_catalog(&immutable, port_id, Platform::current()?)?,
+                qualification,
             };
             let installer = Installer::new(service.library.clone())?;
             let outcome = match stage {
@@ -539,6 +544,103 @@ impl PortcoveService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn historical_continuation_preserves_acquired_catalog_and_rejects_selected_drift() {
+        let catalog = Catalog::embedded().unwrap();
+        let port_id = "yu-gi-oh-forbidden-memories-recompiled";
+        let old =
+            InstallQualification::from_catalog(&catalog, port_id, Platform::WindowsX86_64).unwrap();
+        let acquired = serde_json::json!({"qualification": old});
+        let mut document = catalog.authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id != port_id)
+            .unwrap()
+            .name
+            .push_str(" unrelated change");
+        let unrelated_change =
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let fresh =
+            InstallQualification::from_catalog(&unrelated_change, port_id, Platform::WindowsX86_64)
+                .unwrap();
+        assert_ne!(
+            serde_json::to_value(&fresh).unwrap(),
+            acquired["qualification"]
+        );
+        let resumed = fresh
+            .historical_continuation(&acquired, &unrelated_change, port_id)
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(resumed).unwrap(),
+            acquired["qualification"]
+        );
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == port_id)
+            .unwrap()
+            .launch_arguments
+            .push("--changed".into());
+        let changed = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert!(
+            InstallQualification::from_catalog(&changed, port_id, Platform::WindowsX86_64)
+                .unwrap()
+                .historical_continuation(&acquired, &changed, port_id)
+                .is_err()
+        );
+        let mut wrong_platform = acquired.clone();
+        wrong_platform["qualification"]["platform"] = "linux-x86-64".into();
+        assert!(
+            InstallQualification::from_catalog(&catalog, port_id, Platform::WindowsX86_64)
+                .unwrap()
+                .historical_continuation(&wrong_platform, &catalog, port_id)
+                .is_err()
+        );
+        let mut wrong_behavior = acquired.clone();
+        wrong_behavior["qualification"]["persistent_paths"] = serde_json::json!([]);
+        assert!(
+            InstallQualification::from_catalog(&catalog, port_id, Platform::WindowsX86_64)
+                .unwrap()
+                .historical_continuation(&wrong_behavior, &catalog, port_id)
+                .is_err()
+        );
+        let mut selected_source = catalog.authoritative_document();
+        selected_source
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .iter_mut()
+            .find(|contract| contract.port_id == port_id)
+            .unwrap()
+            .authority_ref
+            .push_str("-changed");
+        let changed_source =
+            Catalog::from_json(&serde_json::to_string(&selected_source).unwrap()).unwrap();
+        assert!(
+            InstallQualification::from_catalog(&changed_source, port_id, Platform::WindowsX86_64)
+                .unwrap()
+                .historical_continuation(&acquired, &changed_source, port_id)
+                .is_err()
+        );
+        assert!(
+            InstallQualification::from_catalog(&catalog, port_id, Platform::WindowsX86_64)
+                .unwrap()
+                .historical_continuation(&serde_json::json!({}), &catalog, port_id)
+                .is_err()
+        );
+        let mut tampered = acquired.clone();
+        tampered["qualification"]["retained_contract"]["port_id"] = "another-port".into();
+        assert!(
+            InstallQualification::from_catalog(&catalog, port_id, Platform::WindowsX86_64)
+                .unwrap()
+                .historical_continuation(&tampered, &catalog, port_id)
+                .is_err()
+        );
+    }
 
     #[cfg(feature = "qualification-fixtures")]
     #[test]

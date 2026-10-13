@@ -265,3 +265,25 @@ that restores mtime after hashing. The delivered #1941 root-exit patch is compos
 with the candidate's pending membership episode safeguards, not substituted for
 them. Actual generation, sealing and the later usable lifecycle still require
 fresh source-bound native evidence within unchanged budgets.
+
+The first repaired producer (runtime source `82390c24638bd33424b36d3726b897367ba29614`,
+PR head `b56894739bcd9a6b8006288a9cbf2a65ea83b9f0`, differing only by a documentation
+blank line) positively closed in 44,769 ms with `PS1 acquired continuation request
+changed`, before dispatch. It did not reach the deadline or retain provisional
+generation. Readback preserved schema 45, acquired/materialized/normalized parent
+bytes, the prior cancellation journal and one failed-attempt history receipt.
+The acquired qualification had retained the complete 90-port catalog; the current
+candidate contained 93 ports after target integration. Selected source identity,
+source contract and all four validator declarations remained equal.
+
+The fixed historical caller now reconstructs only qualification semantics from
+the store-fenced acquired predecessor. Failed normalized generation uses its
+existing closed-predecessor inspection route; other retained stages use ordinary
+bootstrap context inspection. Neither performs extra execution hashing or clears
+failure evidence. The selected port, game/BIOS profiles, complete selected source
+identities/contracts and all validator declarations must still match current
+semantics, as must every qualification field except the retained catalog snapshot.
+Validator drift conservatively refuses continuation, even if unrelated. Current
+publisher checks, exact request/preparation binding and Installer fresh hashing
+remain authoritative. Missing, malformed or mismatched snapshots fail closed.
+This caller repair does not grant native acceptance; a new producer is required.
