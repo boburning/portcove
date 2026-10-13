@@ -417,6 +417,22 @@ attempt, missing page, inconsistent total, duplicate identity or exhausted
 bound refuses the receipt. Bounds are 1,600 records per inventory, 40 GET
 requests, 120 seconds and 2 MiB per API reply.
 
+`node scripts/release-run-evidence.mjs REQUEST.json ARTIFACT_ID RETAINED_FILE`
+also compares an already retained opaque file with that artifact's current
+provider digest and exact byte count. Missing, expired or undigested artifacts
+refuse before file I/O. One regular-file handle streams at most 512 MiB using a
+64 KiB buffer plus a one-byte growth probe, checks mutation and SHA-256, then
+refreshes the complete API evidence and refuses changed run/artifact identity.
+Both collections and file comparison share a 40-request cap and cooperative
+120-second receipt/refusal deadline. An in-flight bounded `gh` call may finish
+after the deadline; filesystem I/O has no hard cancellation. This is not a
+process-termination guarantee. The receipt includes both complete API receipts
+and their digests so its byte/metadata binding remains reviewable; it does not download, parse, extract
+or execute them. Provider upload size and digest describe the uploaded object
+in [GitHub's artifact uploader](https://github.com/actions/toolkit/blob/main/packages/artifact/src/internal/upload/upload-artifact.ts),
+not an extracted-package acceptance. Producing job/attempt and execution lineage
+remain unknown; a successful byte comparison grants no release authority.
+
 The content-digested receipt records source workflow bytes, not authenticated
 execution lineage. Artifact scope covers all attempts of the run; GitHub's
 [artifact API](https://docs.github.com/en/rest/actions/artifacts) reports no
