@@ -1245,11 +1245,40 @@ async function preliminarySelectedSetupScenario(context) {
       );
       for (const reverse of [false, true]) {
         for (let index = 0; index < 8; index += 1) {
+          await browser.executeScript(() => {
+            if (window.__portcove244FocusTrace) throw new Error("Focus trace already owned");
+            const events = [];
+            const capture = (event) => {
+              const target = event.target;
+              const dialog = document.querySelector('[aria-labelledby="install-review-title"]');
+              events.push({
+                type: event.type,
+                key: event.key,
+                shift: event.shiftKey,
+                inside: !!dialog && dialog.contains(target),
+                guard: target?.hasAttribute?.("data-base-ui-focus-guard") ?? false,
+                html: target?.outerHTML?.slice(0, 1200),
+                document_focused: document.hasFocus(),
+              });
+            };
+            document.addEventListener("focusin", capture, true);
+            document.addEventListener("keydown", capture, true);
+            window.__portcove244FocusTrace = {
+              events,
+              close() {
+                document.removeEventListener("focusin", capture, true);
+                document.removeEventListener("keydown", capture, true);
+              },
+            };
+          });
           const keys = browser.actions();
           if (reverse) keys.keyDown(Key.SHIFT);
           keys.sendKeys(Key.TAB);
           if (reverse) keys.keyUp(Key.SHIFT);
           await keys.perform();
+          await browser.executeAsyncScript((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => done())),
+          );
           const focus = await browser.executeScript(() => {
             const dialog = document.querySelector('[aria-labelledby="install-review-title"]');
             const active = document.activeElement;
@@ -1257,8 +1286,21 @@ async function preliminarySelectedSetupScenario(context) {
               inside: !!dialog && dialog.contains(active),
               label: active?.textContent?.trim(),
               disabled: active?.disabled ?? false,
+              html: active?.outerHTML?.slice(0, 1200),
+              document_focused: document.hasFocus(),
+              events: window.__portcove244FocusTrace.events,
             };
           });
+          await browser.executeScript(() => {
+            window.__portcove244FocusTrace.close();
+            delete window.__portcove244FocusTrace;
+          });
+          keyboardFocus.push({ reverse, index, ...focus });
+          report.observations.native_keyboard_focus = keyboardFocus;
+          assert.ok(
+            focus.events.every((event) => event.inside || event.guard),
+            "Native keyboard focus must not enter background controls",
+          );
           assert.equal(focus.inside, true, "Native Tab must stay in the topmost setup review");
           assert.equal(focus.disabled, false);
           assert.ok(focus.label === "Cancel review" || focus.label.startsWith("Install ·"));
@@ -1271,7 +1313,6 @@ async function preliminarySelectedSetupScenario(context) {
             true,
             "Every native Tab must alternate between the two enabled review controls",
           );
-          keyboardFocus.push({ reverse, ...focus });
         }
       }
       report.observations.native_keyboard_focus = keyboardFocus;
