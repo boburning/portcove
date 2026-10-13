@@ -10134,16 +10134,12 @@ fn main() {
     fn external_source_representation_uses_retained_contract_without_changing_source_health() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        let probe = register_launch_probe(&library, "v1", true);
         let external = temporary.path().join("player-owned");
         fs::create_dir(&external).unwrap();
         let platform = Platform::current().unwrap();
-        let executable_name = probe.selected_executable.to_str().unwrap().to_owned();
-        fs::copy(
-            probe.path.join(&executable_name),
-            external.join(&executable_name),
-        )
-        .unwrap();
+        // This test inspects readiness and launch arguments, never executes a child.
+        let executable_name = "game.exe".to_owned();
+        fs::write(external.join(&executable_name), b"inert reviewed runtime").unwrap();
         let mut runtime = crate::UserPreparedRuntimeSpec {
             version: "probe-v1".into(),
             archive_name: "probe.zip".into(),
