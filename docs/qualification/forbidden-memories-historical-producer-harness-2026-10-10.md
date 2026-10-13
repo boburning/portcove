@@ -438,7 +438,8 @@ canonical working path as UNC, leaving a missing compiler-test object. All 101
 retained process lifetimes closed positively; no configuration, compilation or
 installation was retained. Packet
 `E:/pc1785-configure-retained-archive-647dc76-20261013` and its consistent
-SQLite backup preserve this failure and its partial build tree.
+SQLite backup preserve this failure and its database predecessors. The partial
+build tree remains in operation-owned staging.
 
 Builder working directories and CMake source/build/tool arguments now use the
 existing ordinary Windows path adapter, checked against the same canonical
