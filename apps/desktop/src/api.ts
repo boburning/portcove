@@ -369,7 +369,8 @@ export const desktopApi = {
   cancelOperation: (operationId: string) =>
     invoke<CancellationState>("cancel_operation", { operationId }),
   backups: (portId: string) => invoke<BackupInventory>("get_backups", { portId }),
-  backup: (portId: string) => invoke<BackupRecord>("create_backup", { portId }),
+  backup: (portId: string, generation: number) =>
+    invoke<BackupRecord>("create_backup", { portId, generation }),
   previewBackupAction: (
     portId: string,
     backupId: string,
@@ -576,7 +577,7 @@ export const desktopApi = {
       expectedStaged,
       generation,
     }),
-  rollback: (portId: string) => invoke("rollback_port", { portId }),
+  rollback: (portId: string, generation: number) => invoke("rollback_port", { portId, generation }),
   previewRemoval: (portId: string, generation: number) =>
     invoke<PortRemovalPreview>("preview_removal", { portId, generation }),
   remove: (portId: string, expectedPreview: string, generation: number) =>

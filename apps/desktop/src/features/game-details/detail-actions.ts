@@ -44,7 +44,8 @@ export function detailActions({
           )
         : undefined,
     backup: async () => {
-      if (await perform("back up data", () => desktopApi.backup(port.id))) await backupsChanged();
+      if (await perform("back up data", () => desktopApi.backup(port.id, libraryGeneration)))
+        await backupsChanged();
     },
     check: () =>
       perform("check", () => desktopApi.check(port.id, libraryGeneration), {
@@ -93,7 +94,7 @@ export function detailActions({
       if (completed) await backupsChanged();
       return completed;
     },
-    rollback: () => perform("rollback", () => desktopApi.rollback(port.id)),
+    rollback: () => perform("rollback", () => desktopApi.rollback(port.id, libraryGeneration)),
     restoreBackup: async (backup, expectedPreview) => {
       const result = await perform("restore backup", () =>
         desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration),
