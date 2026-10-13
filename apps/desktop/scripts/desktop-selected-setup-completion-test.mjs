@@ -88,9 +88,11 @@ export async function selectedSetupCompletionScenario({
   artifacts,
   cli,
   fixture,
+  restartApplication,
 }) {
   await scenario("native-selected-setup-completion", async () => {
     assert.equal(fixture?.completionJourney, true);
+    assert.equal(typeof restartApplication, "function");
     const owned = fixture.sourceJourney;
     const port = fixture.port;
     const { button, click } = reviewControls(browser);
@@ -141,7 +143,7 @@ export async function selectedSetupCompletionScenario({
     };
     const report = {
       scope:
-        "Windows ordinary install and isolated preparation of a first-party probe with synthetic N64 input",
+        "Windows synthetic selected setup: ordinary install, inert N64 preparation, BIOS-plus-game review and saved-input restart",
       limitations: [
         "Saved root seeded by the existing CLI; native picker credited separately",
         "No real game, BIOS preparation, gameplay, full representation matrix or other platform qualification",
@@ -442,10 +444,33 @@ export async function selectedSetupCompletionScenario({
         await browser.findElement(button(`Review ${port.name} setup`)).isEnabled(),
         false,
       );
-      assert.equal(
-        await browser.findElement(button(`Review ${owned.reviewPort.name} setup`)).isEnabled(),
-        true,
+      const returnedAlternative = (await read("get_statuses")).find(
+        (item) => item.port_id === owned.reviewPort.id,
       );
+      assert.equal(returnedAlternative.active, null);
+      assert.equal(Boolean(returnedAlternative.external_runtime), false);
+      assert.ok(
+        returnedAlternative.port_actions.some(
+          (item) => item.action === "install" && item.availability === "allowed",
+        ),
+      );
+      const returnedSnapshot = await read("get_game_file_scan_snapshot");
+      assert.equal(returnedSnapshot.freshness, "inputs_match");
+      await browser.wait(
+        async () => {
+          const controls = await browser.findElements(
+            button(`Review ${owned.reviewPort.name} setup`),
+          );
+          return controls.length === 1 && (await controls[0].isEnabled());
+        },
+        15_000,
+        "The fresh return read must restore the Core-eligible alternative review",
+      );
+      report.observations.returned_alternative_review = {
+        status: returnedAlternative,
+        snapshot: returnedSnapshot,
+        review_enabled: true,
+      };
       const afterCompletion = await read("get_statuses");
       await click(button(`Review ${owned.reviewPort.name} setup`));
       await browser.wait(
@@ -643,6 +668,101 @@ export async function selectedSetupCompletionScenario({
       await captureAccessibilityReport(
         browser,
         path.join(output, "selected-setup-bios-completion-accessibility.json"),
+        artifacts,
+      );
+      await browser.wait(
+        async () => {
+          const controls = await browser.findElements(
+            button(`Review ${fixture.refreshPort.name} setup`),
+          );
+          return controls.length === 1 && (await controls[0].isEnabled());
+        },
+        15_000,
+        "The fresh return read must restore the Core-eligible BIOS review",
+      );
+      report.observations.bios_settled_return = {
+        snapshot: await read("get_game_file_scan_snapshot"),
+        review_enabled: true,
+        selected_count: 3,
+      };
+      assert.equal(report.observations.bios_settled_return.snapshot.freshness, "inputs_match");
+      assert.deepEqual(await read("get_sources"), biosSources);
+      assert.equal(fixture.requests.length, acquisitionsBeforeBiosPlan);
+      await screenshot("selected-setup-bios-settled-return");
+
+      const rootsBeforeRestart = await read("get_game_file_roots");
+      browser = await restartApplication("selected-setup-inputs");
+      const { button: restartButton, click: restartClick } = reviewControls(browser);
+      assert.deepEqual(await read("get_sources"), biosSources);
+      assert.deepEqual(await read("get_game_file_roots"), rootsBeforeRestart);
+      const restoredSnapshot = await read("get_game_file_scan_snapshot");
+      assert.equal(restoredSnapshot.freshness, "inputs_match");
+      assert.deepEqual(
+        restoredSnapshot.report.candidates,
+        report.observations.bios_only_scan.snapshot.report.candidates,
+      );
+      const restoredStatus = (await read("get_statuses")).find(
+        (item) => item.port_id === fixture.refreshPort.id,
+      );
+      assert.equal(restoredStatus.active, null);
+      assert.ok(
+        restoredStatus.port_actions.some(
+          (item) => item.action === "install" && item.availability === "allowed",
+        ),
+      );
+      assert.deepEqual(core(["source", "list"]), biosSources);
+      await restartClick(By.xpath('//nav//button[contains(., "Settings")]'));
+      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await browser.wait(
+        async () => {
+          const controls = await browser.findElements(
+            By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`),
+          );
+          return controls.length === 1 && (await controls[0].isEnabled());
+        },
+        15_000,
+        "Restart must recover the saved BIOS match and actual eligible setup choice",
+      );
+      const restoredChoice = await browser.findElement(
+        By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`),
+      );
+      assert.equal(
+        await restoredChoice.isSelected(),
+        false,
+        "Selection is ephemeral across restart",
+      );
+      assert.doesNotMatch(await browser.findElement(queue).getText(), /3 of 16 ports selected/);
+      await restartClick(By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`));
+      await restartClick(restartButton(`Review ${fixture.refreshPort.name} setup`));
+      await browser.wait(until.elementLocated(installDialog), 15_000);
+      const restoredPlan = await read("plan_port", {
+        portId: fixture.refreshPort.id,
+        channel: "stable",
+      });
+      assert.deepEqual(restoredPlan.source_requirements, biosPlan.source_requirements);
+      report.observations.bios_restart = {
+        roots: rootsBeforeRestart,
+        sources: biosSources,
+        snapshot: restoredSnapshot,
+        status: restoredStatus,
+        plan: restoredPlan,
+        selection_restored: false,
+      };
+      await screenshot("selected-setup-bios-restarted-review");
+      await restartClick(restartButton("Cancel review"));
+      await browser.wait(
+        async () => (await browser.findElements(installDialog)).length === 0,
+        5_000,
+      );
+      assert.deepEqual(await read("get_sources"), biosSources);
+      assert.equal(fixture.requests.length, acquisitionsBeforeBiosPlan);
+      assert.equal(
+        (await read("get_statuses")).find((item) => item.port_id === fixture.refreshPort.id).active,
+        null,
+      );
+      await captureAccessibilityReport(
+        browser,
+        path.join(output, "selected-setup-bios-restart-accessibility.json"),
         artifacts,
       );
     } catch (error) {

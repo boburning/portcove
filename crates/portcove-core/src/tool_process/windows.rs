@@ -28,6 +28,7 @@ use windows_sys::Win32::{
         DBG_CONTINUE, DBG_EXCEPTION_NOT_HANDLED, ERROR_INVALID_HANDLE, ERROR_INVALID_PARAMETER,
         ERROR_SEM_TIMEOUT, FILETIME, GetLastError, HANDLE, HANDLE_FLAG_INHERIT,
         INVALID_HANDLE_VALUE, STATUS_BREAKPOINT, SetHandleInformation, WAIT_FAILED, WAIT_OBJECT_0,
+        WAIT_TIMEOUT,
     },
     Security::SECURITY_ATTRIBUTES,
     Storage::FileSystem::{
@@ -314,6 +315,8 @@ pub(super) fn spawn_with_occupied_slots(
 
 #[derive(Default, Clone)]
 struct TestOptions {
+    #[cfg(test)]
+    late_root_exit: Option<Arc<Mutex<Option<(u32, u32, Identity)>>>>,
     #[cfg(test)]
     panic_tree: Option<Arc<PanicTreeObservation>>,
     #[cfg(test)]
@@ -768,6 +771,24 @@ fn identity(handle: HANDLE) -> io::Result<Identity> {
         return Err(io::Error::other("native creation identity is incomplete"));
     }
     Ok(Identity { pid, created })
+}
+
+fn positive_root_exit_status(
+    handle: HANDLE,
+) -> Result<Option<ExitStatus>, (&'static str, Option<u32>)> {
+    match unsafe { WaitForSingleObject(handle, 0) } {
+        WAIT_OBJECT_0 => {
+            let mut code = 0;
+            if unsafe { GetExitCodeProcess(handle, &mut code) } == 0 {
+                Err(("root_exit_code", Some(unsafe { GetLastError() })))
+            } else {
+                Ok(Some(ExitStatus::from_raw(code)))
+            }
+        }
+        WAIT_TIMEOUT => Ok(None),
+        WAIT_FAILED => Err(("root_wait", Some(unsafe { GetLastError() }))),
+        _ => Err(("root_wait", None)),
+    }
 }
 
 struct Controller {
@@ -1295,6 +1316,8 @@ impl Controller {
         loop {
             self.terminate_if_requested();
             let mut event = DEBUG_EVENT::default();
+            #[cfg(test)]
+            let mut defer_root_sample = false;
             if unsafe { WaitForDebugEventEx(&mut event, 1) } != 0 {
                 let continuation = self.event(&event);
                 #[cfg(test)]
@@ -1303,11 +1326,40 @@ impl Controller {
                 self.observe_pending_creation(&event);
                 #[cfg(test)]
                 self.observe_exception(&event, continuation);
+                #[cfg(test)]
+                if event.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT
+                    && self.root.is_some_and(|root| root.pid == event.dwProcessId)
+                {
+                    if let Some(observation) = &self.options.late_root_exit {
+                        let root = self.root.expect("root exit has retained identity");
+                        let handle = self.members[&root].handle.as_raw_handle();
+                        let early = unsafe { WaitForSingleObject(handle, 0) };
+                        assert_eq!(
+                            early, WAIT_TIMEOUT,
+                            "root signaled before exit continuation"
+                        );
+                        *observation.lock().unwrap() = Some((early, WAIT_TIMEOUT, root));
+                        defer_root_sample = true;
+                    }
+                }
                 self.terminate_if_requested();
                 if unsafe { ContinueDebugEvent(event.dwProcessId, event.dwThreadId, continuation) }
                     == 0
                 {
                     self.fail("event_continuation", Some(unsafe { GetLastError() }));
+                }
+                #[cfg(test)]
+                if defer_root_sample {
+                    let root = self.root.expect("root exit has retained identity");
+                    let handle = self.members[&root].handle.as_raw_handle();
+                    let late = unsafe { WaitForSingleObject(handle, 1000) };
+                    if let Some(observation) = &self.options.late_root_exit {
+                        observation.lock().unwrap().as_mut().unwrap().1 = late;
+                    }
+                    assert_eq!(
+                        late, WAIT_OBJECT_0,
+                        "root did not signal after exit continuation"
+                    );
                 }
             } else {
                 let error = unsafe { GetLastError() };
@@ -1324,21 +1376,12 @@ impl Controller {
             if self.job_assigned {
                 self.observe_non_debug_members();
             }
-            if let Some(root) = self.root {
-                let handle = self.members[&root].handle.as_raw_handle();
-                let waited = unsafe { WaitForSingleObject(handle, 0) };
-                if waited == WAIT_OBJECT_0 {
-                    let mut code = 0;
-                    if unsafe { GetExitCodeProcess(handle, &mut code) } != 0 {
-                        self.control.lock().root_status = Some(ExitStatus::from_raw(code));
-                        self.control.request_stop();
-                    } else {
-                        self.fail("root_exit_code", Some(unsafe { GetLastError() }));
-                    }
-                } else if waited == WAIT_FAILED {
-                    self.fail("root_wait", Some(unsafe { GetLastError() }));
-                }
+            #[cfg(test)]
+            if !defer_root_sample {
+                self.observe_root_exit();
             }
+            #[cfg(not(test))]
+            self.observe_root_exit();
             let Some(deadline) = self.control.lock().deadline else {
                 continue;
             };
@@ -1387,6 +1430,16 @@ impl Controller {
                     .accounting
                     .is_some_and(|(active, _)| active == 0)
             {
+                // The root may have signaled after the earlier root sample but
+                // before this retained-member sample. Publish only after the
+                // exact retained root handle supplies its real exit code.
+                if self.control.lock().root_status.is_none() {
+                    self.observe_root_exit();
+                }
+                let root_exited = self.control.lock().root_status.is_some();
+                if !root_exited {
+                    self.fail("root_exit_unobserved", None);
+                }
                 let complete = self
                     .control
                     .lock()
@@ -1402,9 +1455,23 @@ impl Controller {
                     self.fail("root_creation_event_missing", None);
                 }
                 let mut proof = self.control.lock();
-                proof.finish(complete && root_seen, Instant::now());
+                proof.finish(complete && root_seen && root_exited, Instant::now());
                 self.control.changed.notify_all();
                 return;
+            }
+        }
+    }
+
+    fn observe_root_exit(&mut self) {
+        if let Some(root) = self.root {
+            let handle = self.members[&root].handle.as_raw_handle();
+            match positive_root_exit_status(handle) {
+                Ok(Some(status)) => {
+                    self.control.lock().root_status = Some(status);
+                    self.control.request_stop();
+                }
+                Ok(None) => {}
+                Err((reason, code)) => self.fail(reason, code),
             }
         }
     }
@@ -1596,6 +1663,47 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
 mod native_control_tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    fn root_signaling_between_samples_retains_positive_exit_proof() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.arg("--success").current_dir(working.path());
+        let observation = Arc::new(Mutex::new(None));
+        let (mut child, group) = spawn_with_options(
+            &spec,
+            TestOptions {
+                late_root_exit: Some(observation.clone()),
+                ..Default::default()
+            },
+        )
+        .map_err(|failure| failure.error)
+        .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(4);
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(1)),
+                other => panic!("root status was not positively captured: {other:?}"),
+            }
+        };
+        assert!(status.success());
+        assert_eq!(group.terminate_and_wait(&mut child).unwrap(), status);
+        assert!(group.proves_tree_quiescence());
+        let (early, late, root) = observation.lock().unwrap().expect("root exit seam ran");
+        assert_eq!(early, WAIT_TIMEOUT);
+        assert_eq!(late, WAIT_OBJECT_0);
+        let proof = group.control.lock();
+        assert_eq!(proof.identities, [root]);
+        assert_eq!(proof.root_status, Some(status));
+        assert_eq!(proof.accounting, Some((0, 1)));
+        assert_eq!(proof.all_retained_signaled, Some(true));
+        assert!(proof.first_failure.is_none() && !proof.deadline_exhausted);
+    }
 
     #[test]
     #[ignore = "requires separately admitted prepared live event-pump panic packet"]
