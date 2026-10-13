@@ -375,6 +375,25 @@ impl GeneratedTree {
         Ok(())
     }
 
+    /// Preserve only fresh inspected configure outputs. This inventory grants
+    /// permission to retain these objects, never to execute a cached build.
+    pub(super) fn preserve_configuration_outputs(
+        &self,
+        destination: &Path,
+        operation: &OperationCoordinator,
+    ) -> Result<Self> {
+        self.verify_capture_fence(&self.root, operation)?;
+        let mut mappings = Vec::with_capacity(2);
+        for name in ["build-portcove", ".portcove-builder-environment"] {
+            let relative = PathBuf::from(name);
+            if self.entries.contains_key(&relative) {
+                self.archive_input(&relative, &destination.join(&relative), operation)?;
+                mappings.push((relative.clone(), relative));
+            }
+        }
+        self.retained_inputs(destination, &mappings, operation)
+    }
+
     /// Repeat object metadata and the complete name set after joined read-only
     /// checks. This is an inspection-time fence, never a substitute for fresh
     /// byte hashing or authority for a later execution window.

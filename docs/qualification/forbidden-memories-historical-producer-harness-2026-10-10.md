@@ -425,3 +425,41 @@ Packets are retained at `E:/pc1785-generate-owner-calibration-20261013`,
 committed WAL state instead of relying on a main-database hash alone. Earlier
 failed packets and recovery backups remain preserved. Configuration, ordered
 compilation, finalization and the player-facing lifecycle remain pending.
+
+## Retained configuration command-path repair — October 13, 2026
+
+Candidate `647dc76a5dd7bf82b4b5c42f56bb41aa52c930d8`, tree
+`a8ae6ea41d77d3f9bf3f328029aca7b83341a3fd`, passed all five required contexts
+in CI run `38465083201`, attempt 1. Its default release producer SHA-256 was
+`3f45d5ce4f2c4d3bfc65a681016fd70df7f62e597a27b4a40454002cfe2af5dd`.
+The next configuration completed fresh prechecks and dispatched actual CMake,
+then failed after 350,944 ms. Windows command processing rejected the extended
+canonical working path as UNC, leaving a missing compiler-test object. All 101
+retained process lifetimes closed positively; no configuration, compilation or
+installation was retained. Packet
+`E:/pc1785-configure-retained-archive-647dc76-20261013` and its consistent
+SQLite backup preserve this failure and its partial build tree.
+
+Builder working directories and CMake source/build/tool arguments now use the
+existing ordinary Windows path adapter, checked against the same canonical
+object. Canonical inventory paths and fresh hashing remain required; UNC roots
+are refused before inspection or profile creation.
+
+The existing configure operation gains one explicit continuation for a positively
+closed failure with unchanged sealed generation and normalized predecessors.
+It rechecks the five predecessor receipts, history, library identity and full
+journal, atomically records its owned start without clearing the prior error,
+and freshly verifies inputs. Before moving either owned build/environment tree,
+it durably writes the prior receipt to a fixed, exclusive failure directory.
+Only those two mutable subtrees are archived using the existing identity/content
+checks. The original generation JSON/SHA is unchanged. Archived output evidence
+is never execution authority. Any existing failure directory holds subsequent
+configure attempts, including an interrupted successful attempt.
+
+The worker is joined on cancellation and panic. Its outcome preserves the old
+error and records closure against the full journal. Only successful configuration
+promotion, with fresh verification and all predecessor/history fences, clears
+the error and inserts configuration in the same transaction. The ordinary
+generation/contract getter remains strict; qualification obtains the failed
+configuration's retained contract through the separately fenced closed context.
+Fixture checks do not establish native acceptance of this continuation.

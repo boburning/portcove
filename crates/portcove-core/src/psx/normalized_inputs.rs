@@ -9,6 +9,12 @@ use super::{
 };
 use crate::{Library, OperationCoordinator, PortcoveError, Result, operation::LifecycleOperation};
 
+#[derive(Clone, Copy)]
+enum NormalizedReadContext<'a> {
+    Current(&'a LifecycleOperation),
+    Closed(&'a crate::operation::ClosedGenerationPredecessor),
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct NormalizedInputWitness {
@@ -84,9 +90,55 @@ impl NormalizedGenerationBinding {
         journal: &LifecycleOperation,
         operation: &OperationCoordinator,
     ) -> Result<()> {
+        self.verify_inputs_in_context(
+            generated,
+            contract,
+            bootstrap,
+            library,
+            NormalizedReadContext::Current(journal),
+            operation,
+        )
+    }
+
+    pub(super) fn verify_closed_configuration_inputs(
+        &self,
+        generated: &super::GeneratedInstall,
+        contract: &serde_json::Value,
+        bootstrap: Option<&BootstrapBinding>,
+        library: &Library,
+        predecessor: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.verify_inputs_in_context(
+            generated,
+            contract,
+            bootstrap,
+            library,
+            NormalizedReadContext::Closed(predecessor),
+            operation,
+        )
+    }
+
+    fn verify_inputs_in_context(
+        &self,
+        generated: &super::GeneratedInstall,
+        contract: &serde_json::Value,
+        bootstrap: Option<&BootstrapBinding>,
+        library: &Library,
+        context: NormalizedReadContext<'_>,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        let journal = match context {
+            NormalizedReadContext::Current(journal) => journal,
+            NormalizedReadContext::Closed(predecessor) => predecessor.journal(),
+        };
         self.require_current(library, operation.operation_id())?;
         let normalized: NormalizedInputWitness = serde_json::from_str(&self.json)?;
-        normalized.verify_materialized_context(library, journal, operation)?;
+        if let NormalizedReadContext::Closed(predecessor) = context {
+            normalized.verify_generation_context(library, predecessor, operation)?;
+        } else {
+            normalized.verify_materialized_context(library, journal, operation)?;
+        }
         if normalized.bootstrap.contract() != contract
             || bootstrap.map(|binding| binding.receipt()) != Some(normalized.binding.receipt())
         {
@@ -113,9 +165,17 @@ impl NormalizedGenerationBinding {
             .bootstrap
             .payload()
             .require_generation_transition(&generated.tree, &self.outputs, operation)?;
-        normalized
-            .bootstrap
-            .verify_archive(library, journal, operation)?;
+        if let NormalizedReadContext::Closed(predecessor) = context {
+            normalized.bootstrap.verify_closed_configuration_archive(
+                library,
+                predecessor,
+                operation,
+            )?;
+        } else {
+            normalized
+                .bootstrap
+                .verify_archive(library, journal, operation)?;
+        }
         if inspect_helper(&normalized.helper_path, operation)? != normalized.helper {
             return Err(PortcoveError::verification("PS1 generation helper changed"));
         }

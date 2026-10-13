@@ -227,9 +227,9 @@ impl PortcoveService {
                 || owner.phase != crate::operation::LifecyclePhase::StagedPreparing
                 || owner.port_id != port_id
                 || owner.preparation_process_quiesced != Some(true)
-                // The normalized gateway alone has a store-owned failed-attempt
-                // acknowledgement. Every other stage retains its strict guard.
-                || (owner.last_error.is_some() && stage != "generate-normalized")
+                // These two gateways perform their own fenced acknowledgement;
+                // all other stages retain the ordinary error-free owner guard.
+                || (owner.last_error.is_some() && !matches!(stage, "generate-normalized" | "configure"))
             {
                 return Err(PortcoveError::conflict(
                     "retained stage custody is not resumable",
@@ -290,7 +290,12 @@ impl PortcoveService {
             require_legacy()?;
             let mut qualification = InstallQualification::from_catalog(&immutable, port_id, Platform::current()?)?;
             if retained_operation_id.is_some() {
-                let acquired = crate::operation::OperationStore::new(service.library.clone()).psx_historical_qualification_contract(&operation, stage == "generate-normalized")?;
+                let store = crate::operation::OperationStore::new(service.library.clone());
+                let acquired = if stage == "configure" {
+                    store.psx_historical_configuration_contract(&operation)?
+                } else {
+                    store.psx_historical_qualification_contract(&operation, stage == "generate-normalized")?
+                };
                 qualification = qualification.historical_continuation(&acquired, &immutable, port_id)?;
             }
             let request = InstallRequest {

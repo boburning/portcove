@@ -77,6 +77,24 @@ impl BootstrapWitness {
         operation: &OperationCoordinator,
     ) -> Result<()> {
         self.require_context(library, journal, operation)?;
+        self.verify_archive_bytes(journal, operation)
+    }
+
+    pub(super) fn verify_closed_configuration_archive(
+        &self,
+        library: &Library,
+        predecessor: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.require_closed_context(library, predecessor.journal(), operation)?;
+        self.verify_archive_bytes(predecessor.journal(), operation)
+    }
+
+    fn verify_archive_bytes(
+        &self,
+        journal: &LifecycleOperation,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
         let staging = journal
             .paths
             .staging

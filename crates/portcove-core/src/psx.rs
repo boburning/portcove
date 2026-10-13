@@ -82,10 +82,29 @@ fn configure_install(
     quiesced: &mut bool,
     generated: &GeneratedInstall,
 ) -> Result<ConfiguredInstall> {
+    configure_install_with_recovery(root, preparation, operation, quiesced, generated, false)
+}
+
+fn configure_install_with_recovery(
+    root: &Path,
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    generated: &GeneratedInstall,
+    recovered: bool,
+) -> Result<ConfiguredInstall> {
     if generated.inputs != preparation_identity(preparation)? {
         return Err(PortcoveError::verification("PS1 configure inputs changed"));
     }
-    generated.tree.verify(root, operation)?;
+    if recovered {
+        // Only the explicitly started failed-configure worker reaches this
+        // branch. Original files remain bound to the immutable sealed receipt.
+        generated
+            .tree
+            .configured_transition(root, operation, true)?;
+    } else {
+        generated.tree.verify(root, operation)?;
+    }
     generated
         .toolchain
         .verify(&preparation.toolchain_root, operation)?;
@@ -146,26 +165,44 @@ fn configure_install(
     })
 }
 
+fn builder_path(path: &Path) -> Result<String> {
+    #[cfg(windows)]
+    if matches!(
+        path.components().next(),
+        Some(std::path::Component::Prefix(prefix))
+            if matches!(prefix.kind(), std::path::Prefix::UNC(_, _) | std::path::Prefix::VerbatimUNC(_, _))
+    ) {
+        return Err(PortcoveError::unsupported(
+            "managed PS1 command-shell builds require a local Windows working directory",
+        ));
+    }
+    crate::path::refuse_symlink_ancestors(path)?;
+    crate::adapter::psx_launch_path(path)
+}
+
 fn configure_arguments(root: &Path, build: &Path, toolchain: &Path) -> Result<Vec<String>> {
     let bin = toolchain.join("bin");
     let mut arguments = vec![
         "-S".into(),
-        crate::path::unicode(root, "managed configure root")?,
+        // CMake emits command-shell working directories into the Ninja graph.
+        // Use the existing identity-checked ordinary Windows spelling there;
+        // canonical paths remain the inventory and witness authority.
+        builder_path(root)?,
         "-B".into(),
-        crate::path::unicode(build, "managed configure directory")?,
+        builder_path(build)?,
         "-G".into(),
         "Ninja".into(),
         format!(
             "-DCMAKE_MAKE_PROGRAM={}",
-            crate::path::unicode(&platform_executable(&bin, "ninja"), "pinned Ninja")?
+            builder_path(&platform_executable(&bin, "ninja"))?
         ),
         format!(
             "-DCMAKE_C_COMPILER={}",
-            crate::path::unicode(&platform_executable(&bin, "clang"), "pinned C compiler")?
+            builder_path(&platform_executable(&bin, "clang"))?
         ),
         format!(
             "-DCMAKE_CXX_COMPILER={}",
-            crate::path::unicode(&platform_executable(&bin, "clang++"), "pinned C++ compiler")?
+            builder_path(&platform_executable(&bin, "clang++"))?
         ),
         "-DCMAKE_BUILD_TYPE=Release".into(),
         "-DPSX_PGO=".into(),
@@ -426,6 +463,11 @@ impl ConfiguredInstallWitness {
 }
 
 impl GeneratedInstallWitness {
+    #[cfg(feature = "qualification-fixtures")]
+    pub(crate) fn acquired_contract(&self) -> &serde_json::Value {
+        &self.contract
+    }
+
     pub(crate) fn with_bootstrap(mut self, binding: bootstrap::BootstrapBinding) -> Self {
         self.bootstrap = Some(binding);
         self
@@ -512,6 +554,19 @@ impl GeneratedInstallWitness {
         library: &Library,
         journal: &crate::operation::LifecycleOperation,
     ) -> Result<()> {
+        if journal.last_error.is_some() {
+            return Err(PortcoveError::state(
+                "PS1 generation witness custody changed",
+            ));
+        }
+        self.require_closed_owner(library, journal)
+    }
+
+    fn require_closed_owner(
+        &self,
+        library: &Library,
+        journal: &crate::operation::LifecycleOperation,
+    ) -> Result<()> {
         use crate::operation::{LifecycleOperationKind, LifecyclePhase};
         let staging = journal.paths.staging.as_ref().ok_or_else(|| {
             PortcoveError::state("PS1 generation witness has no owned staging root")
@@ -537,7 +592,6 @@ impl GeneratedInstallWitness {
             || journal.source_import.is_some()
             || journal.paths.quarantine.is_some()
             || !journal.original_paths.is_empty()
-            || journal.last_error.is_some()
             || journal.preparation_process_quiesced != Some(true)
         {
             return Err(PortcoveError::state(
@@ -635,6 +689,10 @@ impl GeneratedInstallWitness {
                 operation,
             )?;
         }
+        self.verify_external_inputs(operation)
+    }
+
+    fn verify_external_inputs(&self, operation: &OperationCoordinator) -> Result<()> {
         let preparation = preparation_from_identity(&self.generated.inputs)?;
         let platform = Platform::current()?;
         if !validate_toolchain_with_checkpoint(
@@ -659,6 +717,185 @@ impl GeneratedInstallWitness {
             .normalized_disc
             .verify(self.generated.normalized_disc.root(), operation)?;
         Ok(())
+    }
+
+    fn failed_configuration_inventory(
+        &self,
+        library: &Library,
+        closed: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<stage::GeneratedTree> {
+        let journal = closed.journal();
+        if journal.last_error.is_none() || self.bootstrap.is_none() || self.normalized.is_none() {
+            return Err(PortcoveError::conflict(
+                "PS1 failed configuration requires its complete sealed ancestry",
+            ));
+        }
+        self.require_closed_owner(library, journal)?;
+        let root = self.generated.tree.root();
+        let (_, current) = verification::joined_pair(
+            || {
+                self.normalized
+                    .as_ref()
+                    .expect("checked normalized ancestry")
+                    .verify_closed_configuration_inputs(
+                        &self.generated,
+                        &self.contract,
+                        self.bootstrap.as_ref(),
+                        library,
+                        closed,
+                        operation,
+                    )?;
+                self.verify_external_inputs(operation)
+            },
+            || {
+                self.generated
+                    .tree
+                    .configured_transition(root, operation, true)
+            },
+        )?;
+        self.generated
+            .toolchain
+            .verify_capture_fence(self.generated.toolchain.root(), operation)?;
+        self.generated
+            .normalized_disc
+            .verify_capture_fence(self.generated.normalized_disc.root(), operation)?;
+        current.verify_capture_fence(root, operation)?;
+        self.require_closed_owner(library, journal)?;
+        operation.checkpoint()?;
+        Ok(current)
+    }
+
+    pub(crate) fn verify_closed_configuration(
+        &self,
+        library: &Library,
+        closed: &crate::operation::ClosedGenerationPredecessor,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        self.failed_configuration_inventory(library, closed, operation)
+            .map(|_| ())
+    }
+
+    pub(crate) fn configuration_parent_receipt(&self) -> Result<(String, String)> {
+        let sha = self
+            .persisted_sha256
+            .clone()
+            .ok_or_else(|| PortcoveError::state("PS1 configuration generation was not loaded"))?;
+        Ok((crate::operation::psx_witness_json(self)?, sha))
+    }
+
+    pub(crate) fn require_configuration_pending(&self, json: &str) -> Result<()> {
+        let pending: serde_json::Value = serde_json::from_str(json)?;
+        let generation = serde_json::to_value(self)?;
+        let normalized = generation.get("normalized").ok_or_else(|| {
+            PortcoveError::verification("PS1 configuration normalization is missing")
+        })?;
+        let pending_normalized = pending.get("normalized").ok_or_else(|| {
+            PortcoveError::verification("PS1 configuration pending normalization is missing")
+        })?;
+        if pending.get("generated") != generation.get("generated")
+            || pending_normalized.get("binding") != generation.get("bootstrap")
+            || pending.get("normalized_sha256") != normalized.get("sha256")
+            || pending.get("normalized_json") != normalized.get("json")
+            || pending.get("outputs") != normalized.get("outputs")
+            || pending.get("attempt_history") != normalized.get("attempt_history")
+        {
+            return Err(PortcoveError::verification(
+                "PS1 configuration pending and sealed predecessors differ",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn configure_recovered(
+        self,
+        library: &Library,
+        closed: &crate::operation::ClosedGenerationPredecessor,
+        preparation: &PsxManagedPreparation,
+        operation: &OperationCoordinator,
+        receipt: &serde_json::Value,
+        confirm_started: impl Fn() -> Result<()>,
+    ) -> (Result<ConfiguredInstallWitness>, bool) {
+        let mut quiesced = true;
+        let result = (|| {
+            confirm_started()?;
+            let generation_sha256 = self.persisted_sha256.clone().ok_or_else(|| {
+                PortcoveError::state("PS1 configuration requires store-loaded generation")
+            })?;
+            let evidence = configuration_failure_path(closed.journal())?;
+            // Exclusive, fixed, permanent hold on every later configure call.
+            fs::create_dir(&evidence)?;
+            let prior = serde_json::to_vec_pretty(receipt)?;
+            if prior.len() > 64 * 1024 {
+                return Err(PortcoveError::state(
+                    "PS1 configuration failure receipt is oversized",
+                ));
+            }
+            crate::durability::write_bytes_atomically(&evidence.join("prior.json"), &prior, false)?;
+            crate::durability::sync_publication(evidence.parent().expect("owned staging parent"))?;
+            let outputs = evidence.join("outputs");
+            fs::create_dir(&outputs)?;
+            let outputs = fs::canonicalize(outputs)?;
+            let current = self.failed_configuration_inventory(library, closed, operation)?;
+            confirm_started()?;
+            let retained = current.preserve_configuration_outputs(&outputs, operation)?;
+            let retained_json = serde_json::to_vec(&retained)?;
+            if retained_json.len() > 64 * 1024 * 1024 {
+                return Err(PortcoveError::state(
+                    "PS1 failed configuration inventory is oversized",
+                ));
+            }
+            crate::durability::write_bytes_atomically(
+                &evidence.join("outputs.json"),
+                &retained_json,
+                false,
+            )?;
+            retained.verify(&outputs, operation)?;
+            // No archived result becomes execution authority. The normal
+            // primitive hashes inputs again and refuses any existing build.
+            confirm_started()?;
+            let configured = configure_install_with_recovery(
+                self.generated.tree.root(),
+                preparation,
+                operation,
+                &mut quiesced,
+                &self.generated,
+                true,
+            )?;
+            Ok(ConfiguredInstallWitness {
+                generation: self,
+                generation_sha256,
+                configured,
+                persisted_sha256: None,
+            })
+        })();
+        (result, quiesced)
+    }
+}
+
+pub(crate) fn configuration_failure_path(
+    journal: &crate::operation::LifecycleOperation,
+) -> Result<PathBuf> {
+    let staging = journal
+        .paths
+        .staging
+        .as_ref()
+        .ok_or_else(|| PortcoveError::state("PS1 configuration staging is missing"))?;
+    crate::path::refuse_symlink_ancestors(staging)?;
+    let evidence = fs::canonicalize(staging)?.join("configuration-failure");
+    crate::path::refuse_symlink_ancestors(&evidence)?;
+    Ok(evidence)
+}
+
+pub(crate) fn require_fresh_configuration_attempt(
+    journal: &crate::operation::LifecycleOperation,
+) -> Result<()> {
+    match fs::symlink_metadata(configuration_failure_path(journal)?) {
+        Ok(_) => Err(PortcoveError::conflict(
+            "PS1 configuration failure evidence already exists; retain the operation",
+        )),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
     }
 }
 
@@ -2114,6 +2351,12 @@ fn capture_pinned_builder(
     owned_ninja: bool,
 ) -> Result<crate::ActivityDiagnostic> {
     operation.checkpoint()?;
+    // Refuse unsupported command-shell paths before profile creation or tools.
+    let command_directory = builder_path(&if owned_ninja {
+        project_root.join("build-portcove")
+    } else {
+        project_root.to_path_buf()
+    })?;
     let platform = Platform::current()?;
     if !validate_toolchain_with_checkpoint(
         toolchain_root,
@@ -2159,7 +2402,7 @@ fn capture_pinned_builder(
         ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, executable)?;
     command
         .args(arguments)
-        .current_dir(project_root)
+        .current_dir(command_directory)
         .env("RETCOMM_TOOLCHAIN_DIR", toolchain_root)
         .env("PSXRECOMP_TOOLCHAIN_DIR", toolchain_root)
         .env(
@@ -2203,9 +2446,7 @@ fn capture_pinned_builder(
                 "owned compile stage requires pinned Ninja",
             ));
         }
-        command
-            .current_dir(project_root.join("build-portcove"))
-            .env("NINJA_STATUS", pending::STATUS);
+        command.env("NINJA_STATUS", pending::STATUS);
     }
     let previous_quiescence = *quiesced;
     *quiesced = false;
@@ -5275,6 +5516,335 @@ mod tests {
         (library, operation, journal, configured)
     }
 
+    fn failed_configuration_fixture(
+        root: &Path,
+    ) -> (
+        Library,
+        OperationCoordinator,
+        crate::operation::LifecycleOperation,
+        ConfiguredInstallWitness,
+    ) {
+        let (library, operation, mut journal, configured) =
+            configuration_witness_fixture_ancestry(root, false, true);
+        journal.last_error = Some("retained configure failure".into());
+        crate::operation::OperationStore::new(library.clone())
+            .put(&mut journal)
+            .unwrap();
+        (library, operation, journal, configured)
+    }
+
+    #[test]
+    #[cfg(feature = "qualification-fixtures")]
+    fn failed_configuration_contract_uses_closed_context_without_acknowledgement() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            failed_configuration_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        assert!(
+            store
+                .psx_historical_qualification_contract(&operation, false)
+                .is_err()
+        );
+        assert_eq!(
+            store
+                .psx_historical_configuration_contract(&operation)
+                .unwrap(),
+            configured.generation.contract
+        );
+        assert_eq!(
+            store.get(&journal.id).unwrap().unwrap().last_error,
+            journal.last_error
+        );
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE lifecycle_operations SET preparation_process_quiesced=0 WHERE id=?1",
+                [&journal.id],
+            )
+            .unwrap();
+        assert!(
+            store
+                .psx_historical_configuration_contract(&operation)
+                .is_err()
+        );
+        assert!(
+            store
+                .psx_historical_qualification_contract(&operation, false)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn failed_configuration_start_and_promotion_preserve_exact_generation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            failed_configuration_fixture(temporary.path());
+        let store = crate::operation::OperationStore::new(library.clone());
+        let original: (String, String) = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT witness_json,witness_sha256 FROM managed_psx_generation",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert!(store.psx_generation(&operation).is_err());
+        let mut context = store.psx_failed_configuration(&operation).unwrap();
+        assert!(
+            store
+                .commit_psx_recovered_configuration(
+                    &journal,
+                    &configured,
+                    context.bindings_for_fixture(),
+                    &operation
+                )
+                .is_err()
+        );
+        let started = store
+            .start_psx_configuration(&mut context, &operation)
+            .unwrap();
+        assert_eq!(started.last_error, journal.last_error);
+        assert_eq!(started.preparation_process_quiesced, Some(false));
+        assert!(
+            store
+                .start_psx_configuration(&mut context, &operation)
+                .is_err()
+        );
+        assert!(store.psx_failed_configuration(&operation).is_err());
+        let mut completed = started.clone();
+        completed.preparation_process_quiesced = Some(true);
+        store
+            .put_psx_configuration_outcome(&started, &mut completed)
+            .unwrap();
+        assert_eq!(
+            store.get(&journal.id).unwrap().unwrap().last_error,
+            journal.last_error
+        );
+        // A synthetic, fully captured fixture checks store atomicity only;
+        // it is deliberately not native configuration or installation proof.
+        store
+            .commit_psx_recovered_configuration(
+                &completed,
+                &configured,
+                context.bindings_for_fixture(),
+                &operation,
+            )
+            .unwrap();
+        assert!(
+            store
+                .get(&journal.id)
+                .unwrap()
+                .unwrap()
+                .last_error
+                .is_none()
+        );
+        assert!(store.psx_configuration(&operation).is_ok());
+        let after: (String, String) = library
+            .connection()
+            .unwrap()
+            .query_row(
+                "SELECT witness_json,witness_sha256 FROM managed_psx_generation",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(after, original);
+        assert!(store.psx_failed_configuration(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
+    #[test]
+    fn failed_configuration_promotion_refusals_do_not_acknowledge_owner() {
+        for change in ["closure", "parent", "insert"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, configured) =
+                failed_configuration_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            let mut context = store.psx_failed_configuration(&operation).unwrap();
+            let started = store
+                .start_psx_configuration(&mut context, &operation)
+                .unwrap();
+            let mut completed = started.clone();
+            completed.preparation_process_quiesced = Some(change != "closure");
+            store
+                .put_psx_configuration_outcome(&started, &mut completed)
+                .unwrap();
+            let connection = library.connection().unwrap();
+            match change {
+                "parent" => {
+                    connection.execute("UPDATE managed_psx_pending_generation SET witness_json=witness_json||' '", []).unwrap();
+                }
+                "insert" => {
+                    connection.execute_batch("CREATE TRIGGER refuse_configuration BEFORE INSERT ON managed_psx_configuration BEGIN SELECT RAISE(ABORT,'inert configuration retention refusal'); END;").unwrap();
+                }
+                _ => {}
+            }
+            assert!(
+                store
+                    .commit_psx_recovered_configuration(
+                        &completed,
+                        &configured,
+                        context.bindings_for_fixture(),
+                        &operation
+                    )
+                    .is_err(),
+                "{change}"
+            );
+            assert_eq!(
+                store.get(&journal.id).unwrap().unwrap().last_error,
+                journal.last_error
+            );
+            assert_eq!(
+                connection
+                    .query_row(
+                        "SELECT COUNT(*) FROM managed_psx_configuration",
+                        [],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                0
+            );
+        }
+    }
+
+    #[test]
+    fn failed_configuration_start_refuses_journal_and_pending_drift() {
+        use sha2::Digest;
+        for change in ["journal", "pending", "closure"] {
+            let temporary = tempfile::tempdir().unwrap();
+            let (library, operation, journal, _) = failed_configuration_fixture(temporary.path());
+            let store = crate::operation::OperationStore::new(library.clone());
+            let mut context = store.psx_failed_configuration(&operation).unwrap();
+            let connection = library.connection().unwrap();
+            match change {
+                "journal" => {
+                    connection
+                        .execute(
+                            "UPDATE lifecycle_operations SET activate=1-activate WHERE id=?1",
+                            [&journal.id],
+                        )
+                        .unwrap();
+                }
+                "closure" => {
+                    connection.execute("UPDATE lifecycle_operations SET preparation_process_quiesced=0 WHERE id=?1", [&journal.id]).unwrap();
+                }
+                _ => {
+                    let raw: String = connection
+                        .query_row(
+                            "SELECT witness_json FROM managed_psx_pending_generation",
+                            [],
+                            |row| row.get(0),
+                        )
+                        .unwrap();
+                    let changed = format!("{raw} ");
+                    connection.execute("UPDATE managed_psx_pending_generation SET witness_json=?1,witness_sha256=?2", rusqlite::params![changed, hex::encode(sha2::Sha256::digest(changed.as_bytes()))]).unwrap();
+                }
+            }
+            let before = store.get(&journal.id).unwrap().unwrap();
+            assert!(
+                store
+                    .start_psx_configuration(&mut context, &operation)
+                    .is_err()
+            );
+            let after = store.get(&journal.id).unwrap().unwrap();
+            assert_eq!(
+                crate::operation::psx_journal_for_fixture(&after).unwrap(),
+                crate::operation::psx_journal_for_fixture(&before).unwrap()
+            );
+            assert!(!configuration_failure_path(&journal).unwrap().exists());
+        }
+    }
+
+    #[test]
+    fn failed_configuration_refuses_restored_timestamp_content_mutation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, _) = failed_configuration_fixture(temporary.path());
+        let config = journal
+            .paths
+            .staging
+            .as_ref()
+            .unwrap()
+            .join("payload/game.toml");
+        let modified = fs::metadata(&config).unwrap().modified().unwrap();
+        let mut bytes = fs::read(&config).unwrap();
+        bytes[1] ^= 1;
+        fs::write(&config, &bytes).unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&config)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+        assert_eq!(fs::metadata(&config).unwrap().modified().unwrap(), modified);
+        assert!(
+            crate::operation::OperationStore::new(library)
+                .psx_failed_configuration(&operation)
+                .is_err()
+        );
+        assert!(!configuration_failure_path(&journal).unwrap().exists());
+    }
+
+    #[test]
+    fn failed_configuration_evidence_holds_both_failed_and_clean_admission() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, mut journal, _) = failed_configuration_fixture(temporary.path());
+        fs::create_dir(configuration_failure_path(&journal).unwrap()).unwrap();
+        assert!(require_fresh_configuration_attempt(&journal).is_err());
+        assert!(
+            crate::operation::OperationStore::new(library)
+                .psx_failed_configuration(&operation)
+                .is_err()
+        );
+        journal.last_error = None;
+        assert!(require_fresh_configuration_attempt(&journal).is_err());
+    }
+
+    #[test]
+    fn failed_configuration_preserves_partial_outputs_before_builder_failure() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, operation, journal, configured) =
+            failed_configuration_fixture(temporary.path());
+        let preparation =
+            preparation_from_identity(&configured.generation.generated.inputs).unwrap();
+        let store = crate::operation::OperationStore::new(library.clone());
+        let mut context = store.psx_failed_configuration(&operation).unwrap();
+        let started = store
+            .start_psx_configuration(&mut context, &operation)
+            .unwrap();
+        let payload = configured.generation.generated.tree.root();
+        let original_cache = fs::read(payload.join("build-portcove/CMakeCache.txt")).unwrap();
+        let (result, quiesced) = context.configure(&library, &preparation, &operation);
+        assert!(result.is_err(), "inert fixture CMake cannot execute");
+        assert!(
+            quiesced,
+            "spawn refusal positively closes a process-free worker"
+        );
+        let evidence = configuration_failure_path(&journal).unwrap();
+        let prior: serde_json::Value =
+            serde_json::from_slice(&fs::read(evidence.join("prior.json")).unwrap()).unwrap();
+        assert_eq!(
+            prior["prior_journal"][12],
+            journal.last_error.as_ref().unwrap().as_str()
+        );
+        assert_eq!(prior["prior_journal"][16], 1);
+        assert_eq!(
+            fs::read(evidence.join("outputs/build-portcove/CMakeCache.txt")).unwrap(),
+            original_cache
+        );
+        assert!(evidence.join("outputs.json").is_file());
+        assert!(!payload.join("build-portcove").exists());
+        let mut completed = started.clone();
+        completed.preparation_process_quiesced = Some(quiesced);
+        store
+            .put_psx_configuration_outcome(&started, &mut completed)
+            .unwrap();
+        assert_eq!(completed.last_error, journal.last_error);
+        assert!(store.psx_failed_configuration(&operation).is_err());
+        assert!(library.all_installs().unwrap().is_empty());
+    }
+
     #[test]
     fn pending_generation_binding_omission_with_recomputed_hash_refuses_generation_and_configuration()
      {
@@ -5464,6 +6034,89 @@ mod tests {
         assert!(!root.join("build-portcove").exists());
         assert!(!root.join(".portcove-builder-environment").exists());
         assert!(!root.join(".portcove-managed.json").exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn configure_paths_bind_canonical_objects_with_command_shell_spelling() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload with spaces");
+        fs::create_dir(&root).unwrap();
+        let toolchain = temporary.path().join("toolchain");
+        toolchain_fixture(&toolchain, None);
+        for name in ["clang", "clang++"] {
+            fs::write(platform_executable(&toolchain.join("bin"), name), "inert").unwrap();
+        }
+        let canonical = fs::canonicalize(&root).unwrap();
+        let pinned = fs::canonicalize(&toolchain).unwrap();
+        let build = canonical.join("build-portcove");
+        let arguments = configure_arguments(&canonical, &build, &pinned).unwrap();
+        for argument in &arguments {
+            assert!(
+                !argument.contains(r"\\?\"),
+                "shell alias leaked: {argument}"
+            );
+        }
+        assert_eq!(fs::canonicalize(&arguments[1]).unwrap(), canonical);
+        assert_eq!(
+            crate::path::resolve_existing_ancestor(Path::new(&arguments[3])).unwrap(),
+            build
+        );
+        let mut command =
+            // Existing Windows test infrastructure resolves this literal with
+            // GetSystemDirectoryW, without ambient PATH or a mixed-slash alias.
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, "cmd.exe")
+                .unwrap();
+        command
+            // cmd.exe parses a command string rather than native argv. This
+            // static test-only argument contains no path or interpolated text.
+            .raw_arg("/D /C cd")
+            .current_dir(builder_path(&canonical).unwrap());
+        let mut quiesced = false;
+        let output = crate::tool_process::run_tool(
+            &mut command,
+            &|| Ok(()),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        )
+        .unwrap();
+        assert!(
+            output.status.success(),
+            "{}: {}",
+            output.status,
+            output.output
+        );
+        assert!(quiesced);
+        assert_eq!(fs::canonicalize(output.output.trim()).unwrap(), canonical);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn configure_paths_refuse_unc_before_network_inspection() {
+        for path in [
+            r"\\unreachable.invalid\share\payload",
+            r"\\?\UNC\unreachable.invalid\share\payload",
+        ] {
+            assert_eq!(
+                builder_path(Path::new(path)).unwrap_err().code,
+                crate::ErrorCode::Unsupported
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn configure_paths_refuse_changed_symlink_ancestors() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let linked = root.path().join("linked");
+        std::os::unix::fs::symlink(outside.path(), &linked).unwrap();
+        assert!(builder_path(&linked.join("future-build")).is_err());
     }
 
     #[test]

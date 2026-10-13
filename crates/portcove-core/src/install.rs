@@ -619,6 +619,40 @@ async fn run_managed_install_worker_with_journal<T: Send + 'static>(
 
 // This route has already made its exact atomic start. Completion and failure
 // retention must not overwrite a concurrently changed owner or attempt history.
+async fn run_started_configuration_worker(
+    lifecycle: &mut InstallLifecycle,
+    operation: &OperationCoordinator,
+    worker: impl FnOnce(
+        OperationCoordinator,
+    ) -> (
+        Result<(
+            crate::psx::ConfiguredInstallWitness,
+            crate::operation::ConfigurationBindings,
+        )>,
+        bool,
+    ) + Send
+    + 'static,
+) -> Result<(
+    crate::psx::ConfiguredInstallWitness,
+    crate::operation::ConfigurationBindings,
+)> {
+    let checkpoint = operation.clone();
+    let joined = tokio::task::spawn_blocking(move || worker(checkpoint)).await;
+    let (result, quiesced) = match joined {
+        Ok(value) => value,
+        Err(error) => (Err(PortcoveError::install(error.to_string())), false),
+    };
+    let mut completed = lifecycle.record.clone();
+    completed.preparation_process_quiesced = Some(quiesced);
+    // Preserve the prior error on every path. Only atomic configuration
+    // promotion can acknowledge it after a successful, positively closed build.
+    lifecycle
+        .store
+        .put_psx_configuration_outcome(&lifecycle.record, &mut completed)?;
+    lifecycle.record = completed;
+    result
+}
+
 async fn run_started_normalized_generation_worker<T: Send + 'static>(
     lifecycle: &mut InstallLifecycle,
     history: &crate::operation::GenerationAttemptHistory,
@@ -1476,7 +1510,25 @@ impl Installer {
             .try_lock_port(&request.port_id, "configure-managed-install")?;
         operation.checkpoint()?;
         let store = OperationStore::new(self.library.clone());
-        let witness = store.psx_generation(operation)?;
+        let initial = store
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 configure lifecycle owner is missing"))?;
+        crate::psx::require_fresh_configuration_attempt(&initial)?;
+        let mut recovered = if initial.last_error.is_some() {
+            Some(store.psx_failed_configuration(operation)?)
+        } else {
+            None
+        };
+        let normal = if recovered.is_none() {
+            Some(store.psx_generation(operation)?)
+        } else {
+            None
+        };
+        let witness = recovered
+            .as_ref()
+            .map(|decoded| decoded.witness())
+            .or(normal.as_ref())
+            .expect("one configure predecessor");
         let artifact = witness.artifact()?;
         if artifact.asset_name != request.release.asset.name
             || !artifact
@@ -1492,6 +1544,9 @@ impl Installer {
         let record = store
             .get(operation.operation_id())?
             .ok_or_else(|| PortcoveError::state("PS1 configure lifecycle owner is missing"))?;
+        if recovered.is_none() {
+            witness.require_owner(&self.library, &record)?;
+        }
         let operation_root = record
             .paths
             .staging
@@ -1527,28 +1582,56 @@ impl Installer {
             "info",
             "Configuring private game build; compilation remains pending",
         ));
-        let result = run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
-            witness.configure(&preparation, &checkpoint)
-        })
-        .await;
-        let configured = match result {
+        let recovering = recovered.is_some();
+        let result = if let Some(mut decoded) = recovered.take() {
+            lifecycle.record = lifecycle
+                .store
+                .start_psx_configuration(&mut decoded, operation)?;
+            let library = self.library.clone();
+            run_started_configuration_worker(&mut lifecycle, operation, move |checkpoint| {
+                decoded.configure(&library, &preparation, &checkpoint)
+            })
+            .await
+            .map(|(configured, bindings)| (configured, Some(bindings)))
+        } else {
+            let witness = normal.expect("ordinary configuration predecessor");
+            run_managed_install_worker(&mut lifecycle, operation, move |checkpoint| {
+                witness.configure(&preparation, &checkpoint)
+            })
+            .await
+            .map(|configured| (configured, None))
+        };
+        let (configured, bindings) = match result {
             Ok(configured) => configured,
             Err(error) => {
                 // Preserve the failed stage and closure evidence. This method
                 // grants neither automatic retry nor deletion of private data.
-                lifecycle.record.last_error = Some(error.message.clone());
-                lifecycle.store.put(&mut lifecycle.record)?;
+                if !recovering {
+                    lifecycle.record.last_error = Some(error.message.clone());
+                    lifecycle.store.put(&mut lifecycle.record)?;
+                }
                 return Err(error);
             }
         };
         let retained = self.require_acquisition(&request).and_then(|_| {
-            lifecycle
-                .store
-                .commit_psx_configuration(&lifecycle.record, &configured, operation)
+            if let Some(bindings) = &bindings {
+                lifecycle.store.commit_psx_recovered_configuration(
+                    &lifecycle.record,
+                    &configured,
+                    bindings,
+                    operation,
+                )
+            } else {
+                lifecycle
+                    .store
+                    .commit_psx_configuration(&lifecycle.record, &configured, operation)
+            }
         });
         if let Err(error) = retained {
-            lifecycle.record.last_error = Some(error.message.clone());
-            lifecycle.store.put(&mut lifecycle.record)?;
+            if !recovering {
+                lifecycle.record.last_error = Some(error.message.clone());
+                lifecycle.store.put(&mut lifecycle.record)?;
+            }
             return Err(error);
         }
         Ok(ManagedInstallConfigured {
@@ -3996,6 +4079,88 @@ mod tests {
     #[tokio::test]
     async fn staged_preparing_closed_generation_cancellation_retains_tree_and_journal() {
         assert_staged_worker_failure_retained(crate::ErrorCode::Cancelled).await;
+    }
+
+    #[tokio::test]
+    async fn configuration_continuation_cancellation_and_panic_preserve_failed_owner() {
+        for panic_worker in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let service = crate::PortcoveService::new(library.clone()).unwrap();
+            let (activity, operation) = service
+                .begin_cancellable_activity(
+                    crate::ActivityOperation::Install,
+                    crate::ActivityTargetKind::Port,
+                    Some("inert-configuration"),
+                )
+                .unwrap();
+            let store = OperationStore::new(library.clone());
+            let mut record = LifecycleOperation::new(
+                operation.operation_id(),
+                LifecycleOperationKind::Install,
+                "inert-configuration",
+            );
+            record.phase = LifecyclePhase::StagedPreparing;
+            record.preparation_process_quiesced = Some(false);
+            record.last_error = Some("preserved original configuration failure".into());
+            store.put(&mut record).unwrap();
+            let mut lifecycle = InstallLifecycle {
+                destination: library.root().join("unused"),
+                operation_root: library.root().join("unused"),
+                store: store.clone(),
+                record,
+            };
+            let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+            let (release_tx, release_rx) = std::sync::mpsc::sync_channel(0);
+            let future =
+                run_started_configuration_worker(&mut lifecycle, &operation, move |checkpoint| {
+                    started_tx.send(()).unwrap();
+                    release_rx.recv().unwrap();
+                    if panic_worker {
+                        panic!("inert configuration panic");
+                    }
+                    (Err(checkpoint.checkpoint().unwrap_err()), true)
+                });
+            tokio::pin!(future);
+            tokio::select! {
+                _ = &mut future => panic!("configuration returned before worker latch"),
+                started = started_rx => started.unwrap(),
+            }
+            service.request_cancellation(&activity.id).unwrap();
+            assert!(
+                tokio::time::timeout(Duration::from_millis(55), &mut future)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .preparation_process_quiesced,
+                Some(false)
+            );
+            release_tx.send(()).unwrap();
+            let error = match future.await {
+                Err(error) => error,
+                Ok(_) => panic!("inert configuration accepted"),
+            };
+            assert_eq!(
+                error.code,
+                if panic_worker {
+                    crate::ErrorCode::Install
+                } else {
+                    crate::ErrorCode::Cancelled
+                }
+            );
+            let retained = store.get(operation.operation_id()).unwrap().unwrap();
+            assert_eq!(retained.preparation_process_quiesced, Some(!panic_worker));
+            assert_eq!(
+                retained.last_error.as_deref(),
+                Some("preserved original configuration failure")
+            );
+            assert!(library.all_installs().unwrap().is_empty());
+        }
     }
 
     #[tokio::test]

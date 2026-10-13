@@ -45,7 +45,7 @@ impl ClosedGenerationPredecessor {
     }
 }
 
-fn journal_value(journal: &LifecycleOperation) -> Result<serde_json::Value> {
+pub(super) fn journal_value(journal: &LifecycleOperation) -> Result<serde_json::Value> {
     Ok(serde_json::json!([
         journal.id,
         journal.kind.to_string(),

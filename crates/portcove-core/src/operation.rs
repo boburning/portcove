@@ -15,6 +15,8 @@ use uuid::Uuid;
 
 mod generation_continuation;
 pub(crate) use generation_continuation::{ClosedGenerationPredecessor, GenerationAttemptHistory};
+mod configuration_continuation;
+pub(crate) use configuration_continuation::ConfigurationBindings;
 
 #[cfg(test)]
 thread_local! {
@@ -36,6 +38,11 @@ pub(crate) fn reset_all_read_count() {
 #[cfg(test)]
 pub(crate) fn all_read_count() -> usize {
     ALL_READ_COUNT.with(std::cell::Cell::get)
+}
+
+#[cfg(test)]
+pub(crate) fn psx_journal_for_fixture(journal: &LifecycleOperation) -> Result<serde_json::Value> {
+    generation_continuation::journal_value(journal)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -292,6 +299,7 @@ struct PsxCommitParents<'a> {
     compilation: Option<(&'a str, &'a str, usize, &'a str)>,
     materialized: Option<(&'a str, &'a str, &'a str)>,
     generation: Option<(&'a str, &'a str, &'a str)>,
+    configuration: Option<&'a ConfigurationBindings>,
 }
 
 impl PsxStageTable {
@@ -765,6 +773,25 @@ impl OperationStore {
         }
     }
 
+    #[cfg(feature = "qualification-fixtures")]
+    pub(crate) fn psx_historical_configuration_contract(
+        &self,
+        operation: &OperationCoordinator,
+    ) -> Result<serde_json::Value> {
+        let owner = self
+            .get(operation.operation_id())?
+            .ok_or_else(|| PortcoveError::state("PS1 configuration owner is missing"))?;
+        if owner.last_error.is_some() {
+            Ok(self
+                .psx_failed_configuration(operation)?
+                .witness()
+                .acquired_contract()
+                .clone())
+        } else {
+            self.psx_historical_qualification_contract(operation, false)
+        }
+    }
+
     pub(crate) fn psx_bootstrap(
         &self,
         operation: &OperationCoordinator,
@@ -875,6 +902,7 @@ impl OperationStore {
                 compilation: None,
                 materialized: Some((sha, json, decoded.journal_snapshot.as_str())),
                 generation: None,
+                configuration: None,
             },
             |candidate, journal| {
                 crate::psx::PsxStageWitness::verify(candidate, &self.library, journal, operation)?;
@@ -1040,6 +1068,33 @@ impl OperationStore {
         self.commit_psx_stage(PsxStageTable::Configuration, journal, witness, operation)
     }
 
+    pub(crate) fn commit_psx_recovered_configuration(
+        &self,
+        journal: &LifecycleOperation,
+        witness: &crate::psx::ConfiguredInstallWitness,
+        bindings: &ConfigurationBindings,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        bindings.require_completed(journal)?;
+        self.commit_psx_stage_with_checks(
+            PsxStageTable::Configuration,
+            journal,
+            witness,
+            operation,
+            PsxCommitParents {
+                configuration: Some(bindings),
+                ..Default::default()
+            },
+            |witness, prior| {
+                // Verify the proposed success before its atomic promotion;
+                // the stored failed journal remains untouched until commit.
+                let mut proposed = prior.clone();
+                proposed.last_error = None;
+                crate::psx::PsxStageWitness::verify(witness, &self.library, &proposed, operation)
+            },
+        )
+    }
+
     pub(crate) fn commit_psx_compilation(
         &self,
         journal: &LifecycleOperation,
@@ -1180,6 +1235,7 @@ impl OperationStore {
                 compilation: predecessor,
                 materialized: None,
                 generation: None,
+                configuration: None,
             },
             |witness, journal| witness.verify(&self.library, journal, operation),
         )
@@ -1197,6 +1253,7 @@ impl OperationStore {
         let predecessor = parents.compilation;
         let materialized = parents.materialized;
         let generation = parents.generation;
+        let configuration = parents.configuration;
         if let Some((sha, json, _)) = generation
             && (!matches!(table, PsxStageTable::Generation)
                 || json.len() > MAX_PSX_WITNESS_BYTES
@@ -1251,6 +1308,28 @@ impl OperationStore {
                 &transaction,
                 operation,
             )?;
+        }
+        if let Some(bindings) = configuration {
+            if !matches!(table, PsxStageTable::Configuration)
+                || journal.last_error.is_none()
+                || journal.preparation_process_quiesced != Some(true)
+            {
+                return Err(PortcoveError::conflict(
+                    "PS1 recovered configuration closure is incomplete",
+                ));
+            }
+            bindings.require_current(&transaction, operation)?;
+            let changed = transaction.execute(
+                &format!("UPDATE lifecycle_operations AS l SET last_error=NULL WHERE id=?1 AND {PSX_JOURNAL_SNAPSHOT}=?2"),
+                params![journal.id, serde_json::to_string(&generation_continuation::journal_value(journal)?)?],
+            )?;
+            if changed != 1 {
+                return Err(PortcoveError::conflict(
+                    "PS1 configuration journal changed before promotion",
+                ));
+            }
+            // Error clearing and the ordinary configuration insertion below
+            // commit together. Any refusal rolls back the acknowledgement.
         }
         let successor_sql = if predecessor.is_some() {
             " AND EXISTS(SELECT 1 FROM managed_psx_compilation WHERE operation_id=?2 AND witness_sha256=?15 AND witness_json=?16)
