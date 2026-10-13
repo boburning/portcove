@@ -569,6 +569,46 @@
         "claim": "Exact v0.1.3 Windows asset 600784962 SHA256 9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5, tag/package game.toml normalized-equal source, project manifest, catalog_identity and safe ZIP inventory declare Brave Fencer Musashi SLUS-00726, four-track disc, first data track SHA256 5455c324a026e22a8e53ca38f673e9e96e2cf653686ae553f933683aa16d4401, and required retail SCPH-1001 BIOS. Static CLI/build/executable/runtime ownership fits the existing managed route. Core authenticates first data track and count, not later track digests or full TOC. Title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT scopes remain separate; retail/generated-retail rights are not inferred. Generation/runtime/lifecycle/gameplay were Not run.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/54ddfe971dfd79134f2593b00dbd9b78ae51536b/game.toml",
         "live_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-dino-crisis-recomp-v0-1-1-linux-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/dino-crisis-recomp",
+        "authority_ref": "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
+        "reviewed_at": "2026-10-13",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600756802 size 24179470 and SHA256 d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/7fd9deaa0ef7f8b689b1092821c19ac6a0de87db/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-dino-crisis-2-recomp-v0-1-1-linux-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
+        "authority_ref": "38514024f3a7cea54ff05ae3afdad0929920cb5a",
+        "reviewed_at": "2026-10-13",
+        "claim": "Exact v0.1.1 Linux x86-64 setup ZIP matches provider asset 600758318 size 24179506 and SHA256 f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/38514024f3a7cea54ff05ae3afdad0929920cb5a/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-alien-resurrection-recomp-v0-1-4-linux-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/alien-resurrection-recomp",
+        "authority_ref": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
+        "reviewed_at": "2026-10-13",
+        "claim": "Exact v0.1.4 Linux x86-64 setup ZIP matches provider asset 605929047 size 27800828 and SHA256 f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/main/game.toml"
+      },
+      {
+        "id": "alexbeav-brave-fencer-musashi-recomp-v0-1-3-linux-static-contract",
+        "role": "upstream_support",
+        "authority": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
+        "authority_ref": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
+        "reviewed_at": "2026-10-13",
+        "claim": "Exact v0.1.3 Linux x86-64 setup ZIP matches provider asset 600784963 size 27794465 and SHA256 d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e. Full CRC and safe-entry checks passed. Packaged game.toml, project manifest and PSXRecomp CLI match this title’s accepted Windows package after line-ending normalization; the selected source/disc/retail BIOS contracts and persistent/temporary output declarations are unchanged. The root setup host and both packaged emitters are x86-64 ELF; Core uses registered tools and a generated build-portcove executable instead of launching the setup host. Standalone host needs GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility, native generation, runtime, lifecycle and gameplay were Not run; no Linux tested-platform qualification is inherited.",
+        "immutable_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/54ddfe971dfd79134f2593b00dbd9b78ae51536b/game.toml",
+        "live_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/main/game.toml"
       }
     ],
     "identities": [
@@ -7983,7 +8023,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-dino-crisis-recomp-v0-1-1-source-contract"
+          "alexbeav-dino-crisis-recomp-v0-1-1-source-contract",
+          "alexbeav-dino-crisis-recomp-v0-1-1-linux-static-contract"
         ],
         "authority_ref": "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
         "reviewed_at": "2026-10-13",
@@ -7994,6 +8035,10 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1"
           }
         ],
         "aliases": [],
@@ -8011,7 +8056,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-dino-crisis-recomp-v0-1-1-source-contract",
-          "psx-scph-5552-f7672e5-source-contract"
+          "psx-scph-5552-f7672e5-source-contract",
+          "alexbeav-dino-crisis-recomp-v0-1-1-linux-static-contract"
         ],
         "authority_ref": "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
         "reviewed_at": "2026-10-13",
@@ -8022,6 +8068,10 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1"
           }
         ],
         "aliases": [],
@@ -8038,7 +8088,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-dino-crisis-2-recomp-v0-1-1-source-contract"
+          "alexbeav-dino-crisis-2-recomp-v0-1-1-source-contract",
+          "alexbeav-dino-crisis-2-recomp-v0-1-1-linux-static-contract"
         ],
         "authority_ref": "38514024f3a7cea54ff05ae3afdad0929920cb5a",
         "reviewed_at": "2026-10-13",
@@ -8049,6 +8100,10 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125"
           }
         ],
         "aliases": [],
@@ -8066,7 +8121,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "alexbeav-dino-crisis-2-recomp-v0-1-1-source-contract",
-          "psx-scph-5552-f7672e5-source-contract"
+          "psx-scph-5552-f7672e5-source-contract",
+          "alexbeav-dino-crisis-2-recomp-v0-1-1-linux-static-contract"
         ],
         "authority_ref": "38514024f3a7cea54ff05ae3afdad0929920cb5a",
         "reviewed_at": "2026-10-13",
@@ -8077,6 +8133,10 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283"
+          },
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125"
           }
         ],
         "aliases": [],
@@ -8093,7 +8153,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-alien-resurrection-recomp-v0-1-4-static-contract"
+          "alexbeav-alien-resurrection-recomp-v0-1-4-static-contract",
+          "alexbeav-alien-resurrection-recomp-v0-1-4-linux-static-contract"
         ],
         "authority_ref": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
         "reviewed_at": "2026-10-13",
@@ -8104,6 +8165,10 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995"
           }
         ],
         "aliases": [],
@@ -8120,7 +8185,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-alien-resurrection-recomp-v0-1-4-static-contract"
+          "alexbeav-alien-resurrection-recomp-v0-1-4-static-contract",
+          "alexbeav-alien-resurrection-recomp-v0-1-4-linux-static-contract"
         ],
         "authority_ref": "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
         "reviewed_at": "2026-10-13",
@@ -8131,6 +8197,10 @@
           {
             "upstream_ref": "v0.1.4",
             "artifact_sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5"
+          },
+          {
+            "upstream_ref": "v0.1.4",
+            "artifact_sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995"
           }
         ],
         "aliases": [],
@@ -8147,7 +8217,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-brave-fencer-musashi-recomp-v0-1-3-static-contract"
+          "alexbeav-brave-fencer-musashi-recomp-v0-1-3-static-contract",
+          "alexbeav-brave-fencer-musashi-recomp-v0-1-3-linux-static-contract"
         ],
         "authority_ref": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
         "reviewed_at": "2026-10-13",
@@ -8158,6 +8229,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e"
           }
         ],
         "aliases": [],
@@ -8174,7 +8249,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "alexbeav-brave-fencer-musashi-recomp-v0-1-3-static-contract"
+          "alexbeav-brave-fencer-musashi-recomp-v0-1-3-static-contract",
+          "alexbeav-brave-fencer-musashi-recomp-v0-1-3-linux-static-contract"
         ],
         "authority_ref": "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
         "reviewed_at": "2026-10-13",
@@ -8185,6 +8261,10 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5"
+          },
+          {
+            "upstream_ref": "v0.1.3",
+            "artifact_sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e"
           }
         ],
         "aliases": [],
@@ -16161,7 +16241,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -16175,6 +16256,13 @@
             "size": 26206145,
             "sha256": "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
             "published_at": "2026-09-30T11:25:42Z"
+          },
+          "linux-x86-64": {
+            "version": "v0.1.1",
+            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp/releases/download/v0.1.1/dino-crisis-0.1.1-linux-x64.zip",
+            "size": 24179470,
+            "sha256": "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
+            "published_at": "2026-09-30T11:25:42Z"
           }
         }
       },
@@ -16182,6 +16270,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Dino_Crisis_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Dino_Crisis_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -16241,7 +16332,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis SLUS-00922 (USA Rev 1) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis SLUS-00922 (USA Rev 1) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
       },
       "bios_source_profile": "psx-scph-5552-bios"
     },
@@ -16255,7 +16346,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -16269,6 +16361,13 @@
             "size": 26205977,
             "sha256": "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
             "published_at": "2026-09-30T11:26:25Z"
+          },
+          "linux-x86-64": {
+            "version": "v0.1.1",
+            "url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/releases/download/v0.1.1/dino-crisis-2-0.1.1-linux-x64.zip",
+            "size": 24179506,
+            "sha256": "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
+            "published_at": "2026-09-30T11:26:25Z"
           }
         }
       },
@@ -16276,6 +16375,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Dino_Crisis_2_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Dino_Crisis_2_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -16335,7 +16437,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-5552/5502 Europe BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
       },
       "bios_source_profile": "psx-scph-5552-bios"
     },
@@ -16349,7 +16451,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -16363,6 +16466,13 @@
             "size": 29907400,
             "sha256": "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
             "published_at": "2026-10-02T15:45:25Z"
+          },
+          "linux-x86-64": {
+            "version": "v0.1.4",
+            "url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/releases/download/v0.1.4/alien-resurrection-recomp-0.1.4-linux-x64.zip",
+            "size": 27800828,
+            "sha256": "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
+            "published_at": "2026-10-02T15:45:25Z"
           }
         }
       },
@@ -16370,6 +16480,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Alien_Resurrection_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Alien_Resurrection_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -16429,7 +16542,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching four-track CHD for Alien Resurrection SLES-02913 (Europe) and a legally obtained retail SCPH-5552 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching four-track CHD for Alien Resurrection SLES-02913 (Europe) and a legally obtained retail SCPH-5552 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
       },
       "bios_source_profile": "psx-scph-5552-bios"
     },
@@ -16443,7 +16556,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
@@ -16457,6 +16571,13 @@
             "size": 29900215,
             "sha256": "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
             "published_at": "2026-09-30T11:40:52Z"
+          },
+          "linux-x86-64": {
+            "version": "v0.1.3",
+            "url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/releases/download/v0.1.3/brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
+            "size": 27794465,
+            "sha256": "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
+            "published_at": "2026-09-30T11:40:52Z"
           }
         }
       },
@@ -16464,6 +16585,9 @@
       "executable_hints": {
         "windows-x86-64": [
           "Brave_Fencer_Musashi_Recompiled.exe"
+        ],
+        "linux-x86-64": [
+          "Brave_Fencer_Musashi_Recompiled"
         ]
       },
       "persistent_paths": [
@@ -16523,7 +16647,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own matching four-track CHD for Brave Fencer Musashi SLUS-00726 (USA) and a legally obtained retail SCPH-1001 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred."
+        "manual_preparation": "Provide your own matching four-track CHD for Brave Fencer Musashi SLUS-00726 (USA) and a legally obtained retail SCPH-1001 BIOS. Preserve all disc tracks. Portcove verifies the first data track and track count; other tracks and the complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
       },
       "bios_source_profile": "psx-scph-1001-bios"
     }
