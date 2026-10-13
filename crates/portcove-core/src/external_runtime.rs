@@ -73,6 +73,10 @@ impl InspectedFile {
         self.snapshot.size
     }
 
+    pub(crate) fn matches_metadata(&self, size: u64, modified: SystemTime) -> bool {
+        self.snapshot.size == size && self.snapshot.modified == modified
+    }
+
     pub(crate) fn modified_after(&self, cutoff: SystemTime) -> bool {
         self.snapshot.modified > cutoff
     }
@@ -669,6 +673,22 @@ fn canonical_object_path_matches(path: &Path, file: &fs::File) -> Result<bool> {
         let _ = file;
         Ok(fs::canonicalize(path)? == path)
     }
+}
+
+/// Fence a live database handle without treating its changing size/time as
+/// immutable content. The caller owns the handle; this never hashes or admits it.
+#[cfg(windows)]
+pub(crate) fn verify_open_file_at_path(path: &Path, file: &fs::File) -> Result<()> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    let canonical = fs::canonicalize(path)?;
+    let current = open_metadata_object(&canonical, false)?;
+    if object_identity(file)? != object_identity(&current)?
+        || !canonical_object_path_matches(&canonical, file)?
+    {
+        return Err(changed_during_inspection());
+    }
+    crate::path::refuse_symlink_ancestors(path)?;
+    Ok(())
 }
 
 /// Bounded metadata read using the existing stable, no-follow object authority.

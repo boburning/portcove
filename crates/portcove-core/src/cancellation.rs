@@ -56,6 +56,8 @@ pub(crate) struct CancellationScope {
     id: String,
     _guard: PortOperationGuard,
     checked: Mutex<Option<Instant>>,
+    #[cfg(windows)]
+    reader: Mutex<CancellationReaderSlot>,
 }
 
 impl std::fmt::Debug for CancellationScope {
@@ -64,6 +66,21 @@ impl std::fmt::Debug for CancellationScope {
             .debug_struct("CancellationScope")
             .field("id", &self.id)
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(windows)]
+impl Drop for CancellationScope {
+    fn drop(&mut self) {
+        // Close the reader before releasing the activity lock/library lease,
+        // including cancellation and error exits that never admit publication.
+        drop(
+            self.reader
+                .get_mut()
+                .unwrap_or_else(|error| error.into_inner())
+                .reader
+                .take(),
+        );
     }
 }
 
@@ -84,10 +101,17 @@ impl CancellationScope {
             id: activity.id.clone(),
             _guard: guard,
             checked: Mutex::new(None),
+            #[cfg(windows)]
+            reader: Mutex::new(CancellationReaderSlot {
+                reader: None,
+                disabled: false,
+            }),
         })
     }
 
     pub fn checkpoint(&self) -> Result<()> {
+        #[cfg(feature = "qualification-fixtures")]
+        let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.checkpoint);
         let mut checked = self
             .checked
             .lock()
@@ -101,7 +125,27 @@ impl CancellationScope {
     }
 
     fn check_now(&self) -> Result<()> {
+        #[cfg(not(windows))]
         let state = cancellation_state(&self.library, &self.id)?;
+        #[cfg(windows)]
+        let state = {
+            let mut reader = self
+                .reader
+                .lock()
+                .map_err(|_| PortcoveError::state("cancellation reader lock poisoned"))?;
+            if reader.disabled {
+                cancellation_state(&self.library, &self.id)?
+            } else {
+                if reader.reader.is_none() {
+                    reader.reader = Some(CancellationReader::open(&self.library)?);
+                }
+                reader
+                    .reader
+                    .as_ref()
+                    .expect("reader initialized")
+                    .read(&self.id)?
+            }
+        };
         if state.is_some_and(|state| state.phase == CancellationPhase::Preparing && state.requested)
         {
             return Err(cancelled(&self.id));
@@ -110,6 +154,19 @@ impl CancellationScope {
     }
 
     pub fn begin_publication(&self) -> Result<()> {
+        #[cfg(windows)]
+        {
+            let mut reader = self
+                .reader
+                .lock()
+                .map_err(|_| PortcoveError::state("cancellation reader lock poisoned"))?;
+            reader.disabled = true;
+            drop(reader.reader.take());
+            // Serialize resource release with admission. Later checkpoints use
+            // fresh connections; they cannot reopen this operation's reader.
+            return close_preparation(&self.library, &self.id);
+        }
+        #[cfg(not(windows))]
         close_preparation(&self.library, &self.id)
     }
 
@@ -126,11 +183,129 @@ impl CancellationScope {
     }
 }
 
+/// One read-only connection for this operation, never a cached cancellation
+/// decision. Each SELECT ends its read transaction and fences the actual SQLite
+/// file handle against the fresh library path on both sides of the query.
+#[cfg(windows)]
+struct CancellationReaderSlot {
+    reader: Option<CancellationReader>,
+    disabled: bool,
+}
+
+#[cfg(windows)]
+struct CancellationReader {
+    connection: rusqlite::Connection,
+    file: std::fs::File,
+    path: std::path::PathBuf,
+}
+
+#[cfg(windows)]
+impl CancellationReader {
+    fn open(library: &Library) -> Result<Self> {
+        use rusqlite::{config::DbConfig, ffi};
+        use std::os::windows::io::{BorrowedHandle, RawHandle};
+        #[cfg(feature = "qualification-fixtures")]
+        let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.checkpoint_connect);
+        let path = library.root().join("portcove.sqlite3");
+        crate::path::refuse_symlink_ancestors(&path)?;
+        let connection = rusqlite::Connection::open_with_flags(
+            &path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )?;
+        connection.busy_timeout(Duration::from_secs(10))?;
+        // This reader must not checkpoint/truncate/unlink side files on close,
+        // including an error after its current-path fence refuses replacement.
+        if !connection.set_db_config(DbConfig::SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, true)? {
+            return Err(PortcoveError::state(
+                "cancellation reader close policy refused",
+            ));
+        }
+        let mut handle: RawHandle = std::ptr::null_mut();
+        // SAFETY: this private connection is live and unshared. SQLite writes a
+        // borrowed Win32 handle; we duplicate it rather than taking ownership.
+        let status = unsafe {
+            ffi::sqlite3_file_control(
+                connection.handle(),
+                c"main".as_ptr(),
+                ffi::SQLITE_FCNTL_WIN32_GET_HANDLE,
+                std::ptr::from_mut(&mut handle).cast(),
+            )
+        };
+        if status != ffi::SQLITE_OK || handle.is_null() || handle as isize == -1 {
+            return Err(PortcoveError::state(
+                "cancellation database handle unavailable",
+            ));
+        }
+        // SAFETY: SQLite owns this valid handle for the connection lifetime.
+        let file = std::fs::File::from(
+            unsafe { BorrowedHandle::borrow_raw(handle) }.try_clone_to_owned()?,
+        );
+        let reader = Self {
+            connection,
+            file,
+            path,
+        };
+        reader.fence()?;
+        let mode: String = reader
+            .connection
+            .pragma_query_value(None, "journal_mode", |row| row.get(0))?;
+        reader.fence()?;
+        if mode != "wal" {
+            return Err(PortcoveError::state(
+                "cancellation reader requires the library WAL database",
+            ));
+        }
+        Ok(reader)
+    }
+
+    fn fence(&self) -> Result<()> {
+        if !self.connection.is_autocommit() {
+            return Err(PortcoveError::state(
+                "cancellation reader retained a transaction",
+            ));
+        }
+        crate::external_runtime::verify_open_file_at_path(&self.path, &self.file)
+    }
+
+    fn read(&self, id: &str) -> Result<Option<CancellationState>> {
+        #[cfg(feature = "qualification-fixtures")]
+        let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.checkpoint_query);
+        self.fence()?;
+        let state = read_cancellation_state(&self.connection, id);
+        self.fence()?;
+        state
+    }
+}
+
 pub(crate) fn cancellation_state(library: &Library, id: &str) -> Result<Option<CancellationState>> {
-    let row = database::connect(library.root())?.query_row(
-        "SELECT cancellation_phase, cancel_requested FROM activity_history WHERE id=?1 AND status='running'",
-        [id], |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, bool>(1)?)),
-    ).optional()?;
+    #[cfg(feature = "qualification-fixtures")]
+    let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.checkpoint_query);
+    let connection = {
+        #[cfg(feature = "qualification-fixtures")]
+        let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.checkpoint_connect);
+        database::connect(library.root())?
+    };
+    let result = read_cancellation_state(&connection, id);
+    {
+        #[cfg(feature = "qualification-fixtures")]
+        let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.checkpoint_close);
+        drop(connection);
+    }
+    result
+}
+
+fn read_cancellation_state(
+    connection: &rusqlite::Connection,
+    id: &str,
+) -> Result<Option<CancellationState>> {
+    let row = {
+        #[cfg(feature = "qualification-fixtures")]
+        let _cost = crate::psx::qualification_trace::cost(|costs| &mut costs.checkpoint_read);
+        connection.query_row(
+            "SELECT cancellation_phase, cancel_requested FROM activity_history WHERE id=?1 AND status='running'",
+            [id], |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, bool>(1)?)),
+        ).optional()?
+    };
     match row {
         Some((phase, requested)) => CancellationState::from_columns(phase, requested),
         None => Ok(None),

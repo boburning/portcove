@@ -4,6 +4,17 @@ Owner: [#141](https://github.com/boburning/portcove/issues/141). This is a
 qualification-only helper and bounded first-party harness, not production
 qualification or a catalog/support change.
 
+Current owner-authorized calibration (October 13): long Forbidden Memories
+qualification stages have a 900-second cooperative work budget, a 960-second
+Core supervisor work cutoff and a 1,020-second outer controller limit. These
+supersede the historical 150/180/210 values and unchanged-work-limit statements
+below. They do not change product deadlines, cancellation response, two-second
+process closure, output/resource limits or unrelated test/launch/removal budgets.
+Later long qualification stages use the same finite policy. This is permission
+for a reviewed longer continuation, not native acceptance or proof of the old
+150-second performance target. Unrelated upstream-version progression remains
+outside the current PR acceptance slice.
+
 The retained runnable v0.6.1 baseline is unavailable. The helper creates one
 exclusive fresh Windows x64 library, requires the unchanged full embedded
 catalog, rejects selected managed definitions and catalog overrides, and
@@ -28,7 +39,7 @@ The outer controller reuses the delivered native process supervisor from
 executable hash and fresh absolute custody, preserves bounded final diagnostics
 on failures, and reports positive quiescence only through that supervisor's
 retained process-handle and complete lifetime-accounting checks. Unobserved
-short-lived processes remain a conservative hold. The work checkpoint is 180
+short-lived processes remain a conservative hold. Historically the work checkpoint was 180
 seconds, followed only by existing bounded termination/output drain. At 150
 seconds the child requests cancellation of the first root durable activity;
 nested progress IDs cannot replace it. The mutation future is awaited, never
@@ -264,7 +275,7 @@ semantics; this repair does not claim detection of a late same-object mutation
 that restores mtime after hashing. The delivered #1941 root-exit patch is composed
 with the candidate's pending membership episode safeguards, not substituted for
 them. Actual generation, sealing and the later usable lifecycle still require
-fresh source-bound native evidence within unchanged budgets.
+fresh source-bound native evidence within the active qualification budgets.
 
 The first repaired producer (runtime source `82390c24638bd33424b36d3726b897367ba29614`,
 PR head `b56894739bcd9a6b8006288a9cbf2a65ea83b9f0`, differing only by a documentation
@@ -287,3 +298,81 @@ Validator drift conservatively refuses continuation, even if unrelated. Current
 publisher checks, exact request/preparation binding and Installer fresh hashing
 remain authoritative. Missing, malformed or mismatched snapshots fail closed.
 This caller repair does not grant native acceptance; a new producer is required.
+
+## Inventory and cancellation polling cost repair — October 13, 2026
+
+Inventory capture uses the fresh hash handle's identity/metadata fences instead
+of repeating pathname ancestry and metadata work after each hash. Enumeration
+metadata provides bounds and a size/time comparison, never permission to omit
+hashing. Complete object/name/root fences and the final post-join fences remain.
+Deterministic hooks cover restored-time mutation after enumeration and mutation
+after the hash returns; an operation-count control checks the removed walks.
+
+Windows cancellation scopes retain one read-only SQLite connection as an
+operation resource, not a cancellation-result or verification cache. Every poll
+executes a new SELECT in autocommit, with fresh no-reparse ancestry, normalized
+name and object-identity fences around the actual SQLite database handle before
+and after the query. The connection uses the existing 10-second busy timeout and
+50-millisecond poll interval. Publication disables and closes this reader while
+holding its lock through the existing atomic admission; later polls use fresh
+connections. Error/drop paths close it before releasing activity/library locks.
+Unix cancellation polling retains its fresh-connection route.
+
+The connection-local `NO_CKPT_ON_CLOSE` setting prevents this reader from
+checkpointing, truncating or unlinking WAL/SHM during close. It does not change
+durable database policy. Windows controls require the live reader alone to
+refuse main/WAL/SHM replacement, observe new committed requests, preserve side
+files on reader close and permit subsequent ordinary writer cleanup. Matching
+bytes on a different object cannot satisfy the handle-identity fence. These are
+filesystem-specific controls, not an assertion about arbitrary network storage.
+
+The bounded diagnostics also separate checkpoint, connection setup, SELECT and
+close costs. A frozen-executable read-only payload control hashed the same
+2,168 files/87,325,619 bytes with fresh SQLite polls spending 52,311 and 23,271 ms,
+versus 56 and 58 ms with a test-only reused reader. Capture times were 106,763,
+21,423, 27,405 and 42,739 ms in fresh/reused/reused/fresh order. All four closed
+positively. That experiment lacked the production reader's object fences and
+is a measured lead, not its performance qualification or native acceptance.
+Fresh read-only connections and a separate mapping holder did not reliably help
+and are excluded from the repair. Full source-bound generation/sealing and the
+later installation lifecycle still need native acceptance within the active qualification caps.
+
+## Qualification work-budget calibration — October 13, 2026
+
+Core owns one qualification-only policy: 900 seconds of cooperative work plus
+60 seconds of supervisor headroom, then another 60 seconds of outer headroom.
+The admitted example exposes `--qualification-budgets`; controllers read that
+policy from the exact hash-bound executable instead of maintaining another set
+of literals. Its cooperative timer is constructed once immediately before the
+stage future is polled, after the initial original-source check. It covers the
+stage's prechecks, child execution, output capture and durable stage retention.
+Progress does not reset it. After expiry the caller requests cancellation of the
+fresh root activity and awaits the same mutation future.
+
+The supervisor clock begins after executable/custody preflight and before launch
+specification construction. It encloses child startup, source preflight, the
+cooperative stage, final source verification/output and the existing bounded
+termination/drain. The outer controller clock begins immediately before spawning
+that supervisor, enclosing its preflight and final receipt collection. Native
+controllers record all three actual limits and source/binary identities.
+Cancellation requests, 50-ms checks, joining, positive process closure and safe
+publication remain required; no automatic retry or timer reset is introduced.
+Short boundary/zero-budget tests exercise deadline policy without a 15-minute
+wait, alongside the existing cancellation/joining controls.
+
+The reviewed inventory and cancellation-reader improvements are retained.
+Before this calibration, a guarded payload capture completed fresh hashing of
+2,168 files/87,325,619 bytes in 94,953 ms, including 7,444 ms in cancellation
+polling with fresh object fences and 58,719 ms in content-handle opening. A full
+toolchain diagnostic exceeded its 180-second read-only bound and closed
+positively without mutating retained installation state. Those observations
+establish neither budget fit nor a successful generation. Further filesystem
+optimization is not a prerequisite to the owner-authorized longer run, and host
+security software and integrity checks remain enabled.
+
+Reader closure can retain committed WAL/SHM state. Custody/readback must preserve
+those files and use a consistent SQLite snapshot/backup, rather than treating a
+main-database hash alone as complete state or deleting side files. Earlier
+failed-attempt anchors and normalized-input predecessors remain authoritative.
+Actual accepted generation, sealing, configuration, ordered compilation,
+finalization and player-facing lifecycle evidence remain pending.

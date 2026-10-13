@@ -475,6 +475,12 @@ impl GeneratedTree {
     }
 }
 
+#[cfg(test)]
+thread_local! {
+    static BEFORE_HASH_HOOK: std::cell::RefCell<Option<Box<dyn FnMut(&Path)>>> = std::cell::RefCell::new(None);
+    static AFTER_HASH_HOOK: std::cell::RefCell<Option<Box<dyn FnMut(&Path)>>> = std::cell::RefCell::new(None);
+}
+
 fn inventory(root: &Path, operation: &OperationCoordinator) -> Result<BTreeMap<PathBuf, Entry>> {
     #[cfg(feature = "qualification-fixtures")]
     let mut trace =
@@ -503,7 +509,8 @@ fn inventory(root: &Path, operation: &OperationCoordinator) -> Result<BTreeMap<P
                 ));
             }
             let path = child?.path();
-            crate::path::refuse_symlink_ancestors(&path)?;
+            // Enumeration metadata supplies only type/size bounds. The checked
+            // object open below freshly inspects ancestry before consuming bytes.
             let relative = path
                 .strip_prefix(root)
                 .map_err(|_| PortcoveError::verification("PS1 stage escaped its root"))?
@@ -530,20 +537,30 @@ fn inventory(root: &Path, operation: &OperationCoordinator) -> Result<BTreeMap<P
                 trace.hashing();
                 #[cfg(feature = "qualification-fixtures")]
                 let hashing_started = std::time::Instant::now();
+                #[cfg(test)]
+                BEFORE_HASH_HOOK.with(|hook| {
+                    if let Some(hook) = &mut *hook.borrow_mut() {
+                        hook(&path);
+                    }
+                });
                 let file = crate::external_runtime::hash_stable_file(&path, before.len(), &|| {
                     operation.checkpoint()
                 })?;
                 #[cfg(feature = "qualification-fixtures")]
                 trace.hashed(before.len(), hashing_started);
+                #[cfg(test)]
+                AFTER_HASH_HOOK.with(|hook| {
+                    if let Some(hook) = &mut *hook.borrow_mut() {
+                        hook(&path);
+                    }
+                });
                 let size = before.len();
-                crate::path::refuse_symlink_ancestors(&path)?;
-                let after = fs::symlink_metadata(&path)?;
-                if size != before.len()
-                    || size > maximum
-                    || !after.is_file()
-                    || after.len() != before.len()
-                    || after.modified()? != before.modified()?
-                {
+                // The returned hash already binds type, bytes and metadata to
+                // the opened object and a fresh at-path handle, with ancestry
+                // checked at both openings. No callback runs between that final
+                // observation and retaining this entry. The complete inventory
+                // and post-join fences below remain the later mutation boundaries.
+                if !file.matches_metadata(size, before.modified()?) {
                     return Err(PortcoveError::verification(
                         "PS1 stage file changed during inventory",
                     ));
@@ -692,14 +709,40 @@ mod tests {
     #[ignore = "representative read-only verifier measurement"]
     fn representative_verification_costs() {
         if let Some(root) = std::env::var_os("PORTCOVE_VERIFIER_PROFILE_ROOT") {
-            let operation = OperationCoordinator::new("readonly-representative-verification", None);
+            let fixture = tempfile::tempdir().unwrap();
+            let operation = if std::env::var_os("PORTCOVE_VERIFIER_PROFILE_ACTIVE").is_some() {
+                let library = crate::Library::open(fixture.path()).unwrap();
+                let connection = library.connection().unwrap();
+                connection
+                    .execute("CREATE TABLE verifier_profile_padding(payload BLOB)", [])
+                    .unwrap();
+                connection
+                    .execute(
+                        "INSERT INTO verifier_profile_padding VALUES (zeroblob(12582912))",
+                        [],
+                    )
+                    .unwrap();
+                drop(connection);
+                // Isolated cancellation state only, never a retained installation.
+                let activity = library
+                    .begin_activity(
+                        crate::ActivityOperation::Prepare,
+                        crate::ActivityTargetKind::Library,
+                        None,
+                    )
+                    .unwrap();
+                OperationCoordinator::cancellable(&library, &activity, "readonly-profile").unwrap()
+            } else {
+                OperationCoordinator::new("readonly-representative-verification", None)
+            };
             super::super::qualification_trace::take_costs();
             let started = std::time::Instant::now();
             let captured = GeneratedTree::capture(Path::new(&root), &operation, true).unwrap();
             let costs = super::super::qualification_trace::take_costs();
+            let capture_elapsed_ms = started.elapsed().as_millis();
             println!(
                 "VERIFIER_READONLY {}",
-                serde_json::json!({"elapsed_ms": started.elapsed().as_millis(), "entries": captured.entries.len(), "costs": costs, "diagnostics": super::super::qualification_trace::qualification_psx_preparation_diagnostics(operation.operation_id())})
+                serde_json::json!({"elapsed_ms": capture_elapsed_ms, "entries": captured.entries.len(), "costs": costs, "diagnostics": super::super::qualification_trace::qualification_psx_preparation_diagnostics(operation.operation_id())})
             );
             return;
         }
@@ -726,6 +769,83 @@ mod tests {
         println!(
             "VERIFIER_VERIFY {}",
             serde_json::json!({"elapsed_ms": started.elapsed().as_millis(), "costs": costs})
+        );
+    }
+
+    #[cfg(all(windows, feature = "qualification-fixtures"))]
+    #[test]
+    #[ignore = "read-only controlled supervision measurement"]
+    fn supervised_representative_verification_costs() {
+        assert!(std::env::var_os("PORTCOVE_VERIFIER_PROFILE_ROOT").is_some());
+        let executable = std::env::current_exe().unwrap();
+        let mut specification = crate::ChildProcessPolicy::native_tool_spec(
+            crate::ChildProcessClass::HostTool,
+            &executable,
+        )
+        .unwrap();
+        specification.args([
+            "psx::stage::tests::representative_verification_costs",
+            "--exact",
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1",
+        ]);
+        // Only explicit read-only measurement inputs cross the normal environment filter.
+        specification.env(
+            "PORTCOVE_VERIFIER_PROFILE_ROOT",
+            std::env::var_os("PORTCOVE_VERIFIER_PROFILE_ROOT").unwrap(),
+        );
+        if let Some(active) = std::env::var_os("PORTCOVE_VERIFIER_PROFILE_ACTIVE") {
+            specification.env("PORTCOVE_VERIFIER_PROFILE_ACTIVE", active);
+        }
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(180);
+        let mut quiesced = false;
+        let result = crate::tool_process::run_tool(
+            &mut specification,
+            &|| {
+                if std::time::Instant::now() >= deadline {
+                    return Err(crate::PortcoveError::state(
+                        "read-only profile exceeded finite bound",
+                    ));
+                }
+                Ok(())
+            },
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        )
+        .unwrap();
+        println!("{}", result.output);
+        println!(
+            "VERIFIER_SUPERVISION {}",
+            serde_json::json!({
+                "quiesced": quiesced, "proof": result.process_tree_proof,
+            })
+        );
+        assert!(result.status.success());
+        let record = result
+            .output
+            .lines()
+            .find_map(|line| {
+                line.split_once("VERIFIER_READONLY ")
+                    .map(|(_, record)| record)
+            })
+            .expect("read-only capture marker");
+        let record: serde_json::Value = serde_json::from_str(record).unwrap();
+        assert!(record["entries"].as_u64().unwrap() > 0);
+        let records = record["diagnostics"]["records"].as_array().unwrap();
+        assert!(records.iter().any(|record| record["completed"] == true
+            && record["files_hashed"].as_u64().unwrap_or(0) > 0));
+        assert!(!result.truncated);
+        assert!(quiesced);
+        assert_eq!(result.process_tree_proof["process_tree_active"], "0");
+        assert_eq!(
+            result.process_tree_proof["process_tree_all_retained_signaled"],
+            "true"
         );
     }
 
@@ -917,6 +1037,76 @@ mod tests {
         );
         fs::write(root.path().join("generated.c"), "changed!").unwrap();
         assert!(stage.verify(root.path(), &operation).is_err());
+    }
+
+    #[cfg(all(windows, feature = "qualification-fixtures"))]
+    #[test]
+    fn inventory_uses_hash_handle_fences_without_duplicate_path_walks() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("input.bin"), b"fresh bytes").unwrap();
+        let operation = OperationCoordinator::new("inventory-operation-count", None);
+        super::super::qualification_trace::take_costs();
+        GeneratedTree::capture(root.path(), &operation, true).unwrap();
+        let costs = super::super::qualification_trace::take_costs();
+        assert_eq!(costs.content.calls, 1);
+        assert_eq!(costs.ancestry.calls, 2 * costs.checked_open.calls + 2);
+        assert_eq!(costs.canonical_name.calls, 2 * costs.checked_open.calls);
+    }
+
+    #[test]
+    fn inventory_fresh_hash_detects_restored_time_mutation_after_enumeration() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("input.bin");
+        fs::write(&path, b"fresh bytes").unwrap();
+        let modified = fs::metadata(&path).unwrap().modified().unwrap();
+        let operation = OperationCoordinator::new("between-enumeration-and-hash", None);
+        let original = GeneratedTree::capture(root.path(), &operation, true).unwrap();
+        BEFORE_HASH_HOOK.with(|hook| {
+            *hook.borrow_mut() = Some(Box::new(move |path| {
+                fs::write(path, b"other bytes").unwrap();
+                fs::File::options()
+                    .write(true)
+                    .open(path)
+                    .unwrap()
+                    .set_times(fs::FileTimes::new().set_modified(modified))
+                    .unwrap();
+            }))
+        });
+        let verified = original.verify(root.path(), &operation);
+        BEFORE_HASH_HOOK.with(|hook| *hook.borrow_mut() = None);
+        assert!(verified.is_err());
+        assert_eq!(fs::metadata(&path).unwrap().modified().unwrap(), modified);
+        assert_eq!(fs::read(path).unwrap(), b"other bytes");
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn inventory_final_fence_refuses_mutation_after_hash_return() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("input.bin"), b"fresh bytes").unwrap();
+        let operation = OperationCoordinator::new("after-hash-inventory-fence", None);
+        AFTER_HASH_HOOK.with(|hook| {
+            *hook.borrow_mut() = Some(Box::new(|path| {
+                use std::io::Write;
+                fs::File::options()
+                    .append(true)
+                    .open(path)
+                    .unwrap()
+                    .write_all(b" changed")
+                    .unwrap();
+            }))
+        });
+        let captured = GeneratedTree::capture(root.path(), &operation, true);
+        AFTER_HASH_HOOK.with(|hook| *hook.borrow_mut() = None);
+        assert!(captured.is_err());
+        let diagnostics =
+            super::super::qualification_trace::qualification_psx_preparation_diagnostics(
+                operation.operation_id(),
+            );
+        let record = diagnostics["records"].as_array().unwrap().last().unwrap();
+        assert_eq!(record["phase"], "final_fence");
+        assert_eq!(record["completed"], false);
+        assert_eq!(record["files_hashed"], 1);
     }
 
     #[cfg(feature = "qualification-fixtures")]

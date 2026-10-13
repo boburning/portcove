@@ -2,6 +2,18 @@
 use super::*;
 
 #[cfg(feature = "qualification-fixtures")]
+fn producer_work_checkpoint(
+    elapsed: std::time::Duration,
+    budget: std::time::Duration,
+) -> Result<()> {
+    if elapsed >= budget {
+        Err(PortcoveError::state("producer session deadline reached"))
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(feature = "qualification-fixtures")]
 fn owned_producer_command(
     program: &Path,
     environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
@@ -137,6 +149,24 @@ fn require_stage_request(stage: &str, retained_operation_id: Option<&str>) -> Re
 
 #[cfg(feature = "qualification-fixtures")]
 impl PortcoveService {
+    /// Owner-authorized historical qualification calibration, never a product
+    /// deadline. Keep finite preflight/drain/receipt headroom at each enclosure.
+    pub const QUALIFICATION_FORBIDDEN_MEMORIES_WORK_SECONDS: u64 = 900;
+    pub const QUALIFICATION_FORBIDDEN_MEMORIES_SUPERVISOR_SECONDS: u64 =
+        Self::QUALIFICATION_FORBIDDEN_MEMORIES_WORK_SECONDS + 60;
+    pub const QUALIFICATION_FORBIDDEN_MEMORIES_OUTER_SECONDS: u64 =
+        Self::QUALIFICATION_FORBIDDEN_MEMORIES_SUPERVISOR_SECONDS + 60;
+
+    /// Read-only controller policy discovery from the reviewed executable.
+    pub fn qualification_forbidden_memories_budgets() -> serde_json::Value {
+        serde_json::json!({
+            "kind": "qualification_budgets",
+            "cooperative_seconds": Self::QUALIFICATION_FORBIDDEN_MEMORIES_WORK_SECONDS,
+            "supervisor_seconds": Self::QUALIFICATION_FORBIDDEN_MEMORIES_SUPERVISOR_SECONDS,
+            "outer_seconds": Self::QUALIFICATION_FORBIDDEN_MEMORIES_OUTER_SECONDS,
+        })
+    }
+
     /// One independently admitted historical stage. This never loops through
     /// multiple native phases or reuses the old failed monolithic producer.
     pub async fn qualification_forbidden_memories_stage(
@@ -397,11 +427,12 @@ impl PortcoveService {
         let result = crate::tool_process::run_tool(
             &mut command,
             &|| {
-                if started.elapsed() >= std::time::Duration::from_secs(180) {
-                    Err(PortcoveError::state("producer session deadline reached"))
-                } else {
-                    Ok(())
-                }
+                producer_work_checkpoint(
+                    started.elapsed(),
+                    std::time::Duration::from_secs(
+                        Self::QUALIFICATION_FORBIDDEN_MEMORIES_SUPERVISOR_SECONDS,
+                    ),
+                )
             },
             crate::tool_process::ToolProcessObserver {
                 diagnostics: Some(crate::tool_process::ToolDiagnosticSink {
@@ -437,7 +468,8 @@ impl PortcoveService {
             "program_sha256": expected_program_sha256,
             "library": root,
             "source": source,
-            "budget_seconds": 180,
+            "budget_seconds": Self::QUALIFICATION_FORBIDDEN_MEMORIES_SUPERVISOR_SECONDS,
+            "work_budgets": Self::qualification_forbidden_memories_budgets(),
             "elapsed_ms": started.elapsed().as_millis(),
             "process_tree_quiesced": quiesced,
             "diagnostic": final_diagnostic,
@@ -544,6 +576,19 @@ impl PortcoveService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn historical_work_budget_is_finite_and_coherent_at_short_boundary() {
+        let budget = std::time::Duration::from_nanos(3);
+        assert!(producer_work_checkpoint(std::time::Duration::from_nanos(2), budget).is_ok());
+        assert!(producer_work_checkpoint(budget, budget).is_err());
+        assert!(producer_work_checkpoint(std::time::Duration::from_nanos(4), budget).is_err());
+        let policy = PortcoveService::qualification_forbidden_memories_budgets();
+        assert_eq!(policy["cooperative_seconds"], 900);
+        assert_eq!(policy["supervisor_seconds"], 960);
+        assert_eq!(policy["outer_seconds"], 1020);
+    }
 
     #[cfg(feature = "qualification-fixtures")]
     #[test]

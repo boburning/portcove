@@ -187,6 +187,11 @@ mod tests {
         trace.record.hashing_ms = u64::MAX;
         trace.record.marks_omitted = u64::MAX;
         for cost in [
+            &mut trace.record.verification_costs.checkpoint,
+            &mut trace.record.verification_costs.checkpoint_query,
+            &mut trace.record.verification_costs.checkpoint_close,
+            &mut trace.record.verification_costs.checkpoint_read,
+            &mut trace.record.verification_costs.checkpoint_connect,
             &mut trace.record.verification_costs.ancestry,
             &mut trace.record.verification_costs.checked_open,
             &mut trace.record.verification_costs.content_open,
@@ -247,6 +252,11 @@ mod tests {
 // Inclusive scopes are reported separately; their times must not be summed.
 #[derive(Clone, Default, Serialize)]
 pub(crate) struct VerificationCosts {
+    pub(crate) checkpoint: Cost,
+    pub(crate) checkpoint_query: Cost,
+    pub(crate) checkpoint_close: Cost,
+    pub(crate) checkpoint_read: Cost,
+    pub(crate) checkpoint_connect: Cost,
     pub(crate) ancestry: Cost,
     pub(crate) checked_open: Cost,
     pub(crate) content_open: Cost,
@@ -298,6 +308,11 @@ fn current_costs() -> VerificationCosts {
 impl VerificationCosts {
     fn since(mut self, before: &Self) -> Self {
         for (value, previous) in [
+            (&mut self.checkpoint, &before.checkpoint),
+            (&mut self.checkpoint_query, &before.checkpoint_query),
+            (&mut self.checkpoint_close, &before.checkpoint_close),
+            (&mut self.checkpoint_read, &before.checkpoint_read),
+            (&mut self.checkpoint_connect, &before.checkpoint_connect),
             (&mut self.ancestry, &before.ancestry),
             (&mut self.checked_open, &before.checked_open),
             (&mut self.content_open, &before.content_open),

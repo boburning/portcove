@@ -16,8 +16,12 @@ use sha2::{Digest, Sha256};
 // Managed preparation consumes CHD; Core verifies the normalized track.
 const SOURCE_BYTES: u64 = 151_881_565;
 const SOURCE_SHA256: &str = "3447677c2313417e285abed0b18bd9c24c0a2efb095ede61b9b0b1edecdc8ff4";
-// Leave time for cooperative drain within the unchanged 180-second outer cap.
-const PREPARATION_SECONDS: u64 = 150;
+// Qualification-only policy is shared with the Core supervisor and controller.
+const PREPARATION_SECONDS: u64 = PortcoveService::QUALIFICATION_FORBIDDEN_MEMORIES_WORK_SECONDS;
+
+fn cooperative_work_cutoff(budget: Duration) -> tokio::time::Sleep {
+    tokio::time::sleep(budget)
+}
 
 fn source_identity(source: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::open(source)?;
@@ -84,6 +88,10 @@ fn diagnostic_operation_id<'a>(
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+    if args.len() == 1 && args[0] == "--qualification-budgets" {
+        emit(PortcoveService::qualification_forbidden_memories_budgets())?;
+        return Ok(());
+    }
     if args.len() == 6 && args[0] == "--supervise-stage" {
         let digest = args[1].to_str().ok_or("digest must be UTF-8")?;
         let stage = args[2].to_str().ok_or("stage must be UTF-8")?;
@@ -186,10 +194,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     tokio::pin!(operation);
+    // Construct once before polling the stage: progress never resets this clock.
+    let work_cutoff = cooperative_work_cutoff(Duration::from_secs(PREPARATION_SECONDS));
+    tokio::pin!(work_cutoff);
     let mut deadline_reached = false;
     let result = tokio::select! {
         result = &mut operation => result,
-        _ = tokio::time::sleep(Duration::from_secs(PREPARATION_SECONDS)) => {
+        _ = &mut work_cutoff => {
             deadline_reached = true;
             let id = operation_id.lock().expect("event identity lock poisoned").clone();
             let cancellation = id.map(|id| {
@@ -245,6 +256,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cooperative_timer_uses_a_short_test_budget_without_changing_policy() {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap()
+            .block_on(async {
+                cooperative_work_cutoff(Duration::ZERO).await;
+            });
+        assert_eq!(PREPARATION_SECONDS, 900);
+    }
 
     #[test]
     fn retained_diagnostics_use_lifecycle_identity_without_changing_cancellation() {
