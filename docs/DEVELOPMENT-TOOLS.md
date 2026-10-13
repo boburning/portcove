@@ -447,6 +447,16 @@ just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
 
+`just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
+selects one standalone
+Windows journey outside routine profiles. An isolated first-party CLI seeds a
+saved root and a hash-limited batch of two inert inputs. Desktop continues the
+same bounded scan, preserves the earlier match, freshly reviews the newly found
+input, and cancels without registration, acquisition or original-file changes.
+The receipt binds the actual executables, source, screenshots and positive
+owned-process closure. This case does not establish native picker, setup
+execution, gameplay, physical storage or Linux acceptance.
+
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
 flags are repeatable and mutually exclusive with `--profile`; selection is normalized
 in catalog order. The pure `scripts/desktop-execution-plan.mjs` supplies fixture
