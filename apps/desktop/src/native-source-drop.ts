@@ -56,17 +56,32 @@ export function createNativeSourceDropCoordinator(
   };
 }
 
+type NativeSourceDropUnlisten = () => void | Promise<void>;
+
+async function removeSourceDropListener(remove: NativeSourceDropUnlisten) {
+  try {
+    // Tauri's drag/drop cleanup is awaitable even when UnlistenFn is typed void.
+    await remove();
+  } catch {
+    // The native webview may already be destroyed; cleanup cannot update React state.
+  }
+}
+
 export function useNativeSourceDrop(accept: (drop: NativeSourceDrop) => void) {
   const [state, setState] = useState<NativeSourceDragState>(idleState);
   const acceptDrop = useEffectEvent(accept);
   useEffect(() => {
     let disposed = false;
-    let unlisten: (() => void) | undefined;
+    let unlisten: NativeSourceDropUnlisten | undefined;
     const coordinator = createNativeSourceDropCoordinator(setState, acceptDrop);
-    void getCurrentWebview()
-      .onDragDropEvent((event) => coordinator(event.payload))
+    void Promise.resolve()
+      .then(() =>
+        getCurrentWebview().onDragDropEvent((event) => {
+          if (!disposed) coordinator(event.payload);
+        }),
+      )
       .then((remove) => {
-        if (disposed) remove();
+        if (disposed) void removeSourceDropListener(remove);
         else unlisten = remove;
       })
       .catch(() => {
@@ -74,7 +89,7 @@ export function useNativeSourceDrop(accept: (drop: NativeSourceDrop) => void) {
       });
     return () => {
       disposed = true;
-      unlisten?.();
+      if (unlisten) void removeSourceDropListener(unlisten);
     };
   }, []);
   return state;
