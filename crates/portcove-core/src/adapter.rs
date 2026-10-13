@@ -3864,6 +3864,121 @@ mod tests {
     }
 
     #[test]
+    fn ace_combat_3_japan_uses_generated_runtime_and_registered_bios_coordinates() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, catalog, mut install, bios) =
+            crate::psx::bios_launch_fixture(temporary.path());
+        let port = catalog
+            .port("alexbeav-ace-combat-3-electrosphere-recomp")
+            .unwrap();
+        let runtime = install.path.join("build-portcove");
+        let raw_set = runtime.join("runtime-discs");
+        std::fs::create_dir_all(&raw_set).unwrap();
+        std::fs::write(
+            install.path.join("CMakeLists.txt"),
+            "# inert package-root marker\n",
+        )
+        .unwrap();
+        std::fs::write(
+            runtime.join("Ace_Combat_3__Electrosphere__Japan__Recompiled.exe"),
+            b"inert generated executable",
+        )
+        .unwrap();
+        for index in 1..=2 {
+            std::fs::write(raw_set.join(format!("disc-{index:02}.bin")), [index as u8]).unwrap();
+            std::fs::write(raw_set.join(format!("disc-{index:02}.cue")), format!("FILE \"disc-{index:02}.bin\" BINARY\n TRACK 01 MODE2/2352\n INDEX 01 00:00:00\n")).unwrap();
+        }
+        let config = runtime.join("game.toml");
+        let original =
+            "[game]\ndiscs = ['runtime-discs/disc-01.cue', 'runtime-discs/disc-02.cue']\n";
+        std::fs::write(&config, original).unwrap();
+        install.id = "427-coordinate-fixture".into();
+        install.port_id = port.id.clone();
+        let qualification =
+            crate::InstallQualification::from_catalog(&catalog, &port.id, Platform::WindowsX86_64)
+                .unwrap();
+        (
+            install.manifest_sha256,
+            install.selected_executable,
+            install.runtime,
+        ) = crate::Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(
+                &install.id,
+                &port.id,
+                &install.version,
+                &install.artifact,
+                &qualification,
+                &install.path,
+            )
+            .unwrap();
+        library.register_install(&install, true).unwrap();
+        let source = temporary.path().join("unused-registered-chds");
+        std::fs::create_dir(&source).unwrap();
+        let adapter = AdapterRegistry.get(AdapterKind::PsxRecompManaged);
+        let spec = adapter
+            .prepare_launch(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install.path,
+                Some(&source),
+            )
+            .unwrap();
+        assert_eq!(spec.working_directory, runtime);
+        assert_eq!(
+            spec.executable,
+            runtime.join("Ace_Combat_3__Electrosphere__Japan__Recompiled.exe")
+        );
+        assert_eq!(spec.arguments[0], "--no-launcher");
+        assert_eq!(Path::new(&spec.arguments[4]), runtime.join("saves"));
+        assert_eq!(spec.arguments[5], "--bios");
+        assert_eq!(Path::new(&spec.arguments[6]), bios.path);
+        // Upstream discovers the package-root CMake marker; its relative capture
+        // environment is resolved there, not against the runtime working dir.
+        let capture = install
+            .path
+            .join(spec.environment.get("PSX_OVERLAY_CAPTURES").unwrap());
+        assert_eq!(
+            capture,
+            runtime.join("overlay-captures/overlay_captures.json")
+        );
+        assert!(
+            port.persistent_paths
+                .iter()
+                .any(|path| path == "overlay-captures")
+        );
+        assert!(
+            port.persistent_paths
+                .iter()
+                .any(|path| path == "settings.toml.bad")
+        );
+        assert_eq!(std::fs::read_to_string(&config).unwrap(), original);
+        let generated = std::fs::read_to_string(runtime.join(MANAGED_PSX_RUNTIME_CONFIG)).unwrap();
+        for index in 1..=2 {
+            assert!(
+                generated.contains(
+                    &psx_launch_path(&raw_set.join(format!("disc-{index:02}.cue")))
+                        .unwrap()
+                        .replace('\\', "\\\\")
+                )
+            );
+        }
+        std::fs::write(&bios.path, b"changed BIOS").unwrap();
+        assert!(
+            adapter
+                .prepare_launch(
+                    &library,
+                    port,
+                    Platform::WindowsX86_64,
+                    &install.path,
+                    Some(&source)
+                )
+                .is_err()
+        );
+    }
+
+    #[test]
     fn n64_recomp_enables_portable_storage_beside_the_executable() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
