@@ -1,4 +1,5 @@
 import type { SourceInspectionReport, SourceProfile, SourceRecord } from "../types";
+import type { ReactNode } from "react";
 import { Button } from "./ui/button";
 
 type Inspection = NonNullable<SourceInspectionReport["inspection"]>;
@@ -22,11 +23,13 @@ export function PreliminarySourceSelections({
   profiles,
   disabled,
   onReview,
+  renderActions,
 }: {
   selections?: Inspection[];
   profiles: SourceProfile[];
   disabled: boolean;
   onReview: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
+  renderActions?: (candidate: SourceRecord) => ReactNode;
 }) {
   if (selections.length === 0) return null;
   return (
@@ -41,6 +44,9 @@ export function PreliminarySourceSelections({
         const profile = profiles.find((item) => item.id === selection.profile_id);
         return (
           <div
+            data-preliminary-selection
+            data-profile-id={selection.profile_id}
+            data-path={selection.path}
             className="source-health-row my-2 rounded-pc-md border border-pc-border p-3"
             key={`${selection.profile_id}:${selection.path}`}
           >
@@ -53,16 +59,21 @@ export function PreliminarySourceSelections({
                 ? "Validation has not run."
                 : "Selection details are unavailable or inconsistent. Search again before reviewing this file."}
             </p>
-            <Button
-              data-focusable
-              variant="outline"
-              disabled={disabled || !candidate || !profile}
-              onClick={() => {
-                if (candidate && profile) onReview(candidate);
-              }}
-            >
-              Review preliminary selection
-            </Button>
+            {candidate && profile && renderActions ? (
+              renderActions(candidate)
+            ) : (
+              <Button
+                data-focusable
+                data-candidate-review
+                variant="outline"
+                disabled={disabled || !candidate || !profile}
+                onClick={() => {
+                  if (candidate && profile) onReview(candidate);
+                }}
+              >
+                Review preliminary selection
+              </Button>
+            )}
           </div>
         );
       })}

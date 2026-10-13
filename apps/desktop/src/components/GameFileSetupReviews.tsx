@@ -3,13 +3,15 @@ import {
   useSetupReviewSelection,
 } from "../features/game-file-discovery/setup-review-selection";
 import { useEffect, useRef } from "react";
-import type { PortDefinition, PortStatus, SourceRecord } from "../types";
+import type { PortDefinition, PortStatus, SourceRecord, SourceInspectionReport } from "../types";
+import { preliminarySelectionRecord } from "./PreliminarySourceSelections";
 import { Button } from "./ui/button";
 
 export function GameFileSetupReviews({
   ports,
   statuses,
   candidates,
+  preliminarySelections = [],
   registeredSources,
   current,
   busy,
@@ -18,6 +20,7 @@ export function GameFileSetupReviews({
   ports: PortDefinition[];
   statuses: ReadonlyMap<string, PortStatus>;
   candidates: Pick<SourceRecord, "profile_id" | "path" | "sha256">[];
+  preliminarySelections?: NonNullable<SourceInspectionReport["inspection"]>[];
   registeredSources: SourceRecord[];
   current: boolean;
   busy: boolean;
@@ -34,18 +37,23 @@ export function GameFileSetupReviews({
       document.getElementById("game-file-libraries-heading")
     )?.focus();
   }, [selected]);
+  const matchesRegistration = (candidate: Pick<SourceRecord, "profile_id" | "path" | "sha256">) =>
+    registeredSources.some(
+      (source) =>
+        source.profile_id === candidate.profile_id &&
+        source.path === candidate.path &&
+        source.sha256 === candidate.sha256,
+    );
+  const registeredPreliminary = preliminarySelections.flatMap((selection) => {
+    const record = preliminarySelectionRecord(selection);
+    return record && matchesRegistration(record) ? [record] : [];
+  });
   const profiles = new Set(
-    candidates
-      .filter((candidate) =>
-        registeredSources.some(
-          (source) =>
-            source.profile_id === candidate.profile_id &&
-            source.path === candidate.path &&
-            source.sha256 === candidate.sha256,
-        ),
-      )
-      .map((candidate) => candidate.profile_id),
+    [...candidates.filter(matchesRegistration), ...registeredPreliminary].map(
+      (candidate) => candidate.profile_id,
+    ),
   );
+  const preliminaryProfiles = new Set(registeredPreliminary.map((record) => record.profile_id));
   const compatible = ports.filter(
     (port) =>
       (port.source_profile && profiles.has(port.source_profile)) ||
@@ -85,6 +93,13 @@ export function GameFileSetupReviews({
             onChange={() => toggle(port.id)}
           />
           {port.name} <span className="text-pc-muted-foreground">({port.id})</span>
+          {(preliminaryProfiles.has(port.source_profile ?? "") ||
+            preliminaryProfiles.has(port.bios_source_profile ?? "")) && (
+            <span className="block text-pc-muted-foreground">
+              Validation has not run for a selected input. Review setup requirements before
+              continuing.
+            </span>
+          )}
         </label>
       ))}
       {selected.length > 0 && (
