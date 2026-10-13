@@ -261,10 +261,89 @@ impl PsxStageWitness for BootstrapWitness {
     }
 }
 
-fn archive_path(staging: &std::path::Path) -> Result<PathBuf> {
+// Keep journal coordinates unchanged, but supply the canonical spelling
+// required by the object/name-bound reader after checking the original ancestry.
+pub(crate) fn archive_path(staging: &std::path::Path) -> Result<PathBuf> {
     let path = staging.join("artifact.download");
     crate::path::refuse_symlink_ancestors(&path)?;
     Ok(fs::canonicalize(path)?)
+}
+
+#[cfg(test)]
+mod archive_path_tests {
+    use super::*;
+    use sha2::{Digest, Sha256};
+
+    #[test]
+    fn retained_archive_coordinate_keeps_fresh_hashing_with_restored_mtime() {
+        let staging = tempfile::tempdir().unwrap();
+        let ordinary = staging.path().join("artifact.download");
+        let original = b"original archive";
+        fs::write(&ordinary, original).unwrap();
+        let canonical = archive_path(staging.path()).unwrap();
+        assert_eq!(canonical, fs::canonicalize(&ordinary).unwrap());
+        #[cfg(windows)]
+        {
+            assert_ne!(ordinary, canonical);
+            // The continuation caller must resolve its journal coordinate;
+            // weakening the reader's canonical-name fence is not the repair.
+            assert!(
+                crate::external_runtime::hash_stable_file(
+                    &ordinary,
+                    original.len() as u64,
+                    &|| Ok(())
+                )
+                .is_err()
+            );
+        }
+        let inspected = crate::external_runtime::hash_stable_file(
+            &canonical,
+            original.len() as u64,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(inspected.sha256, hex::encode(Sha256::digest(original)));
+        let modified = fs::metadata(&ordinary).unwrap().modified().unwrap();
+        fs::write(&ordinary, b"modified archive").unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&ordinary)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+        assert_eq!(
+            fs::metadata(&ordinary).unwrap().modified().unwrap(),
+            modified
+        );
+        let current = crate::external_runtime::hash_stable_file(
+            &archive_path(staging.path()).unwrap(),
+            original.len() as u64,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert_ne!(current.sha256, inspected.sha256);
+        assert_eq!(
+            current.sha256,
+            hex::encode(Sha256::digest(b"modified archive"))
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn retained_archive_coordinate_refuses_leaf_and_ancestor_symlinks() {
+        let outside = tempfile::tempdir().unwrap();
+        let staging = tempfile::tempdir().unwrap();
+        fs::write(outside.path().join("artifact.download"), b"outside").unwrap();
+        std::os::unix::fs::symlink(
+            outside.path().join("artifact.download"),
+            staging.path().join("artifact.download"),
+        )
+        .unwrap();
+        assert!(archive_path(staging.path()).is_err());
+        let linked = staging.path().join("linked");
+        std::os::unix::fs::symlink(outside.path(), &linked).unwrap();
+        assert!(archive_path(&linked).is_err());
+    }
 }
 
 impl BootstrapWitness {

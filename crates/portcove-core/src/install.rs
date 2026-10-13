@@ -1497,7 +1497,7 @@ impl Installer {
             .staging
             .clone()
             .ok_or_else(|| PortcoveError::state("PS1 configure staging is missing"))?;
-        let archive = operation_root.join("artifact.download");
+        let archive = crate::psx::retained_archive_path(&operation_root)?;
         let retained_archive =
             crate::external_runtime::hash_stable_file(&archive, artifact.size, &|| {
                 operation.checkpoint()
@@ -1606,7 +1606,7 @@ impl Installer {
             .clone()
             .ok_or_else(|| PortcoveError::state("PS1 pending query staging missing"))?;
         let archive = crate::external_runtime::hash_stable_file(
-            &operation_root.join("artifact.download"),
+            &crate::psx::retained_archive_path(&operation_root)?,
             artifact.size,
             &|| operation.checkpoint(),
         )?;
@@ -1754,7 +1754,7 @@ impl Installer {
             .clone()
             .ok_or_else(|| PortcoveError::state("PS1 compile continuation staging missing"))?;
         let archive = crate::external_runtime::hash_stable_file(
-            &operation_root.join("artifact.download"),
+            &crate::psx::retained_archive_path(&operation_root)?,
             artifact.size,
             &|| operation.checkpoint(),
         )?;
@@ -1857,7 +1857,7 @@ impl Installer {
             .clone()
             .ok_or_else(|| PortcoveError::state("PS1 finalization staging missing"))?;
         let archive = crate::external_runtime::hash_stable_file(
-            &operation_root.join("artifact.download"),
+            &crate::psx::retained_archive_path(&operation_root)?,
             artifact.size,
             &|| operation.checkpoint(),
         )?;

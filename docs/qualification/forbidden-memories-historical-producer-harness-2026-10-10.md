@@ -374,5 +374,53 @@ Reader closure can retain committed WAL/SHM state. Custody/readback must preserv
 those files and use a consistent SQLite snapshot/backup, rather than treating a
 main-database hash alone as complete state or deleting side files. Earlier
 failed-attempt anchors and normalized-input predecessors remain authoritative.
-Actual accepted generation, sealing, configuration, ordered compilation,
-finalization and player-facing lifecycle evidence remain pending.
+## Native observations under calibrated budgets — October 13, 2026
+
+Candidate `b8c5bca036096c0af1b09628d00a4abfd7e76eb5`, tree
+`cc68892a2589cd7ed2667b72d33a05748a7c6011`, produced the default release-profile
+Windows qualification executable SHA-256
+`2a543e8077746111c8d833d80b888dfcbfb67682cf64ee2cc2c03512033cf61c`.
+Independent source and literal packet reviews cleared that candidate. Required
+exact-head CI run `38452664610`, attempt 1, passed all five contexts.
+
+The retained `generate-normalized` continuation completed in 483,888 ms without
+reaching the cooperative deadline. Core dispatched the real generator, captured
+the required permitted outputs, positively closed seven retained process
+lifetimes, and durably retained provisional evidence. Independent readback
+verified the normalized predecessor and three acknowledgement receipts while
+preserving the first two failed receipts. The history digest is
+`92a410649841fe36b4f2f5aecbaf7f7b915d3a8b04016087411bdb7bdca63469`.
+No configuration or installation was authorized by that provisional result.
+
+The same producer completed a separately admitted `seal-generation` in
+131,055 ms. Fresh verification promoted the provisional result into one sealed
+generation witness. Readback independently checked the unchanged provisional
+row, normalized/history bindings, sealed payload and consistent SQLite backup;
+configuration, compilation and installation rows remained absent. Both stages
+had complete positive process closure and normal native-lease release. These
+observations do not establish the superseded 150-second performance target.
+
+Generation's toolchain inventory hashed 15,684 files / 798,215,456 bytes in
+325,051 ms. Inclusive costs included 207,473 ms opening content handles and
+15,328 ms reading/hashing content; the final fence took 15,647 ms. Payload,
+normalized-disc and output captures also completed. Costs overlap nested work
+and must not be added as independent wall-clock phases. Later stage timings
+varied on the same host; no cache warming or host-security change was used to
+manufacture acceptance.
+
+The next `configure` attempt failed in 94,541 ms before CMake dispatch, with
+`user-prepared runtime changed during inspection`; it did not exhaust its work
+budget. Closure and readback preserved all predecessors and history with no
+configuration row. The later-stage caller supplied the ordinary journal archive
+coordinate to a canonical-name-bound reader. The existing Windows primitive
+fixture confirms this spelling is refused. Configuration, pending-query,
+compilation and finalization now reuse the existing ancestry-checked canonical
+archive helper, retaining fresh hashing and every object/name fence. A new
+producer and exact-head checks are required for the repaired later stages.
+
+Packets are retained at `E:/pc1785-generate-owner-calibration-20261013`,
+`E:/pc1785-seal-owner-calibration-20261013` and
+`E:/pc1785-configure-owner-calibration-20261013`. Consistent readbacks retain
+committed WAL state instead of relying on a main-database hash alone. Earlier
+failed packets and recovery backups remain preserved. Configuration, ordered
+compilation, finalization and the player-facing lifecycle remain pending.

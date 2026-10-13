@@ -9,7 +9,7 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 mod bootstrap;
-pub(crate) use bootstrap::BootstrapWitness;
+pub(crate) use bootstrap::{BootstrapWitness, archive_path as retained_archive_path};
 mod generation_outputs;
 mod normalized_inputs;
 pub(crate) use normalized_inputs::{NormalizedInputWitness, ProvisionalGeneratedInstall};
