@@ -10152,6 +10152,7 @@ fn main() {
             executable: executable_name.clone(),
             immutable_tree_sha256: "0".repeat(64),
             source_argument_extension: Some("z64".into()),
+            library_user_data: false,
             mutable_paths: vec!["general.json".into()],
         };
         runtime.immutable_tree_sha256 =
