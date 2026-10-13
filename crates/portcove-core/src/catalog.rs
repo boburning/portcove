@@ -4700,22 +4700,21 @@ mod tests {
         );
         assert!(port.automated_tested_platforms.is_empty());
         assert!(port.manually_validated_platforms.is_empty());
-        for path in [
-            "rom.z64",
-            "saves",
-            "mods",
-            "mods.json",
-            "mod_config",
-            "graphics.json",
-            "audio.json",
-            "controls.json",
-            "rom_path.txt",
-        ] {
-            assert!(
-                port.persistent_paths.iter().any(|value| value == path),
-                "LodRecomp persistence contract is missing {path}"
-            );
-        }
+        assert_eq!(
+            port.persistent_paths,
+            [
+                "rom.z64",
+                "saves",
+                "mods",
+                "mods.json",
+                "mod_config",
+                "graphics.json",
+                "audio.json",
+                "controls.json",
+                "rom_path.txt",
+                "cheats.cfg",
+            ]
+        );
         assert_eq!(
             port.runtime_mutable_paths,
             ["castlevania2.n64.us.z64", "LodRecomp.log"]
