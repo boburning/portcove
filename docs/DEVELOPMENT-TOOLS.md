@@ -326,6 +326,18 @@ task-contract matrix or duplicate status narrative.
 
 #### Resume and diagnosis decisions
 
+For changed CLI command definitions or consent text, `just cli-help-check` runs
+the existing help-contract regression through the Heavy Rust guard. For Playnite
+protocol work, `just playnite-contract-check` builds/checks the C# output and runs
+synthetic contracts; supplying both `-Cli <executable>` and `-Library <isolated-root>`
+also checks the compiled producer/consumer boundary. It skips lifecycle fixtures
+and packaging. `just playnite-check` retains complete fixture qualification and
+packaging. These are optional early feedback; required hosted coverage is unchanged.
+
+For retained native/consumer resources and current summaries, use the read-only
+[handoff evidence checker](reference/handoff-evidence.md). It verifies references,
+not execution ownership or acceptance authority.
+
 Refresh material source/requirements changes and verify actual writers/resources
 before overlapping work. Preserve failures and use the smallest discriminating
 reproduction. An unchanged retry is not a repair. Historical operation evidence

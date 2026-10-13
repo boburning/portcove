@@ -24,6 +24,7 @@ for (const [name, command, args] of [
   ["desktop verification", process.execPath, ["scripts/desktop-verify.mjs", "--help"]],
   ["roadmap", process.execPath, ["scripts/roadmap.mjs", "--help"]],
   ["pull request delivery", process.execPath, ["scripts/pr-delivery.mjs", "--help"]],
+  ["handoff evidence", process.execPath, ["scripts/handoff-evidence.mjs", "--help"]],
 ]) {
   test(`${name} help is available without provisioning`, () => {
     const result = run(command, args);

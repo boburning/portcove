@@ -28,6 +28,13 @@ const make = (files) =>
     head: "b".repeat(40),
     checkout: "b".repeat(40),
   });
+test("Playnite and handoff repairs select their cheap regressions in ordinary CI", () => {
+  const tests = baselineContractTests(
+    make(["integrations/playnite/check.ps1", "scripts/handoff-evidence.mjs"]),
+  );
+  assert.ok(tests.includes("integrations/playnite/lifecycle-check.test.mjs"));
+  assert.ok(tests.includes("scripts/handoff-evidence.test.mjs"));
+});
 test("bootstrap regressions are limited to infrastructure, including old rename paths", () => {
   assert.deepEqual(baselineBootstrapTests(make(["crates/portcove-core/src/lib.rs"])), []);
   assert.deepEqual(baselineBootstrapTests(make([".github/workflows/ci.yml"])), [

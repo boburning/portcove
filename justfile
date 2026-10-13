@@ -31,7 +31,7 @@ pr-merge-rest *args:
     node scripts/pr-delivery.mjs merge {{args}}
 
 development-tools:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/desktop-build-cache.test.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/windows-helper-checks.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/precommit-check.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/process-lock.test.mjs scripts/renovate-fast-lane.test.mjs scripts/repository-skills.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
+    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/desktop-build-cache.test.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/windows-helper-checks.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/precommit-check.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/process-lock.test.mjs scripts/renovate-fast-lane.test.mjs scripts/repository-skills.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
 
 # Complete selected local loop; required hosted CI runs its separately selected plan.
 local-check *args:
@@ -55,7 +55,17 @@ desktop-verify *args:
 
 # Windows external-reference client; requires Visual Studio Build Tools.
 playnite-check *args:
-    pwsh -NoProfile -File integrations/playnite/check.ps1 {{args}}
+    {{storage}} pwsh -NoProfile -File integrations/playnite/check.ps1 {{args}}
+
+# Optional early feedback; these do not replace hosted or installed acceptance.
+cli-help-check:
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked -p portcove-cli --test machine_contract installation_and_external_help_explain_review_binding_and_file_ownership -- --exact
+
+playnite-contract-check *args:
+    {{storage}} pwsh -NoProfile -File integrations/playnite/check.ps1 -ContractsOnly {{args}}
+
+handoff-check *args:
+    node scripts/handoff-evidence.mjs check {{args}}
 
 clean-build:
     node scripts/dev-storage.mjs clean

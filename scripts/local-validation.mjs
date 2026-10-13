@@ -767,6 +767,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   }
 
   if (file.startsWith("integrations/playnite/")) {
+    addNodeTest(selection, "integrations/playnite/lifecycle-check.test.mjs");
     selection.scopes.add("playnite");
     selection.playnite = true;
     recognized = true;

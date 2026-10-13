@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { getPaths, prepareStorageScope } from "../../scripts/dev-storage.mjs";
+import { runRustTests } from "../../scripts/run-rust-tests.mjs";
+import { acquireHeavyRustTestLock } from "../../scripts/heavy-rust-test-lock.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   createInstallFixture,
@@ -22,8 +24,83 @@ const contract = path.join(
   "Release",
   "Portcove.ContractTests.exe",
 );
-const cli = path.join(root, "target", "debug", "portcove.exe");
 const DEFINITION_FIXTURE_PORT_ID = "opengoal-jak1";
+
+export function cargoPhaseArguments(phase, action) {
+  if (phase === "cli-build" && action === undefined)
+    return [
+      "build",
+      "--locked",
+      "--quiet",
+      "-p",
+      "portcove-cli",
+      "--features",
+      "portcove-core/qualification-fixtures",
+    ];
+  if (phase === "definition-state" && ["select", "install", "revoke"].includes(action))
+    return [
+      "test",
+      "--locked",
+      "-p",
+      "portcove-core",
+      "--features",
+      "qualification-fixtures",
+      "definition_repository::tests::qualification_adapter_conformance_definition_state",
+      "--",
+      "--ignored",
+      "--exact",
+      "--nocapture",
+    ];
+  throw new Error("Unknown Playnite Cargo phase");
+}
+
+export function lifecyclePaths(layout) {
+  return {
+    cli: path.join(layout.target_directory, "debug", "portcove.exe"),
+    temporary: layout.temporary_directory,
+  };
+}
+
+export async function runCargoPhase(phase, action, environment, guard = runRustTests) {
+  cargoPhaseArguments(phase, action);
+  const code = await guard(
+    [
+      "--guard-command",
+      process.execPath,
+      fileURLToPath(import.meta.url),
+      "--cargo-phase",
+      phase,
+      ...(action === undefined ? [] : [action]),
+    ],
+    { environment, tempRoot: environment.PORTCOVE_TEMP_DIR },
+  );
+  if (code !== 0)
+    throw new Error(
+      `Guarded Playnite ${phase} failed (${code}); retain its guard/closure diagnostics`,
+    );
+}
+
+export async function executeCargoPhase(
+  phase,
+  action,
+  { environment = process.env, acquire = acquireHeavyRustTestLock, execute = run } = {},
+) {
+  const args = cargoPhaseArguments(phase, action);
+  if (!environment.PORTCOVE_HEAVY_RUST_LOCK_TOKEN)
+    throw new Error("Cargo phases require the existing Heavy Rust guard");
+  const lease = await acquire(
+    { workspace: root, command: `Playnite ${phase}` },
+    {
+      inheritedToken: environment.PORTCOVE_HEAVY_RUST_LOCK_TOKEN,
+    },
+  );
+  if (!lease.inherited) throw new Error("Cargo phase did not inherit validated admission");
+  try {
+    await execute("cargo", args, { env: environment });
+  } finally {
+    await lease.release(); // Existing inherited lease release is a no-op; the parent owns closure.
+  }
+}
 
 export function run(command, args, { env = process.env, timeout = 600_000, echo = true } = {}) {
   return new Promise((resolve, reject) => {
@@ -251,27 +328,20 @@ async function checkReviewedExternal(cli, library, catalogPath, workspace, env) 
 async function main() {
   if (process.platform !== "win32")
     throw new Error("Playnite lifecycle qualification requires Windows.");
-  await run("cargo", [
-    "build",
-    "--locked",
-    "--quiet",
-    "-p",
-    "portcove-cli",
-    "--features",
-    "portcove-core/qualification-fixtures",
-  ]);
-
-  const workspace = await mkdtemp(path.join(os.tmpdir(), "portcove-playnite-lifecycle-"));
+  const environment = prepareStorageScope("rust");
+  const { cli, temporary } = lifecyclePaths(getPaths("rust"));
+  const workspace = await mkdtemp(path.join(temporary, "portcove-playnite-lifecycle-"));
   let fixture;
   let primaryFailure;
 
   try {
+    await runCargoPhase("cli-build", undefined, environment);
     const output = path.join(workspace, "fixture");
     const library = path.join(workspace, "library");
     await mkdir(output);
     fixture = await createInstallFixture({ root, output, holdFirstDownload: true });
     const env = {
-      ...process.env,
+      ...environment,
       PORTCOVE_PREFERENCES: path.join(workspace, "preferences.json"),
       PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
     };
@@ -285,30 +355,12 @@ async function main() {
       run(contract, [mode, cli, library, port, identity, ...rest], { env });
     await checkReviewedExternal(cli, library, fixture.catalogPath, workspace, env);
     const setDefinitionState = (action) =>
-      run(
-        "cargo",
-        [
-          "test",
-          "--locked",
-          "-p",
-          "portcove-core",
-          "--features",
-          "qualification-fixtures",
-          "definition_repository::tests::qualification_adapter_conformance_definition_state",
-          "--",
-          "--ignored",
-          "--exact",
-          "--nocapture",
-        ],
-        {
-          env: {
-            ...env,
-            PORTCOVE_QUALIFICATION_LIBRARY: library,
-            PORTCOVE_QUALIFICATION_DEFINITION_PORT: DEFINITION_FIXTURE_PORT_ID,
-            PORTCOVE_QUALIFICATION_DEFINITION_ACTION: action,
-          },
-        },
-      );
+      runCargoPhase("definition-state", action, {
+        ...env,
+        PORTCOVE_QUALIFICATION_LIBRARY: library,
+        PORTCOVE_QUALIFICATION_DEFINITION_PORT: DEFINITION_FIXTURE_PORT_ID,
+        PORTCOVE_QUALIFICATION_DEFINITION_ACTION: action,
+      });
 
     await phase("qualification-library-busy", INSTALL_REFRESH_FIXTURE_PORT_ID);
     await phase("qualification-concurrency", INSTALL_REFRESH_FIXTURE_PORT_ID);
@@ -434,4 +486,13 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  if (process.argv[2] === "--cargo-phase") {
+    if (!process.env.PORTCOVE_HEAVY_RUST_LOCK_TOKEN || process.argv.length > 5)
+      throw new Error("Cargo phases require the existing Heavy Rust guard");
+    await executeCargoPhase(process.argv[3], process.argv[4]);
+  } else {
+    if (process.argv.length !== 2) throw new Error("Unexpected lifecycle arguments");
+    await main();
+  }
+}
