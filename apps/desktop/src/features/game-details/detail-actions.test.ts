@@ -194,7 +194,43 @@ describe("detail actions", () => {
     }).backup();
 
     expect(perform).toHaveBeenCalledWith("back up data", expect.any(Function));
-    expect(desktopApi.backup).toHaveBeenCalledWith(port.id);
+    expect(desktopApi.backup).toHaveBeenCalledWith(port.id, 9);
+  });
+
+  it("retains the reviewed generation when backup and rollback dispatch after a library switch", async () => {
+    const backup = vi.spyOn(desktopApi, "backup").mockResolvedValue(undefined!);
+    const rollback = vi.spyOn(desktopApi, "rollback").mockResolvedValue(undefined);
+    const pending: Array<() => Promise<unknown>> = [];
+    const perform: Perform = async (_name, task) => {
+      pending.push(task);
+      return undefined;
+    };
+    const context = {
+      port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform,
+      close: vi.fn(),
+      libraryGeneration: 7,
+    };
+    const oldActions = detailActions(context);
+    await oldActions.backup();
+    await oldActions.rollback();
+    // The newly rendered context must not retarget callbacks already queued.
+    context.libraryGeneration = 8;
+    const currentActions = detailActions(context);
+    await currentActions.backup();
+    await currentActions.rollback();
+    for (const task of pending) await task();
+    expect(backup.mock.calls).toEqual([
+      [port.id, 7],
+      [port.id, 8],
+    ]);
+    expect(rollback.mock.calls).toEqual([
+      [port.id, 7],
+      [port.id, 8],
+    ]);
   });
 
   it("does not close when reviewed removal fails in the shared operation boundary", async () => {

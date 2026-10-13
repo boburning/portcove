@@ -816,6 +816,13 @@ Reviews from the previous generation must be requested again. Core still owns li
 persistence, transfer journals and durable library selection; this is host-state
 coordination, not another domain authority.
 
+Desktop backup creation and rollback carry the library generation captured by
+the detail action. Their blocking workers check that generation before resolving
+the Core service and entering the mutation. A delayed action from an earlier
+library is rejected with the existing library-changed conflict instead of being
+redirected to the newly selected library. Core retains backup and rollback
+authorization, locking and durable behavior.
+
 ## Existing-install adoption review
 
 Core's adoption preview binds both the source copy plan and the destination:
