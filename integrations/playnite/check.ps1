@@ -1,6 +1,7 @@
-param([string]$Cli, [string]$Library)
+param([string]$Cli, [string]$Library, [switch]$ContractsOnly)
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
+if (($Cli -or $Library) -and (!$Cli -or !$Library)) { throw 'Pass both -Cli and an isolated -Library for compiled CLI checks.' }
 $locator = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
 if (!(Test-Path -LiteralPath $locator)) { throw 'Visual Studio Build Tools with MSBuild is required.' }
 $msbuild = & $locator -latest -products '*' -requires Microsoft.Component.MSBuild -find 'MSBuild\**\Bin\MSBuild.exe' | Select-Object -First 1
@@ -16,12 +17,13 @@ if ($Cli -or $Library) {
 }
 & (Join-Path $projectRoot 'tests/bin/Release/Portcove.ContractTests.exe') @arguments
 if ($LASTEXITCODE -ne 0) { throw 'Reference-client contract checks failed.' }
-node (Join-Path $projectRoot 'lifecycle-check.mjs')
-if ($LASTEXITCODE -ne 0) { throw 'Reference-client real lifecycle qualification failed.' }
 $output = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'bin/Release') -File | Select-Object -ExpandProperty Name)
 if (@($output | Where-Object { $_ -notin @('Portcove.Playnite.dll', 'extension.yaml') }).Count) {
     throw 'Unexpected files in plugin output. Do not ship SDK or private Playnite assemblies.'
 }
+if ($ContractsOnly) { return }
+node (Join-Path $projectRoot 'lifecycle-check.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'Reference-client real lifecycle qualification failed.' }
 $packageRoot = Join-Path (Join-Path $projectRoot '../../outputs/playnite') ([DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
 & (Join-Path $projectRoot 'pack.ps1') -OutputDirectory $packageRoot
 if ($LASTEXITCODE -ne 0) { throw 'Playnite package creation failed.' }

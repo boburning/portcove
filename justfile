@@ -55,7 +55,17 @@ desktop-verify *args:
 
 # Windows external-reference client; requires Visual Studio Build Tools.
 playnite-check *args:
-    pwsh -NoProfile -File integrations/playnite/check.ps1 {{args}}
+    {{storage}} pwsh -NoProfile -File integrations/playnite/check.ps1 {{args}}
+
+# Optional early feedback; these do not replace hosted or installed acceptance.
+cli-help-check:
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked -p portcove-cli --test machine_contract installation_and_external_help_explain_review_binding_and_file_ownership -- --exact
+
+playnite-contract-check *args:
+    {{storage}} pwsh -NoProfile -File integrations/playnite/check.ps1 -ContractsOnly {{args}}
+
+handoff-check *args:
+    node scripts/handoff-evidence.mjs check {{args}}
 
 clean-build:
     node scripts/dev-storage.mjs clean

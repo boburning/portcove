@@ -25,4 +25,5 @@ For harness engineering or a specific recovery/layout/transport assertion, read
 the relevant [operation notes](references/operation-notes.md) and
 [qualification boundary](references/qualification-boundaries.md). Hosted acceptance
 uses its [specific contract](../../../docs/NATIVE-HOSTED-ACCEPTANCE.md).
+For ineffective real-game input, use the bounded [operator handoff](references/operation-notes.md#ineffective-real-game-input).
 Local checks follow [QUALITY](../../../docs/QUALITY.md#required-hosted-baseline).

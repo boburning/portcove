@@ -1,5 +1,30 @@
 # Operation notes
 
+## Ineffective real-game input
+
+Inspect the accepted runtime's actual controls/configuration and verify the owned
+window/process identity. Activate that window, try one meaningful documented
+input, and permit one bounded focus recovery. If no effective response is
+established, retain an inconclusive automation observation. The cause remains
+unknown; rendering an attract sequence is not gameplay acceptance.
+
+Request one precise operator action: focus the identified runtime, demonstrate
+the issue's required interaction using its documented controls, then exit through
+the normal supported route and report the result. Continue independent source,
+review or CI work while awaiting the reply. Use only supported control tools;
+operator assistance grants neither an alternative input transport nor forced
+termination. Keep the owned session and recovery evidence intact while waiting.
+
+Record the operator reply as human evidence separately from automated observations.
+Verify the authoritative launch outcome, child/supervisor closure and frontend
+not-running state independently; a disappearing window alone is insufficient.
+Before removal acceptance, capture a fresh post-game/pre-removal inventory that
+includes legitimate game-written saves/settings. Compare removal against that
+snapshot, preserving earlier failed/checkpoint evidence. Partial or ambiguous
+operator confirmation leaves the corresponding acceptance outstanding.
+
+## Selected operations
+
 Use only the paragraphs relevant to the explicitly selected operation. The
 entrypoint and canonical QUALITY/CONTRIBUTION contracts own current routing;
 old blanket document-load and local-check wording below does not add a gate.
