@@ -1870,11 +1870,6 @@ mod tests {
             "psx_freeze_heartbeat.json".into(),
             "psx_last_run_report.json".into(),
         ]);
-        let cvlod = expected_ports
-            .iter_mut()
-            .find(|port| port.id == "cvlod-recomp")
-            .unwrap();
-        cvlod.persistent_paths.push("cheats.cfg".into());
         let persona = expected_ports
             .iter_mut()
             .find(|port| port.id == "revelations-persona-recompiled")
