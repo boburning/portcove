@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import { getPaths, prepareStorageScope } from "../../scripts/dev-storage.mjs";
 import { runRustTests } from "../../scripts/run-rust-tests.mjs";
+import { acquireHeavyRustTestLock } from "../../scripts/heavy-rust-test-lock.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   createInstallFixture,
@@ -77,6 +78,28 @@ export async function runCargoPhase(phase, action, environment, guard = runRustT
     throw new Error(
       `Guarded Playnite ${phase} failed (${code}); retain its guard/closure diagnostics`,
     );
+}
+
+export async function executeCargoPhase(
+  phase,
+  action,
+  { environment = process.env, acquire = acquireHeavyRustTestLock, execute = run } = {},
+) {
+  const args = cargoPhaseArguments(phase, action);
+  if (!environment.PORTCOVE_HEAVY_RUST_LOCK_TOKEN)
+    throw new Error("Cargo phases require the existing Heavy Rust guard");
+  const lease = await acquire(
+    { workspace: root, command: `Playnite ${phase}` },
+    {
+      inheritedToken: environment.PORTCOVE_HEAVY_RUST_LOCK_TOKEN,
+    },
+  );
+  if (!lease.inherited) throw new Error("Cargo phase did not inherit validated admission");
+  try {
+    await execute("cargo", args, { env: environment });
+  } finally {
+    await lease.release(); // Existing inherited lease release is a no-op; the parent owns closure.
+  }
 }
 
 export function run(command, args, { env = process.env, timeout = 600_000, echo = true } = {}) {
@@ -467,7 +490,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (process.argv[2] === "--cargo-phase") {
     if (!process.env.PORTCOVE_HEAVY_RUST_LOCK_TOKEN || process.argv.length > 5)
       throw new Error("Cargo phases require the existing Heavy Rust guard");
-    await run("cargo", cargoPhaseArguments(process.argv[3], process.argv[4]));
+    await executeCargoPhase(process.argv[3], process.argv[4]);
   } else {
     if (process.argv.length !== 2) throw new Error("Unexpected lifecycle arguments");
     await main();
