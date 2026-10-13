@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mjs";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -26,6 +27,13 @@ import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { run as runLifecycleCommand } from "../../../integrations/playnite/lifecycle-check.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
+
+test("owned fixture path checks accept Core's extended spelling and reject a different path", () => {
+  const expected = path.join(root, "owned-source-fixture");
+  assertOwnedSelectedSetupPath(`\\\\?\\${expected}`, expected);
+  assertOwnedSelectedSetupPath(expected, expected);
+  assert.throws(() => assertOwnedSelectedSetupPath(`\\\\?\\${expected}-other`, expected));
+});
 
 for (const [focus, selector, expected, mutate] of [
   ["origin", "article", { tag: "ARTICLE", id: "", origin: true }],
