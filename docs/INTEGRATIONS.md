@@ -133,8 +133,9 @@ means uninstalling the external files. An external path is host-local and is
 rechecked against its retained accepted contract before each launch.
 
 Desktop's external folder choice consumes the same unique setup assessment as
-the catalog. A partial or contradictory current projection, an unknown tuple,
-or a missing status is shown as unknown and cannot open the folder picker. A
+the catalog. A current projection missing or duplicating the external registration
+assessment, an unknown or contradictory external tuple, or a missing status is
+shown as unknown and cannot open the folder picker. A
 fresh `waiting/review_required` assessment restores the ordinary review path.
 Legacy status contracts that omitted assessments or serialized an empty list
 retain their existing folder-review behavior. These presentation decisions never
