@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { inspectCopy } from "./check-copy.mjs";
+import { explicitCopyFiles, inspectCopy, isProductionCopyPath } from "./check-copy.mjs";
 
 describe("desktop static-copy safeguards", () => {
+  it("rejects empty, unknown, excluded and out-of-tree explicit requests", () => {
+    for (const args of [
+      [],
+      ["--files"],
+      ["--other"],
+      ["--files", "../outside.tsx"],
+      ["--files", "apps/desktop/src/thing.test.tsx"],
+    ])
+      expect(() => explicitCopyFiles(args, process.cwd())).toThrow();
+    expect(isProductionCopyPath("apps/desktop/src/test-fixtures.ts")).toBe(false);
+    expect(isProductionCopyPath("apps/desktop/src/types.d.ts")).toBe(false);
+    expect(isProductionCopyPath("apps/desktop/src/components/Hello.tsx")).toBe(true);
+  });
   it.each([
     "adapter",
     "materialization",

@@ -3,7 +3,13 @@ import { desktopApi } from "../api";
 import type { GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
 import type { Perform } from "../features/operations/use-operation-state";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
-import { errorText, formatBytes } from "../view-model";
+import {
+  errorText,
+  failurePresentation,
+  formatBytes,
+  releaseChannelPresentation,
+} from "../view-model";
+import { FailureDetails } from "./FailureDetails";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
 import { installPlanActionLabel } from "../install-plan-presentation";
@@ -92,6 +98,7 @@ export function GameUpdateControl({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
+  const [failure, setFailure] = useState<{ value: unknown }>();
   const [operation, setOperation] = useState<string>();
   const requests = useRef(new LatestRequestGeneration());
   const reviewButton = useRef<HTMLButtonElement>(null);
@@ -107,6 +114,7 @@ export function GameUpdateControl({
     setPending(true);
     setPlan(undefined);
     setError(undefined);
+    setFailure(undefined);
     setMessage(undefined);
     try {
       const value = await desktopApi.planGameUpdate(portId, activate, generation);
@@ -122,15 +130,37 @@ export function GameUpdateControl({
     const current = requests.current.begin();
     setPending(true);
     setError(undefined);
+    setFailure(undefined);
+    let failed = false;
+    let acceptingEvents = true;
     try {
-      const result = await perform("run reviewed game update", () =>
-        desktopApi.applyGameUpdate(portId, plan.activate, plan.plan_sha256, generation, (event) => {
-          if (!requests.current.isCurrent(current)) return;
-          if (event.type === "started") setOperation(event.operation_id);
-          if (event.type === "message") setMessage(event.message);
-        }),
-      );
-      if (requests.current.isCurrent(current))
+      const result = await perform("run reviewed game update", async () => {
+        try {
+          return await desktopApi.applyGameUpdate(
+            portId,
+            plan.activate,
+            plan.plan_sha256,
+            generation,
+            (event) => {
+              if (!acceptingEvents || !requests.current.isCurrent(current)) return;
+              if (event.type === "started") setOperation(event.operation_id);
+              if (event.type === "message") setMessage(event.message);
+            },
+          );
+        } catch (value) {
+          failed = true;
+          if (requests.current.isCurrent(current)) {
+            setFailure({ value });
+            setMessage(undefined);
+          }
+          // The shared operation owner still handles refresh and the global error.
+          throw value;
+        } finally {
+          acceptingEvents = false;
+          if (requests.current.isCurrent(current)) setOperation(undefined);
+        }
+      });
+      if (requests.current.isCurrent(current) && !failed)
         setMessage(
           result
             ? plan.activate
@@ -138,8 +168,11 @@ export function GameUpdateControl({
               : "Update saved for later. Your current version is unchanged."
             : "Update did not complete. Review the current state before retrying.",
         );
-    } catch (error) {
-      if (requests.current.isCurrent(current)) setError(errorText(error));
+    } catch (value) {
+      if (requests.current.isCurrent(current)) {
+        setFailure({ value });
+        setMessage(undefined);
+      }
     } finally {
       if (requests.current.isCurrent(current)) {
         setPending(false);
@@ -248,11 +281,32 @@ export function GameUpdateControl({
       )}
       {!plan && message && <p role="status">{message}</p>}
       {!plan && error && <p role="alert">{error}</p>}
+      {!plan && failure && <GameUpdateFailure value={failure.value} />}
     </section>
   );
 }
 
+function GameUpdateFailure({ value }: { value: unknown }) {
+  const presentation = failurePresentation(value);
+  const neutral = presentation?.tone === "neutral" && presentation.mutation_state !== "committed";
+  const code =
+    typeof value === "object" && value && "code" in value ? String(value.code) : undefined;
+  return (
+    <div data-game-update-outcome role={neutral ? "status" : "alert"}>
+      <p>{errorText(value)}</p>
+      {presentation && <FailureDetails presentation={presentation} code={code} />}
+    </div>
+  );
+}
+
 function gameUpdateActionLabel(plan: GameUpdatePlan) {
+  if (
+    plan.assessment?.action !== "update" ||
+    plan.assessment.availability !== "allowed" ||
+    plan.assessment.reason !== "available" ||
+    plan.assessment.definition != null
+  )
+    return undefined;
   const labels: Record<GameUpdatePlan["plan"]["action"], string | undefined> = {
     download: plan.activate ? "Download and install update" : "Download update for later",
     use_staged: plan.activate ? "Use saved update" : "Keep saved update for later",
@@ -277,7 +331,8 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
   return (
     <div className="install-plan">
       <p>
-        <strong>{plan.plan.release.version}</strong> · {plan.plan.channel}
+        <strong>{plan.plan.release.version}</strong> ·{" "}
+        {releaseChannelPresentation(plan.plan.channel).label}
       </p>
       <p>
         {plan.plan.action === "download"
@@ -294,13 +349,22 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
           Saved update settings are unchanged.
         </p>
       )}
-      {!label ? (
-        <p role="status">
-          {plan.plan.action === "already_active"
-            ? "This verified release is already active."
-            : "An unverified local copy blocks this update. Verify or repair it first."}
-        </p>
-      ) : null}
+      {!label ? <p role="status">{gameUpdateHoldReason(plan)}</p> : null}
     </div>
   );
+}
+
+function gameUpdateHoldReason(plan: GameUpdatePlan) {
+  const assessment = plan.assessment;
+  if (assessment?.action !== "update" || assessment.definition != null)
+    return "Current update availability is unavailable. Review it again before continuing.";
+  if (assessment.availability === "not_offered" && assessment.reason === "already_registered")
+    return "This verified release is already active.";
+  if (assessment.availability === "waiting" && assessment.reason === "missing_source")
+    return "Add the required game files before running this update.";
+  if (assessment.availability === "waiting" && assessment.reason === "missing_bios")
+    return "Add the required BIOS before running this update.";
+  if (assessment.availability === "held" && assessment.reason === "invalid_installation")
+    return "An unverified local copy blocks this update. Verify or repair it first.";
+  return "Current update availability is unavailable. Review it again before continuing.";
 }

@@ -133,6 +133,34 @@ afterEach(async () => {
 });
 
 describe("per-game install folder", () => {
+  it.each([
+    ["owned_by_port", "Used by this game", false],
+    ["owned_by_another_port", "Used by another game", true],
+    ["unrelated_content", "Contains unrelated files", true],
+  ] as const)("explains read-only folder suitability for %s", async (ownership, label, blocked) => {
+    vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
+    vi.mocked(desktopApi.previewOutputLocation).mockResolvedValue(
+      destinationPreview("sample", "F:/Games/Sample", { ownership }),
+    );
+    const apply = vi.spyOn(desktopApi, "setOutputLocation");
+    const reset = vi.spyOn(desktopApi, "resetOutputLocation");
+    const move = vi.spyOn(desktopApi, "relocateOutput");
+    await render(<OutputLocationControl portId="sample" generation={7} />);
+    const note = document.getElementById("output-location-note-sample");
+    expect(note?.textContent).toContain("Portcove will check whether this folder can be used.");
+    expect(note?.textContent).toContain("Checking does not create or move files.");
+    expect(document.body.textContent).toContain(label);
+    await changePath("F:/Games/Sample");
+    await click("Review future folder");
+    const review = document.querySelector('[role="dialog"]');
+    expect(review?.textContent).toContain(label);
+    expect(button("Use this folder for future installs", review!).disabled).toBe(blocked);
+    await click("Cancel review", review!);
+    expect(apply).not.toHaveBeenCalled();
+    expect(reset).not.toHaveBeenCalled();
+    expect(move).not.toHaveBeenCalled();
+  });
+
   it("shows current destination availability and capacity without requiring a review", async () => {
     vi.spyOn(desktopApi, "outputLocation").mockResolvedValue(defaultLocation("sample"));
 
@@ -246,6 +274,8 @@ describe("per-game install folder", () => {
     });
     await render(<OutputLocationControl portId="sample" generation={7} />);
     expect(document.body.textContent).toContain(message);
+    for (let index = 0; index < Number(count); index++)
+      expect(document.body.textContent).toContain(`E:/Portcove/old-${index}`);
     expect(document.body.textContent).not.toContain("folder(s)");
   });
 
@@ -665,13 +695,14 @@ describe("per-game install folder", () => {
     expect(document.activeElement).toBe(trigger);
     await click("Review future folder");
     await click("Review moving existing versions");
-    expect(document.body.textContent).toContain("SourcesStay in the central source library");
+    expect(document.body.textContent).toContain("Original game filesStay at their saved locations");
     expect(document.body.textContent).toContain("Saves and backupsStay in their current folders");
     expect(document.body.textContent).toContain("active");
     await click("Move existing versions");
     expect(move).toHaveBeenCalledWith("sample", "F:/Games/Sample", "b".repeat(64), 14);
     expect(onApplying.mock.calls).toEqual([[true], [false]]);
     expect(document.body.textContent).toContain("Move completed");
+    expect(document.body.textContent).toContain(affected.path);
     expect(document.activeElement).toBe(trigger);
     expect(document.body.textContent).toContain(
       "Move completed. 1 old folder contains changed files and remains for safe cleanup.",

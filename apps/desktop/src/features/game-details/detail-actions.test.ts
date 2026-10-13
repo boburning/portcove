@@ -131,7 +131,7 @@ describe("detail actions", () => {
       close: vi.fn(),
       libraryGeneration: 9,
     }).install();
-    expect(install).toHaveBeenCalledExactlyOnceWith(port.id, "stable", "source.z64", "", false);
+    expect(install).toHaveBeenCalledExactlyOnceWith(port.id, "stable", "source.z64", "", false, 9);
   });
 
   it("closes a failed installation review only after the shared operation settles", async () => {
@@ -194,7 +194,89 @@ describe("detail actions", () => {
     }).backup();
 
     expect(perform).toHaveBeenCalledWith("back up data", expect.any(Function));
-    expect(desktopApi.backup).toHaveBeenCalledWith(port.id);
+    expect(desktopApi.backup).toHaveBeenCalledWith(port.id, 9);
+  });
+
+  it("retains the reviewed generation when backup and rollback dispatch after a library switch", async () => {
+    const backup = vi.spyOn(desktopApi, "backup").mockResolvedValue(undefined!);
+    const rollback = vi.spyOn(desktopApi, "rollback").mockResolvedValue(undefined);
+    const pending: Array<() => Promise<unknown>> = [];
+    const perform: Perform = async (_name, task) => {
+      pending.push(task);
+      return undefined;
+    };
+    const context = {
+      port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform,
+      close: vi.fn(),
+      libraryGeneration: 7,
+    };
+    const oldActions = detailActions(context);
+    await oldActions.backup();
+    await oldActions.rollback();
+    // The newly rendered context must not retarget callbacks already queued.
+    context.libraryGeneration = 8;
+    const currentActions = detailActions(context);
+    await currentActions.backup();
+    await currentActions.rollback();
+    for (const task of pending) await task();
+    expect(backup.mock.calls).toEqual([
+      [port.id, 7],
+      [port.id, 8],
+    ]);
+    expect(rollback.mock.calls).toEqual([
+      [port.id, 7],
+      [port.id, 8],
+    ]);
+  });
+
+  it("keeps delayed install, launch, verification and data-folder actions on their original generation", async () => {
+    const install = vi.spyOn(desktopApi, "install").mockResolvedValue(undefined!);
+    const launch = vi.spyOn(desktopApi, "launch").mockResolvedValue(undefined!);
+    const verify = vi.spyOn(desktopApi, "verify").mockResolvedValue(undefined);
+    const open = vi.spyOn(desktopApi, "openUserData").mockResolvedValue("data");
+    const pending: Array<() => Promise<unknown>> = [];
+    const perform: Perform = async (_name, task) => {
+      pending.push(task);
+      return undefined;
+    };
+    const context = {
+      port,
+      status: undefined,
+      sourcePath: "source.z64",
+      biosPath: "bios.bin",
+      perform,
+      close: vi.fn(),
+      libraryGeneration: 7,
+    };
+    for (const generation of [7, 8]) {
+      context.libraryGeneration = generation;
+      const actions = detailActions(context);
+      await actions.install();
+      await actions.launch();
+      await actions.verify();
+      await actions.openUserData();
+    }
+    for (const task of pending) await task();
+    expect(install.mock.calls).toEqual([
+      [port.id, "stable", "source.z64", "bios.bin", false, 7],
+      [port.id, "stable", "source.z64", "bios.bin", false, 8],
+    ]);
+    expect(launch.mock.calls).toEqual([
+      [port.id, "source.z64", 7],
+      [port.id, "source.z64", 8],
+    ]);
+    expect(verify.mock.calls).toEqual([
+      [port.id, 7],
+      [port.id, 8],
+    ]);
+    expect(open.mock.calls).toEqual([
+      [port.id, 7],
+      [port.id, 8],
+    ]);
   });
 
   it("does not close when reviewed removal fails in the shared operation boundary", async () => {

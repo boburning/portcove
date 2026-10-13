@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  appendFileSync,
   lstatSync,
   mkdirSync,
   readFileSync,
@@ -359,6 +360,7 @@ export function domainsForPath(input) {
     const name = path.posix.basename(file);
     if (/roadmap|source-provenance|catalog-schema/u.test(name)) add(domains, "roadmap");
     if (
+      ["desktop-scenarios.mjs", "desktop-scenarios.test.mjs"].includes(name) ||
       /dev-|development-|local-validation|rust-test-impact|native-session|desktop-test|tool-cache|bootstrap-quality/u.test(
         name,
       )
@@ -644,7 +646,7 @@ function digest(value) {
     .digest("hex");
 }
 
-export function fingerprintStage(stage, inventory, runtime) {
+export function fingerprintInputs(stage, inventory, runtime) {
   const inputs = inventory.files
     .filter((file) => file.domains.includes(stage.domain))
     .map((file) => ({
@@ -683,13 +685,17 @@ export function fingerprintStage(stage, inventory, runtime) {
         }
       : {}),
   };
-  return digest({
+  return {
     contract: receiptFormat,
     gitObjectFormat: inventory.objectFormat ?? "sha1",
     stage: { id: stage.id, recipe: stage.recipe, domain: stage.domain },
     inputs,
     runtime: applicableRuntime,
-  });
+  };
+}
+
+export function fingerprintStage(stage, inventory, runtime) {
+  return digest(fingerprintInputs(stage, inventory, runtime));
 }
 
 export function receiptEnvelope(payload) {
@@ -800,6 +806,17 @@ function displayPlan(plan) {
 }
 
 export function executeAudit(plan, options = {}) {
+  let captureAvailable = false;
+  if (options.captureHosted) {
+    try {
+      (options.captureInputs ?? captureHostedAuditInputs)(plan, options.root ?? projectRoot);
+      captureAvailable = true;
+    } catch (error) {
+      console.warn(
+        `[audit] Original input capture unavailable (${/^[A-Z0-9_]+$/.test(error.code) ? error.code : "capture-failed"}); audit stages still execute`,
+      );
+    }
+  }
   const execute =
     options.execute ??
     ((stage) =>
@@ -887,7 +904,57 @@ export function executeAudit(plan, options = {}) {
     ),
     receiptEnvelope(reportPayload),
   );
-  return { success, results, report: reportPayload };
+  return { success, results, report: reportPayload, captureAvailable };
+}
+
+export function captureHostedAuditInputs(plan, root = projectRoot) {
+  const identity = hostedAuditIdentity(root);
+  if (identity.source !== plan.head) throw new Error("Audit input capture source mismatch");
+  const captureFile = path.join(
+    process.env.RUNNER_TEMP,
+    `audit-inputs-${identity.run}-${identity.attempt}.json`,
+  );
+  rmSync(captureFile, { force: true });
+  writeJsonAtomic(
+    captureFile,
+    receiptEnvelope({
+      format: 1,
+      kind: "audit-inputs",
+      head: plan.head,
+      profile: plan.profile,
+      identity,
+      capturedAt: new Date().toISOString(),
+      stageInputs: Object.fromEntries(
+        plan.stages.map((stage) => [
+          stage.id,
+          fingerprintInputs(stage, plan.inventory, plan.runtime),
+        ]),
+      ),
+    }),
+  );
+}
+
+export function hostedAuditIdentity(root = projectRoot) {
+  const identity = {
+    repository: process.env.GITHUB_REPOSITORY,
+    source: process.env.GITHUB_SHA,
+    workflowSha: process.env.GITHUB_WORKFLOW_SHA,
+    workflowRef: process.env.GITHUB_WORKFLOW_REF,
+    run: process.env.GITHUB_RUN_ID,
+    attempt: process.env.GITHUB_RUN_ATTEMPT,
+    workflowDigest: createHash("sha256")
+      .update(readFileSync(path.join(root, ".github/workflows/deep-quality.yml")))
+      .digest("hex"),
+  };
+  if (
+    identity.repository !== "boburning/portcove" ||
+    !/^[a-f0-9]{40}$/.test(identity.source) ||
+    !/^[a-f0-9]{40}$/.test(identity.workflowSha) ||
+    !/^[1-9][0-9]{0,12}$/.test(identity.run) ||
+    !/^[1-9][0-9]{0,12}$/.test(identity.attempt)
+  )
+    throw new Error("Invalid hosted audit identity");
+  return identity;
 }
 
 function parseArguments(argv) {
@@ -910,7 +977,7 @@ function parseArguments(argv) {
   return { help: false, fresh, planOnly, profile };
 }
 
-export function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2)) {
   const options = parseArguments(argv);
   if (options.help) {
     console.log("usage: audit.mjs [--plan|--fresh] [--profile complete|release|transition]");
@@ -962,15 +1029,33 @@ export function main(argv = process.argv.slice(2)) {
     selection = selectTransitionAudit({ inventory, validationPlan, changes, workingTreeStatus });
     console.log(`Transition selection: ${selection.reason}`);
   } else selection = { profile: options.profile, stages: auditStagesForProfile(options.profile) };
-  const plan = planAudit({
+  let plan = planAudit({
     fresh: options.profile === "transition" || options.fresh,
     stages: selection.stages,
     profile: selection.profile,
     ...(inventory ? { inventory } : {}),
   });
+  if (options.planOnly) {
+    displayPlan(plan);
+    return;
+  }
+  if (!options.fresh && options.profile !== "transition") {
+    const { discoverAuditReceipts, describeAuditReuse } = await import("./audit-reuse.mjs");
+    const reuse = discoverAuditReceipts(plan);
+    console.log(describeAuditReuse(reuse));
+    plan = planAudit({ stages: selection.stages, profile: selection.profile });
+  }
   displayPlan(plan);
-  if (options.planOnly) return;
-  const result = executeAudit(plan);
+  const result = executeAudit(plan, { captureHosted: process.env.PORTCOVE_AUDIT_CAPTURE === "1" });
+  if (process.env.PORTCOVE_AUDIT_CAPTURE === "1" && process.env.GITHUB_OUTPUT) {
+    try {
+      appendFileSync(process.env.GITHUB_OUTPUT, `capture_available=${result.captureAvailable}\n`);
+    } catch {
+      console.warn(
+        "[audit] Input capture step output unavailable; artifact export remains disabled",
+      );
+    }
+  }
   if (!result.success) {
     const failed = result.results
       .filter((entry) => entry.status === "failed")
@@ -985,10 +1070,8 @@ export function main(argv = process.argv.slice(2)) {
 }
 
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  try {
-    main();
-  } catch (error) {
+  main().catch((error) => {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
-  }
+  });
 }

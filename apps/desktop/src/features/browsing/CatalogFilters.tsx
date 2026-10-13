@@ -1,0 +1,247 @@
+import { useRef, type Dispatch, type SetStateAction } from "react";
+import { ListFilter, X } from "lucide-react";
+import type { PortDefinition } from "../../types";
+import {
+  platformLabel,
+  releaseChannelPresentation,
+  installationMethodLabels,
+  type Filter,
+} from "../../view-model";
+import { Button } from "../../components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "../../components/ui/dialog";
+import { evaluateCatalogQuery, type CatalogQuery, type CatalogQueryContext } from "./catalog-query";
+import { states } from "./game-file-query-context";
+import { GameFileFilterControls } from "./GameFileFilterControls";
+import type { GameFileFilterState } from "./use-game-file-filter-context";
+
+const groups = [
+  {
+    key: "platforms",
+    label: "Platforms",
+    values: ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64", "this-device"],
+  },
+  { key: "channels", label: "Release channels", values: ["stable", "beta", "rolling"] },
+  {
+    key: "installationMethods",
+    label: "Setup methods",
+    values: [
+      "portable-package",
+      "portable-recompilation",
+      "staged-game-files",
+      "referenced-disc",
+      "generated-game-data",
+      "upstream-setup",
+      "managed-recompilation",
+      "user-prepared-runtime",
+    ],
+  },
+  { key: "membership", label: "Library membership", values: ["in-library", "not-in-library"] },
+  { key: "updates", label: "Observed updates", values: ["available", "staged"] },
+  {
+    key: "gameFiles",
+    label: "Game files for the observed route",
+    values: [
+      "files_available",
+      "files_missing",
+      "needs_checking",
+      "no_files_required",
+      "unavailable_context",
+    ],
+  },
+  {
+    key: "attention",
+    label: "Installation attention",
+    values: ["missing-source", "missing-bios", "missing-runtime", "repair-needed", "finish-setup"],
+  },
+] as const;
+type Group = (typeof groups)[number]["key"];
+
+function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
+  return typeof filter === "string"
+    ? {
+        version: ["all", "stable", "beta", "rolling"].includes(filter) ? 1 : 0,
+        channels: ["stable", "beta", "rolling"].includes(filter) ? [filter] : [],
+      }
+    : filter;
+}
+function label(group: Group, value: string) {
+  if (group === "installationMethods")
+    return installationMethodLabels[value as keyof typeof installationMethodLabels];
+  if (group === "platforms" && value === "this-device") return "For this device";
+  if (group === "gameFiles") return states[value as keyof typeof states];
+  if (group === "updates")
+    return value === "available" ? "Available at last check" : "Matching update staged";
+  if (group === "attention") {
+    const labels: Record<string, string> = {
+      "missing-source": "Missing game files",
+      "missing-bios": "Missing BIOS",
+      "missing-runtime": "Missing runtime",
+      "repair-needed": "Repair needed",
+      "finish-setup": "Finish setup",
+    };
+    return labels[value];
+  }
+  if (group === "membership") return value === "in-library" ? "In my library" : "Not in my library";
+  return group === "platforms" ? platformLabel(value) : releaseChannelPresentation(value).label;
+}
+
+/** Presentation of declarations and Core observations; the evaluator owns matching/counts. */
+export function CatalogFilters({
+  candidates,
+  context,
+  filter,
+  setFilter,
+  gameFileQuery,
+  view = "catalog",
+}: {
+  candidates?: readonly PortDefinition[];
+  context?: CatalogQueryContext;
+  view?: "catalog" | "library";
+  filter: Filter | CatalogQuery;
+  setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
+  gameFileQuery?: GameFileFilterState;
+}) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const query = queryFromFilter(filter);
+  const result = evaluateCatalogQuery(candidates ?? [], query, context);
+  const editable = result.state === "matched";
+  const supported = result.state !== "unresolved";
+  const selected = supported
+    ? groups.flatMap((group) =>
+        group.values
+          .filter((value) => query[group.key]?.includes(value))
+          .map((value) => ({ group: group.key, value })),
+      )
+    : [];
+  const additionalCount = !supported
+    ? 0
+    : Object.entries(query).reduce(
+        (count, [key, values]) =>
+          count +
+          (!["version", ...groups.map((group) => group.key)].includes(key) && Array.isArray(values)
+            ? new Set(values).size
+            : 0),
+        0,
+      );
+  const additional = additionalCount > 0;
+  const activeCount = selected.length + additionalCount;
+  const remove = (group: Group, value: string) =>
+    setFilter((current) => {
+      const next = queryFromFilter(current);
+      if (evaluateCatalogQuery([], next, context).state === "unresolved") return current;
+      return { ...next, [group]: (next[group] ?? []).filter((item) => item !== value) };
+    });
+  const toggle = (group: Group, value: string) =>
+    setFilter((current) => {
+      const next = queryFromFilter(current);
+      if (evaluateCatalogQuery([], next, context).state !== "matched") return current;
+      const values = next[group] ?? [];
+      return {
+        ...next,
+        [group]: values.includes(value)
+          ? values.filter((item) => item !== value)
+          : [...values, value],
+      };
+    });
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-2" data-focus-group>
+      <Dialog>
+        <DialogTrigger render={<Button ref={trigger} data-focusable variant="outline" size="sm" />}>
+          <ListFilter /> Filters ({activeCount})
+        </DialogTrigger>
+        <DialogContent finalFocus={trigger}>
+          <DialogTitle>{view === "library" ? "Library" : "Catalog"} filters</DialogTitle>
+          <DialogDescription>
+            Match any selected value in each group and all groups together for one setup or
+            installed context. Platforms describe catalog targets or the retained installation; they
+            do not confirm tested compatibility. Library membership means an active managed
+            installation or a registered external runtime in the selected library; it does not
+            confirm readiness. Installation attention uses observed Core reasons for the current
+            installation. Changed or unreadable files are not missing; these choices do not
+            establish game-file compatibility or authorize an action. Observed updates match the
+            current managed version and its last checked candidate. Available excludes that
+            candidate when it is verified and staged. Other downloaded versions do not establish a
+            matching staged update. Filtering never checks for a newer release. Missing retained
+            platform or setup facts remain unavailable. For this device uses Core's host platform.
+          </DialogDescription>
+          {!editable && (
+            <p role="alert">
+              {result.state === "unresolved"
+                ? "These restored filters are not supported."
+                : "These restored filters need unavailable local context."}{" "}
+              Reset {view} filters to choose a supported query.
+            </p>
+          )}
+          {additional && (
+            <p role="status">
+              Additional restored filters remain active. Reset {view} filters to remove them.
+            </p>
+          )}
+          {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
+          {groups.map((group) => (
+            <fieldset key={group.key} className="grid gap-2">
+              <legend className="mb-2 font-medium">{group.label}</legend>
+              <div className="flex flex-wrap gap-2">
+                {group.values.map((value) => (
+                  <Button
+                    key={value}
+                    data-focusable
+                    size="sm"
+                    variant={
+                      supported && query[group.key]?.includes(value) ? "selected" : "outline"
+                    }
+                    aria-pressed={supported && query[group.key]?.includes(value) === true}
+                    disabled={!editable || result.counts[group.key][value] === null}
+                    onClick={() => toggle(group.key, value)}
+                  >
+                    {label(group.key, value)} (
+                    {candidates === undefined
+                      ? "unavailable"
+                      : (result.counts[group.key][value] ?? "unavailable")}
+                    )
+                  </Button>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+          <Button data-focusable variant="outline" onClick={() => setFilter("all")}>
+            Reset {view} filters
+          </Button>
+        </DialogContent>
+      </Dialog>
+      {supported &&
+        selected.map(({ group, value }) => (
+          <Button
+            key={`${group}:${value}`}
+            data-focusable
+            size="sm"
+            variant="selected"
+            aria-label={`Remove ${label(group, value)} filter`}
+            onClick={(event) => {
+              const ownedFocus = document.activeElement === event.currentTarget;
+              remove(group, value);
+              if (ownedFocus) trigger.current?.focus();
+            }}
+          >
+            {label(group, value)} <X />
+          </Button>
+        ))}
+      {!editable && (
+        <p role="status" className="text-sm text-pc-muted-foreground">
+          Open Filters to review or reset the restored query.
+        </p>
+      )}
+      {additional && (
+        <p role="status" className="text-sm text-pc-muted-foreground">
+          Additional restored filters are active; open Filters to review or reset them.
+        </p>
+      )}
+    </div>
+  );
+}

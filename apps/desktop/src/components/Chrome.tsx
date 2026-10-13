@@ -1,6 +1,13 @@
 import { SourceRemovalControl } from "./SourceRemoval";
 import { desktopApi } from "../api";
-import { useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import {
   AlertTriangle,
   Boxes,
@@ -53,6 +60,7 @@ import {
   type View,
 } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
+import type { SourceInspectionReadState } from "../features/source-health/use-source-health";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryMoveButton } from "./LibraryMove";
@@ -459,10 +467,13 @@ function ApplicationUpdateNoticeBanner({
 function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => void }) {
   const presentation = failurePresentation(error);
   const committed = presentation?.mutation_state === "committed";
-  const neutral = presentation?.tone === "neutral" && !committed;
+  const neutral =
+    presentation?.tone === "neutral" &&
+    (presentation.mutation_state === "not_started" || presentation.mutation_state === "no_changes");
   const summary = errorText(error);
   const code =
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
+  const cancelled = code === "cancelled";
   return (
     <section className="error-banner" role={neutral ? "status" : "alert"}>
       <span className="error-icon">
@@ -474,9 +485,13 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
             ? "Change saved; review the current state"
             : neutral
               ? "Operation cancelled"
-              : "Portcove couldn’t finish that action"}
+              : cancelled
+                ? presentation?.mutation_state === "recovery_required"
+                  ? "Cancelled operation needs recovery review"
+                  : "Cancellation outcome needs review"
+                : "Portcove couldn’t finish that action"}
         </strong>
-        {!((neutral || committed) && summary === "The operation was cancelled.") && (
+        {!((neutral || committed || cancelled) && summary === "The operation was cancelled.") && (
           <p>{summary}</p>
         )}
         {presentation && <FailureDetails presentation={presentation} code={code} />}
@@ -849,6 +864,12 @@ function SourceRequirements({
   );
 }
 
+type SourceInspectionReadback = {
+  reports: ReadonlyMap<string, SourceInspectionReport>;
+  reads: ReadonlyMap<string, SourceInspectionReadState>;
+  retry: (profileId: string) => Promise<void>;
+};
+
 function SourceHealth({
   generation,
   ports,
@@ -857,7 +878,7 @@ function SourceHealth({
   requirementsState,
   installedCount,
   outcomes,
-  inspections,
+  inspections: inspectionInput,
   busy,
   verify,
   replace,
@@ -878,10 +899,18 @@ function SourceHealth({
   installedCount: number;
   add?: (profile: SourceProfile, archive: boolean) => void;
   profiles: SourceProfile[];
-  inspections: ReadonlyMap<string, SourceInspectionReport>;
+  inspections: ReadonlyMap<string, SourceInspectionReport> | SourceInspectionReadback;
   onAdded?: () => Promise<unknown>;
   openEvidence?: (evidenceId: string) => void;
 }) {
+  const inspection =
+    "reports" in inspectionInput
+      ? inspectionInput
+      : {
+          reports: inspectionInput,
+          reads: new Map<string, SourceInspectionReadState>(),
+          retry: undefined,
+        };
   const byProfile = new Map(outcomes.map((outcome) => [outcome.profile_id, outcome]));
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   return (
@@ -926,7 +955,9 @@ function SourceHealth({
                 generation={generation}
                 ports={ports}
                 onRemoved={onAdded}
-                report={inspections.get(source.profile_id)}
+                report={inspection.reports.get(source.profile_id)}
+                inspectionRead={inspection.reads.get(source.profile_id)}
+                retryInspection={inspection.retry}
                 outcome={byProfile.get(source.profile_id)}
                 busy={busy}
                 replace={replace}
@@ -952,6 +983,8 @@ function SourceHealthRow({
   ports,
   onRemoved,
   report,
+  inspectionRead,
+  retryInspection,
   outcome,
   busy,
   replace,
@@ -965,6 +998,8 @@ function SourceHealthRow({
   sourceCount: number;
   profile?: SourceProfile;
   report?: SourceInspectionReport;
+  inspectionRead?: SourceInspectionReadState;
+  retryInspection?: (profileId: string) => Promise<void>;
   outcome?: SourceVerificationOutcome;
   busy?: string;
   replace?: (source: SourceRecord) => void;
@@ -987,7 +1022,12 @@ function SourceHealthRow({
         </code>
       </div>
       <div className="source-health-actions flex flex-wrap items-center gap-2.5">
-        <SourceState report={report} outcome={outcome} profileAvailable={Boolean(profile)} />
+        <SourceInspectionState
+          read={inspectionRead}
+          report={report}
+          outcome={outcome}
+          profileAvailable={Boolean(profile)}
+        />
         {profile && (
           <Button
             data-focusable
@@ -1036,15 +1076,100 @@ function SourceHealthRow({
           <FailureDetails presentation={outcome.error.presentation} code={outcome.error.code} />
         </div>
       )}
-      {report ? (
-        <div className="col-span-full min-w-0">
-          <SourceIdentityPanel report={report} openEvidence={openEvidence} />
-        </div>
-      ) : profile ? (
-        <p className="source-inspection-loading col-span-full" role="status">
-          Checking file…
-        </p>
-      ) : null}
+      {(profile || report) && (
+        <SourceInspectionPresentation
+          read={inspectionRead}
+          report={report}
+          profileId={source.profile_id}
+          retry={retryInspection}
+          disabled={Boolean(busy)}
+          openEvidence={openEvidence}
+        />
+      )}
+    </div>
+  );
+}
+
+function SourceInspectionState({
+  read,
+  ...props
+}: {
+  read?: SourceInspectionReadState;
+  report?: SourceInspectionReport;
+  outcome?: SourceVerificationOutcome;
+  profileAvailable: boolean;
+}) {
+  if (!props.profileAvailable || !read || read.status === "current")
+    return <SourceState {...props} />;
+  const label =
+    read.status === "pending"
+      ? "Checking"
+      : read.status === "cancelled"
+        ? "Check cancelled"
+        : "Check unavailable";
+  return (
+    <span className="source-state inline-flex items-center gap-1 text-xs text-pc-muted-foreground">
+      {label}
+    </span>
+  );
+}
+
+function SourceInspectionPresentation({
+  read,
+  report,
+  profileId,
+  retry,
+  disabled,
+  openEvidence,
+}: {
+  read?: SourceInspectionReadState;
+  report?: SourceInspectionReport;
+  profileId: string;
+  retry?: (profileId: string) => Promise<void>;
+  disabled: boolean;
+  openEvidence?: (evidenceId: string) => void;
+}) {
+  const currentReport = !read || read.status === "current" ? report : undefined;
+  const message =
+    read?.status === "pending"
+      ? "Checking file…"
+      : read?.status === "cancelled"
+        ? "File check cancelled."
+        : (read?.failure?.summary ?? "File check is unavailable. Try checking it again.");
+  return (
+    <div className="col-span-full min-w-0">
+      <div>
+        {currentReport ? (
+          <SourceIdentityPanel report={currentReport} openEvidence={openEvidence} />
+        ) : (
+          <p
+            className={read?.status === "pending" ? "source-inspection-loading" : undefined}
+            role="status"
+          >
+            {message}
+          </p>
+        )}
+        {read?.failure && (
+          <FailureDetails
+            presentation={read.failure}
+            code={read.code}
+            showMutationSummary={false}
+          />
+        )}
+      </div>
+      {read && retry && (
+        <Button
+          data-focusable
+          variant="outline"
+          size="sm"
+          disabled={disabled || read.status === "pending"}
+          onClick={() => void retry(profileId)}
+        >
+          {read.status === "failed" || read.status === "cancelled"
+            ? "Retry file check"
+            : "Check file again"}
+        </Button>
+      )}
     </div>
   );
 }
@@ -1360,7 +1485,7 @@ export function SettingsView({
   sourceOutcomes?: SourceVerificationOutcome[];
   verifySources?: () => void;
   replaceSource?: (source: SourceRecord) => void;
-  sourceInspections?: ReadonlyMap<string, SourceInspectionReport>;
+  sourceInspections?: ReadonlyMap<string, SourceInspectionReport> | SourceInspectionReadback;
   openSourceEvidence?: (evidenceId: string) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void;
   appearance?: ThemeState;
@@ -1610,7 +1735,8 @@ export function LibrarySelectionCard({
   switchLibrary?: (path: string) => Promise<void>;
   reset?: () => Promise<void>;
 }) {
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<unknown>();
+  const presentation = failurePresentation(error);
   const [review, setReview] = useState<{ kind: "switch" | "reset"; path: string }>();
   const [pending, setPending] = useState(false);
   const switchTrigger = useRef<HTMLButtonElement>(null);
@@ -1626,7 +1752,7 @@ export function LibrarySelectionCard({
         setReview({ kind: "switch", path });
       }
     } catch (value) {
-      setError(errorText(value));
+      setError(value);
     } finally {
       setPending(false);
     }
@@ -1643,7 +1769,7 @@ export function LibrarySelectionCard({
       focusReturn.current = "reset";
       setReview({ kind: "reset", path });
     } catch (value) {
-      setError(errorText(value));
+      setError(value);
     } finally {
       setPending(false);
     }
@@ -1656,7 +1782,7 @@ export function LibrarySelectionCard({
       if (review.kind === "switch") await switchLibrary?.(review.path);
       else await reset?.();
     } catch (value) {
-      setError(errorText(value));
+      setError(value);
     } finally {
       setPending(false);
       setReview(undefined);
@@ -1765,7 +1891,12 @@ export function LibrarySelectionCard({
           </DialogContent>
         </Dialog>
       )}
-      {error && <p role="alert">{error}</p>}
+      {error !== undefined && (
+        <div role="alert">
+          <p>{errorText(error)}</p>
+          {presentation && <FailureDetails presentation={presentation} />}
+        </div>
+      )}
     </article>
   );
 }
@@ -1851,22 +1982,60 @@ export function HostToolRow({
   showTechnicalId?: boolean;
 }) {
   const [pending, setPending] = useState<string>();
-  const [outcome, setOutcome] = useState<HostToolProbeResult>();
-  const [error, setError] = useState<string>();
+  const identity = JSON.stringify([tool.id, tool.path, tool.source, tool.state]);
+  const current = useRef({ identity, tool, revision: 0 });
+  const mounted = useRef(false);
+  const inFlight = useRef(false);
+  const [feedback, setFeedback] = useState<{
+    identity: string;
+    outcome?: HostToolProbeResult;
+    error?: string;
+  }>();
+  useLayoutEffect(() => {
+    const changed = current.current.identity !== identity;
+    const revision = current.current.revision + Number(changed);
+    current.current = { identity, tool, revision };
+    if (changed) setFeedback(undefined);
+  }, [identity, tool]);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const visibleFeedback = feedback?.identity === identity ? feedback : undefined;
   const run = async (
     name: string,
     operation: () => Promise<HostToolProbeResult | void | undefined> | undefined,
   ) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    const started = current.current;
     setPending(name);
-    setError(undefined);
-    setOutcome(undefined);
+    setFeedback(undefined);
     try {
       const result = await operation();
-      if (result) setOutcome(result);
+      const observed = current.current;
+      const ownLocatedPath =
+        name === "locate" &&
+        result?.state === "success" &&
+        result.persisted &&
+        result.tool_id === started.tool.id &&
+        observed.tool.id === result.tool_id &&
+        observed.tool.path === result.path &&
+        observed.tool.source === "saved" &&
+        observed.tool.state === "available";
+      if (mounted.current && result && (observed.revision === started.revision || ownLocatedPath))
+        setFeedback({ identity: observed.identity, outcome: result });
     } catch (value) {
-      setError(errorText(value));
+      if (mounted.current && current.current.revision === started.revision)
+        setFeedback({
+          identity: started.identity,
+          error: errorText(value),
+        });
     } finally {
-      setPending(undefined);
+      inFlight.current = false;
+      if (mounted.current) setPending(undefined);
     }
   };
   const states = {
@@ -1988,8 +2157,8 @@ export function HostToolRow({
           )}
         </small>
       </details>
-      {outcome && <p role="status">{outcome.message}</p>}
-      {error && <p role="alert">{error}</p>}
+      {visibleFeedback?.outcome && <p role="status">{visibleFeedback.outcome.message}</p>}
+      {visibleFeedback?.error && <p role="alert">{visibleFeedback.error}</p>}
     </div>
   );
 }

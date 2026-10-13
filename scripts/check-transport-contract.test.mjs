@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
 import {
   checkDesktopCommandContract,
   checkDesktopEventContract,
   checkTransportContract,
+  checkDesktopExporterParity,
+  desktopSchemaExporterCommands,
   extractDeclaredDesktopCommands,
   extractDeclaredDesktopEvents,
   extractExportedDesktopEvents,
@@ -31,6 +34,47 @@ const schemas = {
     },
   },
 };
+
+test("headless export retains required Windows native parity and explicit capable-host parity", () => {
+  const headless = [
+    "run",
+    "--locked",
+    "--quiet",
+    "-p",
+    "portcove-cli",
+    "--example",
+    "export_desktop_transport",
+  ];
+  const native = [
+    "run",
+    "--locked",
+    "--quiet",
+    "-p",
+    "portcove-desktop",
+    "--example",
+    "export_transport",
+  ];
+  assert.deepEqual(desktopSchemaExporterCommands("linux"), [headless]);
+  assert.deepEqual(desktopSchemaExporterCommands("darwin"), [headless]);
+  assert.deepEqual(desktopSchemaExporterCommands("win32"), [headless, native]);
+  assert.deepEqual(desktopSchemaExporterCommands("linux", true), [headless, native]);
+});
+
+test("native parity compares the complete Rust envelope without depending on key order", () => {
+  const contracts = { output: schemas, input: {}, events: { changed: { type: "null" } } };
+  assert.deepEqual(
+    checkDesktopExporterParity(contracts, { events: contracts.events, input: {}, output: schemas }),
+    [],
+  );
+  for (const section of ["output", "input", "events"]) {
+    const changed = structuredClone(contracts);
+    changed[section].fixture = { type: "integer" };
+    assert.match(
+      checkDesktopExporterParity(contracts, changed)[0],
+      /differ from the compiled native host/,
+    );
+  }
+});
 
 test("the complete contract is canonical and line-ending independent", () => {
   const rendered = renderTransportSchemas(schemas);
@@ -429,5 +473,23 @@ test("unparsed event constants and Tauri producers fail closed", () => {
         declarations,
       ),
     /DESKTOP_EVENT_OPERATION schema must export portcove_core::OperationEvent, found \(\)/,
+  );
+});
+
+test("the cheap IPC-only CLI checks actual repository exposure without accepting schema substitutes", () => {
+  const output = execFileSync(
+    process.execPath,
+    ["scripts/check-transport-contract.mjs", "--ipc-only"],
+    { encoding: "utf8", windowsHide: true },
+  );
+  assert.match(output, /Desktop command\/event exposure matches Rust/);
+  assert.throws(
+    () =>
+      execFileSync(
+        process.execPath,
+        ["scripts/check-transport-contract.mjs", "--ipc-only", "--types", "missing.json"],
+        { encoding: "utf8", windowsHide: true, stdio: "pipe" },
+      ),
+    /cannot write or substitute/,
   );
 });

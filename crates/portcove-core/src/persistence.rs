@@ -110,11 +110,71 @@ pub(crate) fn entries(port: &PortDefinition, roots: &[&Path]) -> Result<Vec<Stri
 mod tests {
     use super::*;
 
+    fn pattern_catalog() -> crate::Catalog {
+        // These filesystem rules need no production source or release identity.
+        // Still pass the private graph through the ordinary catalog parser.
+        let document = serde_json::json!({
+            "schema_version": 2,
+            "source_catalog": {
+                "evidence": [], "identities": [], "contracts": [], "validators": []
+            },
+            "ports": [{
+                "id": "persistence-fixture", "name": "Persistence fixture",
+                "summary": "Synthetic filename-pattern fixture",
+                "project_url": "https://example.invalid/fixtures/persistence",
+                "support_tier": "beta", "channels": ["stable"],
+                "platforms": ["linux-x86-64"], "adapter": "libultraship-portable",
+                "release": {"repository": "fixture/persistence"},
+                "executable_hints": {"linux-x86-64": ["fixture"]},
+                "persistent_file_patterns": [
+                    {"prefix": "tmc_", "suffix": ".sav"},
+                    {"prefix": "tmc_", "suffix": ".sav.bak"},
+                    {"prefix": "tmc_", "suffix": ".randomizer"}
+                ]
+            }]
+        });
+        crate::Catalog::from_json(&document.to_string()).unwrap()
+    }
+
+    #[test]
+    fn filename_pattern_fixture_is_a_small_valid_independent_graph() {
+        let catalog = pattern_catalog();
+        catalog.validate().unwrap();
+        assert_eq!(catalog.document().schema_version, 2);
+        assert_eq!(catalog.ports().len(), 1);
+        assert_eq!(catalog.ports()[0].id, "persistence-fixture");
+        assert!(catalog.document().source_profiles.is_empty());
+        let sources = catalog.source_catalog().unwrap();
+        assert!(sources.identities.is_empty());
+        assert!(sources.contracts.is_empty());
+        assert!(sources.evidence.is_empty());
+        assert!(sources.validators.is_empty());
+        assert!(sources.qualification.is_empty());
+
+        let port_before = serde_json::to_value(&catalog.ports()[0]).unwrap();
+        let mut document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        let mut unrelated = document["ports"][0].clone();
+        unrelated["id"] = serde_json::json!("unrelated-fixture");
+        unrelated["persistent_file_patterns"] = serde_json::json!([
+            {"prefix": "other_", "suffix": ".json"}
+        ]);
+        document["ports"].as_array_mut().unwrap().push(unrelated);
+        let expanded = crate::Catalog::from_json(&document.to_string()).unwrap();
+        assert_eq!(expanded.ports().len(), 2);
+        assert_eq!(
+            serde_json::to_value(expanded.port("persistence-fixture").unwrap()).unwrap(),
+            port_before
+        );
+        assert_eq!(pattern_catalog().ports().len(), 1);
+
+        document["source_catalog"]["unrecognized_fixture_field"] = serde_json::json!(true);
+        assert!(crate::Catalog::from_json(&document.to_string()).is_err());
+    }
+
     #[test]
     fn filename_patterns_are_anchored_bounded_and_refuse_non_files() {
-        let mut port = crate::Catalog::embedded()
-            .unwrap()
-            .port("project-picori")
+        let mut port = pattern_catalog()
+            .port("persistence-fixture")
             .unwrap()
             .clone();
         port.persistent_paths.clear();
@@ -172,9 +232,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn filename_patterns_refuse_symlinks_without_reading_the_target() {
-        let port = crate::Catalog::embedded()
-            .unwrap()
-            .port("project-picori")
+        let port = pattern_catalog()
+            .port("persistence-fixture")
             .unwrap()
             .clone();
         let root = tempfile::tempdir().unwrap();

@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mjs";
+import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mjs";
+import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mjs";
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -8,16 +11,57 @@ import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
+import { captureDesktopReceiptInputs } from "../../../scripts/native-helper-dependencies.mjs";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import { cachedDesktopDrivers } from "../../../scripts/tool-cache.mjs";
+import {
+  assertOwnedBoundaryRequests,
+  normalPackageBoundaryScenario,
+  verifyNormalPackageEvidence,
+} from "./desktop-main-webview-boundary.mjs";
+import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mjs";
+import { observeStartupNetwork } from "./desktop-startup-network-diagnostic.mjs";
+import {
+  prepareLibrarySwitchRecoveryFixture,
+  librarySwitchRecoverySelection,
+  librarySwitchRecoveryScenario,
+} from "./desktop-library-switch-recovery-test.mjs";
+import {
+  bootstrapRecoveryEnvironment,
+  bootstrapRecoverySelection,
+  preferencesRecoverySelection,
+  bootstrapRecoveryScenario,
+  preparePreferencesRecoveryFixture,
+  preferencesRecoveryScenario,
+  prepareBootstrapRecoveryFixture,
+} from "./desktop-bootstrap-recovery-test.mjs";
 import { preparationScenarios } from "./desktop-preparation-test.mjs";
+import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mjs";
+import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mjs";
 import { nativeConfirmation } from "./desktop-native-confirmation.mjs";
 import { controllerScenario } from "./desktop-controller-test.mjs";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mjs";
 import { reloadScenario } from "./desktop-reload-test.mjs";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mjs";
+import {
+  qualificationHistoryScenario,
+  captureHistorySession,
+  captureHistoryDriver,
+  historyDriverStillOwned,
+  waitHistorySessionExit,
+} from "./desktop-qualification-history-test.mjs";
 import { assertCompactReview, captureAccessibilityReport } from "./desktop-review-controls.mjs";
 import { createInstallFixture } from "./desktop-install-fixture.mjs";
+import {
+  createExternalRuntimeFixture,
+  externalFixtureTreeDigest,
+  externalRuntimePickerObservation,
+  externalRuntimeReviewScenario,
+} from "./desktop-external-runtime-test.mjs";
+import {
+  nativePickerObservation,
+  nativePreparedRuntimePicker,
+} from "./desktop-native-confirmation.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mjs";
@@ -34,6 +78,7 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseArgs({
   options: {
     app: { type: "string" },
+    "package-evidence": { type: "string" },
     driver: { type: "string" },
     "native-driver": { type: "string" },
     output: { type: "string" },
@@ -91,128 +136,35 @@ const selection = resolveDesktopSelection({
   reloadCycles,
   defaultProfile: values["preparation-cli"] ? "full" : "smoke",
 });
+// Admission stays with the existing native owners; planning never grants it.
+bootstrapRecoverySelection(selection, process.platform);
+librarySwitchRecoverySelection(selection, process.platform);
+preferencesRecoverySelection(selection, process.platform);
+const executionPlan = planDesktopExecution(selection);
+const {
+  bootstrapRecoverySession,
+  librarySwitchRecoverySession,
+  preferencesRecoverySession,
+  historySession,
+  backupFocusSession,
+  hostInterruptionSession,
+  ordinaryCloseSession,
+  minimizedPreparationSession,
+  normalPackageSession,
+  identityBoundSession,
+  cleanupName,
+} = executionPlan.session;
+const savedLibraryRecoverySession =
+  bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cli"])
   throw new Error("Selected fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
   throw new Error("--port must be 1024..65533");
-const inputs = await Promise.all(
-  ["app", "driver", "native-driver"].map((name) => fileIdentity(values[name])),
-);
-inputs.push(await fileIdentity(fileURLToPath(import.meta.url)));
-inputs.push(
-  await fileIdentity(fileURLToPath(new URL("./desktop-controller-test.mjs", import.meta.url))),
-);
-for (const name of [
-  "native-session.ps1",
-  "native-process-tree.ps1",
-  "native-startup-observation.ps1",
-  "desktop-startup-observation.mjs",
-])
-  inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
-inputs.push(await fileIdentity(fileURLToPath(new URL("desktop-reload-test.mjs", import.meta.url))));
-inputs.push(
-  await fileIdentity(fileURLToPath(new URL("desktop-workspace-refresh-test.mjs", import.meta.url))),
-);
-inputs.push(
-  await fileIdentity(fileURLToPath(new URL("desktop-catalog-update-test.mjs", import.meta.url))),
-  await fileIdentity(fileURLToPath(new URL("desktop-default-cover-test.mjs", import.meta.url))),
-);
-if (selection.prerequisites.includes("owned-fixture")) {
-  if (selection.selected_scenarios.includes("native-artwork-catalog-correction"))
-    for (const name of [
-      "desktop-artwork-correction-test.mjs",
-      "testdata/catalog-artwork-red.jpg",
-      "testdata/catalog-artwork-blue.jpg",
-      "../../../scripts/sign-catalog.mjs",
-      "../../../crates/portcove-core/catalog/catalog.json",
-    ])
-      inputs.push(await fileIdentity(fileURLToPath(new URL(name, import.meta.url))));
+if (executionPlan.fixtures.owned) {
   for (const name of ["preparation-cli", "preparation-tool"]) {
     if (!values[name] || !path.isAbsolute(values[name]))
       throw new Error(`--${name} requires an absolute path`);
-    inputs.push(await fileIdentity(values[name]));
   }
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-preparation-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-readiness-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-artwork-observations.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-preparation-recovery-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-backup-review-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-removal-review-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-steam-entry-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-source-removal-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-adoption-review-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-library-handoff-test.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-cli-handoff-test.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-review-controls.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(
-      fileURLToPath(new URL("./desktop-native-confirmation.mjs", import.meta.url)),
-    ),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./native-confirmation.ps1", import.meta.url))),
-  );
-}
-if (selection.prerequisites.includes("install-fixture")) {
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-install-fixture.mjs", import.meta.url))),
-  );
-  inputs.push(
-    await fileIdentity(fileURLToPath(new URL("./desktop-install-test.mjs", import.meta.url))),
-  );
-}
-inputs.push(
-  await fileIdentity(
-    fileURLToPath(new URL("../../../scripts/desktop-scenarios.mjs", import.meta.url)),
-  ),
-);
-inputs.push(
-  await fileIdentity(
-    fileURLToPath(new URL("../../../scripts/native-session-lock.mjs", import.meta.url)),
-  ),
-);
-let runnerMetadata = {};
-if (values["run-metadata"]) {
-  if (!path.isAbsolute(values["run-metadata"]))
-    throw new Error("--run-metadata requires an absolute path");
-  inputs.push(await fileIdentity(values["run-metadata"]));
-  runnerMetadata = JSON.parse(await readFile(values["run-metadata"], "utf8"));
 }
 const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
   cwd: root,
@@ -221,7 +173,30 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
 }).stdout.trim();
 const output = path.resolve(values.output);
 await mkdir(output); // Existing output is never reused, including after failed runs.
+const inputs = await captureDesktopReceiptInputs({
+  root,
+  values,
+  plan: executionPlan,
+  output,
+  revision,
+});
+for (const name of [
+  "scripts/desktop-execution-plan.mjs",
+  "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+  "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
+])
+  inputs.push(await fileIdentity(path.join(root, name)));
+let runnerMetadata = {};
+if (values["run-metadata"]) {
+  if (!path.isAbsolute(values["run-metadata"]))
+    throw new Error("--run-metadata requires an absolute path");
+  inputs.push(await fileIdentity(values["run-metadata"]));
+  runnerMetadata = JSON.parse(await readFile(values["run-metadata"], "utf8"));
+}
 let installFixture;
+let externalFixture;
+let bootstrapRecoveryFixture;
+let connectedLaunches = 0;
 const library = path.join(output, "library");
 const profile = path.join(output, "webview");
 const checks = [];
@@ -232,7 +207,36 @@ let driver;
 let browser;
 let driverLog = "";
 let startupAttempt = 0;
-const backupFocusSession = selection.selected_scenarios.includes("native-backup-delete-focus");
+let historyInventory;
+let packageEvidence;
+if (normalPackageSession) {
+  assert.equal(process.platform, "win32");
+  assert.deepEqual(selection.selected_scenarios, ["native-normal-package-webview-boundary"]);
+  packageEvidence = await verifyNormalPackageEvidence(
+    values["package-evidence"],
+    revision,
+    inputs[0],
+    root,
+  );
+  inputs.push(
+    ...packageEvidence.identities,
+    await fileIdentity(
+      fileURLToPath(new URL("./desktop-main-webview-boundary.mjs", import.meta.url)),
+    ),
+  );
+}
+if (hostInterruptionSession) {
+  assert.equal(process.platform, "win32");
+  assert.deepEqual(selection.selected_scenarios, ["native-host-interrupted-preparation"]);
+}
+if (ordinaryCloseSession) {
+  assert.equal(process.platform, "win32");
+  assert.deepEqual(selection.selected_scenarios, ["native-closed-preparation-recovery"]);
+}
+if (minimizedPreparationSession) {
+  assert.equal(process.platform, "win32");
+  assert.deepEqual(selection.selected_scenarios, ["native-minimized-preparation-continuity"]);
+}
 if (backupFocusSession) {
   assert.equal(process.platform, "win32", "The exact backup-focus consent route requires Windows");
   assert.deepEqual(
@@ -241,21 +245,23 @@ if (backupFocusSession) {
     "The bounded backup-focus qualification must run as one exact scenario",
   );
 }
-let backupFocusDriver;
-let backupFocusCleanupSnapshot;
-let backupFocusCleanup;
+const ownedSession = new OwnedNativeSession();
 const nativeLock = await acquireNativeSessionLock({
   workspace: root,
   profile: selection.profile,
   scenarios: selection.selected_scenarios,
 });
 const harnessStarted = new Date();
-function stopDriver() {
-  if (backupFocusSession) {
+async function stopDriver() {
+  if (identityBoundSession) {
     stopBackupFocusDriver();
     return;
   }
   if (!driver?.pid || driver.exitCode !== null) return;
+  if (historySession) {
+    assert.ok(historyInventory, "History cleanup cannot signal without captured driver identity");
+    if (!(await historyDriverStillOwned(historyInventory))) return;
+  }
   if (process.platform === "win32") {
     spawnCommand("taskkill.exe", ["/PID", String(driver.pid), "/T", "/F"], {
       windowsHide: true,
@@ -272,21 +278,37 @@ function stopDriver() {
 }
 
 function stopBackupFocusDriver() {
-  if (backupFocusCleanup || !driver?.pid) return;
+  if (ownedSession.cleanup || !driver?.pid) return;
   const snapshot = captureBackupFocusCleanup();
   const stopped =
     driver.exitCode === null
       ? observeNativeSession("StopDriver", snapshot)
       : { method: "observed-child-exit", exit_code: driver.exitCode };
   const exited = observeNativeSession("Wait", snapshot);
-  backupFocusCleanup = { stopped, exited, snapshot };
+  ownedSession.cleanup = { stopped, exited, snapshot };
   driver = undefined;
 }
 
-function validateBackupFocusInventory(captured) {
+function validateBackupFocusInventory(captured, requireQualified = false) {
   if (
+    requireQualified ||
+    savedLibraryRecoverySession ||
     checks.some(
-      (check) => check.scenario === "native-backup-delete-focus" && check.outcome === "passed",
+      (check) =>
+        [
+          "native-reviewed-backup-restore-and-delete",
+          "native-game-update-review",
+          "native-selected-setup-completion",
+          "native-preliminary-source-review",
+          "native-retained-contract-repair-state",
+          "native-backup-delete-focus",
+          "native-host-interrupted-preparation",
+          "native-closed-preparation-recovery",
+          "native-minimized-preparation-continuity",
+          "native-normal-package-webview-boundary",
+          "native-startup-library-recovery",
+          "native-library-switch-recovery",
+        ].includes(check.scenario) && check.outcome === "passed",
     )
   ) {
     assert.equal(
@@ -315,18 +337,22 @@ function validateBackupFocusInventory(captured) {
   }
 }
 
-function captureBackupFocusCleanup() {
-  if (backupFocusCleanupSnapshot) return backupFocusCleanupSnapshot;
+function captureBackupFocusCleanup(evidenceName = cleanupName) {
+  if (ownedSession.inventory) return ownedSession.inventory;
   assert.ok(
-    backupFocusDriver && driver?.pid,
+    ownedSession.driver && driver?.pid,
     "Missing initial owned driver identity; refuse unchecked cleanup",
   );
-  const original = path.join(output, "backup-focus-final-processes.json");
+  const suffix =
+    hostInterruptionSession || ordinaryCloseSession || savedLibraryRecoverySession
+      ? `-${driver.pid}`
+      : "";
+  const original = path.join(output, `${evidenceName}-final-processes${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriverTree", original);
   artifacts.push(original);
   assert.deepEqual(
     captured.driver,
-    backupFocusDriver,
+    ownedSession.driver,
     "Driver identity changed since owned launch",
   );
   try {
@@ -342,7 +368,7 @@ function captureBackupFocusCleanup() {
   // Preserve the original snapshot; the existing Wait helper iterates processes.
   // Include the captured driver root in a separate, explicitly derived inventory
   // so positive exit shares the same five-second bound for root and descendants.
-  const checked = path.join(output, "backup-focus-exit-inventory.json");
+  const checked = path.join(output, `${evidenceName}-exit-inventory${suffix}.json`);
   writeFileSync(
     checked,
     JSON.stringify(
@@ -358,7 +384,7 @@ function captureBackupFocusCleanup() {
     { flag: "wx" },
   );
   artifacts.push(checked);
-  backupFocusCleanupSnapshot = checked;
+  ownedSession.inventory = checked;
   return checked;
 }
 async function verifySettingsRows() {
@@ -627,9 +653,9 @@ async function refreshSettings() {
 
 // Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
-const deadline = setTimeout(() => {
+const deadline = setTimeout(async () => {
   try {
-    stopDriver();
+    await stopDriver();
   } catch (error) {
     checks.push({
       scenario: "native-backup-watchdog-cleanup",
@@ -871,11 +897,12 @@ async function scenario(name, action) {
     recordScenario(target, name, "failed", { message: error.message });
     await captureScenarioDiagnostics(name, target.setup);
     process.exitCode = 1;
+    if (isUntrustworthyProbeError(error)) throw error;
   }
   if (!target.setup) await captureScenarioScreenshot(name);
 }
 
-async function connect() {
+async function connectObservedDriver() {
   const finishObservation =
     process.platform === "win32"
       ? await observeStartup({
@@ -909,15 +936,24 @@ async function connect() {
       if (!observation.successful) process.exitCode = 1;
     }
   }
+}
+
+async function connect() {
+  await connectObservedDriver();
   await browser.manage().setTimeouts({ script: 15_000 });
-  const readyRoot = selection.prerequisites.includes("design-compatibility-fixture")
-    ? ".design-compatibility-fixture"
-    : 'nav[aria-label="Primary navigation"]';
+  const initialRecovery =
+    (bootstrapRecoverySession || preferencesRecoverySession) && connectedLaunches === 0;
+  const readyRoot = initialRecovery
+    ? ".bootstrap-error"
+    : selection.prerequisites.includes("design-compatibility-fixture")
+      ? ".design-compatibility-fixture"
+      : 'nav[aria-label="Primary navigation"]';
   await browser.wait(until.elementLocated(By.css(readyRoot)), 30_000);
   await browser.wait(
     async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
     30_000,
   );
+  connectedLaunches++;
 }
 
 async function requestApplicationShutdown(snapshot) {
@@ -930,6 +966,31 @@ async function requestApplicationShutdown(snapshot) {
 }
 
 async function restartApplication(name, prepareWhileStopped, childEnvironment = {}) {
+  const selectedSetupRestart = name === "selected-setup-inputs";
+  if (savedLibraryRecoverySession || selectedSetupRestart) {
+    if (!preferencesRecoverySession)
+      assert.equal(
+        prepareWhileStopped,
+        undefined,
+        "Identity-bound restart cannot rewrite fixture state",
+      );
+    const inventory = captureBackupFocusCleanup(selectedSetupRestart ? name : cleanupName);
+    validateBackupFocusInventory(
+      JSON.parse(await readFile(inventory, "utf8")),
+      selectedSetupRestart,
+    );
+    await browser.quit();
+    browser = undefined;
+    stopBackupFocusDriver();
+    const cleanup = ownedSession.requireQuiescence();
+    const restartEvidence = path.join(output, `${name}-restart.json`);
+    await writeFile(restartEvidence, `${JSON.stringify(cleanup, null, 2)}\n`, { flag: "wx" });
+    artifacts.push(restartEvidence);
+    if (prepareWhileStopped) await prepareWhileStopped();
+    await startDriver(childEnvironment);
+    await connect();
+    return browser;
+  }
   const snapshot = path.join(output, `${name}-processes.json`);
   const restartEvidence = path.join(output, `${name}-restart.json`);
   const observation = {
@@ -957,6 +1018,117 @@ async function restartApplication(name, prepareWhileStopped, childEnvironment = 
   return browser;
 }
 
+// Interrupt only this harness's positively identified tree, without first
+// deleting its WebDriver session or requesting graceful application shutdown.
+function captureLivePreparation(preparationExecutable) {
+  assert.ok(minimizedPreparationSession && ownedSession.driver && driver?.pid);
+  const snapshot = path.join(output, "minimized-preparation-live-processes.json");
+  const captured = observeNativeSession("Snapshot", snapshot);
+  assert.deepEqual(captured.driver, ownedSession.driver);
+  for (const expected of [values.app, preparationExecutable]) {
+    assert.equal(
+      captured.processes.filter(
+        (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
+      ).length,
+      1,
+      "Capture one exact live owned executable",
+    );
+  }
+  artifacts.push(snapshot);
+  // Preserve final cleanup's independent current inventory; the worker may
+  // legitimately exit after this immutable live checkpoint.
+  return { snapshot, ...captured };
+}
+
+async function interruptApplication(name, preparationExecutable, assertStillPreparing) {
+  assert.equal(process.platform, "win32", "Live host interruption is Windows qualification");
+  const inventory = captureBackupFocusCleanup();
+  const captured = JSON.parse(await readFile(inventory, "utf8"));
+  const matches = (expected) =>
+    captured.processes.filter(
+      (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
+    );
+  assert.equal(matches(values.app).length, 1, "Capture the live owned application");
+  assert.equal(matches(preparationExecutable).length, 1, "Capture the live preparation child");
+  await assertStillPreparing();
+  const startedAt = new Date().toISOString();
+  stopBackupFocusDriver();
+  const observation = {
+    started_at: startedAt,
+    shutdown_request: "forced-owned-tree-termination-without-session-delete",
+    driver_stop: ownedSession.cleanup.stopped,
+    shutdown: ownedSession.cleanup.exited,
+  };
+  // The killed session cannot be reused. Recovery runs in a new native host;
+  // no durable-state fixture or quiescence flag is written by the harness.
+  browser = undefined;
+  driver = undefined;
+  await startDriver();
+  await connect();
+
+  observation.reconnected_at = new Date().toISOString();
+  const evidence = path.join(output, `${name}-restart.json`);
+  await writeFile(evidence, JSON.stringify(observation, null, 2), { flag: "wx" });
+  artifacts.push(evidence);
+  return browser;
+}
+
+async function closeApplication(name, preparationExecutable, assertStillPreparing) {
+  assert.ok(ordinaryCloseSession && process.platform === "win32");
+  captureBackupFocusCleanup();
+  const inventory = path.join(output, `${name}-live-processes.json`);
+  const captured = observeNativeSession("Snapshot", inventory);
+  artifacts.push(inventory);
+  assert.deepEqual(captured.driver, ownedSession.driver);
+  const matches = (expected) =>
+    captured.processes.filter(
+      (entry) => path.resolve(entry.path).toLowerCase() === path.resolve(expected).toLowerCase(),
+    );
+  assert.equal(matches(values.app).length, 1);
+  assert.equal(matches(preparationExecutable).length, 1);
+  const application = matches(values.app)[0];
+  assert.equal(application.pid, captured.application_pid);
+  await assertStillPreparing();
+  const appInventory = path.join(output, `${name}-application-exit-inventory.json`);
+  await writeFile(
+    appInventory,
+    JSON.stringify(
+      {
+        ...captured,
+        source_snapshot: path.basename(inventory),
+        derivation: "captured-application-only-natural-exit-observation",
+        processes: [application],
+      },
+      null,
+      2,
+    ),
+    { flag: "wx" },
+  );
+  artifacts.push(appInventory);
+  const observation = { started_at: new Date().toISOString() };
+  const evidence = path.join(output, `${name}-ordinary-close.json`);
+  try {
+    observation.close_request = observeNativeSession("RequestClose", inventory);
+    observation.natural_application_exit = observeNativeSession("Wait", appInventory);
+    observation.before_cleanup = observeNativeSession("Observe", inventory);
+  } finally {
+    await writeFile(evidence, JSON.stringify(observation, null, 2), { flag: "wx" });
+    artifacts.push(evidence);
+  }
+  // Only the app's natural exit qualifies ordinary close. Preserve any live
+  // preparation child before this separate, identity-bound fixture cleanup.
+  browser = undefined;
+  stopBackupFocusDriver();
+  const cleanup = path.join(output, `${name}-fixture-cleanup.json`);
+  await writeFile(cleanup, JSON.stringify(ownedSession.requireQuiescence(), null, 2), {
+    flag: "wx",
+  });
+  artifacts.push(cleanup);
+  await startDriver();
+  await connect();
+  return browser;
+}
+
 function observeNativeSession(mode, snapshot) {
   const driverProcessId = mode === "Wait" ? 0 : driver.pid;
   const result = spawnCommand(
@@ -964,7 +1136,7 @@ function observeNativeSession(mode, snapshot) {
     [
       "-NoProfile",
       "-File",
-      fileURLToPath(new URL("./native-session.ps1", import.meta.url)),
+      nativeSessionScript,
       "-Mode",
       mode,
       "-DriverProcessId",
@@ -981,7 +1153,14 @@ function observeNativeSession(mode, snapshot) {
 }
 
 function captureBackupFocusDriverLaunch(launchStarted) {
-  const snapshot = path.join(output, "backup-focus-driver-startup.json");
+  const suffix =
+    hostInterruptionSession ||
+    ordinaryCloseSession ||
+    savedLibraryRecoverySession ||
+    selection.selected_scenarios.includes("native-selected-setup-completion")
+      ? `-${driver.pid}`
+      : "";
+  const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriver", snapshot);
   artifacts.push(snapshot);
   assert.equal(captured.driver.pid, driver.pid);
@@ -994,7 +1173,7 @@ function captureBackupFocusDriverLaunch(launchStarted) {
     created >= launchStarted - 1 && created <= Date.now(),
     "Driver creation must belong to this launch",
   );
-  backupFocusDriver = captured.driver;
+  ownedSession.driver = captured.driver;
 }
 
 async function driverReady() {
@@ -1009,7 +1188,27 @@ async function driverReady() {
   }
 }
 
+function driverEnvironment(childEnvironment) {
+  const environment = {
+    ...process.env,
+    ...childEnvironment,
+    ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
+    ...(externalFixture ? { PORTCOVE_QUALIFICATION_CATALOG: externalFixture.catalogPath } : {}),
+    ...(selection.prerequisites.includes("steam-fixture")
+      ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
+      : {}),
+    PORTCOVE_LIBRARY: library,
+    PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
+    PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
+    PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
+    PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
+    WEBVIEW2_USER_DATA_FOLDER: profile,
+  };
+  return savedLibraryRecoverySession ? bootstrapRecoveryEnvironment(environment) : environment;
+}
+
 async function startDriver(childEnvironment = {}) {
+  ownedSession.beginLaunch();
   const launchStarted = Date.now();
   driver = spawn(
     values.driver,
@@ -1025,20 +1224,7 @@ async function startDriver(childEnvironment = {}) {
       windowsHide: true,
       detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        ...childEnvironment,
-        ...(installFixture ? { PORTCOVE_QUALIFICATION_CATALOG: installFixture.catalogPath } : {}),
-        ...(selection.prerequisites.includes("steam-fixture")
-          ? { PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE: "closed" }
-          : {}),
-        PORTCOVE_LIBRARY: library,
-        PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
-        PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
-        PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
-        PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
-        WEBVIEW2_USER_DATA_FOLDER: profile,
-      },
+      env: driverEnvironment(childEnvironment),
     },
   );
   let spawnError;
@@ -1049,13 +1235,8 @@ async function startDriver(childEnvironment = {}) {
     stream.on("data", (chunk) => {
       driverLog = (driverLog + chunk).slice(-1024 * 1024);
     });
-  if (backupFocusSession) {
-    await new Promise((resolve, reject) => {
-      driver.once("spawn", resolve);
-      driver.once("error", reject);
-    });
-    captureBackupFocusDriverLaunch(launchStarted);
-  }
+  await captureSelectedDriverLaunch(launchStarted);
+  if (historySession) historyInventory = await captureHistoryDriver(driver.pid, values.driver);
   for (let attempt = 0; attempt < 40; attempt++) {
     if (spawnError) throw spawnError;
     if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
@@ -1063,6 +1244,15 @@ async function startDriver(childEnvironment = {}) {
     if (await driverReady()) return;
   }
   throw new Error("tauri-driver did not become ready within ten seconds");
+}
+
+async function captureSelectedDriverLaunch(launchStarted) {
+  if (!identityBoundSession) return;
+  await new Promise((resolve, reject) => {
+    driver.once("spawn", resolve);
+    driver.once("error", reject);
+  });
+  captureBackupFocusDriverLaunch(launchStarted);
 }
 
 async function verifyCompactSettingsJumps() {
@@ -1200,15 +1390,190 @@ async function verifySettingsIndexTheme(theme) {
 }
 
 try {
+  let preferencesRecoveryFixture;
+  if (preferencesRecoverySession) {
+    preferencesRecoveryFixture = await preparePreferencesRecoveryFixture(output);
+    for (const name of ["preferencesBefore", "markerBefore"]) {
+      inputs.push(await fileIdentity(preferencesRecoveryFixture[name]));
+      artifacts.push(preferencesRecoveryFixture[name]);
+    }
+  }
+  let librarySwitchRecoveryFixture;
+  if (librarySwitchRecoverySession) {
+    librarySwitchRecoveryFixture = await prepareLibrarySwitchRecoveryFixture(output);
+    for (const file of Object.values(librarySwitchRecoveryFixture.before)) {
+      inputs.push(await fileIdentity(file));
+      artifacts.push(file);
+    }
+    inputs.push(await fileIdentity(librarySwitchRecoveryFixture.futureDatabase));
+  }
+  if (bootstrapRecoverySession) {
+    bootstrapRecoveryFixture = await prepareBootstrapRecoveryFixture(output);
+    for (const name of ["invalidBefore", "preferencesBefore"])
+      inputs.push(await fileIdentity(bootstrapRecoveryFixture[name]));
+    artifacts.push(
+      bootstrapRecoveryFixture.invalidBefore,
+      bootstrapRecoveryFixture.preferencesBefore,
+    );
+  }
   if (selection.prerequisites.includes("install-fixture")) {
-    installFixture = await createInstallFixture({ root, output });
+    installFixture = await createInstallFixture({
+      root,
+      output,
+      revision,
+      sourceJourney: executionPlan.fixtures.sourceJourney,
+      preliminaryJourney: executionPlan.fixtures.preliminaryJourney,
+      completionJourney: executionPlan.fixtures.completionJourney,
+      holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
+      preparationTool: values["preparation-tool"],
+    });
+    if (installFixture.sourceJourney) {
+      if (installFixture.preliminaryJourney)
+        for (const name of ["path", "before"])
+          inputs.push(await fileIdentity(installFixture.preliminaryJourney[name]));
+      for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
+        inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
+      installFixture.sourceJourney.root = seedSelectedSetup({
+        cli: values["preparation-cli"],
+        library,
+        output,
+        fixture: installFixture,
+      });
+    }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     inputs.push(await fileIdentity(installFixture.catalogPath));
+  }
+  if (selection.prerequisites.includes("external-runtime-fixture")) {
+    externalFixture = await createExternalRuntimeFixture(output);
+    const declared = JSON.parse(await readFile(externalFixture.catalogPath, "utf8")).ports[0];
+    assert.equal(declared.id, externalFixture.port.id);
+    const prepared = declared.release.user_prepared["windows-x86-64"];
+    const immutableFiles = new Map(
+      await Promise.all(
+        externalFixture.identities
+          .filter((identity) => !prepared.mutable_paths.includes(path.basename(identity.path)))
+          .map(async (identity) => [path.basename(identity.path), await readFile(identity.path)]),
+      ),
+    );
+    assert.equal(
+      externalFixtureTreeDigest(immutableFiles),
+      prepared.immutable_tree_sha256,
+      "Actual prepared fixture bytes must match the declared immutable tree before launch",
+    );
+    inputs.push(
+      await fileIdentity(
+        fileURLToPath(new URL("./desktop-external-runtime-test.mjs", import.meta.url)),
+      ),
+    );
+    inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
   }
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
   await startDriver();
   await connect();
+  if (historySession) {
+    historyInventory = await captureHistorySession(driver.pid, values.driver, values.app);
+    const record = path.join(output, "qualification-history-process-identities.json");
+    await writeFile(record, JSON.stringify(historyInventory, null, 2), { flag: "wx" });
+    artifacts.push(record);
+  }
+  await scenario("native-external-runtime-review", async () => {
+    const pickerContext = {
+      application: values.app,
+      getDriverIdentity: () => ownedSession.driver,
+      output,
+      artifacts,
+    };
+    await externalRuntimeReviewScenario({
+      browser,
+      By,
+      until,
+      fixture: externalFixture,
+      output,
+      artifacts,
+      invoke,
+      confirmNative: nativeConfirmation({
+        application: values.app,
+        getDriverPid: () => driver.pid,
+        output,
+        artifacts,
+      }),
+      pickerObservation: externalRuntimePickerObservation({
+        browser,
+        By,
+        Key,
+        until,
+        fixture: externalFixture,
+        observePicker: nativePickerObservation(pickerContext),
+      }),
+      selectPicker: nativePreparedRuntimePicker(pickerContext),
+    });
+  });
+  await scenario("native-startup-preferences-recovery", async () => {
+    await preferencesRecoveryScenario({
+      browser,
+      invoke,
+      By,
+      until,
+      fixture: preferencesRecoveryFixture,
+      captureScreenshot: captureScenarioScreenshot,
+      captureAccessibilityReport,
+      restart: restartApplication,
+      output,
+      artifacts,
+    });
+  });
+  await scenario("native-library-switch-recovery", async () => {
+    await librarySwitchRecoveryScenario({
+      browser,
+      invoke,
+      By,
+      until,
+      fixture: librarySwitchRecoveryFixture,
+      chooseOwnedLibrary: nativeConfirmation({
+        application: values.app,
+        getDriverPid: () => driver.pid,
+        output,
+        artifacts,
+      }),
+      captureScreenshot: captureScenarioScreenshot,
+      captureAccessibilityReport,
+      restart: restartApplication,
+      output,
+      artifacts,
+    });
+  });
+  await scenario("native-startup-library-recovery", async () => {
+    const chooseOwnedLibrary = nativeConfirmation({
+      application: values.app,
+      getDriverPid: () => driver.pid,
+      output,
+      artifacts,
+    });
+    await bootstrapRecoveryScenario({
+      browser,
+      invoke,
+      By,
+      until,
+      fixture: bootstrapRecoveryFixture,
+      chooseOwnedLibrary,
+      captureScreenshot: captureScenarioScreenshot,
+      restart: restartApplication,
+      output,
+      artifacts,
+    });
+  });
+  await scenario("native-normal-package-webview-boundary", async () => {
+    const requests = await normalPackageBoundaryScenario({
+      browser,
+      invoke,
+      library,
+      output,
+      artifacts,
+      packageEvidence,
+    });
+    assertOwnedBoundaryRequests(requests);
+  });
   await scenario("empty-library", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
     assert.equal(bootstrap.ok, true);
@@ -1293,12 +1658,35 @@ try {
     artifacts.push(environmentArtifact);
   });
   await scenario("native-error-recovery", async () => {
+    const bootstrap = await invoke("get_bootstrap_status");
+    assert.equal(bootstrap.ok, true);
     const failed = await invoke("verify_port", {
       portId: "nonexistent-fixture-port",
+      generation: bootstrap.value.generation,
     });
     assert.equal(failed.ok, false);
     assert.ok(failed.error.code);
     assert.equal((await invoke("get_bootstrap_status")).value.ready, true);
+  });
+  await scenario("native-startup-network-diagnostic", async () => {
+    inputs.push(
+      await fileIdentity(
+        fileURLToPath(new URL("./desktop-startup-network-diagnostic.mjs", import.meta.url)),
+      ),
+    );
+    const observation = await observeStartupNetwork({
+      invoke,
+      readAlerts: () =>
+        browser.executeScript(() => document.querySelectorAll(".error-banner").length),
+    });
+    const report = path.join(output, "startup-network-diagnostic.json");
+    await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
+    artifacts.push(report);
+    assert.equal(
+      observation.completed,
+      true,
+      "Current diagnostic coverage is incomplete; inspect its phase",
+    );
   });
   await scenario("native-library-selection-review", async () => {
     const before = await invoke("get_bootstrap_status");
@@ -1360,16 +1748,105 @@ try {
     const alternate = path.join(output, "browsing-alternate-library");
     await mkdir(alternate);
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
-    const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    await search.sendKeys("zelda");
+    let search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    const catalog = await invoke("get_catalog");
+    assert.equal(catalog.ok, true);
+    const channelButton = (channel) =>
+      browser.findElement(
+        By.xpath(
+          `//div[@aria-label="Release channel filters"]//button[normalize-space(.)="${channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling"}"]`,
+        ),
+      );
+    const expectChannels = async (channels) => {
+      const expected = catalog.value.ports
+        .filter(
+          (port) =>
+            channels.length === 0 || port.channels.some((channel) => channels.includes(channel)),
+        )
+        .map((port) => port.id)
+        .sort();
+      assert.ok(expected.length > 0, "Channel fixture must contain matching ports");
+      await browser.wait(
+        async () => {
+          const ids = await browser.executeScript(() =>
+            [...document.querySelectorAll('[data-detail-origin^="catalog:card:"]')]
+              .map((card) => card.getAttribute("data-detail-origin").slice("catalog:card:".length))
+              .sort(),
+          );
+          return JSON.stringify(ids) === JSON.stringify(expected);
+        },
+        5_000,
+        `Catalog did not display the exact ${channels.join("+") || "All"} union once`,
+      );
+      for (const channel of ["stable", "beta", "rolling"])
+        assert.equal(
+          await (await channelButton(channel)).getAttribute("aria-pressed"),
+          String(channels.includes(channel)),
+        );
+    };
+    await (await channelButton("stable")).click();
+    await expectChannels(["stable"]);
     const beta = await browser.wait(
       until.elementLocated(
-        By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
+        By.xpath(
+          '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
+        ),
       ),
       15_000,
     );
     await beta.click();
-    assert.equal(await beta.getAttribute("aria-pressed"), "true");
+    await expectChannels(["stable", "beta"]);
+    await (await channelButton("stable")).click();
+    await expectChannels(["beta"]);
+    await beta.click();
+    await expectChannels([]);
+    await (await channelButton("rolling")).click();
+    await expectChannels(["rolling"]);
+    await (await channelButton("All")).click();
+    await expectChannels([]);
+    await (await channelButton("stable")).click();
+    await beta.click();
+    await expectChannels(["stable", "beta"]);
+    await search.sendKeys("zelda");
+    await browser.wait(
+      async () =>
+        (await browser.findElements(By.css('[data-detail-origin^="catalog:card:"]'))).length > 0,
+      5_000,
+    );
+    const sort = By.xpath('//button[@role="combobox"][contains(., "Sort")]');
+    await browser.findElement(sort).click();
+    await browser
+      .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Name A–Z")]')), 5_000)
+      .click();
+    const card = await browser.findElement(By.css('[data-detail-origin^="catalog:card:"]'));
+    await browser.executeScript("arguments[0].scrollIntoView({block:'center'});", card);
+    const origin = await browser.executeScript(
+      (card) => ({
+        key: card.getAttribute("data-detail-origin"),
+        scroll: document.querySelector("main").scrollTop,
+      }),
+      card,
+    );
+    await card.click();
+    await browser.wait(until.elementLocated(By.css(".detail-back")), 15_000).click();
+    await browser.wait(
+      () =>
+        browser.executeScript(
+          (key) => document.activeElement?.getAttribute("data-detail-origin") === key,
+          origin.key,
+        ),
+      5_000,
+    );
+    search = await browser.findElement(By.id("port-search"));
+    assert.equal(await search.getAttribute("value"), "zelda");
+    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
+    assert.ok(
+      Math.abs(
+        (await browser.executeScript("return document.querySelector('main').scrollTop")) -
+          origin.scroll,
+      ) <= 1,
+    );
+    await captureScenarioScreenshot("native-catalog-composed-channels");
     await search.click();
     assert.equal(await browser.executeScript("return document.activeElement.id"), "port-search");
     await browser.actions().keyDown(Key.CONTROL).sendKeys("4").keyUp(Key.CONTROL).perform();
@@ -1386,7 +1863,9 @@ try {
       );
       await browser.wait(
         async () => {
-          const connection = await browser.findElement(By.css(".github-auth"));
+          const connection = await browser.findElement(
+            By.xpath('//article[.//h2[normalize-space(.)="GitHub connection"]]'),
+          );
           const text = await connection.getText();
           return (
             !text.includes("Connection status unavailable") ||
@@ -1414,9 +1893,7 @@ try {
       );
       await browser.wait(until.elementIsVisible(review), 5_000);
       assert.ok((await review.getText()).includes(target));
-      await review
-        .findElement(By.xpath('.//button[normalize-space(.)="Switch whole library"]'))
-        .click();
+      await review.findElement(By.xpath('.//button[normalize-space(.)="Switch library"]')).click();
       const outcome = await browser.wait(
         async () => {
           const status = await invoke("get_bootstrap_status");
@@ -1435,6 +1912,39 @@ try {
         15_000,
         "Owned library switch did not advance bootstrap generation",
       );
+      if (outcome !== "switched") {
+        const diagnostic = { outcome };
+        try {
+          diagnostic.technical_text = await browser.executeScript(() => {
+            const article = [...document.querySelectorAll("article")].find((element) =>
+              [...element.querySelectorAll("h2")].some(
+                (heading) => heading.textContent.trim() === "Library at startup",
+              ),
+            );
+            return (
+              article?.querySelector('[role="alert"] .failure-details pre')?.textContent ?? null
+            );
+          });
+          if (diagnostic.technical_text) {
+            try {
+              diagnostic.technical_projection = JSON.parse(diagnostic.technical_text);
+            } catch (error) {
+              diagnostic.parse_error = String(error);
+            }
+          } else {
+            diagnostic.capture_error = "Library switch technical projection is absent";
+          }
+        } catch (error) {
+          diagnostic.capture_error = String(error);
+        }
+        const report = path.join(output, `${artifactName}-switch-failure.json`);
+        try {
+          await writeFile(report, JSON.stringify(diagnostic, null, 2), { flag: "wx" });
+          artifacts.push(report);
+        } catch (error) {
+          console.error("Library switch diagnostic write failed", String(error), diagnostic);
+        }
+      }
       assert.equal(outcome, "switched", `Library switch failed: ${JSON.stringify(outcome)}`);
       await browser.wait(
         until.elementLocated(By.xpath('//button[normalize-space(.)="Choose another library"]')),
@@ -1446,18 +1956,25 @@ try {
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
     const alternateBeta = await browser.findElement(
-      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
+      By.xpath(
+        '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
+      ),
     );
     assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
+    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
     const alternateStatus = (await invoke("get_bootstrap_status")).value;
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
     await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
     const restoredSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await restoredSearch.getAttribute("value"), "zelda");
     const restoredBeta = await browser.findElement(
-      By.xpath('//div[@aria-label="Release channel filters"]//button[normalize-space(.)="beta"]'),
+      By.xpath(
+        '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="Preview"]',
+      ),
     );
     assert.equal(await restoredBeta.getAttribute("aria-pressed"), "true");
+    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "true");
+    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
     assert.equal((await browser.findElements(By.css('[role="dialog"]'))).length, 0);
     await browser.wait(
       async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
@@ -2414,38 +2931,52 @@ try {
     cli: values["preparation-cli"],
     tool: values["preparation-tool"],
   });
-  await installScenarios({
+  await qualificationHistoryScenario({
     browser,
     invoke,
     scenario,
-    library,
     output,
     artifacts,
-    inputs,
-    fixture: installFixture,
-    restartApplication,
+    captureScreenshot: captureScenarioScreenshot,
   });
-  for (const gap of selection.known_gaps)
-    checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason });
-  if (selection.prerequisites.includes("owned-fixture")) {
-    await preparationScenarios({
-      browser,
-      invoke,
-      scenario,
-      library,
-      output,
-      artifacts,
-      confirmNative: nativeConfirmation({
-        application: values.app,
-        getDriverPid: () => driver.pid,
-        output,
-        artifacts,
-      }),
-      restartApplication,
-      cli: values["preparation-cli"],
-      tool: values["preparation-tool"],
-    });
-  }
+  await runOwnedFixtureJourneys(
+    {
+      plan: executionPlan,
+      runtime: {
+        context: () => ({
+          browser,
+          invoke,
+          scenario,
+          library,
+          output,
+          artifacts,
+          inputs,
+          installFixture,
+          restartApplication,
+          cli: values["preparation-cli"],
+          tool: values["preparation-tool"],
+          interruptApplication,
+          closeApplication,
+          captureLivePreparation,
+        }),
+        confirmNative: () =>
+          nativeConfirmation({
+            application: values.app,
+            getDriverPid: () => driver.pid,
+            output,
+            artifacts,
+          }),
+        recordKnownGap: (gap) =>
+          checks.push({ scenario: gap.scenario, outcome: "not-run", reason: gap.reason }),
+      },
+    },
+    {
+      install: installScenarios,
+      selectedSetup: selectedSetupScenario,
+      selectedSetupCompletion: selectedSetupCompletionScenario,
+      preparation: preparationScenarios,
+    },
+  );
   if (selection.selected_scenarios.includes("native-repeated-library-reload"))
     await reloadScenario({
       browser,
@@ -2471,25 +3002,22 @@ try {
   process.exitCode = 1;
 } finally {
   try {
-    if (backupFocusSession) {
+    if (identityBoundSession) {
       try {
-        if (driver?.pid && !backupFocusCleanup) captureBackupFocusCleanup();
+        if (driver?.pid && !ownedSession.cleanup) captureBackupFocusCleanup();
         let quitError;
         if (browser)
           await browser.quit().catch((error) => {
             quitError = error;
           });
         browser = undefined;
-        stopDriver();
-        assert.ok(
-          backupFocusCleanup,
-          "Positive owned root/application/WebView cleanup is required",
-        );
-        const report = path.join(output, "backup-focus-cleanup.json");
+        await stopDriver();
+        ownedSession.requireQuiescence();
+        const report = path.join(output, `${cleanupName}-cleanup.json`);
         await writeFile(
           report,
           JSON.stringify(
-            { ...backupFocusCleanup, session_quit_error: quitError?.message },
+            { ...ownedSession.cleanup, session_quit_error: quitError?.message },
             null,
             2,
           ),
@@ -2513,9 +3041,52 @@ try {
         process.exitCode = 1;
         // No PID-only fallback when identity or positive exit could not be proved.
       }
+    } else if (historySession) {
+      let quitError;
+      try {
+        assert.ok(historyInventory, "History requires captured identities before interaction");
+        const finalInventory = (await historyDriverStillOwned(historyInventory))
+          ? await captureHistorySession(driver.pid, values.driver, values.app, "cleanup")
+          : historyInventory;
+        assert.equal(finalInventory.driver.start_ticks, historyInventory.driver.start_ticks);
+        const identities = new Map(
+          [...historyInventory.processes, ...finalInventory.processes].map((entry) => [
+            `${entry.pid}:${entry.start_ticks}`,
+            entry,
+          ]),
+        );
+        historyInventory.processes = [...identities.values()];
+        if (browser)
+          await browser.quit().catch((error) => {
+            quitError = error;
+          });
+        browser = undefined;
+        await stopDriver();
+        const exited = await waitHistorySessionExit(historyInventory);
+        const report = path.join(output, "qualification-history-cleanup.json");
+        await writeFile(
+          report,
+          JSON.stringify({ ...exited, session_quit_error: quitError?.message ?? null }, null, 2),
+          { flag: "wx" },
+        );
+        artifacts.push(report);
+        assert.equal(
+          quitError,
+          undefined,
+          "History session deletion failed; preserve its cleanup receipt",
+        );
+      } catch (error) {
+        checks.push({
+          scenario: "native-history-owned-cleanup",
+          outcome: "failed",
+          message: error.message,
+        });
+        process.exitCode = 1;
+        // No PID-only fallback after missing or changed identity.
+      }
     } else {
       if (browser) await browser.quit().catch(() => {});
-      stopDriver();
+      await stopDriver();
     }
     clearTimeout(deadline);
     try {

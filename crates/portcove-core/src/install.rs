@@ -34,8 +34,15 @@ pub struct InstallRequest {
     pub qualification: InstallQualification,
 }
 
+/// Cache eligibility belongs to the exact qualified platform, not the grant alone.
+struct AssetAcquisition<'a> {
+    scope: &'a crate::DefinitionAcquisitionScope,
+    curated: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
+    acquisition: Option<crate::ScopedResolvedRelease>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     executable_hints: Vec<String>,
@@ -53,6 +60,27 @@ pub struct InstallQualification {
 }
 
 impl InstallQualification {
+    pub(crate) fn with_acquisition_resolution(
+        mut self,
+        resolution: crate::ScopedResolvedRelease,
+    ) -> Result<Self> {
+        if let Some(scope) = &resolution.scope {
+            scope.require_current()?;
+            let contract = self.retained_contract.as_ref().ok_or_else(|| {
+                PortcoveError::state("scoped resolution requires its retained contract")
+            })?;
+            let catalog = contract.catalog(&scope.stable_id)?;
+            if catalog.definition_selection(&scope.stable_id) != scope.identity.as_ref() {
+                return Err(PortcoveError::verification(
+                    "resolved acquisition belongs to another retained definition",
+                ));
+            }
+            scope.require_port(catalog.port(&scope.stable_id)?)?;
+            self.acquisition = Some(resolution);
+        }
+        Ok(self)
+    }
+
     /// Capture the catalog and referenced source contracts before publication.
     pub fn from_catalog(
         catalog: &crate::Catalog,
@@ -88,6 +116,7 @@ impl InstallQualification {
             )));
         }
         Ok(Self {
+            acquisition: None,
             retained_contract: None,
             platform,
             executable_hints,
@@ -308,9 +337,12 @@ const fn is_false(value: &bool) -> bool {
 pub struct Installer {
     library: Library,
     client: reqwest::Client,
+    network_bounds: (Duration, Duration),
     faults: Arc<dyn LifecycleFaultInjector>,
     #[cfg(test)]
     archive_worker_test_hook: Option<ArchiveWorkerTestHook>,
+    #[cfg(test)]
+    cache_worker_test_hook: Option<crate::curated_cache::CacheWorkerTestHook>,
 }
 
 #[cfg(test)]
@@ -325,6 +357,28 @@ struct InstallLifecycle {
     operation_root: std::path::PathBuf,
     store: OperationStore,
     record: LifecycleOperation,
+}
+
+// This existing nullable field is used here only for managed PS1 Install
+// workers. None remains the legacy/non-managed Install contract.
+async fn run_managed_install_worker(
+    lifecycle: &mut InstallLifecycle,
+    operation: &OperationCoordinator,
+    worker: impl FnOnce(OperationCoordinator) -> (Result<()>, bool) + Send + 'static,
+) -> Result<()> {
+    lifecycle.record.preparation_process_quiesced = Some(false);
+    lifecycle.store.put(&mut lifecycle.record)?;
+    let checkpoint = operation.clone();
+    // A mutation worker must be joined, including cancellation. A join failure
+    // or unwind leaves both the in-memory and durable proof false.
+    let (result, quiesced) = tokio::task::spawn_blocking(move || worker(checkpoint))
+        .await
+        .map_err(|error| PortcoveError::install(error.to_string()))?;
+    let mut completed = lifecycle.record.clone();
+    completed.preparation_process_quiesced = Some(quiesced);
+    lifecycle.store.put(&mut completed)?;
+    lifecycle.record = completed;
+    result
 }
 
 // Artifact transfers can legitimately run for hours, so they have no total
@@ -350,9 +404,12 @@ impl Installer {
         Ok(Self {
             library,
             client,
+            network_bounds: (DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT),
             faults: Arc::new(NoLifecycleFaults),
             #[cfg(test)]
             archive_worker_test_hook: None,
+            #[cfg(test)]
+            cache_worker_test_hook: None,
         })
     }
 
@@ -365,14 +422,25 @@ impl Installer {
         Ok(Self {
             library,
             client: download_client(connect_timeout, read_idle_timeout)?,
+            network_bounds: (connect_timeout, read_idle_timeout),
             faults: Arc::new(NoLifecycleFaults),
             archive_worker_test_hook: None,
+            cache_worker_test_hook: None,
         })
     }
 
     #[cfg(test)]
     pub(crate) fn with_archive_worker_test_hook(mut self, hook: ArchiveWorkerTestHook) -> Self {
         self.archive_worker_test_hook = Some(hook);
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_cache_worker_test_hook(
+        mut self,
+        hook: crate::curated_cache::CacheWorkerTestHook,
+    ) -> Self {
+        self.cache_worker_test_hook = Some(hook);
         self
     }
 
@@ -394,6 +462,7 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        self.require_acquisition(&request)?;
         let mut storage_key = artifact_storage_key(&request.release.asset.sha256)?;
         if let Some(runtime) = &request.qualification.runtime {
             storage_key = hex::encode(Sha256::digest(serde_json::to_vec(&(
@@ -450,9 +519,14 @@ impl Installer {
                         &self.library,
                         &lifecycle.record,
                     ) {
-                        return Err(PortcoveError::new(crate::ErrorCode::Cancelled,
+                        let mut refusal = PortcoveError::new(crate::ErrorCode::Cancelled,
                             "Publication was cancelled; private preparation cleanup requires review")
-                            .detail("operation_id", lifecycle.record.id).detail("cleanup_error", cleanup.message));
+                            .detail("operation_id", lifecycle.record.id).detail("cleanup_error", cleanup.message);
+                        // Retain bounded native proof diagnostics without changing cleanup authority.
+                        refusal
+                            .details
+                            .extend(crate::tool_process::copy_proof_details(error));
+                        return Err(refusal);
                     }
                     return result;
                 }
@@ -468,13 +542,17 @@ impl Installer {
                         error.message, cleanup.message
                     ));
                     if let Err(persist) = lifecycle.store.put(&mut lifecycle.record) {
-                        return Err(PortcoveError::state(
+                        let mut refusal = PortcoveError::state(
                             "install failed and private cleanup state could not be retained",
                         )
                         .detail("operation_id", &lifecycle.record.id)
                         .detail("install_error", &error.message)
                         .detail("cleanup_error", cleanup.message)
-                        .detail("persistence_error", persist.message));
+                        .detail("persistence_error", persist.message);
+                        refusal
+                            .details
+                            .extend(crate::tool_process::copy_proof_details(error));
+                        return Err(refusal);
                     }
                     error
                         .details
@@ -494,6 +572,95 @@ impl Installer {
         result
     }
 
+    fn require_acquisition(
+        &self,
+        request: &InstallRequest,
+    ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+        let catalog = match &request.qualification.retained_contract {
+            Some(contract) => contract.catalog(&request.port_id)?,
+            None => self.library.load_catalog()?.0,
+        };
+        let current = crate::definition_repository::publisher_policy::acquisition_scope(
+            &self.library,
+            &catalog,
+            &request.port_id,
+        )?;
+        match (current, &request.qualification.acquisition) {
+            (None, None) => Ok(None),
+            (Some(current), Some(resolution)) => {
+                let scope = resolution.scope.as_ref().ok_or_else(|| {
+                    PortcoveError::state("managed resolution lost its acquisition proof")
+                })?;
+                if !scope.same_authorization(&current)
+                    || resolution.release.asset != request.release.asset
+                    || resolution.release.version != request.release.version
+                    || resolution.release.channel != request.release.channel
+                {
+                    return Err(PortcoveError::conflict(
+                        "installation acquisition proof changed",
+                    ));
+                }
+                scope.require_current()?;
+                scope.require_asset_url(&request.release.asset.url)?;
+                if let Some(record) = catalog
+                    .port(&request.port_id)?
+                    .release
+                    .curated
+                    .get(&request.qualification.platform)
+                {
+                    crate::definition_repository::publisher_policy::require_curated_artifact_operation(
+                        &self.library.connection()?, scope.repository_id, record,
+                        crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+                    )?;
+                }
+                Ok(Some(scope.clone()))
+            }
+            _ => Err(PortcoveError::unsupported(
+                "installation requires an exact qualified acquisition resolution",
+            )),
+        }
+    }
+
+    async fn refresh_curated_acquisition(
+        &self,
+        request: &InstallRequest,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        operation: &OperationCoordinator,
+    ) -> Result<()> {
+        use crate::ReleaseProvider;
+        let Some(scope) = scope.filter(|scope| scope.curated_checks == Some(1)) else {
+            return Ok(());
+        };
+        let contract = request
+            .qualification
+            .retained_contract
+            .as_ref()
+            .ok_or_else(|| {
+                PortcoveError::state("curated acquisition lost its retained definition")
+            })?;
+        let catalog = contract.catalog(&request.port_id)?;
+        let port = catalog.port(&request.port_id)?;
+        let provider = crate::GithubReleaseProvider::for_acquisition_scope(scope)?;
+        let refreshed = operation
+            .interruptible(provider.resolve_scoped(
+                port,
+                request.release.channel,
+                request.qualification.platform,
+                Some(scope),
+            ))
+            .await?;
+        if refreshed.release.asset != request.release.asset
+            || refreshed.release.version != request.release.version
+            || refreshed.release.channel != request.release.channel
+        {
+            return Err(PortcoveError::conflict(
+                "curated acquisition resolution changed",
+            ));
+        }
+        scope.require_current()?;
+        Ok(())
+    }
+
     async fn install_inner<F>(
         &self,
         request: InstallRequest,
@@ -504,6 +671,31 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        let scope = self.require_acquisition(&request)?;
+        // A retained resolution is provenance, not reusable upstream freshness.
+        // Re-observe mutable identities before touching the artifact bytes.
+        self.refresh_curated_acquisition(&request, scope.as_ref(), operation)
+            .await?;
+        let acquisition = match scope.as_ref() {
+            Some(scope) => {
+                let contract = request
+                    .qualification
+                    .retained_contract
+                    .as_ref()
+                    .ok_or_else(|| {
+                        PortcoveError::state("scoped acquisition lost its retained definition")
+                    })?;
+                let catalog = contract.catalog(&request.port_id)?;
+                let curated = scope.curated_checks == Some(1)
+                    && catalog
+                        .port(&request.port_id)?
+                        .release
+                        .curated
+                        .contains_key(&request.qualification.platform);
+                Some(AssetAcquisition { scope, curated })
+            }
+            None => None,
+        };
         let operation_id = operation.operation_id().to_owned();
         let payload_root = lifecycle.operation_root.join("payload");
         fs::create_dir_all(&payload_root)?;
@@ -514,6 +706,7 @@ impl Installer {
                 &payload_root,
                 operation,
                 emit,
+                acquisition,
             )
             .await?;
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
@@ -526,6 +719,7 @@ impl Installer {
                 &unpacked,
                 operation,
                 emit,
+                None,
             )
             .await?;
             let source = unpacked.join(&runtime.archive_root);
@@ -545,11 +739,10 @@ impl Installer {
         if let Some(preparation) = request.managed.clone() {
             emit(operation.message("info", "Generating and compiling the verified PS1 source"));
             let managed_root = payload_root.clone();
-            tokio::task::spawn_blocking(move || {
-                crate::psx::prepare_install(&managed_root, &preparation)
+            run_managed_install_worker(lifecycle, operation, move |checkpoint| {
+                crate::psx::prepare_install(&managed_root, &preparation, &checkpoint)
             })
-            .await
-            .map_err(|error| PortcoveError::install(error.to_string()))??;
+            .await?;
             operation.checkpoint()?;
         }
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
@@ -562,7 +755,7 @@ impl Installer {
         )?;
         let install = InstallRecord {
             id: operation_id,
-            port_id: request.port_id,
+            port_id: request.port_id.clone(),
             version: request.release.version.clone(),
             path: lifecycle.destination.clone(),
             channel: request.release.channel,
@@ -581,6 +774,7 @@ impl Installer {
         lifecycle.record.phase = LifecyclePhase::Prepared;
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPrepared)?;
+        self.require_acquisition(&request)?;
         fs::create_dir_all(
             lifecycle
                 .destination
@@ -598,6 +792,7 @@ impl Installer {
         lifecycle.record.phase = LifecyclePhase::PayloadPublished;
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults.check(LifecycleFaultPoint::InstallPublished)?;
+        self.require_acquisition(&request)?;
         self.library.register_install(&install, request.activate)?;
         lifecycle.record.phase = LifecyclePhase::MetadataCommitted;
         lifecycle.store.put(&mut lifecycle.record)?;
@@ -620,13 +815,49 @@ impl Installer {
         payload_root: &Path,
         operation: &OperationCoordinator,
         emit: &mut F,
+        acquisition: Option<AssetAcquisition<'_>>,
     ) -> Result<ArtifactIdentity>
     where
         F: FnMut(OperationEvent),
     {
-        self.download(asset, download_path, operation, emit).await?;
-        let (actual_hash, actual_size) =
-            crate::adapter::hash_file_with_checkpoint(download_path, || operation.checkpoint())?;
+        let scope = acquisition.as_ref().map(|acquisition| acquisition.scope);
+        let curated = acquisition
+            .as_ref()
+            .filter(|acquisition| acquisition.curated)
+            .map(|acquisition| acquisition.scope);
+        let cache_worker = curated.map(|scope| {
+            #[allow(unused_mut)]
+            let mut worker = crate::curated_cache::CacheWorker::new(scope, asset, operation);
+            #[cfg(test)]
+            {
+                worker.hook = self.cache_worker_test_hook.clone();
+            }
+            worker
+        });
+        let restored = match cache_worker.as_ref() {
+            Some(worker) => worker.restore(download_path).await?,
+            None => false,
+        };
+        if !restored {
+            match scope {
+                Some(scope) => {
+                    self.download_scoped(asset, download_path, operation, emit, Some(scope))
+                        .await?
+                }
+                None => self.download(asset, download_path, operation, emit).await?,
+            }
+        }
+        let (actual_hash, actual_size) = if curated.is_some() {
+            let identity = crate::adapter::hash_file_bounded_with_checkpoint(
+                download_path,
+                asset.size,
+                || operation.checkpoint(),
+            )?;
+            validate_download_size(identity.1, asset.size)?;
+            identity
+        } else {
+            crate::adapter::hash_file_with_checkpoint(download_path, || operation.checkpoint())?
+        };
         if !actual_hash.eq_ignore_ascii_case(&asset.sha256) {
             return Err(PortcoveError::verification(
                 "downloaded asset failed SHA-256 verification",
@@ -667,6 +898,17 @@ impl Installer {
         .await
         .map_err(|error| PortcoveError::install(error.to_string()))??;
         operation.checkpoint()?;
+        if let Some(worker) = cache_worker {
+            let retained = worker.retain(download_path).await?;
+            emit(operation.message(
+                "info",
+                if retained {
+                    "Verified curated artifact cache retained"
+                } else {
+                    "Verified artifact acquired; cache capacity unavailable"
+                },
+            ));
+        }
         Ok(ArtifactIdentity {
             asset_name: asset.name.clone(),
             sha256: actual_hash.to_ascii_lowercase(),
@@ -684,10 +926,39 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        self.download_scoped(asset, destination, operation, emit, None)
+            .await
+    }
+
+    async fn download_scoped<F>(
+        &self,
+        asset: &ReleaseAsset,
+        destination: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let client = match scope {
+            Some(scope) => {
+                scope.require_current()?;
+                scope.require_asset_url(&asset.url)?;
+                reqwest::Client::builder()
+                    .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+                    .connect_timeout(self.network_bounds.0)
+                    .read_timeout(self.network_bounds.1)
+                    .redirect(scope.redirect_policy())
+                    .build()
+                    .map_err(|error| PortcoveError::network(error.to_string()))?
+            }
+            None => self.client.clone(),
+        };
         validate_download_progress(0, asset.size)?;
         let response = operation
             .interruptible(async {
-                self.client
+                client
                     .get(&asset.url)
                     .send()
                     .await
@@ -877,14 +1148,100 @@ impl Installer {
         })
     }
 
+    pub(crate) fn require_curated_operation(
+        &self,
+        install: &InstallRecord,
+        operation: crate::definition_repository::publisher_policy::CuratedArtifactOperation,
+    ) -> Result<()> {
+        let manifest = verified_manifest(install)?;
+        self.require_curated_manifest_operation(install, &manifest, operation)
+    }
+
+    fn require_curated_manifest_operation(
+        &self,
+        install: &InstallRecord,
+        manifest: &InstallManifest,
+        operation: crate::definition_repository::publisher_policy::CuratedArtifactOperation,
+    ) -> Result<()> {
+        if let Some((repository_id, record)) = self.curated_manifest_identity(install, manifest)? {
+            crate::definition_repository::publisher_policy::require_curated_artifact_operation(
+                &self.library.connection()?,
+                repository_id,
+                &record,
+                operation,
+            )?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn assess_curated_operation(
+        &self,
+        install: &InstallRecord,
+        operation: crate::definition_repository::publisher_policy::CuratedArtifactOperation,
+    ) -> Result<crate::DefinitionEligibility> {
+        let manifest = verified_manifest(install)?;
+        if let Some((repository_id, record)) = self.curated_manifest_identity(install, &manifest)? {
+            return crate::definition_repository::publisher_policy::assess_curated_artifact_operation(
+                &self.library.connection()?, repository_id, &record, operation,
+            );
+        }
+        Ok(crate::DefinitionEligibility {
+            outcome: crate::DefinitionEligibilityOutcome::Eligible,
+            reason: crate::DefinitionEligibilityReason::MandatoryChecksPassed,
+        })
+    }
+
+    fn curated_manifest_identity(
+        &self,
+        install: &InstallRecord,
+        manifest: &InstallManifest,
+    ) -> Result<Option<(u64, crate::CuratedAcquisitionRecord)>> {
+        if let Some(contract) = &manifest.retained_contract {
+            let catalog = contract.catalog(&install.port_id)?;
+            let platform = manifest.platform.ok_or_else(|| {
+                PortcoveError::state("retained artifact has no manifest platform")
+            })?;
+            if let Some(record) = catalog
+                .port(&install.port_id)?
+                .release
+                .curated
+                .get(&platform)
+            {
+                if record.filename != install.artifact.asset_name
+                    || record.sha256 != install.artifact.sha256
+                    || record.size != install.artifact.size
+                {
+                    return Err(PortcoveError::verification(
+                        "retained install differs from its exact curated artifact",
+                    ));
+                }
+                let connection = self.library.connection()?;
+                let repository_id = crate::curated_acquisition::repository_for_retained_record(
+                    &connection,
+                    record,
+                )?;
+                return Ok(Some((repository_id, record.clone())));
+            }
+        }
+        Ok(None)
+    }
+
     pub(crate) fn verify_critical(
         &self,
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<PathBuf> {
+        let manifest = verified_manifest(install)?;
+        // Mutable verification projections may intentionally omit the retained
+        // contract. Artifact authority comes from the authenticated manifest,
+        // never from the caller's current or mutability-only projection.
+        self.require_curated_manifest_operation(
+            install,
+            &manifest,
+            crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse,
+        )?;
         let mut current_mutable = qualification.current_mutable_paths(install)?;
         current_mutable.extend(qualification.generated_metadata_paths(install)?);
-        let manifest = verified_manifest(install)?;
         let mut failures = Vec::new();
         failures.extend(mutable_file_pattern_failures(&install.path, &manifest)?);
         if let Some(root) = &manifest.runtime_root {
@@ -1161,6 +1518,32 @@ pub(crate) fn retained_catalog_for_install(
         .transpose()
 }
 
+/// Explicit query-context observation. Legacy manifests do not acquire a
+/// guessed host platform; oversized metadata remains unavailable to this reader.
+pub(crate) fn retained_query_context(
+    install: &InstallRecord,
+) -> Result<(Option<crate::Catalog>, Option<Platform>)> {
+    retained_query_context_with_budget(install, None)
+}
+
+/// The workspace owns a single request-wide metadata allowance. Failed bounded
+/// reads spend their ceiling; successfully returned bytes spend their actual size.
+pub(crate) fn retained_query_context_with_budget(
+    install: &InstallRecord,
+    budget: Option<&mut u64>,
+) -> Result<(Option<crate::Catalog>, Option<Platform>)> {
+    let manifest = verified_manifest_with_budget(
+        install,
+        Some(crate::signed_catalog::MAX_CATALOG_BYTES as u64),
+        budget,
+    )?;
+    let catalog = manifest
+        .retained_contract
+        .map(|contract| contract.catalog(&install.port_id))
+        .transpose()?;
+    Ok((catalog, manifest.platform))
+}
+
 pub(crate) fn portability_catalog_for_install(
     install: &InstallRecord,
     embedded: &crate::Catalog,
@@ -1416,7 +1799,32 @@ fn immutable_member(install: &InstallRecord, relative: &str) -> Result<ManifestF
         })
 }
 
+pub(crate) fn verified_launch_subject(install: &InstallRecord) -> Result<[u8; 32]> {
+    let manifest = verified_manifest(install)?;
+    let platform = manifest.platform.ok_or_else(|| {
+        PortcoveError::verification("accepted launch checks require the retained manifest platform")
+    })?;
+    crate::definition_repository::publisher_policy::launch_assessment::verified_subject_key(
+        install, platform,
+    )
+}
+
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
+    verified_manifest_with_limit(install, None)
+}
+
+fn verified_manifest_with_limit(
+    install: &InstallRecord,
+    maximum_bytes: Option<u64>,
+) -> Result<InstallManifest> {
+    verified_manifest_with_budget(install, maximum_bytes, None)
+}
+
+fn verified_manifest_with_budget(
+    install: &InstallRecord,
+    maximum_bytes: Option<u64>,
+    mut budget: Option<&mut u64>,
+) -> Result<InstallManifest> {
     validate_artifact(&install.artifact)?;
     if install.manifest_sha256.len() != 64
         || !install
@@ -1429,7 +1837,29 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
         ));
     }
     let manifest_path = install.path.join(".portcove-manifest.json");
-    let bytes = fs::read(&manifest_path).map_err(|_| {
+    let maximum_bytes = match budget.as_deref() {
+        Some(0) => {
+            return Err(PortcoveError::unsupported(
+                "browsing metadata budget reached",
+            ));
+        }
+        Some(remaining) => Some(maximum_bytes.unwrap_or(*remaining).min(*remaining)),
+        None => maximum_bytes,
+    };
+    let read = match maximum_bytes {
+        Some(limit) => crate::external_runtime::read_stable_metadata(&manifest_path, limit)
+            .map_err(std::io::Error::other),
+        None => fs::read(&manifest_path),
+    };
+    if let Some(remaining) = budget.as_deref_mut() {
+        let spent = read
+            .as_ref()
+            .map_or(maximum_bytes.unwrap_or(*remaining), |bytes| {
+                bytes.len() as u64
+            });
+        *remaining = remaining.saturating_sub(spent);
+    }
+    let bytes = read.map_err(|_| {
         PortcoveError::verification(format!("manifest is missing for {}", install.port_id))
     })?;
     let actual_manifest_sha256 = hex::encode(Sha256::digest(&bytes));
@@ -1945,6 +2375,215 @@ mod tests {
     use sha2::{Digest, Sha256};
 
     use super::*;
+
+    #[tokio::test]
+    async fn managed_worker_completion_storage_error_keeps_both_proofs_false() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let operation = OperationCoordinator::new("owned-managed-worker", None);
+        let staging = library.staging_dir().join(operation.operation_id());
+        fs::create_dir_all(&staging).unwrap();
+        fs::write(staging.join("owned-input"), b"retained bytes").unwrap();
+        let mut record = LifecycleOperation::new(
+            operation.operation_id(),
+            LifecycleOperationKind::Install,
+            "sample",
+        );
+        record.paths.staging = Some(staging.clone());
+        let store = OperationStore::new(library.clone());
+        store.put(&mut record).unwrap();
+        crate::database::connect(library.root()).unwrap().execute_batch(
+            "CREATE TRIGGER owned_completion_failure BEFORE UPDATE ON lifecycle_operations WHEN NEW.preparation_process_quiesced=1 BEGIN SELECT RAISE(ABORT, 'owned completion persistence failure'); END;"
+        ).unwrap();
+        let mut lifecycle = InstallLifecycle {
+            destination: staging.join("unused"),
+            operation_root: staging.clone(),
+            store: store.clone(),
+            record,
+        };
+        let error = run_managed_install_worker(&mut lifecycle, &operation, |_| (Ok(()), true))
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::State);
+        assert!(
+            error
+                .message
+                .contains("owned completion persistence failure")
+        );
+        assert_eq!(lifecycle.record.preparation_process_quiesced, Some(false));
+        assert_eq!(
+            store
+                .get(operation.operation_id())
+                .unwrap()
+                .unwrap()
+                .preparation_process_quiesced,
+            Some(false)
+        );
+        assert!(crate::cancellation::discard_private_install(&library, &lifecycle.record).is_err());
+        assert!(staging.join("owned-input").is_file());
+        assert!(store.get(operation.operation_id()).unwrap().is_some());
+    }
+
+    #[tokio::test]
+    async fn managed_worker_failure_and_panic_retain_tree_and_journal() {
+        for panic in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let operation = OperationCoordinator::new("owned-managed-worker", None);
+            let mut record = LifecycleOperation::new(
+                operation.operation_id(),
+                LifecycleOperationKind::Install,
+                "sample",
+            );
+            let staging = library.staging_dir().join(operation.operation_id());
+            fs::create_dir_all(&staging).unwrap();
+            record.paths.staging = Some(staging.clone());
+            let store = OperationStore::new(library.clone());
+            store.put(&mut record).unwrap();
+            let mut lifecycle = InstallLifecycle {
+                destination: staging.join("unused"),
+                operation_root: staging.clone(),
+                store: store.clone(),
+                record,
+            };
+            let worker_store = store.clone();
+            let worker_staging = staging.clone();
+            let result =
+                run_managed_install_worker(&mut lifecycle, &operation, move |checkpoint| {
+                    assert_eq!(
+                        worker_store
+                            .get(checkpoint.operation_id())
+                            .unwrap()
+                            .unwrap()
+                            .preparation_process_quiesced,
+                        Some(false)
+                    );
+                    fs::write(
+                        worker_staging.join("owned-worker-input"),
+                        b"retained private bytes",
+                    )
+                    .unwrap();
+                    if panic {
+                        panic!("owned managed worker panic");
+                    }
+                    (
+                        Err(PortcoveError::install("owned managed worker failed")),
+                        false,
+                    )
+                })
+                .await;
+            assert_eq!(result.unwrap_err().code, crate::ErrorCode::Install);
+            assert_eq!(lifecycle.record.preparation_process_quiesced, Some(false));
+            assert_eq!(
+                store
+                    .get(operation.operation_id())
+                    .unwrap()
+                    .unwrap()
+                    .preparation_process_quiesced,
+                Some(false)
+            );
+            let hold = crate::cancellation::discard_private_install(&library, &lifecycle.record)
+                .unwrap_err();
+            assert_eq!(
+                hold.details.get("cleanup_hold").map(String::as_str),
+                Some("unproven_process_quiescence")
+            );
+            assert_eq!(
+                fs::read(staging.join("owned-worker-input")).unwrap(),
+                b"retained private bytes"
+            );
+            assert!(store.get(operation.operation_id()).unwrap().is_some());
+        }
+    }
+
+    #[tokio::test]
+    async fn managed_worker_is_joined_before_cancellation_cleanup_and_syncs_proof() {
+        for quiesced in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let service = crate::PortcoveService::new(library.clone()).unwrap();
+            let (activity, operation) = service
+                .begin_cancellable_activity(
+                    crate::ActivityOperation::Install,
+                    crate::ActivityTargetKind::Port,
+                    Some("sample"),
+                )
+                .unwrap();
+            let staging = library.staging_dir().join(&activity.id);
+            fs::create_dir_all(&staging).unwrap();
+            fs::write(staging.join("owned-input"), b"keep while worker lives").unwrap();
+            let mut record =
+                LifecycleOperation::new(&activity.id, LifecycleOperationKind::Install, "sample");
+            record.paths.staging = Some(staging.clone());
+            let store = OperationStore::new(library.clone());
+            store.put(&mut record).unwrap();
+            let mut lifecycle = InstallLifecycle {
+                destination: staging.join("unused"),
+                operation_root: staging.clone(),
+                store: store.clone(),
+                record,
+            };
+            let latch = Arc::new((Mutex::new((false, false)), std::sync::Condvar::new()));
+            let worker_latch = latch.clone();
+            let id = activity.id.clone();
+            let pending = tokio::spawn(async move {
+                let result =
+                    run_managed_install_worker(&mut lifecycle, &operation, move |checkpoint| {
+                        let (lock, condition) = &*worker_latch;
+                        let mut state = lock.lock().unwrap();
+                        state.0 = true;
+                        condition.notify_all();
+                        while !state.1 {
+                            state = condition.wait(state).unwrap();
+                        }
+                        (checkpoint.checkpoint(), quiesced)
+                    })
+                    .await;
+                (lifecycle, result)
+            });
+            tokio::time::timeout(Duration::from_secs(5), async {
+                while !latch.0.lock().unwrap().0 {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            })
+            .await
+            .unwrap();
+            service.request_cancellation(&id).unwrap();
+            let finished_early = pending.is_finished();
+            let durable_before_join = store
+                .get(&id)
+                .unwrap()
+                .unwrap()
+                .preparation_process_quiesced;
+            let staging_before_join = staging.is_dir();
+            {
+                let (lock, condition) = &*latch;
+                lock.lock().unwrap().1 = true;
+                condition.notify_all();
+            }
+            let (lifecycle, result) = pending.await.unwrap();
+            assert!(!finished_early);
+            assert_eq!(durable_before_join, Some(false));
+            assert!(staging_before_join);
+            assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
+            assert_eq!(
+                lifecycle.record.preparation_process_quiesced,
+                Some(quiesced)
+            );
+            assert_eq!(
+                store
+                    .get(&id)
+                    .unwrap()
+                    .unwrap()
+                    .preparation_process_quiesced,
+                Some(quiesced)
+            );
+            let cleanup = crate::cancellation::discard_private_install(&library, &lifecycle.record);
+            assert_eq!(cleanup.is_ok(), quiesced);
+            assert_eq!(staging.exists(), !quiesced);
+            assert_eq!(store.get(&id).unwrap().is_some(), !quiesced);
+        }
+    }
 
     fn create_test_install(
         root: &Path,
@@ -2625,6 +3264,18 @@ mod tests {
         install.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
 
         assert_eq!(verified_manifest(&install).unwrap().schema_version, 4);
+        let (retained, platform) = retained_query_context(&install).unwrap();
+        assert!(retained.is_none());
+        assert!(platform.is_none());
+        let mut metadata_budget = bytes.len() as u64 + 1024;
+        let (retained, platform) =
+            retained_query_context_with_budget(&install, Some(&mut metadata_budget)).unwrap();
+        assert!(retained.is_none());
+        assert!(platform.is_none());
+        assert_eq!(metadata_budget, 1024);
+        let mut too_small = bytes.len() as u64 - 1;
+        assert!(retained_query_context_with_budget(&install, Some(&mut too_small)).is_err());
+        assert_eq!(too_small, 0);
         assert!(installer.verify(&install).unwrap().valid);
         assert!(installer.verify_critical(&install, &qualification).is_ok());
         installer
@@ -3188,26 +3839,161 @@ mod tests {
         server.join().unwrap();
     }
 
+    struct StalledDownloadServer {
+        address: std::net::SocketAddr,
+        stop: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        worker: Option<std::thread::JoinHandle<bool>>,
+    }
+
+    impl StalledDownloadServer {
+        fn start() -> Self {
+            use std::{
+                io::{ErrorKind, Read, Write},
+                net::TcpListener,
+                sync::{Arc, atomic::AtomicBool},
+                thread,
+            };
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let address = listener.local_addr().unwrap();
+            let stop = Arc::new(AtomicBool::new(false));
+            let worker_stop = Arc::clone(&stop);
+            let (ready_sender, ready_receiver) = std::sync::mpsc::channel();
+            let worker = thread::spawn(move || {
+                if ready_sender.send(()).is_err() {
+                    return false;
+                }
+                let Some(mut stream) = crate::test_fixture::phase("stalled-server accept", || {
+                    while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                        match listener.accept() {
+                            Ok((stream, _)) => return Some(stream),
+                            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                                thread::sleep(Duration::from_millis(5));
+                            }
+                            Err(error) => panic!("stalled fixture accept failed: {error}"),
+                        }
+                    }
+                    None
+                }) else {
+                    return false;
+                };
+                stream.set_nonblocking(true).unwrap();
+                let mut request = [0_u8; 1024];
+                let request_received = crate::test_fixture::phase("stalled-server request", || {
+                    while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                        match stream.read(&mut request) {
+                            Ok(0) => return false,
+                            Ok(_) => return true,
+                            Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                                thread::sleep(Duration::from_millis(5));
+                            }
+                            Err(error) => panic!("stalled fixture request failed: {error}"),
+                        }
+                    }
+                    false
+                });
+                if !request_received {
+                    return false;
+                }
+                stream.set_nonblocking(false).unwrap();
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                if stream
+                    .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
+                    .and_then(|()| stream.flush())
+                    .is_err()
+                {
+                    return false;
+                }
+                // Retain the original deliberate gap, then keep the connection
+                // open until the client finishes. A fixture-imposed EOF cannot
+                // silently substitute for the client's read-idle timeout.
+                thread::sleep(Duration::from_millis(180));
+                let deadline = std::time::Instant::now() + Duration::from_secs(2);
+                while !worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                    if std::time::Instant::now() >= deadline {
+                        return false;
+                    }
+                    thread::sleep(Duration::from_millis(5));
+                }
+                true
+            });
+            let server = Self {
+                address,
+                stop,
+                worker: Some(worker),
+            };
+            crate::test_fixture::phase("stalled-server ready", || {
+                ready_receiver.recv_timeout(Duration::from_secs(2))
+            })
+            .expect("the owned fixture server did not become ready");
+            server
+        }
+
+        fn finish(mut self) -> bool {
+            self.stop.store(true, std::sync::atomic::Ordering::Release);
+            crate::test_fixture::phase("stalled-server join", || self.worker.take().unwrap().join())
+                .unwrap()
+        }
+    }
+
+    impl Drop for StalledDownloadServer {
+        fn drop(&mut self) {
+            self.stop.store(true, std::sync::atomic::Ordering::Release);
+            if let Some(worker) = self.worker.take() {
+                let _ = worker.join();
+            }
+        }
+    }
+
     #[tokio::test]
     async fn streaming_download_fails_after_a_read_idle_stall() {
-        use std::{
-            io::{Read, Write},
-            net::TcpListener,
-            thread,
-        };
-
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let address = listener.local_addr().unwrap();
-        let server = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().unwrap();
-            let mut request = [0_u8; 1024];
-            let _ = stream.read(&mut request).unwrap();
-            stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        // Reqwest's read timer also covers connection/header admission. Keep
+        // the connect bound, allow measured loopback admission margin, and
+        // prove the body received a byte before the full idle interval elapsed.
+        let read_idle_timeout = Duration::from_millis(250);
+        let installer =
+            Installer::with_network_bounds(library, Duration::from_millis(50), read_idle_timeout)
                 .unwrap();
-            stream.flush().unwrap();
-            thread::sleep(Duration::from_millis(180));
-        });
+        let server = StalledDownloadServer::start();
+        let asset = ReleaseAsset {
+            name: "stalled.zip".into(),
+            url: format!("http://{}/stalled.zip", server.address),
+            size: 2,
+            sha256: "a".repeat(64),
+        };
+        let operation = OperationCoordinator::new("download", None);
+        let mut emit = |_| {};
+        let destination = temporary.path().join("stalled.download");
+        let download_started = std::time::Instant::now();
+        let error = installer
+            .download(&asset, &destination, &operation, &mut emit)
+            .await
+            .unwrap_err();
+        let download_elapsed = download_started.elapsed();
+        eprintln!("fixture download error after {download_elapsed:?}: {error:?}");
+        let partial_body_sent = server.finish();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(
+            download_elapsed >= read_idle_timeout,
+            "the received partial body must reach the full read-idle interval"
+        );
+        assert!(
+            partial_body_sent,
+            "the fixture never reached a partial-body read-idle stall"
+        );
+        assert_eq!(
+            fs::read(destination).unwrap(),
+            b"x",
+            "the client must have received the partial body"
+        );
+    }
+
+    #[tokio::test]
+    async fn streaming_download_client_error_before_connection_quiesces_the_fixture() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let installer = Installer::with_network_bounds(
@@ -3216,9 +4002,10 @@ mod tests {
             Duration::from_millis(50),
         )
         .unwrap();
+        let server = StalledDownloadServer::start();
         let asset = ReleaseAsset {
-            name: "stalled.zip".into(),
-            url: format!("http://{address}/stalled.zip"),
+            name: "invalid-url.zip".into(),
+            url: "http://[invalid".into(),
             size: 2,
             sha256: "a".repeat(64),
         };
@@ -3227,14 +4014,19 @@ mod tests {
         let error = installer
             .download(
                 &asset,
-                &temporary.path().join("stalled.download"),
+                &temporary.path().join("invalid.download"),
                 &operation,
                 &mut emit,
             )
             .await
             .unwrap_err();
+        eprintln!("synthetic client error before connection: {:?}", error.code);
+        let partial_body_sent = server.finish();
         assert_eq!(error.code, crate::ErrorCode::Network);
-        server.join().unwrap();
+        assert!(
+            !partial_body_sent,
+            "invalid URL must not reach the fixture listener"
+        );
     }
 
     #[tokio::test]
@@ -3464,6 +4256,13 @@ mod tests {
     }
 
     async fn assert_external_install_recovery(point: LifecycleFaultPoint) {
+        assert_external_install_destination_recovery(point, None).await;
+    }
+
+    async fn assert_external_install_destination_recovery(
+        point: LifecycleFaultPoint,
+        destination_case: Option<(LifecyclePhase, bool)>,
+    ) {
         use std::{
             io::{Read, Write},
             net::TcpListener,
@@ -3533,6 +4332,58 @@ mod tests {
         assert!(error.message.contains("injected lifecycle failure"));
         server.join().unwrap();
 
+        if let Some((phase, omitted)) = destination_case {
+            let store = OperationStore::new(library.clone());
+            let mut journal = store.all().unwrap().pop().unwrap();
+            let destination = journal.paths.final_path.clone().unwrap();
+            let staging = journal.paths.staging.clone().unwrap();
+            let private = staging.join("destination-sentinel");
+            fs::write(&private, b"private install evidence").unwrap();
+            let unrelated = temporary.path().join("unrelated-destination");
+            fs::create_dir_all(&unrelated).unwrap();
+            fs::write(unrelated.join("sentinel"), b"unrelated original").unwrap();
+            let payload = fs::read(staging.join("payload/sample-game.exe")).ok();
+            let published = fs::read(destination.join("sample-game.exe")).ok();
+            let registered = serde_json::to_vec(&library.all_installs().unwrap()).unwrap();
+            journal.phase = phase;
+            journal.paths.final_path = (!omitted).then(|| unrelated.clone());
+            store.put(&mut journal).unwrap();
+            if !omitted {
+                crate::PortcoveService::new(library.clone()).unwrap();
+                let retained = store.get(&journal.id).unwrap().unwrap();
+                assert_eq!(retained.phase, phase);
+                assert_eq!(retained.paths.final_path, Some(unrelated.clone()));
+                assert_eq!(
+                    serde_json::to_vec(&retained.install).unwrap(),
+                    serde_json::to_vec(&journal.install).unwrap()
+                );
+                assert!(retained.last_error.unwrap().contains("journal destination"));
+                assert_eq!(fs::read(&private).unwrap(), b"private install evidence");
+                assert_eq!(
+                    fs::read(staging.join("payload/sample-game.exe")).ok(),
+                    payload
+                );
+                assert_eq!(
+                    fs::read(destination.join("sample-game.exe")).ok(),
+                    published
+                );
+                assert_eq!(
+                    serde_json::to_vec(&library.all_installs().unwrap()).unwrap(),
+                    registered
+                );
+                assert_eq!(fs::read(&archive_path).unwrap(), archive_bytes);
+                journal = store.get(&journal.id).unwrap().unwrap();
+                journal.paths.final_path = Some(destination);
+                store.put(&mut journal).unwrap();
+            }
+            crate::PortcoveService::new(library.clone()).unwrap();
+            assert!(!staging.exists());
+            assert_eq!(
+                fs::read(unrelated.join("sentinel")).unwrap(),
+                b"unrelated original"
+            );
+        }
+
         crate::PortcoveService::new(library.clone()).unwrap();
         let install = library.install_by_version("sample", "v1").unwrap().unwrap();
         assert_eq!(
@@ -3542,6 +4393,46 @@ mod tests {
         assert!(install.path.join("sample-game.exe").is_file());
         assert!(output_root.join(".portcove-game-output.json").is_file());
         assert!(OperationStore::new(library).all().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn external_install_recovery_retains_contradictory_destinations() {
+        for (point, phase) in [
+            (
+                LifecycleFaultPoint::InstallPrepared,
+                LifecyclePhase::Prepared,
+            ),
+            (
+                LifecycleFaultPoint::InstallPublished,
+                LifecyclePhase::PayloadPublished,
+            ),
+            (
+                LifecycleFaultPoint::InstallMetadataCommitted,
+                LifecyclePhase::MetadataCommitted,
+            ),
+            (
+                LifecycleFaultPoint::InstallMetadataCommitted,
+                LifecyclePhase::CleanupPending,
+            ),
+        ] {
+            assert_external_install_destination_recovery(point, Some((phase, false))).await;
+        }
+    }
+
+    #[tokio::test]
+    async fn external_install_recovery_preserves_omitted_destination_compatibility() {
+        for (point, phase) in [
+            (
+                LifecycleFaultPoint::InstallPublished,
+                LifecyclePhase::PayloadPublished,
+            ),
+            (
+                LifecycleFaultPoint::InstallMetadataCommitted,
+                LifecyclePhase::CleanupPending,
+            ),
+        ] {
+            assert_external_install_destination_recovery(point, Some((phase, true))).await;
+        }
     }
 
     #[tokio::test]

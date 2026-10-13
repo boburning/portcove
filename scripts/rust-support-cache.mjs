@@ -154,8 +154,10 @@ function manifestFor({ product, source, compiler, rustcArgs, platform, architect
 }
 
 function readValidatedEntry(directory, expectedFingerprint) {
+  let directoryPresent = false;
   try {
     const directoryState = lstatSync(directory);
+    directoryPresent = true;
     if (!directoryState.isDirectory() || directoryState.isSymbolicLink())
       return { valid: false, reason: "unsafe-cache-directory" };
     const manifestPath = path.join(directory, "manifest.json");
@@ -187,7 +189,11 @@ function readValidatedEntry(directory, expectedFingerprint) {
       return { valid: false, reason: "cached-output-changed" };
     return { valid: true, artifactPath, manifest };
   } catch (error) {
-    if (error.code === "ENOENT") return { valid: false, reason: "missing-cache-entry" };
+    if (error.code === "ENOENT")
+      return {
+        valid: false,
+        reason: directoryPresent ? "incomplete-cache-entry" : "missing-cache-entry",
+      };
     return { valid: false, reason: "unreadable-cache-entry", error };
   }
 }

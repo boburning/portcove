@@ -20,6 +20,8 @@ describe("Portcove app shell", () => {
     error.details = { path: "Z:\\Portcove" };
     error.presentation.technical_context = { path: "Z:\\Portcove" };
     const html = renderToStaticMarkup(<BootstrapRecovery error={error} />);
+    expect(html).toContain('<main class="bootstrap-state bootstrap-error">');
+    expect(html).toContain('<p role="alert">The configured library cannot be opened.</p>');
     expect(html).toContain("Portcove couldn’t start");
     expect(html).toContain("The configured library cannot be opened.");
     expect(html).toContain("Z:\\Portcove");
@@ -57,6 +59,18 @@ describe("Portcove app shell", () => {
     expect(html).toContain("Review the error details, then retry startup.");
     expect(html).not.toContain("Portcove couldn’t open your library");
     expect(html).not.toContain("Check the configured library path");
+  });
+
+  it("marks only startup selection controls pending while recovery is active", () => {
+    const html = renderToStaticMarkup(
+      <BootstrapRecovery error={missingBootstrapError} recoveryPending />,
+    );
+    expect(html).toContain('class="button-row" aria-busy="true"');
+    expect(html).toMatch(/disabled=""[^>]*>Choose library<\/button>/);
+    expect(html).toMatch(/disabled=""[^>]*>Use platform default<\/button>/);
+    const retry = html.match(/<button([^>]*)>Retry startup<\/button>/)?.[1];
+    expect(retry).toBeDefined();
+    expect(retry).not.toMatch(/\sdisabled(?:=|\s|$)/);
   });
 
   it("uses import recovery for an interrupted import", () => {

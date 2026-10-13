@@ -880,6 +880,8 @@
         "enum": [
           "mandatory_checks_passed",
           "publisher_revoked",
+          "curated_artifact_revoked",
+          "curated_distribution_withdrawn",
           "unknown_safety_semantics",
           "publisher_scope_required",
           "engine_capability_required",
@@ -1279,7 +1281,11 @@
           "register_external",
           "launch",
           "remove_managed",
-          "remove_external"
+          "remove_external",
+          "rollback",
+          "backup_create",
+          "backup_restore",
+          "update"
         ],
         "type": "string"
       },
@@ -1340,7 +1346,13 @@
           "missing_runtime",
           "preparation_required",
           "invalid_installation",
-          "definition_ineligible"
+          "definition_ineligible",
+          "missing_data",
+          "missing_backup",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
         ],
         "type": "string"
       },
@@ -2306,6 +2318,133 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "DefinitionEligibility": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/$defs/DefinitionEligibilityOutcome"
+          },
+          "reason": {
+            "$ref": "#/$defs/DefinitionEligibilityReason"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DefinitionEligibilityOutcome": {
+        "enum": [
+          "eligible",
+          "hold",
+          "escalate"
+        ],
+        "type": "string"
+      },
+      "DefinitionEligibilityReason": {
+        "enum": [
+          "mandatory_checks_passed",
+          "publisher_revoked",
+          "curated_artifact_revoked",
+          "curated_distribution_withdrawn",
+          "unknown_safety_semantics",
+          "publisher_scope_required",
+          "engine_capability_required",
+          "ownership_migration_required",
+          "metadata_replay",
+          "refresh_incomplete",
+          "metadata_stale",
+          "recorded_identity_changed",
+          "authenticated_integrity_required",
+          "local_integrity_failed",
+          "mandatory_check_failed",
+          "source_identity_mismatch",
+          "required_source_missing"
+        ],
+        "type": "string"
+      },
+      "PortAction": {
+        "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
+        "enum": [
+          "install",
+          "register_external",
+          "launch",
+          "remove_managed",
+          "remove_external",
+          "rollback",
+          "backup_create",
+          "backup_restore",
+          "update"
+        ],
+        "type": "string"
+      },
+      "PortActionAssessment": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/PortAction"
+          },
+          "availability": {
+            "$ref": "#/$defs/PortActionAvailability"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionEligibility"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The authoritative signed-definition reason, when it limits this action."
+          },
+          "reason": {
+            "$ref": "#/$defs/PortActionReason"
+          }
+        },
+        "required": [
+          "action",
+          "availability",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PortActionAvailability": {
+        "enum": [
+          "not_offered",
+          "waiting",
+          "held",
+          "allowed"
+        ],
+        "type": "string"
+      },
+      "PortActionReason": {
+        "enum": [
+          "available",
+          "route_not_offered",
+          "already_registered",
+          "unsupported_platform",
+          "not_installed",
+          "review_required",
+          "missing_source",
+          "unreadable_source",
+          "changed_source",
+          "incompatible_source",
+          "missing_bios",
+          "unreadable_bios",
+          "changed_bios",
+          "missing_runtime",
+          "preparation_required",
+          "invalid_installation",
+          "definition_ineligible",
+          "missing_data",
+          "missing_backup",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2316,6 +2455,10 @@
         },
         "type": "array"
       },
+      "create_assessment": {
+        "$ref": "#/$defs/PortActionAssessment",
+        "description": "Read-only eligibility to attempt creation; execution rechecks under its lock."
+      },
       "port_id": {
         "type": "string"
       },
@@ -2325,12 +2468,18 @@
         },
         "type": "array"
       },
+      "restore_assessment": {
+        "$ref": "#/$defs/PortActionAssessment",
+        "description": "Eligibility to review a usable snapshot; consent and execution remain authoritative."
+      },
       "state": {
         "$ref": "#/$defs/BackupInventoryState"
       }
     },
     "required": [
       "port_id",
+      "create_assessment",
+      "restore_assessment",
       "state",
       "backups",
       "problems"
@@ -2599,6 +2748,114 @@
           "stfs-live"
         ],
         "type": "string"
+      },
+      "CuratedAcquisitionRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "acquisition_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "acquisition_host": {
+            "type": "string"
+          },
+          "acquisition_url": {
+            "type": "string"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "commit_sha1": {
+            "type": "string"
+          },
+          "distribution_basis": {
+            "type": "string"
+          },
+          "distribution_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "independent_review": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "protected_acceptance": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "record_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "upstream_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_version",
+          "repository",
+          "upstream_url",
+          "acquisition_host",
+          "acquisition_url",
+          "release_id",
+          "tag",
+          "commit_sha1",
+          "asset_id",
+          "platform",
+          "route",
+          "filename",
+          "size",
+          "sha256",
+          "acquisition_evidence",
+          "distribution_basis",
+          "distribution_evidence",
+          "independent_review",
+          "protected_acceptance"
+        ],
+        "type": "object"
+      },
+      "CuratedEvidenceReference": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "sha256"
+        ],
+        "type": "object"
       },
       "DigestIdentity": {
         "additionalProperties": false,
@@ -2933,6 +3190,10 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
+          },
+          "n64_windows_initial_d3d12": {
+            "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
+            "type": "boolean"
           },
           "name": {
             "type": "string"
@@ -3369,6 +3630,25 @@
                   "type": "string"
                 },
                 "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "curated": {
+            "additionalProperties": false,
+            "description": "Inert exact-byte proposal records; runtime authority is separately admitted.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
               }
             },
             "type": "object"
@@ -4377,6 +4657,10 @@
           "immutable_tree_sha256": {
             "description": "Digest of the bounded, sorted immutable file inventory after extraction.",
             "type": "string"
+          },
+          "library_user_data": {
+            "description": "Opt in to a library-private directory through the port's reviewed environment binding.",
+            "type": "boolean"
           },
           "mutable_paths": {
             "default": [],
@@ -5827,6 +6111,326 @@
     "title": "ExternalRuntimeRemovalPreview",
     "type": "object"
   },
+  "game_file_query_request": {
+    "$defs": {
+      "GameFileRouteKind": {
+        "enum": [
+          "managed_install",
+          "external_registration",
+          "managed_launch",
+          "external_launch"
+        ],
+        "type": "string"
+      },
+      "GameFileRouteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "route": {
+            "$ref": "#/$defs/GameFileRouteKind"
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "channel",
+          "route"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "RegisteredSourceInspectionLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "max_elapsed_ms": {
+            "description": "Cooperative deadline, checked between reads; does not interrupt blocked filesystem calls.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_file_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "max_hash_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_file_bytes",
+          "max_hash_bytes",
+          "max_elapsed_ms"
+        ],
+        "type": "object"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "Explicit refresh inputs. Inspection reports are never accepted from a client.",
+    "properties": {
+      "limits": {
+        "$ref": "#/$defs/RegisteredSourceInspectionLimits"
+      },
+      "maximum_age_seconds": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "routes": {
+        "items": {
+          "$ref": "#/$defs/GameFileRouteRequest"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "routes",
+      "limits",
+      "maximum_age_seconds"
+    ],
+    "title": "GameFileQueryRefreshRequest",
+    "type": "object"
+  },
+  "game_file_query_snapshot": {
+    "$defs": {
+      "GameFileQueryReason": {
+        "enum": [
+          "complete_compatible_observation",
+          "no_connected_registration",
+          "explicit_empty_requirements",
+          "observation_unavailable",
+          "observation_stale",
+          "source_needs_checking",
+          "storage_absence_unconfirmed",
+          "identity_not_admitted",
+          "contract_not_reviewed",
+          "variant_not_supported",
+          "release_not_bound",
+          "route_not_offered",
+          "profile_context_changed"
+        ],
+        "type": "string"
+      },
+      "GameFileQueryState": {
+        "enum": [
+          "files_available",
+          "files_missing",
+          "needs_checking",
+          "no_files_required",
+          "unavailable_context"
+        ],
+        "type": "string"
+      },
+      "GameFileRouteKind": {
+        "enum": [
+          "managed_install",
+          "external_registration",
+          "managed_launch",
+          "external_launch"
+        ],
+        "type": "string"
+      },
+      "GameFileRouteProjection": {
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "identity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/$defs/GameFileQueryReason"
+          },
+          "route": {
+            "$ref": "#/$defs/GameFileRouteKind"
+          },
+          "route_definition_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route_instance_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_instance_sha256": {
+            "description": "Digest of the complete registered instance, never its private path.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/$defs/GameFileQueryState"
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "channel",
+          "route",
+          "state",
+          "reason",
+          "contract_id",
+          "identity",
+          "source_instance_sha256",
+          "route_definition_sha256",
+          "route_instance_sha256"
+        ],
+        "type": "object"
+      },
+      "LibraryIdentity": {
+        "description": "Durable library identity and its current effective location.",
+        "properties": {
+          "id": {
+            "description": "Opaque identity, preserved by managed moves; not an authentication token.",
+            "type": "string"
+          },
+          "root": {
+            "description": "Current location, which may differ from the root originally requested.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "root"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ReleaseChannel": {
+        "enum": [
+          "stable",
+          "beta",
+          "rolling"
+        ],
+        "type": "string"
+      },
+      "SourceIdentity": {
+        "description": "Stable catalog identifiers, never display names or inferred hash-array pairs.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "catalog_binding_sha256": {
+        "type": "string"
+      },
+      "expires_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "library": {
+        "$ref": "#/$defs/LibraryIdentity"
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "registration_sha256": {
+        "type": "string"
+      },
+      "routes": {
+        "items": {
+          "$ref": "#/$defs/GameFileRouteProjection"
+        },
+        "type": "array"
+      },
+      "schema_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "selection_sha256": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "schema_version",
+      "library",
+      "catalog_binding_sha256",
+      "registration_sha256",
+      "selection_sha256",
+      "observed_at",
+      "expires_at",
+      "routes"
+    ],
+    "title": "GameFileQuerySnapshot",
+    "type": "object"
+  },
   "game_file_roots": {
     "$defs": {
       "GameFileRoot": {
@@ -5925,6 +6529,70 @@
         ],
         "type": "string"
       },
+      "GameFileScanCoverage": {
+        "properties": {
+          "batch_entries_examined": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "batches": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "can_resume": {
+            "type": "boolean"
+          },
+          "entries_relisted": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "frontier_exhausted": {
+            "type": "boolean"
+          },
+          "metadata_checks": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pending_directories": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "prior_member_rechecks": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "remaining_entries": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "restart_required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "batches",
+          "batch_entries_examined",
+          "entries_relisted",
+          "metadata_checks",
+          "prior_member_rechecks",
+          "pending_directories",
+          "remaining_entries",
+          "frontier_exhausted",
+          "can_resume",
+          "restart_required"
+        ],
+        "type": "object"
+      },
       "GameFileScanFreshness": {
         "enum": [
           "inputs_match",
@@ -5940,6 +6608,17 @@
           "completed_at": {
             "format": "int64",
             "type": "integer"
+          },
+          "continuation": true,
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GameFileScanCoverage"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "format_version": {
             "format": "uint32",
@@ -6123,12 +6802,263 @@
         ],
         "type": "object"
       },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "SourceAdmission": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "mode": {
+                "$ref": "#/$defs/SourceAdmissionMode"
+              },
+              "state": {
+                "const": "admitted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "mode"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "reason": {
+                "$ref": "#/$defs/SourceRejectionReason"
+              },
+              "state": {
+                "const": "rejected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceAdmissionMode": {
+        "enum": [
+          "exact_identity",
+          "structural_checks",
+          "informational_consent",
+          "upstream_validator"
+        ],
+        "type": "string"
+      },
+      "SourceAssessment": {
+        "properties": {
+          "admission": {
+            "$ref": "#/$defs/SourceAdmission"
+          },
+          "classification": {
+            "$ref": "#/$defs/SourceClassification"
+          },
+          "contract": {
+            "$ref": "#/$defs/SourceContractResult"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/SourceEvidence"
+            },
+            "type": "array"
+          },
+          "health": {
+            "$ref": "#/$defs/SourceHealth"
+          }
+        },
+        "required": [
+          "health",
+          "classification",
+          "contract",
+          "admission",
+          "evidence"
+        ],
+        "type": "object"
+      },
+      "SourceClassification": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unrecognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "recognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/$defs/SourceIdentity"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "ambiguous",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "candidates"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "SourceComponentKind": {
         "enum": [
           "file_set_member",
           "optical_disc"
         ],
         "type": "string"
+      },
+      "SourceContractResult": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unreviewed_for_release",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "supported",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "recognized_not_listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "known_incompatible",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "informational",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "SourceDigestAlgorithm": {
         "enum": [
@@ -6250,6 +7180,13 @@
             },
             "type": "array"
           },
+          "preliminary_selections": {
+            "description": "Preliminary selections are not exact matches and their pinned validator has not run.",
+            "items": {
+              "$ref": "#/$defs/SourceInspection"
+            },
+            "type": "array"
+          },
           "searched_profiles": {
             "items": {
               "type": "string"
@@ -6279,6 +7216,224 @@
           "limits_reached",
           "issues",
           "issues_omitted"
+        ],
+        "type": "object"
+      },
+      "SourceEvidence": {
+        "properties": {
+          "evidence_ids": {
+            "description": "Reviewed catalog evidence IDs. A renderer must not treat these as URLs.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceEvidenceKind"
+          },
+          "method": {
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcome": {
+            "$ref": "#/$defs/SourceEvidenceOutcome"
+          },
+          "portcove_commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portcove_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "$ref": "#/$defs/SourceEvidenceScope"
+          }
+        },
+        "required": [
+          "scope",
+          "kind",
+          "outcome",
+          "observed_at",
+          "portcove_version",
+          "portcove_commit",
+          "method",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "SourceEvidenceKind": {
+        "enum": [
+          "structural_check",
+          "automated_lifecycle",
+          "hands_on",
+          "known_failure"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceOutcome": {
+        "enum": [
+          "passed",
+          "failed",
+          "not_run",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceScope": {
+        "properties": {
+          "artifact_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "check_version": {
+            "description": "Version of the tested adapter/tool/check contract, not today's app build.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variant": {
+            "$ref": "#/$defs/SourceVariantScope",
+            "default": {
+              "state": "unspecified"
+            }
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "artifact_sha256",
+          "upstream_ref",
+          "contract_id",
+          "variant",
+          "check_version"
+        ],
+        "type": "object"
+      },
+      "SourceHealth": {
+        "description": "Current relationship between a registered source path and its saved storage identity.\n`Current` means the bytes are unchanged since registration; it does not strengthen the\ncatalog profile's game-revision evidence.\n`NotBaselined` means readable selected bytes have no saved identity baseline.",
+        "enum": [
+          "unregistered",
+          "current",
+          "missing",
+          "unreadable",
+          "changed",
+          "not_checked",
+          "not_baselined"
+        ],
+        "type": "string"
+      },
+      "SourceIdentity": {
+        "description": "Stable catalog identifiers, never display names or inferred hash-array pairs.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
+      "SourceInspection": {
+        "description": "Facts returned by read-only inspection. A record is present only when the\nadmission state permits existing callers to register or use the source.",
+        "properties": {
+          "archive_member_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assessment": {
+            "$ref": "#/$defs/SourceAssessment"
+          },
+          "components": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          },
+          "observed_digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "record": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validator": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceValidator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "profile_id",
+          "path",
+          "observed_digests",
+          "components",
+          "assessment",
+          "record",
+          "message"
         ],
         "type": "object"
       },
@@ -6333,6 +7488,19 @@
         ],
         "type": "object"
       },
+      "SourceRejectionReason": {
+        "enum": [
+          "missing",
+          "unreadable",
+          "changed",
+          "known_mismatch",
+          "ambiguous_identity",
+          "missing_tool",
+          "check_failed",
+          "consent_required"
+        ],
+        "type": "string"
+      },
       "SourceValidatorResult": {
         "enum": [
           "not_run",
@@ -6341,6 +7509,39 @@
           "missing_tool"
         ],
         "type": "string"
+      },
+      "SourceVariantScope": {
+        "description": "Missing legacy scope is explicit, not a wildcard for a newly selected variant.",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "unspecified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "exact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6796,6 +7997,51 @@
         ],
         "type": "object"
       },
+      "DefinitionEligibility": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/$defs/DefinitionEligibilityOutcome"
+          },
+          "reason": {
+            "$ref": "#/$defs/DefinitionEligibilityReason"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DefinitionEligibilityOutcome": {
+        "enum": [
+          "eligible",
+          "hold",
+          "escalate"
+        ],
+        "type": "string"
+      },
+      "DefinitionEligibilityReason": {
+        "enum": [
+          "mandatory_checks_passed",
+          "publisher_revoked",
+          "curated_artifact_revoked",
+          "curated_distribution_withdrawn",
+          "unknown_safety_semantics",
+          "publisher_scope_required",
+          "engine_capability_required",
+          "ownership_migration_required",
+          "metadata_replay",
+          "refresh_incomplete",
+          "metadata_stale",
+          "recorded_identity_changed",
+          "authenticated_integrity_required",
+          "local_integrity_failed",
+          "mandatory_check_failed",
+          "source_identity_mismatch",
+          "required_source_missing"
+        ],
+        "type": "string"
+      },
       "InstallPlan": {
         "properties": {
           "action": {
@@ -6902,6 +8148,88 @@
           "linux-x86-64",
           "macos-x86-64",
           "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PortAction": {
+        "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
+        "enum": [
+          "install",
+          "register_external",
+          "launch",
+          "remove_managed",
+          "remove_external",
+          "rollback",
+          "backup_create",
+          "backup_restore",
+          "update"
+        ],
+        "type": "string"
+      },
+      "PortActionAssessment": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/PortAction"
+          },
+          "availability": {
+            "$ref": "#/$defs/PortActionAvailability"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionEligibility"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The authoritative signed-definition reason, when it limits this action."
+          },
+          "reason": {
+            "$ref": "#/$defs/PortActionReason"
+          }
+        },
+        "required": [
+          "action",
+          "availability",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PortActionAvailability": {
+        "enum": [
+          "not_offered",
+          "waiting",
+          "held",
+          "allowed"
+        ],
+        "type": "string"
+      },
+      "PortActionReason": {
+        "enum": [
+          "available",
+          "route_not_offered",
+          "already_registered",
+          "unsupported_platform",
+          "not_installed",
+          "review_required",
+          "missing_source",
+          "unreadable_source",
+          "changed_source",
+          "incompatible_source",
+          "missing_bios",
+          "unreadable_bios",
+          "changed_bios",
+          "missing_runtime",
+          "preparation_required",
+          "invalid_installation",
+          "definition_ineligible",
+          "missing_data",
+          "missing_backup",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
         ],
         "type": "string"
       },
@@ -7039,6 +8367,10 @@
       "activate": {
         "type": "boolean"
       },
+      "assessment": {
+        "$ref": "#/$defs/PortActionAssessment",
+        "description": "Read-only decision for this exact reviewed candidate, not authorization."
+      },
       "plan": {
         "$ref": "#/$defs/InstallPlan"
       },
@@ -7048,6 +8380,7 @@
     },
     "required": [
       "plan",
+      "assessment",
       "activate",
       "plan_sha256"
     ],
@@ -11412,6 +12745,114 @@
         ],
         "type": "object"
       },
+      "CuratedAcquisitionRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "acquisition_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "acquisition_host": {
+            "type": "string"
+          },
+          "acquisition_url": {
+            "type": "string"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "commit_sha1": {
+            "type": "string"
+          },
+          "distribution_basis": {
+            "type": "string"
+          },
+          "distribution_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "independent_review": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "protected_acceptance": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "record_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "upstream_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_version",
+          "repository",
+          "upstream_url",
+          "acquisition_host",
+          "acquisition_url",
+          "release_id",
+          "tag",
+          "commit_sha1",
+          "asset_id",
+          "platform",
+          "route",
+          "filename",
+          "size",
+          "sha256",
+          "acquisition_evidence",
+          "distribution_basis",
+          "distribution_evidence",
+          "independent_review",
+          "protected_acceptance"
+        ],
+        "type": "object"
+      },
+      "CuratedEvidenceReference": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "DirectReleaseSpec": {
         "properties": {
           "published_at": {
@@ -11648,6 +13089,25 @@
             },
             "type": "object"
           },
+          "curated": {
+            "additionalProperties": false,
+            "description": "Inert exact-byte proposal records; runtime authority is separately admitted.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              }
+            },
+            "type": "object"
+          },
           "direct": {
             "additionalProperties": false,
             "default": {},
@@ -11822,6 +13282,10 @@
             "description": "Digest of the bounded, sorted immutable file inventory after extraction.",
             "type": "string"
           },
+          "library_user_data": {
+            "description": "Opt in to a library-private directory through the port's reviewed environment binding.",
+            "type": "boolean"
+          },
           "mutable_paths": {
             "default": [],
             "items": {
@@ -11955,6 +13419,10 @@
           "$ref": "#/$defs/Platform"
         },
         "type": "array"
+      },
+      "n64_windows_initial_d3d12": {
+        "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
+        "type": "boolean"
       },
       "name": {
         "type": "string"
@@ -15496,6 +16964,114 @@
         ],
         "type": "string"
       },
+      "CuratedAcquisitionRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "acquisition_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "acquisition_host": {
+            "type": "string"
+          },
+          "acquisition_url": {
+            "type": "string"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "commit_sha1": {
+            "type": "string"
+          },
+          "distribution_basis": {
+            "type": "string"
+          },
+          "distribution_evidence": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "independent_review": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "protected_acceptance": {
+            "$ref": "#/$defs/CuratedEvidenceReference"
+          },
+          "record_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "upstream_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_version",
+          "repository",
+          "upstream_url",
+          "acquisition_host",
+          "acquisition_url",
+          "release_id",
+          "tag",
+          "commit_sha1",
+          "asset_id",
+          "platform",
+          "route",
+          "filename",
+          "size",
+          "sha256",
+          "acquisition_evidence",
+          "distribution_basis",
+          "distribution_evidence",
+          "independent_review",
+          "protected_acceptance"
+        ],
+        "type": "object"
+      },
+      "CuratedEvidenceReference": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "DigestIdentity": {
         "additionalProperties": false,
         "description": "Digests inside one record are conjunctive and describe one exact byte scope.\nSeparate records and representations are alternatives.",
@@ -15829,6 +17405,10 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
+          },
+          "n64_windows_initial_d3d12": {
+            "description": "Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.",
+            "type": "boolean"
           },
           "name": {
             "type": "string"
@@ -16265,6 +17845,25 @@
                   "type": "string"
                 },
                 "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "curated": {
+            "additionalProperties": false,
+            "description": "Inert exact-byte proposal records; runtime authority is separately admitted.",
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/CuratedAcquisitionRecord"
               }
             },
             "type": "object"
@@ -17273,6 +18872,10 @@
           "immutable_tree_sha256": {
             "description": "Digest of the bounded, sorted immutable file inventory after extraction.",
             "type": "string"
+          },
+          "library_user_data": {
+            "description": "Opt in to a library-private directory through the port's reviewed environment binding.",
+            "type": "boolean"
           },
           "mutable_paths": {
             "default": [],
@@ -21054,12 +22657,263 @@
         ],
         "type": "object"
       },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "SourceAdmission": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "mode": {
+                "$ref": "#/$defs/SourceAdmissionMode"
+              },
+              "state": {
+                "const": "admitted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "mode"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "reason": {
+                "$ref": "#/$defs/SourceRejectionReason"
+              },
+              "state": {
+                "const": "rejected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceAdmissionMode": {
+        "enum": [
+          "exact_identity",
+          "structural_checks",
+          "informational_consent",
+          "upstream_validator"
+        ],
+        "type": "string"
+      },
+      "SourceAssessment": {
+        "properties": {
+          "admission": {
+            "$ref": "#/$defs/SourceAdmission"
+          },
+          "classification": {
+            "$ref": "#/$defs/SourceClassification"
+          },
+          "contract": {
+            "$ref": "#/$defs/SourceContractResult"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/SourceEvidence"
+            },
+            "type": "array"
+          },
+          "health": {
+            "$ref": "#/$defs/SourceHealth"
+          }
+        },
+        "required": [
+          "health",
+          "classification",
+          "contract",
+          "admission",
+          "evidence"
+        ],
+        "type": "object"
+      },
+      "SourceClassification": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unrecognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "recognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/$defs/SourceIdentity"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "ambiguous",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "candidates"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "SourceComponentKind": {
         "enum": [
           "file_set_member",
           "optical_disc"
         ],
         "type": "string"
+      },
+      "SourceContractResult": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unreviewed_for_release",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "supported",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "recognized_not_listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "known_incompatible",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "informational",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "SourceDigestAlgorithm": {
         "enum": [
@@ -21103,6 +22957,224 @@
           "candidates"
         ],
         "type": "string"
+      },
+      "SourceEvidence": {
+        "properties": {
+          "evidence_ids": {
+            "description": "Reviewed catalog evidence IDs. A renderer must not treat these as URLs.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceEvidenceKind"
+          },
+          "method": {
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcome": {
+            "$ref": "#/$defs/SourceEvidenceOutcome"
+          },
+          "portcove_commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portcove_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "$ref": "#/$defs/SourceEvidenceScope"
+          }
+        },
+        "required": [
+          "scope",
+          "kind",
+          "outcome",
+          "observed_at",
+          "portcove_version",
+          "portcove_commit",
+          "method",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "SourceEvidenceKind": {
+        "enum": [
+          "structural_check",
+          "automated_lifecycle",
+          "hands_on",
+          "known_failure"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceOutcome": {
+        "enum": [
+          "passed",
+          "failed",
+          "not_run",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceScope": {
+        "properties": {
+          "artifact_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "check_version": {
+            "description": "Version of the tested adapter/tool/check contract, not today's app build.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variant": {
+            "$ref": "#/$defs/SourceVariantScope",
+            "default": {
+              "state": "unspecified"
+            }
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "artifact_sha256",
+          "upstream_ref",
+          "contract_id",
+          "variant",
+          "check_version"
+        ],
+        "type": "object"
+      },
+      "SourceHealth": {
+        "description": "Current relationship between a registered source path and its saved storage identity.\n`Current` means the bytes are unchanged since registration; it does not strengthen the\ncatalog profile's game-revision evidence.\n`NotBaselined` means readable selected bytes have no saved identity baseline.",
+        "enum": [
+          "unregistered",
+          "current",
+          "missing",
+          "unreadable",
+          "changed",
+          "not_checked",
+          "not_baselined"
+        ],
+        "type": "string"
+      },
+      "SourceIdentity": {
+        "description": "Stable catalog identifiers, never display names or inferred hash-array pairs.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
+      "SourceInspection": {
+        "description": "Facts returned by read-only inspection. A record is present only when the\nadmission state permits existing callers to register or use the source.",
+        "properties": {
+          "archive_member_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assessment": {
+            "$ref": "#/$defs/SourceAssessment"
+          },
+          "components": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          },
+          "observed_digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "record": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validator": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceValidator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "profile_id",
+          "path",
+          "observed_digests",
+          "components",
+          "assessment",
+          "record",
+          "message"
+        ],
+        "type": "object"
       },
       "SourceRecord": {
         "properties": {
@@ -21155,6 +23227,19 @@
         ],
         "type": "object"
       },
+      "SourceRejectionReason": {
+        "enum": [
+          "missing",
+          "unreadable",
+          "changed",
+          "known_mismatch",
+          "ambiguous_identity",
+          "missing_tool",
+          "check_failed",
+          "consent_required"
+        ],
+        "type": "string"
+      },
       "SourceValidatorResult": {
         "enum": [
           "not_run",
@@ -21163,6 +23248,39 @@
           "missing_tool"
         ],
         "type": "string"
+      },
+      "SourceVariantScope": {
+        "description": "Missing legacy scope is explicit, not a wildcard for a newly selected variant.",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "unspecified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "exact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -21202,6 +23320,13 @@
       "limits_reached": {
         "items": {
           "$ref": "#/$defs/SourceDiscoveryLimit"
+        },
+        "type": "array"
+      },
+      "preliminary_selections": {
+        "description": "Preliminary selections are not exact matches and their pinned validator has not run.",
+        "items": {
+          "$ref": "#/$defs/SourceInspection"
         },
         "type": "array"
       },
@@ -28581,6 +30706,8 @@
         "enum": [
           "mandatory_checks_passed",
           "publisher_revoked",
+          "curated_artifact_revoked",
+          "curated_distribution_withdrawn",
           "unknown_safety_semantics",
           "publisher_scope_required",
           "engine_capability_required",
@@ -28873,7 +31000,11 @@
           "register_external",
           "launch",
           "remove_managed",
-          "remove_external"
+          "remove_external",
+          "rollback",
+          "backup_create",
+          "backup_restore",
+          "update"
         ],
         "type": "string"
       },
@@ -28934,7 +31065,13 @@
           "missing_runtime",
           "preparation_required",
           "invalid_installation",
-          "definition_ineligible"
+          "definition_ineligible",
+          "missing_data",
+          "missing_backup",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
         ],
         "type": "string"
       },

@@ -40,6 +40,10 @@ export async function encodeBackupEvidence(root) {
       files.push(...(await filesIn(native, new Set([".json", ".jsonl", ".log", ".png"]))));
     }
   }
+  return encodeFiles(root, files);
+}
+
+async function encodeFiles(root, files) {
   assert.ok(files.length > 0 && files.length <= 128, "Missing or excessive native evidence");
   let total = 0;
   const records = [];
@@ -73,6 +77,79 @@ export async function encodeBackupEvidence(root) {
     (_, index) =>
       `${prefix} ${index + 1}/${count} ${hash} ${encoded.slice(index * 4096, (index + 1) * 4096)}`,
   ).join("\n");
+}
+
+// Fixed hosted jobs retain only their isolated reports, raw logs and PNGs.
+// The original one-backup-run inventory remains unchanged above.
+export async function encodeHostedEvidence(root) {
+  const files = [];
+  async function visit(directory, depth) {
+    assert.ok(depth <= 3 && (await lstat(directory)).isDirectory(), "Unsupported evidence tree");
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const file = path.join(directory, entry.name);
+      assert.ok(!entry.isSymbolicLink(), "Evidence cannot contain links");
+      if (entry.isDirectory()) {
+        // Runtime SQLite/library and WebView profiles are not evidence artifacts.
+        if (depth === 1 && ["library", "webview"].includes(entry.name)) continue;
+        assert.ok(depth === 0 && entry.name === "native", "Unsupported artifact directory");
+        await visit(file, depth + 1);
+      } else {
+        assert.ok(
+          entry.isFile() && /\.(?:png|json|jsonl|log)$/u.test(entry.name),
+          "Unsupported evidence file",
+        );
+        files.push(file);
+        assert.ok(files.length <= 128, "Excessive hosted evidence inventory");
+      }
+    }
+  }
+  await visit(root, 0);
+  assert.ok(files.includes(path.join(root, "binding.json")), "Missing execution binding");
+  return encodeFiles(root, files);
+}
+
+export async function recoverHostedEvidence(log, destination, expected) {
+  const names = await recoverBackupEvidence(log, destination);
+  const binding = JSON.parse(await readFile(path.join(destination, "binding.json"), "utf8"));
+  for (const key of [
+    "source",
+    "controller",
+    "base",
+    "run",
+    "attempt",
+    "job",
+    "phase",
+    "binding_sha256",
+  ])
+    assert.ok(
+      expected[key] !== undefined && binding[key] === expected[key],
+      `Recovered ${key} differs`,
+    );
+  assert.ok(names.includes("execution.json"), "No terminal command evidence");
+  const execution = JSON.parse(await readFile(path.join(destination, "execution.json"), "utf8"));
+  for (const key of [
+    "source",
+    "controller",
+    "base",
+    "run",
+    "attempt",
+    "job",
+    "phase",
+    "binding_sha256",
+  ])
+    assert.equal(execution[key], expected[key], `Terminal ${key} differs`);
+  assert.ok(Number.isInteger(execution.exit_code), "Missing terminal exit status");
+  if (execution.phase === "audit" && execution.exit_code === 0)
+    assert.ok(
+      names.includes("complete-audit-receipt.json"),
+      "Audit success requires its maintained raw receipt",
+    );
+  if (execution.phase === "native" && execution.exit_code === 0)
+    assert.ok(
+      names.some((name) => name.endsWith(".png")),
+      "Native success requires actual PNG bytes",
+    );
+  return { names, phase: execution.phase, exit_code: execution.exit_code };
 }
 
 export async function recoverBackupEvidence(log, destination) {
@@ -126,10 +203,21 @@ export async function recoverBackupEvidence(log, destination) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [mode, input, output] = process.argv.slice(2);
   assert.ok(
-    input && ((mode === "emit" && !output) || (mode === "recover" && output)),
-    "usage: native-backup-evidence.mjs emit <owned-root> | recover <job-log> <new-directory>",
+    input &&
+      ((["emit", "emit-hosted"].includes(mode) && !output) ||
+        (["recover", "recover-hosted"].includes(mode) && output)),
+    "usage: native-backup-evidence.mjs emit[-hosted] <owned-root> | recover[-hosted] <job-log> <new-directory> [expected-binding.json]",
   );
   if (mode === "emit") console.log(await encodeBackupEvidence(path.resolve(input)));
+  else if (mode === "emit-hosted") console.log(await encodeHostedEvidence(path.resolve(input)));
+  else if (mode === "recover-hosted")
+    console.log(
+      await recoverHostedEvidence(
+        await readFile(input, "utf8"),
+        path.resolve(output),
+        JSON.parse(await readFile(process.argv[5], "utf8")),
+      ),
+    );
   else
     console.log(await recoverBackupEvidence(await readFile(input, "utf8"), path.resolve(output)));
 }

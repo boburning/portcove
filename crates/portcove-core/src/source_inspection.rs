@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::{
     collections::{BTreeSet, HashSet},
     fs::File,
-    io::Read,
+    io::{Read, Seek, SeekFrom},
 };
 
 use schemars::JsonSchema;
@@ -311,9 +311,33 @@ pub(crate) fn inspect_file(
     accepted_extensions.extend(current_extensions);
     accepted_extensions.sort_unstable();
     accepted_extensions.dedup();
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default();
+    let current_compound_extension_override = !extension.eq_ignore_ascii_case("zip")
+        && !accepted_extensions.is_empty()
+        && !accepted_extensions
+            .iter()
+            .any(|accepted| accepted.eq_ignore_ascii_case(extension))
+        && compound_scan_eligible(catalog, profile_id, Some(extension));
+    let expected_extensions =
+        current_compound_extension_override.then(|| accepted_extensions.join(", "));
+    if current_compound_extension_override {
+        // Hash the current exact compound pathname, but do not let an unrecognized
+        // payload use a broader compatibility structural fallback.
+        accepted_extensions.clear();
+    }
     let identity = read_identity(path, &accepted_extensions, maximum_size, budget)?;
     let observed = observed_digests(&identity);
     let compound_format = matching_compound_format(catalog, profile_id, &identity, &observed);
+    if let Some(expected) = expected_extensions
+        && compound_format.is_none()
+    {
+        return Err(PortcoveError::source(format!(
+            "source expects one of: {expected}, or a ZIP containing exactly one matching file"
+        )));
+    }
     if let Some(CompoundSourceFormat::StfsLive) = compound_format {
         crate::stfs::validate(path, &|| {
             if let Some(operation) = &budget.operation {
@@ -325,12 +349,219 @@ pub(crate) fn inspect_file(
     inspect_file_identity_with_compound(catalog, profile_id, path, &identity, compound_format)
 }
 
+pub(crate) fn compound_scan_eligible(
+    catalog: &Catalog,
+    profile_id: &str,
+    extension: Option<&str>,
+) -> bool {
+    catalog.source_catalog().into_iter().flat_map(|catalog| &catalog.identities)
+        .filter(|profile| profile.id == profile_id)
+        .flat_map(|profile| &profile.variants)
+        .filter(|variant| !variant.legacy_projection_only)
+        .flat_map(|variant| &variant.representations)
+        .any(|representation| matches!(&representation.kind,
+            SourceRepresentationKind::Compound { format: CompoundSourceFormat::StfsLive, identities }
+                if !identities.is_empty()) && extension.is_none_or(|extension|
+                    representation.extensions.is_empty() || representation.extensions.iter()
+                        .any(|accepted| accepted.eq_ignore_ascii_case(extension))))
+}
+
+pub(crate) struct CompoundObservation {
+    pub identity: FileIdentity,
+    pub validated: Option<CompoundSourceFormat>,
+    pub issue: Option<String>,
+}
+
+/// Four-byte eligibility probing is bounded by discovery's entry limit. Only a
+/// LIVE file gets hashed; exact compound identities alone trigger structural I/O.
+pub(crate) fn observe_compound_file(
+    catalog: &Catalog,
+    profiles: &[&SourceProfile],
+    path: &Path,
+    maximum_size: u64,
+    budget: &mut HashBudget,
+) -> Result<Option<CompoundObservation>> {
+    let operation = budget.operation.clone();
+    let checkpoint = || {
+        if let Some(operation) = &operation {
+            operation.checkpoint()?;
+        }
+        Ok(())
+    };
+    checkpoint()?;
+    let mut input = File::open(path)?;
+    let initial = input.metadata()?;
+    verify_open_source_location(path, &input, &initial)?;
+    if initial.len() < 4 || initial.len() > maximum_size {
+        return Ok(None);
+    }
+    let mut magic = [0_u8; 4];
+    input.read_exact(&mut magic)?;
+    if magic != *b"LIVE" {
+        return Ok(None);
+    }
+    input.seek(SeekFrom::Start(0))?;
+    let identity = crate::source_file::read_raw_identity_from_reader(
+        path,
+        &mut input,
+        initial.len(),
+        maximum_size,
+        budget,
+    )?;
+    let observed = observed_digests(&identity);
+    let format = profiles
+        .iter()
+        .find_map(|profile| matching_compound_format(catalog, &profile.id, &identity, &observed));
+    let (validated, issue) = if format == Some(CompoundSourceFormat::StfsLive) {
+        match crate::stfs::validate_reader(&mut input, initial.len(), &checkpoint) {
+            Ok(()) => (format, None),
+            Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
+            Err(error) => (None, Some(error.message)),
+        }
+    } else {
+        (None, None)
+    };
+    checkpoint()?;
+    verify_open_source_location(path, &input, &initial)?;
+    Ok(Some(CompoundObservation {
+        identity,
+        validated,
+        issue,
+    }))
+}
+
+pub(crate) fn verify_open_source_location(
+    path: &Path,
+    input: &File,
+    initial: &std::fs::Metadata,
+) -> Result<()> {
+    verify_open_source_object(path, input, initial, false)
+}
+
+pub(crate) fn verify_open_source_directory(
+    path: &Path,
+    input: &File,
+    initial: &std::fs::Metadata,
+) -> Result<()> {
+    verify_open_source_object(path, input, initial, true)
+}
+
+fn verify_open_source_object(
+    path: &Path,
+    input: &File,
+    initial: &std::fs::Metadata,
+    directory: bool,
+) -> Result<()> {
+    let metadata = std::fs::symlink_metadata(path)?;
+    let current = input.metadata()?;
+    if (directory && (!metadata.is_dir() || !current.is_dir()))
+        || (!directory && (!metadata.is_file() || !current.is_file()))
+        || std::fs::canonicalize(path)? != path
+        || !same_compound_object(path, input, initial, &metadata)?
+        || initial.len() != current.len()
+        || initial.len() != metadata.len()
+        || initial.modified()? != current.modified()?
+        || initial.modified()? != metadata.modified()?
+    {
+        return Err(PortcoveError::source("source changed during inspection"));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn same_compound_object(
+    _path: &Path,
+    _input: &File,
+    initial: &std::fs::Metadata,
+    current: &std::fs::Metadata,
+) -> Result<bool> {
+    use std::os::unix::fs::MetadataExt;
+    Ok(initial.dev() == current.dev() && initial.ino() == current.ino())
+}
+
+#[cfg(windows)]
+fn same_compound_object(
+    path: &Path,
+    input: &File,
+    _initial: &std::fs::Metadata,
+    _current: &std::fs::Metadata,
+) -> Result<bool> {
+    Ok(same_file::Handle::from_file(input.try_clone()?)? == same_file::Handle::from_path(path)?)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn same_compound_object(
+    _path: &Path,
+    _input: &File,
+    _initial: &std::fs::Metadata,
+    _current: &std::fs::Metadata,
+) -> Result<bool> {
+    Ok(false)
+}
+
 /// Extensions of exact file identities that discovery can safely inspect.
 /// The legacy projection remains separately available to explicit inspection.
 pub(crate) fn file_scan_extensions(
     catalog: &Catalog,
     profile: &SourceProfile,
 ) -> (Vec<String>, Vec<String>) {
+    if profile.kind == SourceKind::UpstreamValidatedDisc {
+        // Only explicit schema-2 pinned contracts have a truthful NotRun observation.
+        // Legacy selection stays manual; never fabricate validator metadata for it.
+        let extensions = catalog
+            .source_catalog()
+            .and_then(|catalog| {
+                catalog
+                    .identities
+                    .iter()
+                    .find(|identity| identity.id == profile.id)
+            })
+            .into_iter()
+            .flat_map(|identity| &identity.variants)
+            .filter(|variant| !variant.legacy_projection_only)
+            .flat_map(|variant| &variant.representations)
+            .filter(|representation| {
+                matches!(
+                    representation.kind,
+                    SourceRepresentationKind::PinnedValidator { .. }
+                )
+            })
+            .flat_map(|representation| &representation.extensions)
+            .map(|extension| extension.to_ascii_lowercase())
+            .filter(|extension| extension != "zip")
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        return (extensions.clone(), extensions);
+    }
+    if profile.kind == SourceKind::GamecubeDisc {
+        // These representations already are normalized bytes. Compressed discs and
+        // archive members need separate materialization contracts, not this reader.
+        let raw = catalog
+            .source_catalog()
+            .and_then(|catalog| {
+                catalog
+                    .identities
+                    .iter()
+                    .find(|identity| identity.id == profile.id)
+            })
+            .into_iter()
+            .flat_map(|identity| &identity.variants)
+            .filter(|variant| !variant.legacy_projection_only)
+            .flat_map(|variant| &variant.representations)
+            .filter(|representation| {
+                matches!(
+                    &representation.kind,
+                    SourceRepresentationKind::GamecubeNormalizedIso { identities }
+                        if !identities.is_empty()
+                )
+            })
+            .flat_map(|representation| &representation.extensions)
+            .map(|extension| extension.to_ascii_lowercase())
+            .filter(|extension| matches!(extension.as_str(), "iso" | "gcm"))
+            .collect::<BTreeSet<_>>();
+        return (raw.into_iter().collect(), Vec::new());
+    }
     if profile.kind != SourceKind::File {
         return (Vec::new(), Vec::new());
     }
@@ -394,7 +625,17 @@ pub(crate) fn inspect_pinned_validator(
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let identity = read_identity(path, &legacy.accepted_extensions, maximum_size, budget)?;
-    let observed_digests = observed_digests(&identity);
+    inspect_pinned_validator_identity(catalog, profile_id, path, &identity)
+}
+
+fn inspect_pinned_validator_identity(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    identity: &FileIdentity,
+) -> Result<SourceInspection> {
+    let legacy = catalog.source_profile(profile_id)?;
+    let observed_digests = observed_digests(identity);
     let record = identity.record_without_admission(profile_id, path);
 
     let Some(source_catalog) = catalog.source_catalog() else {
@@ -525,8 +766,67 @@ pub(crate) fn inspect_file_set(
     profile_id: &str,
     path: &Path,
 ) -> Result<SourceInspection> {
+    inspect_file_set_observations(catalog, profile_id, path, None)
+}
+
+pub(crate) fn inspect_directory_file_set(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    names: &[String],
+    read: &mut ReadFileSetMember<'_>,
+) -> Result<SourceInspection> {
+    inspect_file_set_observations(
+        catalog,
+        profile_id,
+        path,
+        Some(ObservedFileSetReader {
+            names,
+            read,
+            storage: None,
+        }),
+    )
+}
+
+pub(crate) fn inspect_observed_zip_file_set(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    names: &[String],
+    storage: (String, u64),
+    read: &mut ReadFileSetMember<'_>,
+) -> Result<SourceInspection> {
+    inspect_file_set_observations(
+        catalog,
+        profile_id,
+        path,
+        Some(ObservedFileSetReader {
+            names,
+            read,
+            storage: Some(storage),
+        }),
+    )
+}
+
+type ReadFileSetMember<'a> = dyn FnMut(&[String]) -> Result<Option<HashedNamedSource>> + 'a;
+
+struct ObservedFileSetReader<'a> {
+    names: &'a [String],
+    read: &'a mut ReadFileSetMember<'a>,
+    storage: Option<(String, u64)>,
+}
+
+fn inspect_file_set_observations(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    mut directory_member: Option<ObservedFileSetReader<'_>>,
+) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
-    let is_zip = path.is_file()
+    let is_zip = directory_member
+        .as_ref()
+        .is_none_or(|reader| reader.storage.is_some())
+        && path.is_file()
         && path
             .extension()
             .and_then(|value| value.to_str())
@@ -552,6 +852,7 @@ pub(crate) fn inspect_file_set(
 
     let mut matches = Vec::new();
     let mut observed = Vec::new();
+    let mut observed_digests = Vec::new();
     for variant in profile
         .variants
         .iter()
@@ -561,11 +862,23 @@ pub(crate) fn inspect_file_set(
             let SourceRepresentationKind::FileSet { members } = &representation.kind else {
                 continue;
             };
-            let Some((components, record, matched)) =
-                inspect_file_set_representation(profile_id, path, is_zip, members)?
+            let Some((components, record, matched)) = inspect_file_set_representation(
+                profile_id,
+                path,
+                is_zip,
+                members,
+                &mut directory_member,
+            )?
             else {
                 continue;
             };
+            // A complete observed set establishes its bytes independently of
+            // whether the current catalog admits a unique identity.
+            for digest in file_set_aggregate_digests(&record) {
+                if !observed_digests.contains(&digest) {
+                    observed_digests.push(digest);
+                }
+            }
             if !matched {
                 if observed.is_empty() {
                     observed = components;
@@ -616,10 +929,6 @@ pub(crate) fn inspect_file_set(
             "source file set matches more than one schema-2 identity".into(),
         ),
     };
-    let observed_digests = record
-        .as_ref()
-        .map(file_set_aggregate_digests)
-        .unwrap_or_default();
     Ok(SourceInspection {
         profile_id: profile_id.into(),
         path: path.into(),
@@ -646,7 +955,18 @@ pub(crate) fn inspect_disc(
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let observation = match legacy.kind {
-        SourceKind::GamecubeDisc => observe_gamecube_disc_source(legacy, path)?,
+        SourceKind::GamecubeDisc => {
+            // As with exact ordinary files, current raw representations can be
+            // broader than the informational schema-1 compatibility projection.
+            // Retain manual conversion extensions; add only inspectable raw facts.
+            let mut profile = legacy.clone();
+            profile
+                .accepted_extensions
+                .extend(file_scan_extensions(catalog, legacy).0);
+            profile.accepted_extensions.sort_unstable();
+            profile.accepted_extensions.dedup();
+            observe_gamecube_disc_source(&profile, path)?
+        }
         SourceKind::PsxDisc => observe_psx_disc_source(legacy, path)?,
         _ => {
             return Err(PortcoveError::state(format!(
@@ -949,13 +1269,62 @@ fn digest_pair(
     values
 }
 
+pub(crate) fn file_set_names_are_complete(
+    catalog: &Catalog,
+    profile_id: &str,
+    names: &[String],
+) -> bool {
+    let Some(profile) = catalog.source_catalog().and_then(|source| {
+        source
+            .identities
+            .iter()
+            .find(|profile| profile.id == profile_id)
+    }) else {
+        return false;
+    };
+    profile
+        .variants
+        .iter()
+        .filter(|variant| !variant.legacy_projection_only)
+        .flat_map(|variant| &variant.representations)
+        .any(|representation| match &representation.kind {
+            SourceRepresentationKind::FileSet { members } => {
+                file_set_members_present(members, names)
+            }
+            _ => false,
+        })
+}
+
+fn file_set_members_present(members: &[crate::SourceMemberIdentity], names: &[String]) -> bool {
+    let mut selected = HashSet::new();
+    members.iter().all(|member| {
+        let matches = names
+            .iter()
+            .filter(|name| {
+                member
+                    .filenames
+                    .iter()
+                    .any(|alias| alias.eq_ignore_ascii_case(name))
+            })
+            .collect::<Vec<_>>();
+        matches.len() == 1 && selected.insert(matches[0].to_ascii_lowercase())
+    })
+}
+
 fn inspect_file_set_representation(
     profile_id: &str,
     path: &Path,
     is_zip: bool,
     members: &[crate::SourceMemberIdentity],
+    directory_member: &mut Option<ObservedFileSetReader<'_>>,
 ) -> Result<Option<(Vec<ObservedSourceComponent>, SourceRecord, bool)>> {
-    let mut archive = if is_zip {
+    // Discovery knows the complete name inventory before consuming hash budget.
+    if let Some(observations) = directory_member.as_ref()
+        && !file_set_members_present(members, observations.names)
+    {
+        return Ok(None);
+    }
+    let archive = if is_zip && directory_member.is_none() {
         Some(
             zip::ZipArchive::new(File::open(path)?)
                 .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?,
@@ -963,6 +1332,22 @@ fn inspect_file_set_representation(
     } else {
         None
     };
+    inspect_file_set_representation_from_archive(
+        profile_id,
+        path,
+        members,
+        directory_member,
+        archive,
+    )
+}
+
+fn inspect_file_set_representation_from_archive(
+    profile_id: &str,
+    path: &Path,
+    members: &[crate::SourceMemberIdentity],
+    directory_member: &mut Option<ObservedFileSetReader<'_>>,
+    mut archive: Option<zip::ZipArchive<File>>,
+) -> Result<Option<(Vec<ObservedSourceComponent>, SourceRecord, bool)>> {
     let mut components = Vec::with_capacity(members.len());
     let mut hashes = Vec::with_capacity(members.len());
     let mut total_size = 0_u64;
@@ -972,7 +1357,11 @@ fn inspect_file_set_representation(
         let Some(source) = (if let Some(archive) = archive.as_mut() {
             read_file_set_zip_member(archive, &member.filenames)?
         } else {
-            read_file_set_directory_member(path, &member.filenames)?
+            if let Some(read) = directory_member.as_mut() {
+                (read.read)(&member.filenames)?
+            } else {
+                read_file_set_directory_member(path, &member.filenames)?
+            }
         }) else {
             return Ok(None);
         };
@@ -1026,8 +1415,15 @@ fn inspect_file_set_representation(
         });
     }
     let aggregate = aggregate_sha256(&hashes);
-    let (storage_sha256, storage_size) = if is_zip {
-        let (_, sha256, _, size) = hash_source(File::open(path)?)?;
+    let (storage_sha256, storage_size) = if let Some(storage) = directory_member
+        .as_ref()
+        .and_then(|reader| reader.storage.as_ref())
+    {
+        storage.clone()
+    } else if let Some(archive) = archive {
+        let mut file = archive.into_inner();
+        file.rewind()?;
+        let (_, sha256, _, size) = hash_source(file)?;
         (sha256, size)
     } else {
         (aggregate.clone(), total_size)
@@ -1128,12 +1524,13 @@ fn read_file_set_zip_member(
     }))
 }
 
-struct HashedNamedSource {
-    name: String,
-    sha1: String,
-    sha256: String,
-    crc32: String,
-    size: u64,
+#[derive(Clone)]
+pub(crate) struct HashedNamedSource {
+    pub name: String,
+    pub sha1: String,
+    pub sha256: String,
+    pub crc32: String,
+    pub size: u64,
 }
 
 fn hash_source(mut reader: impl Read) -> Result<(String, String, String, u64)> {
@@ -1184,10 +1581,40 @@ pub(crate) fn inspect_file_identity(
     path: &Path,
     identity: &FileIdentity,
 ) -> Result<SourceInspection> {
+    if catalog.source_profile(profile_id)?.kind == SourceKind::UpstreamValidatedDisc {
+        return inspect_pinned_validator_identity(catalog, profile_id, path, identity);
+    }
+    if catalog.source_profile(profile_id)?.kind == SourceKind::GamecubeDisc {
+        if identity.archive_member || !matches!(identity.content_extension.as_str(), "iso" | "gcm")
+        {
+            return Err(PortcoveError::source(
+                "bounded GameCube discovery requires an uncompressed ISO or GCM",
+            ));
+        }
+        return inspect_disc_observation(
+            catalog,
+            profile_id,
+            path,
+            ObservedDiscSource {
+                record: identity.record_without_admission(profile_id, path),
+                discs: vec![ObservedOpticalDisc {
+                    name: path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .map(str::to_owned),
+                    sha1: identity.sha1.clone(),
+                    sha256: identity.sha256.clone(),
+                    size: identity.size,
+                    track_count: 1,
+                    volume_id: None,
+                }],
+            },
+        );
+    }
     inspect_file_identity_with_compound(catalog, profile_id, path, identity, None)
 }
 
-fn inspect_file_identity_with_compound(
+pub(crate) fn inspect_file_identity_with_compound(
     catalog: &Catalog,
     profile_id: &str,
     path: &Path,
@@ -1196,6 +1623,13 @@ fn inspect_file_identity_with_compound(
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let observed_digests = observed_digests(identity);
+    if matching_compound_format(catalog, profile_id, identity, &observed_digests)
+        .is_some_and(|format| Some(format) != validated_compound)
+    {
+        return Err(PortcoveError::source(
+            "exact compound identity requires successful structural validation",
+        ));
+    }
     let record = identity.record_without_admission(profile_id, path);
 
     let Some(source_catalog) = catalog.source_catalog() else {
@@ -1590,6 +2024,76 @@ mod tests {
         }
     }
 
+    #[test]
+    fn compound_handle_guard_rejects_resize_replacement_and_symlinks() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package");
+        fs::write(&path, b"LIVE").unwrap();
+        let path = fs::canonicalize(path).unwrap();
+        for size in [2, 6] {
+            fs::write(&path, b"LIVE").unwrap();
+            let input = File::open(&path).unwrap();
+            let initial = input.metadata().unwrap();
+            verify_open_source_location(&path, &input, &initial).unwrap();
+            fs::OpenOptions::new()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_len(size)
+                .unwrap();
+            assert!(verify_open_source_location(&path, &input, &initial).is_err());
+        }
+        fs::write(&path, b"LIVE").unwrap();
+        let input = File::open(&path).unwrap();
+        let initial = input.metadata().unwrap();
+        let replacement = temporary.path().join("replacement");
+        fs::write(&replacement, b"LIVE").unwrap();
+        fs::remove_file(&path).unwrap();
+        fs::rename(&replacement, &path).unwrap();
+        assert!(verify_open_source_location(&path, &input, &initial).is_err());
+        #[cfg(unix)]
+        {
+            fs::remove_file(&path).unwrap();
+            let target = temporary.path().join("target");
+            fs::write(&target, b"LIVE").unwrap();
+            std::os::unix::fs::symlink(target, &path).unwrap();
+            assert!(verify_open_source_location(&path, &input, &initial).is_err());
+        }
+    }
+
+    #[test]
+    fn compound_hash_and_validation_keep_the_handle_when_the_path_is_replaced() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package");
+        let package = stfs_fixture();
+        fs::write(&path, &package).unwrap();
+        let mut input = File::open(&path).unwrap();
+        let initial = input.metadata().unwrap();
+        let identity = crate::source_file::read_raw_identity_from_reader(
+            &path,
+            &mut input,
+            initial.len(),
+            initial.len(),
+            &mut HashBudget {
+                operation: None,
+                limit: initial.len(),
+                hashed: 0,
+                max_zip_entries: 4096,
+            },
+        )
+        .unwrap();
+        assert_eq!(identity.sha256, hex::encode(Sha256::digest(&package)));
+        let replacement = temporary.path().join("replacement");
+        fs::write(&replacement, vec![0_u8; package.len()]).unwrap();
+        fs::remove_file(&path).unwrap();
+        fs::rename(replacement, &path).unwrap();
+        // The validator reads the exact original handle, not the new pathname.
+        crate::stfs::validate_reader(&mut input, initial.len(), &|| Ok(())).unwrap();
+        assert!(crate::stfs::validate(&path, &|| Ok(())).is_err());
+        assert!(verify_open_source_location(&path, &input, &initial).is_err());
+        assert_eq!(fs::read(path).unwrap(), vec![0_u8; package.len()]);
+    }
+
     fn stfs_fixture() -> Vec<u8> {
         let mut package = vec![0_u8; 0xe000];
         package[..4].copy_from_slice(b"LIVE");
@@ -1787,6 +2291,89 @@ mod tests {
             }
         ));
         assert!(result.record.is_none());
+    }
+
+    #[test]
+    fn manual_zip_identity_retains_the_opened_artifact_after_path_replacement() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("source-set.zip");
+        let displaced = temporary.path().join("original.zip");
+        let fixtures = [
+            ("baserom.us.rev0.z64", b"cartridge".as_slice()),
+            ("baserom.translated.ek.ndd", b"expansion".as_slice()),
+            ("N64DDIPLROM.n64", b"ipl".as_slice()),
+        ];
+        let catalog = catalog_with_identity("g-diffuser-source-set", |profile| {
+            let SourceRepresentationKind::FileSet { members } =
+                &mut profile.variants[0].representations[0].kind
+            else {
+                unreachable!()
+            };
+            for (member, (_, bytes)) in members.iter_mut().zip(fixtures) {
+                member.identities = vec![DigestIdentity {
+                    scope: DigestScope::FileSetMember,
+                    sha1: None,
+                    sha256: Some(hex::encode(Sha256::digest(bytes))),
+                    crc32: None,
+                }];
+            }
+        });
+        let mut writer = zip::ZipWriter::new(File::create(&path).unwrap());
+        for (name, bytes) in fixtures {
+            writer
+                .start_file(name, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(bytes).unwrap();
+        }
+        writer.finish().unwrap();
+        let original = fs::read(&path).unwrap();
+        let archive = zip::ZipArchive::new(File::open(&path).unwrap()).unwrap();
+        fs::rename(&path, &displaced).unwrap();
+        let mut replacement = original.clone();
+        let name = fixtures[0].0.as_bytes();
+        let locations = replacement
+            .windows(name.len())
+            .enumerate()
+            .filter_map(|(index, bytes)| (bytes == name).then_some(index))
+            .collect::<Vec<_>>();
+        assert_eq!(locations.len(), 2);
+        for index in locations {
+            replacement[index] = replacement[index].to_ascii_uppercase();
+        }
+        fs::write(&path, &replacement).unwrap();
+        let identity = &catalog
+            .document()
+            .source_catalog
+            .as_ref()
+            .unwrap()
+            .identities
+            .iter()
+            .find(|identity| identity.id == "g-diffuser-source-set")
+            .unwrap();
+        let SourceRepresentationKind::FileSet { members } =
+            &identity.variants[0].representations[0].kind
+        else {
+            unreachable!()
+        };
+        let (components, record, matched) = inspect_file_set_representation_from_archive(
+            "g-diffuser-source-set",
+            &path,
+            members,
+            &mut None,
+            Some(archive),
+        )
+        .unwrap()
+        .unwrap();
+        assert!(matched);
+        assert_eq!(components.len(), fixtures.len());
+        assert_eq!(record.size, 21);
+        assert_eq!(
+            record.storage_sha256,
+            hex::encode(Sha256::digest(&original))
+        );
+        assert_eq!(record.storage_size, original.len() as u64);
+        assert_eq!(fs::read(&path).unwrap(), replacement);
+        assert_eq!(fs::read(&displaced).unwrap(), original);
     }
 
     #[test]
@@ -1991,6 +2578,51 @@ mod tests {
         )
         .unwrap();
         assert!(rejected.record.is_none());
+    }
+
+    #[test]
+    fn ace_combat_3_japan_requires_both_ordered_track_identities() {
+        // Synthetic normalized observations exercise admission, not ROM extraction.
+        let catalog = Catalog::embedded().unwrap();
+        let profile = "ace-combat-3-japan-psx";
+        let path = Path::new("disc-set");
+        let mut discs = vec![
+            optical_disc("disc-1.chd", b"synthetic first track", 1),
+            optical_disc("disc-2.chd", b"synthetic second track", 1),
+        ];
+        discs[0].sha1 = "8c6d58308eb389a7b18bc213a6d1e23d14fd3c10".into();
+        discs[1].sha1 = "a23e046b1eb695e02d214d269fca70dbe0a437f7".into();
+        let inspect = |discs| {
+            inspect_disc_observation(
+                &catalog,
+                profile,
+                path,
+                observed_disc_source(profile, path, discs),
+            )
+            .unwrap()
+        };
+        let accepted = inspect(discs.clone());
+        assert!(matches!(
+            accepted.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity
+            }
+        ));
+        assert_eq!(accepted.components.len(), 2);
+        let mut reversed = discs.clone();
+        reversed.reverse();
+        let mut changed_hash = discs.clone();
+        changed_hash[1].sha1 = "0".repeat(40);
+        let mut changed_tracks = discs.clone();
+        changed_tracks[1].track_count = 2;
+        for refused in [reversed, changed_hash, changed_tracks, discs[..1].to_vec()] {
+            let result = inspect(refused);
+            assert!(matches!(
+                result.assessment.admission,
+                SourceAdmission::Rejected { .. }
+            ));
+            assert!(result.record.is_none());
+        }
     }
 
     #[test]

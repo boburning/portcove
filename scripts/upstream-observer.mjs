@@ -233,6 +233,81 @@ function repositoryFact(repository, config) {
   };
 }
 
+// A fixed declared download URL selects metadata, never a redirect destination.
+export function githubDirectPin(url) {
+  const parsed = new URL(url);
+  const parts = parsed.pathname.split("/");
+  requireFact(
+    parts.length === 7 && parts[3] === "releases" && parts[4] === "download",
+    "asset-scope",
+    "not an exact GitHub release asset URL",
+  );
+  const repository = `${parts[1]}/${parts[2]}`;
+  requireFact(
+    /^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/u.test(repository),
+    "asset-scope",
+    "invalid declared repository",
+  );
+  const tag = textFact(decodeURIComponent(parts[5]), "release tag", 255);
+  const name = textFact(decodeURIComponent(parts[6]), "asset filename", 255);
+  requireFact(
+    !/[\\/]/u.test(name) && name !== "." && name !== "..",
+    "asset-scope",
+    "invalid declared asset filename",
+  );
+  downloadUrl(url, { repository }, tag, name);
+  return { repository, tag, name };
+}
+
+// Provider metadata is a pin-presence fact, not verified bytes or lineage.
+export function validateGithubPinMetadata(repository, release, assets, expected) {
+  const config = { repository: expected.repository, repository_id: expected.repository_id };
+  const repo = repositoryFact(repository, config);
+  requireFact(repo.archived === expected.archived, "repository-identity", "archive state changed");
+  const selectedRelease = releaseFact(release);
+  requireFact(
+    selectedRelease.id === expected.release_id &&
+      selectedRelease.tag_name === expected.tag &&
+      !selectedRelease.draft &&
+      observationHash(selectedRelease) === expected.release_facts_sha256,
+    "release-identity",
+    "declared release identity differs",
+  );
+  requireFact(
+    Array.isArray(assets) &&
+      assets.length > 0 &&
+      assets.length < 100 &&
+      Array.isArray(release.assets) &&
+      release.assets.length === assets.length,
+    "invalid-metadata",
+    "asset collection is empty, capped or incomplete",
+  );
+  const normalized = assets.map((asset) => assetFact(asset, config, expected.tag));
+  const embedded = release.assets.map((asset) => assetFact(asset, config, expected.tag));
+  const ids = normalized.map((asset) => asset.id);
+  requireFact(
+    new Set(ids).size === ids.length &&
+      new Set(embedded.map((asset) => asset.id)).size === embedded.length &&
+      observationHash(normalized.toSorted((a, b) => a.id - b.id)) ===
+        observationHash(embedded.toSorted((a, b) => a.id - b.id)),
+    "invalid-metadata",
+    "asset collections differ or repeat an identity",
+  );
+  const matches = normalized.filter((asset) => asset.browser_download_url === expected.url);
+  requireFact(matches.length === 1, "asset-scope", "declared asset is missing or ambiguous");
+  const asset = matches[0];
+  requireFact(
+    asset.id === expected.asset_id &&
+      asset.name === expected.name &&
+      asset.size === expected.size &&
+      asset.digest === `sha256:${expected.sha256}` &&
+      observationHash(asset) === expected.asset_facts_sha256,
+    "asset-scope",
+    "declared asset facts changed",
+  );
+  return { repository: repo, release: selectedRelease, asset };
+}
+
 function nextPage(link, pathname, page, config) {
   if (!link) return false;
   const paths = [

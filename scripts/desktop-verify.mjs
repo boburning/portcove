@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { planDesktopExecution } from "./desktop-execution-plan.mjs";
 import { createRequire } from "node:module";
 import { appendFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -21,6 +22,7 @@ import {
 } from "./desktop-scenarios.mjs";
 import { acquireNativeSessionLock } from "./native-session-lock.mjs";
 import { cachedDesktopDrivers, readToolPins } from "./tool-cache.mjs";
+import { frontendCommandPlan, probeFrontendCommand } from "./frontend-command-preflight.mjs";
 import {
   checkFrontendBuildReuse,
   createFrontendBuildIdentity,
@@ -47,7 +49,7 @@ Options:
 
 export function desktopBuildEnvironment(environment, selection) {
   const result = { ...environment };
-  if (selection.prerequisites.includes("design-compatibility-fixture"))
+  if (planDesktopExecution(selection).fixtures.designCompatibility)
     result.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE = "1";
   return result;
 }
@@ -125,11 +127,17 @@ function executableSuffix(platform = process.platform) {
   return platform === "win32" ? ".exe" : "";
 }
 
-export function buildDesktopVerifyPlan({ selection, paths, drivers, source, packages }) {
+export function buildDesktopVerifyPlan({
+  selection,
+  paths,
+  drivers,
+  source,
+  packages,
+  frontendCommand,
+}) {
+  const execution = planDesktopExecution(selection);
   const suffix = executableSuffix();
-  const ownedFixture = selection.prerequisites.includes("owned-fixture");
-  const installFixture = selection.prerequisites.includes("install-fixture");
-  const steamFixture = selection.prerequisites.includes("steam-fixture");
+  const ownedFixture = execution.fixtures.owned;
   return {
     format_version: 1,
     profile: selection.profile,
@@ -141,9 +149,11 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
     harness_deadline_ms: desktopHarnessDeadlineMs(selection),
     prerequisites: selection.prerequisites,
     host_resources: selection.host_resources,
-    qualification_features: installFixture || steamFixture ? ["qualification-fixtures"] : [],
+    cli_features: execution.build.cliFeatures,
+    qualification_features: execution.build.qualificationFeatures,
     source,
     workspace_packages: packages,
+    frontend_command: frontendCommand,
     drivers: drivers
       ? { ready: true, driver: drivers.driver, native_driver: drivers.nativeDriver }
       : {
@@ -160,8 +170,9 @@ export function buildDesktopVerifyPlan({ selection, paths, drivers, source, pack
       owned_probe: ownedFixture ? `<run-directory>/portcove-host-tool-fixture${suffix}` : null,
     },
     phases: [
-      "desktop-doctor",
       "workspace-package-preflight",
+      "frontend-command-preflight",
+      "desktop-doctor",
       ...(ownedFixture ? ["scenario-context-preflight"] : []),
       "frontend-build",
       "desktop-build",
@@ -263,6 +274,36 @@ async function recordReusePhase({ log, timings, details }) {
   await appendFile(log, `${JSON.stringify(timing)}\n`);
 }
 
+export async function acquireDesktopVerifySession({
+  runDirectory,
+  environment,
+  packageManager,
+  selection,
+  timings,
+  probe = probeFrontendCommand,
+  acquire = acquireNativeSessionLock,
+}) {
+  const receipt = probe({ cwd: path.join(root, "apps", "desktop"), environment, packageManager });
+  await writeFile(
+    path.join(runDirectory, "frontend-command-preflight.json"),
+    `${JSON.stringify(receipt, null, 2)}\n`,
+    { flag: "wx" },
+  );
+  timings.push({
+    phase: "frontend-command-preflight",
+    started_at: receipt.started_at,
+    finished_at: receipt.finished_at,
+    status: receipt.ready ? 0 : 1,
+  });
+  if (!receipt.ready) throw new Error(receipt.message);
+  const lock = await acquire({
+    workspace: root,
+    profile: selection.profile,
+    scenarios: selection.selected_scenarios,
+  });
+  return { lock, packageManagerVersion: receipt.observed_version };
+}
+
 async function runVerification(options, selection) {
   const configuredPaths = getPaths();
   const storage = preflight(configuredPaths, minimumFreeGiB());
@@ -274,7 +315,21 @@ async function runVerification(options, selection) {
   const packages = workspacePackageStatus();
   const packageFinished = new Date();
   const drivers = cachedDesktopDrivers();
-  const plan = buildDesktopVerifyPlan({ selection, paths, drivers, source, packages });
+  const environment = desktopBuildEnvironment(childEnvironment(paths), selection);
+  const pins = readToolPins();
+  const frontendCommand = frontendCommandPlan({
+    cwd: path.join(root, "apps", "desktop"),
+    environment,
+    packageManager: pins.packageManager,
+  });
+  const plan = buildDesktopVerifyPlan({
+    selection,
+    paths,
+    drivers,
+    source,
+    packages,
+    frontendCommand,
+  });
   if (options.plan) {
     if (options.json) console.log(JSON.stringify(plan, null, 2));
     else {
@@ -292,6 +347,9 @@ async function runVerification(options, selection) {
         `Workspace packages: ${packages.ready ? "ready" : `missing; remedy ${packages.remediation}`}`,
       );
       console.log(`Drivers: ${drivers ? "ready" : `missing; remedy ${plan.drivers.remediation}`}`);
+      console.log(
+        `Frontend pnpm command file: ${frontendCommand.command_file ?? "unavailable"}; version not observed (plan only)`,
+      );
     }
     return;
   }
@@ -313,11 +371,14 @@ async function runVerification(options, selection) {
   await writeFile(runPlanPath, `${JSON.stringify(plan, null, 2)}\n`, { flag: "wx" });
   let lock;
   try {
-    lock = await acquireNativeSessionLock({
-      workspace: root,
-      profile: selection.profile,
-      scenarios: selection.selected_scenarios,
+    const prerequisite = await acquireDesktopVerifySession({
+      runDirectory,
+      environment,
+      packageManager: pins.packageManager,
+      selection,
+      timings,
     });
+    lock = prerequisite.lock;
     const doctorStarted = new Date();
     const doctor = await collectDoctor({ profile: "desktop" });
     const doctorFinished = new Date();
@@ -346,7 +407,6 @@ async function runVerification(options, selection) {
     if (!drivers)
       throw new Error(`Desktop drivers are unavailable; remedy ${plan.drivers.remediation}`);
 
-    const environment = desktopBuildEnvironment(childEnvironment(paths), selection);
     const phase = (id, command, args) =>
       executePhase({ id, command, args, cwd: root, environment, log, timings });
     if (selection.prerequisites.includes("owned-fixture"))
@@ -354,19 +414,10 @@ async function runVerification(options, selection) {
         "apps/desktop/scripts/desktop-preparation-test.mjs",
         "--context-preflight",
       ]);
-    const pins = readToolPins();
-    const packageManagerVersion = spawnCommand("corepack", ["pnpm", "--version"], {
-      cwd: path.join(root, "apps", "desktop"),
-      env: environment,
-      encoding: "utf8",
-      windowsHide: true,
-    });
-    if (packageManagerVersion.status !== 0)
-      throw new Error("Unable to observe the pinned frontend package-manager version");
     const frontendIdentity = await createFrontendBuildIdentity({
       root,
       packageManager: pins.packageManager,
-      packageManagerVersion: packageManagerVersion.stdout.trim(),
+      packageManagerVersion: prerequisite.packageManagerVersion,
       environment,
     });
     const frontendStamp = path.join(
@@ -397,13 +448,7 @@ async function runVerification(options, selection) {
       });
       timings.at(-1).reuse = frontendReuse;
     }
-    const desktopFeatures = [
-      "tauri/custom-protocol",
-      ...(selection.prerequisites.includes("install-fixture") ||
-      selection.prerequisites.includes("steam-fixture")
-        ? ["qualification-fixtures"]
-        : []),
-    ];
+    const desktopFeatures = ["tauri/custom-protocol", ...plan.qualification_features];
     await phase("desktop-build", "cargo", [
       "build",
       "-p",
@@ -413,9 +458,15 @@ async function runVerification(options, selection) {
     ]);
     let probe;
     if (selection.prerequisites.includes("owned-fixture")) {
-      await phase("cli-build", "cargo", ["build", "-p", "portcove-cli"]);
+      await phase("cli-build", "cargo", [
+        "build",
+        "-p",
+        "portcove-cli",
+        ...(plan.cli_features.length ? ["--features", plan.cli_features.join(",")] : []),
+      ]);
       probe = path.join(runDirectory, `portcove-host-tool-fixture${executableSuffix()}`);
       await phase("owned-probe-build", "rustc", [
+        "--edition=2024",
         "--crate-name",
         "portcove_host_tool_fixture",
         path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),

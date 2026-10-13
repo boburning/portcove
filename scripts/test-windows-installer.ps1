@@ -7,6 +7,8 @@ param(
     [string]$RetainedLibraryRoot,
     [string]$RetainExecutablePath,
     [string]$EvidencePath,
+    [string]$NormalPackageManifestPath,
+    [string]$NormalPackageAdmissionPath,
     [ValidateSet("Silent", "Passive")]
     [string]$InstallMode = "Silent",
     [string]$ExpectedVersion,
@@ -214,6 +216,44 @@ if ($installedUpdate -and (-not $predecessor -or -not $InstalledUpdateMetadataPa
     throw "Installed update qualification requires a predecessor, complete signed repository paths, and absent signing authority"
 }
 $expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path } else { $null }
+if ($NormalPackageManifestPath) {
+    if ($installedUpdate -or $predecessor -or $RendererUpdate -or -not $EvidencePath -or -not $expected -or -not $ExpectedVersion) {
+        throw "Current-installed boundary requires an ordinary bootstrap package, expected bytes/version and external evidence"
+    }
+    $normalPackageManifest = Get-Content -LiteralPath $NormalPackageManifestPath -Raw | ConvertFrom-Json
+    $normalRepository = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+    if (-not $NormalPackageAdmissionPath) { throw "Current-installed boundary requires the admitted just desktop-test --current-installed route" }
+    & node (Join-Path $normalRepository 'scripts/desktop-test-cli.mjs') `
+        --verify-installed-admission $NormalPackageAdmissionPath --installer $installer `
+        --package-evidence $NormalPackageManifestPath --expected-app $ExpectedExecutablePath
+    if ($LASTEXITCODE -ne 0) { throw "Current-installed boundary native admission was not verified before installation" }
+    $normalRevision = (& git -C $normalRepository rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0) { throw "Current-installed package source could not be resolved" }
+    $normalDirty = & git -C $normalRepository status --porcelain=v1 --untracked-files=all
+    if ($LASTEXITCODE -ne 0 -or $normalDirty -or $normalPackageManifest.revision -ne $normalRevision) {
+        throw "Current-installed boundary requires clean exact package source"
+    }
+    if (($normalPackageManifest.build_command -join '|') -ne 'corepack|pnpm|tauri|build|--bundles|nsis' -or
+        @($normalPackageManifest.qualification_features).Count -ne 0) {
+        throw "Current-installed boundary requires an ordinary default-feature NSIS build"
+    }
+    if ([IO.Path]::GetFullPath($normalPackageManifest.installer.path) -ne $installer -or
+        $normalPackageManifest.installer.sha256 -ne (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()) {
+        throw "Current-installed package manifest does not bind the installer"
+    }
+    $normalConfigurationPaths = @('tauri.conf.json', 'tauri.windows.conf.json', 'Cargo.toml') |
+        ForEach-Object { [IO.Path]::GetFullPath((Join-Path $normalRepository "apps/desktop/src-tauri/$_")) }
+    if (@($normalPackageManifest.configuration).Count -ne $normalConfigurationPaths.Count) {
+        throw "Current-installed package configuration inventory differs"
+    }
+    for ($index = 0; $index -lt $normalConfigurationPaths.Count; $index++) {
+        $binding = $normalPackageManifest.configuration[$index]
+        if ([IO.Path]::GetFullPath($binding.path) -ne $normalConfigurationPaths[$index] -or
+            $binding.sha256 -ne (Get-FileHash -LiteralPath $binding.path -Algorithm SHA256).Hash.ToLowerInvariant()) {
+            throw "Current-installed package configuration identity differs"
+        }
+    }
+}
 if (@(Get-UninstallEntries "").Count -ne 0) {
     throw "A Portcove installer registration already exists. Refusing to replace another installation during qualification."
 }
@@ -256,10 +296,19 @@ $evidence = if ($EvidencePath) {
     $evidenceParent = [System.IO.Path]::GetDirectoryName($evidenceFull)
     if (-not [System.IO.Directory]::Exists($evidenceParent)) { throw "EvidencePath parent must exist" }
     if ([System.IO.File]::Exists($evidenceFull)) { throw "EvidencePath must be new: $evidenceFull" }
+    if ($NormalPackageManifestPath) {
+        $normalBoundaryOutput = Join-Path $evidenceParent "current-installed-boundary"
+        if ([IO.Directory]::Exists($normalBoundaryOutput) -or
+            $evidenceParent.StartsWith($runRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Current-installed boundary evidence must be new and outside the disposable installer run"
+        }
+    }
     [ordered]@{
         format = 1
         phase = "initialized"
         process_runs = @()
+        unverified_child_observations = @()
+        unverified_child_capture_failed = $false
         owned_paths = [ordered]@{
             run_root_relative = [System.IO.Path]::GetRelativePath($base, $runRoot).Replace('\', '/')
             install_relative = [System.IO.Path]::GetRelativePath($base, $installRoot).Replace('\', '/')
@@ -412,7 +461,7 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
     $outputTask = $null
     $errorTask = $null
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
-    if ($Role -in @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage",
+    if ($Role -in @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage",
             "installed_update_recovery_status", "installed_update_recovery_repair", "installed_update_recovery_verified")) {
         $outputName = if ($Role -eq "installed_update_helper") { "installed-update-helper" }
             elseif ($recoveryCommand) { "$($Role.Replace('_', '-'))-stage" }
@@ -445,7 +494,7 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
         }
         $startInfoPath = $process.StartInfo.FileName
         if ([string]::IsNullOrWhiteSpace($startInfoPath)) {
-            if ($Role -notin @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage")) {
+            if ($Role -notin @("installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage")) {
                 throw "$Role retained handle omitted the requested launch path"
             }
             $run.start_info_observation = "Start-Process omitted StartInfo.FileName with redirected qualification output; live process image verification is required"
@@ -513,7 +562,8 @@ function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [Dat
         $verified = $false
         try {
             $null = $process.Handle
-            if ($process.HasExited) { continue }
+            $initialHasExited = $process.HasExited
+            if ($initialHasExited) { continue }
             $started = $process.StartTime.ToUniversalTime()
             try {
                 $observedPath = $process.Path
@@ -525,7 +575,28 @@ function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [Dat
                 # A short-lived cleanup child can exit between the HasExited
                 # observation above and reading its executable image. Treat it
                 # like a child that was already gone when this scan began.
-                if ($process.HasExited) { continue }
+                $refusalHasExited = $process.HasExited
+                if ($refusalHasExited) { continue }
+                # The refusal is fixed above. These scalars are unverified
+                # diagnostics, never ownership or positive exit evidence.
+                if ($evidence) {
+                    try {
+                        $evidence.unverified_child_observations += [ordered]@{
+                            cim_pid = [int]$child.ProcessId
+                            cim_parent_pid = [int]$child.ParentProcessId
+                            cim_creation_time = $child.CreationDate.ToUniversalTime().ToString("o")
+                            retained_pid = $process.Id
+                            retained_start_time = $started.ToString("o")
+                            initial_has_exited = $initialHasExited
+                            refusal_has_exited = $refusalHasExited
+                            image_read_state = $(if ($null -eq $observedPath) { "null" } else { "blank" })
+                            cim_path_present = -not [string]::IsNullOrWhiteSpace([string]$child.ExecutablePath)
+                        }
+                    } catch {
+                        # Diagnostic failure must not replace the existing refusal.
+                        $evidence.unverified_child_capture_failed = $true
+                    }
+                }
                 throw "Uninstaller child executable image path could not be observed"
             }
             $exact = [System.IO.Path]::GetFullPath($observedPath)
@@ -728,6 +799,39 @@ try {
         }
         if ($evidence) { $evidence.installed_truncated_stage = [ordered]@{ exit_code = $truncated.ExitCode; staging_empty = $true; predecessor_preserved = $true; sentinel_preserved = $true } }
         Write-InstallerEvidence "installed_truncated_stage_rejected"
+
+        $candidateHash = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
+        $tamperedCandidate = Join-Path $runRoot "tampered-candidate.exe"
+        Copy-Item -LiteralPath $candidate -Destination $tamperedCandidate
+        $tamperedFile = [IO.File]::Open($tamperedCandidate, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        try {
+            $null = $tamperedFile.Seek(-1, [IO.SeekOrigin]::End)
+            $originalByte = $tamperedFile.ReadByte()
+            $null = $tamperedFile.Seek(-1, [IO.SeekOrigin]::End)
+            $tamperedFile.WriteByte([byte]($originalByte -bxor 1))
+        } finally { $tamperedFile.Dispose() }
+        $tamperedBytes = [UInt64](Get-Item -LiteralPath $tamperedCandidate).Length
+        $tamperedHash = (Get-FileHash -LiteralPath $tamperedCandidate -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($tamperedBytes -ne $candidateBytes -or $tamperedHash -eq $candidateHash) {
+            throw "Same-length tamper fixture did not change only candidate contents"
+        }
+        $tampered = Invoke-JournaledProcess -Role "installed_update_tampered_stage" -Executable $application -Arguments @("--portcove-qualify-update-stage", ('"' + $tamperedCandidate + '"')) -AllowedRelocationRoot $runRoot
+        $tamperedError = [IO.File]::ReadAllText((Join-Path $runRoot "installed-update-tampered-stage.stderr.log"))
+        if ($tampered.ExitCode -eq 0 -or $tamperedError -notmatch "payload SHA-256 does not match authenticated metadata") {
+            throw "Installed predecessor did not reject the same-length tampered candidate: $tamperedError"
+        }
+        $emptyStaging = Get-Content -LiteralPath $stagingPath -Raw | ConvertFrom-Json
+        if ($emptyStaging.phase -ne "empty" -or $emptyStaging.candidate -or $emptyStaging.previous_candidate -or
+            [IO.File]::Exists($stagedPayloadPath) -or
+            [IO.File]::Exists((Join-Path $updateRoot ".candidate.payload.incoming")) -or
+            [IO.File]::Exists((Join-Path $updateRoot "apply.json")) -or
+            (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -ne $previousHash -or
+            (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash -or
+            (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant() -ne $candidateHash) {
+            throw "Same-length tampered stage changed staging, predecessor, library sentinel, or original candidate"
+        }
+        if ($evidence) { $evidence.installed_tampered_stage = [ordered]@{ expected_bytes = $candidateBytes; actual_bytes = $tamperedBytes; expected_sha256 = $candidateHash; actual_sha256 = $tamperedHash; exit_code = $tampered.ExitCode; staging_empty = $true; predecessor_preserved = $true; sentinel_preserved = $true; original_candidate_preserved = $true } }
+        Write-InstallerEvidence "installed_tampered_stage_rejected"
 
         # Exercise recovery through the actual installed executable before the
         # renderer downloads a fresh candidate. The bad journal and stray byte
@@ -1016,6 +1120,94 @@ try {
         preservation_manifest = $beforeUninstallManifest
     })
 
+    $normalBoundary = $null
+    if ($NormalPackageManifestPath) {
+        [IO.Directory]::CreateDirectory($normalBoundaryOutput) | Out-Null
+        $readyReceipt = Join-Path $normalBoundaryOutput "installed-ready.json"
+        [ordered]@{
+            phase = "current_installed_boundary_ready"
+            details = [ordered]@{
+                installer_sha256 = $installerHash
+                installed_executable_sha256 = $installedHash
+                installed_executable_path = $application
+                install_root = $installRoot
+                registration_path = $registryEntries[0].PSPath
+                uninstall_registration_count = @($registryEntries).Count
+                registered_version = $registryEntries[0].DisplayVersion
+                application_responding = $smoke.responding
+                application_exit_code = $smoke.exit_code
+                persistent_data_preserved = $true
+                preservation_manifest = $beforeUninstallManifest
+            }
+        } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $readyReceipt -Encoding utf8
+        $boundManifest = Join-Path $normalBoundaryOutput "package-evidence.json"
+        $normalPackageManifest | Add-Member -NotePropertyName execution_context -NotePropertyValue 'current-installed' -Force
+        $normalPackageManifest | Add-Member -NotePropertyName installer_evidence -NotePropertyValue ([ordered]@{
+            path = $readyReceipt
+            sha256 = (Get-FileHash -LiteralPath $readyReceipt -Algorithm SHA256).Hash.ToLowerInvariant()
+        }) -Force
+        $normalPackageManifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $boundManifest -Encoding utf8
+        Write-InstallerEvidence "current_installed_boundary_running"
+        & node (Join-Path $normalRepository 'apps/desktop/scripts/desktop-test.mjs') `
+            --app $application --output (Join-Path $normalBoundaryOutput 'native') `
+            --scenario native-normal-package-webview-boundary --package-evidence $boundManifest `
+            *> (Join-Path $normalBoundaryOutput 'native-harness.log')
+        if ($LASTEXITCODE -ne 0) { throw "Current-installed native boundary failed; preserve installation and owned cleanup evidence" }
+        $normalCleanupPath = Join-Path $normalBoundaryOutput 'native/normal-package-boundary-cleanup.json'
+        $normalCleanup = Get-Content -LiteralPath $normalCleanupPath -Raw | ConvertFrom-Json
+        $normalInventoryPath = Join-Path $normalBoundaryOutput 'native/normal-package-boundary-exit-inventory.json'
+        if ($normalCleanup.snapshot -isnot [string] -or $normalCleanup.snapshot -ne $normalInventoryPath) {
+            throw "Current-installed boundary cleanup does not bind its exact owned inventory"
+        }
+        $normalInventory = Get-Content -LiteralPath $normalInventoryPath -Raw | ConvertFrom-Json
+        $normalApplicationRecords = @($normalInventory.processes | Where-Object { $_.path -eq $application })
+        $normalDriverRecords = @($normalInventory.processes | Where-Object { $_.pid -eq $normalInventory.driver.pid })
+        if (-not $normalCleanup.exited -or -not $normalCleanup.snapshot -or
+            @($normalInventory.processes).Count -lt 2 -or
+            $normalInventory.derivation -ne 'include-captured-driver-root-in-positive-exit-inventory' -or
+            $normalCleanup.exited.observed_processes -ne @($normalInventory.processes).Count -or
+            $normalApplicationRecords.Count -ne 1 -or $normalApplicationRecords[0].pid -le 0 -or
+            [string]$normalApplicationRecords[0].started_filetime -notmatch '^[1-9][0-9]*$' -or
+            $normalDriverRecords.Count -ne 1 -or $normalDriverRecords[0].pid -le 0 -or
+            $normalDriverRecords[0].path -ne $normalInventory.driver.path -or
+            $normalDriverRecords[0].started_filetime -ne $normalInventory.driver.started_filetime) {
+            throw "Current-installed boundary lacks positive owned exit evidence; refusing uninstall"
+        }
+        $normalNativePath = Join-Path $normalBoundaryOutput 'native/evidence.json'
+        $normalNative = Get-Content -LiteralPath $normalNativePath -Raw | ConvertFrom-Json
+        $normalCheck = @($normalNative.checks | Where-Object { $_.scenario -eq 'native-normal-package-webview-boundary' })
+        if ($normalNative.outcome -ne 'passed' -or $normalNative.revision -ne $normalRevision -or
+            $normalNative.executable.path -ne $application -or $normalNative.executable.sha256 -ne $installedHash -or
+            $normalCheck.Count -ne 1 -or $normalCheck[0].outcome -ne 'passed') {
+            throw "Current-installed native result does not bind this exact installed application"
+        }
+        $afterBoundaryRegistration = @(Get-UninstallEntries $installRoot)
+        if ($afterBoundaryRegistration.Count -ne 1 -or
+            $afterBoundaryRegistration[0].PSPath -ne $registryEntries[0].PSPath -or
+            $afterBoundaryRegistration[0].DisplayVersion -ne $ExpectedVersion -or
+            (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -ne $installedHash -or
+            (Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant() -ne $evidence.uninstaller_sha256) {
+            throw "Native boundary changed installed executable, uninstaller or registration"
+        }
+        $afterBoundaryManifest = Get-PreservationManifest $libraryRoot
+        if (($beforeUninstallManifest | ConvertTo-Json -Depth 6 -Compress) -ne
+            ($afterBoundaryManifest | ConvertTo-Json -Depth 6 -Compress)) {
+            throw "Native boundary changed the isolated persistent-data manifest"
+        }
+        $normalBoundary = [ordered]@{
+            execution_context = 'current-installed'
+            installed_executable_path = $application
+            registration_before = $registryEntries[0].PSPath
+            registration_after = $afterBoundaryRegistration[0].PSPath
+            registered_version = $afterBoundaryRegistration[0].DisplayVersion
+            native_evidence = $normalNativePath
+            cleanup_evidence = $normalCleanupPath
+            package_evidence = $boundManifest
+            preservation_manifest_after = $afterBoundaryManifest
+        }
+        Write-InstallerEvidence "current_installed_boundary_complete" $normalBoundary
+    }
+
     Write-InstallerEvidence "uninstalling"
     # NSIS may continue from an exact self-copy below TEMP. The original bytes
     # are journaled before launch; permit only that same image below this run.
@@ -1094,6 +1286,7 @@ try {
         registration_removed = $true
         preservation_manifest_before_uninstall = $beforeUninstallManifest
         preservation_manifest_after_uninstall = $afterUninstallManifest
+        current_installed_boundary = $normalBoundary
     }
     Write-InstallerEvidence "complete" $result
     $result | ConvertTo-Json -Depth 10 -Compress

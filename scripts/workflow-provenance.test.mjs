@@ -14,7 +14,438 @@ import {
   isHostedLocalCheckScriptAuthority,
   hostedLocalCheckEnvironment,
   runHostedLocalCheck,
+  parseHostedValidationBinding,
+  assertRetainedSelectedPlan,
+  runHostedValidation,
 } from "./workflow-provenance.mjs";
+
+const reviewedPlan = [
+  { id: "diff-check", executable: "git", args: ["diff", "--check"], cwd: "$SOURCE/" },
+];
+function reviewedBinding(overrides = {}) {
+  return {
+    format_version: 1,
+    operation: "bootstrap",
+    source: "a".repeat(40),
+    controller: "a".repeat(40),
+    base: "b".repeat(40),
+    merge_base: "b".repeat(40),
+    authority: "b".repeat(40),
+    inventory_sha256: "c".repeat(64),
+    plan_digest: "d".repeat(64),
+    baseline_plan: reviewedPlan,
+    selected_plan: reviewedPlan,
+    ...overrides,
+  };
+}
+const bindingDigest = (raw) => createHash("sha256").update(raw).digest("hex");
+
+test("reviewed hosted bindings retain baseline obligations and reject caller command extensions", () => {
+  const raw = JSON.stringify(reviewedBinding());
+  assert.equal(parseHostedValidationBinding(raw, bindingDigest(raw)).operation, "bootstrap");
+  assert.throws(() => parseHostedValidationBinding(raw, "0".repeat(64)), /digest/);
+  for (const patch of [
+    { command: "arbitrary shell" },
+    { source: "not-a-sha" },
+    { controller: "e".repeat(40) },
+    { operation: "shell" },
+    { selected_plan: [] },
+  ]) {
+    const invalid = JSON.stringify(reviewedBinding(patch));
+    assert.throws(() => parseHostedValidationBinding(invalid, bindingDigest(invalid)));
+  }
+  assert.throws(
+    () => assertRetainedSelectedPlan(reviewedPlan, [{ ...reviewedPlan[0], args: ["diff"] }]),
+    /arguments removed/,
+  );
+  assert.throws(
+    () => assertRetainedSelectedPlan(reviewedPlan, [{ ...reviewedPlan[0], cwd: "another-root" }]),
+    /Missing baseline/,
+  );
+  assert.throws(
+    () => assertRetainedSelectedPlan(reviewedPlan, [reviewedPlan[0], reviewedPlan[0]]),
+    /inventory/,
+  );
+});
+
+test("bootstrap binds actual clean Git inventories and refuses out-of-scope or dirty inputs", async (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "portcove-reviewed-binding-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const source = path.join(directory, "source");
+  const controller = path.join(directory, "controller");
+  const git = (cwd, args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const write = (name, content) => {
+    mkdirSync(path.dirname(path.join(source, name)), { recursive: true });
+    writeFileSync(path.join(source, name), content);
+  };
+  mkdirSync(source);
+  git(source, ["init", "--quiet"]);
+  git(source, ["config", "user.name", "Reviewed fixture"]);
+  git(source, ["config", "user.email", "fixture@invalid"]);
+  write("rust-toolchain.toml", 'channel = "1.98.1"\n');
+  write("scripts/audit.mjs", "preserved audit\n");
+  write(".node-version", process.versions.node + "\n");
+  write("package.json", JSON.stringify({ packageManager: "pnpm@12.8.1" }));
+  write(
+    ".github/quality-tools.json",
+    JSON.stringify({ tools: [{ id: "just", version: "1.58.0" }] }),
+  );
+  git(source, ["add", "."]);
+  git(source, ["commit", "--quiet", "-m", "trusted base"]);
+  const base = git(source, ["rev-parse", "HEAD"]);
+  for (const name of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/native-design-compatibility.yml",
+    "scripts/workflow-provenance.mjs",
+    "scripts/native-backup-evidence.mjs",
+  ])
+    write(name, "reviewed transport bytes\n");
+  git(source, ["add", "."]);
+  git(source, ["commit", "--quiet", "-m", "reviewed bootstrap"]);
+  const head = git(source, ["rev-parse", "HEAD"]);
+  git(directory, ["clone", "--quiet", source, controller]);
+  const names = git(source, ["diff", "--name-only", "--no-renames", base, head]).split("\n");
+  const inventory = names.map((name) => ({
+    path: name,
+    base: git(source, ["ls-tree", base, "--", name]),
+    source: git(source, ["ls-tree", head, "--", name]),
+  }));
+  const spec = reviewedBinding({
+    source: head,
+    controller: head,
+    base,
+    authority: base,
+    merge_base: base,
+    inventory_sha256: bindingDigest(JSON.stringify(inventory)),
+  });
+  const raw = JSON.stringify(spec);
+  const environment = {
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_SHA: head,
+    GITHUB_WORKFLOW_SHA: head,
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/native-design-compatibility.yml@refs/heads/fixture",
+    GITHUB_RUN_ID: "42",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_JOB: "hosted_selected",
+    RUNNER_OS: "Linux",
+    RUNNER_ARCH: "X64",
+    PORTCOVE_LOCAL_OPERATION: "bootstrap",
+    PORTCOVE_LOCAL_BINDING: raw,
+    PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(raw),
+  };
+  const options = {
+    controllerRoot: controller,
+    environment,
+    command: (name, args, cwd) => {
+      assert.equal(name, "git", "Prepare must not provision or execute candidate tools");
+      return git(cwd, args);
+    },
+  };
+  assert.equal(await runHostedValidation("controller", options), 0);
+  assert.equal(await runHostedValidation("prepare", options), 0);
+  await t.test("failed preflight retains its report before refusing provisioning", async () => {
+    const plan = [
+      { id: "ui-build", executable: "corepack", args: ["pnpm", "run", "build"], cwd: "$SOURCE/" },
+    ];
+    const bound = { ...spec, baseline_plan: plan, selected_plan: plan };
+    const boundRaw = JSON.stringify(bound);
+    const matching = {
+      source: head,
+      base,
+      merge_base: base,
+      plan_digest: bound.plan_digest,
+      selected_plan: plan,
+      obligations: [{ id: "ui-build", missing: [] }],
+      pre_change_audit: { missing_local_prerequisites: ["complete-audit-prerequisites"] },
+    };
+    const evidence = path.join(directory, "hosted-evidence");
+    for (const report of [
+      { ...matching, obligations: [{ id: "ui-build", missing: ["pnpm"] }] },
+      { ...matching, selected_plan: [{ ...plan[0], args: ["pnpm", "run", "other"] }] },
+      matching,
+    ]) {
+      const commands = [];
+      const result = runHostedValidation("provision", {
+        ...options,
+        environment: {
+          ...environment,
+          PORTCOVE_LOCAL_BINDING: boundRaw,
+          PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(boundRaw),
+        },
+        command: (name, args, cwd) => {
+          if (name === "git") return git(cwd, args);
+          assert.equal(cwd, source);
+          return {
+            just: "just 1.58.0",
+            pnpm: "12.8.1",
+            rustc: "rustc 1.98.1 (fixture)",
+            cargo: "cargo 1.98.1 (fixture)",
+          }[name];
+        },
+        spawn: (name, args, settings) => {
+          commands.push({ name, args, cwd: settings.cwd });
+          assert.equal(name, process.execPath);
+          assert.deepEqual(args, [
+            "scripts/local-validation.mjs",
+            "check",
+            "--preflight",
+            "--json",
+          ]);
+          assert.equal(settings.cwd, source);
+          return { status: 1, stdout: JSON.stringify(report) };
+        },
+      });
+      if (report === matching) assert.equal(await result, 0);
+      else
+        await assert.rejects(() => result, /Full reviewed selected plan or prerequisites differ/);
+      assert.deepEqual(
+        JSON.parse(readFileSync(path.join(evidence, "selected-plan.json"), "utf8")),
+        report,
+      );
+      assert.equal(commands.length, 1, "No browser or selected command may run during refusal");
+      assert.throws(() => readFileSync(path.join(evidence, "execution.json")), /ENOENT/);
+    }
+    const command = (name, args, cwd) =>
+      name === "git"
+        ? git(cwd, args)
+        : {
+            just: "just 1.58.0",
+            pnpm: "12.8.1",
+            rustc: "rustc 1.98.1 (fixture)",
+            cargo: "cargo 1.98.1 (fixture)",
+          }[name];
+    for (const [reason, response] of [
+      ["json", { status: 0, stdout: "private invalid JSON" }],
+      ["report-evaluation", { status: 0, stdout: "null" }],
+      [
+        "child-error",
+        { status: null, error: Object.assign(Error("private timeout"), { code: "ETIMEDOUT" }) },
+      ],
+      ["child-status", { status: 7, stdout: "{}" }],
+    ]) {
+      const logs = [];
+      let calls = 0;
+      await assert.rejects(
+        runHostedValidation("provision", {
+          ...options,
+          command,
+          log: (line) => logs.push(line),
+          spawn: (_name, _args, settings) => {
+            calls++;
+            assert.equal(settings.timeout, 60_000);
+            assert.equal(settings.maxBuffer, 16 * 1024 * 1024);
+            return response;
+          },
+        }),
+      );
+      assert.equal(calls, 1);
+      assert.ok(logs.some((line) => line.includes(`"reason":"${reason}"`)));
+      assert.ok(logs.every((line) => !line.includes("private")));
+    }
+  });
+  await assert.rejects(() => runHostedValidation("audit", options), /phase\/job/);
+  await assert.rejects(() => runHostedValidation("compiled", options), /Phase differs/);
+  await assert.rejects(
+    () =>
+      runHostedValidation("prepare", {
+        ...options,
+        environment: { ...environment, GITHUB_SHA: base },
+      }),
+    /identity differs/,
+  );
+  write("unowned.mjs", "outside scope\n");
+  await assert.rejects(() => runHostedValidation("prepare", options), /dirty/);
+  rmSync(path.join(source, "unowned.mjs"));
+  const wrong = JSON.stringify({ ...spec, inventory_sha256: "0".repeat(64) });
+  await assert.rejects(
+    () =>
+      runHostedValidation("prepare", {
+        ...options,
+        environment: {
+          ...environment,
+          PORTCOVE_LOCAL_BINDING: wrong,
+          PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(wrong),
+        },
+      }),
+    /inventory differs/,
+  );
+  write(".github/workflows/unadmitted.yml", "outside scope\n");
+  git(source, ["add", "."]);
+  git(source, ["commit", "--quiet", "-m", "unadmitted workflow"]);
+  const outside = git(source, ["rev-parse", "HEAD"]);
+  git(controller, ["fetch", "--quiet", "origin"]);
+  git(controller, ["checkout", "--quiet", "--detach", outside]);
+  const outsideInventory = git(source, ["diff", "--name-only", "--no-renames", base, outside])
+    .split("\n")
+    .map((name) => ({
+      path: name,
+      base: git(source, ["ls-tree", base, "--", name]),
+      source: git(source, ["ls-tree", outside, "--", name]),
+    }));
+  const outsideRaw = JSON.stringify({
+    ...spec,
+    source: outside,
+    controller: outside,
+    inventory_sha256: bindingDigest(JSON.stringify(outsideInventory)),
+  });
+  await assert.rejects(
+    () =>
+      runHostedValidation("prepare", {
+        ...options,
+        environment: {
+          ...environment,
+          GITHUB_SHA: outside,
+          GITHUB_WORKFLOW_SHA: outside,
+          PORTCOVE_LOCAL_BINDING: outsideRaw,
+          PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(outsideRaw),
+        },
+      }),
+    /exceeds the independently admitted fifteen-path scope/,
+  );
+});
+
+test("candidate consumer binds four original product blobs and retains normal ancestry refusal", async (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "portcove-consumer-binding-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const source = path.join(directory, "source");
+  const controller = path.join(directory, "controller");
+  const git = (cwd, args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const write = (name, content) => {
+    mkdirSync(path.dirname(path.join(source, name)), { recursive: true });
+    writeFileSync(path.join(source, name), content);
+  };
+  const commit = (message) => {
+    git(source, ["add", "."]);
+    git(source, ["commit", "--quiet", "-m", message]);
+    return git(source, ["rev-parse", "HEAD"]);
+  };
+  const tree = (sha) => git(source, ["rev-parse", `${sha}^{tree}`]);
+  const products = [
+    "apps/desktop/src/components/DetailPanel.tsx",
+    "apps/desktop/src/components/DetailQualificationSummary.test.tsx",
+    "apps/desktop/src/components/DetailQualificationSummary.tsx",
+    "apps/desktop/src/components/components.test.tsx",
+  ];
+  mkdirSync(source);
+  git(source, ["init", "--quiet"]);
+  git(source, ["config", "user.name", "Reviewed fixture"]);
+  git(source, ["config", "user.email", "fixture@invalid"]);
+  write("rust-toolchain.toml", 'channel = "1.98.1"\n');
+  write("scripts/audit.mjs", "preserved audit\n");
+  const base = commit("actual base");
+  for (const name of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/native-design-compatibility.yml",
+    "scripts/workflow-provenance.mjs",
+    "scripts/native-backup-evidence.mjs",
+  ])
+    write(name, "reviewed controller\n");
+  const control = commit("reviewed controller");
+  git(directory, ["clone", "--quiet", source, controller]);
+  git(source, ["checkout", "--quiet", "--detach", base]);
+  for (const name of products) write(name, `original product ${name}\n`);
+  const product = commit("original product");
+  git(source, ["checkout", "--quiet", "--detach", control]);
+  for (const name of products) write(name, `original product ${name}\n`);
+  const composed = commit("reviewed composition");
+  const inventory = (head) =>
+    bindingDigest(
+      JSON.stringify(
+        git(source, ["diff", "--name-only", "--no-renames", base, head])
+          .split("\n")
+          .map((name) => ({
+            path: name,
+            base: git(source, ["ls-tree", base, "--", name]),
+            source: git(source, ["ls-tree", head, "--", name]),
+          })),
+      ),
+    );
+  const spec = reviewedBinding({
+    operation: "candidate-consumer",
+    source: composed,
+    controller: control,
+    base,
+    authority: base,
+    merge_base: base,
+    inventory_sha256: inventory(composed),
+    consumer: {
+      controller_tree: tree(control),
+      source_tree: tree(composed),
+      product_source: product,
+      product_tree: tree(product),
+    },
+  });
+  const options = (binding = spec, job = "hosted_history") => {
+    const raw = JSON.stringify(binding);
+    return {
+      controllerRoot: controller,
+      environment: {
+        GITHUB_REPOSITORY: "boburning/portcove",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_SHA: control,
+        GITHUB_WORKFLOW_SHA: control,
+        GITHUB_WORKFLOW_REF:
+          "boburning/portcove/.github/workflows/native-design-compatibility.yml@refs/heads/fixture",
+        GITHUB_RUN_ID: "42",
+        GITHUB_RUN_ATTEMPT: "1",
+        GITHUB_JOB: job,
+        RUNNER_OS: "Linux",
+        RUNNER_ARCH: "X64",
+        PORTCOVE_LOCAL_OPERATION: binding.operation,
+        PORTCOVE_LOCAL_BINDING: raw,
+        PORTCOVE_LOCAL_BINDING_SHA256: bindingDigest(raw),
+      },
+      command: (name, args, cwd) => {
+        assert.equal(name, "git", "Binding tests must not execute native or candidate tools");
+        return git(cwd, args);
+      },
+    };
+  };
+  for (const job of ["hosted_selected", "hosted_compiled", "hosted_history"])
+    assert.equal(await runHostedValidation("prepare", options(spec, job)), 0);
+  await assert.rejects(() => runHostedValidation("audit", options()), /Phase differs/);
+  await assert.rejects(() => runHostedValidation("prepare", options(spec, "hosted_audit")), /job/);
+  const { consumer, ...normal } = spec;
+  await assert.rejects(() =>
+    runHostedValidation("prepare", options({ ...normal, operation: "qualification-history" })),
+  );
+  for (const key of Object.keys(consumer))
+    await assert.rejects(() =>
+      runHostedValidation(
+        "prepare",
+        options({ ...spec, consumer: { ...consumer, [key]: "0".repeat(40) } }),
+      ),
+    );
+  for (const patch of [{ command: "arbitrary" }, { consumer: {} }, { source: control }]) {
+    const raw = JSON.stringify({ ...spec, ...patch });
+    assert.throws(() => parseHostedValidationBinding(raw, bindingDigest(raw)));
+  }
+  for (const [name, expected] of [
+    [products[0], /product bytes differ/],
+    ["scripts/workflow-provenance.mjs", /exactly the four/],
+  ]) {
+    write(name, "unreviewed composition change\n");
+    const changed = commit("unreviewed change");
+    await assert.rejects(
+      () =>
+        runHostedValidation(
+          "prepare",
+          options({
+            ...spec,
+            source: changed,
+            inventory_sha256: inventory(changed),
+            consumer: { ...consumer, source_tree: tree(changed) },
+          }),
+        ),
+      expected,
+    );
+    git(source, ["checkout", "--quiet", "--detach", composed]);
+  }
+});
 
 test("preflight and controller share the exact hosted script authority boundary", () => {
   assert.equal(isHostedLocalCheckScriptAuthority("scripts/dev-doctor.mjs"), true);
@@ -114,6 +545,359 @@ function hostedFixture(t) {
     },
   };
 }
+
+function browserProvisioningReport(f, browser = true) {
+  return {
+    format_version: 1,
+    source: f.head,
+    base: f.base,
+    merge_base: f.base,
+    plan_digest: "d".repeat(64),
+    obligations: [{ id: browser ? "ui-browser-tests" : "diff-check", route: "local", missing: [] }],
+  };
+}
+
+test("preflight refusal retains bounded safe branch and transport facts", async (t) => {
+  const f = hostedFixture(t);
+  const valid = browserProvisioningReport(f);
+  const secret = "secret-canary Ω https://signed.invalid/?token=secret-cookie";
+  const cases = [
+    ["json", secret],
+    ["format-version", { ...valid, format_version: 2 }],
+    ["source", { ...valid, source: secret }],
+    ["base", { ...valid, base: f.head }],
+    ["merge-base", { ...valid, merge_base: f.head }],
+    ["plan-digest", { ...valid, plan_digest: secret }],
+    ["status", { ...valid, status: "planning-blocked" }],
+    ["obligations", { ...valid, obligations: null }],
+    ["obligations-empty", { ...valid, obligations: [] }],
+    ["obligation-id", { ...valid, obligations: [{ id: "" }] }],
+    [
+      "obligation-duplicate",
+      { ...valid, obligations: [valid.obligations[0], valid.obligations[0]] },
+    ],
+    [
+      "prerequisites",
+      { ...valid, obligations: [{ id: secret, route: "blocked", missing: [secret] }] },
+    ],
+    ["audit-exit", valid, 1],
+    [
+      "obligation-duplicate",
+      { ...valid, obligations: Array.from({ length: 1500 }, () => ({ id: secret })) },
+    ],
+  ];
+  for (const [reason, report, status = 0] of cases) {
+    f.logs.length = 0;
+    let calls = 0;
+    const stdout =
+      typeof report === "string" ? report : JSON.stringify({ ...report, private: secret });
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (_name, _args, settings) => {
+          calls++;
+          assert.equal(settings.timeout, 60_000);
+          assert.equal(settings.maxBuffer, 8 * 1024 * 1024);
+          return { status, stdout, stderr: secret };
+        },
+      }),
+      /Invalid complete local-check preflight/,
+    );
+    assert.equal(calls, 1);
+    const line = f.logs.find((value) => value.startsWith("Hosted preflight refusal: "));
+    assert.ok(line, "Original refusal must retain a diagnostic");
+    assert.ok(Buffer.byteLength(line) <= 64 * 1024);
+    assert.ok(!line.includes("secret-canary") && !line.includes("signed.invalid"));
+    const diagnostic = JSON.parse(line.slice("Hosted preflight refusal: ".length));
+    assert.equal(diagnostic.reason, reason);
+    assert.equal(diagnostic.result.status, status);
+    assert.equal(diagnostic.stdout.bytes, Buffer.byteLength(stdout));
+    assert.equal(diagnostic.stdout.sha256, bindingDigest(stdout));
+    assert.equal(diagnostic.capture_complete, true);
+    if (Array.isArray(report.obligations) && report.obligations.length === 1500)
+      assert.equal(diagnostic.omitted, true);
+  }
+  for (const code of ["ENOENT", "ETIMEDOUT", "ENOBUFS", "private-code"]) {
+    f.logs.length = 0;
+    const error = Object.assign(new Error(secret), { code });
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: () => ({
+          error,
+          status: null,
+          signal: "SIGTERM",
+          stdout: "partial Ω",
+          stderr: secret,
+        }),
+      }),
+      (actual) => actual === error,
+    );
+    const line = f.logs.find((value) => value.startsWith("Hosted preflight refusal: "));
+    const diagnostic = JSON.parse(line.slice("Hosted preflight refusal: ".length));
+    assert.equal(diagnostic.reason, "child-error");
+    assert.equal(diagnostic.capture_complete, false);
+    assert.equal(diagnostic.result.code, code === "private-code" ? "UNKNOWN" : code);
+    assert.equal(diagnostic.result.signal, "SIGTERM");
+    assert.ok(!line.includes("secret-canary") && !line.includes("private-code"));
+  }
+  for (const status of [2, 7, null]) {
+    f.logs.length = 0;
+    assert.equal(
+      await runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: () => ({ status, stdout: "{}" }),
+      }),
+      status ?? 1,
+    );
+    assert.ok(f.logs.some((line) => line.includes('"reason":"child-status"')));
+  }
+  await assert.rejects(
+    runHostedLocalCheck("provision", {
+      ...f.options,
+      log: (line) => {
+        if (line.startsWith("Hosted preflight refusal: ")) throw Error(secret);
+      },
+      spawn: () => ({ status: 0, stdout: "invalid" }),
+    }),
+    /Invalid complete local-check preflight/,
+  );
+});
+
+test("complete policy preflight exit one preserves audit and provisions selected browser", async (t) => {
+  const f = hostedFixture(t);
+  const calls = [];
+  const report = {
+    ...browserProvisioningReport(f),
+    obligations: [{ id: "ui-browser-tests", route: "local", missing: [] }],
+    pre_change_audit: {
+      profile: "complete",
+      command: "just audit --profile transition --fresh",
+      route: "local-prerequisites-unverified",
+      stages: [{ id: "rust", command: "just check-rust" }],
+      local_prerequisites: [{ id: "complete-audit-prerequisites", status: "unverified" }],
+      missing_local_prerequisites: ["complete-audit-prerequisites"],
+    },
+  };
+  assert.equal(
+    await runHostedLocalCheck("provision", {
+      ...f.options,
+      spawn: (name, args) => {
+        calls.push([name, ...args]);
+        return name === process.execPath
+          ? { status: 1, stdout: JSON.stringify(report) }
+          : { status: 0 };
+      },
+    }),
+    0,
+  );
+  assert.deepEqual(calls, [
+    [process.execPath, "scripts/local-validation.mjs", "check", "--preflight", "--json"],
+    ["pnpm", "--dir", "apps/desktop", "browser:bootstrap"],
+  ]);
+  assert.ok(f.logs.some((line) => line.includes('"route":"local-prerequisites-unverified"')));
+});
+
+test("selected hosted browser is provisioned before ordinary execution on a cold fixture", async (t) => {
+  const f = hostedFixture(t);
+  const calls = [];
+  let browserReady = false;
+  const spawn = (name, args, options) => {
+    calls.push([name, ...args]);
+    assert.equal(options.cwd, f.source);
+    assert.equal(options.env.GH_TOKEN, undefined);
+    assert.equal(options.env.CI, undefined);
+    assert.equal(options.env.CARGO_BUILD_JOBS, "4");
+    if (name === process.execPath)
+      return { status: 0, stdout: JSON.stringify(browserProvisioningReport(f)) };
+    if (name === "pnpm") {
+      browserReady = true;
+      return { status: 0 };
+    }
+    if (args.includes("--fresh")) assert.equal(browserReady, true);
+    return { status: 0 };
+  };
+  assert.equal(await runHostedLocalCheck("provision", { ...f.options, spawn }), 0);
+  assert.equal(await runHostedLocalCheck("run", { ...f.options, spawn }), 0);
+  assert.deepEqual(calls, [
+    [process.execPath, "scripts/local-validation.mjs", "check", "--preflight", "--json"],
+    ["pnpm", "--dir", "apps/desktop", "browser:bootstrap"],
+    ["just", "local-check", "--plan"],
+    ["just", "local-check", "--fresh"],
+  ]);
+  assert.ok(f.logs.some((line) => line.includes('"plan_digest":"' + "d".repeat(64))));
+});
+
+test("provisioning refuses blocked selection and unnamed preflight failures", async (t) => {
+  const f = hostedFixture(t);
+  const report = browserProvisioningReport(f);
+  const audit = {
+    profile: "complete",
+    route: "local-prerequisites-unverified",
+    command: "just audit --profile transition --fresh",
+  };
+  for (const [status, value] of [
+    [1, report],
+    [1, { ...report, pre_change_audit: { ...audit, route: "hosted-deep-audit" } }],
+    [1, { ...report, pre_change_audit: { ...audit, profile: "release" } }],
+    [
+      1,
+      {
+        ...report,
+        pre_change_audit: { ...audit, command: "just audit --profile release --fresh" },
+      },
+    ],
+    [
+      1,
+      {
+        ...report,
+        pre_change_audit: audit,
+        obligations: [{ id: "ui-browser-tests", route: "blocked", missing: ["ui-workspace"] }],
+      },
+    ],
+    [
+      1,
+      {
+        ...report,
+        pre_change_audit: audit,
+        obligations: [{ id: "ui-browser-tests", route: "local", missing: ["node"] }],
+      },
+    ],
+    [
+      0,
+      { ...report, obligations: [{ id: "ui-browser-tests", route: "blocked", missing: ["pnpm"] }] },
+    ],
+    [0, { ...report, obligations: [{ id: "ui-browser-tests", route: "local" }] }],
+  ]) {
+    const calls = [];
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          return { status, stdout: JSON.stringify(value) };
+        },
+      }),
+      /Invalid complete local-check preflight/,
+    );
+    assert.equal(calls.length, 1);
+  }
+  for (const status of [2, 7, null]) {
+    const calls = [];
+    assert.equal(
+      await runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          return { status, stdout: JSON.stringify({ ...report, pre_change_audit: audit }) };
+        },
+      }),
+      status ?? 1,
+    );
+    assert.equal(calls.length, 1);
+  }
+});
+
+test("browser-free hosted selection acquires nothing", async (t) => {
+  const f = hostedFixture(t);
+  const calls = [];
+  assert.equal(
+    await runHostedLocalCheck("provision", {
+      ...f.options,
+      spawn: (name, args) => {
+        calls.push([name, ...args]);
+        return { status: 0, stdout: JSON.stringify(browserProvisioningReport(f, false)) };
+      },
+    }),
+    0,
+  );
+  assert.deepEqual(calls, [
+    [process.execPath, "scripts/local-validation.mjs", "check", "--preflight", "--json"],
+  ]);
+});
+
+test("failed preflight or browser acquisition cannot report provisioned readiness", async (t) => {
+  for (const failure of ["preflight", "bootstrap"]) {
+    const f = hostedFixture(t);
+    const calls = [];
+    assert.equal(
+      await runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          return name === process.execPath
+            ? {
+                status: failure === "preflight" ? 7 : 0,
+                stdout: JSON.stringify(browserProvisioningReport(f)),
+              }
+            : { status: 9 };
+        },
+      }),
+      failure === "preflight" ? 7 : 9,
+    );
+    assert.equal(calls.length, failure === "preflight" ? 1 : 2);
+    assert.ok(!f.logs.some((line) => line.startsWith("Hosted browser provisioning completed:")));
+    assert.ok(!calls.some((call) => call.includes("--fresh")));
+  }
+});
+
+test("invalid or incomplete selected plan refuses acquisition", async (t) => {
+  const f = hostedFixture(t);
+  const report = browserProvisioningReport(f);
+  for (const value of [
+    "not JSON",
+    { ...report, format_version: 2 },
+    { ...report, source: f.base },
+    { ...report, base: f.head },
+    { ...report, merge_base: f.head },
+    { ...report, plan_digest: "invalid" },
+    { ...report, status: "planning-blocked" },
+    { ...report, obligations: null },
+    { ...report, obligations: [] },
+    { ...report, obligations: [{ id: "" }] },
+    { ...report, obligations: [{ id: "ui-browser-tests" }, { id: "ui-browser-tests" }] },
+  ]) {
+    const calls = [];
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          return { status: 0, stdout: typeof value === "string" ? value : JSON.stringify(value) };
+        },
+      }),
+      /Invalid complete local-check preflight/,
+    );
+    assert.equal(calls.length, 1);
+  }
+});
+
+test("provisioning rechecks clean source and comparison before and after acquisition", async (t) => {
+  for (const change of ["source", "controller", "base", "bootstrap-source"]) {
+    const f = hostedFixture(t);
+    const calls = [];
+    await assert.rejects(
+      runHostedLocalCheck("provision", {
+        ...f.options,
+        spawn: (name, args) => {
+          calls.push([name, ...args]);
+          if (name === process.execPath) {
+            if (change === "source") f.write(f.source, "subject.rs", "changed during preflight\n");
+            if (change === "controller")
+              f.write(f.controller, ".github/workflows/deep-quality.yml", "changed controller\n");
+            if (change === "base")
+              f.git(f.source, ["update-ref", "refs/remotes/origin/main", f.head]);
+            return { status: 0, stdout: JSON.stringify(browserProvisioningReport(f)) };
+          }
+          f.write(f.source, "subject.rs", "changed during bootstrap\n");
+          return { status: 0 };
+        },
+      }),
+      /dirty|comparison target changed/,
+    );
+    assert.equal(calls.length, change === "bootstrap-source" ? 2 : 1);
+  }
+});
 
 test("hosted local execution preserves defaults and removes provisioning credentials", () => {
   const child = hostedLocalCheckEnvironment(
@@ -238,8 +1022,8 @@ function cargoFixture(t, twoManifests = false) {
   return { ...f, spec, commit };
 }
 
-test("opt-in Cargo binding admits only the reviewed one/two-manifest updates", async (t) => {
-  for (const count of [false, true]) {
+for (const count of [false, true]) {
+  test(`opt-in Cargo binding admits only the reviewed ${count ? "two" : "one"}-manifest update`, async (t) => {
     const f = cargoFixture(t, count);
     assert.equal(await runHostedLocalCheck("prepare", f.options), 0);
     const calls = [];
@@ -273,8 +1057,8 @@ test("opt-in Cargo binding admits only the reviewed one/two-manifest updates", a
     );
     delete f.env.PORTCOVE_LOCAL_DEPENDENCY_BINDING;
     await assert.rejects(runHostedLocalCheck("prepare", f.options), /changes trusted.*authority/);
-  }
-});
+  });
+}
 
 test("Cargo binding rejects every other tree, mode and dependency-byte change", async (t) => {
   const mutations = [
@@ -423,8 +1207,8 @@ test("planning cannot change the reviewed lock before fresh execution", async (t
   assert.ok(!f.logs.some((line) => line.startsWith("Hosted local-check completed:")));
 });
 
-test("multiline TOML descriptions cannot masquerade as dependency tables", async (t) => {
-  for (const delimiter of ['"""', "'''"]) {
+for (const delimiter of ['"""', "'''"]) {
+  test(`multiline TOML ${delimiter} descriptions cannot masquerade as dependency tables`, async (t) => {
     const f = cargoFixture(t);
     f.git(f.source, ["reset", "--hard", f.env.PORTCOVE_LOCAL_AUTHORITY_SHA]);
     const manifest = f.spec.manifests[0].path;
@@ -447,8 +1231,8 @@ test("multiline TOML descriptions cannot masquerade as dependency tables", async
       runHostedLocalCheck("prepare", f.options),
       /Invalid reviewed Cargo dependency binding/,
     );
-  }
-});
+  });
+}
 
 test("hosted execution binds actual Git source, default base, controller and final child", async (t) => {
   const f = hostedFixture(t);
@@ -558,7 +1342,7 @@ test("manual local-check transport preserves the audit and has no mutable execut
   );
   const local = workflow.split("\n  local_check:\n")[1];
   assert.ok(local);
-  assert.match(workflow, /options: \[audit, local-check\]/);
+  assert.match(workflow, /default: audit\n {8}options: \[audit, audit-reuse, local-check\]/);
   assert.match(workflow, /contents: read/);
   assert.match(workflow, /just audit --fresh/);
   assert.match(local, /runs-on: ubuntu-24\.04/);
@@ -567,7 +1351,19 @@ test("manual local-check transport preserves the audit and has no mutable execut
     local,
     /hosted-local-check controller[\s\S]*path: source[\s\S]*hosted-local-check prepare[\s\S]*bootstrap-quality-tools\.sh[\s\S]*hosted-local-check run/,
   );
-  assert.match(local, /pnpm install --frozen-lockfile/);
+  // Preflight observes Corepack's contained exact-version cache, never PATH pnpm.
+  // Standalone action-setup installation cannot prepare that provider.
+  assert.match(
+    local,
+    /working-directory: source\n        run: corepack pnpm install --frozen-lockfile/u,
+  );
+  assert.doesNotMatch(local, /run: pnpm install --frozen-lockfile/u);
+  const install = local.indexOf("corepack pnpm install --frozen-lockfile");
+  const provision = local.indexOf("hosted-local-check provision");
+  const run = local.indexOf("hosted-local-check run");
+  assert.ok(provision > install && run > provision);
+  const provisioningStep = local.slice(local.lastIndexOf("      - name:", provision), run);
+  assert.doesNotMatch(provisioningStep, /continue-on-error|if:.*always/);
   assert.doesNotMatch(
     local,
     /actions\/cache|rust-cache|upload-artifact|secrets\.|contents: write|CARGO_PROFILE_/,

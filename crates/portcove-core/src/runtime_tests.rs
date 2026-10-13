@@ -92,6 +92,156 @@ fn asset(name: &str, bytes: &[u8]) -> ReleaseAsset {
     }
 }
 
+// Generic runtime lifecycle checks need one valid source/port graph, not live titles.
+// Adoption, import, launch-policy and real-catalog validation keep embedded fixtures.
+fn runtime_catalog(port: Option<&PortDefinition>) -> Catalog {
+    let platform = Platform::current().unwrap();
+    let key = serde_json::to_value(platform)
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let executable = if platform == Platform::WindowsX86_64 {
+        "launch.bat"
+    } else {
+        "launch"
+    };
+    let java = if platform == Platform::WindowsX86_64 {
+        "bin/java.exe"
+    } else {
+        "bin/java"
+    };
+    let mut document = serde_json::json!({
+        "schema_version": 2,
+        "source_catalog": {
+            "evidence": [{
+                "id": "runtime-fixture-bytes", "role": "byte_identity",
+                "authority": "Synthetic runtime fixture", "authority_ref": "fixture-1",
+                "reviewed_at": "2026-10-02", "claim": "Synthetic runtime source identity",
+                "immutable_url": "https://example.invalid/fixtures/runtime-source-v1"
+            }],
+            "identities": [{
+                "id": "runtime-fixture-source", "label": "Synthetic runtime source",
+                "kind": "optical-disc", "variants": [{
+                    "id": "fixture-1", "title": "Synthetic runtime source",
+                    "representations": [{
+                        "id": "disc-set", "extensions": ["chd"], "kind": "multi-disc-set",
+                        "discs": (1..=4).map(|index| serde_json::json!({
+                            "id": format!("disc-{index}"), "label": format!("Synthetic disc {index}"),
+                            "track_counts": [1], "volume_ids": [format!("FIXTURE{index}")],
+                            "identities": []
+                        })).collect::<Vec<_>>(),
+                        "evidence_ids": ["runtime-fixture-bytes"]
+                    }], "evidence_ids": ["runtime-fixture-bytes"]
+                }]
+            }],
+            "contracts": [{
+                "id": "runtime-fixture-game", "port_id": PORT, "role": "game",
+                "profile_id": "runtime-fixture-source", "admission_mode": "enforced",
+                "supported_variant_ids": ["fixture-1"], "evidence_ids": ["runtime-fixture-bytes"],
+                "authority_ref": "fixture-1", "reviewed_at": "2026-10-02",
+                "immutable_review_url": "https://example.invalid/fixtures/runtime-source-v1"
+            }], "validators": []
+        },
+        "ports": [{
+            "id": PORT, "name": "Synthetic bundled runtime", "summary": "Runtime lifecycle fixture",
+            "project_url": "https://example.invalid/fixtures/runtime", "support_tier": "rolling",
+            "channels": ["rolling"], "platforms": [platform], "adapter": "staged-source-portable",
+            "release": {"repository": "fixture/runtime", "rolling_tag": "fixture"},
+            "source_profile": "runtime-fixture-source", "runtime_source_filename": "isos",
+            "runtime_source_materialization": "psx-raw-set",
+            "launch_from_install_root": true,
+            "executable_hints": {(key.clone()): [executable]},
+            "persistent_paths": ["saves", "mods", "isos", "files", "config.dcnf", "config.conf",
+                "launch.conf", "update_log.txt", "debug.log", "debug-updater.log"],
+            "bundled_runtime": {(key): {
+                "asset": {"name": "runtime.zip", "url": "https://example.invalid/runtime.zip",
+                    "size": 1, "sha256": "a".repeat(64)},
+                "archive_root": "vendor-root", "target_directory": "jdk25", "executable": java
+            }}
+        }]
+    });
+    if let Some(port) = port {
+        document["ports"][0] = serde_json::to_value(port).unwrap();
+        if port.source_profile.is_none() {
+            document["source_catalog"]["contracts"] = serde_json::json!([]);
+        }
+    }
+    Catalog::from_json(&document.to_string()).unwrap()
+}
+
+fn runtime_qualification(port: &PortDefinition) -> crate::InstallQualification {
+    crate::InstallQualification::from_catalog(
+        &runtime_catalog(Some(port)),
+        &port.id,
+        Platform::current().unwrap(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn generic_runtime_fixture_retains_only_its_valid_source_graph() {
+    let catalog = runtime_catalog(None);
+    assert_eq!(catalog.ports().len(), 1);
+    assert_eq!(catalog.document().source_profiles.len(), 1);
+    let source = catalog.source_catalog().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.contracts.len(), 1);
+    assert_eq!(source.evidence.len(), 1);
+    let port = catalog.port(PORT).unwrap();
+    assert_eq!(
+        port.runtime_source_materialization,
+        Some(crate::RuntimeSourceMaterialization::PsxRawSet)
+    );
+    assert_eq!(
+        catalog
+            .source_profile("runtime-fixture-source")
+            .unwrap()
+            .disc
+            .as_ref()
+            .unwrap()
+            .discs
+            .len(),
+        4
+    );
+    let retained = crate::installed_contract::InstalledContract::capture(&catalog, PORT).unwrap();
+    assert_eq!(
+        serde_json::to_value(retained.catalog(PORT).unwrap().authoritative_document()).unwrap(),
+        serde_json::to_value(catalog.authoritative_document()).unwrap()
+    );
+    runtime_qualification(port);
+
+    let mut invalid = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    invalid["source_catalog"]["contracts"][0]["profile_id"] = "missing-source".into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+    let mut invalid = serde_json::to_value(catalog.authoritative_document()).unwrap();
+    invalid["source_catalog"]["identities"][0]["unknown_fixture_field"] = true.into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+}
+
+#[test]
+fn generic_runtime_service_does_not_inherit_unrelated_embedded_catalog_entries() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    let fixture = Fixture::new(b"runtime", false);
+    let service = fixture.service(library);
+    assert_eq!(service.catalog.ports().len(), 1);
+    assert_eq!(service.catalog.ports()[0].id, PORT);
+    assert_eq!(service.catalog.document().source_profiles.len(), 1);
+    assert_eq!(service.catalog.source_catalog().unwrap().contracts.len(), 1);
+    assert_eq!(
+        service.catalog.port(PORT).unwrap().bundled_runtime,
+        fixture.port.bundled_runtime
+    );
+    // The real-catalog consumer route remains deliberately distinct.
+    let real = Fixture::real(b"runtime", false);
+    let library = Library::open(temporary.path().join("real")).unwrap();
+    assert_eq!(
+        real.service(library).catalog.ports().len(),
+        Catalog::embedded().unwrap().ports().len()
+    );
+}
+
 struct Fixture {
     server: Archives,
     port: PortDefinition,
@@ -101,8 +251,23 @@ struct Fixture {
 impl Fixture {
     fn new(runtime_bytes: &[u8], game_extra: bool) -> Self {
         eprintln!("runtime fixture: prepare archives");
+        Self::from_port(
+            runtime_bytes,
+            game_extra,
+            runtime_catalog(None).port(PORT).unwrap().clone(),
+        )
+    }
+
+    fn real(runtime_bytes: &[u8], game_extra: bool) -> Self {
+        Self::from_port(
+            runtime_bytes,
+            game_extra,
+            Catalog::embedded().unwrap().port(PORT).unwrap().clone(),
+        )
+    }
+
+    fn from_port(runtime_bytes: &[u8], game_extra: bool, mut port: PortDefinition) -> Self {
         let platform = Platform::current().unwrap();
-        let mut port = Catalog::embedded().unwrap().port(PORT).unwrap().clone();
         port.platforms = vec![platform];
         port.automated_tested_platforms
             .retain(|key| *key == platform);
@@ -156,11 +321,17 @@ impl Fixture {
             output_root: library.versions_dir().join(PORT),
             activate,
             managed: None,
-            qualification: crate::test_fixture::retained_qualification(
-                &self.port,
-                Platform::current().unwrap(),
-            )
-            .unwrap()
+            qualification: if self.port.source_profile.as_deref() == Some("runtime-fixture-source")
+                || self.port.source_profile.is_none()
+            {
+                runtime_qualification(&self.port)
+            } else {
+                crate::test_fixture::retained_qualification(
+                    &self.port,
+                    Platform::current().unwrap(),
+                )
+                .unwrap()
+            }
             .with_test_runtime_url(format!("{}/runtime.zip", self.server.url)),
         }
     }
@@ -184,13 +355,19 @@ impl Fixture {
         let mut service =
             PortcoveService::with_provider(library, Arc::new(FixedRelease(self.release.clone())))
                 .unwrap();
-        let mut document = service.catalog.document().clone();
-        *document
-            .ports
-            .iter_mut()
-            .find(|port| port.id == PORT)
-            .unwrap() = self.port.clone();
-        service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        service.catalog = if self.port.source_profile.as_deref() == Some("runtime-fixture-source")
+            || self.port.source_profile.is_none()
+        {
+            runtime_catalog(Some(&self.port))
+        } else {
+            let mut document = service.catalog.document().clone();
+            *document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == PORT)
+                .unwrap() = self.port.clone();
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+        };
         eprintln!("runtime fixture: service ready");
         service
     }
@@ -319,14 +496,7 @@ async fn named_save_restore_updates_every_version_and_preserves_import_policy() 
         changed.persistent_file_patterns.clear();
         assert!(
             installer
-                .verify_import_contract(
-                    install,
-                    &crate::test_fixture::retained_qualification(
-                        &changed,
-                        Platform::current().unwrap()
-                    )
-                    .unwrap()
-                )
+                .verify_import_contract(install, &runtime_qualification(&changed))
                 .is_err()
         );
     }
@@ -377,16 +547,61 @@ async fn named_saves_survive_reinstallation_without_weakening_executable_policy(
     .unwrap();
     assert!(
         installer
-            .verify_critical(
-                &installed,
-                &crate::test_fixture::retained_qualification(
-                    &second.port,
-                    Platform::current().unwrap()
-                )
-                .unwrap()
-            )
+            .verify_critical(&installed, &runtime_qualification(&second.port))
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn retained_rollback_assesses_missing_runtime_bytes_read_only() {
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path()).unwrap();
+    let first = Fixture::new(b"runtime one", false);
+    let previous = first.install(&library, true).await;
+    let second = Fixture::new(b"runtime two", false);
+    let active = second.install(&library, true).await;
+    let service = second.service(library.clone());
+    let assessment = |status: PortStatus| {
+        status
+            .port_actions
+            .into_iter()
+            .find(|action| action.action == PortAction::Rollback)
+            .unwrap()
+    };
+    assert_eq!(
+        assessment(service.status(PORT).unwrap()).availability,
+        PortActionAvailability::Allowed
+    );
+    let runtime = previous.runtime.as_ref().unwrap();
+    let executable = previous
+        .path
+        .join(&runtime.target_directory)
+        .join(&runtime.executable);
+    let bytes = fs::read(&executable).unwrap();
+    let permissions = fs::metadata(&executable).unwrap().permissions();
+    fs::remove_file(&executable).unwrap();
+    let before = crate::test_fixture::library_file_snapshot(&library);
+    let activities = serde_json::to_value(library.activities(100).unwrap()).unwrap();
+
+    let missing = assessment(service.status(PORT).unwrap());
+    assert_eq!(missing.availability, PortActionAvailability::Held);
+    assert_eq!(missing.reason, PortActionReason::MissingRuntime);
+    assert_eq!(crate::test_fixture::library_file_snapshot(&library), before);
+    assert_eq!(
+        serde_json::to_value(library.activities(100).unwrap()).unwrap(),
+        activities
+    );
+    assert!(service.rollback(PORT).is_err());
+    let refused = library.status(PORT, ReleaseChannel::Rolling).unwrap();
+    assert_eq!(refused.active.unwrap().id, active.id);
+    assert_eq!(refused.previous.unwrap().id, previous.id);
+
+    fs::write(&executable, bytes).unwrap();
+    fs::set_permissions(&executable, permissions).unwrap();
+    let restored = assessment(service.status(PORT).unwrap());
+    assert_eq!(restored.availability, PortActionAvailability::Allowed);
+    assert_eq!(restored.reason, PortActionReason::Available);
+    assert_eq!(service.rollback(PORT).unwrap().id, previous.id);
 }
 
 #[tokio::test]
@@ -464,14 +679,7 @@ async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() 
     assert!(
         Installer::new(library.clone())
             .unwrap()
-            .verify_critical(
-                &new,
-                &crate::test_fixture::retained_qualification(
-                    &second.port,
-                    Platform::current().unwrap()
-                )
-                .unwrap()
-            )
+            .verify_critical(&new, &runtime_qualification(&second.port))
             .is_err()
     );
     fs::write(new.path.join("libs/game.jar"), b"synthetic game code").unwrap();
@@ -483,14 +691,7 @@ async fn runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes() 
     assert!(
         Installer::new(library)
             .unwrap()
-            .verify_critical(
-                &new,
-                &crate::test_fixture::retained_qualification(
-                    &second.port,
-                    Platform::current().unwrap()
-                )
-                .unwrap()
-            )
+            .verify_critical(&new, &runtime_qualification(&second.port))
             .is_err()
     );
 }
@@ -563,6 +764,60 @@ async fn runtime_checksum_preserves_the_active_install() {
 }
 
 #[tokio::test]
+async fn package_checksum_refusal_preserves_active_install_and_user_data() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("disposable library")).unwrap();
+    let fixture = Fixture::new(b"runtime", false);
+    let installed = fixture.install(&library, true).await;
+    let save = library.user_dir(PORT).join("existing save");
+    fs::create_dir_all(save.parent().unwrap()).unwrap();
+    fs::write(&save, b"preserve these bytes").unwrap();
+    let service = fixture.service(library.clone());
+    let (activity, operation) = service
+        .begin_cancellable_activity(
+            ActivityOperation::Install,
+            ActivityTargetKind::Port,
+            Some(PORT),
+        )
+        .unwrap();
+    let mut request = fixture.request(&library, true);
+    request.release.version = "invalid-checksum-candidate".into();
+    request.release.asset.sha256 = "0".repeat(64);
+    let result = Installer::new(library.clone())
+        .unwrap()
+        .install(request, &operation, |_| {})
+        .await;
+    let error = service.finish_activity(activity, result).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Verification);
+
+    let reopened = fixture.service(Library::open(library.root()).unwrap());
+    assert_eq!(
+        reopened.status(PORT).unwrap().active.unwrap().id,
+        installed.id
+    );
+    assert_eq!(reopened.library().all_installs().unwrap().len(), 1);
+    assert_eq!(fs::read(&save).unwrap(), b"preserve these bytes");
+    assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    assert!(
+        OperationStore::new(library.clone())
+            .all()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        library.activities(1).unwrap()[0].status,
+        ActivityStatus::Failed
+    );
+    assert!(
+        Installer::new(library)
+            .unwrap()
+            .verify(&installed)
+            .unwrap()
+            .valid
+    );
+}
+
+#[tokio::test]
 async fn runtime_collision_preserves_the_active_install() {
     assert_runtime_failure_preserves_install("collision").await;
 }
@@ -581,7 +836,7 @@ async fn runtime_missing_executable_preserves_the_active_install() {
 async fn runtime_adoption_changes_provenance_without_mutating_the_downloaded_install() {
     let root = tempfile::tempdir().unwrap();
     let original = Library::open(root.path().join("original")).unwrap();
-    let fixture = Fixture::new(b"runtime", false);
+    let fixture = Fixture::real(b"runtime", false);
     let downloaded = fixture.install(&original, true).await;
     let library = Library::open(root.path().join("adopted")).unwrap();
     let service = fixture.service(library.clone());
@@ -615,7 +870,7 @@ fn adopted_runtime_fixture() -> (
     crate::InstallRecord,
 ) {
     let root = tempfile::tempdir().unwrap();
-    let mut fixture = Fixture::new(b"runtime", false);
+    let mut fixture = Fixture::real(b"runtime", false);
     let platform = Platform::current().unwrap();
     // Adoption/import exercises an admitted catalog contract. Keep the other
     // platforms' reviewed declarations instead of the download fixture's
@@ -708,7 +963,7 @@ async fn adopted_runtime_remains_subject_to_critical_launch_policy() {
 
 #[test]
 fn runtime_catalog_rejects_mutable_overlaps_unsafe_paths_unpinned_urls_and_incomplete_platforms() {
-    let fixture = Fixture::new(b"runtime", false);
+    let fixture = Fixture::real(b"runtime", false);
     for case in 0..8 {
         let mut port = fixture.port.clone();
         let runtime = port.bundled_runtime.values_mut().next().unwrap();

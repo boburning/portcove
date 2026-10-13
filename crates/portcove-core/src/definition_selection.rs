@@ -32,6 +32,13 @@ pub struct DefinitionSelectionIdentity {
 
 impl DefinitionSelectionIdentity {
     pub(crate) fn validate_snapshot(&self, snapshot: &DefinitionSnapshot) -> Result<()> {
+        self.validated_snapshot_projection(snapshot).map(|_| ())
+    }
+
+    fn validated_snapshot_projection(
+        &self,
+        snapshot: &DefinitionSnapshot,
+    ) -> Result<crate::DefinitionCatalogProjection> {
         if self.namespace != snapshot.namespace()
             || self.stable_id != snapshot.port_id()
             || self.repository_root_sha256 != self.provenance.root_sha256
@@ -47,12 +54,13 @@ impl DefinitionSelectionIdentity {
         validate_sha256(&self.repository_root_sha256)?;
         DefinitionReplayFloor::from(&self.provenance).validate()?;
         expiration_unix(&self.provenance)?;
-        if self.definition_revision != snapshot.projection()?.entry().revision() {
+        let projection = snapshot.projection()?;
+        if self.definition_revision != projection.entry().revision() {
             return Err(PortcoveError::verification(
                 "definition admission revision differs from its exact entry",
             ));
         }
-        Ok(())
+        Ok(projection)
     }
 }
 
@@ -102,15 +110,15 @@ impl StoredDefinitionSelection {
     }
 
     fn validate(&self) -> Result<()> {
-        self.identity()
-            .validate_snapshot(&self.snapshot)
+        let projection = self
+            .identity()
+            .validated_snapshot_projection(&self.snapshot)
             .map_err(|error| {
                 PortcoveError::state(
                     "stored definition selection has inconsistent identity or policy",
                 )
                 .detail("cause", error.message)
             })?;
-        let projection = self.snapshot.projection()?;
         projection.catalog().port(&self.stable_id)?;
         Ok(())
     }
@@ -269,9 +277,18 @@ impl PublisherPolicyRecord {
 
     fn observation(
         &self,
+        connection: &Connection,
         candidate: &AuthenticatedDefinitionCandidate,
     ) -> Result<DefinitionPublisherObservation> {
-        if self.root_sha256 != candidate.provenance().root_sha256 {
+        if self.root_sha256 != candidate.provenance().root_sha256
+            || (self.status == DefinitionPublisherStatus::Scoped
+                && !crate::definition_repository::publisher_policy::allows_candidate(
+                    connection,
+                    candidate,
+                    &self.namespace,
+                    &self.stable_id,
+                )?)
+        {
             return DefinitionPublisherObservation::unscoped(
                 candidate,
                 &self.namespace,
@@ -344,6 +361,7 @@ impl Library {
         role: &str,
     ) -> Result<()> {
         identity.validate_snapshot(snapshot)?;
+        crate::definition_acquisition::refuse_restricted_portability(&identity.grant_id)?;
         let stored = StoredDefinitionSelection {
             namespace: identity.namespace.clone(),
             stable_id: identity.stable_id.clone(),
@@ -434,7 +452,7 @@ impl Library {
         let transaction = connection.unchecked_transaction()?;
         let state = DefinitionSelectionState::read(&transaction)?;
         let publisher = match PublisherPolicyRecord::read(&transaction, namespace, stable_id)? {
-            Some(policy) => policy.observation(candidate)?,
+            Some(policy) => policy.observation(&transaction, candidate)?,
             None => DefinitionPublisherObservation::unscoped(candidate, namespace, stable_id)?,
         };
         let result = candidate.evaluate_availability(
@@ -475,6 +493,11 @@ impl Library {
         })?;
         if !policy.matches(&candidate.publisher)
             || policy.status != DefinitionPublisherStatus::Scoped
+            || !crate::definition_repository::publisher_policy::allows_projection(
+                &transaction,
+                &candidate.projection,
+                &candidate.provenance,
+            )?
         {
             return Err(PortcoveError::conflict(
                 "definition publisher policy changed; assess it again",
@@ -545,27 +568,52 @@ impl Library {
             .is_some_and(|floor| floor.evaluate(&identity.provenance).is_err());
         let publisher_scoped = policy
             .as_ref()
-            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Scoped);
+            .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Scoped)
+            && crate::definition_repository::publisher_policy::allows_operation(
+                &transaction,
+                identity,
+                context,
+            )?;
         let publisher_revoked = policy
             .as_ref()
             .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Revoked);
-        let same_identity_changed = policy
-            .as_ref()
-            .is_some_and(|policy| !policy.matches_identity(identity));
+        let retained_launch_continues = context.operation == crate::DefinitionOperation::Launch
+            && context.retained_contract
+            && publisher_scoped
+            && crate::definition_repository::publisher_policy::continues_retained_launch(
+                &transaction,
+                identity,
+            )?;
+        let same_identity_changed = !retained_launch_continues
+            && policy
+                .as_ref()
+                .is_some_and(|policy| !policy.matches_identity(identity));
+        let launch_checks =
+            crate::definition_repository::publisher_policy::launch_assessment::checks_passed(
+                &transaction,
+                identity,
+                context,
+            )?;
         let result = evaluate_definition_eligibility(&DefinitionEligibilityFacts {
             operation: context.operation,
             publisher_scoped,
             publisher_revoked,
             capability_supported: true,
-            unknown_safety_field: false,
+            unknown_safety_field: launch_checks.is_none(),
             ownership_preserved: true,
             same_identity_changed,
             expected_integrity: true,
             local_integrity_valid: context.local_integrity_valid,
             required_source_missing: context.required_source_missing,
             source_mismatch: context.source_mismatch,
-            mandatory_checks_passed: true,
-            fresh_metadata: Self::now() < expiration_unix(&identity.provenance)?,
+            mandatory_checks_passed: launch_checks != Some(false),
+            fresh_metadata: Self::now() < expiration_unix(&identity.provenance)?
+                && crate::definition_repository::publisher_policy::availability_expiration(
+                    &transaction,
+                    &identity.namespace,
+                    &identity.stable_id,
+                )?
+                .is_none_or(|expires| Self::now() < expires),
             replayed_metadata,
             refresh_interrupted: false,
             retained_contract: context.retained_contract,
@@ -730,14 +778,39 @@ pub(crate) fn load_selected_definition_catalog(
         ));
     }
     require_fresh(&selection.provenance, now_unix)?;
-    let mut catalog = selection.snapshot.catalog()?;
+    let projection = selection.snapshot.projection()?;
+    if !crate::definition_repository::publisher_policy::allows_projection(
+        connection,
+        &projection,
+        &selection.provenance,
+    )? {
+        return Err(PortcoveError::conflict(
+            "selected definition differs from its protected publisher scope",
+        ));
+    }
+    let mut expiration = expiration_unix(&selection.provenance)?;
+    if let Some(policy_expiration) =
+        crate::definition_repository::publisher_policy::availability_expiration(
+            connection,
+            &selection.namespace,
+            &selection.stable_id,
+        )?
+    {
+        if policy_expiration <= now_unix {
+            return Err(PortcoveError::verification(
+                "selected publisher policy metadata is expired",
+            ));
+        }
+        expiration = expiration.min(policy_expiration);
+    }
+    let mut catalog = projection.catalog().clone();
     crate::definition_loader::validate_definition_transition(
         baseline,
         &catalog,
         &selection.stable_id,
     )?;
     catalog.retain_definition_selection(std::sync::Arc::new(selection.identity()))?;
-    Ok(Some((catalog, expiration_unix(&selection.provenance)?)))
+    Ok(Some((catalog, expiration)))
 }
 
 pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {

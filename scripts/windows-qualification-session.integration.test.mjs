@@ -10,6 +10,7 @@ import {
   openSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -29,6 +30,74 @@ const installerLifecycleTool = fileURLToPath(
 );
 const csc = "C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe";
 const sha256 = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
+
+function unverifiedChildCaptureFailed(evidence) {
+  const value = evidence.unverified_child_capture_failed;
+  return typeof value === "boolean" ? value : null;
+}
+
+function unverifiedChildProjection(evidence) {
+  const records = evidence.unverified_child_observations;
+  if (!Array.isArray(records)) return [];
+  return records.slice(0, 1).map((record) => {
+    const projected = {};
+    for (const key of ["cim_pid", "cim_parent_pid", "retained_pid"]) {
+      const value = record?.[key];
+      projected[key] = Number.isSafeInteger(value) && value >= 0 ? value : null;
+    }
+    for (const key of ["cim_creation_time", "retained_start_time"]) {
+      const value = record?.[key];
+      projected[key] =
+        typeof value === "string" &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{1,7}(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+          ? value
+          : null;
+    }
+    for (const key of ["initial_has_exited", "refusal_has_exited", "cim_path_present"]) {
+      projected[key] = typeof record?.[key] === "boolean" ? record[key] : null;
+    }
+    projected.image_read_state = ["null", "blank"].includes(record?.image_read_state)
+      ? record.image_read_state
+      : null;
+    return projected;
+  });
+}
+
+test("unverified child failure projection bounds and sanitizes diagnostic scalars", () => {
+  const record = {
+    cim_pid: 42,
+    cim_parent_pid: Infinity,
+    retained_pid: "private process text",
+    cim_creation_time: "2026-10-09T04:00:00.0000000Z",
+    retained_start_time: "private path",
+    initial_has_exited: false,
+    refusal_has_exited: "private text",
+    cim_path_present: true,
+    image_read_state: "blank",
+    executable_path: "private path",
+  };
+  assert.deepEqual(unverifiedChildProjection({ unverified_child_observations: [record, record] }), [
+    {
+      cim_pid: 42,
+      cim_parent_pid: null,
+      retained_pid: null,
+      cim_creation_time: "2026-10-09T04:00:00.0000000Z",
+      retained_start_time: null,
+      initial_has_exited: false,
+      refusal_has_exited: null,
+      cim_path_present: true,
+      image_read_state: "blank",
+    },
+  ]);
+  assert.deepEqual(unverifiedChildProjection({}), []);
+  assert.equal(unverifiedChildCaptureFailed({ unverified_child_capture_failed: true }), true);
+  assert.equal(unverifiedChildCaptureFailed({ unverified_child_capture_failed: false }), false);
+  assert.equal(
+    unverifiedChildCaptureFailed({ unverified_child_capture_failed: "private text" }),
+    null,
+  );
+  assert.equal(unverifiedChildCaptureFailed({}), null);
+});
 
 function runPowerShell(args, options = {}) {
   return spawnSync("pwsh.exe", ["-NoLogo", "-NoProfile", "-File", script, ...args], {
@@ -122,7 +191,9 @@ function csharpLiteral(value) {
 }
 
 function makeInstallerLifecycleFixture(t) {
-  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-installer-lifecycle-"));
+  const root = realpathSync.native(
+    mkdtempSync(path.join(os.tmpdir(), "portcove-installer-lifecycle-")),
+  );
   const keyName = `PortcoveHarness-${path.basename(root)}`;
   const keyPath = `Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${keyName}`;
   t.after(() => {
@@ -214,6 +285,7 @@ class Installer {
     using (var key = Registry.CurrentUser.CreateSubKey(${csharpLiteral(keyPath)})) {
       key.SetValue("DisplayName", "Portcove");
       key.SetValue("InstallLocation", install);
+      key.SetValue("DisplayVersion", "0.1.0-alpha.2");
       key.SetValue("UninstallString", "\\"" + Path.Combine(install, "uninstall.exe") + "\\"");
     }
   }
@@ -224,8 +296,283 @@ class Installer {
   execFileSync(csc, ["/nologo", `/out:${installer}`, installerSource], {
     windowsHide: true,
   });
-  return { root, installer, keyPath };
+  return { root, installer, desktop, keyPath };
 }
+
+test(
+  "current-installed boundary runs before uninstall and preserves failed or unproven native outcomes",
+  { skip: process.platform !== "win32", timeout: 90_000 },
+  (t) => {
+    const item = makeInstallerLifecycleFixture(t);
+    const repository = path.join(item.root, "boundary-repository");
+    mkdirSync(path.join(repository, "scripts"), { recursive: true });
+    copyFileSync(
+      installerLifecycleTool,
+      path.join(repository, "scripts", "test-windows-installer.ps1"),
+    );
+    for (const name of [
+      "desktop-test-cli.mjs",
+      "native-session-lock.mjs",
+      "process-lock.mjs",
+      "development-evidence.mjs",
+    ]) {
+      copyFileSync(
+        fileURLToPath(new URL(`./${name}`, import.meta.url)),
+        path.join(repository, "scripts", name),
+      );
+    }
+    writeFileSync(
+      path.join(repository, "scripts", "tool-cache.mjs"),
+      'export const readToolPins=()=>({packageManager:"pnpm@12.8.1"}); export const toolCachePaths=()=>({sharedRoot:process.env.PORTCOVE_SHARED_TOOL_CACHE});',
+    );
+    writeFileSync(
+      path.join(repository, "scripts", "dev-storage.mjs"),
+      'export {spawnSync as spawnCommand} from "node:child_process";',
+    );
+    // Controlled doctor refusal tests the fixed route's ordering, not real tools.
+    writeFileSync(
+      path.join(repository, "scripts", "dev-doctor.mjs"),
+      'export const collectDoctor=async()=>({ok:process.env.PORTCOVE_FIXTURE_PREFLIGHT_FAILURE!=="1"});',
+    );
+    const selenium = path.join(repository, "node_modules", "selenium-webdriver");
+    mkdirSync(selenium, { recursive: true });
+    writeFileSync(path.join(selenium, "package.json"), '{"main":"index.js"}');
+    writeFileSync(
+      path.join(selenium, "index.js"),
+      "// Resolution fixture, never imported or executed.",
+    );
+    const configurationRoot = path.join(repository, "apps", "desktop", "src-tauri");
+    mkdirSync(configurationRoot, { recursive: true });
+    const configuration = ["tauri.conf.json", "tauri.windows.conf.json", "Cargo.toml"].map(
+      (name) => {
+        const file = path.join(configurationRoot, name);
+        writeFileSync(file, "owned ordinary package configuration fixture");
+        return { path: file, sha256: sha256(file) };
+      },
+    );
+    const harnessRoot = path.join(repository, "apps", "desktop", "scripts");
+    mkdirSync(harnessRoot);
+    // Fixed-path stub: lifecycle ordering/refusal, not actual WebDriver acceptance.
+    writeFileSync(
+      path.join(harnessRoot, "desktop-test.mjs"),
+      String.raw`
+import assert from "node:assert/strict";
+import {readFileSync, writeFileSync, mkdirSync, existsSync} from "node:fs";
+import path from "node:path";
+const value = (name) => process.argv[process.argv.indexOf(name) + 1];
+const app = value("--app"), output = value("--output");
+const manifest = JSON.parse(readFileSync(value("--package-evidence"), "utf8"));
+const ready = JSON.parse(readFileSync(manifest.installer_evidence.path, "utf8"));
+assert.equal(manifest.execution_context, "current-installed");
+assert.equal(ready.phase, "current_installed_boundary_ready");
+assert.equal(ready.details.installed_executable_path, app);
+assert.equal(ready.details.uninstall_registration_count, 1);
+assert.equal(ready.details.application_exit_code, 0);
+assert.ok(existsSync(app));
+assert.ok(existsSync(path.join(path.dirname(app), "uninstall.exe")));
+const owner=JSON.parse(readFileSync(path.join(process.env.PORTCOVE_SHARED_TOOL_CACHE,"locks","native-desktop","owner.json"),"utf8"));
+assert.equal(owner.token,process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN);
+process.kill(owner.pid,0); // Read-only liveness check: parent holds admission during callback.
+mkdirSync(output);
+writeFileSync(path.join(output, "callback-observed.json"), JSON.stringify({app, ready}));
+if (process.env.PORTCOVE_FIXTURE_BOUNDARY_FAILURE === "1") process.exit(7);
+writeFileSync(path.join(output, "evidence.json"), JSON.stringify({
+  outcome: "passed", revision: manifest.revision,
+  executable: {path: app, sha256: ready.details.installed_executable_sha256},
+  checks: [{scenario: "native-normal-package-webview-boundary", outcome: "passed"}]
+}));
+const snapshot=path.join(output,"normal-package-boundary-exit-inventory.json");
+const driver={pid:11,path:"owned-driver-fixture.exe",started_filetime:"133000000000000000"};
+const application={pid:22,path:app,started_filetime:"133000000000000001"};
+const processes=process.env.PORTCOVE_FIXTURE_APPLICATION_RECORD === "missing" ? [driver] :
+  process.env.PORTCOVE_FIXTURE_APPLICATION_RECORD === "duplicate" ? [driver,application,{...application,pid:23}] :
+  process.env.PORTCOVE_FIXTURE_APPLICATION_RECORD === "identity" ? [driver,{...application,started_filetime:null}] : [driver,application];
+writeFileSync(snapshot,JSON.stringify({driver,application_pid:null,
+  derivation:"include-captured-driver-root-in-positive-exit-inventory",
+  processes}));
+writeFileSync(path.join(output, "normal-package-boundary-cleanup.json"), JSON.stringify({
+  snapshot,
+  exited: process.env.PORTCOVE_FIXTURE_BOUNDARY_UNPROVEN === "1" ? null : {observed_processes: processes.length}
+}));
+`,
+    );
+    execFileSync("git", ["init", "--quiet"], { cwd: repository, windowsHide: true });
+    execFileSync("git", ["add", "."], { cwd: repository, windowsHide: true });
+    execFileSync(
+      "git",
+      [
+        "-c",
+        "user.name=Portcove fixture",
+        "-c",
+        "user.email=fixture@portcove.invalid",
+        "commit",
+        "--quiet",
+        "-m",
+        "fixed lifecycle fixture",
+      ],
+      { cwd: repository, windowsHide: true },
+    );
+    const revision = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repository,
+      encoding: "utf8",
+      windowsHide: true,
+    }).trim();
+    const manifestPath = path.join(item.root, "ordinary-package.json");
+    writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        revision,
+        build_command: ["corepack", "pnpm", "tauri", "build", "--bundles", "nsis"],
+        qualification_features: [],
+        configuration,
+        installer: { path: item.installer, sha256: sha256(item.installer) },
+      }),
+    );
+    for (const [name, environment, expectedError] of [
+      ["success", {}, null],
+      [
+        "preflight",
+        { PORTCOVE_FIXTURE_PREFLIGHT_FAILURE: "1" },
+        /Desktop doctor failed before installation/,
+      ],
+      ["failed", { PORTCOVE_FIXTURE_BOUNDARY_FAILURE: "1" }, /native boundary failed/],
+      [
+        "unproven",
+        { PORTCOVE_FIXTURE_BOUNDARY_UNPROVEN: "1" },
+        /lacks positive owned exit evidence/,
+      ],
+      [
+        "missing-app",
+        { PORTCOVE_FIXTURE_APPLICATION_RECORD: "missing" },
+        /lacks positive owned exit evidence/,
+      ],
+      [
+        "duplicate-app",
+        { PORTCOVE_FIXTURE_APPLICATION_RECORD: "duplicate" },
+        /lacks positive owned exit evidence/,
+      ],
+      [
+        "invalid-app-identity",
+        { PORTCOVE_FIXTURE_APPLICATION_RECORD: "identity" },
+        /lacks positive owned exit evidence/,
+      ],
+      ["locked", {}, /already owned by PID/],
+    ]) {
+      const caseRoot = path.join(item.root, name);
+      mkdirSync(caseRoot);
+      const fixtureCache = path.join(item.root, "native-cache");
+      const caseEnvironment = {
+        ...process.env,
+        ...environment,
+        PORTCOVE_SHARED_TOOL_CACHE: fixtureCache,
+      };
+      delete caseEnvironment.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN;
+      if (name === "locked") {
+        const lockDirectory = path.join(fixtureCache, "locks", "native-desktop");
+        mkdirSync(lockDirectory, { recursive: true });
+        writeFileSync(
+          path.join(lockDirectory, "owner.json"),
+          JSON.stringify({
+            format_version: 1,
+            pid: process.pid,
+            token: "owned-test-fixture",
+            created_at: new Date().toISOString(),
+          }),
+        );
+      }
+      const result = spawnSync(
+        process.execPath,
+        [
+          path.join(
+            os.tmpdir(),
+            path.basename(item.root),
+            "boundary-repository",
+            "scripts",
+            "desktop-test-cli.mjs",
+          ),
+          "--current-installed",
+          "--installer",
+          item.installer,
+          "--expected-app",
+          item.desktop,
+          "--expected-version",
+          "0.1.0-alpha.2",
+          "--test-base",
+          path.join(caseRoot, "runs"),
+          "--evidence",
+          path.join(caseRoot, "lifecycle.json"),
+          "--package-evidence",
+          manifestPath,
+        ],
+        {
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 30_000,
+          env: caseEnvironment,
+        },
+      );
+      if (name === "preflight" || name === "locked") {
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, expectedError);
+        assert.equal(existsSync(path.join(caseRoot, "lifecycle.json")), false);
+        assert.equal(existsSync(path.join(caseRoot, "runs")), false);
+        if (name === "preflight") {
+          const doctor = JSON.parse(
+            readFileSync(path.join(caseRoot, "lifecycle.json.native-doctor.json"), "utf8"),
+          );
+          assert.equal(doctor.ok, false);
+        }
+        continue;
+      }
+      assert.ok(
+        existsSync(path.join(caseRoot, "lifecycle.json")),
+        JSON.stringify({
+          name,
+          status: result.status,
+          error: result.error,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        }),
+      );
+      const evidence = JSON.parse(readFileSync(path.join(caseRoot, "lifecycle.json"), "utf8"));
+      const observed = JSON.parse(
+        readFileSync(
+          path.join(caseRoot, "current-installed-boundary", "native", "callback-observed.json"),
+          "utf8",
+        ),
+      );
+      assert.equal(observed.ready.details.registration_path.includes("HKEY_CURRENT_USER"), true);
+      if (expectedError) {
+        assert.notEqual(result.status, 0);
+        assert.match(result.stderr, expectedError);
+        assert.equal(evidence.phase, "failed");
+        assert.equal(
+          evidence.process_runs.some((run) => run.role.startsWith("candidate_uninstaller")),
+          false,
+        );
+        assert.ok(existsSync(observed.app));
+        removeInstallerLifecycleRegistration(item);
+      } else {
+        if (result.status !== 0) {
+          t.diagnostic(
+            JSON.stringify({
+              unverified_child_observations: unverifiedChildProjection(evidence),
+              unverified_child_capture_failed: unverifiedChildCaptureFailed(evidence),
+            }),
+          );
+        }
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(evidence.phase, "complete");
+        assert.equal(
+          evidence.details.current_installed_boundary.execution_context,
+          "current-installed",
+        );
+        assert.equal(evidence.details.registration_removed, true);
+        assert.equal(existsSync(observed.app), false);
+      }
+    }
+  },
+);
 
 function runInstallerLifecycle(
   item,
@@ -843,9 +1190,19 @@ test(
           ...baseEnvironment,
           PORTCOVE_FIXTURE_UNINSTALL_RELEASE: releaseMarker,
         },
-        stdio: "ignore",
+        stdio: ["ignore", "pipe", "pipe"],
       },
     );
+    // Retain only bounded output from this owned fixture, including early abort
+    // errors that otherwise leave a generic running-attempt assertion behind.
+    let abortStdout = "";
+    let abortStderr = "";
+    child.stdout.on("data", (chunk) => {
+      abortStdout = (abortStdout + chunk.toString()).slice(-16_384);
+    });
+    child.stderr.on("data", (chunk) => {
+      abortStderr = (abortStderr + chunk.toString()).slice(-16_384);
+    });
     const exited = once(child, "exit");
     const sessionPath = path.join(item.session, "session.json");
     let state;
@@ -854,9 +1211,19 @@ test(
       while (Date.now() < deadline) {
         state = JSON.parse(readFileSync(sessionPath, "utf8"));
         if (state.abort_attempts?.some((attempt) => attempt.status === "running")) break;
+        if (child.exitCode !== null || child.signalCode !== null) break;
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      assert.ok(state.abort_attempts.some((attempt) => attempt.status === "running"));
+      assert.ok(
+        state.abort_attempts.some((attempt) => attempt.status === "running"),
+        JSON.stringify({
+          abort_exit_code: child.exitCode,
+          abort_signal: child.signalCode,
+          journal: state,
+          stdout_tail: abortStdout,
+          stderr_tail: abortStderr,
+        }),
+      );
       assert.equal(child.exitCode, null);
       assert.ok(child.kill(), "the owned runner must still be alive at interruption");
       await exited;

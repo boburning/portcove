@@ -308,9 +308,98 @@ fn out_of_scope(message: impl Into<String>) -> PortcoveError {
 mod tests {
     use super::validate_definition_transition;
     use crate::{Catalog, test_fixture::post_client_catalog};
+    use serde_json::{Value, json};
 
     fn rebuild(document: crate::CatalogDocument) -> Catalog {
         Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+    }
+
+    // Scope checks only need two existing siblings and one selected addition.
+    // Keep the embedded catalog in the acceptance test for production coverage.
+    fn scoped_catalogs() -> (Catalog, Catalog, String) {
+        let mut baseline = json!({
+            "schema_version": 2,
+            "source_catalog": {
+                "evidence": [{
+                    "id": "fixture-bytes", "role": "byte_identity",
+                    "authority": "Synthetic scope fixture", "authority_ref": "fixture-1",
+                    "reviewed_at": "2026-09-30", "claim": "Synthetic source byte identity",
+                    "immutable_url": "https://example.invalid/fixtures/source-v1"
+                }],
+                "identities": [{
+                    "id": "scope-source", "label": "Synthetic source",
+                    "kind": "file", "variants": [{
+                        "id": "fixture-1", "title": "Synthetic source",
+                        "representations": [{
+                            "id": "raw", "extensions": ["bin"], "kind": "raw-file",
+                            "identities": [{"scope": "original-file", "sha256": "8".repeat(64)}],
+                            "evidence_ids": ["fixture-bytes"]
+                        }], "evidence_ids": ["fixture-bytes"]
+                    }]
+                }],
+                "contracts": [{
+                    "id": "scope-first-game", "port_id": "scope-first",
+                    "role": "game", "profile_id": "scope-source",
+                    "admission_mode": "enforced", "supported_variant_ids": ["fixture-1"],
+                    "evidence_ids": ["fixture-bytes"], "authority_ref": "fixture-1",
+                    "reviewed_at": "2026-09-30",
+                    "immutable_review_url": "https://example.invalid/fixtures/source-v1"
+                }], "validators": []
+            },
+            "ports": [{
+                "id": "scope-first", "name": "Scope first",
+                "summary": "Synthetic scope fixture",
+                "project_url": "https://example.invalid/fixtures/scope", "support_tier": "stable",
+                "channels": ["stable"], "platforms": ["linux-x86-64"],
+                "adapter": "libultraship-portable",
+                "release": {"repository": "fixture/scope"},
+                "source_profile": "scope-source",
+                "executable_hints": {"linux-x86-64": ["fixture"]},
+                "persistent_paths": ["saves", "config.json"]
+            }]
+        });
+        let mut sibling = baseline["ports"][0].clone();
+        sibling["id"] = json!("scope-second");
+        sibling["name"] = json!("Scope second");
+        baseline["ports"].as_array_mut().unwrap().push(sibling);
+        let mut sibling_contract = baseline["source_catalog"]["contracts"][0].clone();
+        sibling_contract["id"] = json!("scope-second-game");
+        sibling_contract["port_id"] = json!("scope-second");
+        baseline["source_catalog"]["contracts"]
+            .as_array_mut()
+            .unwrap()
+            .push(sibling_contract);
+
+        let mut candidate = baseline.clone();
+        let port_id = "scope-selected".to_string();
+        let profile_id = "scope-selected-source";
+        let mut selected = candidate["ports"][0].clone();
+        selected["id"] = json!(port_id);
+        selected["name"] = json!("Scope selected");
+        selected["source_profile"] = json!(profile_id);
+        candidate["ports"].as_array_mut().unwrap().push(selected);
+        let mut identity = candidate["source_catalog"]["identities"][0].clone();
+        identity["id"] = json!(profile_id);
+        candidate["source_catalog"]["identities"]
+            .as_array_mut()
+            .unwrap()
+            .push(identity);
+        let mut selected_contract = candidate["source_catalog"]["contracts"][0].clone();
+        selected_contract["id"] = json!("scope-selected-game");
+        selected_contract["port_id"] = json!(port_id);
+        selected_contract["profile_id"] = json!(profile_id);
+        candidate["source_catalog"]["contracts"]
+            .as_array_mut()
+            .unwrap()
+            .push(selected_contract);
+
+        let parse = |value: Value| Catalog::from_json(&value.to_string()).unwrap();
+        let baseline = parse(baseline);
+        let candidate = parse(candidate);
+        assert_eq!(baseline.authoritative_document().ports.len(), 2);
+        assert_eq!(candidate.authoritative_document().ports.len(), 3);
+        validate_definition_transition(&baseline, &candidate, &port_id).unwrap();
+        (baseline, candidate, port_id)
     }
 
     #[test]
@@ -323,8 +412,7 @@ mod tests {
 
     #[test]
     fn rejects_an_unrelated_port_change() {
-        let baseline = Catalog::embedded().unwrap();
-        let (candidate, port_id) = post_client_catalog();
+        let (baseline, candidate, port_id) = scoped_catalogs();
         let mut document = candidate.authoritative_document();
         document
             .ports
@@ -341,8 +429,7 @@ mod tests {
 
     #[test]
     fn rejects_an_existing_source_authority_change() {
-        let baseline = Catalog::embedded().unwrap();
-        let (candidate, port_id) = post_client_catalog();
+        let (baseline, candidate, port_id) = scoped_catalogs();
         let mut document = candidate.authoritative_document();
         document.source_catalog.as_mut().unwrap().identities[0]
             .aliases
@@ -355,8 +442,7 @@ mod tests {
 
     #[test]
     fn rejects_unrelated_source_contract_reordering() {
-        let baseline = Catalog::embedded().unwrap();
-        let (candidate, port_id) = post_client_catalog();
+        let (baseline, candidate, port_id) = scoped_catalogs();
         let mut document = candidate.authoritative_document();
         let source = document.source_catalog.as_mut().unwrap();
         let first = source
@@ -381,8 +467,7 @@ mod tests {
 
     #[test]
     fn rejects_unreachable_new_source_authority() {
-        let baseline = Catalog::embedded().unwrap();
-        let (candidate, port_id) = post_client_catalog();
+        let (baseline, candidate, port_id) = scoped_catalogs();
         let mut document = candidate.authoritative_document();
         let source = document.source_catalog.as_mut().unwrap();
         let mut identity = source.identities.last().unwrap().clone();

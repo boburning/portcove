@@ -153,7 +153,15 @@ namespace Portcove.ReferenceClient
         }
         public override IEnumerable<UninstallController> GetUninstallActions(GetUninstallActionsArgs args)
         {
-            if (args.Game.PluginId == Id) yield return new ManagedUninstall(args.Game, RemoveRegisteredGame);
+            if (args.Game.PluginId != Id) yield break;
+            var cli = Connect().GetAwaiter().GetResult();
+            var port = Identity.Port(args.Game.GameId, cli.LibraryId);
+            var status = cli.Read("status", "status", port).GetAwaiter().GetResult();
+            if (Json.Text(status, "port_id") != port)
+                throw new InvalidOperationException("Portcove returned another game before removal action selection.");
+            if (Json.OptionalObjectField(status, "external_runtime") != null && !cli.SupportsReviewedExternal)
+                yield break;
+            yield return new ManagedUninstall(args.Game, RemoveRegisteredGame);
         }
         private void RemoveRegisteredGame(Game game)
         {

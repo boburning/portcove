@@ -71,6 +71,83 @@ fn setup_output_root_uses_only_a_declared_upstream_runtime_subdirectory() {
     );
 }
 
+// Copying declared outputs is generic; real upstream layout checks above keep
+// their embedded catalog. Revalidate each small graph after its path changes.
+fn setup_output_catalog(paths: &[&str]) -> Catalog {
+    let catalog = generic_preparation_catalog(None);
+    let mut port = catalog.port(PORT).unwrap().clone();
+    port.setup_output_paths = paths.iter().map(|path| (*path).to_owned()).collect();
+    port.setup_marker = Some(paths[0].to_owned());
+    port.runtime_mutable_paths.clear();
+    generic_preparation_catalog(Some(&port))
+}
+
+#[test]
+fn setup_output_fixture_preserves_valid_source_graph_and_rejects_invalid_inputs() {
+    let catalog = setup_output_catalog(&["data/out", "data/log"]);
+    let document = catalog.authoritative_document();
+    assert_eq!(document.ports.len(), 1);
+    let source = document.source_catalog.as_ref().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.contracts.len(), 1);
+    assert_eq!(source.validators.len(), 1);
+    assert_eq!(source.evidence.len(), 1);
+    assert_eq!(source.contracts[0].port_id, PORT);
+    assert_eq!(source.contracts[0].profile_id, source.identities[0].id);
+    assert_eq!(
+        source.contracts[0].validator_contract_id.as_ref().unwrap(),
+        &source.validators[0].id
+    );
+    assert_eq!(
+        catalog.port(PORT).unwrap().setup_output_paths,
+        ["data/out", "data/log"]
+    );
+
+    let mut invalid = serde_json::to_value(&document).unwrap();
+    invalid["source_catalog"]["contracts"][0]["profile_id"] = "missing-source".into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+    let mut invalid = serde_json::to_value(&document).unwrap();
+    invalid["source_catalog"]["identities"][0]["unknown_fixture_field"] = true.into();
+    assert!(Catalog::from_json(&invalid.to_string()).is_err());
+}
+
+#[test]
+fn unrelated_catalog_port_does_not_change_setup_output_copying() {
+    let catalog = setup_output_catalog(&["generated"]);
+    let mut extended = catalog.authoritative_document();
+    let mut unrelated = extended.ports[0].clone();
+    unrelated.id = "unrelated-setup-fixture".into();
+    unrelated.name = "Unrelated setup fixture".into();
+    extended.ports.push(unrelated);
+    let contracts = &mut extended.source_catalog.as_mut().unwrap().contracts;
+    let mut unrelated_contract = contracts[0].clone();
+    unrelated_contract.id = "unrelated-setup-game".into();
+    unrelated_contract.port_id = "unrelated-setup-fixture".into();
+    contracts.push(unrelated_contract);
+    let extended = Catalog::from_json(&serde_json::to_string(&extended).unwrap()).unwrap();
+    assert_eq!(extended.ports().len(), 2);
+    assert_eq!(
+        serde_json::to_value(catalog.port(PORT).unwrap()).unwrap(),
+        serde_json::to_value(extended.port(PORT).unwrap()).unwrap()
+    );
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("setup-runtime");
+    fs::create_dir_all(source.join("generated/コピー")).unwrap();
+    fs::write(source.join("generated/コピー/output.bin"), b"owned output").unwrap();
+    fs::write(source.join("private.cfg"), b"not declared").unwrap();
+    for (index, graph) in [&catalog, &extended].into_iter().enumerate() {
+        let payload = temporary.path().join(format!("payload-{index}"));
+        fs::create_dir_all(&payload).unwrap();
+        super::super::execution::copy_setup_outputs(graph.port(PORT).unwrap(), &source, &payload)
+            .unwrap();
+        assert_eq!(
+            fs::read(payload.join("generated/コピー/output.bin")).unwrap(),
+            b"owned output"
+        );
+        assert!(!payload.join("private.cfg").exists());
+    }
+}
+
 #[test]
 fn isolated_setup_copies_only_declared_generated_outputs() {
     let temporary = tempfile::tempdir().unwrap();
@@ -87,14 +164,10 @@ fn isolated_setup_copies_only_declared_generated_outputs() {
     )
     .unwrap();
     fs::write(source.join("paperboat.cfg.json"), b"setup-only defaults").unwrap();
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
-        .port("paperboat")
-        .unwrap()
-        .clone();
-    port.setup_output_paths = vec!["pm64.o2r".into(), "generated".into(), "optional".into()];
+    let catalog = setup_output_catalog(&["pm64.o2r", "generated", "optional"]);
+    let port = catalog.port(PORT).unwrap();
 
-    super::super::execution::copy_setup_outputs(&port, &source, &payload).unwrap();
+    super::super::execution::copy_setup_outputs(port, &source, &payload).unwrap();
 
     assert_eq!(
         fs::read(payload.join("pm64.o2r")).unwrap(),
@@ -113,9 +186,80 @@ fn isolated_setup_copies_only_declared_generated_outputs() {
     assert!(!payload.join("optional").exists());
 }
 
+#[test]
+fn isolated_setup_copies_nested_declared_directories_with_missing_parent() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("setup-runtime");
+    let payload = temporary.path().join("payload");
+    fs::create_dir_all(source.join("data/out/jak1/iso")).unwrap();
+    fs::create_dir_all(source.join("data/log")).unwrap();
+    fs::create_dir_all(&payload).unwrap();
+    fs::write(
+        source.join("data/out/jak1/iso/0COMMON.TXT"),
+        b"owned validated output",
+    )
+    .unwrap();
+    fs::write(source.join("data/log/setup.log"), b"owned diagnostic").unwrap();
+    fs::write(source.join("data/private.cfg"), b"not declared").unwrap();
+    let catalog = setup_output_catalog(&["data/out", "data/log"]);
+    let port = catalog.port(PORT).unwrap();
+    assert!(!payload.join("data").exists());
+
+    super::super::execution::copy_setup_outputs(port, &source, &payload).unwrap();
+
+    assert_eq!(
+        fs::read(payload.join("data/out/jak1/iso/0COMMON.TXT")).unwrap(),
+        b"owned validated output"
+    );
+    assert_eq!(
+        fs::read(payload.join("data/log/setup.log")).unwrap(),
+        b"owned diagnostic"
+    );
+    assert!(!payload.join("data/private.cfg").exists());
+    assert_eq!(
+        fs::read(source.join("data/private.cfg")).unwrap(),
+        b"not declared"
+    );
+}
+
+#[test]
+fn isolated_setup_retains_conflicting_nested_output_parent_file() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("setup-runtime");
+    let payload = temporary.path().join("payload");
+    fs::create_dir_all(source.join("data/out")).unwrap();
+    fs::create_dir_all(&payload).unwrap();
+    fs::write(source.join("data/out/owned.bin"), b"owned output").unwrap();
+    fs::write(payload.join("data"), b"retained prior file").unwrap();
+    let catalog = setup_output_catalog(&["data/out"]);
+    let port = catalog.port(PORT).unwrap();
+
+    assert!(super::super::execution::copy_setup_outputs(port, &source, &payload).is_err());
+
+    assert_eq!(
+        fs::read(payload.join("data")).unwrap(),
+        b"retained prior file"
+    );
+    assert_eq!(
+        fs::read(source.join("data/out/owned.bin")).unwrap(),
+        b"owned output"
+    );
+}
+
 impl Fixture {
     fn native(mode: &str) -> Self {
-        let mut fixture = Self::new();
+        Self::native_fixture(mode, None)
+    }
+
+    fn generic_native(mode: &str) -> Self {
+        let catalog = test_phase("preparation fixture: generic catalog", || {
+            generic_preparation_catalog(None)
+        });
+        Self::native_fixture(mode, Some(catalog))
+    }
+
+    fn native_fixture(mode: &str, catalog: Option<Catalog>) -> Self {
+        let mut fixture = Self::with_catalog(catalog);
         let native = tempfile::tempdir().unwrap();
         test_phase("preparation fixture: native probe and copy", || {
             fs::copy(
@@ -137,7 +281,12 @@ impl Fixture {
             .unwrap();
         port.setup_arguments = vec!["--owned-preparation".into()];
         let qualification = test_phase("preparation fixture: native qualification", || {
-            crate::test_fixture::retained_qualification(port, Platform::current().unwrap())
+            let catalog = if port.source_profile.as_deref() == Some("preparation-fixture-disc") {
+                generic_preparation_catalog(Some(port))
+            } else {
+                fixture.service.catalog().clone()
+            };
+            preparation_qualification(&catalog, port, Platform::current().unwrap())
         })
         .unwrap();
         let (manifest, selected, runtime) =
@@ -192,7 +341,7 @@ impl Fixture {
 
 #[test]
 fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update() {
-    let fixture = Fixture::native("success");
+    let fixture = Fixture::generic_native("success");
     let library = fixture.service.library().clone();
     let mut staged = fixture.install.clone();
     staged.id = uuid::Uuid::new_v4().to_string();
@@ -204,7 +353,8 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
     staged.version = "next-fixture".into();
     staged.staged = true;
     crate::service::copy_tree(&fixture.install.path, &staged.path).unwrap();
-    let qualification = crate::test_fixture::retained_qualification(
+    let qualification = preparation_qualification(
+        fixture.service.catalog(),
         fixture.service.catalog().port(PORT).unwrap(),
         Platform::current().unwrap(),
     )
@@ -277,7 +427,7 @@ fn preparation_publishes_a_verified_derivative_and_preserves_the_staged_update()
 }
 
 fn assert_private_failure(mode: &str) {
-    let fixture = Fixture::native(mode);
+    let fixture = Fixture::generic_native(mode);
     let before = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
     let error = fixture.run(|_| {}).unwrap_err();
     let expected = match mode {
@@ -288,6 +438,28 @@ fn assert_private_failure(mode: &str) {
         }
     };
     assert_eq!(error.message, expected);
+    match mode {
+        "missing-marker" => {
+            assert_eq!(
+                error.presentation().presentation_key,
+                "setup_output_unconfirmed"
+            );
+            assert_eq!(
+                error.presentation().summary,
+                "Game preparation for Synthetic upstream preparation (opengoal-jak1): Checking prepared files: Setup finished, but its required completion file could not be confirmed."
+            );
+            assert_eq!(error.code, ErrorCode::Verification);
+        }
+        "failure" => {
+            assert_eq!(error.presentation().presentation_key, "setup_unsuccessful");
+            assert_eq!(
+                error.presentation().summary,
+                "Game preparation for Synthetic upstream preparation (opengoal-jak1): Running game setup: The setup process ended unsuccessfully."
+            );
+            assert_eq!(error.code, ErrorCode::SourceInvalid);
+        }
+        _ => assert_eq!(error.presentation().presentation_key, "verification_failed"),
+    }
     let reopened = Library::open(fixture.service.library().root()).unwrap();
     let activity = reopened
         .activities(10)
@@ -296,6 +468,12 @@ fn assert_private_failure(mode: &str) {
         .find(|activity| activity.operation == crate::ActivityOperation::Prepare)
         .unwrap();
     assert_eq!(activity.failure.as_ref().unwrap(), &error.report());
+    assert!(
+        error
+            .presentation()
+            .summary
+            .starts_with("Game preparation for Synthetic upstream preparation (opengoal-jak1): ")
+    );
     let captures = reopened.activity_diagnostic(&activity.id).unwrap();
     let capture = captures.last().unwrap();
     assert!(capture.complete);
@@ -400,6 +578,125 @@ fn retained_cleanup_fixture() -> (Fixture, String, std::path::PathBuf) {
 }
 
 #[test]
+fn cleanup_failure_target_keeps_retained_names_and_refuses_unreadable_definitions() {
+    let (mut fixture, operation_id, _) = retained_cleanup_fixture();
+    let store = OperationStore::new(fixture.service.library().clone());
+    let mut journal = store.all().unwrap().remove(0);
+    journal.preparation_process_quiesced = Some(false);
+    store.put(&mut journal).unwrap();
+    let mut document = fixture.service.catalog().authoritative_document();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap()
+        .name = "A newer catalog title".into();
+    fixture.service.replace_catalog_for_test(
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+    );
+    let original = fixture
+        .service
+        .preview_preparation_cleanup(&operation_id)
+        .unwrap_err();
+    assert_eq!(original.code, ErrorCode::Conflict);
+    assert!(
+        original
+            .presentation()
+            .summary
+            .starts_with("Game preparation for OpenGOAL: Jak and Daxter (opengoal-jak1): ")
+    );
+    assert!(
+        !original
+            .presentation()
+            .summary
+            .contains("A newer catalog title")
+    );
+    fs::write(
+        fixture.install.path.join(".portcove-manifest.json"),
+        b"owned unreadable manifest",
+    )
+    .unwrap();
+    let unreadable = fixture
+        .service
+        .preview_preparation_cleanup(&operation_id)
+        .unwrap_err();
+    assert_eq!(unreadable.code, original.code);
+    assert_eq!(unreadable.message, original.message);
+    assert_eq!(unreadable.details, original.details);
+    assert_eq!(
+        unreadable.presentation().mutation_state,
+        original.presentation().mutation_state
+    );
+    assert!(
+        !unreadable
+            .presentation()
+            .summary
+            .starts_with("Game preparation for ")
+    );
+    assert!(
+        !unreadable
+            .presentation()
+            .summary
+            .contains("A newer catalog title")
+    );
+}
+
+#[test]
+fn cleanup_failure_target_does_not_inherit_mismatched_plan_install_or_activity() {
+    for mismatch in ["plan", "install", "activity", "published", "digest"] {
+        let (fixture, operation_id, _) = retained_cleanup_fixture();
+        let library = fixture.service.library();
+        let store = OperationStore::new(library.clone());
+        let mut journal = store.all().unwrap().remove(0);
+        journal.preparation_process_quiesced = Some(false);
+        store.put(&mut journal).unwrap();
+        assert!(
+            fixture
+                .service
+                .preview_preparation_cleanup(&operation_id)
+                .unwrap_err()
+                .presentation()
+                .summary
+                .starts_with("Game preparation for ")
+        );
+        match mismatch {
+            "plan" => journal.preparation.as_mut().unwrap().port_id = "other-port".into(),
+            "install" => {
+                journal.preparation.as_mut().unwrap().inputs.install.port_id = "other-port".into()
+            }
+            "activity" => {
+                library
+                    .connection()
+                    .unwrap()
+                    .execute(
+                        "UPDATE activity_history SET target_id='other-port' WHERE id=?1",
+                        [&operation_id],
+                    )
+                    .unwrap();
+            }
+            "published" => {
+                journal.install = Some(fixture.install.clone());
+            }
+            "digest" => journal.preparation.as_mut().unwrap().plan_sha256 = "unconfirmed".into(),
+            _ => unreachable!(),
+        }
+        store.put(&mut journal).unwrap();
+        let error = fixture
+            .service
+            .preview_preparation_cleanup(&operation_id)
+            .unwrap_err();
+        assert!(
+            !error
+                .presentation()
+                .summary
+                .starts_with("Game preparation for "),
+            "{mismatch}"
+        );
+        assert_eq!(store.all().unwrap()[0].port_id, journal.port_id);
+    }
+}
+
+#[test]
 fn reviewed_preparation_cleanup_is_exact_and_preserves_other_library_state() {
     let (fixture, operation_id, retained) = retained_cleanup_fixture();
     let library = fixture.service.library();
@@ -438,6 +735,12 @@ fn reviewed_preparation_cleanup_is_exact_and_preserves_other_library_state() {
         .cleanup_preparation(&operation_id, &authorization.token)
         .unwrap_err();
     assert_eq!(stale.code, ErrorCode::Conflict);
+    assert!(
+        stale
+            .presentation()
+            .summary
+            .starts_with("Game preparation for OpenGOAL: Jak and Daxter (opengoal-jak1): ")
+    );
     assert!(retained.exists());
 
     let current = fixture
@@ -797,12 +1100,78 @@ fn journal_only_preparation_cleanup_removes_only_the_stale_journal() {
     );
 }
 
+#[derive(Clone, Copy)]
+enum RecoveryScenario {
+    Ordinary,
+    Reclassified,
+    ReclassifiedReviewedCleanup,
+    ActivationRefused,
+    ActivationRefusedCleanup,
+}
+
 fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
+    assert_recovery_scenario(point, publishable, RecoveryScenario::Ordinary);
+}
+
+fn assert_recovery_scenario(
+    point: LifecycleFaultPoint,
+    publishable: bool,
+    scenario: RecoveryScenario,
+) {
     use crate::test_fixture::phase;
+    let reclassify = matches!(
+        scenario,
+        RecoveryScenario::Reclassified | RecoveryScenario::ReclassifiedReviewedCleanup
+    );
+    let reviewed_cleanup = matches!(scenario, RecoveryScenario::ReclassifiedReviewedCleanup);
+    let activation_refused = matches!(
+        scenario,
+        RecoveryScenario::ActivationRefused | RecoveryScenario::ActivationRefusedCleanup
+    );
+    let refusal = reclassify || activation_refused;
     let mut fixture = phase("preparation recovery: native fixture", || {
-        Fixture::native("success")
+        Fixture::generic_native("success")
     });
     let original = crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap();
+    let library = fixture.service.library().clone();
+    let staged = refusal.then(|| {
+        let mut staged = fixture.install.clone();
+        staged.id = uuid::Uuid::new_v4().to_string();
+        staged.artifact.sha256 = crate::signed_catalog::digest(b"family recovery staged artifact");
+        staged.path = library
+            .versions_dir()
+            .join(PORT)
+            .join(&staged.artifact.sha256);
+        staged.version = "family-staged-fixture".into();
+        staged.staged = true;
+        crate::service::copy_tree(&fixture.install.path, &staged.path).unwrap();
+        let qualification = preparation_qualification(
+            fixture.service.catalog(),
+            fixture.service.catalog().port(PORT).unwrap(),
+            Platform::current().unwrap(),
+        )
+        .unwrap();
+        let (manifest, selected, runtime) = Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(
+                &staged.id,
+                PORT,
+                &staged.version,
+                &staged.artifact,
+                &qualification,
+                &staged.path,
+            )
+            .unwrap();
+        staged.manifest_sha256 = manifest;
+        staged.selected_executable = selected;
+        staged.runtime = runtime;
+        library.register_install(&staged, false).unwrap();
+        staged
+    });
+    let staged_tree = staged
+        .as_ref()
+        .map(|install| crate::library_transfer::reviewed_tree(&install.path).unwrap());
+    let source = refusal.then(|| fs::read(&fixture.source).unwrap());
     phase("preparation recovery: open fault-injected service", || {
         fixture.set_faults(Arc::new(Fault(point)))
     });
@@ -818,23 +1187,191 @@ fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
     let store = OperationStore::new(fixture.service.library().clone());
     let mut journal = store.all().unwrap().remove(0);
     let private = journal.paths.staging.clone().unwrap();
+    if reviewed_cleanup {
+        // Model interruption after recording the reviewed cleanup and isolating
+        // its exact tree, as in reviewed_cleanup_pending_resumes above.
+        let preview = fixture
+            .service
+            .preview_preparation_cleanup(&journal.id)
+            .unwrap();
+        let quarantine = super::super::execution::cleanup_quarantine_path(
+            &private,
+            &journal.id,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+        journal.paths.quarantine = Some(quarantine.clone());
+        journal.phase = LifecyclePhase::CleanupPending;
+        journal.last_error = None;
+        store.put(&mut journal).unwrap();
+        fs::rename(&private, quarantine).unwrap();
+    }
+    if matches!(scenario, RecoveryScenario::ActivationRefusedCleanup) {
+        // The registered fault leaves the derivative active. Model a later
+        // cleanup failure with that same validated, registered envelope.
+        assert_eq!(journal.phase, LifecyclePhase::MetadataCommitted);
+        assert!(journal.install.is_some());
+        journal.phase = LifecyclePhase::CleanupPending;
+        store.put(&mut journal).unwrap();
+    }
+    if refusal {
+        let installs = serde_json::to_value(library.all_installs().unwrap()).unwrap();
+        let status = fixture.service.status(PORT).unwrap();
+        let pointers =
+            serde_json::to_value((&status.active, &status.previous, &status.staged)).unwrap();
+        let trees = [
+            Some(private.clone()),
+            journal.paths.final_path.clone(),
+            journal.paths.quarantine.clone(),
+            Some(fixture.install.path.clone()),
+            Some(library.user_dir(PORT)),
+            staged.as_ref().map(|install| install.path.clone()),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|path| {
+            let inventory = path
+                .exists()
+                .then(|| crate::library_transfer::reviewed_tree(&path).unwrap());
+            (path, inventory)
+        })
+        .collect::<Vec<_>>();
+        let kinds = if reclassify {
+            vec![
+                LifecycleOperationKind::Install,
+                LifecycleOperationKind::Adopt,
+            ]
+        } else {
+            vec![LifecycleOperationKind::Prepare]
+        };
+        let refusal_message = if activation_refused {
+            "prepared publication requires activation"
+        } else {
+            "publication operation kind does not own its preparation payload"
+        };
+        for kind in kinds {
+            journal.kind = kind;
+            if activation_refused {
+                assert!(journal.activate);
+                journal.activate = false;
+            }
+            store.put(&mut journal).unwrap();
+            let mut expected = journal.clone();
+            fixture.service.recover_pending_operations().unwrap();
+            journal = store.all().unwrap().remove(0);
+            if activation_refused {
+                assert_eq!(journal.last_error.as_deref(), Some(refusal_message));
+            } else {
+                assert!(
+                    journal
+                        .last_error
+                        .as_deref()
+                        .unwrap()
+                        .contains(refusal_message)
+                );
+            }
+            // Recovery may persist its refusal diagnostic and retry timestamp;
+            // every other journal field must retain the attempted envelope.
+            expected.last_error = journal.last_error.clone();
+            expected.updated_at = journal.updated_at;
+            assert_eq!(format!("{journal:?}"), format!("{expected:?}"));
+            {
+                let _guard = library
+                    .try_lock_port(PORT, "family recovery refusal")
+                    .unwrap();
+                let error = if activation_refused {
+                    super::super::recover(&fixture.service, &store, &mut journal)
+                } else {
+                    crate::recovery::recover_published_install(
+                        &fixture.service,
+                        &store,
+                        &mut journal,
+                    )
+                }
+                .unwrap_err();
+                assert_eq!(error.code, ErrorCode::State);
+                assert_eq!(error.message, refusal_message);
+                assert_eq!(format!("{journal:?}"), format!("{expected:?}"));
+            }
+            assert_eq!(
+                serde_json::to_value(library.all_installs().unwrap()).unwrap(),
+                installs
+            );
+            let status = fixture.service.status(PORT).unwrap();
+            assert_eq!(
+                serde_json::to_value((&status.active, &status.previous, &status.staged)).unwrap(),
+                pointers
+            );
+            for (path, inventory) in &trees {
+                assert_eq!(
+                    path.exists()
+                        .then(|| crate::library_transfer::reviewed_tree(path).unwrap()),
+                    *inventory,
+                    "{kind:?}: {path:?}"
+                );
+            }
+            assert_eq!(
+                fs::read(&fixture.source).unwrap(),
+                *source.as_ref().unwrap()
+            );
+        }
+        journal.kind = LifecycleOperationKind::Prepare;
+        if activation_refused {
+            journal.activate = true;
+            if point == LifecycleFaultPoint::PreparationPublished {
+                // A validated publication envelope with the legacy nullable
+                // quiescence field remains recoverable. This does not claim
+                // process proof for unfinished private preparation.
+                journal.preparation_process_quiesced = None;
+            }
+        }
+        store.put(&mut journal).unwrap();
+        fixture.service.recover_pending_operations().unwrap();
+    }
     let recovered = {
         let _guard = fixture
             .service
             .library()
             .try_lock_port(PORT, "owned recovery fixture")
             .unwrap();
-        phase("preparation recovery: recover journal", || {
-            super::super::recover(&fixture.service, &store, &mut journal)
-        })
+        if refusal && (reviewed_cleanup || publishable) {
+            assert!(store.all().unwrap().is_empty());
+            Ok(())
+        } else {
+            phase("preparation recovery: recover journal", || {
+                super::super::recover(&fixture.service, &store, &mut journal)
+            })
+        }
     };
-    if publishable {
+    if reviewed_cleanup {
+        recovered.unwrap();
+        assert!(!private.exists());
+        assert!(!journal.paths.quarantine.as_ref().unwrap().exists());
+        assert_eq!(
+            fixture.service.status(PORT).unwrap().active.unwrap().id,
+            fixture.install.id
+        );
+    } else if publishable {
         recovered.unwrap();
         assert_eq!(
             fixture.service.status(PORT).unwrap().active.unwrap().id,
             journal.id
         );
         assert!(store.all().unwrap().is_empty());
+        if activation_refused {
+            let status = fixture.service.status(PORT).unwrap();
+            assert_eq!(status.previous.unwrap().id, fixture.install.id);
+            assert_eq!(
+                fs::read(status.active.unwrap().path.join("OpenGOAL/jak1/save.bin")).unwrap(),
+                b"preserved player save"
+            );
+            let installs = serde_json::to_value(library.all_installs().unwrap()).unwrap();
+            fixture.service.recover_pending_operations().unwrap();
+            assert_eq!(
+                serde_json::to_value(library.all_installs().unwrap()).unwrap(),
+                installs
+            );
+        }
     } else {
         assert!(recovered.is_err());
         assert_eq!(
@@ -853,6 +1390,51 @@ fn assert_recovery(point: LifecycleFaultPoint, publishable: bool) {
         crate::library_transfer::reviewed_tree(&fixture.install.path).unwrap(),
         original
     );
+    if let Some(staged) = staged {
+        assert_eq!(
+            fixture.service.status(PORT).unwrap().staged.unwrap().id,
+            staged.id
+        );
+        assert_eq!(
+            crate::library_transfer::reviewed_tree(&staged.path).unwrap(),
+            staged_tree.unwrap()
+        );
+        assert_eq!(fs::read(&fixture.source).unwrap(), source.unwrap());
+    }
+}
+
+macro_rules! preparation_family_cases {
+    ($($name:ident: $point:ident, $publishable:literal, $cleanup:literal),+ $(,)?) => {
+        $(#[test] fn $name() {
+            assert_recovery_scenario(
+                LifecycleFaultPoint::$point,
+                $publishable,
+                if $cleanup { RecoveryScenario::ReclassifiedReviewedCleanup }
+                else { RecoveryScenario::Reclassified },
+            );
+        })+
+    };
+}
+
+macro_rules! preparation_activation_cases {
+    ($($name:ident: $point:ident, $scenario:ident),+ $(,)?) => {
+        $(#[test] fn $name() {
+            assert_recovery_scenario(LifecycleFaultPoint::$point, true, RecoveryScenario::$scenario);
+        })+
+    };
+}
+preparation_activation_cases! {
+    nonactivating_prepared_preparation_refuses_startup_publication: PreparationPrepared, ActivationRefused,
+    nonactivating_published_preparation_refuses_startup_registration: PreparationPublished, ActivationRefused,
+    nonactivating_registered_preparation_refuses_startup_cleanup: PreparationRegistered, ActivationRefused,
+    nonactivating_cleanup_pending_preparation_retains_registered_work: PreparationRegistered, ActivationRefusedCleanup,
+}
+preparation_family_cases! {
+    reclassified_prepared_preparation_refuses_startup_publication: PreparationPrepared, true, false,
+    reclassified_published_preparation_refuses_startup_registration: PreparationPublished, true, false,
+    reclassified_registered_preparation_refuses_startup_cleanup: PreparationRegistered, true, false,
+    reclassified_interrupted_preparation_retains_private_work: PreparationCopied, false, false,
+    reclassified_reviewed_preparation_retains_install_less_cleanup: PreparationCopied, false, true,
 }
 
 macro_rules! recovery_cases {
@@ -1032,6 +1614,12 @@ fn interrupted_private_preparation_gets_a_truthful_terminal_report_after_reconne
             "preparation_interrupted"
         );
         assert_eq!(failure.presentation.tone, crate::FailureTone::Error);
+        assert!(
+            failure
+                .presentation
+                .summary
+                .starts_with("Game preparation for OpenGOAL: Jak and Daxter (opengoal-jak1): ")
+        );
         assert_eq!(
             failure.presentation.mutation_state,
             crate::MutationState::RecoveryRequired
@@ -1123,6 +1711,12 @@ fn preparation_recovery_preserves_existing_outcomes_and_rejects_an_owned_activit
         .unwrap();
     let error = super::super::recover(&fixture.service, &store, &mut journal).unwrap_err();
     assert_eq!(error.code, ErrorCode::Verification);
+    assert!(
+        !error
+            .presentation()
+            .summary
+            .starts_with("Game preparation for ")
+    );
     assert_eq!(
         library.activities(1).unwrap()[0].status,
         crate::ActivityStatus::Running
@@ -1312,4 +1906,56 @@ fn readiness_rejects_a_symlink_redirect_even_when_marker_bytes_match() {
     let readiness = fixture.service.status(PORT).unwrap().readiness.unwrap();
     assert!(readiness.pending_setup);
     assert!(!readiness.launchable);
+}
+
+#[test]
+fn generic_preparation_manifest_retains_its_complete_independent_graph() {
+    let fixture = Fixture::generic_native("success");
+    let document = fixture.service.catalog().authoritative_document();
+    assert_eq!(document.ports.len(), 1);
+    let source = document.source_catalog.as_ref().unwrap();
+    assert_eq!(source.identities.len(), 1);
+    assert_eq!(source.contracts.len(), 1);
+    assert_eq!(source.validators.len(), 1);
+    assert_eq!(source.evidence.len(), 1);
+    assert_eq!(source.contracts[0].port_id, PORT);
+    assert_eq!(source.contracts[0].profile_id, source.identities[0].id);
+    assert_eq!(
+        source.contracts[0].validator_contract_id.as_ref().unwrap(),
+        &source.validators[0].id
+    );
+    let port = fixture.service.catalog().port(PORT).unwrap();
+    assert_eq!(port.platforms, vec![Platform::current().unwrap()]);
+    assert_eq!(port.setup_arguments, vec!["--owned-preparation"]);
+    let manifest: serde_json::Value = serde_json::from_slice(
+        &fs::read(fixture.install.path.join(".portcove-manifest.json")).unwrap(),
+    )
+    .unwrap();
+    let contract: crate::installed_contract::InstalledContract =
+        serde_json::from_value(manifest["retained_contract"].clone()).unwrap();
+    let retained = contract.catalog(PORT).unwrap();
+    assert_eq!(
+        serde_json::to_value(retained.authoritative_document()).unwrap(),
+        serde_json::to_value(&document).unwrap()
+    );
+    assert!(retained.port("shipwright").is_err());
+    assert_eq!(
+        port.setup_marker.as_deref(),
+        Some("data/out/jak1/iso/0COMMON.TXT")
+    );
+    assert!(
+        port.persistent_paths
+            .iter()
+            .any(|path| path == "OpenGOAL/jak1")
+    );
+    // The unchanged real constructor still owns current-catalog planning facts.
+    let real = Fixture::new();
+    assert_eq!(
+        real.service.catalog().ports().len(),
+        Catalog::embedded().unwrap().ports().len()
+    );
+    assert_ne!(
+        real.service.catalog().port(PORT).unwrap().source_profile,
+        port.source_profile
+    );
 }

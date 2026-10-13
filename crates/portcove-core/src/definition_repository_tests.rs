@@ -120,6 +120,15 @@ impl RepositoryFixture {
     }
 
     async fn root(&self, consistent_snapshot: bool) -> Vec<u8> {
+        self.root_with_protected_delegation(consistent_snapshot, false)
+            .await
+    }
+
+    async fn root_with_protected_delegation(
+        &self,
+        consistent_snapshot: bool,
+        protected_delegation: bool,
+    ) -> Vec<u8> {
         let mut root = Root {
             spec_version: "1.0.0".into(),
             consistent_snapshot,
@@ -139,7 +148,7 @@ impl RepositoryFixture {
         root.roles.insert(
             RoleType::Root,
             RoleKeys {
-                keyids: root_ids,
+                keyids: root_ids.clone(),
                 threshold: nz(2),
                 _extra: HashMap::new(),
             },
@@ -151,7 +160,11 @@ impl RepositoryFixture {
             root.roles.insert(
                 role,
                 RoleKeys {
-                    keyids: vec![id.clone()],
+                    keyids: vec![if protected_delegation && role == RoleType::Targets {
+                        root_ids[0].clone()
+                    } else {
+                        id.clone()
+                    }],
                     threshold: nz(1),
                     _extra: HashMap::new(),
                 },
@@ -183,7 +196,32 @@ impl RepositoryFixture {
         role_paths: &[&str],
         expires: Timestamp,
     ) -> Vec<u8> {
-        let root = self.root(consistent_snapshot).await;
+        self.publish_with_policy(targets, consistent_snapshot, role_paths, expires, None)
+            .await
+    }
+
+    async fn publish_with_policy(
+        &self,
+        targets: &[(String, Vec<u8>)],
+        consistent_snapshot: bool,
+        role_paths: &[&str],
+        expires: Timestamp,
+        policy: Option<(&Key, u64)>,
+    ) -> Vec<u8> {
+        let version = policy.map_or(1, |(_, version)| version);
+        let root = if policy.is_some() && self.root_path.exists() {
+            fs::read(&self.root_path).unwrap()
+        } else if policy.is_some() {
+            self.root_with_protected_delegation(consistent_snapshot, true)
+                .await
+        } else {
+            self.root(consistent_snapshot).await
+        };
+        let delegation_key = if policy.is_some() {
+            &self.offline[0]
+        } else {
+            &self.online
+        };
         let mut inputs = Vec::new();
         for (name, bytes) in targets {
             let path = self.source.join(name);
@@ -197,13 +235,13 @@ impl RepositoryFixture {
             .collect();
         let mut editor = RepositoryEditor::new(&self.root_path).await.unwrap();
         editor
-            .targets_version(nz(1))
+            .targets_version(nz(version))
             .unwrap()
             .targets_expires(expires)
             .unwrap()
-            .snapshot_version(nz(1))
+            .snapshot_version(nz(version))
             .snapshot_expires(expires)
-            .timestamp_version(nz(1))
+            .timestamp_version(nz(version))
             .timestamp_expires(expires)
             .delegate_role(
                 "official-definitions",
@@ -212,22 +250,47 @@ impl RepositoryFixture {
                 true,
                 nz(1),
                 expires,
-                nz(1),
+                nz(version),
             )
             .await
-            .unwrap()
-            .sign_targets_editor(&[self.online.source()])
+            .unwrap();
+        if let Some((key, version)) = policy {
+            // Policy validity is shorter than definition validity so runtime cache
+            // tests can distinguish the two authenticated expiration boundaries.
+            let policy_expires = expires
+                .checked_sub(std::time::Duration::from_secs(60))
+                .unwrap();
+            editor
+                .delegate_role(
+                    super::publisher_policy::POLICY_ROLE,
+                    &[key.source()],
+                    PathSet::Paths(vec![
+                        PathPattern::new(super::publisher_policy::POLICY_PATH).unwrap(),
+                    ]),
+                    true,
+                    nz(1),
+                    policy_expires,
+                    nz(version),
+                )
+                .await
+                .unwrap();
+        }
+        editor
+            .sign_targets_editor(&[delegation_key.source()])
             .await
             .unwrap()
             .change_delegated_targets("official-definitions")
             .unwrap();
         for (name, path) in &inputs {
+            if name.raw().starts_with("policy/") {
+                continue;
+            }
             editor
                 .add_target(name.clone(), Target::from_path(path).await.unwrap())
                 .unwrap();
         }
         editor
-            .targets_version(nz(1))
+            .targets_version(nz(version))
             .unwrap()
             .targets_expires(expires)
             .unwrap()
@@ -236,16 +299,61 @@ impl RepositoryFixture {
             .unwrap()
             .change_delegated_targets("targets")
             .unwrap();
+        if let Some((key, version)) = policy {
+            let policy_expires = expires
+                .checked_sub(std::time::Duration::from_secs(60))
+                .unwrap();
+            editor
+                .targets_version(nz(version))
+                .unwrap()
+                .targets_expires(expires)
+                .unwrap()
+                .sign_targets_editor(&[delegation_key.source()])
+                .await
+                .unwrap()
+                .change_delegated_targets(super::publisher_policy::POLICY_ROLE)
+                .unwrap();
+            for (name, path) in &inputs {
+                if name.raw().starts_with("policy/") {
+                    editor
+                        .add_target(name.clone(), Target::from_path(path).await.unwrap())
+                        .unwrap();
+                }
+            }
+            editor
+                .targets_version(nz(version))
+                .unwrap()
+                .targets_expires(policy_expires)
+                .unwrap()
+                .sign_targets_editor(&[key.source()])
+                .await
+                .unwrap()
+                .change_delegated_targets("targets")
+                .unwrap();
+        }
         editor
-            .targets_version(nz(1))
+            .targets_version(nz(version))
             .unwrap()
             .targets_expires(expires)
             .unwrap();
-        let signed = editor.sign(&[self.online.source()]).await.unwrap();
+        let mut signing_keys = vec![self.online.source()];
+        if policy.is_some() {
+            signing_keys.push(delegation_key.source());
+        }
+        let signed = editor.sign(&signing_keys).await.unwrap();
         signed.write(&self.metadata).await.unwrap();
         for (name, path) in &inputs {
             signed
-                .copy_target(path, &self.targets, PathExists::Fail, Some(name))
+                .copy_target(
+                    path,
+                    &self.targets,
+                    if policy.is_some() {
+                        PathExists::Skip
+                    } else {
+                        PathExists::Fail
+                    },
+                    Some(name),
+                )
                 .await
                 .unwrap();
         }
@@ -270,10 +378,42 @@ impl RepositoryFixture {
     }
 }
 
+#[path = "definition_publisher_policy_tests.rs"]
+mod publisher_policy_tests;
+
 fn repository_targets() -> (String, Vec<(String, Vec<u8>)>) {
     let catalog = Catalog::embedded().unwrap();
     let port_id = catalog.ports()[0].id.clone();
     (port_id.clone(), repository_targets_for(&catalog, &port_id))
+}
+
+// Generic TUF metadata contracts need valid indexed bytes, not real port contents.
+// Eligibility, library selection and real-catalog cases retain repository_targets().
+fn metadata_catalog() -> Catalog {
+    Catalog::from_json(
+        &serde_json::json!({
+            "schema_version": 1,
+            "ports": [{
+                "id": "tuf-metadata-fixture",
+                "name": "TUF metadata fixture",
+                "summary": "Synthetic authenticated metadata fixture",
+                "project_url": "https://example.invalid/tuf-metadata-fixture",
+                "support_tier": "beta",
+                "channels": ["stable"],
+                "platforms": ["linux-x86-64"],
+                "adapter": "libultraship-portable",
+                "release": {"repository": "fixture/tuf-metadata"},
+                "executable_hints": {"linux-x86-64": ["fixture"]}
+            }]
+        })
+        .to_string(),
+    )
+    .unwrap()
+}
+
+fn metadata_targets() -> Vec<(String, Vec<u8>)> {
+    let catalog = metadata_catalog();
+    repository_targets_for(&catalog, &catalog.ports()[0].id)
 }
 
 fn repository_targets_for(catalog: &Catalog, port_id: &str) -> Vec<(String, Vec<u8>)> {
@@ -1035,6 +1175,65 @@ async fn revoked_selected_definition_falls_back_to_the_existing_catalog() {
 }
 
 #[tokio::test]
+async fn stored_selection_rejects_revision_mismatch_in_active_and_previous() {
+    let fixture = RepositoryFixture::new();
+    let catalog = metadata_catalog();
+    let port_id = &catalog.ports()[0].id;
+    let targets = repository_targets_for(&catalog, port_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    select_candidate(&library, &candidate, port_id);
+    let valid = library.definition_selection_status().unwrap();
+    let active_json: String = library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT active_json FROM definition_selection_state WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let mut mismatched: Value = serde_json::from_str(&active_json).unwrap();
+    mismatched["definition_revision"] =
+        (mismatched["definition_revision"].as_u64().unwrap() + 1).into();
+    let mismatched_json = serde_json::to_string(&mismatched).unwrap();
+    for previous in [false, true] {
+        let (active, prior) = if previous {
+            (&active_json, Some(&mismatched_json))
+        } else {
+            (&mismatched_json, None)
+        };
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE definition_selection_state SET active_json=?1,previous_json=?2 WHERE singleton=1",
+                [Some(active), prior],
+            )
+            .unwrap();
+        let error = library.definition_selection_status().unwrap_err();
+        assert_eq!(error.code, ErrorCode::State);
+        assert_eq!(
+            error.details.get("cause").map(String::as_str),
+            Some("definition admission revision differs from its exact entry")
+        );
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE definition_selection_state SET active_json=?1,previous_json=NULL WHERE singleton=1",
+                [&active_json],
+            )
+            .unwrap();
+        assert_eq!(library.definition_selection_status().unwrap(), valid);
+    }
+}
+
+#[tokio::test]
 async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
     let fixture = RepositoryFixture::new();
     let (catalog, port_id) = post_client_catalog();
@@ -1046,6 +1245,13 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
     let temporary = TempDir::new().unwrap();
     let library = Library::open(temporary.path()).unwrap();
     select_candidate(&library, &candidate, &port_id);
+
+    let (valid_catalog, valid_provenance) = library.load_catalog().unwrap();
+    assert_eq!(valid_provenance.origin, CatalogOrigin::DefinitionSelected);
+    let valid_identity = valid_catalog
+        .definition_selection(&port_id)
+        .unwrap()
+        .clone();
 
     let active_json: String = library
         .connection()
@@ -1091,6 +1297,40 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
     assert!(loaded.port(&port_id).is_err());
     assert!(!provenance.fallback_reasons.is_empty());
     assert!(library.definition_selection_status().is_err());
+
+    // A valid active snapshot must not hide corruption in the previous one.
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state SET active_json=?1,previous_json=?2 WHERE singleton=1",
+            [&active_json, &serde_json::to_string(&corrupt).unwrap()],
+        )
+        .unwrap();
+    let (loaded, provenance) = library.load_catalog().unwrap();
+    assert_eq!(provenance.origin, CatalogOrigin::Embedded);
+    assert!(loaded.port(&port_id).is_err());
+    assert!(!provenance.fallback_reasons.is_empty());
+    assert!(library.definition_selection_status().is_err());
+
+    library
+        .connection()
+        .unwrap()
+        .execute(
+            "UPDATE definition_selection_state SET previous_json=NULL WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+    let (restored, provenance) = library.load_catalog().unwrap();
+    assert_eq!(provenance, valid_provenance);
+    assert_eq!(
+        restored.definition_selection(&port_id),
+        Some(&valid_identity)
+    );
+    assert_eq!(
+        serde_json::to_value(restored.authoritative_document()).unwrap(),
+        serde_json::to_value(valid_catalog.authoritative_document()).unwrap()
+    );
 }
 
 #[tokio::test]
@@ -1194,7 +1434,7 @@ async fn selection_rechecks_policy_replay_and_atomic_commit_state() {
 #[tokio::test]
 async fn replay_evaluation_rejects_downgrade_and_same_version_equivocation() {
     let fixture = RepositoryFixture::new();
-    let (_, targets) = repository_targets();
+    let targets = metadata_targets();
     let root = fixture
         .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
         .await;
@@ -1241,7 +1481,7 @@ async fn replay_evaluation_rejects_downgrade_and_same_version_equivocation() {
 #[tokio::test]
 async fn replay_evaluation_allows_independent_monotonic_metadata_advance() {
     let fixture = RepositoryFixture::new();
-    let (_, targets) = repository_targets();
+    let targets = metadata_targets();
     let root = fixture
         .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
         .await;
@@ -1353,7 +1593,7 @@ async fn unsupported_sibling_does_not_block_a_supported_definition() {
 async fn tampered_or_missing_content_is_refused() {
     for remove in [false, true] {
         let fixture = RepositoryFixture::new();
-        let (_, targets) = repository_targets();
+        let targets = metadata_targets();
         let root = fixture
             .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
             .await;
@@ -1383,7 +1623,7 @@ async fn tampered_or_missing_content_is_refused() {
 
 #[tokio::test]
 async fn delegation_scope_and_consistent_snapshots_are_mandatory() {
-    let (_, targets) = repository_targets();
+    let targets = metadata_targets();
     let fixture = RepositoryFixture::new();
     let root = fixture.publish(&targets, true, &["*"], later()).await;
     let scope_error = acquire(&fixture, &root).await.unwrap_err();
@@ -1400,7 +1640,7 @@ async fn delegation_scope_and_consistent_snapshots_are_mandatory() {
 #[tokio::test]
 async fn expired_metadata_is_refused_as_verification_failure() {
     let fixture = RepositoryFixture::new();
-    let (_, targets) = repository_targets();
+    let targets = metadata_targets();
     let root = fixture
         .publish(&targets, true, &DEFINITION_ROLE_PATHS, earlier())
         .await;
@@ -1425,7 +1665,7 @@ async fn authenticated_index_length_is_bounded_before_download() {
 #[tokio::test]
 async fn index_and_tuf_target_metadata_must_agree_before_content_reads() {
     let fixture = RepositoryFixture::new();
-    let (_, mut targets) = repository_targets();
+    let mut targets = metadata_targets();
     let index = targets
         .iter_mut()
         .find(|(name, _)| name == INDEX_TARGET)
@@ -1556,4 +1796,56 @@ async fn qualification_adapter_conformance_definition_state() {
         }
         value => panic!("unsupported qualification definition action {value}"),
     }
+}
+
+#[tokio::test]
+async fn minimal_metadata_fixture_crosses_authenticated_projection_boundaries() {
+    let catalog = metadata_catalog();
+    assert_eq!(catalog.ports().len(), 1);
+    let port = &catalog.ports()[0];
+    assert_eq!(port.id, "tuf-metadata-fixture");
+    let targets = metadata_targets();
+    assert_eq!(targets.len(), 3);
+    let fixture = RepositoryFixture::new();
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let inspected = candidate
+        .inspect_catalog_projection("official", &port.id)
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(inspected.catalog().port(&port.id).unwrap()).unwrap(),
+        serde_json::to_value(port).unwrap()
+    );
+    assert_eq!(inspected.catalog().ports().len(), 1);
+    assert_eq!(
+        candidate.evaluate_replay(None).unwrap(),
+        DefinitionReplayDisposition::Initial
+    );
+}
+
+#[test]
+fn minimal_metadata_targets_do_not_depend_on_unrelated_catalog_entries() {
+    let expected = metadata_targets();
+    let real_catalog = Catalog::embedded().unwrap();
+    let real_port_id = &real_catalog.ports()[0].id;
+    let original_real_targets = repository_targets_for(&real_catalog, real_port_id);
+    let mut changed_document = serde_json::to_value(real_catalog.authoritative_document()).unwrap();
+    changed_document["ports"]
+        .as_array_mut()
+        .unwrap()
+        .push(serde_json::to_value(&metadata_catalog().ports()[0]).unwrap());
+    let changed_catalog = Catalog::from_json(&changed_document.to_string()).unwrap();
+    assert_eq!(
+        changed_catalog.ports().len(),
+        real_catalog.ports().len() + 1
+    );
+    assert_ne!(
+        repository_targets_for(&changed_catalog, real_port_id),
+        original_real_targets
+    );
+    assert_eq!(metadata_targets(), expected);
+    assert!(real_catalog.port("tuf-metadata-fixture").is_err());
+    assert!(changed_catalog.port("tuf-metadata-fixture").is_ok());
 }

@@ -17,7 +17,8 @@ use super::{
 };
 use crate::{
     ActivityOperation, ActivityTargetKind, BackupInventory, BackupInventoryState, BackupProblem,
-    BackupProblemKind, BackupRecord, Library, PortcoveError, RestoreResult, Result,
+    BackupProblemKind, BackupRecord, InstallRecord, Library, PortAction, PortActionAssessment,
+    PortActionReason, PortcoveError, RestoreResult, Result,
     durability::{prepare_backup_publication, publish_backup_directory},
     operation::{
         LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind, LifecyclePhase,
@@ -25,6 +26,109 @@ use crate::{
     },
     path::refuse_symlink_ancestors,
 };
+
+/// Doctor consumes history diagnostics without probing live save trees.
+pub(super) struct BackupHistory {
+    pub state: BackupInventoryState,
+    pub backups: Vec<BackupRecord>,
+    pub problems: Vec<BackupProblem>,
+}
+
+/// Metadata-only existence probe; this is neither a copy plan nor integrity proof.
+/// One budget covers the owned tree and every retained persistence entry.
+#[derive(Default)]
+struct BackupDataScan {
+    entries: usize,
+}
+
+impl BackupDataScan {
+    /// Mirror sync_entry's non-mutating existence semantics. Skipped links and
+    /// special source entries retain destination bytes; missing sources do not.
+    fn collectible_has_files(
+        &mut self,
+        source: &Path,
+        destination: &Path,
+        depth: usize,
+    ) -> Result<bool> {
+        self.entries += 1;
+        if self.entries > 4096 || depth > 32 {
+            return Err(PortcoveError::unsupported(
+                "bounded backup data assessment limit reached",
+            ));
+        }
+        match fs::metadata(source) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            result => {
+                result?;
+            }
+        }
+        let metadata = fs::symlink_metadata(source)?;
+        if metadata.file_type().is_symlink() || !(metadata.is_dir() || metadata.is_file()) {
+            return self.has_files(destination, &[]);
+        }
+        refuse_symlink_ancestors(destination)?;
+        if metadata.is_file() {
+            return Ok(true);
+        }
+        for entry in fs::read_dir(source)? {
+            let entry = entry?;
+            if self.collectible_has_files(
+                &entry.path(),
+                &destination.join(entry.file_name()),
+                depth + 1,
+            )? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn has_files(&mut self, root: &Path, excluded: &[PathBuf]) -> Result<bool> {
+        refuse_symlink_ancestors(root)?;
+        self.probe(root, root, excluded, 0)
+    }
+
+    fn probe(
+        &mut self,
+        root: &Path,
+        path: &Path,
+        excluded: &[PathBuf],
+        depth: usize,
+    ) -> Result<bool> {
+        self.entries += 1;
+        if self.entries > 4096 || depth > 32 {
+            return Err(PortcoveError::unsupported(
+                "bounded backup data assessment limit reached",
+            ));
+        }
+        let metadata = match fs::symlink_metadata(&path) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            result => result?,
+        };
+        if metadata.file_type().is_symlink() || !(metadata.is_dir() || metadata.is_file()) {
+            return Err(PortcoveError::conflict(
+                "backup data assessment found a link or special entry",
+            ));
+        }
+        let relative = path
+            .strip_prefix(root)
+            .map_err(|_| PortcoveError::state("backup data assessment escaped its owned root"))?;
+        if excluded.iter().any(|entry| relative.starts_with(entry)) {
+            return Ok(false);
+        }
+        if metadata.is_file() {
+            return Ok(true);
+        } else {
+            for entry in fs::read_dir(&path)? {
+                let entry = entry?;
+                if self.probe(root, &entry.path(), excluded, depth + 1)? {
+                    return Ok(true);
+                }
+            }
+        }
+        Ok(false)
+    }
+}
 
 /// Internal interpretation of the released restore envelope, never mutation authority.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -375,6 +479,28 @@ impl PortcoveService {
         port_id: &str,
         operations: &[LifecycleOperation],
     ) -> Result<BackupInventory> {
+        let port = self.catalog.port(port_id)?;
+        let status = self.library.status(port_id, super::default_channel(port))?;
+        let history = self.backup_history_with_operations(port_id, operations)?;
+        Ok(BackupInventory {
+            port_id: port_id.into(),
+            restore_assessment: self.backup_restore_assessment(port_id, operations, &history),
+            create_assessment: self.backup_create_assessment(
+                port_id,
+                operations,
+                status.active.as_ref(),
+            ),
+            state: history.state,
+            backups: history.backups,
+            problems: history.problems,
+        })
+    }
+
+    pub(super) fn backup_history_with_operations(
+        &self,
+        port_id: &str,
+        operations: &[LifecycleOperation],
+    ) -> Result<BackupHistory> {
         let parent = self.library.backups_dir().join(port_id);
         let pending_deletions = operations
             .iter()
@@ -422,8 +548,7 @@ impl PortcoveService {
                 message: error.message,
                 proposed_action: "restore the owned backup directory after review".into(),
             });
-            return Ok(BackupInventory {
-                port_id: port_id.into(),
+            return Ok(BackupHistory {
                 state: BackupInventoryState::RecoveryRequired,
                 backups: Vec::new(),
                 problems,
@@ -439,8 +564,7 @@ impl PortcoveService {
                     parent.clone(),
                     format!("backup directory could not be read: {error}"),
                 ));
-                return Ok(BackupInventory {
-                    port_id: port_id.into(),
+                return Ok(BackupHistory {
                     state: backup_inventory_state(&problems),
                     backups: Vec::new(),
                     problems,
@@ -449,8 +573,7 @@ impl PortcoveService {
         };
         if parent_metadata.is_none() {
             let state = backup_inventory_state(&problems);
-            return Ok(BackupInventory {
-                port_id: port_id.into(),
+            return Ok(BackupHistory {
                 state,
                 backups: Vec::new(),
                 problems,
@@ -463,8 +586,7 @@ impl PortcoveService {
                 parent.clone(),
                 "backup root is not an owned directory".into(),
             ));
-            return Ok(BackupInventory {
-                port_id: port_id.into(),
+            return Ok(BackupHistory {
                 state: backup_inventory_state(&problems),
                 backups: Vec::new(),
                 problems,
@@ -480,8 +602,7 @@ impl PortcoveService {
                     parent.clone(),
                     format!("backup directory could not be listed: {error}"),
                 ));
-                return Ok(BackupInventory {
-                    port_id: port_id.into(),
+                return Ok(BackupHistory {
                     state: backup_inventory_state(&problems),
                     backups,
                     problems,
@@ -614,12 +735,166 @@ impl PortcoveService {
                 .cmp(&right.path)
                 .then_with(|| left.operation_id.cmp(&right.operation_id))
         });
-        Ok(BackupInventory {
-            port_id: port_id.into(),
+        Ok(BackupHistory {
             state: backup_inventory_state(&problems),
             backups,
             problems,
         })
+    }
+
+    fn backup_restore_assessment(
+        &self,
+        port_id: &str,
+        operations: &[LifecycleOperation],
+        history: &BackupHistory,
+    ) -> PortActionAssessment {
+        use crate::PortActionAvailability as Availability;
+        use PortActionReason as Reason;
+        let decision = |availability, reason| PortActionAssessment {
+            action: PortAction::BackupRestore,
+            availability,
+            reason,
+            definition: None,
+        };
+        if operations.iter().any(|operation| {
+            operation.port_id == port_id
+                && (operation.kind == LifecycleOperationKind::DeleteBackup
+                    || (operation.kind == LifecycleOperationKind::Restore
+                        && operation.phase != LifecyclePhase::Preparing))
+        }) {
+            return decision(Availability::Held, Reason::RecoveryRequired);
+        }
+        if history.state == BackupInventoryState::RecoveryRequired {
+            return decision(Availability::Held, Reason::UnsafeData);
+        }
+        let backup_root = self.library.backups_dir().join(port_id);
+        if history.problems.iter().any(|problem| {
+            problem.backup_id.is_none()
+                && problem.path == backup_root
+                && problem.kind == BackupProblemKind::UnsupportedEntry
+        }) {
+            return decision(Availability::Held, Reason::UnsafeData);
+        }
+        if history.backups.is_empty() {
+            // A failed root/entry read cannot establish that no usable backup
+            // exists. Damaged identified snapshots remain separate evidence.
+            if history.problems.iter().any(|problem| {
+                problem.backup_id.is_none() && problem.kind == BackupProblemKind::UnreadableManifest
+            }) {
+                return decision(Availability::Held, Reason::UnreadableData);
+            }
+            return decision(Availability::Waiting, Reason::MissingBackup);
+        }
+        let user_root = self.library.user_dir(port_id);
+        if refuse_symlink_ancestors(&user_root).is_err() {
+            return decision(Availability::Held, Reason::UnsafeData);
+        }
+        match fs::symlink_metadata(&user_root) {
+            Ok(metadata) if !metadata.is_dir() => decision(Availability::Held, Reason::UnsafeData),
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                decision(Availability::Held, Reason::UnreadableData)
+            }
+            _ => decision(Availability::Allowed, Reason::Available),
+        }
+    }
+
+    fn backup_create_assessment(
+        &self,
+        port_id: &str,
+        operations: &[LifecycleOperation],
+        active: Option<&InstallRecord>,
+    ) -> PortActionAssessment {
+        use crate::PortActionAvailability as Availability;
+        use PortActionReason as Reason;
+        let decision = |availability, reason| PortActionAssessment {
+            action: PortAction::BackupCreate,
+            availability,
+            reason,
+            definition: None,
+        };
+        if operations.iter().any(|operation| {
+            operation.port_id == port_id && operation.kind == LifecycleOperationKind::DeleteBackup
+        }) {
+            return decision(Availability::Held, Reason::RecoveryRequired);
+        }
+        let result: Result<bool> = (|| {
+            let backup_root = self.library.backups_dir().join(port_id);
+            refuse_symlink_ancestors(&backup_root)?;
+            if backup_root.exists() && !backup_root.is_dir() {
+                return Err(PortcoveError::conflict(
+                    "owned backup root is not a directory",
+                ));
+            }
+            let user_root = self.library.user_dir(port_id);
+            refuse_symlink_ancestors(&user_root)?;
+            if user_root.exists() && !user_root.is_dir() {
+                return Err(PortcoveError::conflict(
+                    "owned data root is not a directory",
+                ));
+            }
+            let mut replaced = Vec::new();
+            let mut scan = BackupDataScan::default();
+            if let Some(active) = active {
+                let marker = active.path.join(super::LAUNCH_MARKER);
+                refuse_symlink_ancestors(&marker)?;
+                if marker.is_file() {
+                    if operations.iter().any(|operation| {
+                        operation.port_id == port_id
+                            && operation.kind == LifecycleOperationKind::Restore
+                            && operation.phase != LifecyclePhase::Preparing
+                    }) {
+                        return Err(PortcoveError::conflict(
+                            "save collection awaits restore recovery",
+                        )
+                        .detail("backup_assessment", "recovery_required"));
+                    }
+                    let port = self.installed_mutability_port(active)?;
+                    let persistent_root = self.persistence_root(&port, &active.path)?;
+                    let entries =
+                        crate::persistence::entries(&port, &[&persistent_root, &user_root])?;
+                    if !super::writes_directly_to_user_root(&port) {
+                        for relative in entries {
+                            crate::archive::validate_relative_path(&relative, false)?;
+                            replaced.push(PathBuf::from(&relative));
+                            if scan.collectible_has_files(
+                                &persistent_root.join(&relative),
+                                &user_root.join(relative),
+                                0,
+                            )? {
+                                return Ok(true);
+                            }
+                        }
+                    }
+                }
+            }
+            scan.has_files(&user_root, &replaced)
+        })();
+        match result {
+            Ok(true) => decision(Availability::Allowed, Reason::Available),
+            Ok(false) => decision(Availability::Waiting, Reason::MissingData),
+            Err(error)
+                if error
+                    .details
+                    .get("backup_assessment")
+                    .is_some_and(|reason| reason == "recovery_required") =>
+            {
+                decision(Availability::Held, Reason::RecoveryRequired)
+            }
+            Err(error)
+                if matches!(
+                    error.code,
+                    crate::ErrorCode::Conflict
+                        | crate::ErrorCode::Usage
+                        | crate::ErrorCode::Verification
+                ) =>
+            {
+                decision(Availability::Held, Reason::UnsafeData)
+            }
+            Err(error) if error.code == crate::ErrorCode::Unsupported => {
+                decision(Availability::Held, Reason::AssessmentIncomplete)
+            }
+            Err(_) => decision(Availability::Held, Reason::UnreadableData),
+        }
     }
 
     pub fn preview_backup_action(
@@ -629,6 +904,10 @@ impl PortcoveService {
         action: BackupAction,
     ) -> Result<BackupActionPreview> {
         self.catalog.port(port_id)?;
+        if action == BackupAction::Restore {
+            self.require_completed_restore(port_id)?;
+            self.require_completed_backup_deletion(port_id)?;
+        }
         let backup = self.load_backup(port_id, backup_id)?;
         let backup_plan = adoption_copy_plan(&backup.path.join("data"))?;
         let user_root = self.library.user_dir(port_id);
@@ -1228,7 +1507,9 @@ fn copy_backup_tree(
         stats.hasher.update(b"\0");
         let mut input = fs::File::open(source)?;
         let mut output = fs::File::create(destination)?;
-        let mut buffer = [0_u8; 64 * 1024];
+        // Keep the existing bounded copy buffer off each recursive stack frame.
+        // Empty deep directories must not consume 64 KiB per ancestor.
+        let mut buffer = vec![0_u8; 64 * 1024];
         loop {
             let read = input.read(&mut buffer)?;
             if read == 0 {
@@ -1297,4 +1578,44 @@ fn backup_action_fingerprint(
 ) -> Result<String> {
     let encoded = serde_json::to_vec(&(action, backup, backup_plan, user_plan))?;
     Ok(hex::encode(Sha256::digest(encoded)))
+}
+
+#[cfg(test)]
+mod assessment_tests {
+    use super::*;
+    #[test]
+    fn backup_restore_assessment_unreadable_history_is_unknown() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let port_id = "zelda64-recomp";
+        let root = library.backups_dir().join(port_id);
+        // Deterministic classification control for the existing failed-root-read
+        // history branch; this does not claim a host permission observation.
+        let mut history = BackupHistory {
+            state: BackupInventoryState::Degraded,
+            backups: Vec::new(),
+            problems: vec![BackupProblem {
+                kind: BackupProblemKind::UnreadableManifest,
+                backup_id: None,
+                operation_id: None,
+                path: root,
+                message: "backup directory could not be listed".into(),
+                proposed_action: "review the owned directory".into(),
+            }],
+        };
+        assert_eq!(
+            service
+                .backup_restore_assessment(port_id, &[], &history)
+                .reason,
+            PortActionReason::UnreadableData
+        );
+        history.problems[0].backup_id = Some("identified-damaged-snapshot".into());
+        assert_eq!(
+            service
+                .backup_restore_assessment(port_id, &[], &history)
+                .reason,
+            PortActionReason::MissingBackup
+        );
+    }
 }

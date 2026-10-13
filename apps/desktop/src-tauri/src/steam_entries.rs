@@ -6,6 +6,10 @@
 //! fails closed on unknown encodings, preserves fields it does not own, and
 //! requires actual Steam-client qualification before any compatibility claim.
 
+pub use crate::desktop_contract::{
+    SteamClientState, SteamEntryApplyResult, SteamEntryChange, SteamEntryChangeKind,
+    SteamGameEntryTarget,
+};
 use fs2::FileExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -135,12 +139,6 @@ fn is_regular_profile_directory(metadata: &fs::Metadata) -> bool {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct SteamGameEntryTarget {
-    pub port_id: String,
-    pub display_name: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SteamCliIdentity {
     pub path: PathBuf,
     pub sha256: String,
@@ -182,22 +180,6 @@ impl SteamEntryPlanRequest {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SteamEntryChangeKind {
-    Add,
-    Repair,
-    Remove,
-    Unchanged,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct SteamEntryChange {
-    pub port_id: String,
-    pub display_name: Option<String>,
-    pub kind: SteamEntryChangeKind,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SteamEntryPlan {
     pub schema_version: u32,
@@ -215,23 +197,6 @@ impl SteamEntryPlan {
             .iter()
             .any(|change| change.kind != SteamEntryChangeKind::Unchanged)
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum SteamClientState {
-    Closed,
-    Running,
-    Unknown,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct SteamEntryApplyResult {
-    pub plan_sha256: String,
-    pub shortcuts_path: PathBuf,
-    pub backup_path: Option<PathBuf>,
-    pub changes: Vec<SteamEntryChange>,
-    pub wrote: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

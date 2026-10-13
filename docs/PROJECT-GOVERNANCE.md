@@ -20,7 +20,7 @@ The Project uses these single-select fields:
 - **Horizon:** Now, Next, Later, Someday.
 - **Target release:** Public beta, 1.0, Post-1.0, Unscheduled for active work.
   Alpha 1, Alpha 2, Alpha 3, Beta 1, Beta 2, RC, V1 and Post-V1 remain historical options.
-- **Release commitment:** Required, Opportunistic. An unset value is explicitly
+- **Release commitment:** Required, Planned. An unset value is explicitly
   unclassified.
 - **Work type:** Workstream, Product feature, Port, Platform, Bug, Security,
   Research, Qualification, Technical debt, Documentation.
@@ -272,31 +272,218 @@ candidate code, artifacts, and text as untrusted and never executes them with
 write or signing credentials.
 
 Priority, horizon, and target release are forecasts. Release commitment records
-whether the outcome is necessary for its applicable committed release. Required
+whether the outcome is necessary for its applicable committed release. Required is a release gate; Planned is approved work expected to execute without making its absence alone a release blocker. Required
 work remains a gate through genuine transitive blocking dependencies even if a
-dependency is misclassified Opportunistic, unclassified, or targeted later;
+dependency is misclassified Planned, unclassified, or targeted later;
 the tooling reports that conflict. Optional classification never excuses a
 known safety failure in shipped scope. Reorder or edit Project fields instead
 of rewriting repository documentation. New ports do not automatically expand
 global V1 scope.
 
+The owner's October 10, 2026 decision makes current Public beta commitments
+Required, including work formerly called Opportunistic and then Planned. Consume
+the live Project for each outcome's status and remaining acceptance. Completed
+components remain credited; existing blockers, platform scope, resource guards,
+qualification and protected publication authority remain unchanged. Planned
+retains its general meaning for work assigned to later releases.
+
+## Keeping current specifications readable
+
+Prefer an existing canonical owner. Create a task only for independently owned,
+scheduled, implemented or verified work; ordinary observations and evidence stay
+with their owner. Durable Port records remain distinct from finite maintenance.
+Keep near-term work executable and later approved outcomes visible without
+speculatively decomposing every future step.
+
+The issue body is the current specification: finite closure, delivered components
+with scoped links, remaining acceptance and owners, genuine blockers/resume
+conditions, and separately scoped later work. Integrate accepted amendments;
+do not append contradictory overrides or copy entire child checklists into a
+parent. Preserve superseded text and unique evidence in a dated linked issue
+comment. Every applicable requirement must retain a current owner, not only an
+archive. Refresh before writing, guard against concurrent edits and read back.
+
+On completion or material scope change, reconcile the task, finite parent and
+directly affected relationships. Closed can mean canceled, duplicate or superseded;
+a merged component is not automatically an integrated or qualified outcome.
+Credit completed slices and preserve valid historical completion. Aging and
+missing evidence prompt investigation, not automatic closure or invented blockers.
+Use targeted existing checks for ordinary maintenance; complete inventories and
+readiness analysis serve migrations and release declarations, not every PR.
+
+## Selecting approved work
+
+Required determines release readiness. Planned is approved non-gating work that
+runners are expected to execute by Priority, Horizon, readiness and Project order.
+Use `roadmap.mjs next` as the common execution queue; a Required-only readiness
+view is never the universal task selector. Deferred work remains inactive.
+
+One local runner owns implementation and delivery. At clean handoffs favor
+finishing accepted beta outcomes, exact remaining acceptance, demonstrated
+prerequisites for several beta outcomes or fitting frozen-cohort routes, and
+actual delivery bottlenecks. Immediate safety/data-loss problems and broken
+required validation retain precedence. Required alone is not a scheduling
+algorithm; Planned work may be the best accelerator.
+Use existing Priority, Horizon and Project order with relevance, dependencies,
+capability and current ownership. Preserve old workers' work and verify actual
+writer release before overlapping edits. Missing coordinator paperwork does
+not block unrelated work. Keep one actively edited candidate; a clean candidate
+waiting for CI, independent review or an external prerequisite permits another
+independent task. Do not create new cloud implementation sessions, a dispatcher,
+lease system or reporting framework. Short-lived non-writing reviewers are allowed.
+
+For each selected outcome credit delivered acceptance, name the exact remaining
+gap and select one bounded implementation or proof advancing closure. Identify
+the applicable validation route and missing native/package scenario before
+implementation where practical; arrange proof alongside the implementation.
+Reuse adequate evidence at its actual inputs and scope across consuming owners,
+without copying receipts or repeating qualification solely for multiple parents.
+Small coherent PRs may advance an outcome while clean independent candidates wait.
+Architecture inventory rows end in implemented, replaced/removed, or an
+evidence-backed satisfactory/compatibility-retained disposition; file size alone
+does not justify another required refactor. Design-system closure uses accepted
+surfaces/states/references, not reopened stack selection or new aesthetic goals.
+
+Every actionable Now/Next item has either an explicitly accepted assignment or an
+ordered queue position from the live Project behind named work. Queue predecessors
+express scheduling, not blocking dependencies. Recommendations are not reservations.
+Before passing over executable work, record the concrete dependency, ownership
+conflict, missing execution capability, urgent regression, or higher-value choice
+in its owning issue/PR, including what it is queued behind and the resume condition.
+Being Planned is never a reason. For comparably valuable executable candidates, prefer older
+waiting work over repeatedly selecting new small tasks; use existing comments
+and queue order to record repeated deferrals, without a new scheduler or ledger.
+
+Preserve actual host/resource guards, independent review, acceptance and current
+model/cost boundaries. Use GPT-6.1-Sol where available, normally Medium for
+implementation and High for scoped review, or cheaper suitable models; never
+Astra. Add no paid capacity. Acceleration issues identify a demonstrated delay,
+bounded repair and completion/no-change decision. Tiny new improvements cannot
+keep one outcome open indefinitely.
+
+The existing nightly development report leads with accepted beta outcomes advanced,
+frozen-cohort useful-route/final-disposition progress, and actual blockers or
+acceptance queues. Show material Required and Planned delivery, accepted
+assignments and repeatedly passed-over Ready Now/Next work with reasons and named
+predecessors. Separate scope additions and bookkeeping corrections from delivered
+acceptance; PR totals are supporting activity, not a release forecast. Reuse the
+existing cadence and receipts, with no mandatory daily census, new reporting
+service or recurring automation. Instructions alone do not prove adoption.
+
+## Pickup, consumption and execution upkeep
+
+The owner ended the two-cloud/one-local arrangement on October 9, 2026.
+One local runner now owns routine selection, implementation, review fixes,
+validation, CI, guarded merge and roadmap reconciliation. Dot is no longer a
+coordinator, dispatcher, approval gate or intermediary. This decision changes
+execution ownership; release commitments, acceptance, trust, signing/provenance,
+branch protection, data protection and resource guards remain in force.
+
+At pickup/resume, read the relevant owner instructions, issue specification,
+live Project fields, typed relationships, actual writers and exact source once.
+Reuse that context until material requirements or source changes; refresh the
+relevant authority before final merge or a remote write. Compare actual deltas
+and repeat only affected obligations, without ceremonial stage-by-stage reads.
+Use `roadmap.mjs next` for the common Required/Planned queue and
+`roadmap.mjs context --issue <number> --runner <reported-instance> --json`
+for full current task requirements. The configured `delivery_mode` is
+`single-local-runner`. Context skips the retired operational board and does not
+require an accepted coordinator assignment. Its retirement is not proof of
+writer inactivity or release. Check current handoffs, branch heads, local
+processes and source-owner release before taking conflicting work; unresolved
+writer overlap blocks only overlapping work. Caller identity is reported, not
+native authentication. Missing task/Project API coverage remains a limitation.
+
+`runner_coordination` retains the old operational issue and three fixed comment
+IDs as discovery pointers. Preserve their history and unresolved evidence;
+ordinary pickup does not read or rewrite them. Legacy coordinated configurations
+remain readable for historical protocol tests; coordinator planners refuse in
+single-runner mode rather than issue new grants, ACKs or transfer records.
+The [prior fixed-board contract](https://github.com/boburning/portcove/blob/7805cebfde4a6f751b06c7ae1c6706d14a753c1f/docs/PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep)
+is historical. Explicit owning comment/PR references and optional consumed-file
+baselines remain evidence, never grants. Do not scan enormous coordination
+archives or build a replacement ledger.
+
+Keep one actively edited candidate at a time. Freeze clean heads while final
+checks run; revisit waiting candidates at natural checkpoints or new evidence.
+A waiting candidate does not stop useful independent delivery. Prefer completing
+existing work over recreating it. Do not reset, delete, force-push shared work or
+terminate another writer for convenience.
+
+Investigate failures with the smallest discriminating reproduction while new
+evidence narrows a locally fixable cause. Do not repeat unchanged installation,
+network, permission, timeout or artifact-download attempts. When blocked,
+preserve meaningful changes in commits, push when available, and open/update a
+draft PR. Leave branch, exact source, checks/evidence, precise blocker, remaining
+acceptance and concrete resume condition on the owning issue/PR. Do not create
+empty PRs or claim an unavailable upload succeeded. Then select the highest-value
+independent eligible work in the same active session. An owner-only action is
+reported once with its effect; it does not suspend safe independent work.
+
+Preserve actual separate non-writing review, required exact-head hosted CI and
+explicit acceptance. Local validation is optional under
+[QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
+inputs and scope. A bounded reviewer receives the exact diff/head, relevant
+acceptance/contracts, risks and existing evidence; implementers handle findings
+directly. Missing independent review leaves a candidate awaiting review, never
+self-approved. Existing narrow dependency exceptions remain unchanged.
+
+Use existing canonical owners for discoveries and narrow blockers. Record fact
+versus hypothesis, affected acceptance, evidence, disposition and resume action.
+Create separate issues only for independently owned, scheduled and verifiable
+work through supported intake. Optional discoveries do not become release gates.
+Execute finite development improvements when necessary repairs, safe bounded
+parts of approved work, or demonstrated recurring bottlenecks likely to repay
+their cost during remaining beta delivery. Speculative tooling work remains later.
+
+After verified delivery reconcile the task, its finite parent and directly
+changed prerequisites/blocking consumers. A closed child alone does not prove
+parent completion. Select the next useful Required or Planned outcome. Report
+material shipped outcomes, next work and genuine owner actions; preserve durable
+resume evidence before switching or ending, with no heartbeat commentary or
+second status database. Work while the session is active; do not claim autonomous
+restart after it stops.
+
 ## Views and prioritization
 
-Use Priority Stack for ordered Now/Next execution, Now Board for active flow,
-Port Pipeline for the full port inventory, Active Port Work for unfinished
-non-deferred port work, Product Roadmap for non-port work,
-Current Release for the active readiness commitment, Blocked & Deferred for resume
-conditions, Inbox & Triage for intake, Steam Deck for that platform, and V1
-Readiness (retained view identity) for cumulative required gates through 1.0. The checked-in view schema
-records machine-applied layout, filter, and visible fields separately from the
-`manual_group_by` and `manual_sort_by` UI requirements. `bootstrap` cannot claim
-those manual settings or the built-in workflows are configured.
+The saved views are entry points into one Project, not independent authorities:
 
-`.github/roadmap.json` names `active_release`. Advancing Current Release is a
-reviewed repository change: update that value, run `bootstrap`, confirm the view
-filter and all configured manual grouping/sorting rules in the UI, run `doctor`, and
-record the change in the planning pull request. This selects a readiness commitment,
-not the next application version or a publication authorization.
+| View                                     | Question answered                                                                                                             |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                                                        |
+| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                                                        |
+| In Progress                              | Which issues are marked In progress or Validating? Confirm current ownership and actual writer activity on owning issues/PRs. |
+| Next Queue                               | Which unfinished Now/Next work follows, including Required and Planned?                                                       |
+| Planned Additions                        | Which approved non-gating additions remain, across releases?                                                                  |
+| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?                                                   |
+| Blocked & Deferred / Inbox & Triage      | What has a resume condition, and what still needs triage?                                                                     |
+
+`roadmap-outcome` is a presentation-only label on canonical finite product and
+engineering outcomes, including completed outcomes. It does not classify every
+execution task as a product outcome, change readiness, or select eligible work.
+Keep accepted outcomes discoverable without an arbitrary display quota. Native
+child completion is child progress, not effort percentage or release proof.
+
+The Required views show direct gates, not complete release readiness. Use
+`readiness --release <stage>` for genuine transitive prerequisites, classification
+conflicts and missing coverage. Product Outcomes excludes Port records; the
+complete Port Pipeline retains them. Native children remain expandable; collapsed
+row counts must not count integrated parent/child scope as independent value or
+replace complete readiness. In Progress does not infer assignment from
+Now, and neither a status nor a recommended assignment creates a reservation.
+`next` orders the common queue by Horizon, Priority and Project order; the manual
+Next Queue view preserves Project ordering within those selection rules.
+
+Configuration owns names, layouts, filters and visible fields. Supported API
+readback also verifies grouping and sorting; changing those settings still needs
+an authorized UI route. A successful bootstrap is not proof of built-in workflow
+configuration. Reuse saved view identities when renaming instead of duplicating
+views. Refresh and verify actual saved settings after changes.
+
+`.github/roadmap.json` names `active_release`. Advancing Required for Beta is a
+reviewed repository change: update that value, bootstrap the filter, verify saved
+settings, run doctor, and record the change. This chooses a readiness commitment,
+not an application version or publication authority.
 
 Address immediate security or data-loss hazards and broken required validation
 first. Then prioritize bounded, demonstrated development improvements before
@@ -309,8 +496,8 @@ issue rather than freezing the queue in docs.
 
 Coordinate application maturity and compatible catalog freshness in these same
 queues and views; no additional workstream is needed. A high-priority active Port
-may be Opportunistic for a release: its absence does not block that release,
-but it need not always wait. Keep work in progress bounded instead of promoting
+may be Planned for a release: its absence does not block that release,
+and it participates in the execution queue. Keep work in progress bounded instead of promoting
 the full pipeline. A feature freeze constrains application scope, not compatible
 catalog growth through an implemented independent path. Until that path ships,
 compatible additions may still use the ordinary application-release route.
@@ -321,30 +508,53 @@ does not block component development. Use one-way final-integration dependencies
 and fixture-based component proofs; do not make an optional broad parent a
 transitive release gate or mark planned phases complete.
 
-V1 Readiness retains its historical view name and shows work targeted through 1.0 with commitment visible. The
+Required through 1.0 shows direct cumulative Required work. The
 derived `readiness` command and immutable snapshot compute the actual gate from
 Required outcomes and genuine transitive `blocked by` relationships. They report
 unclassified targeted work, dependency classification/target conflicts, safety
 conflicts, missing Project dependencies, and cycles. Parentage and related-work
 links alone never block a release. Unrelated unscheduled intake is not a gate.
-Keep optional work Opportunistic at the release where it may ship or Post-1.0
+Keep non-gating approved work Planned at the release where it may ship or Post-1.0
 where that is its real target; do not distort forecasts merely to avoid a gate.
 
-Public beta requires the complete #52 Windows/Linux/Steam Deck/macOS updater,
-including actual beta platform safety evidence. #46 owns later production
-requalification for 1.0; it is not a reverse dependency of #52. Independent
-catalog delivery, the finite preparation/artwork outcomes and the real Playnite
-reference proof are also Required for Public beta. The user-ready Playnite
-lifecycle product (#910), bounded SteamGridDB capability (#527), selected-game
-Steam Add/Repair/Update-artwork/Remove (#292), and the reusable public-CLI gaps
-they consume (#30) are likewise Required. Provider delivery does not make provider
-configuration, credentials, network access or a match mandatory at runtime. Their
-finite owners and one-way component dependencies remain intact; component owners
-close on independently testable evidence rather than waiting for downstream
-publication, and #52 and #246 remain independent outcomes without reciprocal
-blockers. Paid signing, marketplace approval, continuous Steam synchronization,
-Decky and optional package integrations do not become blockers. See
-[Delivery](DELIVERY.md).
+Initial Public beta officially targets Windows and ordinary Linux x86-64, with
+actual qualification required before claiming support. #52 closes on the shared
+verified updater and #224/#225 evidence for those platforms. Its authenticated
+feed, trust, staging, busy-session, interruption, recovery, rollback/schema and
+preservation requirements remain intact; #534's separately provisioned protected
+delivery authority remains required. #52 and #246 have no reciprocal blocker.
+
+The #917 design system, #921 development-agility consolidation, #925 domain and
+lifecycle foundations and genuinely required supporting work remain Required
+initial beta. Prioritize changes that improve development speed, explicit
+ownership, deterministic testing and safe iteration. The frozen feasible backlog
+rollout (#1422), repeatable onboarding (#254), truthful operation availability
+(#1168/#1169), account-free artwork (#1155/#208/#206), compatible definition
+delivery (#246), reusable public CLI/reference contracts (#30/#243), manual
+plugin-free Desktop Steam route (#290) and shared Linux/controller/storage/process
+safety remain required. Completed foundations remain consumed proof, not reopened
+work. A representative pilot does not substitute for the committed rollout.
+
+Steam Deck (#51/#213–#217/#535), macOS Intel/Apple Silicon (#45/#226), full
+user-ready Playnite (#910), automatic Steam entry management (#292), physical Xbox
+qualification (#44) and SteamGridDB (#527) are high-priority work during Public
+beta, Required before 1.0. Their active target is 1.0; Deck's follow-up may be
+described as Beta 2 without reusing the historical Project option. They do not
+gate initial beta directly or transitively. #993 still owns the bounded selected-
+stack/WebView compatibility decision and Windows/Linux evidence needed by #917;
+practical macOS CI/build health and portable architecture remain. Qualification
+of macOS packages/devices and Deck/Gaming Mode follows later. Neither Linux CI
+nor desktop observations establish physical-device or Valve Verified claims.
+Until qualified, those platforms are unqualified support targets even if an
+available build works; no deliberate execution block is introduced.
+
+Later owners consume shared foundations one way. #46 owns final production
+requalification, including the intended later platform claims, without reopening
+completed Windows/Linux beta acceptance. Provider usage stays optional at runtime;
+default artwork needs no personal provider credentials. Independent component
+proofs permit useful work before complete downstream product acceptance. Paid
+signing, marketplace approval, continuous Steam synchronization, Decky and optional
+package integrations do not become blockers. See [Delivery](DELIVERY.md).
 
 Migrations are additive: retain historical options and completed targets, capture
 a dated before-state, map affected active identities explicitly, read back each
@@ -368,6 +578,8 @@ READY scope result never substitutes for package, CI, review, signature/feed or
 publication-authority checks. Use `readiness --release "Public beta"` or
 `readiness --release "1.0"` additionally for a maturity declaration.
 
+Historical receipts retain Opportunistic. Readiness interprets that historical input as Planned, while active configuration uses only Required / Planned. Use `roadmap.mjs rename-commitment` for a read-only in-place option plan, then `--apply` for an ID-preserving rename with assignment readback. An already-applied rename is a no-op; competing old/new options refuse automatic consolidation.
+
 ## Tools and snapshots
 
 Use `node scripts/roadmap.mjs capture-port` for direct maintainer port intake,
@@ -375,6 +587,14 @@ Use `node scripts/roadmap.mjs capture-port` for direct maintainer port intake,
 `capture-feature` for feature intake, `promote` for draft-to-issue conversion,
 `set` and `move` for planning changes, `next` for the ordered work queue, and
 `readiness --release <stage>` for dependency-derived release evaluation.
+`doctor` exposes the actual checkout root, HEAD/branch and catalog hash before
+reading GitHub. After delivery, use verified current main containing the merge
+and pass `doctor --expected-head <verified-main-sha>`; a different HEAD or modified
+catalog/configuration stops before network checks. Input changes during the check
+invalidate success. `--json` returns the context and diagnostic report; raw reports
+remain under ignored `work/roadmap-doctor`. Checkout mismatches are distinct from
+Project drift.
+
 `doctor` verifies machine-readable identity, visibility, repository linkage,
 field types/options, view layout/filter/visible fields, the one-port/one-issue
 coverage contract across both repository issues and Project items, honest
@@ -386,8 +606,8 @@ have exactly one Port item. It rejects missing markers, duplicate catalog IDs,
 candidate keys, normalized title identities, same-upstream/same-target
 identities, unsupported stage claims, Blocked entries without usable resume
 conditions, and Rejected entries that still claim catalog support. Distinct
-games or targets may share one upstream. Grouping, sorting, auto-add, and completion workflows remain
-explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
+games or targets may share one upstream. Grouping and sorting are verified by readback; auto-add and completion workflows
+remain explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
 
 Before a tagged release, generate a dated readiness snapshot with

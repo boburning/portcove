@@ -346,12 +346,18 @@ pub struct UserPreparedRuntimeSpec {
     pub immutable_tree_sha256: String,
     #[serde(default)]
     pub source_argument_extension: Option<String>,
+    /// Opt in to a library-private directory through the port's reviewed environment binding.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub library_user_data: bool,
     #[serde(default)]
     pub mutable_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReleaseSpec {
+    /// Inert exact-byte proposal records; runtime authority is separately admitted.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub curated: BTreeMap<Platform, crate::CuratedAcquisitionRecord>,
     #[serde(default)]
     pub provider: ReleaseSource,
     #[serde(default)]
@@ -405,6 +411,9 @@ pub struct PortDefinition {
     pub runtime_mutable_file_patterns: Vec<PersistentFilePattern>,
     #[serde(default)]
     pub portable_marker: bool,
+    /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub n64_windows_initial_d3d12: bool,
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]
@@ -956,6 +965,10 @@ pub struct WorkspaceSnapshot {
     pub statuses: Vec<PortStatus>,
     pub sources: Vec<SourceRecord>,
     pub activities: ActivityFeed,
+    /// Additive ephemeral read model. Older hosts may omit it; clients must not
+    /// infer coherent installed contexts from port-level declarations instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub browsing: Option<crate::CatalogBrowsingSnapshot>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1077,6 +1090,10 @@ pub enum BackupInventoryState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BackupInventory {
     pub port_id: String,
+    /// Read-only eligibility to attempt creation; execution rechecks under its lock.
+    pub create_assessment: crate::PortActionAssessment,
+    /// Eligibility to review a usable snapshot; consent and execution remain authoritative.
+    pub restore_assessment: crate::PortActionAssessment,
     pub state: BackupInventoryState,
     pub backups: Vec<BackupRecord>,
     pub problems: Vec<BackupProblem>,
@@ -1140,6 +1157,8 @@ pub struct GameInstallPlan {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GameUpdatePlan {
     pub plan: InstallPlan,
+    /// Read-only decision for this exact reviewed candidate, not authorization.
+    pub assessment: crate::PortActionAssessment,
     pub activate: bool,
     pub plan_sha256: String,
 }
@@ -1408,6 +1427,7 @@ impl CapabilityDocument {
                 "source".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),
+                "source.query".into(),
                 "tool".into(),
                 "status".into(),
                 "activity".into(),

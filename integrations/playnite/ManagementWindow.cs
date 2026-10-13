@@ -190,7 +190,7 @@ namespace Portcove.ReferenceClient
             }
             try
             {
-                nextStep = GuidedSetup.Choose(CurrentStatus, currentCatalog, source.Text.Trim(), bios.Text.Trim());
+                nextStep = GuidedSetup.Choose(CurrentStatus, currentCatalog, source.Text.Trim(), bios.Text.Trim(), cli.SupportsReviewedExternal);
                 primaryAction.Content = nextStep.Label;
                 primaryAction.IsEnabled = !busy;
                 nextDetail.Text = nextStep.Detail;

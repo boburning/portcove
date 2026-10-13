@@ -50,6 +50,17 @@ struct Cli {
     /// Select a library for this invocation; overrides the saved default and PORTCOVE_LIBRARY.
     #[arg(long, global = true, env = "PORTCOVE_LIBRARY")]
     library: Option<PathBuf>,
+    #[cfg(feature = "qualification-fixtures")]
+    #[arg(
+        long,
+        global = true,
+        hide = true,
+        requires = "qualification_provider_library"
+    )]
+    qualification_provider_origin: Option<String>,
+    #[cfg(feature = "qualification-fixtures")]
+    #[arg(long, global = true, hide = true, requires_all = ["qualification_provider_origin", "library"])]
+    qualification_provider_library: Option<PathBuf>,
     /// Emit one versioned JSON result for an external client.
     #[arg(long, global = true, conflicts_with = "jsonl")]
     json: bool,
@@ -223,9 +234,27 @@ enum ActivityCommand {
 #[derive(Debug, Subcommand)]
 enum InstallationCommand {
     /// Resolve the exact release, destination and registered inputs without mutation.
-    Plan { port_id: String },
+    Plan {
+        /// Catalog port ID whose managed install should be reviewed.
+        port_id: String,
+    },
     /// Install only when the reviewed inputs still match under the port lock.
     Run {
+        /// Catalog port ID used for the preceding installation plan.
+        port_id: String,
+        /// Plan SHA-256 returned by `installation plan`; changed inputs refuse the install.
+        #[arg(long)]
+        expected_plan: String,
+        /// Confirm this reviewed install without a prompt; the plan check still applies.
+        #[arg(long)]
+        yes: bool,
+    },
+    #[cfg(feature = "qualification-fixtures")]
+    #[command(hide = true)]
+    QualificationUpdatePlan { port_id: String },
+    #[cfg(feature = "qualification-fixtures")]
+    #[command(hide = true)]
+    QualificationUpdateRun {
         port_id: String,
         #[arg(long)]
         expected_plan: String,
@@ -312,10 +341,17 @@ enum LaunchCommand {
 #[derive(Debug, Subcommand)]
 enum ExternalCommand {
     /// Compare a player-owned runtime with the exact accepted package contract.
-    Preview { port_id: String, path: PathBuf },
+    Preview {
+        /// Catalog port ID offering use-in-place runtime registration.
+        port_id: String,
+        /// Root folder of the already prepared runtime; no files are copied.
+        path: PathBuf,
+    },
     /// Register a reviewed runtime; no external file becomes Portcove-owned.
     Register {
+        /// Catalog port ID offering use-in-place runtime registration.
         port_id: String,
+        /// Root folder of the already prepared runtime; Portcove uses it in place.
         path: PathBuf,
         /// Require the exact external preview reviewed by the caller.
         #[arg(long)]
@@ -327,6 +363,7 @@ enum ExternalCommand {
     RemovalPreview { port_id: String },
     /// Remove only Portcove's registration, preserving every external file.
     Remove {
+        /// Catalog port ID whose external registration should be forgotten.
         port_id: String,
         /// Require the exact removal preview reviewed by the caller.
         #[arg(long)]
@@ -389,17 +426,24 @@ enum LibraryCommand {
     /// Clear the saved library, including recovery from malformed or future preferences.
     Reset,
     /// Review restoring metadata and copied content into --library's new or empty root.
+    #[command(
+        after_help = "Review first: portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder>\nThen repeat the same inputs with --apply --expected-plan <plan-sha256> from that review. Import does not merge libraries or modify the input backup."
+    )]
     Import {
+        /// Metadata JSON written by `library export`; contains no payload bytes.
         metadata: PathBuf,
+        /// Copied library folder containing the exported content roots; never modified by import.
         content_root: PathBuf,
+        /// Apply the reviewed import into --library's new or empty root; requires --expected-plan.
         #[arg(long, requires = "expected_plan")]
         apply: bool,
+        /// Plan SHA-256 from this import review; changed metadata or payloads refuse the import.
         #[arg(long, requires = "apply")]
         expected_plan: Option<String>,
     },
-    /// Resume an interrupted import at --library without modifying its input backup.
+    /// Resume an interrupted import using --library <destination>; the input backup remains unchanged.
     ResumeImport,
-    /// Retain and gate an incomplete import; no original or copied files are deleted.
+    /// Retain an incomplete import using --library <destination>; the incomplete destination stays closed and no copied files are deleted.
     AbortImport,
     /// Export metadata without application files, saves, or original sources.
     Export {
@@ -408,16 +452,22 @@ enum LibraryCommand {
         output: Option<PathBuf>,
     },
     /// Review a verified copy; applying retains the old directory as a recovery copy.
+    #[command(
+        after_help = "Review first: portcove --library <original> --json library move <new-directory>\nClose other Portcove clients and finish launch/lifecycle recovery before applying. Then repeat with --apply --expected-plan <plan-sha256> from that review. Original game-file references stay at their original paths."
+    )]
     Move {
+        /// New directory beneath an existing parent; must not overlap the original library.
         destination: PathBuf,
+        /// Apply the reviewed copy; retain the original as a recovery copy.
         #[arg(long, requires = "expected_plan")]
         apply: bool,
+        /// Plan SHA-256 from this move review; changed inputs refuse the move.
         #[arg(long, requires = "apply")]
         expected_plan: Option<String>,
     },
-    /// Resume an interrupted move using --library's retained original directory.
+    /// Resume an interrupted move using --library <original>, the retained original directory.
     ResumeMove,
-    /// Reactivate an unpublished original while retaining all copied data.
+    /// Reactivate an unpublished original using --library <original>; refuses after authority publication and copied files remain.
     AbortMove,
 }
 
@@ -484,6 +534,8 @@ enum SourceCommand {
     List,
     /// Inspect a registered source without changing its bytes or saved baseline.
     Inspect { profile_id: String },
+    /// Explicitly refresh route-bound game-file observations for one port on this host.
+    Query(SourceQueryArgs),
     /// Recheck registered game files against their saved baselines.
     Verify(SourceVerifyArgs),
     /// Forget a source registration without deleting its file.
@@ -493,6 +545,42 @@ enum SourceCommand {
         #[arg(long)]
         yes: bool,
     },
+}
+
+#[derive(Debug, Args)]
+struct SourceQueryArgs {
+    port_id: String,
+    #[arg(long, value_enum)]
+    route: GameFileQueryRouteArg,
+    #[arg(long, value_enum, default_value = "stable")]
+    channel: ChannelArg,
+    #[arg(long, default_value_t = 300)]
+    maximum_age_seconds: u32,
+    #[arg(long, default_value_t = 2 * 1024 * 1024 * 1024)]
+    max_file_bytes: u64,
+    #[arg(long, default_value_t = 32 * 1024 * 1024 * 1024)]
+    max_hash_bytes: u64,
+    #[arg(long, default_value_t = 30_000)]
+    max_elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum GameFileQueryRouteArg {
+    ManagedInstall,
+    ExternalRegistration,
+    ManagedLaunch,
+    ExternalLaunch,
+}
+
+impl From<GameFileQueryRouteArg> for portcove_core::GameFileRouteKind {
+    fn from(value: GameFileQueryRouteArg) -> Self {
+        match value {
+            GameFileQueryRouteArg::ManagedInstall => Self::ManagedInstall,
+            GameFileQueryRouteArg::ExternalRegistration => Self::ExternalRegistration,
+            GameFileQueryRouteArg::ManagedLaunch => Self::ManagedLaunch,
+            GameFileQueryRouteArg::ExternalLaunch => Self::ExternalLaunch,
+        }
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -680,7 +768,7 @@ fn source_limits(
 struct InstallArgs {
     /// Catalog port to install.
     port_id: String,
-    /// Release channel for this installation.
+    /// Release channel: stable (Stable), preview (Preview), or rolling (Rolling); beta is a compatibility alias.
     #[arg(long, value_enum)]
     channel: Option<ChannelArg>,
     /// Override the registered game file for this installation.
@@ -701,7 +789,7 @@ struct InstallArgs {
 struct EnsureArgs {
     /// Port to use or install.
     port_id: String,
-    /// Release channel to select if installation is needed.
+    /// Release channel if needed: stable (Stable), preview (Preview), or rolling (Rolling); beta is a compatibility alias.
     #[arg(long, value_enum)]
     channel: Option<ChannelArg>,
     /// Override the source game file used if installation is needed.
@@ -811,7 +899,7 @@ struct ExecArgs {
 
 #[derive(Debug, Subcommand)]
 enum ChannelCommand {
-    /// Save the preferred release channel for future game updates.
+    /// Save the preferred channel: stable (Stable), preview (Preview), or rolling (Rolling); beta is a compatibility alias.
     Set {
         port_id: String,
         #[arg(value_enum)]
@@ -842,6 +930,8 @@ enum SchemaCommand {
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum ChannelArg {
     Stable,
+    /// Preview releases; beta is a compatibility alias for the same stream.
+    #[value(name = "preview", alias = "beta")]
     Beta,
     Rolling,
 }
@@ -957,6 +1047,15 @@ fn main() -> ExitCode {
 }
 
 fn command_is_observation(command: &Commands) -> bool {
+    #[cfg(feature = "qualification-fixtures")]
+    if matches!(
+        command,
+        Commands::Installation {
+            command: InstallationCommand::QualificationUpdatePlan { .. }
+        }
+    ) {
+        return true;
+    }
     matches!(
         command,
         Commands::Auth {
@@ -982,7 +1081,8 @@ fn command_is_observation(command: &Commands) -> bool {
                 command: CatalogCommand::List
                     | CatalogCommand::Export
                     | CatalogCommand::Show { .. }
-                    | CatalogCommand::Status,
+                    | CatalogCommand::Status
+                    | CatalogCommand::InspectProposal { .. },
             }
             | Commands::Backup {
                 command: BackupCommand::List { .. },
@@ -1081,7 +1181,82 @@ fn requested_output_mode(args: &[std::ffi::OsString]) -> OutputMode {
         .unwrap_or(OutputMode::Human)
 }
 
+#[cfg(feature = "qualification-fixtures")]
+fn require_qualification_update_binding(cli: &Cli) -> Result<()> {
+    if matches!(
+        &cli.command,
+        Commands::Installation {
+            command: InstallationCommand::QualificationUpdatePlan { .. }
+                | InstallationCommand::QualificationUpdateRun { .. }
+        }
+    ) && (cli.qualification_provider_origin.is_none()
+        || cli.qualification_provider_library.is_none()
+        || cli.library.is_none())
+    {
+        return Err(PortcoveError::usage(
+            "qualification update requires an explicit provider and library binding",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "qualification-fixtures")]
+fn require_qualification_proxy_free_environment(
+    cli: &Cli,
+    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) -> Result<()> {
+    if cli.qualification_provider_origin.is_none() && cli.qualification_provider_library.is_none() {
+        return Ok(());
+    }
+    if environment.into_iter().any(|(name, value)| {
+        !value.is_empty()
+            && name.to_str().is_some_and(|name| {
+                ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"]
+                    .iter()
+                    .any(|proxy| name.eq_ignore_ascii_case(proxy))
+            })
+    }) {
+        return Err(PortcoveError::usage(
+            "qualification provider refuses proxy environment",
+        ));
+    }
+    Ok(())
+}
+
 async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
+    #[cfg(feature = "qualification-fixtures")]
+    {
+        execute_with_qualification_environment(cli, mode, std::env::vars_os()).await
+    }
+    #[cfg(not(feature = "qualification-fixtures"))]
+    {
+        execute_after_qualification_preflight(cli, mode).await
+    }
+}
+
+#[cfg(feature = "qualification-fixtures")]
+async fn execute_with_qualification_environment(
+    cli: Cli,
+    mode: OutputMode,
+    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) -> Result<ExitCode> {
+    require_qualification_update_binding(&cli)?;
+    require_qualification_proxy_free_environment(&cli, environment)?;
+    execute_after_qualification_preflight(cli, mode).await
+}
+
+async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
+    if let Commands::Catalog {
+        command: CatalogCommand::InspectProposal { file },
+    } = &cli.command
+    {
+        render_success(
+            mode,
+            "catalog.inspect-proposal",
+            portcove_core::Catalog::inspect_proposal(file)?,
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let preferences = host_preference_store()?;
     let _application_runtime =
         ApplicationRuntimeGuard::acquire(&HostPreferenceStore::application_runtime_lock_path()?)?;
@@ -1150,28 +1325,59 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         )?;
         return Ok(ExitCode::SUCCESS);
     }
-    let service = std::sync::Arc::new(if command_is_observation(&cli.command) {
-        PortcoveService::new_read_only(library)?
-    } else {
-        PortcoveService::new(library)?
+    #[cfg(feature = "qualification-fixtures")]
+    let qualification_provider = match (
+        cli.qualification_provider_origin.as_deref(),
+        cli.qualification_provider_library.as_deref(),
+    ) {
+        (Some(origin), Some(root)) => Some(std::sync::Arc::new(
+            GithubReleaseProvider::for_qualification_library(&library, root, origin)?,
+        )
+            as std::sync::Arc<dyn portcove_core::ReleaseProvider>),
+        (None, None) => None,
+        _ => {
+            return Err(PortcoveError::verification(
+                "incomplete qualification provider binding",
+            ));
+        }
+    };
+    #[cfg(not(feature = "qualification-fixtures"))]
+    let qualification_provider: Option<std::sync::Arc<dyn portcove_core::ReleaseProvider>> = None;
+    let service = std::sync::Arc::new(match qualification_provider {
+        Some(provider) if command_is_observation(&cli.command) => {
+            PortcoveService::with_provider_read_only(library, provider)?
+        }
+        Some(provider) => PortcoveService::with_provider(library, provider)?,
+        None if command_is_observation(&cli.command) => PortcoveService::new_read_only(library)?,
+        None => PortcoveService::new(library)?,
     });
-    let _cancellation_signals = matches!(
+    #[cfg(feature = "qualification-fixtures")]
+    let qualification_update_run = matches!(
         &cli.command,
-        Commands::Install(_)
-            | Commands::Installation {
-                command: InstallationCommand::Run { .. }
-            }
-            | Commands::Update(_)
-            | Commands::Ensure(_)
-            | Commands::Reconcile(_)
-            | Commands::Check(_)
-            | Commands::Catalog {
-                command: CatalogCommand::Update { apply: true, .. }
-            }
-            | Commands::Source {
-                command: SourceCommand::Discover(_)
-            }
-    )
+        Commands::Installation {
+            command: InstallationCommand::QualificationUpdateRun { .. }
+        }
+    );
+    #[cfg(not(feature = "qualification-fixtures"))]
+    let qualification_update_run = false;
+    let _cancellation_signals = (qualification_update_run
+        || matches!(
+            &cli.command,
+            Commands::Install(_)
+                | Commands::Installation {
+                    command: InstallationCommand::Run { .. }
+                }
+                | Commands::Update(_)
+                | Commands::Ensure(_)
+                | Commands::Reconcile(_)
+                | Commands::Check(_)
+                | Commands::Catalog {
+                    command: CatalogCommand::Update { apply: true, .. }
+                }
+                | Commands::Source {
+                    command: SourceCommand::Discover(_)
+                }
+        ))
     .then(|| cancellation::CancellationSignals::start(service.clone()))
     .transpose()?;
     match cli.command {
@@ -1179,17 +1385,7 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
             command: InstallationCommand::Plan { port_id },
         } => {
             let review = service.plan_game_install(&port_id).await?;
-            let mut text = human::plan(&review.plan);
-            if let Some(selected) = &review.selected_install {
-                text.push_str(&format!(
-                    "\nExisting copy to activate: {}\nExisting copy version: {}\nExisting copy channel: {}\nNo artifact download.\n",
-                    selected.path.display(), selected.version, selected.channel,
-                ));
-            }
-            text.push_str(&format!(
-                "\nReviewed plan SHA-256: {}\n",
-                review.plan_sha256
-            ));
+            let text = human::game_install_plan(&review);
             render_read_success(mode, "installation.plan", review, |_| text.clone())?;
         }
         Commands::Installation {
@@ -1213,6 +1409,41 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 .apply_game_install(&port_id, &authorization.token, &mut progress)
                 .await?;
             render_success(mode, "installation.run", installed)?;
+        }
+        #[cfg(feature = "qualification-fixtures")]
+        Commands::Installation {
+            command: InstallationCommand::QualificationUpdatePlan { port_id },
+        } => {
+            let review = service.plan_game_update(&port_id, true).await?;
+            render_read_success(
+                mode,
+                "installation.qualification-update-plan",
+                review,
+                human::game_update_plan,
+            )?;
+        }
+        #[cfg(feature = "qualification-fixtures")]
+        Commands::Installation {
+            command:
+                InstallationCommand::QualificationUpdateRun {
+                    port_id,
+                    expected_plan,
+                    yes,
+                },
+        } => {
+            require_confirmation(
+                "Activate this exact reviewed fixture update?",
+                yes,
+                cli.non_interactive,
+            )?;
+            let authorization = service
+                .authorize_game_update(&port_id, true, &expected_plan)
+                .await?;
+            let mut progress = progress_renderer(mode);
+            let installed = service
+                .apply_game_update(&port_id, true, &authorization.token, &mut progress)
+                .await?;
+            render_success(mode, "installation.qualification-update-run", installed)?;
         }
         Commands::Artwork { command } => {
             execute_artwork(&service, command, mode, cli.non_interactive)?
@@ -1300,6 +1531,13 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         } => {
             let preview =
                 service.preview_backup_action(&port_id, &backup_id, BackupAction::Delete)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    human::backup_action_preview(&preview, service.catalog())
+                );
+                io::stdout().flush()?;
+            }
             if !confirmation(
                 &format!("Permanently delete backup {backup_id} for {port_id}?"),
                 yes,
@@ -1330,9 +1568,16 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         } => {
             let preview =
                 service.preview_backup_action(&port_id, &backup_id, BackupAction::Restore)?;
+            if mode == OutputMode::Human {
+                println!(
+                    "{}",
+                    human::backup_action_preview(&preview, service.catalog())
+                );
+                io::stdout().flush()?;
+            }
             if !confirmation(
                 &format!(
-                    "Restore backup {backup_id} for {port_id}? Current persistent data will be backed up first."
+                    "Restore backup {backup_id} for {port_id}? Replace this port's managed saved data."
                 ),
                 yes,
                 cli.non_interactive,
@@ -1356,10 +1601,11 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
         Commands::Source {
             command: SourceCommand::Discover(args),
         } => {
-            render_success(
+            render_read_success(
                 mode,
                 "source.discover",
                 service.discover_sources_with_progress(&args.request(), progress_renderer(mode))?,
+                |report| human::source_discovery(report, service.catalog()),
             )?;
         }
         Commands::Source {
@@ -1451,11 +1697,12 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 service.library().game_file_roots()?,
                 |roots| human::game_file_roots(roots),
             )?,
-            GameFileRootCommand::Scan(args) => render_success(
+            GameFileRootCommand::Scan(args) => render_read_success(
                 mode,
                 "source.roots.scan",
                 service
                     .scan_game_file_roots_with_progress(&args.limits(), progress_renderer(mode))?,
+                human::game_file_scan,
             )?,
             GameFileRootCommand::Snapshot => render_read_success(
                 mode,
@@ -1518,6 +1765,30 @@ async fn execute(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
                 "source.inspect",
                 service.inspect_registered_source(&profile_id)?,
                 human::source_inspection,
+            )?;
+        }
+        Commands::Source {
+            command: SourceCommand::Query(args),
+        } => {
+            let request = portcove_core::GameFileQueryRefreshRequest {
+                routes: vec![portcove_core::GameFileRouteRequest {
+                    port_id: args.port_id,
+                    platform: portcove_core::Platform::current()?,
+                    channel: args.channel.into(),
+                    route: args.route.into(),
+                }],
+                limits: portcove_core::RegisteredSourceInspectionLimits {
+                    max_file_bytes: args.max_file_bytes,
+                    max_hash_bytes: args.max_hash_bytes,
+                    max_elapsed_ms: args.max_elapsed_ms,
+                },
+                maximum_age_seconds: args.maximum_age_seconds,
+            };
+            render_read_success(
+                mode,
+                "source.query",
+                service.refresh_game_file_query_with_progress(&request, progress_renderer(mode))?,
+                human::game_file_query,
             )?;
         }
         Commands::Source {
@@ -2349,11 +2620,21 @@ fn execute_library(
         }
         LibraryCommand::ResumeMove => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            render_success(mode, name, PortcoveService::resume_library_move(&root)?)?
+            render_read_success(
+                mode,
+                name,
+                PortcoveService::resume_library_move(&root)?,
+                human::library_move_result,
+            )?
         }
         LibraryCommand::AbortMove => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            render_success(mode, name, PortcoveService::abort_library_move(&root)?)?
+            render_read_success(
+                mode,
+                name,
+                PortcoveService::abort_library_move(&root)?,
+                human::library_move_result,
+            )?
         }
         LibraryCommand::Move {
             destination,
@@ -2362,7 +2643,7 @@ fn execute_library(
         } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
             let source = portcove_core::Library::open(&root)?.root().to_path_buf();
-            render_success(
+            render_read_success(
                 mode,
                 name,
                 PortcoveService::move_library(
@@ -2372,12 +2653,18 @@ fn execute_library(
                         PortcoveError::usage("applying a move requires --expected-plan")
                     })?,
                 )?,
+                human::library_move_result,
             )?;
         }
         LibraryCommand::Move { destination, .. } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
             let service = PortcoveService::new_read_only(portcove_core::Library::open(root)?)?;
-            render_success(mode, name, service.plan_library_move(destination)?)?;
+            render_read_success(
+                mode,
+                name,
+                service.plan_library_move(destination)?,
+                human::library_move_plan,
+            )?;
         }
         LibraryCommand::Export { output } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
@@ -2925,6 +3212,7 @@ fn command_name(command: &Commands) -> &'static str {
             SourceCommand::Relink { .. } => "source.relink",
             SourceCommand::List => "source.list",
             SourceCommand::Inspect { .. } => "source.inspect",
+            SourceCommand::Query(_) => "source.query",
             SourceCommand::Verify(_) => "source.verify",
             SourceCommand::Remove { .. } => "source.remove",
         },
@@ -2959,6 +3247,14 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Installation { command } => match command {
             InstallationCommand::Plan { .. } => "installation.plan",
             InstallationCommand::Run { .. } => "installation.run",
+            #[cfg(feature = "qualification-fixtures")]
+            InstallationCommand::QualificationUpdatePlan { .. } => {
+                "installation.qualification-update-plan"
+            }
+            #[cfg(feature = "qualification-fixtures")]
+            InstallationCommand::QualificationUpdateRun { .. } => {
+                "installation.qualification-update-run"
+            }
         },
         Commands::Preparation {
             command: PreparationCommand::Plan { .. },
@@ -3001,6 +3297,260 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "qualification-fixtures")]
+    fn qualification_proxy_cli() -> Cli {
+        Cli::try_parse_from([
+            "portcove",
+            "--library",
+            "owned-library",
+            "--qualification-provider-library",
+            "owned-library",
+            "--qualification-provider-origin",
+            "http://127.0.0.1:8123",
+            "status",
+        ])
+        .unwrap()
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn qualification_proxy_environment_is_fail_closed_and_redacted() {
+        let cli = qualification_proxy_cli();
+        for name in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"] {
+            for spelling in [
+                name.to_owned(),
+                name.to_ascii_lowercase(),
+                name.to_ascii_lowercase().replacen('p', "P", 1),
+            ] {
+                let environment = [
+                    (
+                        std::ffi::OsString::from(spelling),
+                        std::ffi::OsString::from("inert-private-proxy-value"),
+                    ),
+                    ("NO_PROXY".into(), "*".into()),
+                ];
+                let error =
+                    super::require_qualification_proxy_free_environment(&cli, environment.clone())
+                        .unwrap_err();
+                assert_eq!(error.code, portcove_core::ErrorCode::Usage);
+                assert_eq!(
+                    error.message,
+                    "qualification provider refuses proxy environment"
+                );
+                assert!(error.details.is_empty());
+                assert!(!error.to_string().contains("inert-private-proxy-value"));
+                assert_eq!(environment[0].1, "inert-private-proxy-value");
+            }
+        }
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn qualification_proxy_environment_allows_unset_empty_and_ordinary_invocations() {
+        let cli = qualification_proxy_cli();
+        super::require_qualification_proxy_free_environment(&cli, []).unwrap();
+        super::require_qualification_proxy_free_environment(
+            &cli,
+            [
+                ("HTTP_PROXY".into(), "".into()),
+                ("https_proxy".into(), "".into()),
+                ("ALL_PROXY".into(), "".into()),
+                ("NO_PROXY".into(), "*".into()),
+            ],
+        )
+        .unwrap();
+        let ordinary = Cli::try_parse_from(["portcove", "status"]).unwrap();
+        super::require_qualification_proxy_free_environment(
+            &ordinary,
+            [("HTTP_PROXY".into(), "inert-private-proxy-value".into())],
+        )
+        .unwrap();
+    }
+
+    #[cfg(all(feature = "qualification-fixtures", any(unix, windows)))]
+    #[test]
+    fn qualification_proxy_environment_refuses_non_unicode_nonempty_values() {
+        #[cfg(unix)]
+        let value = {
+            use std::os::unix::ffi::OsStringExt;
+            std::ffi::OsString::from_vec(vec![0xff])
+        };
+        #[cfg(windows)]
+        let value = {
+            use std::os::windows::ffi::OsStringExt;
+            std::ffi::OsString::from_wide(&[0xd800])
+        };
+        assert!(value.to_str().is_none());
+        let error = super::require_qualification_proxy_free_environment(
+            &qualification_proxy_cli(),
+            [("ALL_PROXY".into(), value)],
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.message,
+            "qualification provider refuses proxy environment"
+        );
+        assert!(error.details.is_empty());
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[tokio::test]
+    async fn qualification_proxy_refusal_precedes_library_open() {
+        let directory = tempfile::tempdir().unwrap();
+        let library = directory.path().join("library");
+        let cli = Cli::try_parse_from([
+            "portcove",
+            "--library",
+            library.to_str().unwrap(),
+            "--qualification-provider-library",
+            library.to_str().unwrap(),
+            "--qualification-provider-origin",
+            "http://127.0.0.1:8123",
+            "status",
+        ])
+        .unwrap();
+        let result = super::execute_with_qualification_environment(
+            cli,
+            super::OutputMode::Json,
+            [("HTTP_PROXY".into(), "inert-private-proxy-value".into())],
+        )
+        .await;
+        assert!(
+            !library.exists(),
+            "proxy refusal must precede library opening"
+        );
+        let error = result.expect_err("qualification proxy environment must refuse");
+        assert_eq!(error.code, portcove_core::ErrorCode::Usage);
+        assert_eq!(
+            error.message,
+            "qualification provider refuses proxy environment"
+        );
+        assert!(error.details.is_empty());
+    }
+
+    #[cfg(not(feature = "qualification-fixtures"))]
+    #[test]
+    fn ordinary_cli_rejects_qualification_provider_and_update_commands() {
+        use clap::Parser;
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "--qualification-provider-origin",
+                "http://127.0.0.1:8123",
+                "status"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "installation",
+                "qualification-update-plan",
+                "fixture"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "portcove",
+                "installation",
+                "qualification-update-run",
+                "fixture",
+                "--expected-plan",
+                "abc",
+                "--yes"
+            ])
+            .is_err()
+        );
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn qualification_update_requires_explicit_provider_binding() {
+        use clap::Parser;
+        let unbound = Cli::try_parse_from([
+            "portcove",
+            "installation",
+            "qualification-update-plan",
+            "fixture",
+        ])
+        .unwrap();
+        assert!(super::require_qualification_update_binding(&unbound).is_err());
+        let cli = Cli::try_parse_from([
+            "portcove",
+            "--library",
+            "owned-library",
+            "--qualification-provider-library",
+            "owned-library",
+            "--qualification-provider-origin",
+            "http://127.0.0.1:8123",
+            "installation",
+            "qualification-update-plan",
+            "fixture",
+        ])
+        .unwrap();
+        super::require_qualification_update_binding(&cli).unwrap();
+        assert!(super::command_is_observation(&cli.command));
+    }
+
+    #[test]
+    fn discovery_human_summary_uses_real_bounded_core_result_without_registering() {
+        let root = tempfile::tempdir().unwrap();
+        let files = root.path().join("sources");
+        std::fs::create_dir(&files).unwrap();
+        std::fs::write(files.join("owned-a.txt"), b"owned-a").unwrap();
+        std::fs::write(files.join("owned-b.txt"), b"owned-b").unwrap();
+        let library = portcove_core::Library::open(root.path().join("library")).unwrap();
+        let service = portcove_core::PortcoveService::new_read_only(library).unwrap();
+        let cli = Cli::try_parse_from([
+            "portcove",
+            "source",
+            "discover",
+            "--root",
+            files.to_str().unwrap(),
+            "--profile",
+            "minish-cap-gba",
+            "--max-entries",
+            "1",
+        ])
+        .unwrap();
+        let Commands::Source {
+            command: SourceCommand::Discover(args),
+        } = cli.command
+        else {
+            panic!("expected source discovery");
+        };
+        let report = service.discover_sources(&args.request()).unwrap();
+        assert_eq!(report.entries_examined, 1);
+        assert_eq!(
+            report.limits_reached,
+            [portcove_core::SourceDiscoveryLimit::Entries]
+        );
+        assert!(report.candidates.is_empty());
+        assert!(service.library().sources().unwrap().is_empty());
+        let before = serde_json::to_value(&report).unwrap();
+        let text = super::human::source_discovery(&report, service.catalog());
+        assert!(text.contains("Search was partial."));
+        assert!(text.contains("No matching candidates were found in the inspected scope."));
+        assert!(text.contains("No sources were registered by this search."));
+        assert_eq!(serde_json::to_value(&report).unwrap(), before);
+        for mode in [super::OutputMode::Json, super::OutputMode::Jsonl] {
+            super::render_read_success(mode, "source.discover", report.clone(), |_| {
+                panic!("machine modes must not invoke human rendering")
+            })
+            .unwrap();
+        }
+        assert!(service.library().sources().unwrap().is_empty());
+        assert_eq!(
+            std::fs::read(files.join("owned-a.txt")).unwrap(),
+            b"owned-a"
+        );
+        assert_eq!(
+            std::fs::read(files.join("owned-b.txt")).unwrap(),
+            b"owned-b"
+        );
+    }
+
     use std::path::PathBuf;
 
     use super::{
@@ -3390,21 +3940,102 @@ mod tests {
         ));
     }
 
+    fn parsed_channel(route: &str, value: Option<&str>) -> Option<ChannelArg> {
+        let mut args = vec!["portcove", route];
+        if route == "channel" {
+            args.push("set");
+        }
+        args.push("lighthouse");
+        if let Some(value) = value {
+            if route != "channel" {
+                args.push("--channel");
+            }
+            args.push(value);
+        }
+        match Cli::try_parse_from(args).unwrap().command {
+            Commands::Plan { channel, .. } => channel,
+            Commands::Install(args) => args.channel,
+            Commands::Ensure(args) => args.channel,
+            Commands::Channel {
+                command: super::ChannelCommand::Set { channel, .. },
+            } => Some(channel),
+            _ => panic!("expected channel consumer"),
+        }
+    }
+
     #[test]
-    fn plan_accepts_an_optional_release_channel() {
-        let cli =
-            Cli::try_parse_from(["portcove", "plan", "lighthouse", "--channel", "beta"]).unwrap();
-        let Commands::Plan {
-            port_id,
-            channel,
-            output_dir,
-        } = cli.command
-        else {
-            panic!("expected plan command");
-        };
-        assert_eq!(port_id, "lighthouse");
-        assert!(matches!(channel, Some(ChannelArg::Beta)));
-        assert!(output_dir.is_none());
+    fn preview_and_beta_inputs_share_the_existing_channel_on_every_route() {
+        for route in ["plan", "install", "ensure", "channel"] {
+            for value in ["preview", "beta"] {
+                let channel: portcove_core::ReleaseChannel =
+                    parsed_channel(route, Some(value)).unwrap().into();
+                assert_eq!(channel, portcove_core::ReleaseChannel::Beta);
+                assert_eq!(channel.to_string(), "beta");
+                assert_eq!(serde_json::to_value(channel).unwrap(), "beta");
+            }
+            for (value, expected) in [
+                ("stable", portcove_core::ReleaseChannel::Stable),
+                ("rolling", portcove_core::ReleaseChannel::Rolling),
+            ] {
+                let channel: portcove_core::ReleaseChannel =
+                    parsed_channel(route, Some(value)).unwrap().into();
+                assert_eq!(channel, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn channel_inputs_preserve_case_errors_and_optional_defaults() {
+        for route in ["plan", "install", "ensure", "channel"] {
+            for value in ["Preview", "Beta", "Stable", "Rolling", "invalid"] {
+                let mut args = vec!["portcove", route];
+                if route == "channel" {
+                    args.push("set");
+                }
+                args.push("lighthouse");
+                if route != "channel" {
+                    args.push("--channel");
+                }
+                args.push(value);
+                assert_eq!(
+                    Cli::try_parse_from(args).unwrap_err().kind(),
+                    clap::error::ErrorKind::InvalidValue
+                );
+            }
+        }
+        for route in ["plan", "install", "ensure"] {
+            assert!(parsed_channel(route, None).is_none());
+        }
+        assert_eq!(
+            Cli::try_parse_from(["portcove", "channel", "set", "lighthouse"])
+                .unwrap_err()
+                .kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
+        );
+    }
+
+    #[test]
+    fn channel_help_prefers_preview_and_explains_the_beta_alias() {
+        use clap::{CommandFactory, ValueEnum};
+        for args in [
+            vec!["portcove", "plan", "--help"],
+            vec!["portcove", "install", "--help"],
+            vec!["portcove", "ensure", "--help"],
+            vec!["portcove", "channel", "set", "--help"],
+        ] {
+            let error = Cli::try_parse_from(args).unwrap_err();
+            assert_eq!(error.kind(), clap::error::ErrorKind::DisplayHelp);
+            let help = error.to_string();
+            assert!(help.contains("preview"), "{help}");
+            assert!(help.contains("beta"), "{help}");
+            assert!(help.contains("compatibility alias"), "{help}");
+        }
+        let values = <ChannelArg as clap::ValueEnum>::value_variants()
+            .iter()
+            .map(|value| value.to_possible_value().unwrap().get_name().to_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(values, ["stable", "preview", "rolling"]);
+        Cli::command().debug_assert();
     }
 
     #[test]
@@ -3574,6 +4205,30 @@ mod tests {
     }
 
     #[test]
+    fn catalog_proposal_inspection_is_inert_and_cannot_apply_or_establish_trust() {
+        let cli = Cli::try_parse_from(["portcove", "catalog", "inspect-proposal", "proposal.json"])
+            .unwrap();
+        assert!(super::command_is_observation(&cli.command));
+        assert_eq!(
+            super::command_name(&cli.command),
+            "catalog.inspect-proposal"
+        );
+        for flag in ["--apply", "--yes", "--expected-plan", "--public-key"] {
+            assert!(
+                Cli::try_parse_from([
+                    "portcove",
+                    "catalog",
+                    "inspect-proposal",
+                    "proposal.json",
+                    flag
+                ])
+                .is_err(),
+                "{flag}"
+            );
+        }
+    }
+
+    #[test]
     fn reviewed_installation_routes_keep_plan_read_only_and_require_exact_consent() {
         let plan = Cli::try_parse_from(["portcove", "installation", "plan", "shipwright"]).unwrap();
         assert!(super::command_is_observation(&plan.command));
@@ -3659,7 +4314,10 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
-        assert_eq!(capabilities.schema_version, 59);
+        assert_eq!(
+            capabilities.schema_version,
+            portcove_core::API_SCHEMA_VERSION
+        );
         assert!(
             capabilities
                 .commands

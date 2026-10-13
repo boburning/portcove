@@ -1,7 +1,9 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseSync, visitorKeys } from "oxc-parser";
+import { isProductionCopyPath } from "./copy-source-ownership.mjs";
+export { isProductionCopyPath } from "./copy-source-ownership.mjs";
 
 const copyAttributes = new Set([
   "title",
@@ -151,17 +153,34 @@ function sourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const filename = path.join(directory, entry.name);
     if (entry.isDirectory()) return sourceFiles(filename);
-    return /\.(?:ts|tsx)$/u.test(entry.name) &&
-      !/\.(?:test|d)\.tsx?$/u.test(entry.name) &&
-      entry.name !== "test-fixtures.ts"
-      ? [filename]
-      : [];
+    return isProductionCopyPath(`apps/desktop/src/${entry.name}`) ? [filename] : [];
   });
 }
 
-export function main() {
+export function explicitCopyFiles(args, repositoryRoot) {
+  if (args[0] !== "--files" || args.length < 2)
+    throw new Error("Usage: check-copy.mjs --files <production-source>...");
+  return args.slice(1).map((file) => {
+    const absolute = path.resolve(repositoryRoot, file);
+    const relative = path.relative(repositoryRoot, absolute).split(path.sep).join("/");
+    if (!isProductionCopyPath(relative) || relative.split("/").includes(".."))
+      throw new Error(`Invalid explicit production copy source: ${file}`);
+    let current = repositoryRoot;
+    for (const component of relative.split("/")) {
+      current = path.join(current, component);
+      if (lstatSync(current).isSymbolicLink())
+        throw new Error(`Copy source traverses a symlink: ${file}`);
+    }
+    if (!lstatSync(absolute).isFile())
+      throw new Error(`Copy source is not a regular file: ${file}`);
+    return absolute;
+  });
+}
+
+export function main(args = process.argv.slice(2)) {
   const root = fileURLToPath(new URL("../src", import.meta.url));
-  const files = sourceFiles(root);
+  const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
+  const files = args.length ? explicitCopyFiles(args, repositoryRoot) : sourceFiles(root);
   if (!files.length) throw new Error("Desktop static-copy check discovered no production sources.");
   const findings = files.flatMap((file) =>
     inspectCopy(readFileSync(file, "utf8"), path.relative(root, file)),

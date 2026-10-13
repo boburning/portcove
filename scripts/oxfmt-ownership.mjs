@@ -7,3 +7,11 @@ const excludedFile =
 export function isExcludedOxfmtPath(file) {
   return excludedPath.test(file) || excludedFile.test(file);
 }
+
+export function isOwnedOxfmtPath(file) {
+  return (
+    /\.(?:astro|cjs|css|html|js|json|json5|jsonc|jsx|less|md|mdx|mjs|mts|scss|svelte|ts|tsx|vue|ya?ml)$/i.test(
+      file,
+    ) && !isExcludedOxfmtPath(file)
+  );
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -19,6 +19,7 @@ import type {
 import { platformLabel } from "../view-model";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 export function SourceIdentityPanel({
   report,
@@ -61,7 +62,6 @@ export function SourceIdentityPanel({
         </div>
         <span
           className={`source-result inline-flex items-center gap-1 text-xs font-medium ${state.tone}`}
-          aria-label={`${checkLabel} result: ${state.label}`}
         >
           <Icon glyph={state.icon} size="sm" />
           {state.label}
@@ -402,16 +402,23 @@ function DigestList({
   );
 }
 
-function DigestValue({
-  label,
-  scope,
-  value,
-}: {
-  label: string;
-  scope: string;
-  value: string | null;
-}) {
-  const [copied, setCopied] = useState(false);
+type DigestValueProps = { label: string; scope: string; value: string | null };
+
+function DigestValue(props: DigestValueProps) {
+  return (
+    <DigestValueContent key={JSON.stringify([props.label, props.scope, props.value])} {...props} />
+  );
+}
+
+function DigestValueContent({ label, scope, value }: DigestValueProps) {
+  const [copyOutcome, setCopyOutcome] = useState<"idle" | "copied" | "failed">("idle");
+  const copyRequest = useRef(0);
+  useLayoutEffect(
+    () => () => {
+      ++copyRequest.current;
+    },
+    [],
+  );
   if (!value)
     return (
       <p className="digest-value missing">
@@ -422,12 +429,15 @@ function DigestValue({
       </p>
     );
   const copy = () => {
+    const current = ++copyRequest.current;
+    setCopyOutcome("idle");
     void copyText(value)
       .then(() => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 1600);
+        if (copyRequest.current === current) setCopyOutcome("copied");
       })
-      .catch(() => setCopied(false));
+      .catch(() => {
+        if (copyRequest.current === current) setCopyOutcome("failed");
+      });
   };
   return (
     <div className="digest-value">
@@ -442,8 +452,26 @@ function DigestValue({
         aria-label={`Copy ${label} for ${digestScopeLabel(scope)}`}
         onClick={copy}
       >
-        <Icon glyph={copied ? ClipboardCheck : Clipboard} size="sm" />
+        <Icon glyph={copyOutcome === "copied" ? ClipboardCheck : Clipboard} size="sm" />
       </Button>
+      {copyOutcome === "copied" && (
+        <p role="status">
+          {label} for {digestScopeLabel(scope)} copied.
+        </p>
+      )}
+      {copyOutcome === "failed" && (
+        <>
+          <p role="alert">
+            Clipboard unavailable. Select and copy {label} for {digestScopeLabel(scope)} below.
+          </p>
+          <Input
+            readOnly
+            data-focusable
+            aria-label={`${label} for ${digestScopeLabel(scope)} for manual copy`}
+            value={value}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -647,28 +675,58 @@ function classificationLabel(report: SourceInspectionReport) {
   return "Not evaluated";
 }
 
+export function sourceAdmissionPresentation(mode: string) {
+  const modes = {
+    exact_identity: {
+      label: "Exact identity",
+      detailLabel: "Admitted · exact identity",
+      explanation:
+        "The source matched an accepted exact identity. This is not installation or gameplay proof.",
+    },
+    structural_checks: {
+      label: "Structural checks",
+      detailLabel: "Admitted · structural checks",
+      explanation:
+        "Required file checks passed. Structural admission alone does not establish an exact edition.",
+    },
+    informational_consent: {
+      label: "Informational consent",
+      detailLabel: "Admitted · informational consent",
+      explanation:
+        "The source was admitted under its informational rules. This does not verify an exact edition.",
+    },
+    upstream_validator: {
+      label: "Upstream validator",
+      detailLabel: "Admitted · upstream validator",
+      explanation:
+        "The configured upstream validator accepted the source. The admission label alone does not establish an exact edition.",
+    },
+  };
+  return Object.hasOwn(modes, mode)
+    ? { ...modes[mode as keyof typeof modes], known: true }
+    : {
+        label: "Source check unavailable",
+        detailLabel: "Admission result unavailable",
+        explanation:
+          "This version cannot explain the reviewed source check. Cancel this review and check the files again, or update Portcove if this continues.",
+        known: false,
+      };
+}
+
 function admissionLabel(report: SourceInspectionReport) {
   const admission = report.inspection?.assessment.admission;
   if (!admission || admission.state === "not_evaluated") return "Not evaluated";
   if (admission.state === "rejected")
     return `File not accepted · ${rejectionReason(admission.reason)}`;
   if (admission.state !== "admitted") return "Not evaluated";
-  const labels = {
-    exact_identity: "Admitted · exact identity",
-    structural_checks: "Admitted · structural checks",
-    informational_consent: "Admitted · informational consent",
-    upstream_validator: "Admitted · upstream validator",
-  };
-  return Object.hasOwn(labels, admission.mode)
-    ? labels[admission.mode]
-    : "Admission result unavailable";
+  return sourceAdmissionPresentation(admission.mode).detailLabel;
 }
 
 function contractLabel(
   state: SourceInspectionReport["applications"][number]["contract_result"]["state"],
 ) {
   const labels = {
-    supported: "Supported",
+    supported: "Matches evaluated source requirements",
     recognized_not_listed: "Recognized · not listed",
     known_incompatible: "Known mismatch · refused",
     informational: "Informational requirement",
@@ -682,7 +740,7 @@ function applicabilityLabel(
   state: string,
   contract: SourceInspectionReport["applications"][number]["contract_result"]["state"],
 ) {
-  if (contract === "unreviewed_for_release") return "Not applicable to this release";
+  if (contract === "unreviewed_for_release") return "Not reviewed for this release";
   const labels: Record<string, string> = {
     artifact_bound: "Bound to this exact release artifact",
     upstream_release_bound: "Bound to the reviewed upstream release",

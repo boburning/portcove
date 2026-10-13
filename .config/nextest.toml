@@ -9,6 +9,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# Retain this bounded diagnostic's phase timings when the unchanged test passes.
+# Output is displayed at completion; assertions and execution limits still apply.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'
+success-output = "immediate"
+# Complete authenticated full-catalog/artifact correction lifecycle. Intel
+# variability reached the final reopen at the default cutoff; keep a finite
+# exact-case harness budget without changing product deadlines.
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
 [test-groups]
@@ -38,6 +48,13 @@ priority = -100
 # Reserve both default CPU slots while one runs; the deadline is unchanged.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & test(catalog_update::tests::)'
+threads-required = 2
+
+# Signed-definition repository cases install ordinary artifacts and repeatedly
+# admit complete authenticated snapshots. Reserve both fixed slots so unrelated
+# lifecycle work cannot overlap them within this invocation; keep the deadline.
+[[profile.default.overrides]]
+filter = 'package(portcove-core) & test(definition_repository::tests::)'
 threads-required = 2
 
 # Diagnostics capture cases repeatedly redact, serialize, publish and retain

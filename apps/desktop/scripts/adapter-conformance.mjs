@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
@@ -12,7 +12,7 @@ import { createInstallFixture, INSTALL_FIXTURE_PORT_ID } from "./desktop-install
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const DEFINITION_FIXTURE_PORT_ID = "opengoal-jak1";
 
-function runSync(command, args, { env = process.env, timeout = 600_000 } = {}) {
+export function runSync(command, args, { env = process.env, timeout = 600_000 } = {}) {
   const result = spawnSync(command, args, {
     cwd: root,
     encoding: "utf8",
@@ -21,7 +21,19 @@ function runSync(command, args, { env = process.env, timeout = 600_000 } = {}) {
     timeout,
     windowsHide: true,
   });
-  if (result.error) throw result.error;
+  if (result.error) {
+    try {
+      if (result.stdout) process.stdout.write(result.stdout);
+    } catch {
+      // Diagnostic emission must not replace the original subprocess failure.
+    }
+    try {
+      if (result.stderr) process.stderr.write(result.stderr);
+    } catch {
+      // Attempt both streams while keeping the original failure authoritative.
+    }
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error(
       `${command} ${args.join(" ")} exited ${result.status ?? "without a status"}\n${result.stderr || result.stdout}`,
@@ -103,6 +115,10 @@ function digest(value) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+export function compareConsumerIdentities(before, after) {
+  assert.deepEqual(after, before, "compiled consumers changed during fixture progression");
+}
+
 async function main() {
   const { values } = parseArgs({
     options: {
@@ -119,7 +135,7 @@ async function main() {
     "-p",
     "portcove-cli",
     "--features",
-    "portcove-core/qualification-fixtures",
+    "qualification-fixtures",
   ]);
   runSync("cargo", [
     "build",
@@ -130,6 +146,16 @@ async function main() {
     "--features",
     "qualification-fixtures",
   ]);
+
+  const consumerIdentities = async () => ({
+    cli: createHash("sha256")
+      .update(await readFile(cli))
+      .digest("hex"),
+    desktop: createHash("sha256")
+      .update(await readFile(desktop))
+      .digest("hex"),
+  });
+  const builtConsumers = await consumerIdentities();
 
   const workspace = await mkdtemp(path.join(os.tmpdir(), "portcove-adapter-conformance-"));
   const fixtureOutput = path.join(workspace, "fixture");
@@ -232,6 +258,41 @@ async function main() {
       });
     assert.equal(revoked.definition.readiness.launchable, false);
 
+    const managedReport = path.join(workspace, "managed-consumers.json");
+    const managedEnv = { ...env };
+    delete managedEnv.PORTCOVE_QUALIFICATION_CATALOG;
+    runSync(
+      process.execPath,
+      [
+        "scripts/run-rust-tests.mjs",
+        "--guard-command",
+        "cargo",
+        "test",
+        "--locked",
+        "-p",
+        "portcove-core",
+        "--features",
+        "qualification-fixtures",
+        "definition_repository::tests::publisher_policy_tests::compiled_clients::qualification_compiled_clients_consume_managed_corrections",
+        "--",
+        "--ignored",
+        "--exact",
+        "--nocapture",
+      ],
+      {
+        env: {
+          ...managedEnv,
+          PORTCOVE_QUALIFICATION_CLI_PATH: cli,
+          PORTCOVE_QUALIFICATION_CLI_SHA256: builtConsumers.cli,
+          PORTCOVE_QUALIFICATION_DESKTOP_PATH: desktop,
+          PORTCOVE_QUALIFICATION_DESKTOP_SHA256: builtConsumers.desktop,
+          PORTCOVE_QUALIFICATION_CONSUMER_REPORT: managedReport,
+        },
+      },
+    );
+    const managedConsumers = JSON.parse(await readFile(managedReport, "utf8"));
+    compareConsumerIdentities(builtConsumers, await consumerIdentities());
+
     await writeFile(
       path.join(ready.fixture.active.path, ".portcove-manifest.json"),
       "owned invalid installation manifest",
@@ -244,7 +305,9 @@ async function main() {
     );
 
     const report = {
-      schema_version: 2,
+      schema_version: 3,
+      consumer_sha256: builtConsumers,
+      managed_consumers: managedConsumers,
       fixture_port_id: INSTALL_FIXTURE_PORT_ID,
       definition_fixture_port_id: DEFINITION_FIXTURE_PORT_ID,
       assertions: {

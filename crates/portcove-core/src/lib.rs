@@ -10,11 +10,15 @@ mod artwork_store;
 mod artwork_tests;
 mod auth;
 mod authorization;
+mod browsing_context;
 mod cancellation;
 mod catalog;
 mod catalog_store;
 mod catalog_update;
+mod curated_acquisition;
+mod curated_cache;
 mod database;
+mod definition_acquisition;
 mod definition_candidate;
 mod definition_capabilities;
 mod definition_eligibility;
@@ -29,6 +33,7 @@ mod durability;
 mod error;
 mod external_runtime;
 mod failure;
+mod game_file_query;
 mod game_file_root;
 mod gitlab;
 mod host_preferences;
@@ -44,6 +49,7 @@ mod library_authority;
 mod library_import;
 mod library_move;
 mod library_transfer;
+mod n64_graphics;
 mod operation;
 mod output_relocation;
 mod output_root;
@@ -64,6 +70,7 @@ mod service;
 mod signed_catalog;
 mod source;
 mod source_assessment;
+mod source_batch;
 mod source_catalog;
 mod source_discovery;
 mod source_file;
@@ -93,10 +100,13 @@ pub use auth::{
     GithubDeviceLoginState, GithubRateLimit,
 };
 pub use authorization::DestructiveAuthorization;
+pub use browsing_context::{CatalogBrowsingContext, CatalogBrowsingSnapshot};
 pub use cancellation::{CancellationPhase, CancellationState};
-pub use catalog::Catalog;
+pub use catalog::{Catalog, CatalogProposalInspection, CatalogProposalPortInspection};
 pub use catalog_store::CatalogStatus;
 pub use catalog_update::{CatalogUpdatePlan, CatalogUpdateSource};
+pub use curated_acquisition::{CuratedAcquisitionRecord, CuratedEvidenceReference};
+pub use definition_acquisition::{DefinitionAcquisitionScope, ScopedResolvedRelease};
 pub use definition_candidate::{
     DefinitionCandidateAvailability, DefinitionPublisherObservation, DefinitionPublisherStatus,
     EligibleDefinitionCandidate,
@@ -120,6 +130,10 @@ pub use definition_repository::{
     AuthenticatedDefinitionCandidate, AuthenticatedDefinitionProvenance,
     DefinitionReplayDisposition, DefinitionReplayFloor, DefinitionRepositorySource,
     acquire_definition_candidate,
+    publisher_policy::{
+        AuthenticatedDefinitionLaunchAssessment, AuthenticatedDefinitionPublisherPolicy,
+        acquire_definition_launch_assessment, acquire_definition_publisher_policy,
+    },
 };
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use external_runtime::{ExternalRuntimePreview, ExternalRuntimeRemovalPreview};
@@ -127,8 +141,13 @@ pub use failure::{
     FailurePresentation, FailureReport, FailureTone, MutationState, RecoveryAction,
     redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
 };
+pub use game_file_query::{
+    GameFileQueryReason, GameFileQueryRefreshRequest, GameFileQuerySnapshot, GameFileQueryState,
+    GameFileRouteKind, GameFileRouteProjection, GameFileRouteRequest,
+};
 pub use game_file_root::{
-    GameFileRoot, GameFileRootAvailability, GameFileScanFreshness, GameFileScanSnapshot,
+    GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
+    GameFileScanSnapshot,
 };
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
@@ -180,6 +199,9 @@ pub use signed_catalog::{
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;
+pub use source_batch::{
+    RegisteredSourceInspectionBatch, RegisteredSourceInspectionLimits, RegisteredSourceObservation,
+};
 pub use source_catalog::*;
 pub use source_discovery::{
     SourceDiscoveryIssue, SourceDiscoveryLimit, SourceDiscoveryLimits, SourceDiscoveryReport,
@@ -204,7 +226,10 @@ pub use source_report::{
 };
 pub use types::*;
 
-pub const API_SCHEMA_VERSION: u32 = 59;
+// Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.
+// Public 66 adds reviewed update assessments while retaining both delivered scopes.
+// Public 67 adds caller-bound external review and retained source representation readiness.
+pub const API_SCHEMA_VERSION: u32 = 67;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

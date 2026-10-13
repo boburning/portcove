@@ -53,6 +53,8 @@ export type DefinitionEligibilityOutcome = "eligible" | "hold" | "escalate";
 export type DefinitionEligibilityReason =
   | "mandatory_checks_passed"
   | "publisher_revoked"
+  | "curated_artifact_revoked"
+  | "curated_distribution_withdrawn"
   | "unknown_safety_semantics"
   | "publisher_scope_required"
   | "engine_capability_required"
@@ -73,7 +75,16 @@ export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "mac
  * An `allowed` result is not an authorization token: execution rechecks current
  * inputs under its own lock and may still require an exact reviewed plan.
  */
-export type PortAction = "install" | "register_external" | "launch" | "remove_managed" | "remove_external";
+export type PortAction =
+  | "install"
+  | "register_external"
+  | "launch"
+  | "remove_managed"
+  | "remove_external"
+  | "rollback"
+  | "backup_create"
+  | "backup_restore"
+  | "update";
 export type PortActionAvailability = "not_offered" | "waiting" | "held" | "allowed";
 export type PortActionReason =
   | "available"
@@ -92,7 +103,13 @@ export type PortActionReason =
   | "missing_runtime"
   | "preparation_required"
   | "invalid_installation"
-  | "definition_ineligible";
+  | "definition_ineligible"
+  | "missing_data"
+  | "missing_backup"
+  | "unreadable_data"
+  | "unsafe_data"
+  | "recovery_required"
+  | "assessment_incomplete";
 /**
  * Current relationship between a registered source path and its saved storage identity.
  * `Current` means the bytes are unchanged since registration; it does not strengthen the
@@ -294,6 +311,23 @@ export type RepairItemKind =
   | "missing_registered_path"
   | "degraded_backup"
   | "backup_recovery_required";
+export type GameFileRouteKind = "managed_install" | "external_registration" | "managed_launch" | "external_launch";
+export type GameFileQueryReason =
+  | "complete_compatible_observation"
+  | "no_connected_registration"
+  | "explicit_empty_requirements"
+  | "observation_unavailable"
+  | "observation_stale"
+  | "source_needs_checking"
+  | "storage_absence_unconfirmed"
+  | "identity_not_admitted"
+  | "contract_not_reviewed"
+  | "variant_not_supported"
+  | "release_not_bound"
+  | "route_not_offered"
+  | "profile_context_changed";
+export type GameFileQueryState =
+  "files_available" | "files_missing" | "needs_checking" | "no_files_required" | "unavailable_context";
 export type GameFileRootAvailability = "available" | "unavailable";
 export type OutputGameFileRoots = GameFileRoot[];
 export type OutputGameFileScanSnapshot = GameFileScanSnapshot | null;
@@ -302,6 +336,80 @@ export type SourceDigestAlgorithm = "sha1" | "sha256" | "crc32";
 export type SourceComponentKind = "file_set_member" | "optical_disc";
 export type SourceValidatorResult = "not_run" | "passed" | "failed" | "missing_tool";
 export type SourceDiscoveryLimit = "entries" | "depth" | "file_size" | "hash_bytes" | "candidates";
+export type SourceAdmission =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      mode: SourceAdmissionMode;
+      state: "admitted";
+      [k: string]: unknown;
+    }
+  | {
+      reason: SourceRejectionReason;
+      state: "rejected";
+      [k: string]: unknown;
+    };
+export type SourceAdmissionMode =
+  "exact_identity" | "structural_checks" | "informational_consent" | "upstream_validator";
+export type SourceRejectionReason =
+  | "missing"
+  | "unreadable"
+  | "changed"
+  | "known_mismatch"
+  | "ambiguous_identity"
+  | "missing_tool"
+  | "check_failed"
+  | "consent_required";
+export type SourceClassification =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      state: "unrecognized";
+      [k: string]: unknown;
+    }
+  | {
+      identity: SourceIdentity;
+      state: "recognized";
+      [k: string]: unknown;
+    }
+  | {
+      candidates: SourceIdentity[];
+      state: "ambiguous";
+      [k: string]: unknown;
+    };
+export type SourceContractResult =
+  | {
+      state: "not_evaluated";
+      [k: string]: unknown;
+    }
+  | {
+      state: "unreviewed_for_release";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "supported";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "recognized_not_listed";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "known_incompatible";
+      [k: string]: unknown;
+    }
+  | {
+      contract_id: string;
+      state: "informational";
+      [k: string]: unknown;
+    };
 export type InstallPlanAction = "already_active" | "use_staged" | "reuse_retained" | "blocked_unverified" | "download";
 export type SourceRequirementRole = "game_source" | "bios";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
@@ -377,80 +485,6 @@ export type OutputDestinationOwnership =
   | "unrelated_content"
   | "invalid"
   | "unknown";
-export type SourceContractResult =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      state: "unreviewed_for_release";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "supported";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "recognized_not_listed";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "known_incompatible";
-      [k: string]: unknown;
-    }
-  | {
-      contract_id: string;
-      state: "informational";
-      [k: string]: unknown;
-    };
-export type SourceAdmission =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      mode: SourceAdmissionMode;
-      state: "admitted";
-      [k: string]: unknown;
-    }
-  | {
-      reason: SourceRejectionReason;
-      state: "rejected";
-      [k: string]: unknown;
-    };
-export type SourceAdmissionMode =
-  "exact_identity" | "structural_checks" | "informational_consent" | "upstream_validator";
-export type SourceRejectionReason =
-  | "missing"
-  | "unreadable"
-  | "changed"
-  | "known_mismatch"
-  | "ambiguous_identity"
-  | "missing_tool"
-  | "check_failed"
-  | "consent_required";
-export type SourceClassification =
-  | {
-      state: "not_evaluated";
-      [k: string]: unknown;
-    }
-  | {
-      state: "unrecognized";
-      [k: string]: unknown;
-    }
-  | {
-      identity: SourceIdentity;
-      state: "recognized";
-      [k: string]: unknown;
-    }
-  | {
-      candidates: SourceIdentity[];
-      state: "ambiguous";
-      [k: string]: unknown;
-    };
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
 export type SourceImportMode = "copy" | "move" | "use_current_location";
 export type SourceImportOutcome =
@@ -517,6 +551,8 @@ export interface TransportOutputs {
   external_runtime_preview: OutputExternalRuntimePreview;
   external_runtime_record: ExternalRuntimeRecord;
   external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
+  game_file_query_request: OutputGameFileQueryRequest;
+  game_file_query_snapshot: OutputGameFileQuerySnapshot;
   game_file_roots: OutputGameFileRoots;
   game_file_scan_snapshot: OutputGameFileScanSnapshot;
   game_install_plan: OutputGameInstallPlan;
@@ -528,7 +564,7 @@ export interface TransportOutputs {
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
   launch_request: OutputLaunchRequest;
-  library_identity: OutputLibraryIdentity;
+  library_identity: LibraryIdentity;
   library_import_plan: OutputLibraryImportPlan;
   library_import_result: OutputLibraryImportResult;
   library_metadata: LibraryMetadata;
@@ -591,6 +627,7 @@ export interface TransportOutputs {
   desktop_external_runtime_preview: OutputExternalRuntimePreview;
   desktop_external_runtime_record: ExternalRuntimeRecord;
   desktop_external_runtime_removal_preview: OutputExternalRuntimeRemovalPreview;
+  desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_launch_result: OutputDesktopLaunchResult;
@@ -992,9 +1029,24 @@ export interface BackupActionPreview {
 }
 export interface OutputBackupInventory {
   backups: BackupRecord[];
+  create_assessment: PortActionAssessment1;
   port_id: string;
   problems: BackupProblem[];
+  restore_assessment: PortActionAssessment2;
   state: BackupInventoryState;
+  [k: string]: unknown;
+}
+/**
+ * Read-only eligibility to attempt creation; execution rechecks under its lock.
+ */
+export interface PortActionAssessment1 {
+  action: PortAction;
+  availability: PortActionAvailability;
+  /**
+   * The authoritative signed-definition reason, when it limits this action.
+   */
+  definition?: DefinitionEligibility | null;
+  reason: PortActionReason;
   [k: string]: unknown;
 }
 export interface BackupProblem {
@@ -1004,6 +1056,19 @@ export interface BackupProblem {
   operation_id: string | null;
   path: string;
   proposed_action: string;
+  [k: string]: unknown;
+}
+/**
+ * Eligibility to review a usable snapshot; consent and execution remain authoritative.
+ */
+export interface PortActionAssessment2 {
+  action: PortAction;
+  availability: PortActionAvailability;
+  /**
+   * The authoritative signed-definition reason, when it limits this action.
+   */
+  definition?: DefinitionEligibility | null;
+  reason: PortActionReason;
   [k: string]: unknown;
 }
 export interface OutputCapabilities {
@@ -1066,6 +1131,10 @@ export interface PortDefinition {
   };
   launch_from_install_root: boolean;
   manually_validated_platforms: Platform[];
+  /**
+   * Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
+   */
+  n64_windows_initial_d3d12?: boolean;
   name: string;
   persistent_file_patterns: PersistentFilePattern[];
   persistent_paths: string[];
@@ -1138,6 +1207,15 @@ export interface ReleaseSpec {
     "macos-x86-64"?: string[];
     "windows-x86-64"?: string[];
   };
+  /**
+   * Inert exact-byte proposal records; runtime authority is separately admitted.
+   */
+  curated?: {
+    "linux-x86-64"?: CuratedAcquisitionRecord;
+    "macos-aarch64"?: CuratedAcquisitionRecord;
+    "macos-x86-64"?: CuratedAcquisitionRecord;
+    "windows-x86-64"?: CuratedAcquisitionRecord;
+  };
   direct: {
     "linux-x86-64"?: DirectReleaseSpec;
     "macos-aarch64"?: DirectReleaseSpec;
@@ -1154,6 +1232,31 @@ export interface ReleaseSpec {
     "windows-x86-64"?: UserPreparedRuntimeSpec;
   };
   [k: string]: unknown;
+}
+export interface CuratedAcquisitionRecord {
+  acquisition_evidence: CuratedEvidenceReference;
+  acquisition_host: string;
+  acquisition_url: string;
+  asset_id: number;
+  commit_sha1: string;
+  distribution_basis: string;
+  distribution_evidence: CuratedEvidenceReference;
+  filename: string;
+  independent_review: CuratedEvidenceReference;
+  platform: Platform;
+  protected_acceptance: CuratedEvidenceReference;
+  record_version: number;
+  release_id: number;
+  repository: string;
+  route: string;
+  sha256: string;
+  size: number;
+  tag: string;
+  upstream_url: string;
+}
+export interface CuratedEvidenceReference {
+  sha256: string;
+  url: string;
 }
 export interface DirectReleaseSpec {
   published_at: string | null;
@@ -1176,6 +1279,10 @@ export interface UserPreparedRuntimeSpec {
    * Digest of the bounded, sorted immutable file inventory after extraction.
    */
   immutable_tree_sha256: string;
+  /**
+   * Opt in to a library-private directory through the port's reviewed environment binding.
+   */
+  library_user_data?: boolean;
   mutable_paths: string[];
   source_argument_extension: string | null;
   version: string;
@@ -1495,6 +1602,70 @@ export interface OutputExternalRuntimeRemovalPreview {
   version: string;
   [k: string]: unknown;
 }
+/**
+ * Explicit refresh inputs. Inspection reports are never accepted from a client.
+ */
+export interface OutputGameFileQueryRequest {
+  limits: RegisteredSourceInspectionLimits;
+  maximum_age_seconds: number;
+  routes: GameFileRouteRequest[];
+}
+export interface RegisteredSourceInspectionLimits {
+  /**
+   * Cooperative deadline, checked between reads; does not interrupt blocked filesystem calls.
+   */
+  max_elapsed_ms: number;
+  max_file_bytes: number;
+  max_hash_bytes: number;
+}
+export interface GameFileRouteRequest {
+  channel: ReleaseChannel;
+  platform: Platform;
+  port_id: string;
+  route: GameFileRouteKind;
+}
+export interface OutputGameFileQuerySnapshot {
+  catalog_binding_sha256: string;
+  expires_at: number;
+  library: LibraryIdentity;
+  observed_at: number;
+  registration_sha256: string;
+  routes: GameFileRouteProjection[];
+  schema_version: number;
+  selection_sha256: string;
+  [k: string]: unknown;
+}
+/**
+ * Durable library identity and its current effective location.
+ */
+export interface LibraryIdentity {
+  /**
+   * Opaque identity, preserved by managed moves; not an authentication token.
+   */
+  id: string;
+  /**
+   * Current location, which may differ from the root originally requested.
+   */
+  root: string;
+  [k: string]: unknown;
+}
+export interface GameFileRouteProjection {
+  channel: ReleaseChannel;
+  contract_id: string | null;
+  identity: SourceIdentity | null;
+  platform: Platform;
+  port_id: string;
+  reason: GameFileQueryReason;
+  route: GameFileRouteKind;
+  route_definition_sha256: string | null;
+  route_instance_sha256: string | null;
+  /**
+   * Digest of the complete registered instance, never its private path.
+   */
+  source_instance_sha256: string | null;
+  state: GameFileQueryState;
+  [k: string]: unknown;
+}
 export interface GameFileRoot {
   availability: GameFileRootAvailability;
   created_at: number;
@@ -1506,11 +1677,26 @@ export interface GameFileRoot {
 export interface GameFileScanSnapshot {
   catalog_sha256: string;
   completed_at: number;
+  continuation?: unknown;
+  coverage?: GameFileScanCoverage | null;
   format_version: number;
   freshness: GameFileScanFreshness;
   limits: SourceDiscoveryLimits | null;
   report: SourceDiscoveryReport;
   roots: GameFileRoot[];
+  [k: string]: unknown;
+}
+export interface GameFileScanCoverage {
+  batch_entries_examined: number;
+  batches: number;
+  can_resume: boolean;
+  entries_relisted: number;
+  frontier_exhausted: boolean;
+  metadata_checks: number;
+  pending_directories: number;
+  prior_member_rechecks: number;
+  remaining_entries: number | null;
+  restart_required: boolean;
   [k: string]: unknown;
 }
 export interface SourceDiscoveryLimits {
@@ -1529,6 +1715,10 @@ export interface SourceDiscoveryReport {
   issues: SourceDiscoveryIssue[];
   issues_omitted: number;
   limits_reached: SourceDiscoveryLimit[];
+  /**
+   * Preliminary selections are not exact matches and their pinned validator has not run.
+   */
+  preliminary_selections?: SourceInspection[];
   searched_profiles: string[];
   searched_roots: string[];
   symlinks_skipped: number;
@@ -1592,6 +1782,30 @@ export interface SourceDiscoveryIssue {
   [k: string]: unknown;
 }
 /**
+ * Facts returned by read-only inspection. A record is present only when the
+ * admission state permits existing callers to register or use the source.
+ */
+export interface SourceInspection {
+  archive_member_name?: string | null;
+  assessment: SourceAssessment;
+  components: ObservedSourceComponent[];
+  message: string;
+  observed_digests: ObservedSourceDigest[];
+  path: string;
+  profile_id: string;
+  record: SourceRecord | null;
+  validator?: ObservedSourceValidator | null;
+  [k: string]: unknown;
+}
+export interface SourceAssessment {
+  admission: SourceAdmission;
+  classification: SourceClassification;
+  contract: SourceContractResult;
+  evidence: SourceEvidence[];
+  health: SourceHealth;
+  [k: string]: unknown;
+}
+/**
  * Exact registered-input review for the first managed installation.
  */
 export interface OutputGameInstallPlan {
@@ -1628,8 +1842,22 @@ export interface InstallSourceRequirement {
  */
 export interface OutputGameUpdatePlan {
   activate: boolean;
+  assessment: PortActionAssessment3;
   plan: InstallPlan;
   plan_sha256: string;
+  [k: string]: unknown;
+}
+/**
+ * Read-only decision for this exact reviewed candidate, not authorization.
+ */
+export interface PortActionAssessment3 {
+  action: PortAction;
+  availability: PortActionAvailability;
+  /**
+   * The authoritative signed-definition reason, when it limits this action.
+   */
+  definition?: DefinitionEligibility | null;
+  reason: PortActionReason;
   [k: string]: unknown;
 }
 export interface GithubAuthStatus {
@@ -1687,20 +1915,6 @@ export interface LaunchSessionRecord {
   supervisor_identity: string | null;
   supervisor_pid: number;
   updated_at: number;
-  [k: string]: unknown;
-}
-/**
- * Durable library identity and its current effective location.
- */
-export interface OutputLibraryIdentity {
-  /**
-   * Opaque identity, preserved by managed moves; not an authentication token.
-   */
-  id: string;
-  /**
-   * Current location, which may differ from the root originally requested.
-   */
-  root: string;
   [k: string]: unknown;
 }
 /**
@@ -2034,30 +2248,6 @@ export interface SourceEvidenceLink {
   live_url?: string | null;
   reviewed_at: string;
   role: CatalogEvidenceRole;
-  [k: string]: unknown;
-}
-/**
- * Facts returned by read-only inspection. A record is present only when the
- * admission state permits existing callers to register or use the source.
- */
-export interface SourceInspection {
-  archive_member_name?: string | null;
-  assessment: SourceAssessment;
-  components: ObservedSourceComponent[];
-  message: string;
-  observed_digests: ObservedSourceDigest[];
-  path: string;
-  profile_id: string;
-  record: SourceRecord | null;
-  validator?: ObservedSourceValidator | null;
-  [k: string]: unknown;
-}
-export interface SourceAssessment {
-  admission: SourceAdmission;
-  classification: SourceClassification;
-  contract: SourceContractResult;
-  evidence: SourceEvidence[];
-  health: SourceHealth;
   [k: string]: unknown;
 }
 export interface SourceLegacyCoverage {
@@ -2482,8 +2672,47 @@ export interface OutputDesktopSteamEntryReview {
 }
 export interface OutputDesktopWorkspaceSnapshot {
   activities: ActivityFeed;
+  browsing?: CatalogBrowsingSnapshot | null;
   catalog: CatalogDocument;
   sources: SourceRecord[];
   statuses: PortStatus[];
+  [k: string]: unknown;
+}
+export interface CatalogBrowsingSnapshot {
+  contexts: CatalogBrowsingContext[];
+  host_platform: Platform;
+  library: LibraryIdentity;
+  /**
+   * False when bounded retained metadata could not be observed. Membership
+   * still comes from complete Core status, not from metadata-read success.
+   */
+  retained_metadata_complete: boolean;
+  schema_version: number;
+  /**
+   * Binds the complete catalog, status and source inputs; never a private path.
+   */
+  workspace_binding_sha256: string;
+  [k: string]: unknown;
+}
+export interface CatalogBrowsingContext {
+  artifact_sha256: string | null;
+  channel: ReleaseChannel | null;
+  context_id: string;
+  definition_sha256: string | null;
+  installation_id: string | null;
+  installation_method: InstallationMethod | null;
+  instance_sha256: string | null;
+  member_context: boolean;
+  /**
+   * Legacy managed metadata can lack this fact. Do not substitute the host.
+   */
+  platform: Platform | null;
+  port_id: string;
+  /**
+   * Whole-port membership is distinct from membership of this exact context.
+   */
+  port_member: boolean;
+  release_version: string | null;
+  route: GameFileRouteKind;
   [k: string]: unknown;
 }

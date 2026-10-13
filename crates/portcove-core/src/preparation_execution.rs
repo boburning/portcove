@@ -74,11 +74,21 @@ impl PortcoveService {
         validate_cleanup_fingerprint(expected_preview)?;
         let preview = self.preview_preparation_cleanup(operation_id)?;
         if preview.preview_sha256 != expected_preview {
-            return Err(PortcoveError::conflict(
-                "retained preparation changed; review cleanup again",
+            let error =
+                PortcoveError::conflict("retained preparation changed; review cleanup again")
+                    .with_mutation_state(MutationState::NoChanges)
+                    .during("preparation.cleanup.review");
+            let target = private_preparation_journal(
+                &OperationStore::new(self.library().clone()),
+                operation_id,
             )
-            .with_mutation_state(MutationState::NoChanges)
-            .during("preparation.cleanup.review"));
+            .ok()
+            .filter(|journal| journal.port_id == preview.port_id)
+            .and_then(|journal| retained_preparation_target(self, &journal));
+            return Err(match target {
+                Some(port) => error.with_preparation_target(&port),
+                None => error,
+            });
         }
         self.library()
             .issue_authorization("cleanup_preparation", operation_id, expected_preview)
@@ -98,28 +108,34 @@ impl PortcoveService {
         let _activity_guard = self.library().try_lock_activity(operation_id)?;
         let mut journal = private_preparation_journal(&store, operation_id)?;
         let preview = preparation_cleanup_preview(self, &journal)?;
-        self.library().consume_authorization_with_state(
-            authorization,
-            "cleanup_preparation",
-            operation_id,
-            || Ok(preview.preview_sha256.clone()),
-        )?;
-        journal.paths.quarantine = Some(cleanup_quarantine_path(
-            &preview.retained_path,
-            &journal.id,
-            &preview.preview_sha256,
-        )?);
-        journal.phase = LifecyclePhase::CleanupPending;
-        journal.last_error = None;
-        store.put(&mut journal)?;
-        if let Err(error) = remove_reviewed_private_preparation(self, &store, &mut journal) {
-            journal.last_error = Some(error.message.clone());
-            let _ = store.put(&mut journal);
-            return Err(error
-                .with_mutation_state(MutationState::RecoveryRequired)
-                .during("preparation.cleanup"));
-        }
-        Ok(preview)
+        let result = (|| -> Result<PreparationCleanupPreview> {
+            self.library().consume_authorization_with_state(
+                authorization,
+                "cleanup_preparation",
+                operation_id,
+                || Ok(preview.preview_sha256.clone()),
+            )?;
+            journal.paths.quarantine = Some(cleanup_quarantine_path(
+                &preview.retained_path,
+                &journal.id,
+                &preview.preview_sha256,
+            )?);
+            journal.phase = LifecyclePhase::CleanupPending;
+            journal.last_error = None;
+            store.put(&mut journal)?;
+            if let Err(error) = remove_reviewed_private_preparation(self, &store, &mut journal) {
+                journal.last_error = Some(error.message.clone());
+                let _ = store.put(&mut journal);
+                return Err(error
+                    .with_mutation_state(MutationState::RecoveryRequired)
+                    .during("preparation.cleanup"));
+            }
+            Ok(preview)
+        })();
+        result.map_err(|error| match retained_preparation_target(self, &journal) {
+            Some(port) => error.with_preparation_target(&port),
+            None => error,
+        })
     }
 
     pub fn authorize_preparation(
@@ -130,11 +146,14 @@ impl PortcoveService {
     ) -> Result<DestructiveAuthorization> {
         let plan = self.plan_preparation(port_id, options)?;
         if plan.plan_sha256 != expected_plan {
-            return Err(PortcoveError::conflict(
-                "preparation inputs changed; review the plan again",
-            )
-            .with_mutation_state(MutationState::NoChanges)
-            .during("preparation.review"));
+            let error =
+                PortcoveError::conflict("preparation inputs changed; review the plan again")
+                    .with_mutation_state(MutationState::NoChanges)
+                    .during("preparation.review");
+            return Err(match self.installed_port(&plan.inputs.install).ok() {
+                Some(port) if port.id == plan.port_id => error.with_preparation_target(&port),
+                _ => error,
+            });
         }
         self.library()
             .issue_authorization("prepare", port_id, expected_plan)
@@ -157,51 +176,58 @@ impl PortcoveService {
                     .during("preparation.review")
             })?;
         let port = self.installed_port(&plan.inputs.install)?;
-        if !supports_single_source_setup_layout(&port) {
-            return Err(PortcoveError::unsupported(
-                "this preparation operation requires a reviewed single-source setup layout",
-            ));
-        }
-        self.library().consume_authorization(
-            authorization,
-            "prepare",
-            port_id,
-            &plan.plan_sha256,
-        )?;
-        let (activity, operation) = self.begin_cancellable_activity(
-            ActivityOperation::Prepare,
-            ActivityTargetKind::Port,
-            Some(port_id),
-        )?;
-        emit(operation.started());
-        let mut result = self
-            .prepare_derivative(&plan, &operation, &mut emit)
-            .map_err(|error| error.offer_recovery(RecoveryAction::ReviewPreparation));
-        if let Err(error) = &mut result {
-            let store = OperationStore::new(self.library().clone());
-            let recorded = (|| -> Result<()> {
-                if let Some(mut journal) = store
-                    .all()?
-                    .into_iter()
-                    .find(|entry| entry.id == activity.id)
-                {
-                    // Private work is retained on failure, including when a hard
-                    // interruption leaves a tool's lifetime uncertain. A retry uses
-                    // another operation ID; it never reuses or removes partial work.
-                    error.failure.mutation_state = MutationState::RecoveryRequired;
-                    journal.last_error = Some(error.message.clone());
-                    store.put(&mut journal)?;
-                }
-                Ok(())
-            })();
-            if let Err(record_error) = recorded {
-                tracing::error!(operation_id = activity.id, error = %record_error,
-                    "could not record preparation failure; retaining the existing journal");
+        let result = (|| -> Result<InstallRecord> {
+            if !supports_single_source_setup_layout(&port) {
+                return Err(PortcoveError::unsupported(
+                    "this preparation operation requires a reviewed single-source setup layout",
+                ));
             }
-        }
-        let result = self.finish_activity(activity, result);
-        emit(operation.finished(OperationResult::from_result(&result)));
-        result
+            self.library().consume_authorization(
+                authorization,
+                "prepare",
+                port_id,
+                &plan.plan_sha256,
+            )?;
+            let (activity, operation) = self.begin_cancellable_activity(
+                ActivityOperation::Prepare,
+                ActivityTargetKind::Port,
+                Some(port_id),
+            )?;
+            emit(operation.started());
+            let mut result = self
+                .prepare_derivative(&plan, &operation, &mut emit)
+                .map_err(|error| {
+                    error
+                        .with_preparation_target(&port)
+                        .offer_recovery(RecoveryAction::ReviewPreparation)
+                });
+            if let Err(error) = &mut result {
+                let store = OperationStore::new(self.library().clone());
+                let recorded = (|| -> Result<()> {
+                    if let Some(mut journal) = store
+                        .all()?
+                        .into_iter()
+                        .find(|entry| entry.id == activity.id)
+                    {
+                        // Private work is retained on failure, including when a hard
+                        // interruption leaves a tool's lifetime uncertain. A retry uses
+                        // another operation ID; it never reuses or removes partial work.
+                        error.failure.mutation_state = MutationState::RecoveryRequired;
+                        journal.last_error = Some(error.message.clone());
+                        store.put(&mut journal)?;
+                    }
+                    Ok(())
+                })();
+                if let Err(record_error) = recorded {
+                    tracing::error!(operation_id = activity.id, error = %record_error,
+                    "could not record preparation failure; retaining the existing journal");
+                }
+            }
+            let result = self.finish_activity(activity, result);
+            emit(operation.finished(OperationResult::from_result(&result)));
+            result
+        })();
+        result.map_err(|error| error.with_preparation_target(&port))
     }
 
     fn prepare_derivative(
@@ -486,6 +512,7 @@ impl PortcoveService {
                 "upstream setup rejected or could not prepare the source (exit {})",
                 output.status.code().unwrap_or(-1)
             ))
+            .with_preparation_cause(crate::failure::PreparationFailureCause::SetupUnsuccessful)
             .during("preparation.setup")
             .detail("exit_code", output.status.code().unwrap_or(-1).to_string()));
         }
@@ -502,6 +529,9 @@ impl PortcoveService {
         if !setup_root.join(marker).is_file() {
             return Err(PortcoveError::verification(
                 "setup completed without its declared output marker",
+            )
+            .with_preparation_cause(
+                crate::failure::PreparationFailureCause::CompletionFileUnconfirmed,
             )
             .during("preparation.verify"));
         }
@@ -579,10 +609,10 @@ pub(super) fn copy_setup_outputs(
         }
         let destination = payload.join(relative);
         crate::path::refuse_symlink_ancestors(&destination)?;
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent)?;
+        }
         if metadata.is_file() {
-            if let Some(parent) = destination.parent() {
-                fs::create_dir_all(parent)?;
-            }
             fs::copy(&source, &destination)?;
             crate::permissions::normalize_archive_entry(&destination, false, false)?;
             continue;
@@ -680,107 +710,122 @@ pub(crate) fn recover(
     store: &OperationStore,
     journal: &mut LifecycleOperation,
 ) -> Result<()> {
-    if journal.kind != LifecycleOperationKind::Prepare {
-        return Err(PortcoveError::state(
-            "preparation recovery received another operation kind",
-        ));
-    }
-    if journal.phase == LifecyclePhase::CleanupPending && journal.install.is_none() {
-        let _activity_guard = service.library().try_lock_activity(&journal.id)?;
-        return remove_reviewed_private_preparation(service, store, journal);
-    }
-    if journal.phase == LifecyclePhase::Preparing {
-        let _activity_guard = service.library().try_lock_activity(&journal.id)?;
-        let mut error = PortcoveError::state(
+    let result = (|| -> Result<()> {
+        if journal.kind != LifecycleOperationKind::Prepare {
+            return Err(PortcoveError::state(
+                "preparation recovery received another operation kind",
+            ));
+        }
+        if journal.phase == LifecyclePhase::CleanupPending && journal.install.is_none() {
+            let _activity_guard = service.library().try_lock_activity(&journal.id)?;
+            return remove_reviewed_private_preparation(service, store, journal);
+        }
+        if journal.phase == LifecyclePhase::Preparing {
+            let _activity_guard = service.library().try_lock_activity(&journal.id)?;
+            let mut error = PortcoveError::state(
             "this interrupted setup cannot resume; review its unfinished work and current requirements before trying again",
         )
         .with_mutation_state(MutationState::RecoveryRequired)
         .during("preparation.interrupted")
         .offer_recovery(RecoveryAction::ReviewPreparation);
-        if let Some(state) =
-            crate::cancellation::cancellation_state(service.library(), &journal.id)?
-        {
-            let belongs: bool = service.library().connection()?.query_row(
+            if let Some(port) = retained_preparation_target(service, journal) {
+                error = error.with_preparation_target(&port);
+            }
+            if let Some(state) =
+                crate::cancellation::cancellation_state(service.library(), &journal.id)?
+            {
+                let belongs: bool = service.library().connection()?.query_row(
                 "SELECT EXISTS(SELECT 1 FROM activity_history WHERE id=?1 AND operation='prepare' AND target_kind='port' AND target_id=?2)",
                 rusqlite::params![journal.id, journal.port_id], |row| row.get(0),
             )?;
-            if !belongs {
-                return Err(PortcoveError::verification(
-                    "preparation recovery does not own the recorded activity",
-                ));
+                if !belongs {
+                    return Err(PortcoveError::verification(
+                        "preparation recovery does not own the recorded activity",
+                    ));
+                }
+                // The port and activity locks prove that no preparation worker owns
+                // this attempt. They do not prove that every native child stopped,
+                // so a requested cancellation is not reported as successful.
+                error = error.detail("cancel_requested", state.requested.to_string());
+                service.library().finish_activity_report(
+                    &journal.id,
+                    crate::ActivityStatus::Failed,
+                    Some(&error.message),
+                    Some(&error.report()),
+                )?;
             }
-            // The port and activity locks prove that no preparation worker owns
-            // this attempt. They do not prove that every native child stopped,
-            // so a requested cancellation is not reported as successful.
-            error = error.detail("cancel_requested", state.requested.to_string());
-            service.library().finish_activity_report(
-                &journal.id,
-                crate::ActivityStatus::Failed,
-                Some(&error.message),
-                Some(&error.report()),
-            )?;
+            return Err(error);
         }
-        return Err(error);
-    }
-    let plan = journal
-        .preparation
-        .as_ref()
-        .ok_or_else(|| PortcoveError::state("preparation journal has no reviewed plan"))?;
-    let install = journal
-        .install
-        .as_ref()
-        .ok_or_else(|| PortcoveError::state("preparation journal has no validated installation"))?;
-    if install.id != journal.id
-        || install.port_id != plan.port_id
-        || journal.port_id != plan.port_id
-        || install.artifact != plan.inputs.install.artifact
-        || journal.paths.final_path.as_ref() != Some(&install.path)
-    {
-        return Err(PortcoveError::verification(
-            "prepared publication does not match its reviewed operation identity",
-        ));
-    }
-    let mut bound_plan = plan.clone();
-    bound_plan.plan_sha256.clear();
-    let original = crate::output_root::validate_install_path(
-        service.library(),
-        &journal.port_id,
-        &plan.inputs.install.path,
-    )?;
-    let expected = original
-        .parent()
-        .ok_or_else(|| PortcoveError::state("preparation original has no managed parent"))?
-        .join(crate::signed_catalog::digest(&serde_json::to_vec(&(
-            "Portcove prepared derivative v1",
-            &plan.plan_sha256,
-            &journal.id,
-        ))?));
-    crate::path::refuse_symlink_ancestors(&install.path)?;
-    if plan.format_version != 1
-        || crate::signed_catalog::digest(&serde_json::to_vec(&bound_plan)?) != plan.plan_sha256
-        || crate::path::resolve_existing_ancestor(&install.path)? != expected
-    {
-        return Err(PortcoveError::verification(
-            "prepared destination or plan changed identity",
-        ));
-    }
-    if matches!(
-        journal.phase,
-        LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
-    ) {
-        let active = service.status(&plan.port_id)?.active;
-        if active.as_ref().is_none_or(|active| active.id != install.id)
-            && service
-                .plan_preparation_locked(&plan.port_id, plan.inputs.options)?
-                .plan_sha256
-                != plan.plan_sha256
+        let plan = journal
+            .preparation
+            .as_ref()
+            .ok_or_else(|| PortcoveError::state("preparation journal has no reviewed plan"))?;
+        let install = journal.install.as_ref().ok_or_else(|| {
+            PortcoveError::state("preparation journal has no validated installation")
+        })?;
+        if install.id != journal.id
+            || install.port_id != plan.port_id
+            || journal.port_id != plan.port_id
+            || install.artifact != plan.inputs.install.artifact
+            || journal.paths.final_path.as_ref() != Some(&install.path)
         {
-            return Err(PortcoveError::conflict(
-                "reviewed preparation inputs changed before recovery publication",
+            return Err(PortcoveError::verification(
+                "prepared publication does not match its reviewed operation identity",
             ));
         }
-    }
-    crate::recovery::recover_published_install(service, store, journal)
+        let mut bound_plan = plan.clone();
+        bound_plan.plan_sha256.clear();
+        let original = crate::output_root::validate_install_path(
+            service.library(),
+            &journal.port_id,
+            &plan.inputs.install.path,
+        )?;
+        let expected = original
+            .parent()
+            .ok_or_else(|| PortcoveError::state("preparation original has no managed parent"))?
+            .join(crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "Portcove prepared derivative v1",
+                &plan.plan_sha256,
+                &journal.id,
+            ))?));
+        crate::path::refuse_symlink_ancestors(&install.path)?;
+        if plan.format_version != 1
+            || crate::signed_catalog::digest(&serde_json::to_vec(&bound_plan)?) != plan.plan_sha256
+            || crate::path::resolve_existing_ancestor(&install.path)? != expected
+        {
+            return Err(PortcoveError::verification(
+                "prepared destination or plan changed identity",
+            ));
+        }
+        if !journal.activate {
+            return Err(PortcoveError::state(
+                "prepared publication requires activation",
+            ));
+        }
+        if matches!(
+            journal.phase,
+            LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
+        ) {
+            let active = service.status(&plan.port_id)?.active;
+            if active.as_ref().is_none_or(|active| active.id != install.id)
+                && service
+                    .plan_preparation_locked(&plan.port_id, plan.inputs.options)?
+                    .plan_sha256
+                    != plan.plan_sha256
+            {
+                return Err(PortcoveError::conflict(
+                    "reviewed preparation inputs changed before recovery publication",
+                ));
+            }
+        }
+        crate::recovery::recover_published_install(service, store, journal)
+    })();
+    result.map_err(
+        |error| match retained_preparation_target(service, journal) {
+            Some(port) => error.with_preparation_target(&port),
+            None => error,
+        },
+    )
 }
 
 fn private_preparation_journal(
@@ -795,6 +840,50 @@ fn private_preparation_journal(
             PortcoveError::not_found("retained preparation operation was not found")
                 .detail("operation_id", operation_id)
         })
+}
+
+/// Optional display identity only. Failed proof must not change recovery behavior.
+fn retained_preparation_target(
+    service: &PortcoveService,
+    journal: &LifecycleOperation,
+) -> Option<PortDefinition> {
+    if journal.kind != LifecycleOperationKind::Prepare {
+        return None;
+    }
+    let plan = journal.preparation.as_ref()?;
+    let mut bound_plan = plan.clone();
+    bound_plan.plan_sha256.clear();
+    if plan.format_version != 1
+        || plan.port_id != journal.port_id
+        || plan.inputs.install.port_id != journal.port_id
+        || journal.install.as_ref().is_some_and(|install| {
+            install.id != journal.id
+                || install.port_id != journal.port_id
+                || install.artifact != plan.inputs.install.artifact
+        })
+        || crate::signed_catalog::digest(&serde_json::to_vec(&bound_plan).ok()?) != plan.plan_sha256
+    {
+        return None;
+    }
+    let belongs: bool = service.library().connection().ok()?.query_row(
+        "SELECT EXISTS(SELECT 1 FROM activity_history WHERE id=?1 AND operation='prepare' AND target_kind='port' AND target_id=?2)",
+        rusqlite::params![journal.id, journal.port_id], |row| row.get(0),
+    ).ok()?;
+    if !belongs {
+        return None;
+    }
+    crate::output_root::validate_install_path(
+        service.library(),
+        &journal.port_id,
+        &plan.inputs.install.path,
+    )
+    .ok()?;
+    let retained = Installer::new(service.library().clone())
+        .ok()?
+        .retained_catalog(&plan.inputs.install)
+        .ok()??;
+    let port = retained.port(&plan.inputs.install.port_id).ok()?.clone();
+    (port.id == journal.port_id).then_some(port)
 }
 
 fn record_preparation_process_quiescence(
@@ -820,152 +909,160 @@ fn preparation_cleanup_preview(
     service: &PortcoveService,
     journal: &LifecycleOperation,
 ) -> Result<PreparationCleanupPreview> {
-    if journal.kind != LifecycleOperationKind::Prepare
-        || !matches!(
-            journal.phase,
-            LifecyclePhase::Preparing | LifecyclePhase::CleanupPending
-        )
-        || journal.install.is_some()
-        || journal.relocation.is_some()
-        || journal.source_import.is_some()
-        || !journal.original_paths.is_empty()
-        || !journal.activate
-        || (journal.phase == LifecyclePhase::Preparing && journal.paths.quarantine.is_some())
-        || (journal.phase == LifecyclePhase::CleanupPending && journal.paths.quarantine.is_none())
-    {
-        return Err(PortcoveError::conflict(
-            "only unpublished private preparation work can be discarded",
-        )
-        .detail("operation_id", &journal.id));
-    }
-    let plan = journal
-        .preparation
-        .as_ref()
-        .ok_or_else(|| PortcoveError::state("retained preparation has no reviewed input plan"))?;
-    let mut bound_plan = plan.clone();
-    bound_plan.plan_sha256.clear();
-    if plan.format_version != 1
-        || journal.port_id != plan.port_id
-        || plan.inputs.install.port_id != journal.port_id
-        || crate::signed_catalog::digest(&serde_json::to_vec(&bound_plan)?) != plan.plan_sha256
-    {
-        return Err(PortcoveError::verification(
-            "retained preparation does not match its reviewed operation identity",
-        ));
-    }
-    let activity_status: Option<String> = service.library().connection()?.query_row(
+    let result = (|| -> Result<PreparationCleanupPreview> {
+        if journal.kind != LifecycleOperationKind::Prepare
+            || !matches!(
+                journal.phase,
+                LifecyclePhase::Preparing | LifecyclePhase::CleanupPending
+            )
+            || journal.install.is_some()
+            || journal.relocation.is_some()
+            || journal.source_import.is_some()
+            || !journal.original_paths.is_empty()
+            || !journal.activate
+            || (journal.phase == LifecyclePhase::Preparing && journal.paths.quarantine.is_some())
+            || (journal.phase == LifecyclePhase::CleanupPending
+                && journal.paths.quarantine.is_none())
+        {
+            return Err(PortcoveError::conflict(
+                "only unpublished private preparation work can be discarded",
+            )
+            .detail("operation_id", &journal.id));
+        }
+        let plan = journal.preparation.as_ref().ok_or_else(|| {
+            PortcoveError::state("retained preparation has no reviewed input plan")
+        })?;
+        let mut bound_plan = plan.clone();
+        bound_plan.plan_sha256.clear();
+        if plan.format_version != 1
+            || journal.port_id != plan.port_id
+            || plan.inputs.install.port_id != journal.port_id
+            || crate::signed_catalog::digest(&serde_json::to_vec(&bound_plan)?) != plan.plan_sha256
+        {
+            return Err(PortcoveError::verification(
+                "retained preparation does not match its reviewed operation identity",
+            ));
+        }
+        let activity_status: Option<String> = service.library().connection()?.query_row(
         "SELECT status FROM activity_history WHERE id=?1 AND operation='prepare' AND target_kind='port' AND target_id=?2",
         rusqlite::params![journal.id, journal.port_id],
         |row| row.get(0),
     ).optional()?;
-    if !activity_status
-        .as_deref()
-        .is_some_and(|status| matches!(status, "failed" | "cancelled"))
-    {
-        return Err(PortcoveError::verification(
-            "retained preparation does not own a terminal failed activity",
-        ));
-    }
-    if journal.preparation_process_quiesced != Some(true) {
-        return Err(PortcoveError::conflict(
-            "retained preparation process quiescence is not proven; cleanup is refused",
-        )
-        .detail("operation_id", &journal.id)
-        .detail("recovery_action", "manual_review"));
-    }
-    let retained_path =
-        journal.paths.staging.clone().ok_or_else(|| {
+        if !activity_status
+            .as_deref()
+            .is_some_and(|status| matches!(status, "failed" | "cancelled"))
+        {
+            return Err(PortcoveError::verification(
+                "retained preparation does not own a terminal failed activity",
+            ));
+        }
+        if journal.preparation_process_quiesced != Some(true) {
+            return Err(PortcoveError::conflict(
+                "retained preparation process quiescence is not proven; cleanup is refused",
+            )
+            .detail("operation_id", &journal.id)
+            .detail("recovery_action", "manual_review"));
+        }
+        let retained_path = journal.paths.staging.clone().ok_or_else(|| {
             PortcoveError::state("retained preparation has no private staging path")
         })?;
-    crate::output_root::validate_staging_path(
-        service.library(),
-        &journal.port_id,
-        &journal.id,
-        &retained_path,
-    )?;
-    let original_install = crate::output_root::validate_install_path(
-        service.library(),
-        &journal.port_id,
-        &plan.inputs.install.path,
-    )?;
-    let expected_final = original_install
-        .parent()
-        .ok_or_else(|| PortcoveError::state("recorded original has no managed parent"))?
-        .join(crate::signed_catalog::digest(&serde_json::to_vec(&(
-            "Portcove prepared derivative v1",
-            &plan.plan_sha256,
+        crate::output_root::validate_staging_path(
+            service.library(),
+            &journal.port_id,
             &journal.id,
-        ))?));
-    if journal.paths.final_path.as_ref() != Some(&expected_final) {
-        return Err(PortcoveError::conflict(
-            "planned preparation destination changed or contains unreviewed data",
-        ));
-    }
-    match fs::symlink_metadata(&expected_final) {
-        Ok(_) => {
+            &retained_path,
+        )?;
+        let original_install = crate::output_root::validate_install_path(
+            service.library(),
+            &journal.port_id,
+            &plan.inputs.install.path,
+        )?;
+        let expected_final = original_install
+            .parent()
+            .ok_or_else(|| PortcoveError::state("recorded original has no managed parent"))?
+            .join(crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "Portcove prepared derivative v1",
+                &plan.plan_sha256,
+                &journal.id,
+            ))?));
+        if journal.paths.final_path.as_ref() != Some(&expected_final) {
             return Err(PortcoveError::conflict(
                 "planned preparation destination changed or contains unreviewed data",
             ));
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error.into()),
-    }
-    let (inventory_path, reviewed_fingerprint) = if journal.phase == LifecyclePhase::CleanupPending
-    {
-        let quarantine = journal.paths.quarantine.as_ref().ok_or_else(|| {
-            PortcoveError::state("reviewed preparation cleanup has no private quarantine path")
-        })?;
-        let reviewed_fingerprint =
-            cleanup_quarantine_fingerprint(&retained_path, quarantine, &journal.id)?;
-        let inventory_path = if private_directory_exists(quarantine)? {
-            quarantine.as_path()
+        match fs::symlink_metadata(&expected_final) {
+            Ok(_) => {
+                return Err(PortcoveError::conflict(
+                    "planned preparation destination changed or contains unreviewed data",
+                ));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+        let (inventory_path, reviewed_fingerprint) = if journal.phase
+            == LifecyclePhase::CleanupPending
+        {
+            let quarantine = journal.paths.quarantine.as_ref().ok_or_else(|| {
+                PortcoveError::state("reviewed preparation cleanup has no private quarantine path")
+            })?;
+            let reviewed_fingerprint =
+                cleanup_quarantine_fingerprint(&retained_path, quarantine, &journal.id)?;
+            let inventory_path = if private_directory_exists(quarantine)? {
+                quarantine.as_path()
+            } else {
+                retained_path.as_path()
+            };
+            (inventory_path, Some(reviewed_fingerprint))
         } else {
-            retained_path.as_path()
+            (retained_path.as_path(), None)
         };
-        (inventory_path, Some(reviewed_fingerprint))
-    } else {
-        (retained_path.as_path(), None)
-    };
-    let retained = match fs::symlink_metadata(inventory_path) {
-        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
-            crate::service::adoption_copy_plan(inventory_path)?
-        }
-        Ok(_) => {
+        let retained = match fs::symlink_metadata(inventory_path) {
+            Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+                crate::service::adoption_copy_plan(inventory_path)?
+            }
+            Ok(_) => {
+                return Err(PortcoveError::conflict(
+                    "private preparation path changed identity",
+                ));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => AdoptionCopyPlan {
+                directories: Vec::new(),
+                files: Vec::new(),
+                skipped_entries: Vec::new(),
+                total_bytes: 0,
+            },
+            Err(error) => return Err(error.into()),
+        };
+        let mut preview = PreparationCleanupPreview {
+            format_version: 1,
+            operation_id: journal.id.clone(),
+            port_id: journal.port_id.clone(),
+            retained_path,
+            retained,
+            original_install_path: plan.inputs.install.path.clone(),
+            source_path: plan.inputs.source.path.clone(),
+            persistent_data_path: service.library().user_dir(&journal.port_id),
+            backup_path: service.library().backups_dir().join(&journal.port_id),
+            logs_path: service.library().logs_dir(),
+            cleanup_is_irreversible: true,
+            interrupted_cleanup_will_retry: true,
+            preview_sha256: String::new(),
+        };
+        preview.preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&preview)?);
+        if reviewed_fingerprint.is_some_and(|expected| expected != preview.preview_sha256) {
             return Err(PortcoveError::conflict(
-                "private preparation path changed identity",
-            ));
+                "retained preparation changed after cleanup was accepted; review it again",
+            )
+            .detail("cleanup_state_changed", "true"));
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => AdoptionCopyPlan {
-            directories: Vec::new(),
-            files: Vec::new(),
-            skipped_entries: Vec::new(),
-            total_bytes: 0,
+        Ok(preview)
+    })();
+    result.map_err(
+        |error| match retained_preparation_target(service, journal) {
+            Some(port) => error.with_preparation_target(&port),
+            None => error,
         },
-        Err(error) => return Err(error.into()),
-    };
-    let mut preview = PreparationCleanupPreview {
-        format_version: 1,
-        operation_id: journal.id.clone(),
-        port_id: journal.port_id.clone(),
-        retained_path,
-        retained,
-        original_install_path: plan.inputs.install.path.clone(),
-        source_path: plan.inputs.source.path.clone(),
-        persistent_data_path: service.library().user_dir(&journal.port_id),
-        backup_path: service.library().backups_dir().join(&journal.port_id),
-        logs_path: service.library().logs_dir(),
-        cleanup_is_irreversible: true,
-        interrupted_cleanup_will_retry: true,
-        preview_sha256: String::new(),
-    };
-    preview.preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&preview)?);
-    if reviewed_fingerprint.is_some_and(|expected| expected != preview.preview_sha256) {
-        return Err(PortcoveError::conflict(
-            "retained preparation changed after cleanup was accepted; review it again",
-        )
-        .detail("cleanup_state_changed", "true"));
-    }
-    Ok(preview)
+    )
 }
 
 fn remove_reviewed_private_preparation(

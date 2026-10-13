@@ -59,6 +59,8 @@ import type {
   GithubDeviceLogin,
   GithubDeviceLoginResult,
   GameFileRoot,
+  GameFileQueryRefreshRequest,
+  GameFileQuerySnapshot,
   GameFileScanSnapshot,
   HostToolProbeResult,
   HostToolStatus,
@@ -98,6 +100,9 @@ export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "c
 };
 
 export const desktopApi = {
+  favoritePorts: (generation: number) => invoke<string[]>("get_favorite_ports", { generation }),
+  setPortFavorite: (portId: string, favorite: boolean, generation: number) =>
+    invoke<void>("set_port_favorite", { portId, favorite, generation }),
   localePreference: () => invoke<LocalePreferenceSnapshot>("get_locale_preference"),
   setLocalePreference: (locale: string | null) =>
     invoke<LocalePreferenceSnapshot>("set_locale_preference", { locale }),
@@ -364,7 +369,8 @@ export const desktopApi = {
   cancelOperation: (operationId: string) =>
     invoke<CancellationState>("cancel_operation", { operationId }),
   backups: (portId: string) => invoke<BackupInventory>("get_backups", { portId }),
-  backup: (portId: string) => invoke<BackupRecord>("create_backup", { portId }),
+  backup: (portId: string, generation: number) =>
+    invoke<BackupRecord>("create_backup", { portId, generation }),
   previewBackupAction: (
     portId: string,
     backupId: string,
@@ -407,6 +413,19 @@ export const desktopApi = {
     });
   },
   gameFileScanSnapshot: () => invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot"),
+  refreshGameFileQuery: (
+    request: GameFileQueryRefreshRequest,
+    generation: number,
+    onEvent?: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = (event) => onEvent?.(event);
+    return invoke<GameFileQuerySnapshot>("refresh_game_file_query", {
+      request,
+      generation,
+      onEvent: channel,
+    });
+  },
   discoverSources: (request: SourceDiscoveryRequest, onEvent?: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = (event) => onEvent?.(event);
@@ -523,7 +542,8 @@ export const desktopApi = {
     invoke<void>("report_frontend_error", { message, componentStack }),
   plan: (portId: string, channel: ReleaseChannel) =>
     invoke<InstallPlan>("plan_port", { portId, channel }),
-  openUserData: (portId: string) => invoke<string>("open_user_data", { portId }),
+  openUserData: (portId: string, generation: number) =>
+    invoke<string>("open_user_data", { portId, generation }),
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
   setChannel: (portId: string, channel: ReleaseChannel, generation: number) =>
     invoke<PortStatus>("set_channel", { portId, channel, generation }),
@@ -535,8 +555,10 @@ export const desktopApi = {
     source: string,
     bios: string,
     stage: boolean,
+    generation: number,
   ) =>
     invoke<InstallRecord>("install_port", {
+      generation,
       input: {
         portId,
         channel,
@@ -545,7 +567,7 @@ export const desktopApi = {
         stage,
       } satisfies InstallInput,
     }),
-  verify: (portId: string) => invoke("verify_port", { portId }),
+  verify: (portId: string, generation: number) => invoke("verify_port", { portId, generation }),
   activate: (
     portId: string,
     expectedActive: string | null,
@@ -558,7 +580,7 @@ export const desktopApi = {
       expectedStaged,
       generation,
     }),
-  rollback: (portId: string) => invoke("rollback_port", { portId }),
+  rollback: (portId: string, generation: number) => invoke("rollback_port", { portId, generation }),
   previewRemoval: (portId: string, generation: number) =>
     invoke<PortRemovalPreview>("preview_removal", { portId, generation }),
   remove: (portId: string, expectedPreview: string, generation: number) =>
@@ -589,9 +611,10 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  launch: (portId: string, source: string) =>
+  launch: (portId: string, source: string, generation: number) =>
     invoke<LaunchResult>("launch_port", {
       portId,
+      generation,
       source: source || null,
       arguments: [],
     }),

@@ -2,6 +2,65 @@
 
 ## Default covers
 
+For a whole ordinary catalog proposal, use
+`node scripts/generate-catalog.mjs --prepare-proposal PROPOSAL.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY`.
+Optional artwork facts/credentials/refresh flags are the same as below. This
+mode snapshots the explicitly selected CLI, checks accepted/input/output catalog
+declarations through `catalog inspect-proposal`, and prepares existing artwork in
+the same output. `proposal-evidence.json` adds exact input-byte/core receipts,
+typed per-port declaration hashes and the complete accepted-to-proposed diff;
+`artwork-evidence.json` retains its distinct cover reasons and provider costs.
+The additive `proposal_changes` report matches ports and named source records by
+stable ID. Each changed port includes its old/new display name and exact source,
+execution, persistence and other changes; source identities/contracts/validators/
+evidence are reported by collection and ID. Record insertion or removal does not
+make unchanged siblings appear modified, including games sharing a repository.
+Ordering changes are explicit. The same report accompanies `--compare-historical`.
+These groups describe declared fields, not acceptance or inferred dependency
+impact. The complete `differences` and Core receipts remain necessary: unkeyed
+qualification facts and other catalog fields are outside this named-record report.
+Full proposals also include `declaration_cases`: complete before/after ports,
+shared source tables, unchanged port fields, accepted peers referencing the same
+declared adapter, and the exact inspector receipts for each case. Shared source
+records and adapter peers appear once. Per-case source references name identity
+and contract IDs and qualification ordinals in that side's source table; follow
+their declared validator/evidence IDs to reconstruct the complete scoped records.
+No shared evidence or peer list is copied into every case. Cases include unchanged
+port definitions when their declared source/evidence/qualification relationships
+change. They are ordered by stable port ID; source-record order and exact scoped
+qualification remain preserved. Unreferenced source changes stay in the complete
+diff rather than being assigned to an unrelated port. These relationships are
+not validation impact, capability fit or permission to reuse qualification.
+Declared evidence is neither authenticated nor executed by proposal preparation;
+an absent per-port inspector receipt remains null. Existing preparation/artwork
+costs are linked separately. Engineering, application/harness changes,
+interventions, maintenance execution, eliminated work and comparative savings
+remain explicitly unmeasured. Preparation does not establish subsequent artifact
+compatibility or delivery speedup.
+All files remain unsigned proposals. No publisher grant, artifact authenticity,
+actual source/operation/gameplay qualification or production delivery is inferred.
+The `compatibility_fixture_review` report compares proposed source and port IDs
+with the frozen schema-1 identities plus the independently reviewed lists in
+`catalog-legacy-additions-fixture.json`. Missing or unreviewed IDs require a
+manual fixture review; preparation can still describe an unreviewed candidate.
+The generator never updates these expectations. Ordinary generation and `--check`
+refuse an identity mismatch before replacing embedded bytes. This cheap check
+does not establish full source-contract equality: Rust still compares complete
+frozen legacy projections and retains its qualification and negative assertions.
+Add independently reviewed additive IDs to this fixture once instead of updating
+the expected count and three exclusion lists separately. Do not regenerate the
+fixture from the catalog or derive expected identities from a proposal.
+An unavailable validator or failed declaration check stops this proposal, retains
+its process receipts and leaves the accepted catalog/libraries unchanged. A new
+output directory is required; an interrupted or prior batch is never overwritten.
+Full proposals capture the selected validator before declaration checks. Their
+image decoder takes its own snapshot from that captured artifact only when fresh
+image bytes need validation, then reuses it for the batch. A reuse-only batch
+therefore retains one executable snapshot and creates no image-validation scratch
+library. Decoder initialization failure is not retried within the batch; existing
+artwork exception/fallback handling remains responsible for the result. Artwork-only
+preparation keeps its eager selected-tool snapshot boundary.
+
 Prepare a cover beside each new port definition. Search its public project name
 and known aliases first; accept an exact port record only after checking the
 underlying title and project identity. Keep the original-game identity separate.
@@ -22,7 +81,76 @@ The [2026-09-30 identity receipt](archive/2026-09-30-igdb-catalog-cover-identiti
 records the catalog-wide preparation, accepted port and original identities, and
 port-specific exceptions. It is dated evidence, not another scheduling tracker.
 Preserve accepted mappings when adding entries; investigate only additions or
-changed references. Generate the embedded catalog with
+changed references. Ordinary schema-2 catalog proposals can prepare covers and
+their evidence in the same batch using the existing generator:
+
+```text
+node scripts/generate-catalog.mjs --prepare-artwork PROPOSAL.json --identities FACTS.json --credentials-file PRIVATE.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir NEW_OUTPUT_DIRECTORY
+```
+
+The optional facts document is keyed by stable port ID. Ordinary port matching
+uses the definition's public name and exact project URL without a supplied IGDB
+ID; a unique exact name/alias plus matching provider project website is required.
+Its optional `port` and `underlying_game` records supply public `names` and
+attributable HTTPS `evidence_url`, with an exact `project_url` for name-based port
+matching or known `platform_ids` and any specific `edition` for original-game
+matching. An independently established positive IGDB `game_id` and exact `slug`
+may pin a known identity. These are proposal inputs, not admission authority.
+Names alone, a sequel, wrong edition or truncated result set cannot establish a
+match. All required identity facts must agree before image acquisition. A coverless port falls
+through to its identified original game. Missing, ambiguous, mismatched or
+unusable assets produce specific nonblocking cover exceptions and generated
+fallback; a decoded image cannot establish semantic identity.
+
+The current authoring catalog is the accepted baseline. Unchanged port/source
+identities reuse accepted mappings without provider requests; distinct ports may
+reuse a uniquely accepted original-game mapping without merging their identities.
+An ordinary executable release does not trigger artwork searches. For an assessed
+reference change, `--refresh-artwork PORT_ID,OTHER_ID` explicitly refreshes those
+batch entries. A failed refresh retains the matching permitted accepted mapping
+for uncertain or transient failures, including HTTP404, authentication/network
+errors and rate limits, without claiming live validation. HTTP410 from the fixed
+IGDB image request identifies that exact image as Gone: preparation excludes it
+from every reference in the output batch, regardless of record order, and records
+its image identity/status. Existing exact-port/original selection can supply a
+checked replacement; otherwise the generated/text fallback applies. Gone for a
+different candidate image does not invalidate an accepted mapping. Unchanged
+entries still make no provider requests. This bounded observation changes only
+the unsigned proposal; accepted inputs, client choices/cache and protected
+acceptance remain unchanged. It does not establish live provider removal or a
+legal withdrawal.
+
+The new output directory is required to be absent. It receives
+`catalog-proposal.json` and `artwork-evidence.json`, including exact input/baseline
+digests, artwork differences, per-cover reasons/checks/exceptions and request/byte
+counts. No source catalog, client preference, signature or published feed changes.
+Fresh image bytes pass the existing core decoder through the explicitly selected
+trusted CLI and fresh task-owned scratch libraries. No new decoder or publisher
+is introduced. Credentials stay maintainer-side; output carries fixed references
+and digests, never credentials or image payloads. Scratch libraries retain local
+validation material and are not a distributable image archive.
+
+The provider route is sequential, has one lazy authentication attempt, no retries,
+and bounds metadata/image requests, bytes and execution time. A valid `Retry-After`
+on a captured metadata 429 or 503 postpones the next metadata request, preserving
+the normal 300 ms floor. All three HTTP-date forms are interpreted in UTC,
+including the zoneless asctime form, independently of the authoring host timezone.
+Decimal seconds and HTTP dates stay within the existing
+15 minute batch deadline; a pause reaching that deadline refuses further metadata
+requests without sleeping past the budget. Waits remain cancellable, failed
+identities are not retried, and uncertain failures retain eligible accepted
+metadata. Image requests retain their existing policy. Fixed OAuth, metadata and image responses
+are consumed within those byte bounds or their unfinished bodies are cancelled
+when refused, including status, content-type and early length checks. Cleanup
+does not drain rejected payloads or await an arbitrary cancellation promise;
+reader locks are released and the original result or failure is preserved.
+Request signals, deadlines, request/byte counters and authentication policy
+remain unchanged. Retained references are not fresh source-health evidence.
+This command prepares the cover role only;
+other roles, full backlog coverage, protected acceptance/publication and installed
+or physical-platform evidence retain their own acceptance.
+
+Generate the embedded catalog with
 `node scripts/generate-catalog.mjs`, then run selected local checks and the opt-in
 `just desktop-verify --scenario native-default-cover-display --require-clean`.
 That scenario derives its cover inventory from the actual native catalog, checks
@@ -102,6 +230,41 @@ shared acquisition, transaction, persistence and lifecycle owners when catalog
 data or a shared adapter cannot express the useful route. A bare upstream link
 or placeholder is not an integration.
 
+Schema-2 GitHub proposals may carry `release.curated`, keyed by declared platform.
+Each version-1 record binds repository/upstream, canonical original GitHub release
+asset URL and host, release/tag/commit/asset identities, platform/route, safe
+filename, nonzero size and canonical SHA-256. Acquisition, distribution,
+independent-review and protected-acceptance evidence references carry bounded
+HTTPS locations and exact declared digests. Distribution basis is explicit.
+These are inert declarations: shape validation does not authenticate the
+referenced evidence, publisher, build or distribution permission.
+
+The existing Core proposal inspector includes each record's declaration hash
+alongside its port hash without fetching or changing anything. Empty maps are
+omitted from serialized definitions, preserving existing declaration identities.
+Schema-1 and non-GitHub curated proposals are refused. Custom providers and
+legacy managed GitHub grants refuse curated declarations. The explicit
+[schema-4 capability](DEFINITION-DELIVERY.md#exact-definition-availability-policy)
+requires independent policy admission, exact fresh upstream identity and the
+shared byte verifier; library schema 36 retains immutable accepted identities
+against silent repinning and authenticated scoped transition receipts. Exact
+artifact revocation holds acquisition and critical installed use; distribution
+withdrawal holds acquisition while permitting local use under existing guards.
+Future-acceptance loss is a separate fact and does not revoke historical bytes.
+Neither expiry nor omitted transitions erase a recorded hold. Record preparation
+still grants no runtime authority.
+[#315](https://github.com/boburning/portcove/issues/315) remains incomplete until
+verified cache reuse, scoped holds, recovery and lawful canary qualification
+establish the full offered route. No client-observed self-hash acceptance is
+introduced by record preparation.
+
+GitHub Stable selection excludes provider-declared prereleases, existing
+hyphenated development markers, and case-insensitive numbered beta suffixes
+such as `Version1.0.5beta12`, even when upstream leaves its prerelease flag unset.
+Preview (`beta`) selection still requires the catalog to declare that channel; classification
+does not grant compatibility or installation authority. No selectable stable
+release produces an unavailable result, rather than falling through to a beta.
+
 Catalog schema 1/2 supports hosted or exact direct-manifest package installation
 through its existing adapters. The `user-prepared` release route is separate:
 an official definition pins the package's exact archive identity and the
@@ -114,6 +277,17 @@ An optional `presentation.manual_preparation` gives the exact player-created
 steps for a user-prepared runtime; the short port summary remains an outcome
 description. The Wave Race pilot requires an empty `portable.txt` beside its
 executable, in addition to the extracted upstream ZIP files.
+A platform-specific prepared spec may opt into `library_user_data: true` for
+`staged-source-portable`, with a safe `user_data_environment` name on the port.
+After retained-package and original-source revalidation, Core creates only the
+private `<library>/user/<port>` directory and binds its absolute path for launch.
+Existing private contents are preserved; missing parents, links and non-directory
+paths are refused. Omitted or false flags create no directory and bind no variable.
+This declaration requires staged-source template contract version 2. It does not
+migrate AppData, qualify an upstream package, or grant update/backup ownership.
+Removing the external registration preserves both the external folder and private
+user files. No current title is admitted by this generic engine component.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and
@@ -138,6 +312,40 @@ compatible release, record that limit and the exact condition for enabling
 updates. A deliberate `DirectManifest`, rolling tag, source/runtime identity or
 exact qualification record must not be broadened to manufacture automatic
 updates.
+
+Declare the offered route's maintenance policy on its existing canonical Port
+issue during admission and subsequent disposition work, independently from its
+operations and qualification. [#1422](https://github.com/boburning/portcove/issues/1422)
+owns cohort reconciliation, [#254](https://github.com/boburning/portcove/issues/254)
+owns repeatable proposal and evidence preparation, and
+[#246](https://github.com/boburning/portcove/issues/246) owns protected compatible
+delivery. These declarations are not new catalog schema fields or a second
+planning registry.
+
+Prefer `managed-compatible-release` when upstream releases are safely versioned
+and observable and ordinary compatibility can be validated deterministically.
+Every accepted release still retains immutable version, artifact and accepted
+hash identity. A declaration describes the maintenance target; separately name
+the observation, selection, executable, source, persistence and compatibility
+checks actually implemented and any remaining facts or capability owner. It
+does not prove a future package compatible, inherit gameplay evidence, authorize
+publication, install an update, or override a player's keep-current choice.
+
+Use `pinned-release` for a concrete upstream or safety limitation that prevents
+compatible progression. Record the retained exact pin, the limitation and the
+facts or checks needed to resume. An accepted immutable artifact, unfinished
+research, missing optional gameplay or a gap on another platform alone is not a
+pin justification. A direct manifest is a release representation, not a permanent
+maintenance exception; a bounded observer and reviewed compatible candidates
+may remain required work. Keep unknown facts explicit instead of inventing a
+limitation.
+
+Use `user-managed-update` for an offered non-owning user-prepared runtime route.
+Its exact package and extracted-runtime checks remain required, but Portcove
+does not update or replace that external runtime. Preserve the offered
+registration/launch/removal boundary and all applicable holds; the declaration
+grants no acquisition, backup, rollback or deletion right. Revisit the policy only
+when an independently justified managed route or changed input warrants it.
 
 A standalone Linux AppImage release may use a version-bearing asset filename.
 When its port declares exactly one AppImage basename and no runtime subdirectory,
@@ -181,10 +389,14 @@ blocker.
 
 ## Channels, support, and qualification
 
-Stable, beta, and rolling are user-selected release channels, not qualification
-claims. A catalog entry may be beta, rolling, platform-limited,
-qualification-pending, or blocked while the application continues toward V1,
+Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
+Stable, Preview, and Rolling are user-selected release channels, not qualification
+claims. Preview is the human label for the unchanged `beta` machine value. An entry may offer Preview or Rolling, be platform-limited, lack qualification
+evidence, or have documented blockers while the application continues toward V1,
 provided the UI and documentation represent that state honestly.
+
+Legacy `support_tier` values remain compatibility metadata, separate from release-channel choices. Neither a channel label nor a tier name supplies artifact/platform/operation testing evidence or removes a concrete compatibility limitation.
 
 Schema 2 stores new source qualification in `source_catalog.qualification`.
 Each record binds the port, platform, release artifact SHA-256, upstream ref,
@@ -213,6 +425,48 @@ establish gameplay, a physical-controller path, or a platform not exercised.
 Retain the historical `automated_tested_platforms` and
 `manually_validated_platforms` field names and their existing recorded claims;
 this clarification creates no new qualification record or platform support.
+
+### Qualification evidence preparation
+
+`node scripts/qualification-report.mjs --cli <executable> --library <library> --output <new-directory>`
+captures existing versioned core snapshots and a checklist for active managed
+installs and non-owning external registrations. Format 1 retains managed fields
+and adds `runtime_kind`, a distinct `registration_id`, and available platform,
+runtime/executable paths and immutable-tree identity. External `artifact_sha256`
+is the registration's accepted archive identity, not a new download observation;
+its immutable-tree hash is a separate fact. External platform comes from its
+registration. Managed records lack artifact-platform identity, which remains
+unknown; the capture host's platform stays in the doctor response separately.
+
+Missing optional version, hash, platform, path or readiness facts remain null
+(unknown), rather than borrowing current catalog or host facts for a retained
+external record. Missing required port/record IDs, duplicate identities within a
+route, conflicting managed/external records or a changed record owner refuse the
+capture before report publication. Existing capture directories are preserved.
+`installed_ports` still counts managed installs; `registered_ports` counts
+external registrations and `reported_ports` counts both.
+
+The capture keeps the selected CLI's original path so sibling tool discovery
+retains its normal behavior. It records the initial SHA-256 and checks that the
+path remains a regular file with those bytes before and after every command,
+including failed commands and managed backup listings. Changed bytes, a missing
+path or a nonregular replacement refuses publication. If a command also
+fails, both errors are retained, with the command failure first. These checks
+detect observed drift; they do not make execution atomic or immutable, or prove
+that an adversarial change and restoration did not occur between observations.
+
+Backup listings and the backup/restore checklist apply only to managed installs.
+External rows do not establish save locations or Portcove ownership; their
+`user_data_root` remains unknown. For both runtime routes, `source_profile` stays
+unknown because the captured runtime record does not bind a source profile.
+The additive `catalog_source_profile` records the current catalog declaration,
+or null for an absent/unspecified entry; it is not evidence of the source used by
+the retained runtime. Exact source facts, when available, stay in the captured
+core source responses without an inferred runtime association. Gameplay,
+audio, controller and save/load observations start null (unassessed), regardless
+of readiness or historical qualification. Record exact operation, method, scope,
+date and actual result separately. Neither capture nor synthetic CLI responses
+grant runtime/gameplay qualification or modify catalog evidence.
 
 Legacy Project `Port stage = Supported` means that at least one declared
 platform is present in both historical arrays. That historical claim is limited
@@ -271,6 +525,20 @@ cross-version update/rollback, or non-Windows behavior. The exact identities,
 methods, and remaining boundaries are recorded in
 [`docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md`](qualification/dr-mario-64-recompiled-windows-2026-09-15.md).
 
+The optional `n64_windows_initial_d3d12` declaration seeds only
+`{"api_option":"D3D12"}` in a fresh Windows N64 portable working directory.
+Both `graphics.json` and `graphics.json.bak` must be declared persistent at that
+runtime coordinate. Core initializes `graphics.json` only when both are absent, after
+source preparation and persistent restoration, using synchronized no-replace
+publication. Existing regular settings, malformed bytes and backup-only recovery
+remain untouched; symlinks, nonregular files and unreadable metadata are refused.
+Initialization is not a repair of an existing configuration or a qualification
+claim for its selected renderer. Dr. Mario's catalog summary retains the specific
+AMD RX 9070 XT / driver 32.0.31041.1004 Auto/Vulkan failure and D3D12 remedy.
+Other Windows hardware and newly created settings require their own applicable
+evidence. Retained installation contracts preserve their original declaration;
+indexed definitions require the N64 version 2 capability for this behavior.
+
 Duke Nukem: Zero Hour Recompiled 0.0.3 has exact Windows structural and
 bounded automated lifecycle records for the checksum-qualified USA source and
 GitLab artifact. They cover mismatch refusal, archive-member normalization,
@@ -317,6 +585,16 @@ publication are unclaimed. Exact identities and boundaries are recorded in the
 [Windows qualification record](qualification/mega-man-x5-recompiled-windows-2026-09-16.md).
 
 ## Adding or changing a port
+
+Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
+file identities are rechecked before each builder process. Both prohibit the kit's
+toolchain download fallback. Builder PATH contains only the owned toolchain and
+bundled Python directories; profile, cache and temporary paths are private to the
+preparation workspace. Missing or changed declared tools refuse before the builder
+starts. Kits must support the generation no-download argument; incompatible CLI
+contracts refuse rather than retrying with weaker arguments. This is builder
+acquisition/environment policy, not title-native qualification or a general OS
+sandbox. Retained workspaces and existing cancellation/closure guards still apply.
 
 Managed PS1 ports pass their reviewed runtime configuration with `--game` and
 an explicit `--memcard-dir` inside the managed runtime's `saves` directory.
@@ -540,3 +818,93 @@ whose relevant inputs change; preserve historical and legacy evidence honestly.
 Opt-in reports must exclude game data, secrets and personal paths; untrusted
 reports cannot revoke the whole catalog. Ordinary success needs no owner action;
 exceptions have bounded retries, scope and a reproducible resume condition.
+
+## Read-only disappearance reporting
+
+`scripts/check-catalog-repositories.mjs` reports each catalog port against six
+separate facts: original-upstream reachability, lineage, exact accepted-artifact
+obtainability, preservation, applicable holds, and retained qualification. Its
+format-2 output binds the canonical catalog hash and observation interval. A
+complete location collection means its declared probes completed; it does not
+mean every port is installable or that an artifact was verified.
+
+DirectManifest entries remain in the inventory, with their exact declared
+version/platform/digest/size and acquisition URL. The declared original project
+is also observed after a provider change. Hosted repositories use their existing
+bounded metadata requests. Direct artifact and other project endpoints use HEAD
+without provider credentials or redirects. A matching Content-Length establishes
+endpoint reachability only; the exact accepted bytes remain Unknown until their
+identity is actually verified. Missing, corrupt, inaccessible, contradictory or
+partial inputs remain explicit rather than becoming empty healthy inventories.
+
+Lineage decisions remain owned by #139, preservation by #1306 and artifact or
+operation holds by #315/#246. This collector evaluates or modifies none of those
+authorities. Retained catalog qualification stays attached to its exact original
+artifact/source/platform scope; legacy platform arrays are labeled historical
+and neither is inherited by another release or location. An absent policy or
+preservation observation is Unknown, never permission or a clean hold status.
+
+Each failed availability condition has a deterministic incident key binding
+port, location, operation and failed rule, with HTTP evidence, collection time,
+backoff and a resume condition. Observation time is excluded from that key, so an
+unchanged condition retains its identity. The collector performs no issue writes,
+source transfer, installation, artifact execution or automatic qualification.
+The shared request, duration and byte bounds remain in force; direct-origin rate
+limits leave unrelated locations observable.
+
+The retained Star Fox Enhanced incident in #247 (run 36735216087, job
+109955016518, source `5d6905ea8bf90fb887bb49a6a8524ab2ecc5846b`) reported
+`kandowontu/starfox-enhanced: github returned 404`. It is candidate continuity
+evidence for #124/#139 with authority unresolved. A bare 404 neither establishes
+retirement/deletion nor selects a successor or transfers historical qualification.
+
+Existing reviewed catalog maintenance declarations (`retired`, `superseded`,
+`abandoned`) account for a 404 only at that port's declared original location.
+They produce explicit degraded/unavailable output. They cannot suppress a missing
+artifact, new access/integrity failure, repository-name reuse, or an unclassified
+location shared with another port. An archived flag or a bare 404 creates no such
+declaration. The lineage, byte verification, preservation and distribution
+meaning remains independent, even when the monitoring job succeeds.
+
+The owner-approved narrow monitoring extension in #247 comment 6082358982 is
+represented by `.github/upstream-health-accounting.json`. Exact reviewed original
+301/404 conditions may be accounted while remaining visibly unknown/degraded;
+matching requires the same semantic port contract, original location, operation,
+HTTP rule and, for301, numeric redirect identity. This is not retirement,
+succession, relocation acceptance or a catalog URL change. Changed/shared/new
+conditions without matching review remain failures.
+
+Reviewed GitHub direct pins may additionally report exact provider metadata
+presence after a delivery302, with repository/release/asset IDs, complete asset
+inventory and exact URL/name/size/provider digest/facts matched. No redirect is
+followed and no artifact is downloaded or executed. Destination availability and
+accepted bytes stay unknown; endpoint reachability is not incremented. Missing,
+changed, partial or contradictory metadata stays unaccounted. See
+[upstream observations](UPSTREAM-OBSERVATIONS.md) for the bounded collection and
+protected accounting contract.
+
+Historical qualification identities are also inventoried at their exact refs
+and declared hosted locations, or the matching immutable DirectManifest pin.
+Provider-reported digests remain metadata, never verified bytes. Empty/conflicting
+asset inventories and capped/partial pages stay Unknown; unavailable optional
+provider digests are explicitly unverified. A historical identity without a
+locatable declaration stays visibly unmonitored. Failed qualification records are
+reported at their original scope without creating or clearing a publisher hold.
+
+An optional `--previous-report=PATH` consumes a bounded prior format-2 report as
+comparison evidence. It writes no state, issue comment or status ledger. Only a
+matching canonical catalog hash and a nonfuture report no older than 24 hours
+can provide notification comparison/backoff; stale or malformed scope is labeled unused.
+A structurally valid matching older snapshot retains only its repository-ID
+baseline so an outage or repeated replacement cannot silently establish a new
+identity. Current availability is always observed afresh.
+Repeated identical conditions keep their first-seen time, bounded occurrence
+count and `notify: false`; changed HTTP/identity/digest/size/classification facts
+request an update while retaining the condition’s first-seen time and count.
+Deferred attempts report no fresh HTTP response and identify prior comparison
+evidence separately. Rate limits without a usable retry clock use a one-minute
+fallback. Fresh recovery is reported separately. Unclassified failures
+remain prominent and keep their failure exit even when notification is
+unchanged. Ordinary unchanged success with a matching prior report is quiet;
+`--json` always emits the complete evidence record. The report never authenticates
+a prior snapshot as lineage, publication or distribution authority.

@@ -304,6 +304,168 @@ impl PortcoveService {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RelocationPhase {
+    Copying,
+    Prepared,
+    Published,
+    Committed,
+    CleanupPending,
+}
+
+impl RelocationPhase {
+    fn stored(self) -> LifecyclePhase {
+        match self {
+            Self::Copying => LifecyclePhase::Preparing,
+            Self::Prepared => LifecyclePhase::Prepared,
+            Self::Published => LifecyclePhase::PayloadPublished,
+            Self::Committed => LifecyclePhase::MetadataCommitted,
+            Self::CleanupPending => LifecyclePhase::CleanupPending,
+        }
+    }
+}
+
+// Checked interpretation of a released journal, not consent or path authority.
+struct RelocationOperation {
+    id: String,
+    port_id: String,
+    created_at: i64,
+    staging: Option<PathBuf>,
+    original_paths: Vec<PathBuf>,
+    plan_sha256: String,
+    phase: RelocationPhase,
+}
+
+impl RelocationOperation {
+    fn decode(library: &Library, operation: &LifecycleOperation) -> Result<Self> {
+        let plan = operation.relocation.as_ref().ok_or_else(|| {
+            PortcoveError::state("recoverable output relocation is missing its reviewed plan")
+        })?;
+        if operation.kind != LifecycleOperationKind::Relocate
+            || operation.install.is_some()
+            || operation.source_import.is_some()
+            || operation.preparation.is_some()
+            || operation.preparation_process_quiesced.is_some()
+            || operation.activate
+            || operation.paths.quarantine.is_some()
+        {
+            return Err(PortcoveError::state(
+                "relocation journal has an incompatible family payload",
+            ));
+        }
+        if operation.port_id != plan.port_id
+            || plan.current.port_id != plan.port_id
+            || operation.paths.final_path.as_ref() != Some(&plan.destination_root)
+            || operation.original_paths
+                != plan
+                    .installs
+                    .iter()
+                    .map(|entry| entry.install.path.clone())
+                    .collect::<Vec<_>>()
+            || plan.installs.is_empty()
+            || plan
+                .installs
+                .iter()
+                .any(|entry| entry.install.port_id != plan.port_id)
+            || relocation_fingerprint(plan)? != plan.plan_sha256
+        {
+            return Err(PortcoveError::state(
+                "relocation journal has incompatible reviewed identities or paths",
+            ));
+        }
+        let phase = match operation.phase {
+            LifecyclePhase::Preparing => RelocationPhase::Copying,
+            LifecyclePhase::Prepared => RelocationPhase::Prepared,
+            LifecyclePhase::PayloadPublished => RelocationPhase::Published,
+            LifecyclePhase::MetadataCommitted => RelocationPhase::Committed,
+            LifecyclePhase::CleanupPending => RelocationPhase::CleanupPending,
+        };
+        if matches!(phase, RelocationPhase::Copying | RelocationPhase::Prepared)
+            && operation.paths.staging.is_none()
+        {
+            return Err(PortcoveError::state(
+                "recoverable output relocation is missing destination staging",
+            ));
+        }
+        if let Some(staging) = &operation.paths.staging {
+            let default_root = crate::path::normalized_absolute(
+                &library.versions_dir().join(&plan.port_id),
+                "default game output root",
+            )?;
+            let expected = if plan.destination_root == default_root {
+                library.staging_dir().join(&operation.id)
+            } else {
+                plan.destination_root.join(".staging").join(&operation.id)
+            };
+            if staging != &expected {
+                return Err(PortcoveError::state(
+                    "relocation staging does not belong to its reviewed destination",
+                ));
+            }
+            crate::output_root::validate_staging_path(
+                library,
+                &operation.port_id,
+                &operation.id,
+                staging,
+            )?;
+        }
+        Ok(Self {
+            id: operation.id.clone(),
+            port_id: operation.port_id.clone(),
+            created_at: operation.created_at,
+            staging: operation.paths.staging.clone(),
+            original_paths: operation.original_paths.clone(),
+            plan_sha256: plan.plan_sha256.clone(),
+            phase,
+        })
+    }
+
+    fn advance(
+        &mut self,
+        next: RelocationPhase,
+        operation: &mut LifecycleOperation,
+        store: &OperationStore,
+        library: &Library,
+    ) -> Result<()> {
+        let current = Self::decode(library, operation)?;
+        if current.id != self.id
+            || current.port_id != self.port_id
+            || current.created_at != self.created_at
+            || current.staging != self.staging
+            || current.original_paths != self.original_paths
+            || current.plan_sha256 != self.plan_sha256
+            || current.phase != self.phase
+            || !matches!(
+                (self.phase, next),
+                (RelocationPhase::Copying, RelocationPhase::Prepared)
+                    | (RelocationPhase::Prepared, RelocationPhase::Published)
+                    | (RelocationPhase::Published, RelocationPhase::Committed)
+                    | (RelocationPhase::Committed, RelocationPhase::CleanupPending)
+                    | (
+                        RelocationPhase::CleanupPending,
+                        RelocationPhase::CleanupPending
+                    )
+            )
+        {
+            return Err(PortcoveError::state("illegal relocation phase transition"));
+        }
+        operation.phase = next.stored();
+        store.put(operation)?;
+        self.phase = next;
+        Ok(())
+    }
+
+    fn cleanup_staging(&self, library: &Library) -> Result<()> {
+        if let Some(staging) = &self.staging {
+            crate::output_root::validate_staging_path(library, &self.port_id, &self.id, staging)?;
+            if staging.exists() {
+                fs::remove_dir_all(staging)?;
+            }
+        }
+        Ok(())
+    }
+}
+
 pub(crate) fn recover(
     service: &PortcoveService,
     store: &OperationStore,
@@ -317,10 +479,11 @@ fn execute_relocation(
     store: &OperationStore,
     operation: &mut LifecycleOperation,
 ) -> Result<OutputRelocationResult> {
+    let mut checked = RelocationOperation::decode(service.library(), operation)?;
     let plan = operation.relocation.clone().ok_or_else(|| {
         PortcoveError::state("recoverable output relocation is missing its reviewed plan")
     })?;
-    if operation.phase == LifecyclePhase::Preparing {
+    if checked.phase == RelocationPhase::Copying {
         verify_old_authority(service, &plan)?;
         let operation_root = operation.paths.staging.as_ref().ok_or_else(|| {
             PortcoveError::state("recoverable output relocation is missing destination staging")
@@ -347,13 +510,17 @@ fn execute_relocation(
             crate::transfer_copy::verify_reviewed_tree(&entry.install.path, &entry.copy)?;
         }
         verify_staged(service, &plan, operation_root)?;
-        operation.phase = LifecyclePhase::Prepared;
         operation.last_error = None;
-        store.put(operation)?;
+        checked.advance(
+            RelocationPhase::Prepared,
+            operation,
+            store,
+            service.library(),
+        )?;
         service.check_lifecycle_fault(LifecycleFaultPoint::RelocationPrepared)?;
     }
 
-    if operation.phase == LifecyclePhase::Prepared {
+    if checked.phase == RelocationPhase::Prepared {
         let operation_root = operation.paths.staging.as_ref().ok_or_else(|| {
             PortcoveError::state("recoverable output relocation is missing destination staging")
         })?;
@@ -383,23 +550,31 @@ fn execute_relocation(
             }
             crate::transfer_copy::verify_reviewed_tree(&entry.destination_path, &entry.copy)?;
         }
-        operation.phase = LifecyclePhase::PayloadPublished;
-        store.put(operation)?;
+        checked.advance(
+            RelocationPhase::Published,
+            operation,
+            store,
+            service.library(),
+        )?;
         service.check_lifecycle_fault(LifecycleFaultPoint::RelocationPublished)?;
     }
 
-    if operation.phase == LifecyclePhase::PayloadPublished {
+    if checked.phase == RelocationPhase::Published {
         match authority_state(service.library(), &plan)? {
             AuthorityState::Old => commit_new_authority(service.library(), &plan)?,
             AuthorityState::New => {}
         }
-        operation.phase = LifecyclePhase::MetadataCommitted;
-        store.put(operation)?;
+        checked.advance(
+            RelocationPhase::Committed,
+            operation,
+            store,
+            service.library(),
+        )?;
     }
 
     if matches!(
-        operation.phase,
-        LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending
+        checked.phase,
+        RelocationPhase::Committed | RelocationPhase::CleanupPending
     ) {
         verify_new_authority(service, &plan)?;
         let cleanup_fault = service
@@ -424,25 +599,30 @@ fn execute_relocation(
                     cleanup_errors.push(format!("{}: {}", entry.install.path.display(), error));
                 }
             }
-            if let Some(staging) = &operation.paths.staging
-                && staging.exists()
-                && let Err(error) = fs::remove_dir_all(staging)
-            {
-                cleanup_errors.push(format!("{}: {error}", staging.display()));
+            if let Err(error) = checked.cleanup_staging(service.library()) {
+                cleanup_errors.push(error.message);
             }
         }
         if !cleanup_errors.is_empty() {
-            operation.phase = LifecyclePhase::CleanupPending;
             operation.last_error = Some(cleanup_errors.join("; "));
-            store.put(operation)?;
+            checked.advance(
+                RelocationPhase::CleanupPending,
+                operation,
+                store,
+                service.library(),
+            )?;
             return relocation_result(service, operation, &plan, true);
         }
         if let Err(error) =
             service.check_lifecycle_fault(LifecycleFaultPoint::RelocationCleanupCompleted)
         {
-            operation.phase = LifecyclePhase::CleanupPending;
             operation.last_error = Some(error.message);
-            store.put(operation)?;
+            checked.advance(
+                RelocationPhase::CleanupPending,
+                operation,
+                store,
+                service.library(),
+            )?;
             return relocation_result(service, operation, &plan, true);
         }
         let result = relocation_result(service, operation, &plan, false)?;
@@ -1697,5 +1877,242 @@ mod tests {
                 .iter()
                 .all(|install| !install.path.exists())
         );
+    }
+    fn interrupted_cleanup_fixture() -> (Fixture, LifecycleOperation) {
+        let fixture = Fixture::new();
+        let service = PortcoveService::with_faults(
+            fixture.library.clone(),
+            Arc::new(FailAt(LifecycleFaultPoint::RelocationMetadataCommitted)),
+        )
+        .unwrap();
+        let token = authorize(&service, &fixture.destination);
+        assert!(
+            service
+                .relocate_output(PORT, &fixture.destination, &token)
+                .unwrap()
+                .cleanup_pending
+        );
+        let operation = OperationStore::new(fixture.library.clone())
+            .all()
+            .unwrap()
+            .pop()
+            .unwrap();
+        assert_eq!(operation.phase, LifecyclePhase::CleanupPending);
+        (fixture, operation)
+    }
+
+    #[test]
+    fn recovery_preserves_foreign_cleanup_staging_and_all_old_copies() {
+        let (fixture, mut operation) = interrupted_cleanup_fixture();
+        let foreign = fixture
+            .library
+            .root()
+            .parent()
+            .unwrap()
+            .join("unrelated-owned-fixture");
+        fs::create_dir(&foreign).unwrap();
+        let sentinel = foreign.join("keep.bin");
+        fs::write(&sentinel, b"unrelated synthetic bytes").unwrap();
+        operation.paths.staging = Some(foreign);
+        let store = OperationStore::new(fixture.library.clone());
+        store.put(&mut operation).unwrap();
+        let _recovered = PortcoveService::new(fixture.library.clone()).unwrap();
+        assert_eq!(
+            fs::read(&sentinel).ok(),
+            Some(b"unrelated synthetic bytes".to_vec())
+        );
+        assert!(store.get(&operation.id).unwrap().is_some());
+        assert!(fixture.original.iter().all(|install| install.path.exists()));
+        fixture.assert_protected_files_unchanged();
+    }
+
+    #[test]
+    fn recovery_refuses_a_reviewed_plan_under_a_foreign_port_lock() {
+        let (fixture, mut operation) = interrupted_cleanup_fixture();
+        operation.port_id = "paperboat".into();
+        let store = OperationStore::new(fixture.library.clone());
+        store.put(&mut operation).unwrap();
+        let before = serde_json::to_value(fixture.library.all_installs().unwrap()).unwrap();
+        let _recovered = PortcoveService::new(fixture.library.clone()).unwrap();
+        assert!(store.get(&operation.id).unwrap().is_some());
+        assert_eq!(
+            serde_json::to_value(fixture.library.all_installs().unwrap()).unwrap(),
+            before
+        );
+        assert!(fixture.original.iter().all(|install| install.path.exists()));
+        fixture.assert_protected_files_unchanged();
+    }
+    #[test]
+    fn released_relocation_phases_and_checked_transitions_preserve_stored_contract() {
+        let (fixture, operation) = interrupted_cleanup_fixture();
+        let store = OperationStore::new(fixture.library.clone());
+        let phases = [
+            RelocationPhase::Copying,
+            RelocationPhase::Prepared,
+            RelocationPhase::Published,
+            RelocationPhase::Committed,
+            RelocationPhase::CleanupPending,
+        ];
+        for phase in phases {
+            let mut legacy = operation.clone();
+            legacy.phase = phase.stored();
+            store.put(&mut legacy).unwrap();
+            let persisted = store.get(&legacy.id).unwrap().unwrap();
+            let executable = fixture.original[0]
+                .path
+                .join(&fixture.original[0].selected_executable);
+            let before = fs::read(&executable).unwrap();
+            assert_eq!(
+                RelocationOperation::decode(&fixture.library, &persisted)
+                    .unwrap()
+                    .phase,
+                phase
+            );
+            assert_eq!(
+                store.get(&legacy.id).unwrap().unwrap().phase,
+                phase.stored()
+            );
+            assert_eq!(fs::read(&executable).unwrap(), before);
+        }
+        let mut current = operation.clone();
+        current.phase = LifecyclePhase::Preparing;
+        store.put(&mut current).unwrap();
+        let mut decoded = RelocationOperation::decode(&fixture.library, &current).unwrap();
+        for next in [
+            RelocationPhase::Prepared,
+            RelocationPhase::Published,
+            RelocationPhase::Committed,
+            RelocationPhase::CleanupPending,
+            RelocationPhase::CleanupPending,
+        ] {
+            decoded
+                .advance(next, &mut current, &store, &fixture.library)
+                .unwrap();
+            assert_eq!(
+                store.get(&current.id).unwrap().unwrap().phase,
+                next.stored()
+            );
+        }
+        for from in phases {
+            for to in phases {
+                if matches!(
+                    (from, to),
+                    (RelocationPhase::Copying, RelocationPhase::Prepared)
+                        | (RelocationPhase::Prepared, RelocationPhase::Published)
+                        | (RelocationPhase::Published, RelocationPhase::Committed)
+                        | (RelocationPhase::Committed, RelocationPhase::CleanupPending)
+                        | (
+                            RelocationPhase::CleanupPending,
+                            RelocationPhase::CleanupPending
+                        )
+                ) {
+                    continue;
+                }
+                let mut invalid = operation.clone();
+                invalid.phase = from.stored();
+                store.put(&mut invalid).unwrap();
+                let mut decoded = RelocationOperation::decode(&fixture.library, &invalid).unwrap();
+                assert!(
+                    decoded
+                        .advance(to, &mut invalid, &store, &fixture.library)
+                        .is_err()
+                );
+                assert_eq!(invalid.phase, from.stored());
+                assert_eq!(
+                    store.get(&invalid.id).unwrap().unwrap().phase,
+                    from.stored()
+                );
+            }
+        }
+        assert!(fixture.original.iter().all(|install| install.path.exists()));
+        fixture.assert_protected_files_unchanged();
+    }
+
+    #[test]
+    fn relocation_decoder_refuses_mixed_envelopes_and_missing_copy_staging_without_writes() {
+        let (fixture, operation) = interrupted_cleanup_fixture();
+        let store = OperationStore::new(fixture.library.clone());
+        for variant in 0..12 {
+            let mut invalid = operation.clone();
+            match variant {
+                0 => invalid.kind = LifecycleOperationKind::Install,
+                1 => invalid.install = Some(fixture.original[0].clone()),
+                2 => invalid.activate = true,
+                3 => invalid.preparation_process_quiesced = Some(true),
+                4 => invalid.paths.quarantine = Some(fixture.library.recovery_dir()),
+                5 => invalid.paths.final_path = Some(fixture.library.root().join("foreign")),
+                6 => invalid.original_paths.clear(),
+                7 => invalid.port_id = "paperboat".into(),
+                8 => invalid.relocation.as_mut().unwrap().current.port_id = "paperboat".into(),
+                9 => invalid.relocation.as_mut().unwrap().plan_sha256 = "changed".into(),
+                10 => {
+                    invalid.phase = LifecyclePhase::Preparing;
+                    invalid.paths.staging = None;
+                }
+                11 => {
+                    invalid.phase = LifecyclePhase::Prepared;
+                    invalid.paths.staging = None;
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                RelocationOperation::decode(&fixture.library, &invalid).is_err(),
+                "variant {variant}"
+            );
+            assert_eq!(
+                store.get(&operation.id).unwrap().unwrap().phase,
+                operation.phase
+            );
+        }
+        for phase in [
+            LifecyclePhase::PayloadPublished,
+            LifecyclePhase::MetadataCommitted,
+            LifecyclePhase::CleanupPending,
+        ] {
+            let mut legacy = operation.clone();
+            legacy.phase = phase;
+            legacy.paths.staging = None;
+            assert!(RelocationOperation::decode(&fixture.library, &legacy).is_ok());
+        }
+        assert!(fixture.original.iter().all(|install| install.path.exists()));
+        fixture.assert_protected_files_unchanged();
+    }
+
+    #[test]
+    fn relocation_checked_transition_rejects_changed_identity_without_advancing_journal() {
+        let (fixture, operation) = interrupted_cleanup_fixture();
+        let store = OperationStore::new(fixture.library.clone());
+        for variant in 0..3 {
+            let mut invalid = operation.clone();
+            let mut decoded = RelocationOperation::decode(&fixture.library, &invalid).unwrap();
+            match variant {
+                0 => invalid.created_at += 1,
+                1 => invalid.phase = LifecyclePhase::MetadataCommitted,
+                2 => {
+                    let plan = invalid.relocation.as_mut().unwrap();
+                    plan.channel = ReleaseChannel::Beta;
+                    plan.plan_sha256 = relocation_fingerprint(plan).unwrap();
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                decoded
+                    .advance(
+                        RelocationPhase::CleanupPending,
+                        &mut invalid,
+                        &store,
+                        &fixture.library
+                    )
+                    .is_err()
+            );
+            let persisted = store.get(&operation.id).unwrap().unwrap();
+            assert_eq!(persisted.phase, operation.phase);
+            assert_eq!(persisted.created_at, operation.created_at);
+            assert_eq!(
+                persisted.relocation.unwrap().plan_sha256,
+                operation.relocation.as_ref().unwrap().plan_sha256
+            );
+        }
+        fixture.assert_protected_files_unchanged();
     }
 }

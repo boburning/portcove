@@ -1,12 +1,50 @@
 # Portcove CLI
 
+`source query PORT_ID --route managed-install --channel stable` explicitly
+refreshes registered game-file observations for the selected route on the current
+host. Other route choices are `external-registration`, `managed-launch` and
+`external-launch`. JSON and JSONL reuse Core's route-bound snapshot; JSONL emits
+the existing `verify_source` activity with a Library target and settles it after
+the worker returns. This command does not register sources, plan setup, resolve
+network releases or execute a game. Filtering the returned snapshot performs no
+inspection. API 65 exposes the command without claiming private schema 64.
+API 66 preserves this query contract and adds managed update assessments. Private
+schema 64 remains unclaimed; the reference reader accepts public 65 without an
+update action and requires the new update assessment only in 66.
+
+The observation age defaults to 300 seconds and is bounded to 1–1800 seconds.
+`--max-file-bytes`, `--max-hash-bytes` and `--max-elapsed-ms` may reduce the
+respective 2 GiB, 32 GiB and 30-second caps; larger or zero limits are refused.
+The elapsed limit is cooperative and cannot interrupt an individual filesystem
+call. A game-file state does not grant setup or launch authority.
+
+Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
+Use `portcove plan PORT_ID --channel preview`, `portcove install PORT_ID --channel preview`,
+`portcove ensure PORT_ID --channel preview`, or `portcove channel set PORT_ID preview`.
+The legacy `beta` spelling remains accepted on each route. Inputs remain case-sensitive;
+Stable/Rolling spellings, omitted-channel defaults, consent and eligibility checks are unchanged.
+Changing a saved channel does not install or activate a release.
+
 ## Using the CLI
+
+Maintainer proposal checks use `portcove --json catalog inspect-proposal FILE`.
+This inert command reads at most 4 MiB and uses core's existing catalog/schema,
+source-reference and declared path/contract validators. Its separate format-1
+receipt binds the exact input bytes and canonical typed per-port declaration
+hashes. It runs before host preferences or a library are opened. It does not
+resolve an upstream release, validate an actual artifact/source, qualify gameplay,
+establish publisher trust, change a catalog or permit application. Existing catalog
+parsing semantics remain unchanged; the check is not signed-definition admission.
+Legacy parsing tolerates unknown fields: raw input hashes bind them, but typed
+port hashes and declaration checks do not validate discarded fields.
+Malformed/duplicate-key inputs and unsupported or unsafe declarations fail.
 
 Run `portcove --help` to see commands and `portcove COMMAND --help` to check
 arguments before a consequential action. The commands below use `PORT_ID` from
-`catalog list`. For a source command, `portcove --json catalog show PORT_ID`
-provides the `source_profile` and `bios_source_profile` IDs; use the applicable
-one as `PROFILE_ID`. Substitute paths on your machine. Use `--library PATH` when working with a library other than
+`catalog list`. For a source command, `portcove catalog show PORT_ID` displays the
+declared `Game-file profile ID` and `BIOS profile ID` when present; use the
+applicable one as `PROFILE_ID`. Substitute paths on your machine. Use `--library PATH` when working with a library other than
 the saved default. These examples are human-output commands; automation should
 use the [reference below](#automation-and-integration-reference).
 
@@ -35,6 +73,17 @@ use the [reference below](#automation-and-integration-reference).
    `portcove backup list PORT_ID` to inspect verified backups and any problems.
    A backup is not a copy of the game files. Review backup and restore
    consequences in `portcove backup --help` before deleting or restoring one.
+
+Human `backup delete` and `backup restore` show the selected archive folder,
+exact content and review hashes, UTC creation time, file count and size before
+confirmation. The review distinguishes current managed saved data from Core's
+safety-backup decision: an existing empty saved-data folder does not imply a
+safety backup will be created. Deletion preserves live saved data and other
+backups; restoration preserves the selected backup and reports whether a safety
+backup is planned before replacement. Declining leaves the reviewed data intact.
+`--yes` supplies confirmation but still shows the human review; `--json` and
+`--jsonl` retain their existing output without that document. Core rechecks the
+reviewed contents when executing the authorized action.
 
 An official port that offers a user-prepared runtime uses a separate route:
 prepare the exact accepted package outside Portcove, run `portcove external
@@ -66,6 +115,15 @@ Human operation progress goes to standard error. An interactive terminal receive
 
 `--json` and `--jsonl` remain the stable automation surfaces and are byte-shape independent from human rendering. Use `--json catalog export` and `--json schema export` when consuming their full documents programmatically.
 
+Human `status` keeps managed active/staged versions separate from the registered
+external version, labeled user-owned. Both `status PORT_ID` and all-port `status`
+group core action assessments by operational port ID and explain their existing
+availability and reason codes, including game-file versus BIOS prerequisites and
+definition holds. Ports without recorded assessments have no invented action
+group. These read-only explanations do not authorize an operation or establish
+complete runtime verification, native qualification or gameplay; execution
+rechecks its own current inputs and consent. JSON/JSONL contracts are unchanged.
+
 `schema export --contract input` describes values accepted by Rust deserialization,
 including omitted fields with defaults. `schema export --contract output`
 describes serialized values, including required emitted fields, nullable values
@@ -80,30 +138,33 @@ The public CLI is the supported boundary for external frontends; the desktop is
 not required to run it. [External frontend integration](INTEGRATIONS.md) defines
 the launch-only, library, and lifecycle capability vocabulary, maintenance and
 support-record expectations, author path, and Steam/Steam Deck boundaries. This
-file documents current implemented behavior. Future completeness and
-compatibility gaps remain owned by #30 and are not shipped merely because they
-are described in the roadmap.
+file documents current implemented behavior. Completed
+[#30](https://github.com/boburning/portcove/issues/30) records the bounded public
+surface audit and [#243](https://github.com/boburning/portcove/issues/243) the
+reference-client proof. Their retained checklists do not reopen completed work.
+Later consumer gaps require evidence and a current owner; a roadmap statement
+does not ship a command or extend compatibility.
 
 The Public beta contract keeps launch-only, library, and lifecycle consumers
 independently useful: a basic launcher negotiates only the operations, formats,
 schemas, and consequential semantics it uses rather than implementing every
-management command. #30 audits the implemented surface before adding anything
-and owns only demonstrated shared gaps needed by consumers such as #910 Playnite
-and #292 Steam entry management. Required answers include stable identity,
+management command. The completed audit covered stable identity,
 metadata/artwork references, installation and readiness, requirements, allowed
 next actions, stable blocked reasons, update eligibility, operation results, and
 launcher-ready program, argument-array, working-directory, and explicit-library
-information. This acceptance direction neither invents command names or DTOs nor
-claims a missing answer exists in the current CLI.
+information. Its recorded scope does not qualify the complete Playnite product,
+automatic Steam entry management, or a later agent consumer.
 
-That audit also covers verified runtime/library binding, operation-specific and
+That audit also covered verified runtime/library binding, operation-specific and
 mixed-version compatibility, batch-read reuse, bounded polling/concurrency,
 cancellation, prepared offline behavior, and measured refresh/launch
 responsiveness. Budgets follow representative measurements rather than planning
 claims. Runtime discovery must not blindly execute an untrusted candidate, and
 no gap by itself authorizes a daemon, hidden cache authority, private API, or
 standalone CLI self-updater. The implemented behavior below remains authoritative
-until an exact reviewed change closes a demonstrated gap.
+until an exact reviewed change addresses a demonstrated consumer gap. See the
+[public author path](INTEGRATION-AUTHOR.md) for current invocation and recovery
+semantics; process-local authorization is not a persistent automation grant.
 
 Future eligibility/evidence and independent-definition work must use one core
 assessment across CLI, Tauri and integrations. Operation availability and reasons,
@@ -121,14 +182,14 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
-Schema 59 adds optional readiness `required_source_extension` and the
+Schema 67 adds optional readiness `required_source_extension` and the
 `incompatible_source` launch blocker/action reason. These describe the effective
 runtime's required original-file representation, including its retained contract
 after registration. An unchanged registered ZIP may have `source: current` while
 launch waits for a validated uncompressed file of that extension. Source identity
 health and runtime compatibility remain separate; status never extracts inputs.
 
-Schema 58 adds optional `external.review`. Read `external preview PORT_ID PATH`
+Schema 67 adds optional `external.review`. Read `external preview PORT_ID PATH`
 or `external removal-preview PORT_ID`, show that exact preview and submit
 `external register PORT_ID PATH --expected-preview SHA256 --yes` or
 `external remove PORT_ID --expected-preview SHA256 --yes`. Core rejects changed
@@ -155,11 +216,66 @@ particular, an uninstalled registered source is not hashed merely to render
 status; `allowed` means the attempt can start without a known blocker, not
 that every mutable input has already passed execution validation.
 
+Schema 60 adds a required `rollback` action assessment for the retained previous
+managed version. It is `not_offered/not_installed` without a previous version,
+`not_offered/route_not_offered` if the port has left the current catalog,
+`allowed/available` after retained contract, runtime, ownership and critical-file
+checks, or `held/missing_runtime` or `held/invalid_installation` when those checks
+fail. Status checks are read-only; they neither restore saved data nor grant
+execution authority. Rollback rechecks its target under the operation lock and
+verifies critical files again after restoring saved data. Current launch or
+definition eligibility is not a substitute for retained rollback checks.
+Private paired candidates used schemas 58 and 59; they are not included in this
+public reference client's compatibility declaration. This contract does not
+establish a published standalone schema-60 release.
+
+Schema 61 adds exact artifact eligibility reasons `curated_artifact_revoked` and
+`curated_distribution_withdrawn`. They project independently admitted immutable
+artifact history and the same current hold guard used by execution. Existing
+publisher, freshness and launch-baseline failures retain precedence. Revocation
+holds affected acquisition and retained local use; withdrawal holds acquisition
+without revoking permitted installed use. Retained rollback adds only
+`held/definition_ineligible` with `hold/curated_artifact_revoked`; this is an exact
+target-artifact refusal, not current-definition permission. Status does not
+delete files or saves and still grants no execution authority.
+
+Schema 66 requires one `update` action in port status: non-owning/user-prepared
+routes and absent managed installs are not offered, current-definition
+restrictions are held, and an eligible managed route waits for explicit candidate
+review. Status performs no update check and supplies no candidate or execution
+authority. An exact `GameUpdatePlan.assessment` reports an already active release
+as not offered, an unverified retained copy as held, missing original files or
+BIOS for a download as waiting, or a usable candidate as allowed. Verified local
+reuse does not reacquire original input bytes. Execution still rechecks critical
+files, reviewed identities and consent under the existing per-port lock.
+
+Schema 62 adds required `create_assessment` to `backup.list` inventory, with the
+shared `backup_create` action. API schema 63 also requires `restore_assessment`
+with action `backup_restore`: `waiting/missing_backup` when no usable snapshot
+exists, `held/recovery_required` for unfinished restore/deletion recovery,
+`held/unsafe_data` or `held/unreadable_data` for an unsafe/unreadable owned root,
+and `allowed/available` when snapshot review can be attempted. Preparing restore
+records and unrelated damaged history do not hold a usable snapshot. Restore-only
+holds do not change Delete's own rules. These read-only decisions supply neither
+snapshot integrity nor consent; execution repeats its guards under the port lock.
+For creation, `allowed/available` means owned data exists or
+launched managed save collection can yield it. Retained owned saves remain
+eligible without an install; unknown external saves never become owned data.
+`waiting/missing_data` means no data was found; `held` distinguishes recovery,
+unsafe paths, unreadable data and a bounded `assessment_incomplete` result.
+An incomplete preview establishes neither empty data nor an execution limit.
+The probe reads retained persistence coordinates without collecting or deleting
+mirrors. Malformed historical backup entries alone do not hold creation.
+Creation retains its authoritative lock, save collection, tree validation,
+publication and recovery checks. Preview existence is not whole-tree integrity
+or permission proof. Desktop requires a current inventory before enabling its
+action; CLI human inventory displays the same action and reason.
+
 Schema 53 adds the `source.roots.scan` capability, the `source roots scan` and
 `source roots snapshot` commands, and the nullable `game_file_scan_snapshot`
 exported schema. Scan uses core's bounded limits and emits the existing
 `discover_sources` operation events under `--jsonl`; snapshot readback reports
-`inputs_match` or `inputs_changed` rather than treating older evidence as current. Human snapshot output also reports recorded limits, issue and omitted-issue counts, and unavailable folders at scan time. Matching recorded inputs does not prove complete coverage or revalidate file contents. Unavailable folders do not mean deleted files; changed inputs require a new scan. Use `--json source roots snapshot` for recorded details; human summaries omit raw issue messages and paths.
+`inputs_match` or `inputs_changed` rather than treating older evidence as current. Human scan completion and snapshot readback share a summary of recorded limits, issue and omitted-issue counts, and unavailable folders at scan time. Matching recorded inputs does not prove complete coverage or revalidate file contents. Unavailable folders do not mean deleted files; changed inputs require a new scan. Use `--json source roots snapshot` for recorded details; human summaries omit raw issue messages and paths. The scan result uses the same summary rather than dumping the full serialized record; `--json` and `--jsonl` retain the complete result and operation-event contracts.
 Candidates remain unregistered until separately accepted.
 
 Schema 52 adds the `source.roots` capability, the `source roots` add, list,
@@ -246,7 +362,9 @@ consumers must use the envelope version when interpreting this change.
 The command does not load logs in the normal activity list. Each capture's
 `phase` distinguishes source conversion and game setup. `complete` records observed stream closure;
 each stream separately reports truncation and observed input bytes. An interrupted
-capture stays incomplete. The first 2 MiB per stream are retained within a shared
+capture stays incomplete. Human output explains whether both streams ended or whether later output may be
+missing, with a separate warning for omitted output; log availability does
+not establish the operation outcome. The first 2 MiB per stream are retained within a shared
 64 MiB library budget; older terminal activities' captures may expire together
 while their activity outcomes remain. The per-stream limit applies to each phase.
 
@@ -534,7 +652,7 @@ clients must negotiate rather than infer compatibility from a version string.
 
 `doctor` is a local, network-free, read-only host report. Observation commands such as `status`, `activity`, `storage`, and `doctor` do not advance cancellation or lifecycle recovery merely by opening core state. A later mutating command, desktop startup, or explicit desktop orphan-discovery pass performs locked recovery; a repair-plan read can therefore report a retained journal before that pass. It returns the current platform, library capacity, catalog/installation/source counts, one typed entry for each optional host tool Portcove can use, and a repair plan. The repair plan distinguishes retained private preparation from other partial lifecycle operations, cleanup-pending private trees, missing registered install paths, and untracked final directories. It proposes an action but never mutates or deletes files. Tool state is `available`, `missing`, `misconfigured`, or `unsupported`; an available tool includes its resolved path and whether it came from an environment override, saved host preference, or reviewed discovery. Missing optional tools do not fail the command because callers may never select a port or source format that needs them. An invalid environment or saved path remains `misconfigured` instead of silently falling back to another executable. `status` and `doctor` never initialize missing per-port settings; their in-memory defaults come from the catalog, choosing stable when offered and otherwise the port's first declared channel. A later policy-only change persists that same catalog default.
 
-`catalog list` is a concise port array and `catalog show PORT_ID` retrieves one port. The human detail view includes the catalog-owned installation method, required game/BIOS labels and verification method, saves/settings behavior, and upstream state without exposing adapter IDs. `catalog export` returns the complete versioned `CatalogDocument`, including every source profile referenced by a port and its optional additive presentation object. External frontends should use that document when they need accepted source extensions, exact multi-file or disc requirements, source labels, or presentation facts instead of copying Portcove's embedded catalog. Older catalogs can omit presentation; consumers must handle that absence explicitly.
+`catalog list` is a concise port array and `catalog show PORT_ID` retrieves one port. The human detail view includes the catalog-owned installation method, required game/BIOS labels and verification method, saves/settings behavior, and upstream state without exposing adapter IDs. For a user-prepared runtime, it also lists each accepted platform/version, exact package filename, byte count and SHA-256, and executable from the definition. Keep the catalog's manual preparation steps and required player inputs; return with the displayed external-preview command on the matching platform for exact-file review. The runtime remains user-owned and Portcove does not download or update it. These catalog facts describe accepted inputs; registration and current operation eligibility are assessed separately. `catalog export` returns the complete versioned `CatalogDocument`, including every source profile referenced by a port and its optional additive presentation object. External frontends should use that document when they need accepted source extensions, exact multi-file or disc requirements, source labels, or presentation facts instead of copying Portcove's embedded catalog. Older catalogs can omit presentation; consumers must handle that absence explicitly.
 
 Schema version 2 changed `update --all` from an array of bare successful install records to failure-isolated outcome objects. Schema version 3 adds immutable `artifact`, `manifest_sha256`, and `selected_executable` fields to install records, plus `installed_artifact` to update checks. Schema version 4 adds deterministic adoption, backup-action, and managed-removal previews and renames the source-removal consent fingerprint to `preview_sha256`. The human-facing `version` remains the upstream display tag; integrations must use the artifact SHA-256 when deciding whether two releases are identical. Consumers written for an earlier schema must branch on the envelope version before decoding these results.
 
@@ -600,14 +718,20 @@ The preview validates the new path against the current catalog profile and the r
 
 ### Opt-in source discovery
 
+Human output describes the searched scope, processing limits, scan issues and omitted issue count. An empty candidate list describes only inspected inputs; it does not prove that a matching file is absent or invalid. Candidates keep their content and stored-file hashes/sizes separate. The summary names the explicit registration command; discovery never registers, installs or launches a game. JSON and JSONL retain the existing exact report fields.
+
 ```powershell
 portcove --json source discover --root D:\Sources --profile minish-cap-gba --profile super-smash-bros-64
 portcove --json source add <profile-id> <candidate-path> --expected-sha256 <candidate-sha256>
 ```
 
-Discovery requires explicit roots and source profiles. It never registers a match automatically. Defaults are 10,000 examined entries, six nested directory levels, 2 GiB per file, 16 GiB of cumulative hashing, and 64 matches. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
+Discovery requires explicit roots and source profiles. It never registers a match automatically. Like saved-folder scans, one-off discovery refuses roots inside the selected Portcove library or its registered managed output and visibly skips those owned subtrees within a broader root before charging scan budgets. Explicit manual inspection and reviewed source registration retain their own validation paths. Defaults are 10,000 examined entries, six nested directory levels, 2 GiB per file, 16 GiB of cumulative hashing, and 64 combined exact matches and preliminary selections. The corresponding `--max-entries`, `--max-depth`, `--max-file-bytes`, `--max-hash-bytes`, and `--max-candidates` flags can narrow these limits; core also enforces hard ceilings. The report identifies searched scope, validated candidates, hashed bytes, reached limits, and bounded per-path issues. A partial search is not evidence that every file was considered.
 
-Only exact-hash original-file and cartridge-ZIP profiles participate automatically. Other source contracts report that manual selection is required. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
+Exact-hash original-file, cartridge-ZIP and complete schema-2 directory/ZIP-file-set profiles participate automatically. Directory sets use the shared inspector: every required member must resolve uniquely within one completely examined directory and match one coherent variant. Member hash work shares the request-wide budget with ordinary files; raw observations are reused without sharing admission. File-set ZIPs use the same exact matcher with unique safe top-level members, bounded entry inventory and expanded member sizes, and budgeted/cancellable member plus container hashing. Their facts are shared across file-set profiles without sharing admission; missing or ambiguous member inventories consume no hashing budget. Exact schema-2 uncompressed GameCube ISO/GCM sources use the same disc matcher and bounded raw-file reader, sharing one byte observation across applicable profiles. Exact STFS LIVE compound sources, including extensionless packages, use a bounded four-byte eligibility probe, one raw hashing pass shared across applicable profiles, and the existing structural validator only after an exact compound digest match. Probe, hashing and validation use one open handle with location, object and metadata checks; structural validation adds bounded reads beyond reported hash bytes. Unrelated files are not hashed by this probe. ZIP-contained STFS, compressed GameCube and PSX conversion contracts still require manual selection. Pinned-validator disc profiles also participate through read-only preliminary selection using the shared inspector. These results appear separately in optional `preliminary_selections` as full inspection records with structural admission and validator `not_run`; they are not exact matches or proof of compatibility. The `candidates` collection and progressive `source_candidate` events keep their exact-match meaning. Both result collections share the cumulative candidate allowance and byte observations. Desktop offers a deliberate current-location review that rechecks the selected bytes; discovery never invokes the pinned validator. Old reports omit the advisory collection and remain readable as an empty collection. Scan format 9 marks older coverage stale while retaining readable versions 1–8. Other source contracts still require manual selection. A reached processing limit remains partial coverage. One-off `source discover` starts anew. Saved `source roots scan` requests with the same recorded inputs and limits resume an entry-limited checkpoint, including after process restart. Only the entry allowance resets per batch; candidates, hashed bytes, depth, file-size and other safety limits remain cumulative or unchanged. Hash-byte and candidate limits stop continuation. Cancellation preserves the last published checkpoint.
+
+Saved scan snapshots add optional `coverage` and opaque, internally validated `continuation` fields without changing API schema 57, request fields or discovery-report fields. Coverage reports cumulative batches, this batch's examined entries, re-listed entries, metadata checks, prior-batch file-set member rehashes, pending directories and whether continuation is available. Remaining entries are unknown until a frontier is exhausted without limits or issues; zero never promises coverage for unavailable or omitted inputs. Re-listing and metadata checks have a separate 100,000-work ceiling per batch. Continuations retain at most 16,384 observed paths and a conservative 4 MiB construction charge within the existing 8 MiB snapshot ceiling; Reaching a continuation storage or work bound publishes the current report as terminal partial coverage, discards the cursor, and requires narrower folders for further progress. Prior file-set hashes are never persisted as admission authority: prior-batch members are rehashed against the cumulative hash budget when their directory completes.
+
+Saved-folder records, catalog, limits, platform, output ownership, or recorded filesystem metadata changes refuse the continuation and preserve the prior report with `restart_required`; the next explicit scan starts fresh. Invalid cursor data follows the same refusal path. Snapshot publication compares the previous raw checkpoint, saved-root records and managed-output registry in one transaction, so concurrent writers cannot overwrite each other's progress. Metadata checks detect recorded changes, but neither continuation nor snapshot readback proves current file bytes; accepting a candidate still revalidates it through the normal source path. Symlinks and entries outside the selected canonical roots are skipped. Equal profile contracts share hashing; both normalized ZIP payload and original container bytes count toward the budget. Accepting a candidate with `--expected-sha256` checks the current profile and reviewed content under the normal source locks before registration. Settings → Sources → Find source files exposes the same search, cancellation, and explicit acceptance.
 
 ### Cancellation
 
@@ -733,6 +857,13 @@ Without `--output`, the document appears in the normal CLI response. With `--out
 
 ### Library imports and recovery
 
+`library import --help` identifies the metadata file separately from the payload
+folder, explains the new-or-empty `--library` destination and shows the read-only
+review route. `--expected-plan` is the exact plan SHA-256 from that review;
+changed metadata or payloads require a new review. Recovery help explicitly uses
+`--library <destination>`: resume preserves the input backup, while abort retains
+the copied files and leaves the incomplete destination closed.
+
 Import a trusted metadata export together with a separate backup folder containing its `versions`, `user`, `source-inbox`, `backups`, and `toolchains` trees:
 
 ```text
@@ -748,6 +879,13 @@ An interrupted import reports `details.import_destination` and `recovery_action:
 
 ### Library moves and recovery
 
+`library move --help` explains the new destination beneath an existing parent,
+the read-only review route and its plan SHA-256 binding. Apply retains the
+original as a recovery copy. Recovery help uses `--library <original>` rather
+than the destination; abort refuses after authority publication and retains
+copied files. Help describes these existing Core semantics without granting an
+unreviewed move or changing the machine contract.
+
 ```text
 portcove --library <original> --json library move <new-directory>
 portcove --library <original> --json library move <new-directory> --apply --expected-plan <plan-sha256>
@@ -755,18 +893,20 @@ portcove --library <original> --json library resume-move
 portcove --library <original> --json library abort-move
 ```
 
-Review is read-only. The destination must be a new directory beneath an existing parent. The plan identifies the five managed content categories, source references, required working space, and available capacity. It rejects symlinks, special entries, case-insensitive collisions, and paths outside the conservative portable ASCII filename policy. Source references stay at their original paths. Complete all launch/lifecycle recovery and close other Portcove clients before applying; every open handle holds a library lease. Settings → Library → Move library uses the same plan and core operation while releasing its own cached handles.
+Review is read-only. The destination must be a new directory beneath an existing parent. The plan identifies the managed content categories, source references, required working space, and available capacity. It rejects symlinks, special entries, case-insensitive collisions, and paths outside the conservative portable ASCII filename policy. Source references stay at their original paths. Complete all launch/lifecycle recovery and close other Portcove clients before applying; every open handle holds a library lease. Settings → Library → Move library uses the same plan and core operation while releasing its own cached handles.
 
 Apply recomputes the reviewed fingerprint, copies with no overwrite, verifies file inventories, metadata, SQLite integrity and immutable installation manifests, then switches authority. The original directory is retained as a recovery copy. Opening that old path subsequently follows the verified relocation, so configured paths survive an ordinary move. For disk removal or machine migration, configure the new root directly. Metadata export alone is not a payload backup or import.
 
 An interrupted move blocks normal use until `resume-move` finishes or `abort-move` reactivates an unpublished original. Pass the original directory, including when normal opening is blocked. Abort never deletes copied files, and it refuses once authority publication has begun. An unmarked destination with ambiguous database state is retained for inspection. Startup and the move dialog expose these same recovery actions. Recovery after activation preserves any new destination saves. Do not manually remove authority markers to bypass these checks.
+
+Human move review shows the original and destination paths, copied file/folder counts by managed content category, working-space requirement and available capacity, source-reference preservation, and the complete review SHA-256. It states that review has not applied a move and gives the existing `--apply --expected-plan` next step. Completed apply/resume output identifies the actual active library and retained original. An aborted move reports that the move is not completed, the original remains active, and copied destination files remain in place; another move needs a new destination. Resuming an already aborted transfer is refused. JSON/JSONL, schemas and Core review/recovery rules are unchanged.
 
 Machine schema version 5 introduced `move_library` to the activity operation enum and exports library metadata, move-plan, and move-result schemas. Move result fields identify the retained source, destination, active root, and terminal completion state. A transfer awaiting recovery has a durable journal and running activity; a resumed or aborted transfer records its explicit terminal outcome.
 
 ### Idempotent automation
 
 ```text
-portcove --library <path> --json --non-interactive ensure <port-id> [--channel stable|beta|rolling] [--source <path>]
+portcove --library <path> --json --non-interactive ensure <port-id> [--channel stable|preview|rolling] [--source <path>]
 portcove --library <path> --json status [port-id]
 portcove --library <path> --json check <port-id>
 portcove --library <path> --json check --all
@@ -850,7 +990,7 @@ The response contains the resolved `library_root` plus `volume_total_bytes` and 
 Before presenting an install or update confirmation, a frontend can resolve Portcove's intended work without mutating installed state:
 
 ```bash
-portcove --library <path> --json plan <port-id> [--channel stable|beta|rolling]
+portcove --library <path> --json plan <port-id> [--channel stable|preview|rolling]
 ```
 
 The plan reports the resolved release and asset size, current platform and channel, registered game-source and BIOS requirements, containing-volume capacity, and one typed action: `already_active`, `use_staged`, `reuse_retained`, `blocked_unverified`, or `download`. These actions compare immutable artifact identity, not display version, so an upstream republish under the same tag is still an update. Planning may perform a normal conditional network lookup and update Portcove's HTTP response cache, but it does not download a release, change source registrations, switch versions, or create an activity record. `use_staged` does not imply activation: the following install's `--stage` choice still controls whether that verified release remains staged. Asset size is the upstream download size; callers must not present it as a guarantee of final extracted footprint.

@@ -5,8 +5,12 @@
 //! Recovery is limited to a named fixed store and proceeds only while that
 //! store is still malformed or from an unsupported future schema.
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+pub use crate::desktop_contract::{
+    ApplicationUpdateApplySummary, ApplicationUpdateInstallEligibility,
+    ApplicationUpdateNativeLaunchSummary, ApplicationUpdateObservedTermination,
+    ApplicationUpdateRecoveryArea, ApplicationUpdateRecoveryNotice,
+    ApplicationUpdateRequestedAction, ApplicationUpdateScheduleSummary, ApplicationUpdateStatus,
+};
 
 use crate::application_update::{
     ApplicationPackageManager, ApplicationUpdateCandidateSummary, InstalledApplicationContextError,
@@ -27,71 +31,6 @@ use crate::application_update_staging::{
 };
 use crate::{DesktopError, DesktopResult, blocking_worker};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateRecoveryArea {
-    Schedule,
-    Staging,
-    Apply,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateRecoveryNotice {
-    pub area: ApplicationUpdateRecoveryArea,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateScheduleSummary {
-    pub last_success_unix_seconds: Option<u64>,
-    pub consecutive_failures: u32,
-    pub next_automatic_check_unix_seconds: Option<u64>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateRequestedAction {
-    SafeExit,
-    RestartToApply,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateObservedTermination {
-    NormalExit,
-    RestartToApply,
-    Crash,
-    OsShutdown,
-    SteamStop,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateNativeLaunchSummary {
-    Starting,
-    Started,
-    Failed,
-    InstallerSucceeded,
-    InstallerFailed,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateApplySummary {
-    pub revision: u64,
-    pub request: ApplicationUpdateRequestedAction,
-    pub termination: Option<ApplicationUpdateObservedTermination>,
-    pub native_launch: Option<ApplicationUpdateNativeLaunchSummary>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum ApplicationUpdateInstallEligibility {
-    Eligible,
-    PackageManagedDeb,
-    PackageManagedRpm,
-    NotConfigured,
-    Unavailable,
-}
-
 fn install_eligibility(
     installed: Result<(), InstalledApplicationContextError>,
     configured: Result<bool, ()>,
@@ -107,15 +46,6 @@ fn install_eligibility(
         Ok(()) if configured == Ok(false) => ApplicationUpdateInstallEligibility::NotConfigured,
         _ => ApplicationUpdateInstallEligibility::Unavailable,
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
-pub struct ApplicationUpdateStatus {
-    pub schedule: Option<ApplicationUpdateScheduleSummary>,
-    pub staged: Option<ApplicationUpdateCandidateSummary>,
-    pub apply: Option<ApplicationUpdateApplySummary>,
-    pub install_eligibility: ApplicationUpdateInstallEligibility,
-    pub recovery_required: Vec<ApplicationUpdateRecoveryNotice>,
 }
 
 #[derive(Clone)]

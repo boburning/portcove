@@ -1,4 +1,6 @@
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
+import { BrowsingMatchDetails } from "../features/browsing/BrowsingMatchDetails";
+import type { CatalogQueryResult } from "../features/browsing/catalog-query";
 import { SteamEntryControl } from "./SteamEntry";
 import { ExternalRuntimeControl } from "./ExternalRuntime";
 import { ArtworkControls, ArtworkImage, DetailArtwork } from "./Artwork";
@@ -41,6 +43,9 @@ import type {
   UpdatePolicy,
 } from "../types";
 import { OperationCancellation } from "./OperationCancellation";
+import { GameFileQueryControl } from "./GameFileQuery";
+import { GameFileFilterObservation } from "./GameFileFilterObservation";
+import type { GameFileFilterContext } from "../features/browsing/game-file-query-context";
 import { OutputLocationControl } from "./OutputLocation";
 import { PreparationControl, type RunPreparation } from "./Preparation";
 import {
@@ -51,6 +56,7 @@ import {
   releaseChannelPresentation,
 } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
+import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
@@ -59,7 +65,9 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
+import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
+import { portActionPresentation } from "../features/port-actions/port-action-presentation";
 
 export interface DetailActions {
   activate: AsyncAction;
@@ -92,6 +100,10 @@ interface DetailPanelProps {
   backups?: BackupRecord[];
   backupProblems?: BackupProblem[];
   backupState?: BackupInventory["state"];
+  backupCreateAssessment?: BackupInventory["create_assessment"];
+  backupRestoreAssessment?: BackupInventory["restore_assessment"];
+  backupReadState?: BackupReadState;
+  retryBackupRead?: () => Promise<void>;
   source?: SourceRecord;
   sourceInspection?: SourceInspectionReport;
   sourceProfile?: SourceProfile;
@@ -107,6 +119,10 @@ interface DetailPanelProps {
   pickBios?: AsyncAction;
   busy?: string;
   libraryGeneration?: number;
+  gameFileQueryContext?: string;
+  gameFileFilterContext?: GameFileFilterContext;
+  browsingMatch?: CatalogQueryResult;
+  browsingBinding?: string;
   outputLocationChanged?: () => void;
   externalRuntimeChanged?: () => void;
   openSourceEvidence?: (evidenceId: string) => void;
@@ -124,6 +140,10 @@ export function DetailPanel(props: DetailPanelProps) {
     backups = [],
     backupProblems = [],
     backupState = "healthy",
+    backupCreateAssessment,
+    backupRestoreAssessment,
+    backupReadState,
+    retryBackupRead,
     source,
     sourceInspection,
     sourceProfile,
@@ -144,14 +164,15 @@ export function DetailPanel(props: DetailPanelProps) {
   const effectiveBusy = busy ?? (outputApplying ? "storage location" : undefined);
   const selectedChannel = status?.channel ?? port.channels[0];
   const policy = status?.update_policy ?? "notify";
-  const { sourceReady, biosReady, launchReady, installed, pendingSetup } = detailReadiness(
-    port,
-    status,
-    source,
-    sourcePath,
-    bios,
-    biosPath,
-  );
+  const {
+    sourceReady,
+    biosReady,
+    launchReady: readinessLaunchReady,
+    installed,
+    pendingSetup,
+  } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
+  const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
+  const launchReady = readinessLaunchReady && (!installed || !actionPresentation.blocked);
   const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
   const missingRequirement: SelectedRequirement | undefined =
     !sourceReady && !biosReady ? "both" : !sourceReady ? "game" : !biosReady ? "bios" : undefined;
@@ -162,33 +183,54 @@ export function DetailPanel(props: DetailPanelProps) {
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const installReviewVisible = Boolean(
     installPlan &&
+    !actionPresentation.blocked &&
     !installed &&
     launchReady &&
     !status?.readiness?.blockers.includes("invalid_installation") &&
     !status?.readiness?.blockers.includes("missing_runtime"),
   );
   const state =
-    installed && typeof status?.readiness?.launchable !== "boolean"
+    !installed && port.release.provider !== "user-prepared" && actionPresentation.blocked
       ? {
-          title: "Readiness unavailable",
-          description: "Current launch readiness is unavailable. Reopen Portcove to check again.",
+          title: "Setup unavailable",
+          description: actionPresentation.reason,
           tone: "setup",
           icon: AlertTriangle,
         }
-      : detailState(
-          installed,
-          launchReady,
-          status?.staged?.version,
-          pendingSetup,
-          Boolean(status?.readiness?.blockers.includes("missing_runtime")),
-          runtimeUpdateAvailable,
-          status?.readiness?.source,
-          status?.readiness?.bios,
-          selectedRequirement,
-          missingRequirement,
-          Boolean(status?.readiness?.blockers.includes("invalid_installation")),
-          port.release.provider === "user-prepared",
-        );
+      : !installed &&
+          port.release.provider !== "user-prepared" &&
+          !missingRequirement &&
+          !status?.port_actions?.some((assessment) => assessment.action === "install")
+        ? {
+            title: "Setup status unknown",
+            description: selectedRequirement
+              ? `${availableInstallState(selectedRequirement).description} Current setup availability is unavailable. Refresh the workspace to check again.`
+              : "Current setup availability is unavailable. Refresh the workspace to check again.",
+            tone: "setup",
+            icon: AlertTriangle,
+          }
+        : installed && typeof status?.readiness?.launchable !== "boolean"
+          ? {
+              title: "Readiness unavailable",
+              description:
+                "Current launch readiness is unavailable. Reopen Portcove to check again.",
+              tone: "setup",
+              icon: AlertTriangle,
+            }
+          : detailState(
+              installed,
+              launchReady,
+              status?.staged?.version,
+              pendingSetup,
+              Boolean(status?.readiness?.blockers.includes("missing_runtime")),
+              runtimeUpdateAvailable,
+              status?.readiness?.source,
+              status?.readiness?.bios,
+              selectedRequirement,
+              missingRequirement,
+              Boolean(status?.readiness?.blockers.includes("invalid_installation")),
+              port.release.provider === "user-prepared",
+            );
   const sources: SourceControls = {
     port,
     source,
@@ -234,6 +276,34 @@ export function DetailPanel(props: DetailPanelProps) {
         state={state}
         missingSourceLabels={!installed ? missingSourceLabels : []}
       />
+      {!props.browsingMatch && (
+        <GameFileFilterObservation portId={port.id} context={props.gameFileFilterContext} />
+      )}
+      <BrowsingMatchDetails
+        portId={port.id}
+        result={props.browsingMatch}
+        binding={props.browsingBinding}
+        gameFiles={props.gameFileFilterContext}
+      />
+      {props.libraryGeneration !== undefined && selectedChannel && (
+        <GameFileQueryControl
+          port={port}
+          channel={selectedChannel}
+          generation={props.libraryGeneration}
+          context={JSON.stringify([
+            props.gameFileQueryContext,
+            port,
+            status,
+            source,
+            sourceProfile,
+            sourceInspection,
+            bios,
+            biosProfile,
+            biosInspection,
+          ])}
+          busy={Boolean(effectiveBusy)}
+        />
+      )}
       {props.cancellableActivities
         ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
         .map((activity) => (
@@ -266,6 +336,10 @@ export function DetailPanel(props: DetailPanelProps) {
         backups={backups}
         backupProblems={backupProblems}
         backupState={backupState}
+        backupCreateAssessment={backupCreateAssessment}
+        backupRestoreAssessment={backupRestoreAssessment}
+        backupReadState={backupReadState}
+        retryBackupRead={retryBackupRead}
         busy={effectiveBusy}
         outputExternalBusy={busy}
         libraryGeneration={props.libraryGeneration ?? 0}
@@ -308,6 +382,11 @@ function DetailHero({
           {state.title}
         </span>
         {state.tone !== "ready" && <p className="hero-reason">{state.description}</p>}
+        {"updateAttention" in state && (
+          <p className="mt-2 text-sm text-pc-muted-foreground" data-update-attention>
+            {state.updateAttention}
+          </p>
+        )}
         {missingSourceLabels.length > 0 && (
           <p className="hero-requirement">
             Required for setup: <strong>{missingSourceLabels.join(" · ")}</strong>
@@ -339,6 +418,10 @@ function DetailBody({
   backups,
   backupProblems,
   backupState,
+  backupCreateAssessment,
+  backupRestoreAssessment,
+  backupReadState,
+  retryBackupRead,
   busy,
   outputExternalBusy,
   libraryGeneration,
@@ -368,6 +451,10 @@ function DetailBody({
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
+  backupCreateAssessment?: BackupInventory["create_assessment"];
+  backupRestoreAssessment?: BackupInventory["restore_assessment"];
+  backupReadState?: BackupReadState;
+  retryBackupRead?: () => Promise<void>;
   busy?: string;
   outputExternalBusy?: string;
   libraryGeneration: number;
@@ -378,7 +465,9 @@ function DetailBody({
   openLibraryStorage?: () => void;
 }) {
   const managedPreparation = Boolean(
-    installed && port.adapter === "upstream-managed-setup" && port.setup_output_paths.length,
+    installed &&
+    (port.adapter === "upstream-managed-setup" || port.adapter === "libultraship-portable") &&
+    port.setup_output_paths.length,
   );
   return (
     <div className="detail-body px-8 pt-7 pb-10">
@@ -403,7 +492,7 @@ function DetailBody({
         openLibraryStorage={openLibraryStorage}
       />
       <RequirementsGroup
-        key={port.id}
+        key={`requirements:${port.id}:${libraryGeneration}`}
         port={port}
         status={status}
         installed={installed}
@@ -455,6 +544,10 @@ function DetailBody({
           backups={backups}
           backupProblems={backupProblems}
           backupState={backupState}
+          backupCreateAssessment={backupCreateAssessment}
+          backupRestoreAssessment={backupRestoreAssessment}
+          backupReadState={backupReadState}
+          retryBackupRead={retryBackupRead}
           libraryGeneration={libraryGeneration}
           busy={busy}
           outputExternalBusy={outputExternalBusy}
@@ -465,11 +558,17 @@ function DetailBody({
       )}
       <DetailGroup title="Compatibility and testing">
         <CompatibilitySummary port={port} />
+        <DetailQualificationSummary
+          port={port}
+          sourceInspection={sources.sourceInspection}
+          biosInspection={sources.biosInspection}
+        />
       </DetailGroup>
       <DetailGroup title="Project and release">
         <ProjectReleaseSummary port={port} />
       </DetailGroup>
-      {port.release.provider !== "user-prepared" && !status?.external_runtime && (
+      {((port.release.provider !== "user-prepared" && !status?.external_runtime) ||
+        hasRecordedChecks(port, sources)) && (
         <TechnicalDetails
           libraryGeneration={libraryGeneration}
           port={port}
@@ -524,10 +623,14 @@ function StatusActionsGroup({
   actions: DetailActions;
   openLibraryStorage?: () => void;
 }) {
+  const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
   if (port.release.provider === "user-prepared" || status?.external_runtime) {
     return (
       <DetailGroup title="Status and actions">
         <RetiredNotice port={port} />
+        {status?.external_runtime && actionPresentation.blocked && (
+          <p role="status">{actionPresentation.reason}</p>
+        )}
         {status?.external_runtime && (
           <InstalledPlayActions
             preparationRequired={false}
@@ -548,9 +651,32 @@ function StatusActionsGroup({
       </DetailGroup>
     );
   }
+  if (!installed && actionPresentation.blocked)
+    return (
+      <DetailGroup title="Status and actions">
+        <RetiredNotice port={port} />
+        <p role="status">{actionPresentation.reason}</p>
+        <div className="actions primary-actions">
+          <Button data-focusable className="wide" variant="primary" size="lg" disabled>
+            Installation unavailable
+          </Button>
+          {installPlan && (
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={Boolean(busy)}
+              onClick={() => actions.dismissInstallReview()}
+            >
+              Cancel review
+            </Button>
+          )}
+        </div>
+      </DetailGroup>
+    );
   return (
     <DetailGroup title="Status and actions">
       <RetiredNotice port={port} />
+      {actionPresentation.blocked && <p role="status">{actionPresentation.reason}</p>}
       <PrimaryActions
         installCancellations={installCancellations}
         sources={sources}
@@ -607,6 +733,7 @@ function RequirementsGroup({
     (managedPreparation && pendingSetup);
   const [initiallyOpen] = useState(needsAttention);
   const disclosure = useRef<HTMLDetailsElement>(null);
+  const preparationFocus = useRef<HTMLElement>(null);
   useEffect(() => {
     if (needsAttention && disclosure.current) disclosure.current.open = true;
   }, [needsAttention]);
@@ -618,7 +745,11 @@ function RequirementsGroup({
         className="requirements-disclosure border-y border-pc-border"
         open={initiallyOpen}
       >
-        <summary data-focusable className={`requirements-summary ${disclosureSummaryStyle}`}>
+        <summary
+          ref={preparationFocus}
+          data-focusable
+          className={`requirements-summary ${disclosureSummaryStyle}`}
+        >
           Game-file requirements and setup
           <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>File controls</span>
           <Icon glyph={ChevronDown} />
@@ -634,6 +765,7 @@ function RequirementsGroup({
               generation={libraryGeneration}
               disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
               run={prepare}
+              focusFallback={() => preparationFocus.current}
             />
           )}
         </div>
@@ -729,6 +861,10 @@ function SavesStorageGroup({
   backups,
   backupProblems,
   backupState,
+  backupCreateAssessment,
+  backupRestoreAssessment,
+  backupReadState,
+  retryBackupRead,
   libraryGeneration,
   busy,
   outputExternalBusy,
@@ -743,6 +879,10 @@ function SavesStorageGroup({
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
+  backupCreateAssessment?: BackupInventory["create_assessment"];
+  backupRestoreAssessment?: BackupInventory["restore_assessment"];
+  backupReadState?: BackupReadState;
+  retryBackupRead?: () => Promise<void>;
   libraryGeneration: number;
   busy?: string;
   outputExternalBusy?: string;
@@ -751,7 +891,11 @@ function SavesStorageGroup({
   actions: DetailActions;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const hasBackupHistory = installed || backups.length > 0 || backupProblems.length > 0;
+  const hasBackupHistory =
+    installed ||
+    backups.length > 0 ||
+    backupProblems.length > 0 ||
+    (backupReadState !== undefined && backupReadState.status !== "idle");
   const outputLocation = (
     <OutputLocationControl
       key={`${port.id}:${libraryGeneration}`}
@@ -774,7 +918,12 @@ function SavesStorageGroup({
       >
         {outputLocation}
       </FutureSetupDisclosure>
-      {installed && <DataActions busy={busy} actions={actions} />}
+      <DataActions
+        busy={busy}
+        actions={actions}
+        assessment={backupCreateAssessment}
+        readState={backupReadState}
+      />
       {hasBackupHistory && (
         <BackupHistory
           key={`${port.id}:${libraryGeneration}`}
@@ -782,6 +931,9 @@ function SavesStorageGroup({
           backups={backups}
           problems={backupProblems}
           state={backupState}
+          restoreAssessment={backupRestoreAssessment}
+          readState={backupReadState}
+          retryRead={retryBackupRead}
           busy={busy}
           restore={actions.restoreBackup}
           remove={actions.deleteBackup}
@@ -914,43 +1066,19 @@ function CompatibilitySummary({ port }: { port: PortDefinition }) {
         <small>Platforms</small>
         {port.platforms.map((value) => platformLabel(value)).join(" · ")}
       </span>
+      {port.platforms.includes("linux-x86-64") && (
+        <span>
+          <small>Steam Deck</small>
+          Not tested. Linux availability does not show whether this game works on SteamOS or in
+          Gaming Mode.
+        </span>
+      )}
       <span>
         <small>Installation method</small>
         {installationMethodLabel(port)}
       </span>
-      <span>
-        <small>Recorded automated tests</small>
-        {testingCoverageLabel(
-          port.platforms,
-          port.automated_tested_platforms,
-          "No automated test recorded",
-        )}
-      </span>
-      <span>
-        <small>Recorded hands-on tests</small>
-        {testingCoverageLabel(
-          port.platforms,
-          port.manually_validated_platforms,
-          "No hands-on test recorded",
-        )}
-      </span>
     </div>
   );
-}
-
-function testingCoverageLabel(
-  supported: PortDefinition["platforms"],
-  completed: PortDefinition["platforms"],
-  emptyLabel: string,
-) {
-  const completedSet = new Set(completed);
-  const recorded = supported.filter((platform) => completedSet.has(platform));
-  if (recorded.length === 0) return emptyLabel;
-  const unrecorded = supported.filter((platform) => !completedSet.has(platform));
-  const completedLabel = recorded.map((platform) => platformLabel(platform)).join(" · ");
-  return unrecorded.length === 0
-    ? completedLabel
-    : `${completedLabel} · Not recorded: ${unrecorded.map((platform) => platformLabel(platform)).join(" · ")}`;
 }
 
 function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
@@ -992,7 +1120,7 @@ function RequirementsSummary({ port }: { port: PortDefinition }) {
   if (!port.presentation)
     return <p>Structured requirement details are unavailable in this catalog.</p>;
   return (
-    <div className="metadata" aria-label="Required game files and verification">
+    <div className="metadata" role="group" aria-label="Required game files and verification">
       {port.presentation.source_requirements.map((requirement) => (
         <span key={requirement.role}>
           <small>{requirement.role === "bios" ? "Required BIOS" : "Required game files"}</small>
@@ -1115,7 +1243,7 @@ function SourceFields({ controls }: { controls: SourceControls }) {
 function SourceIntakeActions({ controls, busy }: { controls: SourceControls; busy: boolean }) {
   if (!controls.inspectSource || (!controls.sourceProfile && !controls.biosProfile)) return null;
   return (
-    <div className="source-intake-shortcuts" aria-label="Check game files">
+    <div className="source-intake-shortcuts" role="group" aria-label="Check game files">
       {controls.sourceProfile && (
         <Button
           data-focusable
@@ -1199,6 +1327,15 @@ function RetiredNotice({ port }: { port: PortDefinition }) {
   );
 }
 
+function hasRecordedChecks(port: PortDefinition, sources: SourceControls) {
+  return [sources.sourceInspection, sources.biosInspection].some((report) =>
+    report?.applications.some(
+      (application) =>
+        application.port_id === port.id && application.qualification.exact_records.length > 0,
+    ),
+  );
+}
+
 function TechnicalDetails({
   libraryGeneration,
   port,
@@ -1218,6 +1355,7 @@ function TechnicalDetails({
   sources: SourceControls;
   actions: DetailActions;
 }) {
+  const includeManagement = port.release.provider !== "user-prepared" && !status?.external_runtime;
   const persistentFiles = [
     ...port.persistent_paths,
     ...(port.persistent_file_patterns ?? []).map(
@@ -1229,31 +1367,42 @@ function TechnicalDetails({
       <summary data-focusable className={`advanced-summary ${disclosureSummaryStyle}`}>
         Technical details{" "}
         <span className={`advanced-summary-meta ${disclosureMetaStyle}`}>
-          Commands and maintenance
+          {includeManagement ? "Commands and maintenance" : "Recorded check identities"}
         </span>
         <Icon glyph={ChevronDown} />
       </summary>
       <div className={`advanced-body ${disclosureBodyStyle}`}>
-        <div className="metadata">
-          <span title={persistentFiles}>
-            <small>Saved data patterns</small>
-            {persistentFiles || "No saved data paths declared"}
-          </span>
-        </div>
-        <CliContinuity
-          key={`${port.id}:${libraryGeneration}`}
-          generation={libraryGeneration}
+        {includeManagement && (
+          <div className="metadata">
+            <span title={persistentFiles}>
+              <small>Saved data patterns</small>
+              {persistentFiles || "No saved data paths declared"}
+            </span>
+          </div>
+        )}
+        <DetailQualificationSummary
           port={port}
-          status={status}
-          channel={selectedChannel}
-          sourcePath={sources.sourcePath || sources.source?.path || ""}
-          biosPath={sources.biosPath || sources.bios?.path || ""}
+          sourceInspection={sources.sourceInspection}
+          biosInspection={sources.biosInspection}
+          technical
         />
-        {installed && (
+        {includeManagement && (
+          <CliContinuity
+            key={`${port.id}:${libraryGeneration}`}
+            generation={libraryGeneration}
+            port={port}
+            status={status}
+            channel={selectedChannel}
+            sourcePath={sources.sourcePath || sources.source?.path || ""}
+            biosPath={sources.biosPath || sources.bios?.path || ""}
+          />
+        )}
+        {includeManagement && installed && (
           <MaintenanceActions
             port={port}
             libraryGeneration={libraryGeneration}
             canRollback={Boolean(status?.previous)}
+            status={status}
             verificationPrimary={Boolean(
               status?.readiness?.blockers.includes("invalid_installation"),
             )}
@@ -1261,15 +1410,17 @@ function TechnicalDetails({
             actions={actions}
           />
         )}
-        <div className="actions maintenance-actions">
-          <SteamEntryControl
-            key={`steam:${port.id}:${libraryGeneration}`}
-            port={port}
-            generation={libraryGeneration}
-            installed={installed}
-            busy={Boolean(busy)}
-          />
-        </div>
+        {includeManagement && (
+          <div className="actions maintenance-actions">
+            <SteamEntryControl
+              key={`steam:${port.id}:${libraryGeneration}`}
+              port={port}
+              generation={libraryGeneration}
+              installed={installed}
+              busy={Boolean(busy)}
+            />
+          </div>
+        )}
       </div>
     </details>
   );
@@ -1785,7 +1936,12 @@ export function InstallAction({
                   Review installation again
                 </Button>
               )}
-              <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
+              <Button
+                data-focusable
+                variant="outline"
+                disabled={Boolean(busy)}
+                onClick={() => dismiss()}
+              >
                 Cancel review
               </Button>
             </DialogFooter>
@@ -1859,7 +2015,7 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
         <p className="eyebrow">INSTALL PLAN</p>
         <strong>{plan.release.version}</strong>
         <span>
-          {plan.channel} · {installPlanActionLabel(plan.action)}
+          {releaseChannelPresentation(plan.channel).label} · {installPlanActionLabel(plan.action)}
         </span>
         {plan.bundled_runtime && (
           <span>Required component included · {formatBytes(plan.bundled_runtime.asset.size)}</span>
@@ -1942,6 +2098,7 @@ function MaintenanceActions({
   port,
   libraryGeneration,
   canRollback,
+  status,
   verificationPrimary,
   busy,
   actions,
@@ -1949,10 +2106,12 @@ function MaintenanceActions({
   port: PortDefinition;
   libraryGeneration: number;
   canRollback: boolean;
+  status?: PortStatus;
   verificationPrimary: boolean;
   busy?: string;
   actions: DetailActions;
 }) {
+  const rollback = portActionPresentation(status, "rollback");
   return (
     <div className="actions maintenance-actions">
       {!verificationPrimary && (
@@ -1971,7 +2130,7 @@ function MaintenanceActions({
       <Button
         data-focusable
         variant="outline"
-        disabled={!canRollback || Boolean(busy)}
+        disabled={!canRollback || rollback.blocked || Boolean(busy)}
         onClick={() => {
           void actions.rollback();
         }}
@@ -1979,6 +2138,11 @@ function MaintenanceActions({
         <Icon glyph={RotateCcw} />
         Restore previous version
       </Button>
+      {rollback.blocked && (
+        <p role="status" data-rollback-assessment>
+          {rollback.reason}
+        </p>
+      )}
       <RemovalControl
         key={`${port.id}:${libraryGeneration}`}
         port={port}
@@ -1990,14 +2154,48 @@ function MaintenanceActions({
   );
 }
 
-function DataActions({ busy, actions }: { busy?: string; actions: DetailActions }) {
+function DataActions({
+  busy,
+  actions,
+  assessment,
+  readState,
+}: {
+  busy?: string;
+  actions: DetailActions;
+  assessment?: BackupInventory["create_assessment"];
+  readState?: BackupReadState;
+}) {
+  const current =
+    readState?.status === "current" &&
+    readState.hasInventory &&
+    assessment?.action === "backup_create";
+  const available = current && assessment?.availability === "allowed";
+  const explanation = !current
+    ? readState?.status === "failed"
+      ? "Your saved data could not be checked. Retry the backup inventory read."
+      : "Checking your saved data…"
+    : assessment.reason === "available"
+      ? "Back up owned saves and settings."
+      : assessment.reason === "missing_data"
+        ? "There are no owned saves or settings to back up yet."
+        : assessment.reason === "recovery_required"
+          ? "Restart Portcove to retry recovery, then check your backups again."
+          : assessment.reason === "unsafe_data"
+            ? "The saved-data location needs path and ownership review."
+            : assessment.reason === "assessment_incomplete"
+              ? "The saved-data check did not finish. Your data is preserved."
+              : "Your saved data could not be read. Check its location, then retry.";
   return (
     <div className="flex flex-wrap gap-2">
+      <p role="status" className="w-full" id="backup-create-explanation">
+        {explanation}
+      </p>
       <Button
         data-focusable
         variant="outline"
-        title="Back up saves and settings"
-        disabled={Boolean(busy)}
+        title={explanation}
+        aria-describedby="backup-create-explanation"
+        disabled={Boolean(busy) || !available}
         onClick={() => {
           void actions.backup();
         }}
@@ -2097,10 +2295,11 @@ function detailState(
     };
   if (stagedVersion)
     return {
-      title: "Installed · update saved for later",
-      description: `Play the installed version or use the saved update ${stagedVersion}.`,
-      tone: "staged",
-      icon: RefreshCw,
+      title: "Ready to play",
+      description: "The installed version and all required game files are available.",
+      updateAttention: `Play the installed version or use the saved update ${stagedVersion}.`,
+      tone: "ready",
+      icon: CheckCircle2,
     };
   return {
     title: "Ready to play",

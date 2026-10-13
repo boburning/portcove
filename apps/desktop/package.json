@@ -37,19 +37,20 @@
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
     "preview": "vite preview",
-    "test": "vitest run --pool=threads --isolate --maxWorkers=2 --testTimeout=5000 --reporter=default --reporter=json --outputFile=../../work/ui-tests.json && node ../../scripts/check-vitest-durations.mjs ../../work/ui-tests.json && node scripts/check-theme.mjs && node scripts/check-copy.mjs && pnpm i18n:check",
+    "test": "node scripts/check-copy.mjs && pnpm run test:after-copy",
     "test:copy": "vitest run scripts/check-copy.test.mjs src/count-messages.test.ts && node scripts/check-copy.mjs",
     "test:theme": "node scripts/check-theme.mjs",
     "i18n:extract": "i18next-cli extract",
     "i18n:check": "i18next-cli extract --ci && i18next-cli status && i18next-cli lint && i18next-cli types --ci && node scripts/check-i18n-negative-fixture.mjs",
     "transport:check": "node scripts/generate-transport-types.mjs",
-    "test:cli-handoff": "vitest run scripts/cli-command-shell.test.mjs src/cli-command.test.ts src/components/CliContinuity.test.tsx"
+    "test:cli-handoff": "vitest run scripts/cli-command-shell.test.mjs src/cli-command.test.ts src/components/CliContinuity.test.tsx",
+    "test:after-copy": "vitest run --pool=threads --isolate --maxWorkers=2 --testTimeout=5000 --reporter=default --reporter=json --outputFile=../../work/ui-tests.json && node ../../scripts/check-vitest-durations.mjs ../../work/ui-tests.json && node scripts/check-theme.mjs && pnpm i18n:check"
   },
   "dependencies": {
     "@base-ui/react": "1.8.0",
     "@fontsource-variable/geist": "5.3.0",
-    "@tauri-apps/api": "^2.11.1",
-    "@tauri-apps/plugin-dialog": "^2.7.3",
+    "@tauri-apps/api": "2.12.2",
+    "@tauri-apps/plugin-dialog": "2.8.1",
     "class-variance-authority": "0.7.1",
     "cn": "0.4.0",
     "i18next": "26.4.2",
@@ -61,7 +62,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
-    "@tauri-apps/cli": "2.11.4",
+    "@tauri-apps/cli": "2.12.1",
     "@types/jsdom": "^30.0.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

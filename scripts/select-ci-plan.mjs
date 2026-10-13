@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { windowsHelperChecksRequired } from "./windows-helper-checks.mjs";
 
 import {
   buildValidationPlan,
@@ -114,10 +115,9 @@ export function discoverCiPlan(
   runGit = (args, options = {}) => execFileSync("git", args, { cwd: projectRoot, ...options }),
 ) {
   const checkout = checkedSha(checkoutSha, "checkout SHA");
-  if (eventName !== "pull_request") {
-    const plan = buildValidationPlan({ changes: [], eventName, checkout });
-    if (!forceQualification) return plan;
-    const qualification = {
+  const qualify = (plan) => {
+    if (plan.mode === "blocked") return plan;
+    const replacement = {
       ...plan,
       mode: "qualification",
       reason: "explicit-reusable-qualification",
@@ -125,14 +125,33 @@ export function discoverCiPlan(
       platforms: qualificationPlatforms,
       qualification_required: true,
     };
-    delete qualification.digest;
-    return { ...qualification, digest: digestValidationPlan(qualification) };
-  }
+    delete replacement.digest;
+    return { ...replacement, digest: digestValidationPlan(replacement) };
+  };
+  if (forceQualification)
+    return qualify(buildValidationPlan({ changes: [], eventName: "workflow_call", checkout }));
+  if (!["pull_request", "push"].includes(eventName))
+    return buildValidationPlan({ changes: [], eventName, checkout });
   try {
+    if (eventName === "push" && (!baseSha || /^0{40}$/u.test(baseSha)))
+      return buildValidationPlan({ changes: [], eventName, checkout });
     const base = checkedSha(baseSha, "base SHA");
     const head = checkedSha(headSha, "head SHA");
+    if (eventName === "push") {
+      // A missing historical base uses the whole baseline. A missing current
+      // head, unavailable Git, or failed/truncated diff still blocks discovery.
+      runGit(["cat-file", "-e", `${head}^{commit}`]);
+      try {
+        runGit(["cat-file", "-e", `${base}^{commit}`]);
+      } catch (error) {
+        if (![1, 128].includes(error.status)) throw error;
+        return buildValidationPlan({ changes: [], eventName, checkout });
+      }
+    }
     const mergeBase = checkedSha(
-      String(runGit(["merge-base", base, head], { encoding: "utf8" })).trim(),
+      eventName === "push"
+        ? base
+        : String(runGit(["merge-base", base, head], { encoding: "utf8" })).trim(),
       "merge base",
     );
     const raw = runGit(["diff", "--raw", "-z", "--find-renames", mergeBase, head], {
@@ -183,6 +202,7 @@ export async function writeGithubOutputs(outputPath, plan) {
   if (!outputPath) throw new Error("GITHUB_OUTPUT is required");
   const fields = {
     mode: plan.mode,
+    windows_helpers: String(windowsHelperChecksRequired(plan)),
     reason: plan.reason,
     files_json: JSON.stringify(plan.changed_files),
     groups_json: JSON.stringify(plan.groups),

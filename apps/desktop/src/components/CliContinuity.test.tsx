@@ -85,3 +85,38 @@ it("discards late command context from the previous library", async () => {
   expect(document.body.textContent).toContain("F:/Current");
   expect(document.body.textContent).not.toContain("E:/My library");
 });
+
+it.each([false, true])(
+  "explains compatible beta setup syntax when CLI support is unproven (template=%s)",
+  async (template) => {
+    if (template)
+      vi.mocked(desktopApi.cliCommandContext).mockResolvedValue({ ...context, executable: null });
+    await act(async () => root.render(<CliContinuity {...props} channel="beta" />));
+    expect(document.body.textContent).toContain("beta selects Preview");
+    expect(document.body.textContent).toContain("preview input support has not been verified");
+    await act(async () =>
+      document
+        .querySelector<HTMLButtonElement>(
+          `[aria-label="${template ? "Copy command template" : "Copy setup command"}"]`,
+        )!
+        .click(),
+    );
+    expect(clipboard.copyText).toHaveBeenLastCalledWith(expect.stringContaining("--channel beta"));
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>('[aria-label="Copy argument array"]')!.click(),
+    );
+    expect(JSON.parse(vi.mocked(clipboard.copyText).mock.calls.at(-1)![0])).toContain("beta");
+    await act(async () => root.render(<CliContinuity {...props} channel="stable" />));
+    expect(document.body.textContent).not.toContain("beta selects Preview");
+    await act(async () =>
+      root.render(
+        <CliContinuity
+          {...props}
+          channel="beta"
+          status={{ ...portStatus(), active: { id: "active" } } as PortStatus}
+        />,
+      ),
+    );
+    expect(document.body.textContent).not.toContain("beta selects Preview");
+  },
+);

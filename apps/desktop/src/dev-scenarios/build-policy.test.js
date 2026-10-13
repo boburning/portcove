@@ -10,6 +10,10 @@ it("rejects scenario modules and entrypoints from a production bundle", () => {
   ).not.toThrow();
   for (const id of [
     "/repo/src/dev-scenarios/scenarios.tsx",
+    "/repo/src/dev-scenarios/interactive/entry.tsx",
+    "/repo/src/dev-scenarios/interactive/scenarios.ts",
+    "/repo/src/dev-scenarios/interactive/transport.ts",
+    "/repo/src/browser/interactive-app.browser.test.tsx",
     "C:\\repo\\src\\dev-scenarios\\entry.ts",
     "/repo/src/test-fixtures.ts",
     "/repo/src/test-fixtures.ts?raw",

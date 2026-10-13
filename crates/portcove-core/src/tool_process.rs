@@ -2,11 +2,19 @@
 #[cfg(test)]
 #[path = "tool_process_tests.rs"]
 mod tests;
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+pub(crate) use windows::{ToolChild, ToolProcessGroup, spawn_tool};
+#[cfg(unix)]
+pub(crate) type ToolChild = std::process::Child;
+#[cfg(unix)]
+use std::process::{Command, Stdio};
 use std::{
     collections::BTreeMap,
     io::Read,
     path::Path,
-    process::{Command, ExitStatus, Stdio},
+    process::ExitStatus,
     sync::mpsc,
     time::{Duration, Instant},
 };
@@ -16,10 +24,98 @@ use crate::{ActivityDiagnostic, ChildProcessClass, ChildProcessPolicy, PortcoveE
 
 const SETUP_OUTPUT_LIMIT: usize = 64 * 1024;
 
+pub(crate) struct ToolSpawnFailure {
+    pub(crate) error: PortcoveError,
+    pub(crate) quiesced: bool,
+    pub(crate) io_kind: Option<std::io::ErrorKind>,
+}
+
+impl ToolSpawnFailure {
+    fn before_spawn(error: PortcoveError) -> Self {
+        Self {
+            error,
+            quiesced: true,
+            io_kind: None,
+        }
+    }
+
+    fn io_before_spawn(error: std::io::Error) -> Self {
+        Self {
+            io_kind: Some(error.kind()),
+            error: PortcoveError::launch(format!("could not start the admitted tool: {error}")),
+            quiesced: true,
+        }
+    }
+}
+
+#[cfg(unix)]
+pub(crate) fn spawn_tool(
+    spec: &crate::process::NativeToolLaunchSpec,
+) -> std::result::Result<(ToolChild, ToolProcessGroup), ToolSpawnFailure> {
+    let mut command = spec.command().map_err(ToolSpawnFailure::before_spawn)?;
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    ToolProcessGroup::prepare(&mut command);
+    let mut child = command.spawn().map_err(ToolSpawnFailure::io_before_spawn)?;
+    match ToolProcessGroup::attach(&child) {
+        Ok(group) => Ok((child, group)),
+        Err(error) => {
+            let _ = child.kill();
+            let quiesced = child.wait().is_ok();
+            Err(ToolSpawnFailure {
+                error,
+                quiesced,
+                io_kind: None,
+            })
+        }
+    }
+}
+
+pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, String> {
+    const KEYS: &[&str] = &[
+        "process_tree_first_failure",
+        "process_tree_api_error",
+        "process_tree_retained_members",
+        "process_tree_membership_complete",
+        "process_tree_deadline_exhausted",
+        "process_tree_active",
+        "process_tree_total",
+        "process_tree_wait_result",
+        "process_tree_all_retained_signaled",
+        "process_tree_root_exit",
+        "process_tree_identities",
+        #[cfg(test)]
+        "process_tree_image_identities",
+    ];
+    KEYS.iter()
+        .copied()
+        .filter_map(|key| {
+            error
+                .details
+                .get(key)
+                .map(|value| (key.to_owned(), value.clone()))
+        })
+        .collect()
+}
+
+fn attach_process_tree_proof(
+    mut error: PortcoveError,
+    proof: &BTreeMap<String, String>,
+) -> PortcoveError {
+    for (key, value) in proof {
+        error.details.insert(key.clone(), value.clone());
+    }
+    error
+}
+
 pub(crate) struct SetupOutput {
     pub status: ExitStatus,
     pub output: String,
     pub truncated: bool,
+    #[cfg(any(test, feature = "qualification-fixtures"))]
+    pub process_tree_proof: BTreeMap<String, String>,
 }
 
 /// Run only the admitted native setup executable and its catalog-owned arguments.
@@ -35,7 +131,7 @@ pub(crate) fn run_setup(
     observer: ToolProcessObserver<'_>,
 ) -> Result<SetupOutput> {
     let mut command =
-        ChildProcessPolicy::native_command(ChildProcessClass::UpstreamSetup, program)?;
+        ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, program)?;
     command
         .args(arguments)
         .arg(source)
@@ -59,7 +155,7 @@ pub(crate) struct ToolProcessObserver<'a> {
 /// Supervise an admitted command and report durable process-tree quiescence
 /// only on paths where no owned child or descendant can remain active.
 pub(crate) fn run_tool(
-    command: &mut Command,
+    specification: &mut crate::process::NativeToolLaunchSpec,
     checkpoint: &dyn Fn() -> Result<()>,
     observer: ToolProcessObserver<'_>,
 ) -> Result<SetupOutput> {
@@ -94,32 +190,15 @@ pub(crate) fn run_tool(
         }
         return Err(error);
     }
-    command
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    ToolProcessGroup::prepare(command);
-    let mut child = match command.spawn() {
-        Ok(child) => child,
-        Err(error) => {
-            if let Some(confirm) = quiesced.as_mut() {
-                confirm()?;
-            }
-            return Err(PortcoveError::launch(format!(
-                "could not start the admitted tool: {error}"
-            )));
-        }
-    };
-    let group = match ToolProcessGroup::attach(&child) {
-        Ok(group) => group,
-        Err(error) => {
-            let _ = child.kill();
-            if child.wait().is_ok()
+    let (mut child, group) = match spawn_tool(specification) {
+        Ok(value) => value,
+        Err(failure) => {
+            if failure.quiesced
                 && let Some(confirm) = quiesced.as_mut()
             {
                 confirm()?;
             }
-            return Err(error);
+            return Err(failure.error);
         }
     };
     let (sender, receiver) = mpsc::channel();
@@ -150,13 +229,26 @@ pub(crate) fn run_tool(
             break (Err(error), stopped);
         }
         match poll_setup(&mut child, &group) {
-            Ok(Some(status)) => break (Ok(status), group.proves_tree_quiescence()),
+            Ok(Some(status)) => {
+                let quiesced = group.proves_tree_quiescence();
+                #[cfg(windows)]
+                if !quiesced {
+                    break (
+                        Err(PortcoveError::state(
+                            "native tool process-tree exit could not be verified; retain private preparation",
+                        )),
+                        false,
+                    );
+                }
+                break (Ok(status), quiesced);
+            }
             Ok(None) => std::thread::sleep(Duration::from_millis(25)),
             Err(error) => {
                 // On Unix an unexpected reaper can invalidate PID ownership.
                 // Retain private work rather than signal an unverified PID.
                 #[cfg(windows)]
-                let stopped = group.terminate_and_wait(&mut child).is_ok();
+                let stopped =
+                    group.terminate_and_wait(&mut child).is_ok() && group.proves_tree_quiescence();
                 #[cfg(unix)]
                 let stopped = false;
                 break (
@@ -172,11 +264,17 @@ pub(crate) fn run_tool(
     // group before reaping its leader, while its PID still cannot be reused;
     // its group marker owns no resource that requires a destructor.
     #[cfg(windows)]
+    let process_tree_proof = copy_proof_details(
+        &group.with_proof_details(PortcoveError::state("native tool process-tree observation")),
+    );
+    #[cfg(not(windows))]
+    let process_tree_proof = BTreeMap::new();
+    #[cfg(windows)]
     drop(group);
     #[cfg(unix)]
     let _ = group;
     if process_quiesced && let Some(confirm) = quiesced.as_mut() {
-        confirm()?;
+        confirm().map_err(|error| attach_process_tree_proof(error, &process_tree_proof))?;
     }
     let diagnostic = (|| {
         let drained = drain_setup_output(&receiver);
@@ -185,12 +283,16 @@ pub(crate) fn run_tool(
         drained?;
         Ok::<_, PortcoveError>(snapshot)
     })();
-    let status = result.map_err(|error| match &diagnostic {
-        Err(capture_error) => error.detail("diagnostic_error", &capture_error.message),
-        Ok(_) => error,
+    let status = result.map_err(|error| {
+        let error = match &diagnostic {
+            Err(capture_error) => error.detail("diagnostic_error", &capture_error.message),
+            Ok(_) => error,
+        };
+        attach_process_tree_proof(error, &process_tree_proof)
     })?;
-    let diagnostic = diagnostic?;
-    checkpoint()?;
+    let diagnostic =
+        diagnostic.map_err(|error| attach_process_tree_proof(error, &process_tree_proof))?;
+    checkpoint().map_err(|error| attach_process_tree_proof(error, &process_tree_proof))?;
     let mut output = format!("{}\n{}", diagnostic.stdout.text, diagnostic.stderr.text);
     let truncated = diagnostic.stdout.truncated
         || diagnostic.stderr.truncated
@@ -204,6 +306,8 @@ pub(crate) fn run_tool(
         status,
         output,
         truncated,
+        #[cfg(any(test, feature = "qualification-fixtures"))]
+        process_tree_proof,
     })
 }
 
@@ -227,7 +331,7 @@ fn drain_setup_output(receiver: &mpsc::Receiver<Result<()>>) -> Result<()> {
 
 #[cfg(windows)]
 fn poll_setup(
-    child: &mut std::process::Child,
+    child: &mut ToolChild,
     _group: &ToolProcessGroup,
 ) -> std::io::Result<Option<ExitStatus>> {
     child.try_wait()
@@ -358,174 +462,6 @@ fn wait_for_unreaped_exit(child: &std::process::Child) -> std::io::Result<()> {
         let error = std::io::Error::last_os_error();
         if error.kind() != std::io::ErrorKind::Interrupted {
             return Err(error);
-        }
-    }
-}
-
-#[cfg(windows)]
-pub(crate) struct ToolProcessGroup {
-    job: windows_sys::Win32::Foundation::HANDLE,
-}
-
-#[cfg(windows)]
-impl ToolProcessGroup {
-    /// Keep the process's primary thread suspended until `attach` has placed
-    /// it in the kill-on-close job. Otherwise a fast tool can create a child
-    /// during the spawn/assignment gap that the new job does not inherit.
-    pub(crate) fn prepare(command: &mut Command) {
-        use std::os::windows::process::CommandExt;
-        use windows_sys::Win32::System::Threading::CREATE_SUSPENDED;
-
-        command.creation_flags(CREATE_SUSPENDED);
-    }
-
-    pub(crate) fn attach(child: &std::process::Child) -> Result<Self> {
-        use std::os::windows::io::AsRawHandle;
-        use windows_sys::Win32::System::JobObjects::{
-            AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
-            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
-            SetInformationJobObject,
-        };
-
-        unsafe {
-            let candidate = CreateJobObjectW(std::ptr::null(), std::ptr::null());
-            if candidate.is_null() {
-                return Err(process_group_failure());
-            }
-            let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
-            limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-            let configured = SetInformationJobObject(
-                candidate,
-                JobObjectExtendedLimitInformation,
-                (&raw const limits).cast(),
-                std::mem::size_of_val(&limits) as u32,
-            );
-            if configured == 0 {
-                let failure = process_group_failure();
-                windows_sys::Win32::Foundation::CloseHandle(candidate);
-                return Err(failure);
-            }
-            if AssignProcessToJobObject(
-                candidate,
-                child.as_raw_handle() as windows_sys::Win32::Foundation::HANDLE,
-            ) == 0
-            {
-                let failure = process_group_failure();
-                windows_sys::Win32::Foundation::CloseHandle(candidate);
-                return Err(failure);
-            }
-            let group = Self { job: candidate };
-            if let Err(error) = resume_primary_thread(child.id()) {
-                // Closing this configured job terminates the still-suspended
-                // leader. No admitted tool code has executed on this path.
-                drop(group);
-                return Err(error);
-            }
-            Ok(group)
-        }
-    }
-
-    fn proves_tree_quiescence(&self) -> bool {
-        true
-    }
-
-    pub(crate) fn terminate(&self, _child: &std::process::Child) {
-        if !self.job.is_null() {
-            unsafe {
-                windows_sys::Win32::System::JobObjects::TerminateJobObject(self.job, 1);
-            }
-        }
-    }
-
-    pub(crate) fn terminate_and_wait(
-        &self,
-        child: &mut std::process::Child,
-    ) -> std::io::Result<ExitStatus> {
-        self.terminate(child);
-        let _ = child.kill();
-        child.wait()
-    }
-}
-
-#[cfg(windows)]
-fn resume_primary_thread(process_id: u32) -> Result<()> {
-    use windows_sys::Win32::{
-        Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
-        System::{
-            Diagnostics::ToolHelp::{
-                CreateToolhelp32Snapshot, TH32CS_SNAPTHREAD, THREADENTRY32, Thread32First,
-                Thread32Next,
-            },
-            Threading::{OpenThread, ResumeThread, THREAD_SUSPEND_RESUME},
-        },
-    };
-
-    unsafe {
-        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-        if snapshot == INVALID_HANDLE_VALUE {
-            return Err(process_group_failure());
-        }
-        let mut entry = THREADENTRY32 {
-            dwSize: std::mem::size_of::<THREADENTRY32>() as u32,
-            ..Default::default()
-        };
-        let mut thread_id = None;
-        if Thread32First(snapshot, &raw mut entry) != 0 {
-            loop {
-                if entry.th32OwnerProcessID == process_id
-                    && thread_id.replace(entry.th32ThreadID).is_some()
-                {
-                    CloseHandle(snapshot);
-                    return Err(PortcoveError::state(
-                        "the suspended native tool unexpectedly had multiple threads before containment",
-                    ));
-                }
-                if Thread32Next(snapshot, &raw mut entry) == 0 {
-                    break;
-                }
-            }
-        }
-        CloseHandle(snapshot);
-        let thread_id = thread_id.ok_or_else(|| {
-            PortcoveError::state(
-                "could not find the suspended native tool thread before containment",
-            )
-        })?;
-        let thread = OpenThread(THREAD_SUSPEND_RESUME, 0, thread_id);
-        if thread.is_null() {
-            return Err(process_group_failure());
-        }
-        let previous_count = ResumeThread(thread);
-        if previous_count == u32::MAX {
-            let failure = process_group_failure();
-            CloseHandle(thread);
-            return Err(failure);
-        }
-        CloseHandle(thread);
-        if previous_count != 1 {
-            return Err(PortcoveError::state(format!(
-                "the native tool thread had unexpected suspend count {previous_count} before containment"
-            )));
-        }
-        Ok(())
-    }
-}
-
-#[cfg(windows)]
-fn process_group_failure() -> PortcoveError {
-    PortcoveError::state(format!(
-        "could not contain the native tool process tree: {}",
-        std::io::Error::last_os_error()
-    ))
-}
-
-#[cfg(windows)]
-impl Drop for ToolProcessGroup {
-    fn drop(&mut self) {
-        if !self.job.is_null() {
-            unsafe {
-                windows_sys::Win32::Foundation::CloseHandle(self.job);
-            }
         }
     }
 }

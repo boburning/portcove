@@ -123,6 +123,15 @@ internal static class ContractTests
         Reject(() => InstallationReview.Read(negative, "shape-a", library), "negative download size rejected");
         var channel = fresh(); Json.Object(Json.Field(Json.Field(channel, "plan"), "release"))["channel"] = "beta";
         Reject(() => InstallationReview.Read(channel, "shape-a", library), "inconsistent release channel rejected");
+        var preview = fresh(); var previewPlan = Json.Object(Json.Field(preview, "plan"));
+        previewPlan["channel"] = "beta"; Json.Object(Json.Field(previewPlan, "release"))["channel"] = "beta";
+        Json.Object(Json.Field(previewPlan, "release"))["version"] = "Version1.0.5beta12";
+        var beforePreview = Json.Print(preview);
+        var previewDescription = InstallationReview.Read(preview, "shape-a", library).Description;
+        Check(previewDescription.Contains("Requested channel: Preview") && previewDescription.Contains("Version1.0.5beta12") &&
+            Json.Print(preview) == beforePreview, "Preview changes presentation without changing beta data or upstream version");
+        previewPlan["channel"] = "preview"; Json.Object(Json.Field(previewPlan, "release"))["channel"] = "preview";
+        Reject(() => InstallationReview.Read(preview, "shape-a", library), "Preview is not an accepted transport channel");
         var platform = fresh(); Json.Object(Json.Field(platform, "plan"))["platform"] = "linux-x86-64";
         Reject(() => InstallationReview.Read(platform, "shape-a", library), "other-platform installation rejected");
         var duplicate = fresh(); var plan = Json.Object(Json.Field(duplicate, "plan"));
@@ -141,7 +150,7 @@ internal static class ContractTests
             var presentation = InstallationReview.Read(reuse, "shape-a", library).Description;
             Check(presentation.Contains(@"H:\Earlier output\exact-copy") && !presentation.Contains(@"versions\shape-a") &&
                 presentation.Contains("No artifact download") && presentation.Contains("Existing copy version: original-v1") &&
-                presentation.Contains("Existing copy channel: beta") && presentation.Contains("Requested release version: v2"),
+                presentation.Contains("Existing copy channel: Preview") && presentation.Contains("Requested release version: v2"),
                 "reuse presents actual retained path, metadata and download boundary for " + reuseAction);
             var selected = Json.Object(Json.Parse(Json.Print(Json.Field(reuse, "selected_install"))));
             reuse["selected_install"] = selected; selected["port_id"] = "other";
@@ -198,6 +207,20 @@ internal static class ContractTests
         Reject(() => PublicCli.RequireAbsolute(@"\root-relative"), "root-relative path rejected");
         ProtocolStream.Negotiate(Json.Parse(Json.Print(Capabilities())));
         Check(true, "supported capabilities negotiated");
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67 })
+        {
+            var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
+            supported["schema_version"] = publicSchema;
+            supported["operation_event_schema_version"] = publicSchema < 50 ? 2 : 3;
+            ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
+            Check(true, "public schema " + publicSchema + " negotiated");
+        }
+        foreach (var privateSchema in new[] { 58, 59, 64, 68 })
+        {
+            var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
+            unsupported["schema_version"] = privateSchema;
+            Reject(() => ProtocolStream.Negotiate(unsupported), "private or future schema " + privateSchema + " rejected");
+        }
         var contradictoryLegacyEvent = Json.Object(Json.Parse(Json.Print(Capabilities())));
         contradictoryLegacyEvent["operation_event_schema_version"] = 3;
         Reject(() => ProtocolStream.Negotiate(contradictoryLegacyEvent),
@@ -341,6 +364,22 @@ internal static class ContractTests
         Check(true, "external runtime API schema negotiated without requiring unused commands");
         bad["schema_version"] = 59;
         Reject(() => ProtocolStream.Negotiate(bad), "future schema rejected with migration guidance");
+        bad["schema_version"] = 59;
+        Reject(() => ProtocolStream.Negotiate(bad), "private source-representation schema is not public compatibility");
+        bad["schema_version"] = 60;
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "public rollback schema accepted by explicit supported membership");
+        bad["schema_version"] = 61;
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "curated artifact status schema negotiated with exact reader support");
+        bad["schema_version"] = 66;
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "managed update assessment schema negotiated with actual reader support");
+        bad["schema_version"] = 67;
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "public reviewed external schema negotiated with actual reader support");
+        bad["schema_version"] = 68;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond reviewed external decisions rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -395,6 +434,7 @@ internal static class ContractTests
         Reject(() => failure.Finish(14), "structured busy-port failure remains a failure");
         DefinitionOperationRecords();
         PortActionRecords();
+        BackupCreateRecords();
         PreparationCleanupRecords();
         LaunchRecords();
         var root = Path.Combine(Path.GetDirectoryName(Binary), "fixture-library");
@@ -428,6 +468,16 @@ internal static class ContractTests
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
+            Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
+                PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
+                PortActions.Read(status).Count(value => value.Action == "update") == 1),
+                "compiled schema67 producer and actual reader consume one rollback and update assessment per catalog status");
+            var portId = Json.Text(statuses[0], "port_id");
+            var inventory = await real.Read("backup.list", "backup", "list", portId);
+            Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
+                "compiled schema67 backup producer and actual strict reader consume creation assessment");
+            Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
+                "compiled schema67 backup producer and actual strict reader consume restore assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -589,10 +639,27 @@ internal static class ContractTests
         var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
         capabilities["schema_version"] = 57; capabilities["commands"] = new[] { "external", "external.review" };
         Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "older schema cannot claim caller-bound external review");
-        capabilities["schema_version"] = 58; capabilities["commands"] = new[] { "external" };
+        capabilities["schema_version"] = 67; capabilities["commands"] = new[] { "external" };
         Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "new schema without review capability cannot register");
         capabilities["commands"] = new[] { "external", "external.review" };
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "exact schema and capability enable reviewed external flow");
+        var representationStatus = Json.Parse(Json.Print(new {
+            readiness = new { required_source_extension = "z64", blockers = new[] { "incompatible_source" } },
+            port_actions = new[] {
+                new { action = "rollback", availability = "not_offered", reason = "not_installed" },
+                new { action = "update", availability = "not_offered", reason = "route_not_offered" },
+                new { action = "launch", availability = "waiting", reason = "incompatible_source" }
+            }
+        }));
+        PortActions.ValidateStatus(representationStatus, 67);
+        Check(true, "public source representation status preserves rollback and update contracts");
+        Reject(() => PortActions.ValidateStatus(representationStatus, 66),
+            "older public envelope cannot carry consequential source representation guidance");
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 68 })
+        {
+            capabilities["schema_version"] = unsupported;
+            Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
+        }
     }
 
     private static void CheckRuntimeSelection()
@@ -718,8 +785,10 @@ internal static class ContractTests
         Check(GuidedSetup.Choose(launchHeldWithMissingSource, catalog, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
             "a selected source cannot override an installed game's held launch");
         var external = Json.Parse("{\"source_profile\":null,\"bios_source_profile\":null,\"release\":{\"provider\":\"user-prepared\"}}");
-        Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.RegisterExternal,
+        Check(GuidedSetup.Choose(missing, external, "", "", true).Kind == GuidedStepKind.RegisterExternal,
             "user-prepared runtime selects reviewed folder registration without a Desktop handoff");
+        Check(GuidedSetup.Choose(missing, external, "", "").Kind == GuidedStepKind.ReviewProblem,
+            "missing reviewed external capability offers upgrade guidance rather than registration");
         var externalNeedsSource = Json.Object(Json.Parse(Json.Print(external))); externalNeedsSource["source_profile"] = "original";
         Check(GuidedSetup.Choose(missing, externalNeedsSource, "", "").Kind == GuidedStepKind.ChooseSource,
             "external onboarding keeps original-file intake before runtime registration");
@@ -1451,6 +1520,65 @@ internal static class ContractTests
         }));
         Reject(() => DefinitionOperations.Read(duplicate), "duplicate definition operation decision rejected");
     }
+    private static void BackupCreateRecords()
+    {
+        Func<long, object, object> consume = (schema, inventory) => {
+            var reader = new ProtocolStream("backup.list");
+            reader.Line(Json.Print(new { schema_version = schema, command = "backup.list", ok = true, data = inventory }));
+            return reader.Finish(0);
+        };
+        var legacy = new { port_id = "sample", state = "healthy", backups = new object[0], problems = new object[0] };
+        consume(61, legacy);
+        Reject(() => consume(62, legacy), "schema62 backup inventory requires actual assessment");
+        foreach (var tuple in new[] {
+            new[] { "allowed", "available" }, new[] { "waiting", "missing_data" },
+            new[] { "held", "unreadable_data" }, new[] { "held", "unsafe_data" },
+            new[] { "held", "recovery_required" }, new[] { "held", "assessment_incomplete" }
+        }) {
+            var inventory = new {
+                port_id = "sample", state = "healthy", backups = new object[0], problems = new object[0],
+                create_assessment = new { action = "backup_create", availability = tuple[0], reason = tuple[1] }
+            };
+            var result = consume(62, inventory);
+            Check(PortActionDecision.Read(Json.Field(result, "create_assessment")).Reason == tuple[1],
+                "schema62 reader consumes backup reason " + tuple[1]);
+            Reject(() => consume(61, inventory), "older schema cannot carry backup-create assessment");
+        }
+        foreach (var schema in new long[] { 58, 59 })
+            Reject(() => consume(schema, legacy), "unsupported schema gap remains rejected");
+        foreach (var tuple in new[] { new[] { "allowed", "missing_data" }, new[] { "held", "not_installed" }, new[] { "waiting", "review_required" } })
+            Reject(() => consume(62, new { create_assessment = new { action = "backup_create", availability = tuple[0], reason = tuple[1] } }),
+                "strict backup tuple validation rejects contradictory and unrelated reasons");
+        Reject(() => consume(62, new { create_assessment = new { action = "launch", availability = "allowed", reason = "available" } }),
+            "inventory rejects a different action masquerading as backup create");
+        Reject(() => consume(62, new { create_assessment = (object)null }), "inventory rejects null assessment");
+        foreach (var tuple in new[] {
+            new[] { "allowed", "available" }, new[] { "waiting", "missing_backup" },
+            new[] { "held", "recovery_required" }, new[] { "held", "unsafe_data" },
+            new[] { "held", "unreadable_data" }
+        }) {
+            var inventory = new {
+                create_assessment = new { action = "backup_create", availability = "allowed", reason = "available" },
+                restore_assessment = new { action = "backup_restore", availability = tuple[0], reason = tuple[1] }
+            };
+            var result = consume(63, inventory);
+            Check(PortActionDecision.Read(Json.Field(result, "restore_assessment")).Reason == tuple[1],
+                "schema63 reader consumes restore reason " + tuple[1]);
+            Reject(() => consume(62, inventory), "schema62 cannot carry a restore assessment");
+        }
+        foreach (var tuple in new[] { new[] { "allowed", "missing_backup" }, new[] { "held", "missing_data" }, new[] { "held", "assessment_incomplete" }, new[] { "waiting", "review_required" } })
+            Reject(() => consume(63, new {
+                create_assessment = new { action = "backup_create", availability = "allowed", reason = "available" },
+                restore_assessment = new { action = "backup_restore", availability = tuple[0], reason = tuple[1] }
+            }), "strict restore assessment rejects contradictory or unrelated tuples");
+        Reject(() => consume(63, new { create_assessment = new { action = "backup_create", availability = "allowed", reason = "available" } }), "schema63 requires restore assessment");
+        Reject(() => consume(63, new {
+            create_assessment = new { action = "backup_create", availability = "allowed", reason = "available" },
+            restore_assessment = new { action = "backup_create", availability = "allowed", reason = "available" }
+        }), "wrong restore action is rejected");
+        Reject(() => PortActionDecision.Read(Json.Parse(Json.Print(new { action = "launch", availability = "waiting", reason = "missing_backup" }))), "restore-only reason cannot leak into another action");
+    }
+
     private static void PortActionRecords()
     {
         var legacy = Json.Parse(Json.Print(new { port_id = "legacy" }));
@@ -1497,6 +1625,114 @@ internal static class ContractTests
             }
         }));
         Reject(() => PortActions.Read(repeated), "duplicate action assessment rejected");
+
+        Func<long, object, object> consume = (schema, data) =>
+        {
+            var reader = new ProtocolStream("status");
+            reader.Line(Json.Print(new { schema_version = schema, command = "status", ok = true, data }));
+            return reader.Finish(0);
+        };
+        consume(57, status);
+        consume(42, legacy);
+        Func<string, string, object> updateStatus = (availability, reason) => Json.Parse(Json.Print(new {
+            port_actions = new object[] {
+                new { action = "rollback", availability = "not_offered", reason = "not_installed" },
+                new { action = "update", availability, reason }
+            }
+        }));
+        foreach (var tuple in new[] {
+            new[] { "not_offered", "route_not_offered" }, new[] { "not_offered", "not_installed" },
+            new[] { "not_offered", "unsupported_platform" }, new[] { "waiting", "review_required" }
+        }) {
+            var value = updateStatus(tuple[0], tuple[1]);
+            Check(PortActions.Summary(consume(66, value)).Contains("Action update"), "schema66 current update decision is presented");
+            Reject(() => consume(63, value), "schema63 cannot contain new update decision");
+            Reject(() => consume(65, value), "public schema65 cannot contain new update decision");
+        }
+        Check(PortActions.Summary(consume(65, Json.Parse(Json.Print(new { port_actions = new[] {
+            new { action = "rollback", availability = "not_offered", reason = "not_installed" }
+        } })))).Contains("Action rollback"), "public schema65 preserves status without new update assessment");
+        Reject(() => consume(66, Json.Parse(Json.Print(new { port_actions = new[] {
+            new { action = "rollback", availability = "not_offered", reason = "not_installed" }
+        } }))), "schema66 requires current update assessment");
+        Reject(() => consume(66, updateStatus("allowed", "available")), "status cannot substitute candidate review authorization");
+        Reject(() => consume(66, updateStatus("waiting", "missing_source")), "status cannot infer candidate source requirement before resolution");
+        var updateHeld = Json.Parse(Json.Print(new {
+            port_actions = new object[] {
+                new { action = "rollback", availability = "not_offered", reason = "not_installed" },
+                new { action = "update", availability = "held", reason = "definition_ineligible", definition = new { outcome = "hold", reason = "publisher_revoked" } }
+            }
+        }));
+        Check(PortActions.Summary(consume(66, updateHeld)).Contains("publisher revoked"), "schema66 reader presents exact held update definition");
+        Reject(() => consume(66, updateStatus("held", "definition_ineligible")), "held update cannot lose its definition reason");
+        Reject(() => consume(66, Json.Parse(Json.Print(new {
+            port_actions = new[] {
+                new { action = "rollback", availability = "not_offered", reason = "not_installed" },
+                new { action = "update", availability = "waiting", reason = "review_required" },
+                new { action = "update", availability = "waiting", reason = "review_required" }
+            }
+        }))), "schema66 duplicate update assessment refused");
+        foreach (var artifactReason in new[] { "curated_artifact_revoked", "curated_distribution_withdrawn" }) {
+            var curatedStatus = Json.Parse(Json.Print(new {
+                definition_operations = new[] { new { operation = "install", eligibility = new { outcome = "hold", reason = artifactReason }, retained = false } },
+                port_actions = new object[] {
+                    new { action = "install", availability = "held", reason = "definition_ineligible", definition = new { outcome = "hold", reason = artifactReason } },
+                    new { action = "rollback", availability = "not_offered", reason = "not_installed" }
+                }
+            }));
+            Check(PortActions.Summary(consume(61, curatedStatus)).Contains(artifactReason.Replace('_', ' ')), "schema61 actual presentation consumes exact artifact hold");
+            Reject(() => consume(60, curatedStatus), "schema60 cannot carry schema61 artifact holds");
+        }
+        var revokedRollback = Json.Parse(Json.Print(new { port_actions = new[] {
+            new { action = "rollback", availability = "held", reason = "definition_ineligible", definition = new { outcome = "hold", reason = "curated_artifact_revoked" } }
+        } }));
+        Check(PortActions.Summary(consume(61, revokedRollback)).Contains("curated artifact revoked"), "schema61 retained rollback revocation is presented");
+        Reject(() => consume(60, revokedRollback), "schema60 cannot carry exact artifact rollback restriction");
+        foreach (var tuple in new[] { new[] { "launch", "hold", "curated_distribution_withdrawn" }, new[] { "install", "escalate", "curated_artifact_revoked" }, new[] { "install", "hold", "future_artifact_reason" } })
+            Reject(() => consume(61, Json.Parse(Json.Print(new {
+                definition_operations = new[] { new { operation = tuple[0], eligibility = new { outcome = tuple[1], reason = tuple[2] }, retained = false } },
+                port_actions = new[] { new { action = "rollback", availability = "not_offered", reason = "not_installed" } }
+            }))), "schema61 actual reader refuses invalid definition operations despite valid actions");
+        foreach (var tuple in new[] { new[] { "hold", "curated_distribution_withdrawn" }, new[] { "escalate", "curated_artifact_revoked" }, new[] { "eligible", "curated_artifact_revoked" }, new[] { "hold", "future_artifact_reason" } })
+            Reject(() => consume(61, Json.Parse(Json.Print(new { port_actions = new[] {
+                new { action = "rollback", availability = "held", reason = "definition_ineligible", definition = new { outcome = tuple[0], reason = tuple[1] } }
+            } }))), "contradictory or unknown exact artifact rollback is refused");
+        Reject(() => consume(60, status), "schema60 status cannot omit rollback assessment");
+        Reject(() => consume(60, legacy), "schema60 cannot use legacy missing actions");
+        foreach (var tuple in new[] {
+            new[] { "allowed", "available" }, new[] { "not_offered", "not_installed" },
+            new[] { "not_offered", "route_not_offered" },
+            new[] { "held", "missing_runtime" }, new[] { "held", "invalid_installation" }
+        })
+        {
+            var rollbackStatus = Json.Parse(Json.Print(new {
+                port_actions = new[] { new { action = "rollback", availability = tuple[0], reason = tuple[1] } }
+            }));
+            var parsed = consume(60, rollbackStatus);
+            Check(PortActions.Summary(parsed).Contains(tuple[1].Replace('_', ' ')),
+                "schema60 rollback reason is consumed by actual client presentation: " + tuple[1]);
+            consume(60, new object[] { rollbackStatus });
+            Reject(() => consume(57, rollbackStatus), "legacy envelope cannot carry new rollback semantics");
+        }
+        foreach (var tuple in new[] {
+            new[] { "allowed", "missing_runtime" }, new[] { "waiting", "missing_runtime" },
+            new[] { "held", "missing_source" }, new[] { "not_offered", "invalid_installation" },
+            new[] { "held", "route_not_offered" },
+            new[] { "held", "future_reason" }
+        })
+            Reject(() => consume(60, Json.Parse(Json.Print(new {
+                port_actions = new[] { new { action = "rollback", availability = tuple[0], reason = tuple[1] } }
+            }))), "contradictory or unknown rollback status is refused");
+        Reject(() => consume(60, Json.Parse(Json.Print(new {
+            port_actions = new[] {
+                new { action = "rollback", availability = "allowed", reason = "available" },
+                new { action = "rollback", availability = "allowed", reason = "available" }
+            }
+        }))), "repeated rollback decision refused before presentation");
+        Reject(() => consume(60, Json.Parse(Json.Print(new {
+            port_actions = new[] { new { action = "rollback", availability = "allowed", reason = "available",
+                definition = new { outcome = "eligible", reason = "mandatory_checks_passed" } } }
+        }))), "rollback cannot substitute current definition permission for retained checks");
     }
     private static object Repair(string kind, string operation, string port, string path) => new
     {

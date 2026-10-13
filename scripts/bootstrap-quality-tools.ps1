@@ -1,13 +1,14 @@
 param(
     [switch]$IncludeDeep,
     [switch]$Desktop,
+    [Alias("Profile")][ValidateSet("standard", "frontend", "core", "daily", "native-desktop")][string]$CapabilityProfile = "standard",
     [Alias("h")][switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
 if ($Help) {
     @"
-usage: ./scripts/bootstrap-quality-tools.ps1 [-IncludeDeep] [-Desktop] [-Help]
+usage: ./scripts/bootstrap-quality-tools.ps1 [-IncludeDeep] [-Desktop] [-Profile standard|frontend|core|daily|native-desktop] [-Help]
 
 Installs repository-pinned tools into a shared user cache and writes checkout-local
 shims under work/tool-bin. It never changes persistent PATH or user environment
@@ -18,6 +19,8 @@ variables. -Desktop also provisions tauri-driver and a matching EdgeDriver.
 
 $runningOnWindows = $env:OS -eq "Windows_NT"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+Push-Location -LiteralPath $projectRoot
+try {
 $qualityManifest = Get-Content -LiteralPath (Join-Path $projectRoot ".github\quality-tools.json") -Raw | ConvertFrom-Json
 $bootstrapManifest = Get-Content -LiteralPath (Join-Path $projectRoot ".config\tool-bootstrap.json") -Raw | ConvertFrom-Json
 $requiredAqua = (Get-Content -LiteralPath (Join-Path $projectRoot ".aqua-version") -Raw).Trim()
@@ -30,6 +33,46 @@ $sharedRoot = [IO.Path]::GetFullPath([string]$toolPaths.sharedRoot)
 $shimDirectory = [IO.Path]::GetFullPath([string]$toolPaths.shimDirectory)
 $aquaRoot = [IO.Path]::GetFullPath([string]$toolPaths.aquaRoot)
 $aquaExecutable = [IO.Path]::GetFullPath([string]$toolPaths.aquaExecutable)
+
+$capabilityPlan = $null
+if ($CapabilityProfile -ne "standard") {
+    if ($Desktop -or $IncludeDeep) { throw "Selective profiles cannot be combined with legacy -Desktop or -IncludeDeep" }
+    $planJson = & node (Join-Path $PSScriptRoot "development-capabilities.mjs") --profile $CapabilityProfile
+    if ($LASTEXITCODE -ne 0) { throw "Could not select requested development capabilities" }
+    $capabilityPlan = $planJson | ConvertFrom-Json
+    if ($capabilityPlan.setup.native -and -not $runningOnWindows) {
+        throw "Selective native-desktop provisioning currently supports Windows only; use the existing approved native platform setup, then doctor --profile native-desktop"
+    }
+}
+function Install-SelectedFrontend {
+    if ((& node --version) -ne "v$requiredNodeVersion") { throw "Node $requiredNodeVersion is required for frontend setup" }
+    & corepack ([string]$toolPaths.pins.packageManager) install --frozen-lockfile
+    if ($LASTEXITCODE -ne 0) { throw "Requested frontend dependency provisioning failed" }
+    & node (Join-Path $PSScriptRoot "hooks-install.mjs")
+    if ($LASTEXITCODE -ne 0) { throw "Explicit development hook setup failed; existing hooks were preserved" }
+}
+if ($capabilityPlan -and $capabilityPlan.setup.frontend) { Install-SelectedFrontend }
+if ($CapabilityProfile -eq "frontend") {
+    & node (Join-Path $PSScriptRoot "dev-doctor.mjs") --profile frontend
+    if ($LASTEXITCODE -ne 0) { throw "Requested frontend profile remains incomplete" }
+    exit 0
+}
+if ($capabilityPlan -and $capabilityPlan.setup.rust) {
+    $rustPin = [string]$capabilityPlan.pins.rust
+    $oldAutoInstall = $env:RUSTUP_AUTO_INSTALL
+    try {
+        $env:RUSTUP_AUTO_INSTALL = "0"
+        $rustReady = ((& rustc --version 2>$null) -like "rustc $rustPin *") -and $LASTEXITCODE -eq 0
+        & cargo fmt --version *> $null
+        $rustReady = $rustReady -and $LASTEXITCODE -eq 0
+        & cargo clippy --version *> $null
+        $rustReady = $rustReady -and $LASTEXITCODE -eq 0
+    } catch { $rustReady = $false } finally { $env:RUSTUP_AUTO_INSTALL = $oldAutoInstall }
+    if (-not $rustReady) {
+        & rustup toolchain install $rustPin --profile minimal --component rustfmt --component clippy
+        if ($LASTEXITCODE -ne 0) { throw "Requested pinned Rust provisioning failed" }
+    }
+}
 
 function Assert-UnderRoot([string]$Candidate, [string]$Root, [string]$Label) {
     $resolvedCandidate = [IO.Path]::GetFullPath($Candidate)
@@ -397,6 +440,8 @@ try {
             Remove-Item -LiteralPath $stale -Recurse -Force
         }
     }
+$wantsAqua = -not $capabilityPlan -or $capabilityPlan.setup.aqua
+if ($wantsAqua) {
 $resolvedAqua = Install-PinnedAqua
 Write-CommandShim "aqua" $resolvedAqua
 $pnpmSpec = [string]$toolPaths.pins.packageManager
@@ -411,6 +456,7 @@ $resolvedCorepack = Resolve-StableCommandPath $corepack.Source
 Write-CommandShim "node" $resolvedNode
 Write-CommandShim "corepack" $resolvedCorepack
 Write-CommandShim "pnpm" $resolvedCorepack @($pnpmSpec)
+}
 
 $oldPath = $env:PATH
 $oldModulePath = $env:PSModulePath
@@ -423,14 +469,17 @@ try {
     $env:AQUA_ROOT_DIR = $aquaRoot
     $env:AQUA_ENFORCE_CHECKSUM = "true"
     $env:AQUA_ENFORCE_REQUIRE_CHECKSUM = "true"
-    & $resolvedAqua install
-    if ($LASTEXITCODE -ne 0) { throw "Aqua could not install the pinned quality tools" }
+    if ($wantsAqua) {
+        & $resolvedAqua install
+        if ($LASTEXITCODE -ne 0) { throw "Aqua could not install the pinned quality tools" }
+    }
 
-    foreach ($tool in @($qualityManifest.tools | Where-Object { $_.tier -eq "required" })) {
+    $selectedCargoTools = if ($capabilityPlan) { @($capabilityPlan.setup.cargo_tools) } else { @($qualityManifest.tools | Where-Object { $_.tier -eq "required" }) }
+    foreach ($tool in $selectedCargoTools) {
         Install-CachedCargoTool $tool | Out-Null
     }
 
-    if ($runningOnWindows) {
+    if ($runningOnWindows -and $wantsAqua) {
         $resourceFile = Join-Path $projectRoot ".config\powershell-resources.psd1"
         $resources = Import-PowerShellDataFile -LiteralPath $resourceFile
         $requiredPssa = [string]$resources.PSScriptAnalyzer.version
@@ -444,7 +493,8 @@ try {
         }
     }
 
-    $desktopState = if ($Desktop) {
+    if ($wantsAqua) {
+    $desktopState = if ($Desktop -or ($capabilityPlan -and $capabilityPlan.setup.native)) {
         Install-DesktopTools
     }
     else {
@@ -468,6 +518,7 @@ try {
     $statePath = [string]$toolPaths.statePath
     $state | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath "$statePath.next" -Encoding utf8
     Move-Item -LiteralPath "$statePath.next" -Destination $statePath -Force
+    }
 }
 finally {
     $env:PATH = $oldPath
@@ -477,6 +528,10 @@ finally {
     $env:AQUA_ENFORCE_REQUIRE_CHECKSUM = $oldRequiredChecksum
 }
 
+if ($capabilityPlan) {
+    & node (Join-Path $PSScriptRoot "dev-doctor.mjs") --profile $CapabilityProfile
+    if ($LASTEXITCODE -ne 0) { throw "Requested $CapabilityProfile profile remains incomplete" }
+}
 Write-Output "Pinned Portcove tools are ready in $sharedRoot."
 Write-Output "Checkout shims are ready in $shimDirectory."
 }
@@ -484,3 +539,6 @@ finally {
     if ($mutexHeld) { $cacheMutex.ReleaseMutex() }
     $cacheMutex.Dispose()
 }
+
+}
+finally { Pop-Location }

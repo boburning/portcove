@@ -19,13 +19,26 @@ pub struct EngineTemplateCapability {
 
 impl EngineTemplateCapability {
     pub fn current() -> Vec<Self> {
-        AdapterKind::ALL
+        let mut supported: Vec<_> = AdapterKind::ALL
             .into_iter()
             .map(|template| Self {
                 template,
                 contract_version: 1,
             })
-            .collect()
+            .collect();
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: 2,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 2,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 3,
+        });
+        supported
     }
 }
 
@@ -77,6 +90,13 @@ pub fn inspect_definition_capabilities(path: &Path) -> Result<DefinitionCapabili
 pub fn check_definition_capabilities(
     request: &DefinitionCapabilityRequest,
 ) -> Result<DefinitionCapabilityReport> {
+    check_with_inventory(request, &EngineTemplateCapability::current())
+}
+
+fn check_with_inventory(
+    request: &DefinitionCapabilityRequest,
+    supported: &[EngineTemplateCapability],
+) -> Result<DefinitionCapabilityReport> {
     if request.capability_contract_schema != REQUIREMENT_FORMAT {
         return Err(PortcoveError::unsupported(
             "unsupported definition capability contract",
@@ -89,7 +109,6 @@ pub fn check_definition_capabilities(
             "definition capability requirements must contain between 1 and 64 entries",
         ));
     }
-    let supported = EngineTemplateCapability::current();
     let mut identities = HashSet::new();
     let mut checks = Vec::with_capacity(request.required_capabilities.len());
     for requirement in &request.required_capabilities {
@@ -117,8 +136,19 @@ pub fn check_definition_capabilities(
         .ok();
         let installed_version = supported
             .iter()
-            .find(|entry| Some(entry.template) == template)
-            .map(|entry| entry.contract_version);
+            .filter(|entry| Some(entry.template) == template)
+            .map(|entry| entry.contract_version)
+            .filter(|version| {
+                *version >= requirement.minimum_version && *version <= requirement.maximum_version
+            })
+            .max()
+            .or_else(|| {
+                supported
+                    .iter()
+                    .filter(|entry| Some(entry.template) == template)
+                    .map(|entry| entry.contract_version)
+                    .max()
+            });
         let outcome = match installed_version {
             None => DefinitionCapabilityOutcome::UnsupportedTemplate,
             Some(version)
@@ -167,14 +197,63 @@ mod tests {
     fn every_installed_template_negotiates_its_exact_version() {
         for installed in EngineTemplateCapability::current() {
             let template = serde_json::to_value(installed.template).unwrap();
-            let report =
-                check_definition_capabilities(&request(template.as_str().unwrap(), 1, 1)).unwrap();
+            let report = check_definition_capabilities(&request(
+                template.as_str().unwrap(),
+                installed.contract_version,
+                installed.contract_version,
+            ))
+            .unwrap();
             assert!(report.compatible);
             assert_eq!(
                 report.checks[0].installed_version,
                 Some(installed.contract_version)
             );
         }
+    }
+
+    #[test]
+    fn n64_windows_initial_renderer_preserves_v1_negotiation() {
+        for template in ["n64-recomp-portable", "staged-source-portable"] {
+            for (minimum, maximum, selected, compatible) in
+                [(1, 1, 1, true), (2, 2, 2, true), (1, 2, 2, true)]
+            {
+                let report =
+                    check_definition_capabilities(&request(template, minimum, maximum)).unwrap();
+                assert_eq!(report.compatible, compatible);
+                assert_eq!(report.checks[0].installed_version, Some(selected));
+            }
+        }
+        let pairs: HashSet<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .map(|entry| (entry.template, entry.contract_version))
+            .collect();
+        assert_eq!(pairs.len(), EngineTemplateCapability::current().len());
+    }
+
+    #[test]
+    fn prepared_directory_version_does_not_widen_other_templates() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| entry.contract_version <= 2)
+            .collect();
+        let unsupported =
+            check_with_inventory(&request("staged-source-portable", 3, 3), &previous).unwrap();
+        assert!(!unsupported.compatible);
+        assert_eq!(
+            unsupported.checks[0].outcome,
+            DefinitionCapabilityOutcome::UnsupportedVersion
+        );
+        assert_eq!(unsupported.checks[0].installed_version, Some(2));
+        let staged =
+            check_definition_capabilities(&request("staged-source-portable", 3, 3)).unwrap();
+        assert!(staged.compatible);
+        assert_eq!(staged.checks[0].installed_version, Some(3));
+        let n64 = check_definition_capabilities(&request("n64-recomp-portable", 3, 3)).unwrap();
+        assert!(!n64.compatible);
+        assert_eq!(n64.checks[0].installed_version, Some(2));
+        let future =
+            check_definition_capabilities(&request("staged-source-portable", 4, 4)).unwrap();
+        assert!(!future.compatible);
     }
 
     #[test]

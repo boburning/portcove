@@ -2,7 +2,13 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { copyText } from "../clipboard";
 import type { ActivityDiagnostic as Diagnostic } from "../types";
-import { errorText, formatBytes } from "../view-model";
+import {
+  failurePresentation,
+  formatBytes,
+  isCancellation,
+  type FailureDisplay,
+} from "../view-model";
+import { FailureDetails } from "./FailureDetails";
 import { Button } from "./ui/button";
 
 const diagnosticTextareaClass =
@@ -33,41 +39,85 @@ function ActivityDiagnosticSession({
 }) {
   const [capture, setCapture] = useState<Diagnostic>();
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string>();
-  const [copied, setCopied] = useState(false);
+  const [failure, setFailure] = useState<{
+    presentation?: FailureDisplay;
+    cancelled: boolean;
+  }>();
+  const [copyOutcome, setCopyOutcome] = useState<"idle" | "copied" | "failed">("idle");
+  const copyRequest = useRef(0);
   const request = useRef(0);
+  const reading = useRef(false);
+  const readRequested = useRef(false);
   useLayoutEffect(() => {
     return () => {
       request.current += 1;
+      copyRequest.current += 1;
     };
   }, []);
   const load = async () => {
+    if (reading.current) return;
+    reading.current = true;
+    readRequested.current = true;
     const current = ++request.current;
     setPending(true);
-    setError(undefined);
-    setCopied(false);
+    setFailure(undefined);
+    copyRequest.current += 1;
+    setCopyOutcome("idle");
     try {
       const value = await desktopApi.activityDiagnostic(activityId, generation);
-      if (request.current === current) setCapture(value);
+      if (request.current === current) {
+        copyRequest.current += 1;
+        setCopyOutcome("idle");
+        setCapture(value);
+      }
     } catch (value) {
-      if (request.current === current) setError(errorText(value));
+      if (request.current === current)
+        setFailure({ presentation: failurePresentation(value), cancelled: isCancellation(value) });
     } finally {
-      if (request.current === current) setPending(false);
+      if (request.current === current) {
+        reading.current = false;
+        setPending(false);
+      }
     }
   };
+  const technical = capture ? JSON.stringify(capture, null, 2) : "";
   return (
     <details
       className="activity-diagnostic col-[2/-1] min-w-0 text-xs"
       onToggle={(event) => {
-        if (event.currentTarget.open && capture === undefined && !pending) void load();
+        if (event.target !== event.currentTarget) return;
+        if (event.currentTarget.open && !readRequested.current) void load();
       }}
     >
       <summary data-focusable className="cursor-pointer">
         View preparation log
       </summary>
-      {pending && <p role="status">Reading the retained log…</p>}
-      {error && <p role="alert">{error}</p>}
-      {capture?.length === 0 && (
+      {pending && (
+        <p role="status">
+          Reading the retained log…
+          {capture !== undefined &&
+            " Showing the last loaded capture while the current log is checked."}
+        </p>
+      )}
+      {failure && (
+        <div role={failure.cancelled ? "status" : "alert"}>
+          <strong>
+            {failure.cancelled ? "Log read cancelled" : "Preparation log could not be loaded"}
+          </strong>
+          <p>
+            Current log availability is unknown.
+            {capture !== undefined &&
+              " Showing the last loaded capture; it may have changed since it was read."}
+          </p>
+          {failure.presentation && (
+            <>
+              <p>{failure.presentation.summary}</p>
+              <FailureDetails presentation={failure.presentation} showMutationSummary={false} />
+            </>
+          )}
+        </div>
+      )}
+      {capture?.length === 0 && !pending && !failure && (
         <p>
           No retained diagnostic capture is available. Older activity details may be available in a
           redacted support bundle in Settings.
@@ -84,8 +134,8 @@ function ActivityDiagnosticSession({
           </h3>
           <p>
             {phase.complete
-              ? "Capture reached the end of both output streams."
-              : "Capture is incomplete. Only the output saved before the last observation is available."}
+              ? "Both output streams ended. Saved output is shown below."
+              : "Only the output saved before the last observation is available. Later output may be missing."}
           </p>
           {(phase.stdout.truncated || phase.stderr.truncated) && (
             <p>
@@ -117,17 +167,18 @@ function ActivityDiagnosticSession({
             variant="outline"
             size="sm"
             onClick={() => {
-              const current = request.current;
-              void copyText(JSON.stringify(capture, null, 2))
+              const current = ++copyRequest.current;
+              setCopyOutcome("idle");
+              void copyText(technical)
                 .then(() => {
-                  if (request.current === current) setCopied(true);
+                  if (copyRequest.current === current) setCopyOutcome("copied");
                 })
                 .catch(() => {
-                  if (request.current === current) setCopied(false);
+                  if (copyRequest.current === current) setCopyOutcome("failed");
                 });
             }}
           >
-            {copied ? "Copied" : "Copy retained log"}
+            {copyOutcome === "copied" ? "Copied" : "Copy retained log"}
           </Button>
         )}
         <Button
@@ -139,9 +190,21 @@ function ActivityDiagnosticSession({
             void load();
           }}
         >
-          Refresh captured log
+          {failure ? "Retry log read" : "Refresh captured log"}
         </Button>
       </div>
+      {copyOutcome === "copied" && <p role="status">Retained log copied.</p>}
+      {copyOutcome === "failed" && (
+        <>
+          <p role="alert">Clipboard unavailable. Select and copy the retained log below.</p>
+          <textarea
+            readOnly
+            className={diagnosticTextareaClass}
+            aria-label="Retained log for manual copy"
+            value={technical}
+          />
+        </>
+      )}
     </details>
   );
 }

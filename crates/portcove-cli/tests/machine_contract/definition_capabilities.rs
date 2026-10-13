@@ -31,7 +31,10 @@ fn definition_requirements_are_inspected_offline_without_opening_a_library() {
             String::from_utf8_lossy(&output.stderr)
         );
         let response = json_stdout(&output);
-        assert_eq!(response["schema_version"], 59);
+        assert_eq!(
+            response["schema_version"],
+            portcove_core::API_SCHEMA_VERSION
+        );
         assert_eq!(response["command"], "catalog.check-capabilities");
         assert_eq!(response["data"]["compatible"], false);
         let checks = &response["data"]["checks"];
@@ -63,11 +66,46 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     let temporary = tempfile::tempdir().unwrap();
     let capabilities = json_stdout(&portcove(temporary.path(), &["--json", "capabilities"]));
     let templates = capabilities["data"]["engine_templates"].as_array().unwrap();
-    assert_eq!(
-        templates.len(),
-        capabilities["data"]["adapters"].as_array().unwrap().len()
-    );
+    let pairs: std::collections::HashSet<_> = templates
+        .iter()
+        .map(|entry| {
+            (
+                entry["template"].as_str().unwrap(),
+                entry["contract_version"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(pairs.len(), templates.len());
+    let adapters = capabilities["data"]["adapters"].as_array().unwrap();
+    for adapter in adapters {
+        assert!(pairs.contains(&(adapter.as_str().unwrap(), 1)));
+    }
+    assert!(pairs.contains(&("n64-recomp-portable", 2)));
+    assert!(pairs.contains(&("staged-source-portable", 2)));
+    assert!(pairs.contains(&("staged-source-portable", 3)));
+    assert_eq!(templates.len(), adapters.len() + 3);
+    let requirements = temporary.path().join("prepared-directory.json");
+    std::fs::write(&requirements, serde_json::to_vec(&json!({
+        "capability_contract_schema": 1,
+        "required_capabilities": [{"template":"staged-source-portable", "minimum_version":3, "maximum_version":3}]
+    })).unwrap()).unwrap();
+    let negotiated = json_stdout(&portcove(
+        temporary.path(),
+        &[
+            "--json",
+            "catalog",
+            "check-capabilities",
+            requirements.to_str().unwrap(),
+        ],
+    ));
+    assert_eq!(negotiated["data"]["compatible"], true);
+    assert_eq!(negotiated["data"]["checks"][0]["installed_version"], 3);
+    let mut identities = std::collections::HashSet::new();
     for template in templates {
+        assert!(identities.insert((
+            template["template"].to_string(),
+            template["contract_version"].as_u64().unwrap()
+        )));
         let request = serde_json::from_value(json!({
             "capability_contract_schema": 1,
             "required_capabilities": [{"template":template["template"], "minimum_version":template["contract_version"], "maximum_version":template["contract_version"]}]

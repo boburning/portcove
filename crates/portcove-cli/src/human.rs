@@ -1,14 +1,41 @@
 use std::path::Path;
 
+pub(crate) fn game_file_query(snapshot: &portcove_core::GameFileQuerySnapshot) -> String {
+    snapshot
+        .routes
+        .iter()
+        .map(|route| {
+            let state = match route.state {
+                portcove_core::GameFileQueryState::FilesAvailable => "Compatible files available",
+                portcove_core::GameFileQueryState::FilesMissing => "Files missing",
+                portcove_core::GameFileQueryState::NeedsChecking => "Needs checking",
+                portcove_core::GameFileQueryState::NoFilesRequired => "No files required",
+                portcove_core::GameFileQueryState::UnavailableContext => "Context unavailable",
+            };
+            let selected = match route.route {
+                portcove_core::GameFileRouteKind::ManagedInstall => "managed setup",
+                portcove_core::GameFileRouteKind::ExternalRegistration => {
+                    "existing installation setup"
+                }
+                portcove_core::GameFileRouteKind::ManagedLaunch => "managed launch",
+                portcove_core::GameFileRouteKind::ExternalLaunch => "existing installation launch",
+            };
+            format!("{} ({selected}): {state}", clean(&route.port_id))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 use portcove_core::{
     ActivityRecord, BackupInventory, BackupInventoryState, BackupProblemKind, CapabilityDocument,
-    DoctorReport, GameFileRoot, GameFileScanSnapshot, GithubAuthSource, GithubAuthStatus,
-    HostToolProbeResult, HostToolSource, HostToolState, HostToolStatus, InstallPlan,
-    InstallPlanAction, LaunchBlocker, OutputDestinationAvailability, OutputDestinationOwnership,
+    CatalogOrigin, CatalogStatus, DoctorReport, GameFileRoot, GameFileScanSnapshot,
+    GithubAuthSource, GithubAuthStatus, HostToolProbeResult, HostToolSource, HostToolState,
+    HostToolStatus, InstallPlan, InstallPlanAction, LaunchBlocker, LibraryContentKind,
+    LibraryMovePlan, LibraryMoveResult, OutputDestinationAvailability, OutputDestinationOwnership,
     OutputDestinationPreview, OutputLocationSource, OutputRelocationPlan, Platform, PortDefinition,
-    PortOutputLocation, PortPaths, PortStatus, RepairItemKind, SourceClassification,
-    SourceContractResult, SourceInspectionReport, SourceRecord, SourceRequirementRole,
-    StorageSummary, SupportTier,
+    PortOutputLocation, PortPaths, PortStatus, ReleaseChannel, RepairItemKind,
+    SourceClassification, SourceContractResult, SourceInspectionReport, SourceRecord,
+    SourceRequirementRole, StorageSummary, SupportTier,
 };
 use serde::Serialize;
 use serde_json::Value;
@@ -31,6 +58,80 @@ pub(crate) fn document<T: Serialize>(data: &T) -> serde_json::Result<String> {
     Ok(output.trim_end().to_owned())
 }
 
+pub(crate) fn library_move_plan(plan: &LibraryMovePlan) -> String {
+    let content = plan
+        .content
+        .iter()
+        .map(|tree| {
+            let kind = match tree.kind {
+                LibraryContentKind::ApplicationVersions => "Application versions",
+                LibraryContentKind::UserData => "Saves and settings",
+                LibraryContentKind::SourceInbox => "Imported game files",
+                LibraryContentKind::Backups => "Backups",
+                LibraryContentKind::Toolchains => "Managed tools",
+                LibraryContentKind::LocalArtwork => "Local artwork",
+            };
+            format!(
+                "  {kind}: {} {}, {} {}, {}",
+                tree.copy.files.len(),
+                if tree.copy.files.len() == 1 {
+                    "file"
+                } else {
+                    "files"
+                },
+                tree.copy.directories.len(),
+                if tree.copy.directories.len() == 1 {
+                    "folder"
+                } else {
+                    "folders"
+                },
+                format_bytes(tree.copy.total_bytes)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "Library move review\nOriginal library: {}\nNew destination: {}\nContent to copy:\n{}\nWorking space required: {}\nAvailable space: {}\nOriginal retained as a recovery copy: {}\nOriginal game-file references stay at their existing paths.\nReview only; no move has been applied.\nReview SHA-256: {}\nNext step: Close other Portcove clients, then repeat this move with --apply --expected-plan {}.",
+        clean(&plan.source_root.display().to_string()),
+        clean(&plan.destination_root.display().to_string()),
+        if content.is_empty() {
+            "  No managed content files."
+        } else {
+            &content
+        },
+        format_bytes(plan.required_bytes),
+        format_bytes(plan.available_bytes),
+        if plan.source_will_be_retained {
+            "Yes"
+        } else {
+            "No"
+        },
+        clean(&plan.plan_sha256),
+        clean(&plan.plan_sha256),
+    )
+}
+
+pub(crate) fn library_move_result(result: &LibraryMoveResult) -> String {
+    let outcome = if result.completed {
+        "Library move completed"
+    } else {
+        "Library move not completed"
+    };
+    let next = if result.completed {
+        "Use the active library shown above for future commands."
+    } else {
+        "Continue with the active original library. Any copied destination files remain in place; choose a new destination for another move."
+    };
+    format!(
+        "{outcome}\nTransfer: {}\nOriginal library: {}\nDestination: {}\nActive library: {}\nOriginal retained: {}\nNext step: {next}",
+        clean(&result.transfer_id),
+        clean(&result.source_root.display().to_string()),
+        clean(&result.destination_root.display().to_string()),
+        clean(&result.active_root.display().to_string()),
+        if result.source_retained { "Yes" } else { "No" },
+    )
+}
+
 pub(crate) fn activity_diagnostic(captures: &[portcove_core::ActivityDiagnostic]) -> String {
     if captures.is_empty() {
         return "No retained diagnostic capture is available for this activity.".into();
@@ -44,9 +145,9 @@ pub(crate) fn activity_diagnostic(captures: &[portcove_core::ActivityDiagnostic]
 
 fn diagnostic_phase(capture: &portcove_core::ActivityDiagnostic) -> String {
     let status = if capture.complete {
-        "Capture reached the end of both streams."
+        "Both output streams ended. Saved output is shown below."
     } else {
-        "Capture is incomplete. Only output saved before the last observation is available."
+        "Only the output saved before the last observation is available. Later output may be missing."
     };
     let truncation = if capture.stdout.truncated || capture.stderr.truncated {
         "\nOutput exceeded the capture limit; some output was omitted."
@@ -162,7 +263,7 @@ pub(crate) fn catalog_list(ports: &[PortDefinition]) -> String {
                 support_tier(port.support_tier).into(),
                 port.channels
                     .iter()
-                    .map(ToString::to_string)
+                    .map(|channel| release_channel(*channel))
                     .collect::<Vec<_>>()
                     .join(","),
             ]
@@ -175,6 +276,69 @@ pub(crate) fn catalog_list(ports: &[PortDefinition]) -> String {
     )
 }
 
+pub(crate) fn catalog_status(status: &CatalogStatus) -> String {
+    let origin = match status.provenance.origin {
+        CatalogOrigin::Embedded => "built-in catalog",
+        CatalogOrigin::SignedActive => "active signed catalog",
+        CatalogOrigin::SignedPrevious => "previous signed catalog",
+        CatalogOrigin::DefinitionSelected => "selected definition catalog",
+    };
+    let mut lines = vec![
+        format!("Effective catalog: {origin}"),
+        format!("Catalog SHA-256: {}", status.provenance.catalog_sha256),
+    ];
+    if let Some(key_id) = &status.provenance.key_id {
+        lines.push(format!("Publisher: {}", clean(key_id)));
+    }
+    if let Some(sequence) = status.provenance.sequence {
+        lines.push(format!("Sequence: {sequence}"));
+    }
+    if let Some(expires_at) = status.provenance.expires_at {
+        lines.push(format!("Expires: {}", utc_time(expires_at)));
+    }
+    lines.push(format!(
+        "Highest accepted sequence: {}",
+        status.highest_sequence
+    ));
+    lines.push(format!("Trusted publishers: {}", status.trusted_keys.len()));
+    for key in &status.trusted_keys {
+        lines.push(format!(
+            "  {}: {}",
+            clean(&key.key_id),
+            clean(&key.public_key)
+        ));
+    }
+    lines.push(format!(
+        "Catalog updates: {}",
+        if status.updates_enabled {
+            "enabled"
+        } else {
+            "disabled"
+        }
+    ));
+    lines.push(format!(
+        "Rollback: {}",
+        if status.can_rollback {
+            "available"
+        } else {
+            "unavailable"
+        }
+    ));
+    lines.push(format!(
+        "Cached signed catalog: {}",
+        if status.can_use_cached {
+            "available"
+        } else {
+            "unavailable"
+        }
+    ));
+    for reason in &status.provenance.fallback_reasons {
+        lines.push(format!("Fallback reason: {}", clean(reason)));
+    }
+    lines.push(format!("State SHA-256: {}", status.state_sha256));
+    lines.join("\n")
+}
+
 pub(crate) fn catalog_show(port: &PortDefinition) -> String {
     let mut lines = vec![
         format!("{} ({})", clean(&port.name), clean(&port.id)),
@@ -183,7 +347,7 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
             "Channels: {}",
             port.channels
                 .iter()
-                .map(ToString::to_string)
+                .map(|channel| release_channel(*channel))
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
@@ -197,6 +361,12 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
         ),
         format!("Upstream state: {}", upstream_status(port.upstream_status)),
     ];
+    if let Some(profile_id) = port.source_profile.as_deref() {
+        lines.push(format!("Game-file profile ID: {}", clean(profile_id)));
+    }
+    if let Some(profile_id) = port.bios_source_profile.as_deref() {
+        lines.push(format!("BIOS profile ID: {}", clean(profile_id)));
+    }
     if let Some(presentation) = &port.presentation {
         lines.push(format!(
             "Installation: {}",
@@ -227,6 +397,33 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
     } else {
         lines.push("Presentation details: unavailable in this catalog".into());
     }
+    if port.release.provider == portcove_core::ReleaseSource::UserPrepared
+        && !port.release.user_prepared.is_empty()
+    {
+        for (platform, runtime) in &port.release.user_prepared {
+            lines.extend([
+                format!(
+                    "Accepted runtime ({}): {}",
+                    platform_name(*platform),
+                    clean(&runtime.version)
+                ),
+                format!(
+                    "Package: {} ({} bytes)",
+                    clean(&runtime.archive_name),
+                    runtime.archive_size
+                ),
+                format!("Package SHA-256: {}", clean(&runtime.archive_sha256)),
+                format!("Executable: {}", clean(&runtime.executable)),
+            ]);
+        }
+        lines.extend([
+            "Maintenance: user-owned; Portcove does not download or update this runtime".into(),
+            format!(
+                "Return to Portcove on the matching platform for exact-file review: portcove external preview {} \"<extracted-folder>\"",
+                clean(&port.id)
+            ),
+        ]);
+    }
     lines.extend([
         format!("Project: {}", clean(&port.project_url)),
         clean(&port.summary),
@@ -235,6 +432,15 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
 }
 
 pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String {
+    format!(
+        "{}\n{}\n{}",
+        status_action(&inventory.create_assessment),
+        status_action(&inventory.restore_assessment),
+        backup_history(port_id, inventory)
+    )
+}
+
+fn backup_history(port_id: &str, inventory: &BackupInventory) -> String {
     if inventory.backups.is_empty() && inventory.problems.is_empty() {
         return format!("No backups for {}.", clean(port_id));
     }
@@ -294,6 +500,51 @@ pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String 
     )
 }
 
+pub(crate) fn backup_action_preview(
+    preview: &portcove_core::BackupActionPreview,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    use portcove_core::BackupAction;
+
+    let port = catalog.port(&preview.backup.port_id).map_or_else(
+        |_| clean(&preview.backup.port_id),
+        |port| format!("{} ({})", clean(&port.name), clean(&port.id)),
+    );
+    let (action, consequences) = match preview.action {
+        BackupAction::Delete => (
+            "Delete backup",
+            "Changes: permanently delete only the selected backup.\nPreserved: live managed saved data and other backups.\nPortcove cannot undo this deletion.".to_owned(),
+        ),
+        BackupAction::Restore => (
+            "Restore backup",
+            format!(
+                "Changes: replace this port's managed saved data with the selected backup.\nPreserved: the selected backup and other backups.\nBefore replacement: {}",
+                if preview.safety_backup_will_be_created {
+                    "create a safety backup of current managed saved data."
+                } else {
+                    "no safety backup is planned."
+                },
+            ),
+        ),
+    };
+    format!(
+        "{action} review\nPort: {port}\nBackup: {}\nArchive folder: {}\nCreated (UTC): {}\nFiles: {}\nSize: {} ({} bytes)\nBackup SHA-256: {}\nCurrent managed saved data exists: {}\n{consequences}\nReview SHA-256: {}\nConsent is bound to the reviewed contents; changed inputs require a new review.",
+        clean(&preview.backup.id),
+        clean(&preview.backup.path.display().to_string()),
+        utc_time(preview.backup.created_at),
+        preview.backup.file_count,
+        format_bytes(preview.backup.size),
+        preview.backup.size,
+        clean(&preview.backup.sha256),
+        if preview.current_user_data_exists {
+            "yes"
+        } else {
+            "no"
+        },
+        clean(&preview.preview_sha256),
+    )
+}
+
 fn backup_problem_kind(kind: BackupProblemKind) -> &'static str {
     match kind {
         BackupProblemKind::MissingManifest => "missing manifest",
@@ -327,6 +578,132 @@ pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
     )
 }
 
+pub(crate) fn source_discovery(
+    report: &portcove_core::SourceDiscoveryReport,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let profile_name = |id: &str| {
+        catalog.source_profile(id).map_or_else(
+            |_| clean(id),
+            |profile| format!("{} ({})", clean(&profile.label), clean(id)),
+        )
+    };
+    let mut lines = vec![
+        "Source discovery".into(),
+        "Only the selected folders, profiles and supported discovery formats were inspected."
+            .into(),
+        format!("Searched folders: {}", report.searched_roots.len()),
+    ];
+    for root in &report.searched_roots {
+        lines.push(format!("- {}", clean(&root.display().to_string())));
+    }
+    lines.push(format!(
+        "Searched profiles: {}",
+        report.searched_profiles.len()
+    ));
+    for profile in &report.searched_profiles {
+        lines.push(format!("- {}", profile_name(profile)));
+    }
+    lines.extend([
+        format!("Entries examined: {}", report.entries_examined),
+        format!("Files hashed: {}", report.files_hashed),
+        format!(
+            "Bytes charged to hash budget: {} ({} bytes)",
+            format_bytes(report.hash_bytes),
+            report.hash_bytes
+        ),
+        format!("Symlinks skipped: {}", report.symlinks_skipped),
+    ]);
+    if report.limits_reached.is_empty() {
+        lines.push("No recorded processing limits reached.".into());
+    } else {
+        lines.push("Search was partial. Reached processing limits:".into());
+        for limit in &report.limits_reached {
+            use portcove_core::SourceDiscoveryLimit;
+            lines.push(
+                match limit {
+                    SourceDiscoveryLimit::Entries => "- Examined entries (--max-entries)",
+                    SourceDiscoveryLimit::Depth => "- Folder depth (--max-depth)",
+                    SourceDiscoveryLimit::FileSize => "- File size (--max-file-bytes)",
+                    SourceDiscoveryLimit::HashBytes => "- Hashing budget (--max-hash-bytes)",
+                    SourceDiscoveryLimit::Candidates => "- Matching candidates (--max-candidates)",
+                }
+                .into(),
+            );
+        }
+        lines.push("A new search starts again; this search cannot be resumed.".into());
+    }
+    if !report.issues.is_empty() || report.issues_omitted > 0 {
+        lines.push(format!(
+            "Scan issues: {} shown, {} omitted. Review these before drawing conclusions about missing files.",
+            report.issues.len(), report.issues_omitted
+        ));
+        for issue in &report.issues {
+            let location = issue.path.as_ref().map_or_else(
+                || "Location not recorded".into(),
+                |path| clean(&path.display().to_string()),
+            );
+            let profile = issue
+                .profile_id
+                .as_deref()
+                .map_or_else(String::new, |id| format!(" [{}]", profile_name(id)));
+            lines.push(format!(
+                "- {location}{profile}: {}",
+                clean(&portcove_core::redact_diagnostic_text(&issue.message))
+            ));
+        }
+    }
+    if report.candidates.is_empty() {
+        lines.push("No matching candidates were found in the inspected scope.".into());
+    } else {
+        lines.push(format!("Matching candidates: {}", report.candidates.len()));
+        for candidate in &report.candidates {
+            lines.extend([
+                format!("Candidate: {}", profile_name(&candidate.profile_id)),
+                format!("Path: {}", clean(&candidate.path.display().to_string())),
+                format!("Content SHA-256: {}", clean(&candidate.sha256)),
+                format!(
+                    "Content size: {} ({} bytes)",
+                    format_bytes(candidate.size),
+                    candidate.size
+                ),
+                format!("Stored file SHA-256: {}", clean(&candidate.storage_sha256)),
+                format!(
+                    "Stored file size: {} ({} bytes)",
+                    format_bytes(candidate.storage_size),
+                    candidate.storage_size
+                ),
+                format!("Observed (UTC): {}", utc_time(candidate.updated_at)),
+            ]);
+        }
+    }
+    if !report.preliminary_selections.is_empty() {
+        lines.push(format!(
+            "Preliminary selections: {}. These are not exact matches; validation has not run.",
+            report.preliminary_selections.len()
+        ));
+        for selection in &report.preliminary_selections {
+            lines.extend([
+                format!(
+                    "Preliminary selection: {}",
+                    profile_name(&selection.profile_id)
+                ),
+                format!("Path: {}", clean(&selection.path.display().to_string())),
+                format!("Selection details: {}", clean(&selection.message)),
+            ]);
+        }
+        lines.push("Review a chosen preliminary selection with source inspect PROFILE_ID PATH before deciding whether to register it. A selection does not prove compatibility.".into());
+    }
+    lines.push(
+        "No sources were registered by this search. Discovery does not install or launch games."
+            .into(),
+    );
+    if !report.candidates.is_empty() {
+        lines.push("To register a chosen candidate, use source add PROFILE_ID PATH --expected-sha256 SHA256. Registration checks the current bytes again.".into());
+    }
+    lines.join("\n")
+}
+
 pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
     if roots.is_empty() {
         return "No game-file folders are connected.".into();
@@ -352,6 +729,10 @@ pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -
     let Some(snapshot) = snapshot else {
         return "No completed game-file folder scan is available.".into();
     };
+    game_file_scan(snapshot)
+}
+
+pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
     let mut output = format!(
         "Game-file folder scan\nFreshness: {}\nCompleted (Unix): {}\nFolders: {}\nCandidates: {}\nEntries examined: {}\nFiles hashed: {}",
         match snapshot.freshness {
@@ -380,6 +761,25 @@ pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -
         ));
     } else {
         output.push_str("\nRecorded scan limits: not recorded.");
+    }
+    if let Some(coverage) = &snapshot.coverage {
+        output.push_str(&format!(
+            "\nScan batches: {}; this batch examined {} entries, re-listed {} entries, and made {} metadata checks.\nPrior-batch file-set members rehashed: {}.\nPending directories: {}. Remaining entries: {}.",
+            coverage.batches, coverage.batch_entries_examined, coverage.entries_relisted,
+            coverage.metadata_checks, coverage.prior_member_rechecks, coverage.pending_directories,
+            coverage.remaining_entries.map_or_else(|| "unknown".into(), |count| count.to_string()),
+        ));
+        output.push_str(if coverage.restart_required {
+            "\nContinuation was refused. Repeat source roots scan to start fresh."
+        } else if coverage.can_resume {
+            "\nRepeat source roots scan with the same limits to resume the saved checkpoint."
+        } else if coverage.frontier_exhausted {
+            "\nRecorded directory frontier exhausted; limits and issues may still leave coverage incomplete."
+        } else {
+            "\nScan stopped at a terminal safety limit; a new scan starts fresh."
+        });
+    } else {
+        output.push_str("\nContinuation coverage: not recorded; a new scan starts fresh.");
     }
     if snapshot.report.limits_reached.is_empty() {
         output.push_str("\nNo recorded scan limits reached.");
@@ -632,26 +1032,7 @@ fn platform_list(platforms: &[Platform]) -> String {
 }
 
 pub(crate) fn status(status: &PortStatus) -> String {
-    let table = statuses(std::slice::from_ref(status));
-    if status.port_actions.is_empty() {
-        return table;
-    }
-    let actions = status
-        .port_actions
-        .iter()
-        .map(|assessment| {
-            let value = serde_json::to_value(assessment).unwrap_or_default();
-            let action = value["action"].as_str().unwrap_or("unknown");
-            let availability = value["availability"].as_str().unwrap_or("unknown");
-            let reason = value["definition"]["reason"]
-                .as_str()
-                .or_else(|| value["reason"].as_str())
-                .unwrap_or("unknown");
-            format!("  {action}: {availability} ({reason})")
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("{table}\nActions:\n{actions}")
+    statuses(std::slice::from_ref(status))
 }
 
 pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
@@ -663,7 +1044,7 @@ pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
         .map(|status| {
             vec![
                 status.port_id.clone(),
-                status.channel.to_string(),
+                release_channel(status.channel).into(),
                 status.update_policy.to_string(),
                 status
                     .active
@@ -673,17 +1054,201 @@ pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
                     .staged
                     .as_ref()
                     .map_or_else(|| "-".into(), |install| install.version.clone()),
+                status
+                    .external_runtime
+                    .as_ref()
+                    .map_or_else(|| "-".into(), |runtime| runtime.version.clone()),
                 readiness(status),
             ]
         })
         .collect();
-    format!(
+    let summary = format!(
         "Status ({})\n{}",
         statuses.len(),
         table(
-            &["PORT", "CHANNEL", "POLICY", "ACTIVE", "STAGED", "READINESS"],
+            &[
+                "PORT",
+                "CHANNEL",
+                "POLICY",
+                "ACTIVE",
+                "STAGED",
+                "EXTERNAL (USER-OWNED)",
+                "READINESS",
+            ],
             rows,
         )
+    );
+    let actions = statuses
+        .iter()
+        .filter(|status| !status.port_actions.is_empty())
+        .map(|status| {
+            format!(
+                "{}:\n{}",
+                clean(&status.port_id),
+                status
+                    .port_actions
+                    .iter()
+                    .map(status_action)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    if actions.is_empty() {
+        summary
+    } else {
+        format!("{summary}\nActions:\n{actions}")
+    }
+}
+
+fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
+    use portcove_core::{DefinitionEligibilityReason as Definition, PortAction, PortActionReason};
+
+    let value = serde_json::to_value(assessment).unwrap_or_default();
+    let action = value["action"].as_str().unwrap_or("unknown");
+    let availability = value["availability"].as_str().unwrap_or("unknown");
+    let reason = value["definition"]["reason"]
+        .as_str()
+        .or_else(|| value["reason"].as_str())
+        .unwrap_or("unknown");
+    let explanation = if let Some(definition) = assessment.definition {
+        match definition.reason {
+            Definition::MandatoryChecksPassed => "Required definition checks passed.",
+            Definition::PublisherRevoked => "The definition publisher's authority was revoked.",
+            Definition::CuratedArtifactRevoked => {
+                "This exact release file was revoked; installed files and saves are retained."
+            }
+            Definition::CuratedDistributionWithdrawn => {
+                "Distribution of this release file was withdrawn; permitted installed use remains available."
+            }
+            Definition::UnknownSafetySemantics => {
+                "This client cannot interpret the definition's safety requirements."
+            }
+            Definition::PublisherScopeRequired => {
+                "The definition requires accepted publisher authority."
+            }
+            Definition::EngineCapabilityRequired => {
+                "This client lacks a required engine capability."
+            }
+            Definition::OwnershipMigrationRequired => {
+                "The definition requires a reviewed ownership migration."
+            }
+            Definition::MetadataReplay => "The accepted catalog metadata was replayed.",
+            Definition::RefreshIncomplete => "The catalog refresh is incomplete.",
+            Definition::MetadataStale => "The accepted catalog metadata is stale.",
+            Definition::RecordedIdentityChanged => {
+                "Bytes changed under a recorded release identity."
+            }
+            Definition::AuthenticatedIntegrityRequired => {
+                "The release needs accepted authenticated integrity evidence."
+            }
+            Definition::LocalIntegrityFailed => "Local release integrity verification failed.",
+            Definition::MandatoryCheckFailed => "A required definition check failed.",
+            Definition::SourceIdentityMismatch => {
+                "Required source files do not match the accepted identity."
+            }
+            Definition::RequiredSourceMissing => "Required source files are missing.",
+        }
+    } else {
+        match assessment.reason {
+            PortActionReason::Available => {
+                "No current blocker; execution checks current inputs again."
+            }
+            PortActionReason::RouteNotOffered => {
+                "This operation is not offered for this port's route."
+            }
+            PortActionReason::AlreadyRegistered if assessment.action == PortAction::Update => {
+                "This exact verified release is already active; no update action is offered."
+            }
+            PortActionReason::AlreadyRegistered => {
+                "An installation or external runtime is already registered."
+            }
+            PortActionReason::UnsupportedPlatform => {
+                "This operation is not offered on this platform."
+            }
+            PortActionReason::NotInstalled => match assessment.action {
+                PortAction::Rollback => "No previous managed version is retained for rollback.",
+                PortAction::RemoveManaged => "No managed installation is registered.",
+                PortAction::RemoveExternal => "No external runtime is registered.",
+                PortAction::Update => "Install a managed release before reviewing its update.",
+                _ => "Install or register the port before launching.",
+            },
+            PortActionReason::ReviewRequired => match assessment.action {
+                PortAction::Update => {
+                    "Review the current update candidate; saved policy is not consent."
+                }
+                PortAction::RegisterExternal => {
+                    "Review the prepared folder with external preview before registration."
+                }
+                PortAction::RemoveExternal => {
+                    "Review registration removal; external files are kept."
+                }
+                PortAction::RemoveManaged => {
+                    "Review managed removal with remove-preview; saved data is kept."
+                }
+                _ => "Review and confirm this operation before proceeding.",
+            },
+            PortActionReason::IncompatibleSource => {
+                "Select and validate the uncompressed original representation required by this runtime."
+            }
+            PortActionReason::MissingData => {
+                "No owned saves or settings are currently available to back up."
+            }
+            PortActionReason::MissingBackup => {
+                "No usable backup is currently available to review for restore."
+            }
+            PortActionReason::UnreadableData => {
+                "Owned data could not be read; review its location and retry."
+            }
+            PortActionReason::AssessmentIncomplete => {
+                "The bounded preview is incomplete; no empty-data conclusion or new backup execution limit is established."
+            }
+            PortActionReason::UnsafeData => {
+                "The owned data or retained save location needs path and ownership review."
+            }
+            PortActionReason::RecoveryRequired => {
+                "Restart Portcove to retry recovery; review doctor output if it remains."
+            }
+            PortActionReason::MissingSource => "Add the required game files with source add.",
+            PortActionReason::UnreadableSource => {
+                "The registered game-file location cannot be read."
+            }
+            PortActionReason::ChangedSource => {
+                "The registered game files changed; check their saved location and identity."
+            }
+            PortActionReason::MissingBios => "Add the required BIOS with source add.",
+            PortActionReason::UnreadableBios => "The registered BIOS location cannot be read.",
+            PortActionReason::ChangedBios => {
+                "The registered BIOS changed; check its saved location and identity."
+            }
+            PortActionReason::MissingRuntime if assessment.action == PortAction::Rollback => {
+                "The previous version needs its verified runtime before it can be restored."
+            }
+            PortActionReason::MissingRuntime => "The required verified runtime is unavailable.",
+            PortActionReason::PreparationRequired => {
+                "Prepare the required game data before launching."
+            }
+            PortActionReason::InvalidInstallation if assessment.action == PortAction::Rollback => {
+                "Portcove could not verify the previous version; rollback is on hold."
+            }
+            PortActionReason::InvalidInstallation => {
+                "The installation or external runtime needs verification or repair."
+            }
+            PortActionReason::DefinitionIneligible => {
+                "The accepted definition does not currently allow this operation."
+            }
+        }
+    };
+    format!("  {action}: {availability} ({reason}): {explanation}")
+}
+
+#[cfg(feature = "qualification-fixtures")]
+pub(crate) fn game_update_plan(review: &portcove_core::GameUpdatePlan) -> String {
+    format!(
+        "{}\nUpdate decision:\n{}",
+        plan(&review.plan),
+        status_action(&review.assessment)
     )
 }
 
@@ -888,6 +1453,21 @@ pub(crate) fn host_tool_probe(result: &HostToolProbeResult) -> String {
     )
 }
 
+pub(crate) fn game_install_plan(review: &portcove_core::GameInstallPlan) -> String {
+    let mut text = plan(&review.plan);
+    if let Some(selected) = &review.selected_install {
+        text.push_str(&format!(
+            "\nExisting copy to activate: {}\nExisting copy version: {}\nExisting copy channel: {}\nNo artifact download.\n",
+            selected.path.display(), selected.version, release_channel(selected.channel),
+        ));
+    }
+    text.push_str(&format!(
+        "\nReviewed plan SHA-256: {}\n",
+        review.plan_sha256
+    ));
+    text
+}
+
 pub(crate) fn plan(plan: &InstallPlan) -> String {
     let requirements = if plan.source_requirements.is_empty() {
         "none".into()
@@ -926,7 +1506,7 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nTotal download: {}\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}",
         clean(&plan.port_id),
         install_action(plan.action),
-        plan.channel,
+        release_channel(plan.channel),
         platform_name(plan.platform),
         clean(&plan.release.version),
         clean(&plan.release.asset.name),
@@ -1225,7 +1805,22 @@ fn render_value(value: &Value, indent: usize, output: &mut String) {
     }
 }
 
+fn release_channel(channel: ReleaseChannel) -> &'static str {
+    match channel {
+        ReleaseChannel::Stable => "Stable",
+        ReleaseChannel::Beta => "Preview",
+        ReleaseChannel::Rolling => "Rolling",
+    }
+}
+
 fn field_scalar(key: &str, value: &Value) -> String {
+    if key == "channel"
+        && let Some(channel) = value
+            .as_str()
+            .and_then(|value| value.parse::<ReleaseChannel>().ok())
+    {
+        return release_channel(channel).into();
+    }
     if matches!(
         key,
         "created_at" | "updated_at" | "started_at" | "finished_at" | "resets_at"
@@ -1463,6 +2058,263 @@ fn optional_path(path: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn preview_channel_presentation_preserves_compatibility_and_upstream_names() {
+        let value = serde_json::json!({"channel": "beta", "version": "Version1.0.5beta12", "upstream_name": "Beta 12", "application_milestone": "Public beta", "support_tier": "beta"});
+        let before = value.clone();
+        let rendered = super::document(&value).unwrap();
+        assert!(rendered.contains("Channel: Preview"));
+        assert!(rendered.contains("Version1.0.5beta12"));
+        assert!(rendered.contains("Beta 12"));
+        assert!(rendered.contains("Public beta"));
+        assert!(rendered.contains("Support tier: beta"));
+        assert_eq!(value, before);
+        assert_eq!(portcove_core::ReleaseChannel::Beta.to_string(), "beta");
+        assert_eq!(
+            serde_json::to_value(portcove_core::ReleaseChannel::Beta).unwrap(),
+            "beta"
+        );
+        assert!("preview".parse::<portcove_core::ReleaseChannel>().is_err());
+        assert_eq!(
+            super::release_channel(portcove_core::ReleaseChannel::Stable),
+            "Stable"
+        );
+        assert_eq!(
+            super::release_channel(portcove_core::ReleaseChannel::Rolling),
+            "Rolling"
+        );
+    }
+
+    #[test]
+    fn retained_install_review_displays_preview_without_changing_json() {
+        let review: portcove_core::GameInstallPlan = serde_json::from_value(serde_json::json!({
+            "plan": {
+                "port_id": "fixture", "channel": "beta", "platform": "windows-x86-64",
+                "release": {"version": "Upstream Beta 12", "channel": "beta", "published_at": null,
+                    "asset": {"name": "fixture.zip", "url": "https://example.invalid/fixture.zip", "size": 0, "sha256": "a".repeat(64)}},
+                "bundled_runtime": null, "download_bytes": 0, "action": "reuse_retained",
+                "source_requirements": [],
+                "storage": {"library_root": "owned", "volume_total_bytes": 1024, "volume_available_bytes": 1024},
+                "output_location": {"port_id": "fixture", "library_root": "owned", "default_output_directory": "owned/ports",
+                    "configured_output_directory": null, "effective_output_directory": "owned/ports",
+                    "selection_source": "library_default", "user_data_root": "owned/user"}
+            },
+            "selected_install": {"id": "retained", "port_id": "fixture", "version": "Upstream Beta 12", "path": "owned/retained",
+                "channel": "beta", "installed_at": 0, "verified": true, "staged": false},
+            "plan_sha256": "b".repeat(64)
+        })).unwrap();
+        let before = serde_json::to_value(&review).unwrap();
+        let text = super::game_install_plan(&review);
+        assert!(text.contains("Channel: Preview"));
+        assert!(text.contains("Existing copy channel: Preview"));
+        assert!(text.contains("Existing copy version: Upstream Beta 12"));
+        assert!(text.contains("No artifact download."));
+        assert!(text.contains(&format!("Reviewed plan SHA-256: {}", "b".repeat(64))));
+        assert!(!text.contains("Existing copy channel: beta"));
+        assert_eq!(before["plan"]["channel"], "beta");
+        assert_eq!(before["selected_install"]["channel"], "beta");
+        assert_eq!(serde_json::to_value(&review).unwrap(), before);
+    }
+
+    #[test]
+    fn library_move_review_has_scoped_counts_and_full_hash() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("original library");
+        let library = portcove_core::Library::open(&root).unwrap();
+        let service = portcove_core::PortcoveService::new_read_only(library).unwrap();
+        let mut plan = service
+            .plan_library_move(&temporary.path().join("new library"))
+            .unwrap();
+        plan.content.clear();
+        plan.plan_sha256 = "a".repeat(64);
+        assert!(super::library_move_plan(&plan).contains("No managed content files."));
+        plan.content.push(portcove_core::LibraryTreePlan {
+            kind: portcove_core::LibraryContentKind::UserData,
+            relative_path: "user".into(),
+            copy: portcove_core::AdoptionCopyPlan {
+                directories: vec!["settings".into()],
+                files: vec![portcove_core::AdoptionCopyFile {
+                    relative_path: "settings/preferences.json".into(),
+                    size: 1024,
+                    sha256: "b".repeat(64),
+                }],
+                skipped_entries: vec![],
+                total_bytes: 1024,
+            },
+        });
+        let text = super::library_move_plan(&plan);
+        assert!(text.contains("Saves and settings: 1 file, 1 folder, 1.0 KiB"));
+        assert!(text.contains(&format!("Review SHA-256: {}", "a".repeat(64))));
+        assert!(text.contains(&format!("--apply --expected-plan {}", "a".repeat(64))));
+        assert!(!text.contains("preferences.json"));
+    }
+
+    #[test]
+    fn library_move_result_distinguishes_aborted_and_completed_authority() {
+        let mut result = portcove_core::LibraryMoveResult {
+            transfer_id: "transfer-id".into(),
+            source_root: "original library".into(),
+            destination_root: "copied library".into(),
+            active_root: "original library".into(),
+            source_retained: true,
+            completed: false,
+        };
+        let aborted = super::library_move_result(&result);
+        assert!(aborted.starts_with("Library move not completed\n"));
+        assert!(aborted.contains("Active library: original library"));
+        assert!(aborted.contains("Any copied destination files remain in place"));
+        assert!(aborted.contains("choose a new destination"));
+        result.completed = true;
+        result.active_root = result.destination_root.clone();
+        let completed = super::library_move_result(&result);
+        assert!(completed.starts_with("Library move completed\n"));
+        assert!(completed.contains("Active library: copied library"));
+        assert!(!completed.contains("choose a new destination"));
+    }
+
+    fn discovery_report() -> portcove_core::SourceDiscoveryReport {
+        portcove_core::SourceDiscoveryReport {
+            searched_roots: vec!["owned-search-folder".into()],
+            searched_profiles: vec!["minish-cap-gba".into()],
+            candidates: Vec::new(),
+            preliminary_selections: Vec::new(),
+            entries_examined: 3,
+            files_hashed: 2,
+            hash_bytes: 1024,
+            symlinks_skipped: 1,
+            limits_reached: Vec::new(),
+            issues: Vec::new(),
+            issues_omitted: 0,
+        }
+    }
+
+    #[test]
+    fn discovery_preliminary_selection_does_not_claim_validation_or_exact_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("disc.iso");
+        std::fs::write(&path, b"synthetic preliminary disc").unwrap();
+        let service = portcove_core::PortcoveService::new(
+            portcove_core::Library::open(temporary.path().join("library")).unwrap(),
+        )
+        .unwrap();
+        let mut report = discovery_report();
+        report.preliminary_selections =
+            vec![service.inspect_source("opengoal-jak1-disc", &path).unwrap()];
+        let text = super::source_discovery(&report, &portcove_core::Catalog::embedded().unwrap());
+        assert!(text.contains(
+            "Preliminary selections: 1. These are not exact matches; validation has not run."
+        ));
+        assert!(text.contains("source inspect PROFILE_ID PATH"));
+        assert!(!text.contains("To register a chosen candidate"));
+        assert!(text.contains("No sources were registered by this search."));
+        assert!(service.library().sources().unwrap().is_empty());
+    }
+
+    #[test]
+    fn discovery_empty_result_describes_only_inspected_scope_without_registration() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let report = discovery_report();
+        let before = serde_json::to_value(&report).unwrap();
+        let text = super::source_discovery(&report, &catalog);
+        assert!(text.starts_with("Source discovery\n"));
+        assert!(
+            text.contains("Only the selected folders, profiles and supported discovery formats")
+        );
+        assert!(text.contains("No matching candidates were found in the inspected scope."));
+        assert!(text.contains("No recorded processing limits reached."));
+        assert!(!text.contains("complete search"));
+        assert!(!text.contains("invalid game files"));
+        assert!(text.contains("No sources were registered by this search."));
+        assert!(text.contains("does not install or launch games"));
+        assert!(text.contains("Entries examined: 3\nFiles hashed: 2"));
+        assert!(text.contains("Bytes charged to hash budget: 1.0 KiB (1024 bytes)"));
+        assert!(text.contains("Symlinks skipped: 1"));
+        assert!(text.contains(&format!(
+            "{} (minish-cap-gba)",
+            catalog.source_profile("minish-cap-gba").unwrap().label
+        )));
+        assert_eq!(serde_json::to_value(&report).unwrap(), before);
+    }
+
+    #[test]
+    fn discovery_partial_limits_and_omitted_issues_remain_explicit_and_safe() {
+        use portcove_core::{SourceDiscoveryIssue, SourceDiscoveryLimit};
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut report = discovery_report();
+        report.searched_roots = vec!["owned\nfolder\u{1b}[31m\u{9b}2J".into()];
+        report.searched_profiles = vec!["future\nprofile".into()];
+        report.limits_reached = vec![
+            SourceDiscoveryLimit::Entries,
+            SourceDiscoveryLimit::Depth,
+            SourceDiscoveryLimit::FileSize,
+            SourceDiscoveryLimit::HashBytes,
+            SourceDiscoveryLimit::Candidates,
+        ];
+        report.issues = vec![SourceDiscoveryIssue {
+            path: None,
+            profile_id: Some("future\nprofile".into()),
+            message: "Cannot read\nfile token=owned-secret\u{1b}[31m".into(),
+        }];
+        report.issues_omitted = 7;
+        let before = serde_json::to_value(&report).unwrap();
+        let text = super::source_discovery(&report, &catalog);
+        assert!(text.contains("Search was partial."));
+        for flag in [
+            "max-entries",
+            "max-depth",
+            "max-file-bytes",
+            "max-hash-bytes",
+            "max-candidates",
+        ] {
+            assert!(text.contains(&format!("(--{flag})")));
+        }
+        assert!(text.contains("this search cannot be resumed"));
+        assert!(text.contains("Scan issues: 1 shown, 7 omitted."));
+        assert!(text.contains("Location not recorded [future profile]"));
+        assert!(text.contains("[REDACTED]"));
+        assert!(!text.contains("owned-secret"));
+        assert!(!text.contains('\u{1b}'));
+        assert!(!text.contains('\u{9b}'));
+        assert!(!text.contains("owned\nfolder"));
+        assert_eq!(serde_json::to_value(&report).unwrap(), before);
+
+        report.limits_reached.clear();
+        report.issues.clear();
+        let text = super::source_discovery(&report, &catalog);
+        assert!(text.contains("Scan issues: 0 shown, 7 omitted."));
+        assert!(!text.contains("Search was partial."));
+    }
+
+    #[test]
+    fn discovery_candidates_keep_content_and_storage_identity_separate() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut report = discovery_report();
+        report.candidates = vec![portcove_core::SourceRecord {
+            profile_id: "minish-cap-gba".into(),
+            path: "owned\ncandidate.zip\u{1b}[31m".into(),
+            sha256: "a".repeat(64),
+            size: 1024,
+            storage_sha256: "b".repeat(64),
+            storage_size: 2048,
+            updated_at: 42,
+            observed_identity: None,
+        }];
+        let before = serde_json::to_value(&report).unwrap();
+        let text = super::source_discovery(&report, &catalog);
+        assert!(text.contains("Matching candidates: 1"));
+        assert!(text.contains(&format!("Content SHA-256: {}", "a".repeat(64))));
+        assert!(text.contains(&format!("Stored file SHA-256: {}", "b".repeat(64))));
+        assert!(text.contains("Content size: 1.0 KiB (1024 bytes)"));
+        assert!(text.contains("Stored file size: 2.0 KiB (2048 bytes)"));
+        assert!(text.contains("Observed (UTC): 1970-01-01T00:00:42Z"));
+        assert!(text.contains("source add PROFILE_ID PATH --expected-sha256 SHA256"));
+        assert!(text.contains("Registration checks the current bytes again."));
+        assert!(!text.contains("Saved game-file"));
+        assert!(!text.contains("owned\ncandidate"));
+        assert!(!text.contains('\u{1b}'));
+        assert_eq!(serde_json::to_value(&report).unwrap(), before);
+    }
+
     use std::path::PathBuf;
 
     use portcove_core::{
@@ -1470,7 +2322,10 @@ mod tests {
         BackupInventoryState, BackupRecord, PreparationCleanupPreview, StorageSummary,
     };
 
-    use super::{backup_list, catalog_show, document, storage, table, utc_rate_reset, utc_time};
+    use super::{
+        backup_history, backup_list, catalog_show, document, storage, table, utc_rate_reset,
+        utc_time,
+    };
 
     fn scan_snapshot_fixture() -> portcove_core::GameFileScanSnapshot {
         use portcove_core::{
@@ -1494,6 +2349,7 @@ mod tests {
                 searched_roots: Vec::new(),
                 searched_profiles: Vec::new(),
                 candidates: Vec::new(),
+                preliminary_selections: Vec::new(),
                 entries_examined: 1,
                 files_hashed: 0,
                 hash_bytes: 0,
@@ -1508,6 +2364,8 @@ mod tests {
             },
             completed_at: 2,
             freshness: GameFileScanFreshness::InputsMatch,
+            coverage: None,
+            continuation: None,
         }
     }
 
@@ -1516,6 +2374,7 @@ mod tests {
         let snapshot = scan_snapshot_fixture();
         let before = serde_json::to_value(&snapshot).unwrap();
         let output = super::game_file_scan_snapshot(&Some(snapshot.clone()));
+        assert_eq!(output, super::game_file_scan(&snapshot));
         assert!(output.contains("Scan limits reached: entries"));
         assert!(output.contains("Recorded scan limits: entries=1, depth=6, file bytes=2147483648, hash bytes=17179869184, candidates=64."));
         assert!(output.contains("results may be incomplete"));
@@ -1587,6 +2446,39 @@ mod tests {
     }
 
     #[test]
+    fn saved_scan_readback_distinguishes_resume_restart_and_exhausted_frontier() {
+        let mut snapshot = scan_snapshot_fixture();
+        snapshot.coverage = Some(portcove_core::GameFileScanCoverage {
+            batches: 2,
+            batch_entries_examined: 1,
+            entries_relisted: 3,
+            metadata_checks: 8,
+            prior_member_rechecks: 1,
+            pending_directories: 2,
+            can_resume: true,
+            ..Default::default()
+        });
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Scan batches: 2; this batch examined 1 entries"));
+        assert!(output.contains("Remaining entries: unknown"));
+        assert!(output.contains("same limits to resume"));
+        let coverage = snapshot.coverage.as_mut().unwrap();
+        coverage.can_resume = false;
+        coverage.restart_required = true;
+        snapshot.freshness = portcove_core::GameFileScanFreshness::InputsChanged;
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Continuation was refused"));
+        assert!(!output.contains("same limits to resume"));
+        let coverage = snapshot.coverage.as_mut().unwrap();
+        coverage.restart_required = false;
+        coverage.frontier_exhausted = true;
+        coverage.remaining_entries = Some(0);
+        let output = super::game_file_scan(&snapshot);
+        assert!(output.contains("Remaining entries: 0"));
+        assert!(output.contains("issues may still leave coverage incomplete"));
+    }
+
+    #[test]
     fn retained_diagnostics_escape_controls_without_changing_captures() {
         use portcove_core::{ActivityDiagnostic, DiagnosticStream, redact_diagnostic_text};
         let capture = ActivityDiagnostic {
@@ -1620,7 +2512,15 @@ mod tests {
         assert!(rendered.contains(r"safe\u{1b}]2;owned-title\u{7}"));
         assert!(rendered.contains("password=[REDACTED]"));
         assert!(!rendered.contains("owned-private-value"));
-        assert!(rendered.contains("Capture is incomplete."));
+        assert!(rendered.contains("Later output may be missing."));
+        let ended_with_omissions = ActivityDiagnostic {
+            complete: true,
+            ..capture.clone()
+        };
+        let ended = super::activity_diagnostic(std::slice::from_ref(&ended_with_omissions));
+        assert!(ended.contains("Both output streams ended. Saved output is shown below."));
+        assert!(ended.contains("Output exceeded the capture limit; some output was omitted."));
+        assert!(!ended.contains("Preparation completed"));
         assert!(rendered.contains("Output exceeded the capture limit; some output was omitted."));
         assert_eq!(serde_json::to_value(&capture).unwrap(), stored);
         assert!(
@@ -1671,12 +2571,12 @@ mod tests {
         assert!(rendered.contains("Activity: owned-id[31m header\nPhase: preparation.setup phase"));
         assert_eq!(
             rendered
-                .matches("Capture reached the end of both streams.")
+                .matches("Both output streams ended. Saved output is shown below.")
                 .count(),
             2
         );
         assert_eq!(rendered.matches("ordinary π\n\tsecond line\n").count(), 4);
-        assert!(!rendered.contains("Capture is incomplete"));
+        assert!(!rendered.contains("Later output may be missing"));
         assert!(!rendered.contains("some output was omitted"));
         assert!(!rendered.contains('\u{1b}'));
         assert!(!rendered.contains('\u{8}'));
@@ -1753,6 +2653,79 @@ mod tests {
         assert!(external.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
         assert!(external.contains("create an empty portable.txt"));
         assert!(external.contains("Saves and settings: user-owned"));
+    }
+
+    #[test]
+    fn catalog_status_explains_effective_signed_fallback_and_retains_exact_identities() {
+        use portcove_core::{CatalogOrigin, CatalogProvenance, CatalogStatus, CatalogTrustKey};
+
+        let status = CatalogStatus {
+            provenance: CatalogProvenance {
+                origin: CatalogOrigin::SignedPrevious,
+                catalog_sha256: "a".repeat(64),
+                sequence: Some(7),
+                key_id: Some("publisher-id".into()),
+                expires_at: Some(42),
+                fallback_reasons: vec!["active catalog expired\rcheck trust".into()],
+            },
+            trusted_keys: vec![CatalogTrustKey {
+                key_id: "trusted-id".into(),
+                public_key: "b".repeat(64),
+            }],
+            highest_sequence: 8,
+            updates_enabled: true,
+            can_rollback: false,
+            can_use_cached: true,
+            state_sha256: "c".repeat(64),
+        };
+        let output = super::catalog_status(&status);
+        assert!(output.contains("Effective catalog: previous signed catalog"));
+        assert!(output.contains("Catalog SHA-256: "));
+        assert!(output.contains(&"a".repeat(64)));
+        assert!(output.contains("Publisher: publisher-id"));
+        assert!(output.contains("Sequence: 7"));
+        assert!(output.contains("Expires: 1970-01-01T00:00:42Z"));
+        assert!(output.contains("Highest accepted sequence: 8"));
+        assert!(output.contains("Trusted publishers: 1"));
+        assert!(output.contains("trusted-id"));
+        assert!(output.contains(&"b".repeat(64)));
+        assert!(output.contains("Rollback: unavailable"));
+        assert!(output.contains("Cached signed catalog: available"));
+        assert!(output.contains("Fallback reason: active catalog expired check trust"));
+        assert!(output.contains(&format!("State SHA-256: {}", "c".repeat(64))));
+        assert!(!output.contains('\u{1b}'));
+        assert!(!output.contains('\r'));
+    }
+
+    #[test]
+    fn catalog_status_names_built_in_selection_without_claiming_signed_provenance() {
+        use portcove_core::{CatalogOrigin, CatalogProvenance, CatalogStatus};
+
+        let status = CatalogStatus {
+            provenance: CatalogProvenance {
+                origin: CatalogOrigin::Embedded,
+                catalog_sha256: "a".repeat(64),
+                sequence: None,
+                key_id: None,
+                expires_at: None,
+                fallback_reasons: Vec::new(),
+            },
+            trusted_keys: Vec::new(),
+            highest_sequence: 0,
+            updates_enabled: false,
+            can_rollback: false,
+            can_use_cached: false,
+            state_sha256: "b".repeat(64),
+        };
+        let output = super::catalog_status(&status);
+        assert!(output.contains("Effective catalog: built-in catalog"));
+        assert!(output.contains("Trusted publishers: 0"));
+        assert!(output.contains("Catalog updates: disabled"));
+        assert!(output.contains("Rollback: unavailable"));
+        assert!(output.contains("Cached signed catalog: unavailable"));
+        assert!(!output.contains("Publisher:"));
+        assert!(!output.contains("Sequence:"));
+        assert!(!output.contains("Fallback reason:"));
     }
 
     #[test]
@@ -1923,13 +2896,123 @@ mod tests {
         }
     }
 
+    fn backup_action_fixture() -> portcove_core::BackupActionPreview {
+        portcove_core::BackupActionPreview {
+            action: portcove_core::BackupAction::Restore,
+            backup: BackupRecord {
+                id: "backup-1".into(),
+                port_id: "zelda64-recomp".into(),
+                path: PathBuf::from("owned/backups/backup-1"),
+                created_at: 42,
+                file_count: 3,
+                size: 2048,
+                sha256: "a".repeat(64),
+            },
+            current_user_data_exists: true,
+            safety_backup_will_be_created: true,
+            preview_sha256: "b".repeat(64),
+        }
+    }
+
+    #[test]
+    fn backup_review_distinguishes_existing_data_from_a_planned_safety_backup() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut preview = backup_action_fixture();
+        for (exists, safety) in [(true, true), (true, false), (false, false)] {
+            preview.current_user_data_exists = exists;
+            preview.safety_backup_will_be_created = safety;
+            let text = super::backup_action_preview(&preview, &catalog);
+            assert!(text.contains(&format!(
+                "Port: {} (zelda64-recomp)",
+                catalog.port("zelda64-recomp").unwrap().name,
+            )));
+            assert!(text.contains("Created (UTC): 1970-01-01T00:00:42Z"));
+            assert!(text.contains("Files: 3\nSize: 2.0 KiB (2048 bytes)"));
+            assert!(text.contains(&format!("Backup SHA-256: {}", "a".repeat(64))));
+            assert!(text.contains(&format!("Review SHA-256: {}", "b".repeat(64))));
+            assert!(text.contains(&format!(
+                "Current managed saved data exists: {}",
+                if exists { "yes" } else { "no" },
+            )));
+            assert_eq!(text.contains("create a safety backup"), safety);
+            assert_eq!(text.contains("no safety backup is planned"), !safety);
+            assert!(text.contains("Preserved: the selected backup and other backups."));
+        }
+    }
+
+    #[test]
+    fn backup_delete_review_cannot_be_spoofed_by_control_characters() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut preview = backup_action_fixture();
+        preview.action = portcove_core::BackupAction::Delete;
+        preview.backup.id = "backup\nforged\u{1b}[31m\u{9b}2J".into();
+        preview.backup.path = PathBuf::from("owned\r\nfolder\u{1b}");
+        let text = super::backup_action_preview(&preview, &catalog);
+        assert!(text.starts_with("Delete backup review\n"));
+        assert!(text.contains("permanently delete only the selected backup"));
+        assert!(text.contains("Preserved: live managed saved data and other backups."));
+        assert!(text.contains("Portcove cannot undo this deletion."));
+        assert!(!text.contains("create a safety backup"));
+        assert!(!text.contains('\u{1b}'));
+        assert!(!text.contains('\u{9b}'));
+        assert!(!text.contains('\r'));
+        assert!(!text.lines().any(|line| line.starts_with("forged")));
+    }
+
+    fn backup_fixture_assessment() -> portcove_core::PortActionAssessment {
+        portcove_core::PortActionAssessment {
+            action: portcove_core::PortAction::BackupCreate,
+            availability: portcove_core::PortActionAvailability::Waiting,
+            reason: portcove_core::PortActionReason::MissingData,
+            definition: None,
+        }
+    }
+
+    fn backup_restore_fixture_assessment() -> portcove_core::PortActionAssessment {
+        portcove_core::PortActionAssessment {
+            action: portcove_core::PortAction::BackupRestore,
+            availability: portcove_core::PortActionAvailability::Waiting,
+            reason: portcove_core::PortActionReason::MissingBackup,
+            definition: None,
+        }
+    }
+
+    #[test]
+    fn update_decisions_explain_review_without_launch_or_registration_instructions() {
+        use portcove_core::{
+            PortAction, PortActionAssessment, PortActionAvailability as Availability,
+            PortActionReason as Reason,
+        };
+        let decision = |availability, reason| {
+            super::status_action(&PortActionAssessment {
+                action: PortAction::Update,
+                availability,
+                reason,
+                definition: None,
+            })
+        };
+        assert!(
+            decision(Availability::Waiting, Reason::ReviewRequired)
+                .contains("saved policy is not consent")
+        );
+        assert!(
+            decision(Availability::NotOffered, Reason::NotInstalled)
+                .contains("managed release before reviewing its update")
+        );
+        let active = decision(Availability::NotOffered, Reason::AlreadyRegistered);
+        assert!(active.contains("exact verified release is already active"));
+        assert!(!active.contains("external runtime"));
+    }
+
     #[test]
     fn read_renderers_have_stable_human_snapshots() {
         assert_eq!(
-            backup_list(
+            backup_history(
                 "sample",
                 &BackupInventory {
                     port_id: "sample".into(),
+                    create_assessment: backup_fixture_assessment(),
+                    restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: Vec::new(),
                     problems: Vec::new(),
@@ -1938,10 +3021,12 @@ mod tests {
             "No backups for sample."
         );
         assert_eq!(
-            backup_list(
+            backup_history(
                 "sample",
                 &BackupInventory {
                     port_id: "sample".into(),
+                    create_assessment: backup_fixture_assessment(),
+                    restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: vec![BackupRecord {
                         id: "backup-1".into(),
@@ -1961,6 +3046,12 @@ mod tests {
             "sample",
             &BackupInventory {
                 port_id: "sample".into(),
+                restore_assessment: backup_restore_fixture_assessment(),
+                create_assessment: portcove_core::PortActionAssessment {
+                    availability: portcove_core::PortActionAvailability::Held,
+                    reason: portcove_core::PortActionReason::RecoveryRequired,
+                    ..backup_fixture_assessment()
+                },
                 state: BackupInventoryState::RecoveryRequired,
                 backups: Vec::new(),
                 problems: vec![portcove_core::BackupProblem {
@@ -1974,6 +3065,9 @@ mod tests {
             },
         );
         assert!(degraded.contains("Backup inventory: recovery required (1 problem)"));
+        assert!(degraded.contains("backup_create"));
+        assert!(degraded.contains("held (recovery_required)"));
+        assert!(degraded.contains("Restart Portcove to retry recovery"));
         assert!(degraded.contains("deletion was interrupted"));
         assert!(degraded.contains(".deleting-operation-1"));
         assert_eq!(
@@ -1999,5 +3093,454 @@ mod tests {
             document(&serde_json::json!({"some_value": "line\nnext", "ready": true})).unwrap(),
             "Ready: yes\nSome value: line next",
         );
+    }
+
+    fn status_disclosure_fixture() -> portcove_core::PortStatus {
+        serde_json::from_value(serde_json::json!({
+            "port_id": "fixture-port",
+            "channel": "stable",
+            "update_policy": "notify",
+            "active": null,
+            "previous": null,
+            "staged": null
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn status_disclosure_keeps_managed_staged_and_external_versions_separate() {
+        // Supplied records test formatting only; no runtime is registered or executed.
+        let managed_path = PathBuf::from("fixture-managed");
+        let external_path = PathBuf::from("fixture-external");
+        let mut managed = status_disclosure_fixture();
+        let install = serde_json::json!({
+            "id": "fixture-install", "port_id": managed.port_id,
+            "version": "managed-v1", "path": managed_path,
+            "channel": "stable", "installed_at": 1, "verified": true, "staged": false
+        });
+        managed.active = Some(serde_json::from_value(install.clone()).unwrap());
+        let mut staged = install;
+        staged["version"] = "staged-v2".into();
+        staged["staged"] = true.into();
+        managed.staged = Some(serde_json::from_value(staged).unwrap());
+        let mut external = status_disclosure_fixture();
+        external.port_id = "external\tport\n\u{1b}".into();
+        external.external_runtime = Some(portcove_core::ExternalRuntimeRecord {
+            id: "fixture-registration".into(),
+            port_id: external.port_id.clone(),
+            path: external_path.clone(),
+            executable: external_path.join("game"),
+            version: "external\tv3\n\u{1b}".into(),
+            platform: portcove_core::Platform::LinuxX86_64,
+            archive_sha256: "a".repeat(64),
+            immutable_tree_sha256: "b".repeat(64),
+            registered_at: 1,
+            retained_definition: None,
+        });
+        let before = serde_json::to_value((&managed, &external)).unwrap();
+        let output = super::statuses(&[managed.clone(), external.clone()]);
+        assert!(output.contains("ACTIVE"));
+        assert!(output.contains("STAGED"));
+        assert!(output.contains("EXTERNAL (USER-OWNED)"));
+        let managed_row = output
+            .lines()
+            .find(|line| line.starts_with("fixture-port"))
+            .unwrap();
+        assert!(managed_row.contains("managed-v1"));
+        assert!(managed_row.contains("staged-v2"));
+        assert!(!managed_row.contains("external v3"));
+        let external_row = output
+            .lines()
+            .find(|line| line.starts_with("external port "))
+            .unwrap();
+        assert!(external_row.contains("external v3 "));
+        assert!(!external_row.contains("managed-v1"));
+        assert!(!output.contains(managed_path.to_str().unwrap()));
+        assert!(!output.contains(external_path.to_str().unwrap()));
+        assert!(!output.contains('\u{1b}'));
+        assert!(!output.contains('\t'));
+        assert_eq!(before, serde_json::to_value((&managed, &external)).unwrap());
+        assert_eq!(super::status(&external), super::statuses(&[external]));
+    }
+
+    #[test]
+    fn status_disclosure_preserves_all_core_action_states_and_reason_codes() {
+        use portcove_core::{
+            PortAction as Action, PortActionAvailability as State, PortActionReason as Reason,
+        };
+        let reasons = [
+            Reason::Available,
+            Reason::RouteNotOffered,
+            Reason::AlreadyRegistered,
+            Reason::UnsupportedPlatform,
+            Reason::NotInstalled,
+            Reason::ReviewRequired,
+            Reason::MissingSource,
+            Reason::UnreadableSource,
+            Reason::ChangedSource,
+            Reason::MissingBios,
+            Reason::UnreadableBios,
+            Reason::ChangedBios,
+            Reason::MissingRuntime,
+            Reason::PreparationRequired,
+            Reason::InvalidInstallation,
+            Reason::DefinitionIneligible,
+        ];
+        for (action, state) in [
+            (Action::Install, State::Allowed),
+            (Action::RegisterExternal, State::Waiting),
+            (Action::Launch, State::Held),
+            (Action::RemoveManaged, State::NotOffered),
+            (Action::RemoveExternal, State::Waiting),
+            (Action::Rollback, State::Held),
+        ] {
+            for reason in reasons {
+                let assessment = portcove_core::PortActionAssessment {
+                    action,
+                    availability: state,
+                    reason,
+                    definition: None,
+                };
+                let before = serde_json::to_value(assessment).unwrap();
+                let rendered = super::status_action(&assessment);
+                let prefix = format!(
+                    "  {}: {} ({}): ",
+                    before["action"].as_str().unwrap(),
+                    before["availability"].as_str().unwrap(),
+                    before["reason"].as_str().unwrap()
+                );
+                let explanation = rendered.strip_prefix(&prefix).unwrap();
+                assert!(!explanation.is_empty());
+                assert_eq!(before, serde_json::to_value(assessment).unwrap());
+                match reason {
+                    Reason::MissingSource | Reason::UnreadableSource | Reason::ChangedSource => {
+                        assert!(
+                            explanation.contains("game-file") || explanation.contains("game files")
+                        );
+                        assert!(!explanation.contains("BIOS"));
+                    }
+                    Reason::MissingBios | Reason::UnreadableBios | Reason::ChangedBios => {
+                        assert!(explanation.contains("BIOS"))
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn status_disclosure_uses_authoritative_definition_reasons() {
+        use portcove_core::{DefinitionEligibilityOutcome, DefinitionEligibilityReason as Reason};
+        for reason in [
+            Reason::MandatoryChecksPassed,
+            Reason::PublisherRevoked,
+            Reason::UnknownSafetySemantics,
+            Reason::PublisherScopeRequired,
+            Reason::EngineCapabilityRequired,
+            Reason::OwnershipMigrationRequired,
+            Reason::MetadataReplay,
+            Reason::RefreshIncomplete,
+            Reason::MetadataStale,
+            Reason::RecordedIdentityChanged,
+            Reason::AuthenticatedIntegrityRequired,
+            Reason::LocalIntegrityFailed,
+            Reason::MandatoryCheckFailed,
+            Reason::SourceIdentityMismatch,
+            Reason::RequiredSourceMissing,
+        ] {
+            let assessment = portcove_core::PortActionAssessment {
+                action: portcove_core::PortAction::Launch,
+                availability: portcove_core::PortActionAvailability::Held,
+                reason: portcove_core::PortActionReason::DefinitionIneligible,
+                definition: Some(portcove_core::DefinitionEligibility {
+                    outcome: DefinitionEligibilityOutcome::Hold,
+                    reason,
+                }),
+            };
+            let value = serde_json::to_value(assessment).unwrap();
+            let rendered = super::status_action(&assessment);
+            let prefix = format!(
+                "  launch: held ({}): ",
+                value["definition"]["reason"].as_str().unwrap()
+            );
+            assert!(!rendered.strip_prefix(&prefix).unwrap().is_empty());
+            assert!(!rendered.contains("(definition_ineligible)"));
+            assert!(!rendered.contains("No current blocker"));
+        }
+    }
+
+    #[test]
+    fn status_disclosure_omits_legacy_empty_actions_and_keeps_groups_with_their_ports() {
+        let empty = status_disclosure_fixture();
+        assert!(!super::status(&empty).contains("Actions:"));
+        assert!(!super::statuses(&[empty.clone(), empty.clone()]).contains("Actions:"));
+        assert_eq!(super::statuses(&[]), "No catalog ports.");
+        let mut assessed = status_disclosure_fixture();
+        assessed.port_id = "assessed\nport\u{1b}".into();
+        assessed
+            .port_actions
+            .push(portcove_core::PortActionAssessment {
+                action: portcove_core::PortAction::RemoveExternal,
+                availability: portcove_core::PortActionAvailability::Waiting,
+                reason: portcove_core::PortActionReason::ReviewRequired,
+                definition: None,
+            });
+        let output = super::statuses(&[empty, assessed.clone()]);
+        assert!(!output.contains("\nfixture-port:\n"));
+        assert!(output.contains("\nassessed port:\n"));
+        assert!(output.contains("external files are kept"));
+        assert_eq!(
+            output.split_once("\nassessed port:\n").unwrap().1,
+            super::status(&assessed)
+                .split_once("\nassessed port:\n")
+                .unwrap()
+                .1
+        );
+        assert!(!output.contains('\u{1b}'));
+    }
+}
+
+#[cfg(test)]
+mod catalog_detail_tests {
+    use super::{catalog_show, clean};
+    use portcove_core::{Catalog, Platform, PortDefinition, ReleaseSource};
+
+    fn external_port() -> PortDefinition {
+        Catalog::embedded()
+            .unwrap()
+            .port("wave-race-64-recomp")
+            .unwrap()
+            .clone()
+    }
+
+    #[test]
+    fn catalog_detail_distinguishes_declared_profile_ids_from_presentation_labels() {
+        use portcove_core::{
+            PortSourceRole, SourceRequirementPresentation, SourceVerificationMethod,
+        };
+
+        let mut port = external_port();
+        port.source_profile = Some("declared-game-profile".into());
+        port.bios_source_profile = Some("declared-bios-profile".into());
+        port.presentation.as_mut().unwrap().source_requirements = vec![
+            SourceRequirementPresentation {
+                role: PortSourceRole::Game,
+                profile_id: "presentation-game-reference".into(),
+                label: "Readable game-file requirement".into(),
+                verification: SourceVerificationMethod::CatalogIdentity,
+            },
+            SourceRequirementPresentation {
+                role: PortSourceRole::Bios,
+                profile_id: "presentation-bios-reference".into(),
+                label: "Readable BIOS requirement".into(),
+                verification: SourceVerificationMethod::CatalogIdentity,
+            },
+        ];
+        let before = serde_json::to_value(&port).unwrap();
+        let output = catalog_show(&port);
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "Game-file profile ID: declared-game-profile")
+        );
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "BIOS profile ID: declared-bios-profile")
+        );
+        assert!(output.contains("Game files: Readable game-file requirement (Check method:"));
+        assert!(output.contains("BIOS: Readable BIOS requirement (Check method:"));
+        assert!(!output.contains("profile ID: Readable"));
+        assert!(!output.contains("presentation-game-reference"));
+        assert!(!output.contains("presentation-bios-reference"));
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_discloses_declared_profile_ids_without_presentation() {
+        let mut port = external_port();
+        port.presentation = None;
+        port.source_profile = Some("declared-game-profile".into());
+        port.bios_source_profile = Some("declared-bios-profile".into());
+        let before = serde_json::to_value(&port).unwrap();
+        let output = catalog_show(&port);
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "Game-file profile ID: declared-game-profile")
+        );
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "BIOS profile ID: declared-bios-profile")
+        );
+        assert!(output.contains("Presentation details: unavailable in this catalog"));
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_omits_each_absent_profile_id_independently() {
+        for (game, bios, expected) in [
+            (
+                Some("declared-game-profile"),
+                None,
+                vec!["Game-file profile ID: declared-game-profile"],
+            ),
+            (
+                None,
+                Some("declared-bios-profile"),
+                vec!["BIOS profile ID: declared-bios-profile"],
+            ),
+            (None, None, Vec::new()),
+        ] {
+            let mut port = external_port();
+            port.source_profile = game.map(str::to_owned);
+            port.bios_source_profile = bios.map(str::to_owned);
+            let before = serde_json::to_value(&port).unwrap();
+            let output = catalog_show(&port);
+            let rows = output
+                .lines()
+                .filter(|line| {
+                    line.starts_with("Game-file profile ID:")
+                        || line.starts_with("BIOS profile ID:")
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(rows, expected);
+            assert_eq!(serde_json::to_value(&port).unwrap(), before);
+        }
+    }
+
+    #[test]
+    fn catalog_detail_sanitizes_profile_ids_without_changing_the_definition() {
+        let mut port = external_port();
+        port.source_profile = Some("game\nprofile\t\u{1b}\u{9b}".into());
+        port.bios_source_profile = Some("bios\rprofile\u{7}".into());
+        let before = serde_json::to_value(&port).unwrap();
+        let output = catalog_show(&port);
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "Game-file profile ID: game profile ")
+        );
+        assert!(
+            output
+                .lines()
+                .any(|line| line == "BIOS profile ID: bios profile")
+        );
+        assert!(
+            output
+                .chars()
+                .all(|character| !character.is_control() || character == '\n')
+        );
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_reads_accepted_runtime_facts_without_presentation() {
+        let mut port = external_port();
+        port.presentation = None;
+        let before = serde_json::to_value(&port).unwrap();
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        let output = catalog_show(&port);
+        assert!(output.contains(&format!(
+            "Accepted runtime (windows-x86_64): {}",
+            runtime.version
+        )));
+        assert!(output.contains(&format!(
+            "Package: {} ({} bytes)",
+            runtime.archive_name, runtime.archive_size
+        )));
+        assert!(output.contains(&format!("Package SHA-256: {}", runtime.archive_sha256)));
+        assert!(output.contains(&format!("Executable: {}", runtime.executable)));
+        assert!(
+            output.contains("portcove external preview wave-race-64-recomp \"<extracted-folder>\"")
+        );
+        assert!(output.contains("matching platform"));
+        assert!(output.contains(
+            "Maintenance: user-owned; Portcove does not download or update this runtime"
+        ));
+        assert!(output.contains("Presentation details: unavailable in this catalog"));
+        assert!(!output.contains("Accepted runtime (linux"));
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_keeps_each_platform_with_its_distinct_accepted_package() {
+        let mut port = external_port();
+        port.platforms = vec![Platform::LinuxX86_64, Platform::WindowsX86_64];
+        let mut linux = port.release.user_prepared[&Platform::WindowsX86_64].clone();
+        linux.version = "v7.2.1".into();
+        linux.archive_name = "fixture-linux-runtime.zip".into();
+        linux.archive_size = 321;
+        linux.archive_sha256 = "a".repeat(64);
+        linux.executable = "bin/fixture-game".into();
+        port.release
+            .user_prepared
+            .insert(Platform::LinuxX86_64, linux);
+        let output = catalog_show(&port);
+        let windows_heading = "Accepted runtime (windows-x86_64): v1.0.2";
+        let linux_heading = "Accepted runtime (linux-x86_64): v7.2.1";
+        let windows_position = output.find(windows_heading).unwrap();
+        let linux_position = output.find(linux_heading).unwrap();
+        assert!(windows_position < linux_position);
+        let windows = &output[windows_position..linux_position];
+        assert!(windows.contains("WaveRace64Recomp-1.0.2-windows-x64.zip (17397538 bytes)"));
+        assert!(!windows.contains("fixture-linux-runtime"));
+        let linux = &output[linux_position..];
+        assert!(linux.contains("Package: fixture-linux-runtime.zip (321 bytes)"));
+        assert!(linux.contains(&format!("Package SHA-256: {}", "a".repeat(64))));
+        assert!(linux.contains("Executable: bin/fixture-game"));
+        assert!(!linux.contains("WaveRace64Recomp.exe"));
+    }
+
+    #[test]
+    fn catalog_detail_sanitizes_runtime_facts_without_changing_the_definition() {
+        let mut port = external_port();
+        let runtime = port
+            .release
+            .user_prepared
+            .get_mut(&Platform::WindowsX86_64)
+            .unwrap();
+        runtime.version = "v2\nforged\u{1b}".into();
+        runtime.archive_name = "package\r\nforged\u{7}.zip".into();
+        runtime.archive_sha256 = "digest\tforged\u{1b}".into();
+        runtime.executable = "bin/game\nforged\u{7}".into();
+        let before = serde_json::to_value(&port).unwrap();
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        let output = catalog_show(&port);
+        for value in [
+            &runtime.version,
+            &runtime.archive_name,
+            &runtime.archive_sha256,
+            &runtime.executable,
+        ] {
+            assert!(
+                output.contains(&clean(value)),
+                "missing sanitized fact: {output}"
+            );
+            assert!(!output.contains(value));
+        }
+        assert!(!output.contains('\u{1b}'));
+        assert!(!output.contains('\u{7}'));
+        assert_eq!(serde_json::to_value(&port).unwrap(), before);
+    }
+
+    #[test]
+    fn catalog_detail_does_not_invent_an_external_route_for_managed_or_missing_runtime() {
+        let catalog = Catalog::embedded().unwrap();
+        let managed = catalog_show(catalog.port("shipwright").unwrap());
+        assert!(managed.contains("Installation: portable upstream package"));
+        assert!(managed.contains("Saves and settings: managed by Portcove"));
+        let mut absent = external_port();
+        absent.release.user_prepared.clear();
+        absent.presentation = None;
+        let missing = catalog_show(&absent);
+        let mut other_provider = external_port();
+        other_provider.release.provider = ReleaseSource::Github;
+        for output in [managed, missing, catalog_show(&other_provider)] {
+            assert!(!output.contains("Accepted runtime ("));
+            assert!(!output.contains("portcove external preview"));
+            assert!(!output.contains("Maintenance: user-owned"));
+        }
     }
 }

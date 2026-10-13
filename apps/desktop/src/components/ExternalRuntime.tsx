@@ -1,7 +1,9 @@
 import { FolderOpen } from "lucide-react";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
+import { catalogSetupPresentation } from "../features/port-actions/port-action-presentation";
 import { pickInstallFolder } from "../file-picker";
+import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type { PortDefinition, PortStatus } from "../types";
 import { useActionReview } from "../use-action-review";
 import { Icon } from "./ui";
@@ -16,59 +18,79 @@ function ReviewCancelButton({ pending, dismiss }: { pending: boolean; dismiss: (
   );
 }
 
-function externalSetupReason(availability?: string, reason?: string, definitionReason?: string) {
-  if (availability === "not_offered" && reason === "unsupported_platform")
-    return "This installation route is unavailable on this platform.";
-  if (reason === "definition_ineligible") {
-    const reasons: Record<string, string> = {
-      publisher_revoked: "The catalog publisher was revoked.",
-      unknown_safety_semantics:
-        "This definition has safety requirements Portcove cannot interpret.",
-      publisher_scope_required: "This publisher is not approved for this port.",
-      engine_capability_required: "This version of Portcove cannot use this route.",
-      ownership_migration_required: "An existing installation needs ownership review.",
-      metadata_replay: "The catalog update is older than the accepted version.",
-      refresh_incomplete: "The catalog update did not finish.",
-      metadata_stale: "The catalog information needs refreshing.",
-      recorded_identity_changed: "The accepted file identity changed.",
-      authenticated_integrity_required: "The required file integrity evidence is missing.",
-      local_integrity_failed: "A required local file check failed.",
-      mandatory_check_failed: "A required check failed.",
-      source_identity_mismatch: "The game files do not match the required edition.",
-      required_source_missing: "Required game files are missing.",
-    };
-    return `Setup is on hold. ${definitionReason && Object.hasOwn(reasons, definitionReason) ? reasons[definitionReason] : "Check this port's current requirements."}`;
-  }
-  if (reason === "already_registered") return "This installation is already in your library.";
-  if (reason === "review_required") return "Choose a folder to review before using it.";
-  return "This installation route is unavailable. Check the port details for current requirements.";
-}
-
-export function ExternalRuntimeControl({
-  port,
-  status,
-  generation,
-  busy,
-  onChanged,
-}: {
+type ExternalRuntimeControlProps = {
   port: PortDefinition;
   status?: PortStatus;
   generation: number;
   busy: boolean;
   onChanged?: () => void;
-}) {
+};
+
+export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
+  return (
+    <ExternalRuntimeContext
+      key={JSON.stringify([props.port.id, props.generation, props.status?.external_runtime?.id])}
+      {...props}
+    />
+  );
+}
+
+function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
+  return (
+    <>
+      <p>
+        Prepare the required version, then choose the folder containing the game. Portcove checks
+        the required files before using the folder and at every launch. It does not copy, update,
+        back up, or delete these files.
+      </p>
+      {port.presentation?.manual_preparation && <p>{port.presentation.manual_preparation}</p>}
+      <ul>
+        {Object.entries(port.release.user_prepared).map(([platform, required]) => (
+          <li key={platform}>
+            {platform}: Prepare {required.archive_name} version {required.version}, then choose the
+            folder containing <code>{required.executable}</code>.{" "}
+            <details>
+              <summary>File details</summary>Archive SHA-256: <code>{required.archive_sha256}</code>
+            </details>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function ExternalRuntimeContext({
+  port,
+  status,
+  generation,
+  busy,
+  onChanged,
+}: ExternalRuntimeControlProps) {
   const [review, setReview] = useState<{ kind: "register"; path: string } | { kind: "remove" }>();
+  const pickerRequests = useRef(new LatestRequestGeneration());
+  useLayoutEffect(() => {
+    const requests = pickerRequests.current;
+    return () => {
+      requests.begin();
+    };
+  }, []);
   if (port.release.provider !== "user-prepared" && !status?.external_runtime) return null;
   const registered = status?.external_runtime;
-  const registration = status?.port_actions?.find(
+  const registration = catalogSetupPresentation(status).routes.find(
     (action) => action.action === "register_external",
   );
-  const canRegister =
-    !registration ||
-    (registration.availability === "waiting" && registration.reason === "review_required");
+  // Earlier status contracts omitted this projection or serialized an empty list.
+  // A missing whole status or a partial current projection is not that legacy case.
+  const legacyStatus =
+    status !== undefined &&
+    (status.port_actions === undefined ||
+      (Array.isArray(status.port_actions) && status.port_actions.length === 0));
+  const canRegister = legacyStatus || registration?.availability === "waiting";
   const select = async () => {
+    const request = pickerRequests.current.begin();
     const path = await pickInstallFolder("");
-    if (typeof path === "string") setReview({ kind: "register", path });
+    if (pickerRequests.current.isCurrent(request) && typeof path === "string")
+      setReview({ kind: "register", path });
   };
   return (
     <>
@@ -89,33 +111,8 @@ export function ExternalRuntimeControl({
         </div>
       ) : (
         <div>
-          <p>
-            Prepare the required version, then choose the folder containing the game. Portcove
-            checks the required files before using the folder and at every launch. It does not copy,
-            update, back up, or delete these files.
-          </p>
-          {port.presentation?.manual_preparation && <p>{port.presentation.manual_preparation}</p>}
-          <ul>
-            {Object.entries(port.release.user_prepared).map(([platform, required]) => (
-              <li key={platform}>
-                {platform}: Prepare {required.archive_name} version {required.version}, then choose
-                the folder containing <code>{required.executable}</code>.{" "}
-                <details>
-                  <summary>File details</summary>Archive SHA-256:{" "}
-                  <code>{required.archive_sha256}</code>
-                </details>
-              </li>
-            ))}
-          </ul>
-          {!canRegister && registration?.reason && (
-            <p role="status">
-              {externalSetupReason(
-                registration.availability,
-                registration.reason,
-                registration.definition?.reason,
-              )}
-            </p>
-          )}
+          <ExternalPreparationRequirements port={port} />
+          {!canRegister && <p role="status">{registration?.reason}</p>}
           <Button
             data-focusable
             variant="primary"

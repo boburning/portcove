@@ -60,7 +60,10 @@ embeds its public trust and local repository URLs in a qualification-only
 predecessor NSIS package, and uses the installed predecessor to select the signed
 candidate and stage fixture-supplied installer bytes through the desktop
 check-and-stage operation. The harness first requires a one-byte truncated
-installer to fail with empty staging. It then injects a malformed staging
+installer to fail with empty staging, then a same-length corrupted copy to fail
+against the authenticated SHA-256. The latter receipt retains expected and
+observed lengths and digests, and proves that staging remains empty and the
+predecessor, library marker and original candidate remain unchanged. It then injects a malformed staging
 journal and stray payload, and requires the installed executable's
 GUI-independent status and targeted staging repair commands to preserve the
 registered predecessor and library marker. The renderer then downloads a fresh
@@ -259,7 +262,7 @@ The strict configuration resolves paths relative to its own directory:
 }
 ```
 
-All six role keys must be distinct PKCS#8 Ed25519 private keys. The signed root
+In schema 1, all six role keys must be distinct PKCS#8 Ed25519 private keys. The signed root
 must already authorize the supplied targets, snapshot, and timestamp keys; release,
 Preview, and Stable become direct delegated roles. The root must require consistent
 snapshots, retain at least three offline keys with a two-signature quorum, and keep
@@ -277,6 +280,33 @@ changed target bytes, role versions, expiry values, signatures, or manifest cont
 fail closed. The tool reads each bounded private-key input once and gives `tough`
 only that immutable in-memory snapshot; private keys are never copied into repository
 output or another file.
+
+Schema 2 separates offline bootstrap from routine role signing. For bootstrap,
+use the same fields with `schema_version: 2`, include `keys.targets`, and omit
+`offline_targets`. The signed top-level targets fixes the payload-key registry,
+three distinct delegated keys, and Windows NSIS/Linux AppImage namespaces:
+`releases/*/windows-x86_64/nsis.json`, `releases/*/linux-x86_64/appimage.json`,
+and the corresponding versioned `channels/preview` and `channels/stable` paths.
+Bootstrap is an offline custody operation; this tooling does not grant production
+custody or signing authority.
+
+For a routine schema-2 build, omit `keys.targets` and provide `offline_targets`
+as the exact signed `<version>.targets.json` produced by bootstrap. Supply only
+the five snapshot, timestamp, releases, Preview and Stable private keys. The
+targets version and expiration must match bootstrap. The tool authenticates the
+offline metadata against the configured root before every build, including an
+exact retry, and preserves its bytes unchanged. It refuses changed payload
+registry bytes, delegation keys/policy, unsupported target/package namespaces,
+and ambiguous bootstrap/online configurations. Routine signing can allocate a
+new version within those namespaces without loading the targets private key.
+Renewing targets, changing delegation keys, or changing the payload registry
+requires a new independently authorized offline bootstrap.
+
+The unchanged reconstruction step still requires the complete retained inventory
+history and protects existing immutable releases. Schema 2 changes local signing
+custody, not allocation, qualification, controller, publication or platform
+acceptance. The same file/byte/record, expiry, distinct-key and atomic-output guards
+apply. Schema 1 remains available for existing explicit all-key fixtures.
 
 Production credential provisioning, GitHub Pages publication, endpoints, updater
 activation, and publication permission remain with their protected owners. A build
@@ -375,6 +405,43 @@ capacity exhaustion produces a hold. Production dispatch, signing, release and
 Pages/feed permissions remain disabled pending #534. The checked-in fixture tests
 are nonproduction evidence, not proof that a subscription task or production
 credential path is active.
+
+`node scripts/release-run-evidence.mjs REQUEST.json` collects bounded read-only
+API evidence for an exact completed current `Release` run and attempt. The
+request contains only schema version `1`, numeric `repository_id`, `run_id` and
+`attempt`, and independently reviewed `revision`, `tree` and `workflow_sha256`
+hexadecimal digests (40, 40 and 64 characters). It verifies the commit/tree and
+workflow source bytes at that commit, reads every job page for that attempt and
+every artifact page for the run, then rechecks current run identity. A changed
+attempt, missing page, inconsistent total, duplicate identity or exhausted
+bound refuses the receipt. Bounds are 1,600 records per inventory, 40 GET
+requests, 120 seconds and 2 MiB per API reply.
+
+`node scripts/release-run-evidence.mjs REQUEST.json ARTIFACT_ID RETAINED_FILE`
+also compares an already retained opaque file with that artifact's current
+provider digest and exact byte count. Missing, expired or undigested artifacts
+refuse before file I/O. One regular-file handle streams at most 512 MiB using a
+64 KiB buffer plus a one-byte growth probe, checks mutation and SHA-256, then
+refreshes the complete API evidence and refuses changed run/artifact identity.
+Both collections and file comparison share a 40-request cap and cooperative
+120-second receipt/refusal deadline. An in-flight bounded `gh` call may finish
+after the deadline; filesystem I/O has no hard cancellation. This is not a
+process-termination guarantee. The receipt includes both complete API receipts
+and their digests so its byte/metadata binding remains reviewable; it does not download, parse, extract
+or execute them. Provider upload size and digest describe the uploaded object
+in [GitHub's artifact uploader](https://github.com/actions/toolkit/blob/main/packages/artifact/src/internal/upload/upload-artifact.ts),
+not an extracted-package acceptance. Producing job/attempt and execution lineage
+remain unknown; a successful byte comparison grants no release authority.
+
+The content-digested receipt records source workflow bytes, not authenticated
+execution lineage. Artifact scope covers all attempts of the run; GitHub's
+[artifact API](https://docs.github.com/en/rest/actions/artifacts) reports no
+producing job or attempt, so those bindings remain explicitly unknown. Missing
+archive digests and expired artifacts remain visible. An archive digest does not
+qualify its package contents. This collector downloads and executes no candidate
+bytes and establishes no runner/cache isolation, custody, signing, eligibility
+or publication authority. A protected controller must separately prove those
+bindings and refresh current state at the action boundary.
 
 ## Standalone CLI integration artifact
 
@@ -579,7 +646,7 @@ include completed Alpha 1/2 history and Public beta; 1.0 includes all historical
 stages and both current milestones. Active legacy targets are migration conflicts.
 These cumulative declarations are separate from routine candidate safety checks. `Target release`
 is a forecast; `Release commitment` controls the gate. The generator follows
-genuine transitive blocking relationships and reports later, Opportunistic,
+genuine transitive blocking relationships and reports later, Planned,
 unclassified, or Project-missing dependencies as conflicts. Parentage and
 related-work links do not block a release. Relevant unclassified work and known
 shipped-scope safety conflicts prevent a falsely green result, while unrelated
@@ -803,12 +870,21 @@ packaging change does not grant it or introduce another manual gate.
 
 Public beta requires the complete verified application updater under
 [#52](https://github.com/boburning/portcove/issues/52): Windows per-user NSIS,
-Linux AppImage, that same Linux application on Steam Deck, and installed macOS
-bundles on Intel and Apple Silicon. Shared mechanisms are implemented
+ordinary Linux x86-64 AppImage. Installed macOS Intel/Apple Silicon bundle
+qualification (#45/#226) follows during beta, Required before 1.0. Shared mechanisms are implemented
 incrementally, with actual platform upgrade/recovery proof before the beta
 declaration. [#46](https://github.com/boburning/portcove/issues/46) retains later
 exact production package/upgrade/rehearsal evidence for 1.0; #52 does not wait
-for its post-beta closure. RC stabilizes one exact candidate, not all development.
+for its post-beta closure. Neither macOS proof nor Deck qualification, including
+#535's Gaming Mode updater proof, blocks initial #52/Public beta acceptance.
+Deck owners remain high-priority
+Public beta follow-up (Beta 2) work under #51/#213–#217/#535, Required before 1.0.
+Until their actual-device matrix passes, the Linux build may be usable on SteamOS
+but Deck is unqualified; release prose must not claim official Deck/Gaming Mode
+support, all-port compatibility or Valve Verified. Windows/ordinary Linux safety and their
+actual installed upgrade/recovery proofs remain mandatory. Later support claims
+consume the same trust foundation and require their own exact platform evidence. RC stabilizes one exact
+candidate, not all development.
 
 The [delivery contract](DELIVERY.md) separates application/catalog/game updates,
 Stable/Preview eligibility, updater authenticity, SHA-256 reconciliation, OS
@@ -826,7 +902,7 @@ backed-up libraries. Record package hashes and the unassisted first-play/recover
 scenario outside the development checkout. A preview is not evidence of universal
 catalog or platform qualification, and its plan does not authorize publication.
 
-Missing required platform evidence keeps Public beta open; it does not block
+Missing required Windows/ordinary Linux evidence keeps initial Public beta open; it does not block
 independent implementation or an otherwise eligible incremental preview. A
 successful manual reinstall cannot complete the baseline updater. DEB/RPM remain
 package-manager-mediated; standalone CLI self-updating and optional extra formats

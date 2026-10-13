@@ -1,7 +1,8 @@
 import { useCallback, useState, type SetStateAction } from "react";
 import { type CatalogSort, type Filter, type View } from "../../view-model";
+import type { CatalogQuery } from "../browsing/catalog-query";
 
-type BrowserState = { filter: Filter; query: string };
+type BrowserState = { filter: Filter | CatalogQuery; query: string; readiness?: string };
 export type BrowsingInputs = {
   sections: Record<View, BrowserState>;
   catalogSort: CatalogSort;
@@ -14,11 +15,39 @@ const initialBrowserState = (): Record<View, BrowserState> => ({
   settings: { filter: "all", query: "" },
 });
 
+function restoredBrowserState(initial?: BrowsingInputs): Record<View, BrowserState> {
+  if (!initial) return initialBrowserState();
+  return Object.fromEntries(
+    Object.entries(initial.sections).map(([section, inputs]) => [
+      section,
+      {
+        ...inputs,
+        ...(section === "library"
+          ? {
+              readiness:
+                inputs.readiness ??
+                (typeof inputs.filter === "string" && ["ready", "setup"].includes(inputs.filter)
+                  ? inputs.filter
+                  : "all"),
+            }
+          : {}),
+        filter:
+          section === "library" &&
+          typeof inputs.filter === "string" &&
+          ["ready", "setup"].includes(inputs.filter)
+            ? "all"
+            : typeof inputs.filter === "string" &&
+                !["all", "ready", "setup", "stable", "beta", "rolling"].includes(inputs.filter)
+              ? { version: 1, channels: [inputs.filter] }
+              : inputs.filter,
+      },
+    ]),
+  ) as Record<View, BrowserState>;
+}
+
 export function useAppShellState(initialView: View = "library", initial?: BrowsingInputs) {
   const [view, setViewState] = useState<View>(initialView);
-  const [browserState, setBrowserState] = useState(
-    () => initial?.sections ?? initialBrowserState(),
-  );
+  const [browserState, setBrowserState] = useState(() => restoredBrowserState(initial));
   const [catalogSort, setCatalogSort] = useState<CatalogSort>(initial?.catalogSort ?? "catalog");
   const [selectedId, setSelectedId] = useState<string>();
   const [sourcePath, setSourcePath] = useState("");
@@ -34,12 +63,18 @@ export function useAppShellState(initialView: View = "library", initial?: Browsi
     [view],
   );
   const setFilter = useCallback(
-    (nextFilter: SetStateAction<Filter>) =>
+    (nextFilter: SetStateAction<Filter | CatalogQuery>) =>
       setBrowserState((current) => ({
         ...current,
         [view]: {
           ...current[view],
-          filter: typeof nextFilter === "function" ? nextFilter(current[view].filter) : nextFilter,
+          ...(() => {
+            const filter =
+              typeof nextFilter === "function" ? nextFilter(current[view].filter) : nextFilter;
+            return view === "library" && (filter === "ready" || filter === "setup")
+              ? { readiness: filter }
+              : { filter };
+          })(),
         },
       })),
     [view],
@@ -55,6 +90,15 @@ export function useAppShellState(initialView: View = "library", initial?: Browsi
       })),
     [view],
   );
+  const setLibraryReadiness = useCallback(
+    (readiness: string) =>
+      setBrowserState((current) => ({
+        ...current,
+        library: { ...current.library, readiness },
+      })),
+    [],
+  );
+  const libraryReadiness = browserState.library.readiness ?? "all";
   const { filter, query } = browserState[view];
   return {
     browsingInputs: { sections: browserState, catalogSort },
@@ -62,6 +106,8 @@ export function useAppShellState(initialView: View = "library", initial?: Browsi
     setView,
     filter,
     setFilter,
+    libraryReadiness,
+    setLibraryReadiness,
     query,
     setQuery,
     catalogSort,

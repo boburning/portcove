@@ -16,11 +16,13 @@ export function PreparationControl({
   generation,
   disabled,
   run,
+  focusFallback,
 }: {
   portId: string;
   generation: number;
   disabled: boolean;
   run?: RunPreparation;
+  focusFallback?: () => HTMLElement | null;
 }) {
   const [plan, setPlan] = useState<PreparationPlan>();
   const [pending, setPending] = useState<"review" | "prepare">();
@@ -114,7 +116,15 @@ export function PreparationControl({
         >
           <DialogContent
             showCloseButton={false}
-            finalFocus={reviewButton}
+            finalFocus={() => {
+              const fallback = focusFallback?.();
+              if (focusFallback && !fallback?.isConnected) return false;
+              // Popup cleanup precedes this commit's removal of the opener's
+              // temporary hidden/pending state. Its owner determines availability.
+              if (reviewButton.current?.isConnected && !disabled && run)
+                return reviewButton.current;
+              return fallback?.isConnected ? fallback : false;
+            }}
             className="max-h-[calc(100dvh-var(--space-8))] w-[min(680px,90vw)] max-w-none gap-0 overflow-y-auto overscroll-contain p-8 [scroll-padding-block:var(--space-4)] sm:max-w-none"
             aria-describedby="preparation-review-description"
           >

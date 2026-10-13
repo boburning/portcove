@@ -304,12 +304,16 @@ impl Adapter for StandardAdapter {
                 let config = managed_psx_runtime_config.ok_or_else(|| {
                     PortcoveError::state("managed PS1 launch configuration was not prepared")
                 })?;
-                vec![
+                let mut arguments = vec![
                     "--game".into(),
                     psx_launch_path(&config)?,
                     "--memcard-dir".into(),
                     psx_launch_path(&working_directory.join("saves"))?,
-                ]
+                ];
+                if let Some(bios) = managed_psx_bios(library, port, install_root, checkpoint)? {
+                    arguments.extend(["--bios".into(), psx_launch_path(&bios.path)?]);
+                }
+                arguments
             }
             _ => Vec::new(),
         };
@@ -345,6 +349,9 @@ impl Adapter for StandardAdapter {
             ));
         }
         let executable = selected_executable.to_path_buf();
+        if self.0 == AdapterKind::PsxRecompManaged {
+            managed_psx_bios(library, port, install_root, checkpoint)?;
+        }
         let user_data = library.user_dir(&port.id);
         std::fs::create_dir_all(&user_data)?;
         crate::path::unicode(library.root(), "library root")?;
@@ -443,8 +450,29 @@ impl Adapter for StandardAdapter {
         if self.0 == AdapterKind::LibultrashipPortable {
             plan_libultraship_source(request, has_generated_archive)?.prepare(checkpoint)?;
         }
+        crate::n64_graphics::prepare(port, platform, &working_directory, checkpoint)?;
         self.launch_spec_with_executable(request, checkpoint)
     }
+}
+
+fn managed_psx_bios(
+    library: &Library,
+    port: &PortDefinition,
+    root: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<Option<SourceRecord>> {
+    if port.bios_source_profile.is_none() {
+        return Ok(None);
+    }
+    let status = library.status(&port.id, crate::ReleaseChannel::Stable)?;
+    let install = [status.active, status.previous, status.staged]
+        .into_iter()
+        .flatten()
+        .find(|install| install.path == root)
+        .ok_or_else(|| {
+            PortcoveError::verification("PS1 BIOS binding requires a registered installation")
+        })?;
+    crate::psx::verified_launch_bios(library, port, &install, checkpoint)
 }
 
 fn has_generated_archive(
@@ -1130,7 +1158,7 @@ fn materialize_ps2_iso(
     let program = pinned_tool
         .map(Path::to_path_buf)
         .map_or_else(resolve_chdman, Ok)?;
-    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?;
+    let mut command = ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, &program)?;
     command
         .arg("extractdvd")
         .arg("-i")
@@ -1578,9 +1606,27 @@ pub(crate) fn hash_file(path: &Path) -> Result<(String, u64)> {
 
 pub(crate) fn hash_file_with_checkpoint(
     path: &Path,
+    checkpoint: impl FnMut() -> Result<()>,
+) -> Result<(String, u64)> {
+    hash_reader_with_checkpoint(File::open(path)?, checkpoint)
+}
+
+pub(crate) fn hash_file_bounded_with_checkpoint(
+    path: &Path,
+    maximum: u64,
+    checkpoint: impl FnMut() -> Result<()>,
+) -> Result<(String, u64)> {
+    // One extra byte distinguishes an exact input from concurrent growth.
+    hash_reader_with_checkpoint(
+        File::open(path)?.take(maximum.saturating_add(1)),
+        checkpoint,
+    )
+}
+
+fn hash_reader_with_checkpoint(
+    mut file: impl Read,
     mut checkpoint: impl FnMut() -> Result<()>,
 ) -> Result<(String, u64)> {
-    let mut file = File::open(path)?;
     let mut digest = Sha256::new();
     let mut buffer = [0_u8; 128 * 1024];
     let mut size = 0_u64;
@@ -1623,7 +1669,7 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
             path.display()
         )));
     }
-    let mut archive = if is_zip {
+    let archive = if is_zip {
         Some(
             zip::ZipArchive::new(File::open(path)?)
                 .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP: {error}")))?,
@@ -1631,6 +1677,14 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
     } else {
         None
     };
+    validate_file_set_source_from_archive(profile, path, archive)
+}
+
+fn validate_file_set_source_from_archive(
+    profile: &SourceProfile,
+    path: &Path,
+    mut archive: Option<zip::ZipArchive<File>>,
+) -> Result<SourceRecord> {
     let mut hashes = Vec::with_capacity(profile.members.len());
     let mut total_size = 0_u64;
     for member in &profile.members {
@@ -1716,8 +1770,10 @@ fn validate_file_set_source(profile: &SourceProfile, path: &Path) -> Result<Sour
         total_size = total_size.saturating_add(size);
     }
     let identity = aggregate_sha256(&hashes);
-    let (storage_sha256, storage_size) = if is_zip {
-        hash_file(path)?
+    let (storage_sha256, storage_size) = if let Some(archive) = archive {
+        let mut file = archive.into_inner();
+        file.rewind()?;
+        hash_reader_with_checkpoint(file, || Ok(()))?
     } else {
         (identity.clone(), total_size)
     };
@@ -2057,7 +2113,7 @@ fn materialize_gamecube_iso_with_tool(
         .map(Path::to_path_buf)
         .map_or_else(resolve_dolphin_tool, Ok)?;
     let temporary = destination.with_extension(format!("tmp-{}.iso", Uuid::new_v4()));
-    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?;
+    let mut command = ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, &program)?;
     command
         .arg("convert")
         .arg("-i")
@@ -2346,7 +2402,7 @@ pub(crate) fn materialize_psx_chd(source: &Path, destination: &Path) -> Result<P
     )
 }
 
-fn materialize_psx_chd_with_tool(
+pub(crate) fn materialize_psx_chd_with_tool(
     source: &Path,
     destination: &Path,
     pinned_tool: Option<&Path>,
@@ -2359,7 +2415,7 @@ fn materialize_psx_chd_with_tool(
     let program = pinned_tool
         .map(Path::to_path_buf)
         .map_or_else(resolve_chdman, Ok)?;
-    let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostTool, &program)?;
+    let mut command = ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, &program)?;
     command
         .arg("extractcd")
         .arg("-i")
@@ -2858,6 +2914,34 @@ mod tests {
                 .to_string_lossy()
                 .starts_with(".portcove-stfs-")
         }));
+    }
+
+    #[test]
+    fn curated_bounded_hashing_refuses_growth_after_preflight() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("cached.asset");
+        std::fs::write(&source, b"accepted").unwrap();
+        let expected = std::fs::metadata(&source).unwrap().len();
+        let mut checks = 0;
+        let (_, actual) = hash_file_bounded_with_checkpoint(&source, expected, || {
+            checks += 1;
+            if checks == 1 {
+                std::fs::OpenOptions::new()
+                    .append(true)
+                    .open(&source)
+                    .unwrap()
+                    .write_all(&vec![9; 1024 * 1024])
+                    .unwrap();
+            }
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(actual, expected + 1);
+        assert_eq!(
+            checks, 2,
+            "growth must not force hashing the appended megabyte"
+        );
+        assert!(crate::archive::validate_download_size(actual, expected).is_err());
     }
 
     #[test]
@@ -3574,6 +3658,81 @@ mod tests {
     }
 
     #[test]
+    fn managed_psx_retail_bios_binds_read_only_and_repeated_preparation_to_generation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, catalog, install, bios) = crate::psx::bios_launch_fixture(temporary.path());
+        let port = catalog.port(&install.port_id).unwrap();
+        let source = temporary.path().join("owned-disc.chd");
+        std::fs::write(&source, b"inert disc fixture").unwrap();
+        let executable = install.path.join(&install.selected_executable);
+        let request = LaunchSpecRequest {
+            library: &library,
+            port,
+            platform: Platform::WindowsX86_64,
+            install_root: &install.path,
+            selected_executable: &executable,
+            source: Some(&source),
+            source_record: None,
+        };
+        let adapter = AdapterRegistry.get(AdapterKind::PsxRecompManaged);
+        let before = launch_fixture_inventory(temporary.path());
+        let planned = adapter
+            .launch_spec_with_executable(request, &|| Ok(()))
+            .unwrap();
+        assert_eq!(launch_fixture_inventory(temporary.path()), before);
+        assert_eq!(
+            &planned.arguments[4..],
+            &["--bios", psx_launch_path(&bios.path).unwrap().as_str()]
+        );
+        for _ in 0..2 {
+            let prepared = adapter
+                .prepare_launch_with_executable(request, &|| Ok(()))
+                .unwrap();
+            assert_eq!(prepared.arguments, planned.arguments);
+            assert_eq!(
+                std::fs::read(&bios.path).unwrap(),
+                b"inert owned BIOS fixture"
+            );
+        }
+        std::fs::write(&bios.path, b"replaced").unwrap();
+        let before = launch_fixture_inventory(temporary.path());
+        assert!(
+            adapter
+                .prepare_launch_with_executable(request, &|| Ok(()))
+                .is_err()
+        );
+        assert_eq!(launch_fixture_inventory(temporary.path()), before);
+    }
+
+    #[test]
+    fn managed_psx_retail_bios_refuses_stale_registration_and_forged_generation_marker() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, catalog, install, mut bios) =
+            crate::psx::bios_launch_fixture(temporary.path());
+        let port = catalog.port(&install.port_id).unwrap();
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "DELETE FROM sources WHERE profile_id=?1",
+                [&bios.profile_id],
+            )
+            .unwrap();
+        let missing = managed_psx_bios(&library, port, &install.path, &|| Ok(())).unwrap_err();
+        assert_eq!(missing.code, crate::ErrorCode::SourceInvalid);
+        library.register_source(&bios).unwrap();
+        bios.sha256 = "0".repeat(64);
+        library.register_source(&bios).unwrap();
+        assert!(managed_psx_bios(&library, port, &install.path, &|| Ok(())).is_err());
+        std::fs::write(install.path.join(".portcove-managed.json"), serde_json::to_vec(&serde_json::json!({
+            "schema_version": 1, "adapter": "psx-recomp-managed", "bios_source_sha256": bios.sha256,
+        })).unwrap()).unwrap();
+        let error = managed_psx_bios(&library, port, &install.path, &|| Ok(())).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert!(error.message.contains("manifest"));
+    }
+
+    #[test]
     fn managed_psx_referenced_discs_keep_player_data_in_the_managed_runtime() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
@@ -3701,6 +3860,121 @@ mod tests {
         assert_eq!(
             generated_metadata(port).unwrap(),
             vec![MANAGED_PSX_RUNTIME_CONFIG.to_string()]
+        );
+    }
+
+    #[test]
+    fn ace_combat_3_japan_uses_generated_runtime_and_registered_bios_coordinates() {
+        let temporary = tempfile::tempdir().unwrap();
+        let (library, catalog, mut install, bios) =
+            crate::psx::bios_launch_fixture(temporary.path());
+        let port = catalog
+            .port("alexbeav-ace-combat-3-electrosphere-recomp")
+            .unwrap();
+        let runtime = install.path.join("build-portcove");
+        let raw_set = runtime.join("runtime-discs");
+        std::fs::create_dir_all(&raw_set).unwrap();
+        std::fs::write(
+            install.path.join("CMakeLists.txt"),
+            "# inert package-root marker\n",
+        )
+        .unwrap();
+        std::fs::write(
+            runtime.join("Ace_Combat_3__Electrosphere__Japan__Recompiled.exe"),
+            b"inert generated executable",
+        )
+        .unwrap();
+        for index in 1..=2 {
+            std::fs::write(raw_set.join(format!("disc-{index:02}.bin")), [index as u8]).unwrap();
+            std::fs::write(raw_set.join(format!("disc-{index:02}.cue")), format!("FILE \"disc-{index:02}.bin\" BINARY\n TRACK 01 MODE2/2352\n INDEX 01 00:00:00\n")).unwrap();
+        }
+        let config = runtime.join("game.toml");
+        let original =
+            "[game]\ndiscs = ['runtime-discs/disc-01.cue', 'runtime-discs/disc-02.cue']\n";
+        std::fs::write(&config, original).unwrap();
+        install.id = "427-coordinate-fixture".into();
+        install.port_id = port.id.clone();
+        let qualification =
+            crate::InstallQualification::from_catalog(&catalog, &port.id, Platform::WindowsX86_64)
+                .unwrap();
+        (
+            install.manifest_sha256,
+            install.selected_executable,
+            install.runtime,
+        ) = crate::Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(
+                &install.id,
+                &port.id,
+                &install.version,
+                &install.artifact,
+                &qualification,
+                &install.path,
+            )
+            .unwrap();
+        library.register_install(&install, true).unwrap();
+        let source = temporary.path().join("unused-registered-chds");
+        std::fs::create_dir(&source).unwrap();
+        let adapter = AdapterRegistry.get(AdapterKind::PsxRecompManaged);
+        let spec = adapter
+            .prepare_launch(
+                &library,
+                port,
+                Platform::WindowsX86_64,
+                &install.path,
+                Some(&source),
+            )
+            .unwrap();
+        assert_eq!(spec.working_directory, runtime);
+        assert_eq!(
+            spec.executable,
+            runtime.join("Ace_Combat_3__Electrosphere__Japan__Recompiled.exe")
+        );
+        assert_eq!(spec.arguments[0], "--no-launcher");
+        assert_eq!(Path::new(&spec.arguments[4]), runtime.join("saves"));
+        assert_eq!(spec.arguments[5], "--bios");
+        assert_eq!(Path::new(&spec.arguments[6]), bios.path);
+        // Upstream discovers the package-root CMake marker; its relative capture
+        // environment is resolved there, not against the runtime working dir.
+        let capture = install
+            .path
+            .join(spec.environment.get("PSX_OVERLAY_CAPTURES").unwrap());
+        assert_eq!(
+            capture,
+            runtime.join("overlay-captures/overlay_captures.json")
+        );
+        assert!(
+            port.persistent_paths
+                .iter()
+                .any(|path| path == "overlay-captures")
+        );
+        assert!(
+            port.persistent_paths
+                .iter()
+                .any(|path| path == "settings.toml.bad")
+        );
+        assert_eq!(std::fs::read_to_string(&config).unwrap(), original);
+        let generated = std::fs::read_to_string(runtime.join(MANAGED_PSX_RUNTIME_CONFIG)).unwrap();
+        for index in 1..=2 {
+            assert!(
+                generated.contains(
+                    &psx_launch_path(&raw_set.join(format!("disc-{index:02}.cue")))
+                        .unwrap()
+                        .replace('\\', "\\\\")
+                )
+            );
+        }
+        std::fs::write(&bios.path, b"changed BIOS").unwrap();
+        assert!(
+            adapter
+                .prepare_launch(
+                    &library,
+                    port,
+                    Platform::WindowsX86_64,
+                    &install.path,
+                    Some(&source)
+                )
+                .is_err()
         );
     }
 
@@ -4020,6 +4294,64 @@ mod tests {
             std::fs::read(install.join("data/audio.rom")).unwrap(),
             b"audio"
         );
+    }
+
+    #[test]
+    fn adapter_zip_identity_retains_the_opened_artifact_after_path_replacement() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("source.zip");
+        let displaced = temporary.path().join("original.zip");
+        let mut writer = zip::ZipWriter::new(File::create(&path).unwrap());
+        writer
+            .start_file("game.rom", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(b"game").unwrap();
+        writer.finish().unwrap();
+        let profile = SourceProfile {
+            id: "retained-set".into(),
+            label: "Retained set".into(),
+            accepted_extensions: Vec::new(),
+            accepted_sha1: Vec::new(),
+            accepted_sha256: Vec::new(),
+            kind: SourceKind::FileSet,
+            disc: None,
+            members: vec![crate::SourceMemberProfile {
+                id: "game".into(),
+                label: "Game".into(),
+                accepted_filenames: vec!["game.rom".into()],
+                accepted_sha1: Vec::new(),
+                accepted_sha256: vec![hex::encode(Sha256::digest(b"game"))],
+                accepted_crc32: vec![format!("{:08x}", crc32fast::hash(b"game"))],
+            }],
+        };
+        let original = std::fs::read(&path).unwrap();
+        let archive = zip::ZipArchive::new(File::open(&path).unwrap()).unwrap();
+        std::fs::rename(&path, &displaced).unwrap();
+        let mut replacement = original.clone();
+        let name = b"game.rom";
+        let locations = replacement
+            .windows(name.len())
+            .enumerate()
+            .filter_map(|(index, bytes)| (bytes == name).then_some(index))
+            .collect::<Vec<_>>();
+        assert_eq!(locations.len(), 2);
+        for index in locations {
+            replacement[index] = replacement[index].to_ascii_uppercase();
+        }
+        std::fs::write(&path, &replacement).unwrap();
+        let record = validate_file_set_source_from_archive(&profile, &path, Some(archive)).unwrap();
+        assert_eq!(
+            record.sha256,
+            aggregate_sha256(&[format!("game:{}", hex::encode(Sha256::digest(b"game")))])
+        );
+        assert_eq!(record.size, 4);
+        assert_eq!(
+            record.storage_sha256,
+            hex::encode(Sha256::digest(&original))
+        );
+        assert_eq!(record.storage_size, original.len() as u64);
+        assert_eq!(std::fs::read(&path).unwrap(), replacement);
+        assert_eq!(std::fs::read(&displaced).unwrap(), original);
     }
 
     #[test]

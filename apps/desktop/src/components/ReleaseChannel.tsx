@@ -22,10 +22,10 @@ export function ReleaseChannelControl({
   const labelId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const request = useRef(0);
-  const recognized =
-    channels.length > 0 &&
-    channels.includes(selected) &&
-    channels.every((value) => releaseChannelPresentation(value).known);
+  const savedChannel = releaseChannelPresentation(selected);
+  const offeredKnown =
+    channels.length > 0 && channels.every((value) => releaseChannelPresentation(value).known);
+  const recognized = offeredKnown && channels.includes(selected);
   useEffect(
     () => () => {
       request.current += 1;
@@ -71,7 +71,19 @@ export function ReleaseChannelControl({
   return (
     <section aria-label="Game release channel">
       {!recognized ? (
-        <p role="status">Release channel information is unavailable in this version.</p>
+        <div role="status">
+          <p>
+            <strong>Selected channel: {savedChannel.label}</strong>
+          </p>
+          <p>
+            {!savedChannel.known
+              ? "This saved channel is not recognized in this version."
+              : !offeredKnown
+                ? "Release channel information is unavailable in this version."
+                : "This saved channel is not offered by the current release channel information."}{" "}
+            Your saved choice has not changed.
+          </p>
+        </div>
       ) : channels.length === 1 ? (
         <p>
           <strong>{releaseChannelPresentation(channels[0]).label} only</strong>

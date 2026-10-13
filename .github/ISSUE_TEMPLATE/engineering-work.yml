@@ -8,14 +8,14 @@ body:
     id: outcome
     attributes:
       label: User outcome
-      description: What becomes possible, safer, faster, or clearer?
+      description: What becomes possible, safer, faster, or clearer? Name the finite closure boundary; prefer an existing canonical owner.
     validations:
       required: true
   - type: textarea
     id: current
     attributes:
       label: Current behavior and evidence
-      description: Include reproducible observations, links, and relevant measurements.
+      description: Credit delivered components with scoped evidence links. Preserve findings with affected scope, fact versus hypothesis, next action and disposition; search existing owners first. Separate behavior from plans, failures and later qualification.
     validations:
       required: true
   - type: textarea
@@ -55,9 +55,9 @@ body:
     id: dependencies
     attributes:
       label: Dependencies and blockers
-      description: Link parent/sub-issues or explain the exact external resume condition.
+      description: Name genuine prerequisites and resume conditions; distinguish a runner-local route limitation. Native children contribute to completion; independent later outcomes are siblings. Queue order is not a blocker. Preserve resolved evidence while correcting current blockers.
   - type: textarea
     id: completion
     attributes:
       label: Completion evidence
-      description: Filled before closure with PR, checks, CI, and human evidence links.
+      description: Before closure, link matching implementation, delivery and qualification evidence at their actual scope; reconcile the finite parent and affected relationships.

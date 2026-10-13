@@ -35,6 +35,8 @@ async function readOwner(lockPath, label) {
   return owner;
 }
 
+export const readProcessLockOwner = readOwner;
+
 async function releaseOwnedLock(lockPath, token, label) {
   let owner;
   try {

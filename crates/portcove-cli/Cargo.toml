@@ -11,6 +11,9 @@ rust-version.workspace = true
 name = "portcove"
 path = "src/main.rs"
 
+[features]
+qualification-fixtures = ["portcove-core/qualification-fixtures"]
+
 [dependencies]
 clap.workspace = true
 portcove-core = { path = "../portcove-core" }

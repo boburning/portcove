@@ -35,33 +35,46 @@ export function WorkspaceRefreshNotice({
     else focusRegion("workspace");
   }, [failure, recoveryFailure, refreshing]);
   if (!failure && !recoveryFailure && !subscriptionFailure) return null;
-  if (!failure && recoveryFailure)
-    return (
-      <section className="error-banner" role="alert" aria-busy={refreshing}>
-        <span className="error-icon">
-          <Icon glyph={AlertTriangle} />
-        </span>
-        <div>
-          <strong>Library recovery could not finish</strong>
-          <p>
-            Current library information is available, but some unfinished work still needs review.
-          </p>
-          <p>{errorText(recoveryFailure.error)}</p>
-          <Button
-            ref={recoveryRetryButton}
-            variant="outline"
-            data-focusable
-            disabled={refreshing}
-            onClick={() => {
-              retryRequested.current = true;
-              void retryRecovery();
-            }}
-          >
-            Retry recovery
-          </Button>
-        </div>
-      </section>
-    );
+  const recoveryPresentation = recoveryFailure && failurePresentation(recoveryFailure.error);
+  const recoveryCode =
+    recoveryFailure &&
+    typeof recoveryFailure.error === "object" &&
+    recoveryFailure.error &&
+    "code" in recoveryFailure.error
+      ? String(recoveryFailure.error.code)
+      : undefined;
+  const recoveryNotice = recoveryFailure && (
+    <section className="error-banner" role="alert" aria-busy={refreshing}>
+      <span className="error-icon">
+        <Icon glyph={AlertTriangle} />
+      </span>
+      <div>
+        <strong>Library recovery could not finish</strong>
+        <p>
+          {hasSnapshot
+            ? "Showing the last loaded library information. It may be out of date."
+            : "Portcove has not loaded the library information yet."}
+        </p>
+        <p>{errorText(recoveryFailure.error)}</p>
+        {recoveryPresentation && (
+          <FailureDetails presentation={recoveryPresentation} code={recoveryCode} />
+        )}
+        <Button
+          ref={recoveryRetryButton}
+          variant="outline"
+          data-focusable
+          disabled={refreshing}
+          onClick={() => {
+            retryRequested.current = true;
+            void retryRecovery();
+          }}
+        >
+          Retry recovery
+        </Button>
+      </div>
+    </section>
+  );
+  if (!failure && recoveryFailure) return recoveryNotice;
   if (!failure)
     return (
       <section className="error-banner" role="status" aria-busy={refreshing}>
@@ -95,47 +108,50 @@ export function WorkspaceRefreshNotice({
   const code =
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
-    <section className="error-banner" role="alert" aria-busy={refreshing}>
-      <span className="error-icon">
-        <Icon glyph={AlertTriangle} />
-      </span>
-      <div>
-        <strong>
-          {hasSnapshot
-            ? "Library information could not be refreshed"
-            : "Library information could not be loaded"}
-        </strong>
-        <p>
-          {hasSnapshot
-            ? "Showing the last loaded information. It may be out of date."
-            : "Portcove has not loaded the library information yet."}
-        </p>
-        <p>{errorText(error)}</p>
-        {presentation && (
-          <FailureDetails
-            presentation={presentation}
-            code={code}
-            showMutationSummary={showMutationSummary}
-          />
-        )}
-        <p>
-          {hasSnapshot
-            ? "Retry refresh loads the current information. It does not repeat your last install, move, or other action."
-            : "Retry refresh loads the library information. It does not install, move, or change a game."}
-        </p>
-        <Button
-          ref={retryButton}
-          variant="outline"
-          data-focusable
-          disabled={refreshing}
-          onClick={() => {
-            retryRequested.current = true;
-            void retry();
-          }}
-        >
-          {refreshing ? "Refreshing library…" : "Retry refresh"}
-        </Button>
-      </div>
-    </section>
+    <>
+      <section className="error-banner" role="alert" aria-busy={refreshing}>
+        <span className="error-icon">
+          <Icon glyph={AlertTriangle} />
+        </span>
+        <div>
+          <strong>
+            {hasSnapshot
+              ? "Library information could not be refreshed"
+              : "Library information could not be loaded"}
+          </strong>
+          <p>
+            {hasSnapshot
+              ? "Showing the last loaded information. It may be out of date."
+              : "Portcove has not loaded the library information yet."}
+          </p>
+          <p>{errorText(error)}</p>
+          {presentation && (
+            <FailureDetails
+              presentation={presentation}
+              code={code}
+              showMutationSummary={showMutationSummary}
+            />
+          )}
+          <p>
+            {hasSnapshot
+              ? "Retry refresh loads the current information. It does not repeat your last install, move, or other action."
+              : "Retry refresh loads the library information. It does not install, move, or change a game."}
+          </p>
+          <Button
+            ref={retryButton}
+            variant="outline"
+            data-focusable
+            disabled={refreshing}
+            onClick={() => {
+              retryRequested.current = true;
+              void retry();
+            }}
+          >
+            {refreshing ? "Refreshing library…" : "Retry refresh"}
+          </Button>
+        </div>
+      </section>
+      {recoveryNotice}
+    </>
   );
 }

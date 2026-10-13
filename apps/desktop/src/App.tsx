@@ -1,3 +1,4 @@
+import { useFavorites } from "./features/favorites/use-favorites";
 import {
   useApplicationUpdateChoice,
   useApplicationUpdateNotice,
@@ -24,6 +25,11 @@ import {
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import { focusSettingsTarget } from "./features/app-shell/focus-settings-target";
+import { GameFileScanProvider } from "./features/game-file-discovery/use-game-file-scan";
+import {
+  SetupReviewSelectionProvider,
+  useSetupReviewSelection,
+} from "./features/game-file-discovery/setup-review-selection";
 import { useSetupSource } from "./features/app-shell/use-setup-source";
 import { focusApplicationUpdateRoute } from "./features/application-update/focus-application-update-route";
 import {
@@ -48,6 +54,11 @@ import {
 import { CommandPalette } from "./components/CommandPalette";
 import { DetailPanel } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
+import { evaluateCatalogQuery, type CatalogQueryContext } from "./features/browsing/catalog-query";
+import {
+  useGameFileFilterContext,
+  type GameFileFilterState,
+} from "./features/browsing/use-game-file-filter-context";
 import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
@@ -108,7 +119,7 @@ export default function App() {
       return next;
     });
   }, []);
-  const { bootstrap, bootstrapError, switchLibrary, chooseLibrary, resetLibrary } =
+  const { bootstrap, bootstrapError, recoveryPending, switchLibrary, chooseLibrary, resetLibrary } =
     useBootstrapState();
   const {
     switchFromSettings,
@@ -120,6 +131,7 @@ export default function App() {
     return (
       <BootstrapRecovery
         error={bootstrapError}
+        recoveryPending={recoveryPending}
         chooseLibrary={chooseLibrary}
         resetLibrary={resetLibrary}
       />
@@ -129,25 +141,29 @@ export default function App() {
     return (
       <BootstrapRecovery
         error={bootstrap.error ?? missingBootstrapError}
+        recoveryPending={recoveryPending}
         chooseLibrary={chooseLibrary}
         resetLibrary={resetLibrary}
       />
     );
   return (
-    <Workspace
-      key={bootstrap.generation}
-      bootstrap={bootstrap}
-      initialBrowsingContext={
-        bootstrap.library_root
-          ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
-          : undefined
-      }
-      rememberBrowsingContext={rememberBrowsingContext}
-      switchLibrary={switchFromSettings}
-      resetLibrary={resetFromSettings}
-      returnToSelection={returnToSelection}
-      consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
-    />
+    <GameFileScanProvider key={bootstrap.generation}>
+      <SetupReviewSelectionProvider>
+        <Workspace
+          bootstrap={bootstrap}
+          initialBrowsingContext={
+            bootstrap.library_root
+              ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
+              : undefined
+          }
+          rememberBrowsingContext={rememberBrowsingContext}
+          switchLibrary={switchFromSettings}
+          resetLibrary={resetFromSettings}
+          returnToSelection={returnToSelection}
+          consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
+        />
+      </SetupReviewSelectionProvider>
+    </GameFileScanProvider>
   );
 }
 
@@ -163,10 +179,12 @@ function BootstrapLoading() {
 
 export function BootstrapRecovery({
   error,
+  recoveryPending = false,
   chooseLibrary,
   resetLibrary,
 }: {
   error: StartupFailure;
+  recoveryPending?: boolean;
   chooseLibrary?: () => Promise<void>;
   resetLibrary?: () => Promise<void>;
 }) {
@@ -176,10 +194,10 @@ export function BootstrapRecovery({
   const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
   return (
-    <main className="bootstrap-state bootstrap-error" role="alert">
+    <main className="bootstrap-state bootstrap-error">
       <p className="eyebrow">Portcove could not start</p>
       <h1>Portcove couldn’t start</h1>
-      <p>{errorText(error)}</p>
+      <p role="alert">{errorText(error)}</p>
       {error.presentation ? (
         <FailureDetails
           presentation={error.presentation}
@@ -193,13 +211,14 @@ export function BootstrapRecovery({
         Review the error details, then retry startup. If the current library is the cause, you can
         choose another library or return to the platform default.
       </p>
-      <div className="button-row">
+      <div className="button-row" aria-busy={recoveryPending}>
         <Button type="button" variant="primary" onClick={() => window.location.reload()}>
           Retry startup
         </Button>
         <Button
           type="button"
           variant="outline"
+          disabled={recoveryPending}
           onClick={() => {
             void chooseLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
@@ -209,6 +228,7 @@ export function BootstrapRecovery({
         <Button
           type="button"
           variant="outline"
+          disabled={recoveryPending}
           onClick={() => {
             void resetLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
@@ -286,6 +306,7 @@ function Workspace({
   consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
+  const favorites = useFavorites(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
   const operations = useOperationState({
     refresh: data.retryRefresh,
@@ -294,20 +315,27 @@ function Workspace({
   });
   const github = useGithubAuth(operations.perform, operations.setError);
   const updates = useUpdateCenter(operations.perform, data.statuses);
-  const { ui, switchView, workspace, switchLibraryWithContext, resetLibraryWithContext } =
-    useLibraryBrowsingContext({
-      root: bootstrap.library_root,
-      initial: initialBrowsingContext,
-      returnToSelection,
-      remember: rememberBrowsingContext,
-      switchLibrary,
-      resetLibrary,
-      ready: Boolean(data.catalog),
-      installedCount: data.catalog
-        ? data.statuses.filter((status) => status.active || status.external_runtime).length
-        : undefined,
-      catalogCount: data.catalog?.ports.length,
-    });
+  const {
+    ui,
+    switchView,
+    workspace,
+    switchLibraryWithContext,
+    resetLibraryWithContext,
+    preferenceFailure,
+    saveBrowsingPreferences,
+  } = useLibraryBrowsingContext({
+    root: bootstrap.library_root,
+    initial: initialBrowsingContext,
+    returnToSelection,
+    remember: rememberBrowsingContext,
+    switchLibrary,
+    resetLibrary,
+    ready: Boolean(data.catalog),
+    installedCount: data.catalog
+      ? data.statuses.filter((status) => status.active || status.external_runtime).length
+      : undefined,
+    catalogCount: data.catalog?.ports.length,
+  });
   const { catalog, diagnosticRevision, diagnosticsStale, doctor, refreshDiagnostics } = data;
   useEffect(() => {
     if (
@@ -350,13 +378,46 @@ function Workspace({
     JSON.stringify(data.catalog?.source_catalog ?? null),
   );
   const appearance = useThemePreference();
-  const model = useAppModel(data, ui);
+  const gameFileQuery = useGameFileFilterContext({
+    catalog: data.catalog,
+    sources: data.sources,
+    statuses: data.statuses,
+    browsing: data.browsing,
+    generation: bootstrap.generation,
+    libraryKey: bootstrap.library_root,
+  });
+  const model = useAppModel(data, ui, bootstrap.library_root, gameFileQuery);
   const installPlanning = useInstallPlanning(
     model.port?.id,
     model.status?.channel ?? model.port?.channels[0],
     operations.perform,
   );
-  const backups = usePortBackups(model.port?.id, operations.setError);
+  const setupReviews = useSetupReviewSelection();
+  useEffect(() => {
+    const request = setupReviews.pendingReview;
+    if (!request) return;
+    // Consume once, including StrictMode replay, and never plan a different detail.
+    const matches =
+      ui.selectedId === request.portId &&
+      model.port?.id === request.portId &&
+      model.status?.channel === request.channel &&
+      !data.refreshFailure &&
+      !model.status.active &&
+      !model.status.external_runtime &&
+      model.status.port_actions?.some(
+        (action) => action.action === "install" && action.availability === "allowed",
+      );
+    if (setupReviews.takeReview(request) && matches) void installPlanning.review();
+  }, [
+    setupReviews.pendingReview,
+    setupReviews.takeReview,
+    ui.selectedId,
+    model.port?.id,
+    model.status,
+    data.refreshFailure,
+    installPlanning.review,
+  ]);
+  const backups = usePortBackups(model.port?.id);
   useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);
   const { adoptOpen, selectedId, setAdoptOpen, setSelectedId, setView } = ui;
   const availablePortIds = useMemo(
@@ -528,6 +589,28 @@ function Workspace({
             retryRecovery={data.retryRecovery}
             subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
           />
+          {preferenceFailure && (
+            <section className="error-banner" role="alert">
+              <div>
+                <strong>Browsing choices are not saved</strong>
+                <p>
+                  {preferenceFailure === "read"
+                    ? "Saved browsing choices for this library could not be read. The saved data has been kept. Save your current choices to replace these browsing preferences."
+                    : "Your browsing choices work for this session, but could not be saved for a restart."}
+                </p>
+                <Button
+                  data-focusable
+                  variant="outline"
+                  onClick={() => {
+                    if (saveBrowsingPreferences())
+                      window.requestAnimationFrame(() => focusRegion("workspace"));
+                  }}
+                >
+                  {preferenceFailure === "read" ? "Save current browsing choices" : "Retry saving"}
+                </Button>
+              </div>
+            </section>
+          )}
           {model.port ? (
             <SelectedPortPanel
               model={model}
@@ -551,6 +634,7 @@ function Workspace({
             />
           ) : (
             <CurrentView
+              favorites={favorites}
               data={data}
               ui={{ ...ui, setView: setPrimaryView }}
               model={model}
@@ -614,21 +698,77 @@ type AppearanceState = ReturnType<typeof useThemePreference>;
 type InstallPlanningState = ReturnType<typeof useInstallPlanning>;
 type BackupState = ReturnType<typeof usePortBackups>;
 
-function useAppModel(data: DataState, ui: UiState) {
+function useAppModel(
+  data: DataState,
+  ui: UiState,
+  libraryRoot?: string | null,
+  gameFileQuery?: GameFileFilterState,
+) {
   const { selectedId, setBiosPath, setSourcePath } = ui;
-  const { catalog, sources, statuses } = data;
+  const { catalog, sources, statuses, browsing } = data;
   const statusMap = useMemo(() => indexStatuses(statuses), [statuses]);
+  const gameFileQueryContext = useMemo(
+    () => JSON.stringify([catalog, sources, statuses, browsing?.workspace_binding_sha256]),
+    [catalog, sources, statuses, browsing?.workspace_binding_sha256],
+  );
+  // Catalog and statuses arrive together in the accepted generation-bound snapshot.
+  const queryContext = useMemo<CatalogQueryContext>(
+    () =>
+      catalog && libraryRoot
+        ? {
+            library: { id: libraryRoot, statuses: statusMap },
+            gameFiles: gameFileQuery?.context,
+            browsing: browsing ?? undefined,
+            devicePlatform: browsing?.host_platform,
+          }
+        : {},
+    [catalog, libraryRoot, statusMap, gameFileQuery?.context, browsing],
+  );
   const visible = useMemo(
     () =>
       filterPorts(
-        data.catalog?.ports ?? [],
+        ui.view === "library"
+          ? ["all", "ready", "setup"].includes(ui.libraryReadiness)
+            ? filterPorts(
+                data.catalog?.ports ?? [],
+                statusMap,
+                "library",
+                ui.libraryReadiness as "all" | "ready" | "setup",
+                "",
+              )
+            : []
+          : (data.catalog?.ports ?? []),
         statusMap,
         ui.view,
         ui.filter,
         ui.query,
         ui.catalogSort,
+        queryContext,
       ),
-    [data.catalog, statusMap, ui.view, ui.filter, ui.query, ui.catalogSort],
+    [
+      data.catalog,
+      statusMap,
+      ui.view,
+      ui.filter,
+      ui.libraryReadiness,
+      ui.query,
+      ui.catalogSort,
+      queryContext,
+    ],
+  );
+  const catalogFilterCandidates = useMemo(
+    () =>
+      ui.view === "catalog" && data.catalog
+        ? filterPorts(data.catalog.ports, statusMap, "catalog", "all", ui.query)
+        : undefined,
+    [data.catalog, statusMap, ui.view, ui.query],
+  );
+  const libraryFilterCandidates = useMemo(
+    () =>
+      ui.view === "library" && data.catalog
+        ? filterPorts(data.catalog.ports, statusMap, "library", "all", ui.query)
+        : undefined,
+    [data.catalog, statusMap, ui.view, ui.query],
   );
   const overview = useMemo(
     () => summarizeLibrary(data.catalog?.ports ?? [], statusMap),
@@ -652,13 +792,39 @@ function useAppModel(data: DataState, ui: UiState) {
     () => selectedPort(catalog, sources, selectedId, statusMap),
     [catalog, selectedId, sources, statusMap],
   );
+  const browsingMatch = useMemo(
+    () =>
+      selection.port && queryContext.browsing
+        ? evaluateCatalogQuery(
+            [selection.port],
+            typeof ui.filter === "string"
+              ? { version: 1, channels: ui.filter === "all" ? [] : [ui.filter] }
+              : ui.filter,
+            queryContext,
+          )
+        : undefined,
+    [selection.port, ui.filter, queryContext],
+  );
   useEffect(() => {
     setSourcePath(selection.source?.path ?? "");
   }, [selectedId, selection.source?.path, setSourcePath]);
   useEffect(() => {
     setBiosPath(selection.bios?.path ?? "");
   }, [selectedId, selection.bios?.path, setBiosPath]);
-  return { statusMap, visible, overview, recent, sourceNeeds, ...selection };
+  return {
+    statusMap,
+    queryContext,
+    gameFileQueryContext,
+    gameFileQuery,
+    visible,
+    catalogFilterCandidates,
+    libraryFilterCandidates,
+    overview,
+    recent,
+    sourceNeeds,
+    ...selection,
+    browsingMatch,
+  };
 }
 
 function selectedPort(
@@ -690,6 +856,7 @@ function selectedPort(
 }
 
 function CurrentView({
+  favorites,
   data,
   ui,
   model,
@@ -709,6 +876,7 @@ function CurrentView({
   setupSource,
   setSetupSource,
 }: {
+  favorites: ReturnType<typeof useFavorites>;
   data: DataState;
   ui: UiState;
   model: ReturnType<typeof useAppModel>;
@@ -738,6 +906,7 @@ function CurrentView({
         activities={data.activities}
         activityFeed={data.activityFeed}
         outcomes={updates.outcomes}
+        batchRead={updates.batchRead}
         busy={operations.busy}
         repair={data.doctor?.repair}
         diagnosticsRefreshing={data.diagnosticRefreshing}
@@ -747,9 +916,7 @@ function CurrentView({
         cleanupChanged={() =>
           Promise.allSettled([data.refresh(), data.refreshDiagnosticsAfterMutation()])
         }
-        checkAll={() => {
-          void updates.checkAll();
-        }}
+        checkAll={updates.checkAll}
         onSelect={openPortDetails}
         onOpenSettings={(target, sourceProfileId) => {
           ui.setView("settings");
@@ -812,7 +979,11 @@ function CurrentView({
           )
         }
         sourceOutcomes={sourceHealth.outcomes}
-        sourceInspections={sourceHealth.inspections}
+        sourceInspections={{
+          reports: sourceHealth.inspections,
+          reads: sourceHealth.inspectionReads,
+          retry: sourceHealth.inspectSource,
+        }}
         verifySources={() => {
           void sourceHealth.verifyAll();
         }}
@@ -854,8 +1025,15 @@ function CurrentView({
   if (!data.catalog && data.refreshFailure) return null;
   return (
     <PortBrowser
+      favorites={favorites}
       view={ui.view}
       ports={model.visible}
+      catalogFilterCandidates={model.catalogFilterCandidates}
+      libraryFilterCandidates={model.libraryFilterCandidates}
+      queryContext={model.queryContext}
+      gameFileQuery={model.gameFileQuery}
+      libraryReadiness={ui.libraryReadiness}
+      setLibraryReadiness={ui.setLibraryReadiness}
       statuses={model.statusMap}
       overview={model.overview}
       recent={model.recent}
@@ -866,7 +1044,9 @@ function CurrentView({
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {
-        void operations.perform("launch", () => desktopApi.launch(portId, ""));
+        void operations.perform("launch", () =>
+          desktopApi.launch(portId, "", bootstrap.generation),
+        );
       }}
       onBrowseCatalog={() => ui.setView("catalog")}
       onConnectGameFiles={() => {
@@ -879,6 +1059,7 @@ function CurrentView({
       }}
       clearFilters={() => {
         ui.setFilter("all");
+        if (ui.view === "library") ui.setLibraryReadiness("all");
         ui.setQuery("");
       }}
       loading={!data.catalog}
@@ -963,6 +1144,10 @@ function SelectedPortPanel({
       backups={backups.backups}
       backupProblems={backups.inventory.problems}
       backupState={backups.inventory.state}
+      backupCreateAssessment={backups.inventory.create_assessment}
+      backupRestoreAssessment={backups.inventory.restore_assessment}
+      backupReadState={backups.readState}
+      retryBackupRead={backups.refresh}
       source={model.source}
       sourceInspection={
         model.port.source_profile
@@ -976,6 +1161,10 @@ function SelectedPortPanel({
         (activity) => activity.target_id === model.port?.id && activity.cancellation,
       )}
       libraryGeneration={libraryGeneration}
+      gameFileQueryContext={model.gameFileQueryContext}
+      gameFileFilterContext={model.gameFileQuery?.context}
+      browsingMatch={model.browsingMatch}
+      browsingBinding={model.queryContext.browsing?.workspace_binding_sha256}
       outputLocationChanged={installPlanning.invalidate}
       externalRuntimeChanged={() => {
         installPlanning.invalidate();

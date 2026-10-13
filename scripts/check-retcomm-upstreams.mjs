@@ -8,18 +8,119 @@ const mappings = JSON.parse(await readFile(mappingPath, "utf8"));
 const psxPorts = catalog.ports.filter((port) => port.adapter === "psx-recomp-managed");
 const failures = [];
 const offline = process.argv.includes("--offline");
+const scopeArguments = process.argv.slice(2).filter((arg) => arg.startsWith("--port-ids="));
+if (
+  scopeArguments.length > 1 ||
+  process.argv.slice(2).some((arg) => arg !== "--offline" && !arg.startsWith("--port-ids=")) ||
+  (offline && scopeArguments.length)
+)
+  throw new Error("Invalid RetComM scope; offline validation always covers the complete catalog");
+const scopeValue = scopeArguments[0]?.slice("--port-ids=".length);
+const selectedIds =
+  scopeValue === undefined ? null : scopeValue === "" ? [] : scopeValue.split(",");
+if (
+  selectedIds &&
+  (new Set(selectedIds).size !== selectedIds.length ||
+    selectedIds.some(
+      (id) =>
+        !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id) || !catalog.ports.some((port) => port.id === id),
+    ))
+)
+  throw new Error("RetComM scope requires unique existing port IDs");
 
 const mappedPortIds = new Set(Object.keys(mappings));
+const outsideRetcomm = [];
+const retcommRepositories = new Set([
+  "technicallycomputers/retcomm-launcher",
+  "technicallycomputers/retcomm-catalog",
+  ...psxPorts
+    .filter((port) => mappedPortIds.has(port.id))
+    .map((port) => port.release?.repository)
+    .filter((repository) => typeof repository === "string")
+    .map((repository) => repository.toLowerCase()),
+]);
+
+function githubIdentity(value, asset = false) {
+  try {
+    const url = new URL(value);
+    const parts = url.pathname.split("/").slice(1);
+    if (parts.at(-1) === "") parts.pop();
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== "github.com" ||
+      url.username ||
+      url.password ||
+      url.port ||
+      url.search ||
+      url.hash ||
+      !parts.slice(0, 2).every((part) => /^[A-Za-z0-9_.-]+$/u.test(part)) ||
+      parts.length < 2 ||
+      parts.slice(0, 2).some((part) => part === "." || part === ".." || /\.git$/iu.test(part)) ||
+      (asset
+        ? parts.length !== 6 ||
+          parts[2] !== "releases" ||
+          parts[3] !== "download" ||
+          !parts[4] ||
+          !parts[5]
+        : parts.length !== 2)
+    )
+      return null;
+    return parts.slice(0, 2).join("/").toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function independentDirectIdentity(port) {
+  const project = githubIdentity(port.project_url);
+  const direct = port.release.direct;
+  if (
+    !project ||
+    retcommRepositories.has(project) ||
+    port.release.repository !== undefined ||
+    !Array.isArray(port.platforms) ||
+    port.platforms.length === 0 ||
+    new Set(port.platforms).size !== port.platforms.length ||
+    !direct ||
+    typeof direct !== "object" ||
+    Array.isArray(direct) ||
+    Object.keys(direct).length !== port.platforms.length
+  )
+    return null;
+  const artifacts = [];
+  for (const platform of port.platforms) {
+    const artifact = direct[platform];
+    const repository = githubIdentity(artifact?.url, true);
+    if (
+      !repository ||
+      retcommRepositories.has(repository) ||
+      typeof artifact.version !== "string" ||
+      !artifact.version.trim() ||
+      !Number.isSafeInteger(artifact.size) ||
+      artifact.size <= 0 ||
+      !/^[a-f0-9]{64}$/u.test(artifact.sha256 ?? "")
+    )
+      return null;
+    artifacts.push({ platform, ...artifact });
+  }
+  return { port_id: port.id, project_url: port.project_url, artifacts };
+}
 for (const port of psxPorts) {
   if (!mappedPortIds.has(port.id)) {
+    if (port.release?.provider === "direct-manifest") {
+      const identity = independentDirectIdentity(port);
+      if (identity) outsideRetcomm.push(identity);
+      else failures.push(`${port.id}: ambiguous independent direct-manifest identity`);
+      continue;
+    }
     failures.push(`${port.id}: missing RetComM title mapping`);
   }
   if ((port.release.provider ?? "github") !== "github") {
     failures.push(`${port.id}: RetComM game upstream must resolve directly through GitHub`);
   }
-  if (
-    port.release.repository.toLowerCase() === "technicallycomputers/retcomm-launcher".toLowerCase()
-  ) {
+  if (typeof port.release.repository !== "string" || !port.release.repository.trim()) {
+    failures.push(`${port.id}: missing GitHub game repository identity`);
+  } else if (port.release.repository.toLowerCase() === "technicallycomputers/retcomm-launcher") {
     failures.push(`${port.id}: points at RetComM-Launcher instead of the game upstream`);
   }
 }
@@ -64,6 +165,7 @@ async function loadRetcommTitle(titleId) {
 if (!offline) {
   await Promise.all(
     Object.entries(mappings).map(async ([portId, titleId]) => {
+      if (selectedIds !== null && !selectedIds.includes(portId)) return;
       const port = psxPorts.find((candidate) => candidate.id === portId);
       if (!port) return;
 
@@ -92,16 +194,25 @@ if (!offline) {
   );
 }
 
+for (const identity of outsideRetcomm) {
+  if (selectedIds !== null && !selectedIds.includes(identity.port_id)) continue;
+  console.log(
+    `RetComM audit NOT_APPLICABLE: ${JSON.stringify(identity)}; independent pinned artifacts, upstream health NOT_CHECKED. Catalog identity and exact-artifact acceptance own this route; this audit performs neither.`,
+  );
+}
+
 if (failures.length) {
   console.error(failures.sort().join("\n"));
   process.exit(1);
 }
 
 if (offline) {
-  console.log(`Verified ${psxPorts.length} local PS1 mappings; live upstream checks were not run.`);
+  console.log(
+    `Verified ${psxPorts.length - outsideRetcomm.length} local PS1 mappings; live upstream checks were not run.`,
+  );
 } else {
   const source = localCatalogDir ? localCatalogDir : `TechnicallyComputers/retcomm-catalog@${ref}`;
   console.log(
-    `Verified ${psxPorts.length} direct PS1 game upstreams against ${source}; RetComM-Launcher is not a runtime source.`,
+    `Verified ${psxPorts.filter((port) => mappedPortIds.has(port.id) && (selectedIds === null || selectedIds.includes(port.id))).length} direct PS1 game upstreams against ${source}; RetComM-Launcher is not a runtime source.${selectedIds === null ? "" : " Unselected live identities remain unassessed."}`,
   );
 }

@@ -661,6 +661,54 @@ impl Library {
     pub fn user_dir(&self, port_id: &str) -> PathBuf {
         self.root.join("user").join(port_id)
     }
+
+    /// Prepare only the validated port directory. Never follow links or recreate
+    /// a missing library parent, and never replace existing private state.
+    pub(crate) fn prepare_user_directory(
+        &self,
+        port_id: &str,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<PathBuf> {
+        if !matches!(
+            Path::new(port_id).components().next(),
+            Some(std::path::Component::Normal(_))
+        ) || Path::new(port_id).components().count() != 1
+        {
+            return Err(PortcoveError::usage(
+                "private user-data port ID must be one path component",
+            ));
+        }
+        let directory = self.user_dir(port_id);
+        crate::path::unicode(&directory, "private user data")?;
+        let check = |allow_missing: bool| -> Result<()> {
+            for ancestor in directory.ancestors() {
+                match fs::symlink_metadata(ancestor) {
+                    Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {}
+                    Err(error)
+                        if allow_missing
+                            && error.kind() == std::io::ErrorKind::NotFound
+                            && ancestor == directory => {}
+                    Err(error) => return Err(error.into()),
+                    _ => {
+                        return Err(PortcoveError::conflict(
+                            "private user-data ancestry is not a real directory",
+                        ));
+                    }
+                }
+            }
+            Ok(())
+        };
+        checkpoint()?;
+        check(true)?;
+        match fs::create_dir(&directory) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(error.into()),
+        }
+        checkpoint()?;
+        check(false)?;
+        Ok(directory)
+    }
     pub fn logs_dir(&self) -> PathBuf {
         self.root.join("logs")
     }
@@ -712,6 +760,13 @@ impl Library {
         crate::path::refuse_symlink_ancestors(&self.locks_dir().join("artwork.lock"))?;
         Ok(PortOperationGuard {
             file: self.acquire_lock("artwork", "local artwork", "change-artwork")?,
+        })
+    }
+
+    pub(crate) fn try_lock_curated_cache(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(&self.locks_dir().join("curated-cache.lock"))?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock("curated-cache", "curated artifact cache", "verify-cache")?,
         })
     }
 
@@ -1814,6 +1869,56 @@ impl Library {
         .transpose()
     }
 
+    /// Read retained browsing metadata without allocating an oversized SQLite
+    /// value in Rust. This is not runtime verification or registration authority.
+    pub(crate) fn external_runtime_with_port_bounded(
+        &self,
+        port_id: &str,
+        budget: &mut u64,
+    ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
+        let ceiling = (*budget).min(crate::signed_catalog::MAX_CATALOG_BYTES as u64);
+        if ceiling == 0 {
+            return Err(PortcoveError::unsupported(
+                "browsing metadata budget reached",
+            ));
+        }
+        let row = self.connection().and_then(|connection| Ok(connection.query_row(
+            "SELECT CASE WHEN length(CAST(record_json AS BLOB)) + length(CAST(retained_catalog_json AS BLOB)) <= ?2 THEN record_json END,
+                    CASE WHEN length(CAST(record_json AS BLOB)) + length(CAST(retained_catalog_json AS BLOB)) <= ?2 THEN retained_catalog_json END
+             FROM external_runtime_registrations WHERE port_id=?1",
+            rusqlite::params![port_id, ceiling as i64],
+            |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, Option<String>>(1)?)),
+        ).optional()?));
+        let row = match row {
+            Ok(row) => row,
+            Err(error) => {
+                // A prior column may already have been copied before a later
+                // column's storage-type conversion or query fails.
+                *budget = budget.saturating_sub(ceiling);
+                return Err(error);
+            }
+        };
+        let (record, catalog) = match row {
+            Some((Some(record), Some(catalog))) => (record, catalog),
+            Some(_) => {
+                *budget = budget.saturating_sub(ceiling);
+                return Err(PortcoveError::unsupported(
+                    "retained browsing metadata is oversized",
+                ));
+            }
+            None => return Ok(None),
+        };
+        *budget = budget.saturating_sub((record.len() + catalog.len()) as u64);
+        let record: ExternalRuntimeRecord = serde_json::from_str(&record)?;
+        let catalog = Catalog::from_json(&catalog)?;
+        if record.port_id != port_id || catalog.port(port_id).is_err() {
+            return Err(PortcoveError::state(
+                "retained browsing metadata has a mismatched port identity",
+            ));
+        }
+        Ok(Some((record, catalog)))
+    }
+
     pub(crate) fn register_external_runtime(
         &self,
         record: &ExternalRuntimeRecord,
@@ -2355,6 +2460,165 @@ fn parse_launch_session(row: StoredLaunchSession) -> Result<LaunchSessionRecord>
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn retained_browsing_sql_guard_counts_bytes_before_copying_values() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        library.connection().unwrap().execute(
+            "INSERT INTO external_runtime_registrations (port_id, record_json, retained_catalog_json, registered_at) VALUES (?1, ?2, ?3, 1)",
+            params!["bounded-browsing-fixture", "é".repeat(128), "é".repeat(128)],
+        ).unwrap();
+        let mut budget = 300;
+        let error = library
+            .external_runtime_with_port_bounded("bounded-browsing-fixture", &mut budget)
+            .unwrap_err();
+        assert!(error.to_string().contains("oversized"));
+        assert_eq!(budget, 0);
+        let mut zero = 0;
+        assert!(
+            library
+                .external_runtime_with_port_bounded("bounded-browsing-fixture", &mut zero)
+                .is_err()
+        );
+        assert_eq!(zero, 0);
+    }
+
+    #[test]
+    fn malformed_retained_browsing_json_still_spends_the_shared_allowance() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        library.connection().unwrap().execute(
+            "INSERT INTO external_runtime_registrations (port_id, record_json, retained_catalog_json, registered_at) VALUES (?1, ?2, ?3, 1)",
+            params!["malformed-browsing-fixture", "x".repeat(32), "y".repeat(32)],
+        ).unwrap();
+        let mut budget = 100;
+        assert!(
+            library
+                .external_runtime_with_port_bounded("malformed-browsing-fixture", &mut budget)
+                .is_err()
+        );
+        assert_eq!(budget, 36);
+    }
+
+    #[test]
+    fn retained_browsing_row_conversion_failure_spends_the_ceiling() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        library.connection().unwrap().execute(
+            "INSERT INTO external_runtime_registrations (port_id, record_json, retained_catalog_json, registered_at) VALUES (?1, ?2, ?3, 1)",
+            params!["wrong-storage-browsing-fixture", "first-column-copied", vec![b'x'; 32]],
+        ).unwrap();
+        let mut budget = 100;
+        assert!(
+            library
+                .external_runtime_with_port_bounded("wrong-storage-browsing-fixture", &mut budget)
+                .is_err()
+        );
+        assert_eq!(budget, 0);
+    }
+
+    #[test]
+    fn prepared_private_directory_cancellation_and_disappearance_fail_closed() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let directory = library.user_dir("prepared-probe");
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Err(PortcoveError::state(
+                    "cancelled fixture"
+                )))
+                .is_err()
+        );
+        assert!(!directory.exists());
+        let count = std::cell::Cell::new(0);
+        let result = library.prepare_user_directory("prepared-probe", &|| {
+            count.set(count.get() + 1);
+            if count.get() == 2 {
+                fs::remove_dir(&directory)?;
+            }
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert!(!directory.exists());
+        fs::remove_dir(library.root().join("user")).unwrap();
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        assert!(!directory.exists());
+        assert!(!library.root().join("user").exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn prepared_private_directory_refuses_junction_leaf_and_ancestry() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(&temporary.path().join("library")).unwrap();
+        let outside = temporary.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join("retained"), b"preserve").unwrap();
+        let create_junction = |link: &Path| {
+            let output = crate::ChildProcessPolicy::native_command(
+                crate::ChildProcessClass::HostTool,
+                Path::new("cmd.exe"),
+            )
+            .unwrap()
+            .args(["/d", "/c", "mklink", "/J"])
+            .arg(link)
+            .arg(&outside)
+            .output()
+            .unwrap();
+            assert!(
+                output.status.success(),
+                "owned junction fixture creation failed"
+            );
+        };
+        let directory = library.user_dir("prepared-probe");
+        create_junction(&directory);
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        fs::remove_dir(&directory).unwrap();
+        fs::remove_dir(library.root().join("user")).unwrap();
+        create_junction(&library.root().join("user"));
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        assert_eq!(fs::read(outside.join("retained")).unwrap(), b"preserve");
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 1);
+        fs::remove_dir(library.root().join("user")).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn prepared_private_directory_refuses_linked_leaf_and_ancestry() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(&temporary.path().join("library")).unwrap();
+        let outside = temporary.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        let directory = library.user_dir("prepared-probe");
+        std::os::unix::fs::symlink(&outside, &directory).unwrap();
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        fs::remove_file(&directory).unwrap();
+        fs::remove_dir(library.root().join("user")).unwrap();
+        std::os::unix::fs::symlink(&outside, library.root().join("user")).unwrap();
+        assert!(
+            library
+                .prepare_user_directory("prepared-probe", &|| Ok(()))
+                .is_err()
+        );
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
+    }
 
     #[test]
     fn activity_feed_keeps_old_current_attention_and_recovery_rows_beyond_history() {

@@ -39,7 +39,10 @@ Existing Alpha 1 libraries can be carried forward with the documented
 
 ## What Portcove does
 
-- Browse a catalog of native ports and manage them as one library.
+- Browse a catalog of native ports and manage them as one library. Explicitly
+  check game-file availability for a selected route, platform and channel, then
+  combine current observations with catalog filters. Details explain the same
+  observation; setup and launch still use their ordinary reviews.
 - Check game files locally. A saved location can point to the
   current file; copying into Portcove leaves the original in place, while Move
   requires separate authorization. Portcove checks known exact identities and
@@ -142,7 +145,7 @@ portcove catalog show <port-id>
 portcove --json catalog export
 ```
 
-Each entry records its upstream project, platforms, release channels, required local files, executable layout, user-data paths, and current test evidence. Stable, beta, and rolling are release channels—not quality ratings. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
+Each entry records its upstream project, platforms, release channels, required local files, executable layout, user-data paths, and current test evidence. Stable, Preview, and Rolling are game-port release channels—not quality ratings. Preview retains the `beta` command and serialized value. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
 
 ## Build from source
 

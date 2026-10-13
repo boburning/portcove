@@ -16,7 +16,93 @@ function scenario(id, description, options = {}) {
 }
 
 export const DESKTOP_SCENARIOS = Object.freeze([
+  scenario(
+    "native-preliminary-source-review",
+    "Real pinned-validator discovery exposes NotRun and deliberate fresh review without registration.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-source-dialog-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-qualification-history",
+    "Recorded history and technical disclosure remain scoped and usable in the normal Linux WebView.",
+    {
+      source: "desktop-qualification-history-test.mjs",
+      qualification_only: true,
+      platforms: ["linux"],
+    },
+  ),
+  scenario(
+    "native-selected-setup-completion",
+    "Discovered synthetic inputs continue through ordinary installation, cancellation, retry and isolated preparation.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-selected-setup-completion-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-saved-folder-selected-setup",
+    "Real saved-folder discovery, guarded registration and selected-port requirements preserve owned inputs.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-source-dialog-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-external-runtime-review",
+    "Private prepared runtime picker, review, registration and non-owning removal preserve player files.",
+    {
+      prerequisites: ["desktop", "native-dialog", "external-runtime-fixture"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-external-runtime-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-startup-preferences-recovery",
+    "Malformed saved preferences remain intact until an owned stopped-host repair, then reopen reliably.",
+    {
+      source: "desktop-bootstrap-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-normal-package-webview-boundary",
+    "Ordinary Windows package enforces effective main-window assets, IPC, CSP, permission and navigation boundaries.",
+    { source: "desktop-main-webview-boundary.mjs", qualification_only: true },
+  ),
   scenario("empty-library", "Native bootstrap uses the isolated empty library."),
+  scenario(
+    "native-library-switch-recovery",
+    "A refused future-library selection preserves the current workspace and permits a healthy saved restart.",
+    {
+      prerequisites: ["desktop", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-library-switch-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-startup-library-recovery",
+    "Failed saved-library startup supports native cancellation, selection and a durable healthy restart.",
+    {
+      prerequisites: ["desktop", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-bootstrap-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
   scenario(
     "native-design-system-compatibility",
     "Generated styles, themes, nested portals, dismissal, focus, motion and offline assets work in Tauri.",
@@ -26,6 +112,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario("native-error-recovery", "A rejected native operation leaves the application usable."),
+  scenario(
+    "native-startup-network-diagnostic",
+    "Observe one current auth-status response without repeating installation or claiming startup causality.",
+    {
+      source: "desktop-startup-network-diagnostic.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
   scenario(
     "native-library-selection-review",
     "Whole-library selection review stays non-mutating and restores its trigger.",
@@ -149,6 +244,35 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "owned-fixture"],
       dependencies: ["native-preparation-cancellation"],
       source: "desktop-preparation-recovery-test.mjs",
+    },
+  ),
+  scenario(
+    "native-host-interrupted-preparation",
+    "Forced Windows host termination during live preparation preserves originals and requires recovery.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-recovery-test.mjs",
+      qualification_only: true,
+    },
+  ),
+  scenario(
+    "native-closed-preparation-recovery",
+    "Ordinary Windows host close during live preparation preserves originals and exposes uncertain recovery safely.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-minimized-preparation-continuity",
+    "Live Windows preparation completes while minimized and restores authoritative ready state.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-recovery-test.mjs",
+      qualification_only: true,
+      platforms: ["win32"],
     },
   ),
   scenario(
@@ -387,6 +511,7 @@ export function resolveDesktopSelection({
   scenarios = [],
   reloadCycles = 0,
   defaultProfile = "smoke",
+  platform = process.platform,
 } = {}) {
   if (profile && scenarios.length) throw new Error("--profile and --scenario cannot be combined");
   const selectedProfile = profile ?? (scenarios.length ? null : defaultProfile);
@@ -405,6 +530,44 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (uniqueRequested.includes("native-preliminary-source-review")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-preliminary-source-review requires one exact standalone scenario");
+    if (platform !== "win32") throw new Error("native-preliminary-source-review requires Windows");
+  }
+  if (uniqueRequested.includes("native-selected-setup-completion")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-selected-setup-completion requires one exact standalone scenario");
+    if (platform !== "win32") throw new Error("native-selected-setup-completion requires Windows");
+  }
+  if (uniqueRequested.includes("native-startup-network-diagnostic") && uniqueRequested.length !== 1)
+    throw new Error("native-startup-network-diagnostic requires one exact standalone scenario");
+  if (uniqueRequested.includes("native-startup-network-diagnostic") && platform !== "win32")
+    throw new Error("native-startup-network-diagnostic requires Windows");
+  if (uniqueRequested.includes("native-saved-folder-selected-setup")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-saved-folder-selected-setup requires one exact standalone scenario");
+    if (platform !== "win32")
+      throw new Error("native-saved-folder-selected-setup requires Windows");
+  }
+  if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
+    throw new Error("native-external-runtime-review requires one exact standalone scenario");
+  if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")
+    throw new Error("native-external-runtime-review requires Windows");
+  if (
+    uniqueRequested.includes("native-startup-preferences-recovery") &&
+    uniqueRequested.length !== 1
+  )
+    throw new Error("native-startup-preferences-recovery requires one exact standalone scenario");
+  if (uniqueRequested.includes("native-startup-library-recovery") && uniqueRequested.length !== 1)
+    throw new Error("native-startup-library-recovery requires one exact standalone scenario");
+  if (uniqueRequested.includes("native-library-switch-recovery") && uniqueRequested.length !== 1)
+    throw new Error("native-library-switch-recovery requires one exact standalone scenario");
+  if (
+    uniqueRequested.includes("native-closed-preparation-recovery") &&
+    uniqueRequested.length !== 1
+  )
+    throw new Error("native-closed-preparation-recovery requires one exact standalone scenario");
   const nonRunnable = uniqueRequested.filter((id) => !desktopScenarioById.get(id).runnable);
   if (!selectedProfile && nonRunnable.length)
     throw new Error(`${nonRunnable.join(", ")} is an acceptance gap, not a runnable scenario`);

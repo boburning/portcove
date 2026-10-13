@@ -41,6 +41,25 @@ pub struct GameFileScanSnapshot {
     pub report: crate::SourceDiscoveryReport,
     pub completed_at: i64,
     pub freshness: GameFileScanFreshness,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coverage: Option<GameFileScanCoverage>,
+    // Opaque, library-owned checkpoint data. Clients cannot submit it to a scan.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub continuation: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct GameFileScanCoverage {
+    pub batches: u32,
+    pub batch_entries_examined: u32,
+    pub entries_relisted: u32,
+    pub metadata_checks: u32,
+    pub prior_member_rechecks: u32,
+    pub pending_directories: u32,
+    pub remaining_entries: Option<u64>,
+    pub frontier_exhausted: bool,
+    pub can_resume: bool,
+    pub restart_required: bool,
 }
 
 struct StoredGameFileRoot {
@@ -204,6 +223,8 @@ impl Library {
         &self,
         snapshot: &GameFileScanSnapshot,
         expected_outputs: &[crate::library::OutputRootRecord],
+        expected_roots: &[GameFileRoot],
+        expected_payload: Option<&str>,
     ) -> Result<()> {
         let payload = serde_json::to_string(snapshot)?;
         if payload.len() > MAX_SCAN_SNAPSHOT_BYTES {
@@ -220,6 +241,27 @@ impl Library {
                 "game-output ownership changed during the game-file scan; retry the scan",
             ));
         }
+        let current_payload = transaction
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        let current_roots = {
+            let mut statement = transaction.prepare(
+                "SELECT id,path,created_at,updated_at FROM game_file_roots ORDER BY created_at,id",
+            )?;
+            statement
+                .query_map([], StoredGameFileRoot::from_row)?
+                .map(|row| row?.into_record())
+                .collect::<Result<Vec<_>>>()?
+        };
+        if current_payload.as_deref() != expected_payload || current_roots != expected_roots {
+            return Err(PortcoveError::conflict(
+                "saved folders or scan checkpoint changed during the game-file scan; retry the scan",
+            ));
+        }
         transaction.execute(
             "INSERT INTO game_file_scan_state(singleton,snapshot_json) VALUES (1,?1)
              ON CONFLICT(singleton) DO UPDATE SET snapshot_json=excluded.snapshot_json",
@@ -229,16 +271,9 @@ impl Library {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(crate) fn stored_game_file_scan_snapshot(&self) -> Result<Option<GameFileScanSnapshot>> {
-        let payload = self
-            .connection()?
-            .query_row(
-                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
-                [],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-        payload
+        self.stored_game_file_scan_payload()?
             .map(|payload| {
                 serde_json::from_str(&payload).map_err(|error| {
                     PortcoveError::state("stored game-file scan snapshot is invalid")
@@ -246,6 +281,26 @@ impl Library {
                 })
             })
             .transpose()
+    }
+
+    pub(crate) fn stored_game_file_scan_payload(&self) -> Result<Option<String>> {
+        let payload: Option<String> = self
+            .connection()?
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if payload
+            .as_ref()
+            .is_some_and(|payload| payload.len() > MAX_SCAN_SNAPSHOT_BYTES)
+        {
+            return Err(PortcoveError::state(
+                "stored game-file scan snapshot exceeds its storage limit",
+            ));
+        }
+        Ok(payload)
     }
 }
 

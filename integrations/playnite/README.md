@@ -1,5 +1,7 @@
 # Portcove Playnite reference client
 
+Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
 A small Windows library extension consuming the standalone CLI. It uses the
 public Playnite SDK and Portcove JSON/JSONL commands. Core owns catalog, sources,
 readiness, downloads, trust, installation, persistence and recovery. The client
@@ -66,7 +68,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–59 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–67 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -83,13 +85,12 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57,
-schema-58 or schema-59 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 or schema-66 or schema-67 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
 
-User-prepared runtimes use **schema 58 plus `external.review`**. Register any
+User-prepared runtimes use **schema 67 plus `external.review`**. Register any
 requested original game/BIOS inputs, then choose the already prepared runtime
 folder in management. Review its accepted version/package identity and checked
 extracted-tree identity before consenting. Portcove uses these files in place;
@@ -100,11 +101,46 @@ registration and verifies the installed route is absent before changing its
 installed state. External files remain. Cancel makes no mutation; Playnite's
 ordinary cancellation dialog must be acknowledged to restore the action.
 
-Schema 59 readiness also supplies the effective runtime's required source
+Schema 67 readiness also supplies the effective runtime's required source
 extension. If a validated ZIP cannot be passed to that runtime, management asks
 for the uncompressed original file of that extension and validates it explicitly
 before replacement registration. This requirement uses the retained runtime
 contract; source identity can remain current while launch waits for that file.
+
+Schema 60 status responses require one retained `rollback` assessment. The
+reader validates its availability/reason tuple before returning single or batched
+status, and the management summary displays its actual reason. Missing,
+duplicate, unknown or contradictory rollback assessments are refused. Schemas
+42–57 cannot carry this new action; private paired schemas 58 and 59 are rejected.
+The reference does not offer a rollback command button or infer permission from
+the assessment. Event schemas remain independently 2–3. These source contracts
+do not establish a published CLI or installed client update.
+
+Schema 61 consumes exact curated artifact revocation and distribution withdrawal
+from the shared Core assessment. Withdrawal holds acquisition while permitted
+installed use remains distinct. Revoked retained rollback is accepted only as
+the exact held/revoked-artifact tuple. The actual reader validates definition
+operations even when action records are otherwise valid and rejects these new
+meanings in schema-60 or legacy envelopes. No unknown-value refusal is relaxed.
+
+Schema 66 requires exactly one current managed `update` action per port status;
+the actual reader presents its stable route/review/hold reason. Missing,
+duplicate, unknown and contradictory decisions are refused, including an
+`allowed` status pretending to supply candidate review. Older schemas must not
+carry this action. The reader grants no update execution or outside-file
+ownership; the current producer and compiled reader need matching qualification.
+
+Schema 62 backup inventory requires `create_assessment` with the shared
+`backup_create` action. Schema 63 requires the separate `restore_assessment`
+and strict `backup_restore` tuple; the reader rejects that field in older schemas
+and rejects missing, unrelated or contradictory Restore decisions. This reader
+proof does not establish installed-extension or native Desktop qualification.
+The actual `backup.list` reader validates its exact
+availability/reason tuple, rejects missing/null/wrong-action records, and refuses
+the new field in older envelopes. A bounded incomplete preview remains distinct
+from empty owned data and imposes no new execution limit. The reference consumes
+this contract without adding a backup command button or treating a preview as
+execution authority. Schemas 58 and 59 remain rejected.
 
 Schema 47 status can include core-owned definition decisions for install,
 preparation and launch. The client shows the exact stable reason and whether the

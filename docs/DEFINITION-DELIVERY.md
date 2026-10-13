@@ -9,11 +9,36 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 
 ## Implemented engine capability negotiation
 
-Core advertises each of the seven installed `AdapterKind` templates with contract
-version 1. These versions describe the implemented combinations below; they do
+Core advertises each installed `AdapterKind` template with contract version 1.
+The N64 portable template also advertises version 2, which implements the
+catalog-declared fresh Windows D3D12 default. Inventory identities are unique
+`(template, contract_version)` pairs; a template may implement several versions.
+Negotiation selects the highest supported version inside the requested inclusive
+window, or reports the highest installed version with `UnsupportedVersion` if
+none fits. Version 1 remains available for unchanged definitions. The staged-source portable
+template also advertises version 2 for explicit prepared `library_user_data`
+bindings. An indexed entry opting into either behavior must require its template
+minimum version 2. Capability contract schema remains 1; parsing a flag alone
+does not implement its directory, environment or renderer behavior. These versions
+describe the implemented combinations below; they do
 not imply support for loading successor definition bundles. A new incompatible
 template contract must receive a new version alongside its implementation and
 compatibility evidence. Definitions cannot supply engine implementations.
+
+An indexed entry using `n64_windows_initial_d3d12` must require N64 portable
+version 2 or later as its minimum. A `[1,2]` window is refused for that entry:
+version 1 engines could otherwise silently ignore the safety-relevant default.
+This compatibility check supplies no admission, signing or execution authority.
+
+Staged-source portable version 3 implements a user-prepared runtime's declared
+`runtime_subdirectory` as its launch working directory. Core verifies the whole
+registered tree and requires the executable inside that directory before creating
+private user data. The installation root remains the whole prepared tree; absent
+a declaration, the working directory remains that root. Indexed entries using
+this combination must require minimum version 3; `[1,3]` and `[2,3]` are refused.
+Versions 1 and 2 remain supported. Other templates cannot declare a prepared
+runtime subdirectory. Capability schema and public envelope shapes are unchanged.
+This primitive supplies no title, package, generated-output or native acceptance.
 
 API schema 45 exposes the inventory as `capabilities.engine_templates`. The CLI
 `catalog check-capabilities <file>` and Tauri `check_definition_capabilities`
@@ -401,6 +426,16 @@ same policy before publication, persistent-data work or child-process preparatio
 Retained launch may use its exact verified contract after metadata expiration or a
 newer replay floor; preparation and new installation require current metadata.
 Known revocation and changed publisher authorization continue to hold retained use.
+Library schema 34 records a retained-launch policy-revision interval in the
+existing protected admission transaction. A compatible definition correction
+preserves that interval only while the authenticated managed authorization is
+unchanged: namespace, stable identity, authority/root, grant, schema, template,
+repository ID, permitted hosts, redirect bound and operations. An authorization
+change or withdrawal starts a new interval; restoring an earlier scope does not
+revive its old interval. Existing schema-33 admissions start at their current
+revision on upgrade, without inferred historical permission. Only verified
+retained Launch can use an older revision in that interval. Install, Update,
+Prepare, acquisition and selection retain their exact current-policy checks.
 
 | Client/content combination                            | Required behavior                                                                                                                                               |
 | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -457,6 +492,297 @@ does not claim to know unseen offline revocations. Recovery guidance distinguish
 stale metadata, withdrawn content, permission errors and corrupt local files.
 
 ## Protected acceptance and local/community loading
+
+### Exact-definition availability policy
+
+Core can authenticate an independently scoped policy target at
+`policy/official/<stable-id>.json`. The direct terminating `official-policy`
+delegation has exactly `policy/official/*.json`; its key material must be distinct
+from the definition role and top-level metadata keys. Authentication uses the
+existing bounded TUF transport, consistent snapshots and expiration enforcement.
+Caller-supplied root bytes do not install trust. A library must already contain
+the independently provisioned matching authority; there is no public root or
+grant setter in this component. Ordinary unprovisioned libraries remain unscoped.
+The existing offline top-level targets authority still appoints and rotates
+delegates. This component does not infer offline custody from public key bytes;
+that custody remains a protected provisioning obligation. Policy fixtures use a
+separate offline delegation signer rather than the timestamp/snapshot signer.
+
+Policy schema 1 authorizes **availability only**, binding the namespace,
+stable ID, grant and monotonic policy revision to the exact index, definition
+revision, definition bytes and implemented template. Unknown fields or decisions
+are refused. It does not grant Install, Update, Prepare, RegisterExternal or
+Launch. Schema 2 provides the bounded managed GitHub scope described below. The inert upstream
+observation's `provider_authenticated: false` and an exact definition hash cannot
+substitute for that acquisition proof.
+
+Policy schema 2 accepts `managed_github` or `revoked` decisions and requires a
+`managed-github-v1-` grant ID. That prefix is a refusal discriminator for unsupported
+consumers, not proof of authority. A managed decision retains schema 1's exact
+definition/index/template bindings and adds a positive numeric `repository_id`,
+1–8 unique canonical domain `artifact_hosts`, `max_redirects` from 0 through 5,
+and exactly the coupled `install`, `update`, `prepare`, `launch` operation set.
+Partial, duplicate, unknown or wider operations and schema/grant mismatches are
+refused. The independent installed authority, authenticated policy, exact
+candidate and monotonic floors remain mandatory; policy bytes cannot provision
+their own authority.
+
+Policy schema 4 adds `decision.curated_acquisition_checks: 1` and also requires
+`decision.scoped_launch_checks: 1`. Earlier schemas refuse the curated field,
+including null; unknown versions fail closed. A schema-4 grant binds a nonempty
+curated record map to the exact independently authenticated definition. Record
+claims or a first client download cannot create this grant or install its root.
+
+Curated resolution freshly observes the numeric GitHub repository, release and
+asset IDs, tag, peeled commit, filename, canonical asset URL and nonzero size.
+They must match the accepted record. A present publisher digest must agree; an
+absent digest uses the protected record's expected SHA-256. Mutable metadata
+bypasses selection and HTTP caches and refuses redirects. Installation refreshes
+these identities through the same opaque scope before acquiring artifact bytes,
+then uses the existing shared byte verifier and policy checks at publication.
+Previously returned resolutions do not confer reusable upstream freshness.
+
+Only an exactly qualified curated platform uses the shared `downloads/curated-v1`
+byte cache; another platform's publisher-digest route remains independent. Cache
+hits still refresh upstream metadata, recheck current policy and immutable
+admission history, and verify a private copy against the protected size and
+SHA-256 before extraction. Copying and hashing bound actual reads and writes,
+including growth after a preflight size check. A cached file is never authority.
+Cache copying and verification run in an awaited blocking worker. Cooperative
+cancellation must join that worker before the installer cleans private staging
+or reports its terminal result; interrupted cache partials retain their separate
+evidence lifetime.
+
+The cache uses one existing library OS lock. Retaining a new entry inventories
+at most 256 entries and 8 GiB of retained bytes, including interrupted partial
+copies, and refuses unexpected members or over-bound inventories. An existing
+hit verifies its own bytes and path without auditing unrelated members. Lock
+contention or exhausted capacity permits ordinary verified acquisition without
+new cache retention. Symlinks and corruption are refused and preserved.
+Private `.partial-<UUID>` copies never qualify as hits; no eviction
+or automatic failed-evidence cleanup is introduced. Cancellation and policy
+checks precede atomic cache publication. A later installation interruption can
+retain verified cache bytes without registering an installed version.
+
+Library schema 36 retains the first immutable curated identity and admitting
+policy hash under the numeric repository/asset pair, atomically with policy
+admission. Changing accepted bytes, size, commit or other immutable coordinates
+for that pair fails; advancing evidence or policy cannot silently repin it.
+Platform and evidence references do not redefine an artifact's byte identity.
+History survives policy replacement and revocation. A separately retained
+admission count detects missing history before acquisition or another admission;
+an exact retry cannot recreate lost rows. This structural corruption holds fresh
+curated acquisition without deleting installations or granting retained Launch.
+Existing retained integrity, policy and launch-assessment guards still apply.
+
+Schema 4 can additionally carry an explicit `curated_transitions` fact with
+`future_acceptance_lost` and at most 64 distinct artifact transitions. Each
+transition binds a nonzero numeric asset ID and accepted SHA-256 within the
+grant's numeric repository scope; its status is `revoked`,
+`distribution_withdrawn` or explicitly `cleared`. Null, earlier schemas,
+unknown fields/statuses and repeated asset IDs are refused. Each affected
+artifact must already exist in immutable admission history and have retained
+authenticated membership in that policy's namespace, stable ID and independent
+authority anchor. A transition cannot accept new arbitrary bytes or exercise
+another port's authority merely because it shares an upstream repository.
+Membership survives omission from a later definition; a separate completeness
+count detects deleted membership. Holds from scopes that independently admitted
+the same immutable bytes remain applicable until each scope explicitly clears
+its own observation. Future-acceptance loss also refuses new scope membership.
+
+The policy transaction retains the full authenticated transition policy and
+original provenance, up to 256 receipts of the existing 64-KiB policy/16-KiB
+provenance bounds. A separate completeness count prevents a deleted receipt
+from being silently renewed. Capacity exhaustion holds admission and preserves
+the receipts. Exact policy-byte renewal retains its original fact receipt;
+current policy freshness remains independently required. Omission, later grant
+replacement or expiry cannot erase a known hold. A higher explicit `cleared`
+fact changes only its own authority/scope's observation; another scope's hold
+remains applicable.
+
+Artifact revocation holds acquisition and critical retained use, including the
+same verification guard consumed by managed launch and rollback. Distribution
+withdrawal holds acquisition across locations and the byte cache but does not
+itself revoke permitted local use. Future-acceptance loss refuses previously
+unadmitted identities in that scope while leaving exact historical artifacts
+under their existing authorization. Existing `publisher_revoked`, missing-scope,
+changed-grant, source, integrity and execution checks are unchanged. These facts
+do not delete installations, saves or configuration and do not renew authority.
+Read-only integrity verification remains distinct from permission to execute.
+
+The shared status model projects these exact artifact guards after existing
+publisher, freshness and launch-baseline assessment. API schema 61 distinguishes
+artifact revocation from distribution withdrawal for Desktop and CLI consumers;
+retained rollback carries the exact revoked-target reason. A status observation
+is advisory and execution rechecks authority under its existing operation guards.
+
+Interrupted publication rechecks the exact artifact from the verified manifest
+owned by its current phase: the private payload before publication rename and
+the published payload before installation registration. Install recovery applies
+acquisition holds; adoption and preparation recovery apply local-use holds
+alongside their existing publisher and freshness guards. A refusal retains the
+payload and operation journal without activating or registering the target.
+
+These capability and fixture paths do not establish production acceptance.
+[#315](https://github.com/boburning/portcove/issues/315) still requires complete
+cache qualification, exact scoped holds, cancellation/recovery, exhaustive transition
+qualification and a lawful exact canary before its complete route is delivered.
+
+### Exact managed Launch assessment format
+
+Policy schema 3 keeps schema 2's exact managed acquisition grant and coupled
+operation set and requires `decision.scoped_launch_checks: 1`. Schemas 1 and 2
+refuse that field, including an explicit null. A reader that does not implement
+schema 3 refuses the grant; adapter template version 1 is not evidence that a
+reader supports scoped assessments. Existing schema 1/2 behavior is unchanged.
+
+An independently authenticated companion target is
+`policy/official/<stable-id>.launch.json`, under the existing independent
+`official-policy` delegation and installed authority. Its dot suffix cannot
+alias a valid stable ID's grant target. Acquisition is bounded by the same
+64 KiB target limit, metadata transport and freshness controls. The incoming
+assessment cannot provision a key, authorize its own grant or execute code.
+
+Assessment schema 1 contains only `assessment_schema`, `namespace`, `stable_id`,
+the exact current `policy_sha256`, a positive monotonic `revision`, and at most
+128 `assessments`. An accepted empty collection establishes the initial baseline;
+missing baseline or missing verified subject holds Launch with unknown safety
+semantics, rather than inventing a failed check. Unknown fields, duplicate keys,
+unknown operations or formats, malformed identities and duplicate subject/check
+decisions are refused before admission.
+
+Each assessment binds `subject`, `check_id`, `check_input_sha256`, its positive
+`revision` (at most the collection revision), and `decision`. A subject names the
+exact release `version`, `channel`, `platform`, `artifact` (`asset_name`, nonzero
+`size`, lowercase SHA-256), and `operation: launch`. A `held` decision includes
+`failure_sha256`; a `cleared` decision includes `previous_decision_sha256` and
+`correction_sha256`. Check/failure/correction hashes name exact accepted inputs;
+they are not optional gameplay observations. Canonical typed decision hashes
+are available from the authenticated inspection for an explicit correction.
+Authentication alone does not imply library admission.
+
+Admission requires the exact currently installed schema 3 or 4 grant, matching
+independent anchor/root, fresh grant and assessment metadata, and the authority
+chain replay floor. An immediate transaction binds the collection revision,
+individual decisions and complete retained inventory before committing the
+authority floor. Equal-revision replacement and replay refuse without changing
+the previous decision. Omission never removes a previous hold. Correcting one
+check requires its exact currently held decision and leaves other checks active.
+Fresh metadata cannot reset a lost initialized baseline or ledger; corruption
+and missing initialized state refuse rather than becoming first use.
+
+Managed Launch derives its subject from the registered installation and verified
+manifest. Current accepted failures hold that exact subject before child creation
+and in shared status. Unaffected subjects and acquisition operations remain
+separate; manifests, grants, definitions, user pins, saves and source contracts
+are not rewritten by assessment admission. Known holds survive disconnected or
+expired metadata. Only a fresh independently accepted exact correction clears
+them; Unknown, NotRun, a user report or a grant refresh cannot do so. An initialized
+grant cannot downgrade to a managed format that ignores these decisions.
+
+The final managed authority read and child creation share an immediate database
+transaction that excludes concurrent admission. A committed hold therefore
+precedes the final read or follows child creation; the guard releases before
+session writes and child waiting, including on refusal. Explicit publisher
+revocation retains its typed refusal even when expressed by schema 2, without
+resetting the scoped ledger. A later regrant preserves recorded-identity-change
+refusal for the old retained grant and cannot erase its accepted subject holds.
+
+Controlled native fixtures acquire and install two ordinary release archives
+containing the already-built host-tool probe. They check the retained manifest
+subject, shared status, unaffected next-release launch, exact held-release
+refusal and accepted correction followed by successful supervised launch.
+Separate database contention controls prove writer exclusion, delayed actual
+assessment admission and release after a refused guarded closure. These are
+core/native fixture controls, not gameplay, production publication or whole
+#246/#315 acceptance.
+
+Launch-consumer fixtures use one authenticated port and the existing test-only
+catalog injection; full embedded-compatible discovery remains a separate
+qualified control. Late-hold acceptance runs through the public supervisor after
+preparation. Controlled stored-provenance expiry and an in-process library reopen
+preserve the exact hold, refuse correction while its grant is expired and permit
+an unaffected verified subject. This does not establish a physical restart or
+expired signed-TUF acquisition.
+
+Library schema 35 retains assessment decisions, inventory identity and an
+initialization/revision binding alongside publisher admission. Existing lifetime
+leases require exclusive access for migration, preventing upgrade beneath an
+older open client; older clients refuse an upgraded library on reopen. An old
+reader using a separate unupgraded library cannot enforce an unseen companion
+record. Qualification therefore builds the capable reader before publishing its
+fixture failure/correction and keeps that reader unchanged thereafter. This
+component does not claim a new CLI wire capability, automatic refresh, protected
+production signing/publication, or whole #246/#315 acceptance.
+
+Schema 35 builds on schema 34's retained-authorization interval. Signed schema-3
+fixtures verify that a compatible definition correction preserves exact-subject
+holds, requires a current-policy companion, and clears each hold only through its
+explicit correction; narrowing and restoring authorization cannot revive an old
+launch identity. A separate single-port historical-upgrade fixture retains a real
+ordinary installation and player data, preserves signed admission and authority
+bytes, refuses migration with live library users, and conservatively initializes
+the old admission's launch floor to its current policy revision. The full
+embedded-compatible two-artifact and compatible-correction journey remains a
+separate control with ordinary service discovery, retained contracts and player
+data. A small signed stored-admission fixture keeps the original identity and
+acquisition scope through both compatible corrections and verifies rejection,
+replay and idempotence without an installed-payload or embedded-discovery claim.
+The six authorization change-and-restoration pairs likewise retain their complete
+signed transitions. These fixtures do not establish production publication or
+gameplay.
+
+The GitHub resolver observes the numeric repository ID before release cache reuse.
+Release requests still use the repository's textual name; this observation does
+not claim an immutable ID-addressed route or eliminate concurrent rename races.
+Scope-bound cache keys include the authority, policy and exact port definition.
+Scoped metadata requests carry no ambient GitHub credential or conditional cache
+validator. Checksums and ordinary artifact downloads require credential-free
+HTTPS on port 443, an exact admitted host and no fragment; every redirect rechecks
+the current admission, URL and explicit hop bound before following it. Artifact
+digests, archive safety and executable verification remain separate controls.
+
+Installers consume an opaque resolver proof bound to the exact release, definition
+and library. A direct request cannot substitute a serialized release for that
+proof. Admission is checked before staging and at publication/registration;
+unfinished preparation recovery also checks its retained admission. Revocation or
+missing authority/floors preserves refused journals and data. Expired metadata
+holds new acquisition while verified retained launch and its save collection can
+use the exact installed contract; revocation and corrupt authority still refuse.
+
+This initial scope covers ordinary GitHub artifacts for the existing portable
+Libultraship, N64Recomp, staged-source and referenced-disc workflows without bundled
+runtimes. Auxiliary toolchains/runtimes, managed adoption, external registration
+and restricted library portability are unsupported. No public trust-root setter,
+new serialized client field or API schema increment is introduced.
+
+`apply_definition_publisher_policy` requires the exact authenticated candidate
+for availability; a `revoked` decision needs no definition candidate. Library
+schema 33 stores bounded independent authority and policy admissions. One
+immediate transaction updates the authority-wide TUF chain replay floor, the
+per-grant revision and exact-byte identity, and the existing publisher status.
+Lower metadata or grant versions and equal-version replacement are refused.
+An exact retry is idempotent; failure preserves the previous grant and replay
+floor. Assessment, selection and runtime loading recheck the installed exact scope
+and freshness, including policy changes between assessment and consumption. Runtime
+cache validity ends at the earlier definition or policy expiration. An admitted
+authority cannot revert to an empty replay floor; advancing another identity does
+not invalidate its still-current exact grants. Adoption also checks Install
+eligibility before staging and publication, so availability cannot manufacture a
+retained lifecycle admission. Existing retained
+contracts and independently admitted historical use keep their separate rules;
+known revocation remains a refusal.
+Uncommitted installation/adoption recovery rechecks the exact manifest-bound
+definition before publishing staged bytes and before registering published bytes.
+A refused operation keeps its journal and recovery evidence; the current fallback
+catalog cannot authorize its retained definition. Committed cleanup remains distinct.
+
+Disposable TUF authority and owned HTTP/native probe fixtures exercise this component.
+They do not qualify production TLS, gameplay or automatic publisher delivery.
+Production root/grant provisioning, protected publisher custody and write/signing
+authority, automatic publication and the unchanged-client new-definition,
+next-artifact and correction proof remain distinct #246 acceptance. This is not
+activation of a production feed or whole-issue delivery.
 
 #246 uses the existing strict required checks and distinct review under Protect
 main ruleset 22155633, including its zero approval count. That rule supplies
@@ -520,3 +846,48 @@ These tests establish client loading and retained lifecycle behavior without
 production credentials. Automatic unchanged-client publication, signed readback
 and production refusal/recovery remain #246 acceptance and do not belong to the
 client implementation boundary.
+
+The existing compiled adapter-conformance route consumes the signed managed
+ordinary-release fixture. It builds and hashes the fixture-capable CLI and Desktop
+once before publication, then starts those same binaries in fresh sessions after
+the new definition, both owned artifact acquisitions and compatible corrections.
+The CLI uses canonical reviewed first-install authority for v1 and reviewed update
+authority for v2. Its hidden qualification-only update commands forward Core's
+existing plan fingerprint, explicit confirmation, activation and one-use authorization
+checks. They do not change the ordinary CLI update command. The fixture records the
+exact reviewed releases, digests, install records and selected definition identities.
+Complete status documents must equal Core and each other; CLI `catalog show` must
+return corrected content. Desktop evidence remains its actual status projection.
+
+The CLI's nondefault `qualification-fixtures` feature forwards Core's existing fixture
+feature. Its explicit origin and library flags bind the provider to a canonical literal
+loopback HTTP origin and the exact fixture library; malformed, nonloopback and
+mismatched bindings refuse before ordinary-origin fallback or provider requests.
+Only independently admitted managed scopes can acquire fixture artifacts. The
+provider starts anonymous without loading ambient credentials. Default builds reject
+these flags and hidden update commands. This route does not alter publisher policy,
+trust roots, grant checks, serialization or production provider selection.
+
+Explicit qualification-provider invocations also refuse nonempty `HTTP_PROXY`,
+`HTTPS_PROXY` or `ALL_PROXY` environment variables, case-insensitively, before
+preferences, library opening, provider construction or requests. `NO_PROXY` does
+not waive this conservative refusal. Values are neither printed nor changed;
+ordinary invocations preserve their existing proxy behavior. This keeps the
+synthetic fixture CLI route isolated without changing production networking.
+
+Stale plans, digest mismatch and redirects outside the bound origin must refuse
+without changing selected definitions or retained installation bytes and records.
+Authenticated authorization narrowing and restoration cannot revive retained Launch
+permission. Existing revoke and invalid-manifest cases remain. Consumer digests stay
+unchanged through all phases. The opt-in fixture seam uses canonical policy admission
+and selection; it adds no production trust setter or publisher authority.
+
+The separate opt-in compiled CLI acquisition test exercises this component on hosts
+without a Desktop SDK. Its report explicitly records that Desktop projection was
+not executed; it cannot satisfy the combined adapter-conformance gate. Combined
+evidence requires both actual compiled consumers. These fixtures demonstrate
+reviewed acquisition of inert loopback artifacts and unchanged-client correction
+consumption, without executing any fixture payload. They do not establish a real
+production feed, installed GUI behavior, automatic protected publication or native
+platform qualification. #246/#534 retain production custody, publication readback,
+zero routine owner intervention and operation-delivery acceptance.

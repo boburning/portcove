@@ -36,9 +36,11 @@ export function ArtworkImage({
       ) : (
         <span>{fallback?.initials ?? "PC"}</span>
       )}
-      {(display.error || display.state?.availability === "unavailable") && (
+      {display.stale ? (
+        <small className="artwork-image-note">Previously loaded artwork</small>
+      ) : display.error || display.state?.availability === "unavailable" ? (
         <small className="artwork-image-note">Image unavailable</small>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -83,12 +85,14 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
   const busy = useRef(false);
   const pickerButton = useRef<HTMLButtonElement>(null);
   const resetButton = useRef<HTMLButtonElement>(null);
-  const returnFocus = useRef<HTMLButtonElement | null>(null);
-  const identity = `${cache?.generation}:${port.id}:${slot}`;
-  const currentIdentity = useRef(identity);
+  const returnFocus = useRef<{
+    target: HTMLButtonElement | null;
+    cache: typeof cache;
+  } | null>(null);
+  const currentIdentity = useRef({ cache, portId: port.id, slot });
   useLayoutEffect(() => {
-    currentIdentity.current = identity;
-  }, [identity]);
+    currentIdentity.current = { cache, portId: port.id, slot };
+  }, [cache, port.id, slot]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -97,40 +101,66 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
   }, []);
   useEffect(() => {
     if (pending || !returnFocus.current) return;
-    const target = returnFocus.current;
+    const { target, cache: owner } = returnFocus.current;
     returnFocus.current = null;
-    (target.disabled ? pickerButton.current : target)?.focus();
+    if (currentIdentity.current.cache === owner)
+      (target?.disabled ? pickerButton.current : target)?.focus();
   }, [pending]);
+
+  const stillInView = () =>
+    mounted.current &&
+    currentIdentity.current.portId === port.id &&
+    currentIdentity.current.slot === slot &&
+    currentIdentity.current.cache?.generation === cache?.generation;
+  const stillCurrent = () => stillInView() && currentIdentity.current.cache === cache;
+  const refreshCurrent = async (committedRevision?: number) => {
+    const current = currentIdentity.current.cache;
+    if (!stillInView() || !current) return;
+    await current.refreshAfterChange(
+      port.id,
+      slot,
+      () => stillInView() && currentIdentity.current.cache === current,
+      committedRevision,
+    );
+  };
+  const finishChange = (pick: boolean) => {
+    busy.current = false;
+    if (!mounted.current) return;
+    if (stillCurrent())
+      returnFocus.current = { target: (pick ? pickerButton : resetButton).current, cache };
+    setPending(false);
+  };
 
   const change = async (pick: boolean) => {
     if (!cache || !display.state || busy.current) return;
     const revision = display.state.choice.revision;
-    const stillCurrent = () => mounted.current && currentIdentity.current === identity;
+    let changeRequested = false;
     busy.current = true;
+    returnFocus.current = null;
     setPending(true);
     setMessage(undefined);
     setError(undefined);
     try {
       const path = pick ? await pickArtworkPath() : null;
       if (!stillCurrent() || (pick && !path)) return;
+      changeRequested = true;
       const result = await cache.change(port.id, slot, revision, path, stillCurrent);
-      if (stillCurrent() && result)
+      if (result && stillInView()) {
+        if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
+        if (!stillInView()) return;
         setMessage(
           pick
             ? "Local image selected."
             : "Default artwork restored. The imported image remains in your library.",
         );
+      }
     } catch (value) {
-      if (stillCurrent()) {
+      if (stillInView() && (changeRequested || stillCurrent())) {
         setError(errorText(value));
-        void cache.load(port.id, slot, true);
+        await refreshCurrent();
       }
     } finally {
-      busy.current = false;
-      if (stillCurrent()) {
-        returnFocus.current = (pick ? pickerButton : resetButton).current;
-        setPending(false);
-      }
+      finishChange(pick);
     }
   };
 
@@ -148,7 +178,7 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
           ref={pickerButton}
           data-focusable
           variant="outline"
-          disabled={pending || !display.state}
+          disabled={pending || !display.state || display.stale}
           onClick={() => void change(true)}
         >
           Choose local image
@@ -157,7 +187,7 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
           ref={resetButton}
           data-focusable
           variant="outline"
-          disabled={pending || !display.state?.selection}
+          disabled={pending || !display.state?.selection || display.stale}
           onClick={() => void change(false)}
         >
           Reset to default
@@ -180,6 +210,9 @@ function ArtworkSlotControl({ port, slot }: { port: PortDefinition; slot: Artwor
       <p role="status">
         {pending ? "Updating artwork…" : (message ?? (display.loading ? "Loading artwork…" : ""))}
       </p>
+      {display.stale && (
+        <p role="status">Showing previously loaded artwork. Refresh to check the current choice.</p>
+      )}
       {(error || display.error) && <p role="alert">{error ?? display.error}</p>}
       <details className="artwork-source">
         <summary data-focusable>View source / author information</summary>

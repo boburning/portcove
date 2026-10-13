@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibrarySelectionCard } from "./Chrome";
 import { desktopApi } from "../api";
+import { failureReport } from "../test-fixtures";
 import {
   useLibrarySelectionLanding,
   useLibrarySelectionReturn,
@@ -231,6 +232,44 @@ describe("Storage locations", () => {
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
     expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("retains structured refusal details and clears them before a new selection", async () => {
+    const error = failureReport();
+    error.code = "state";
+    error.presentation.summary = "The current operation state could not be confirmed.";
+    error.presentation.technical_message =
+      "this library was created by a newer Portcove database schema";
+    error.presentation.technical_context = { library_schema_version: "999" };
+    const switchLibrary = vi.fn().mockRejectedValue(error);
+    await act(async () => {
+      root.render(
+        <LibrarySelectionCard
+          selection={{ root: "E:/Portcove", source: "saved" }}
+          choose={vi.fn().mockResolvedValue("F:/Other Portcove")}
+          switchLibrary={switchLibrary}
+        />,
+      );
+    });
+    const trigger = button("Choose another library");
+    await click("Choose another library");
+    await click("Switch library");
+    expect(document.activeElement).toBe(trigger);
+    const alert = document.body.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain(error.presentation.summary);
+    expect(alert?.textContent).toContain(error.presentation.technical_message);
+    expect(alert?.textContent).toContain("999");
+    expect(alert?.textContent).toContain("couldn't confirm whether anything changed");
+    expect(alert?.textContent).not.toContain("No files were changed");
+    expect(alert?.querySelector("details")?.open).toBe(false);
+    await act(async () => {
+      alert?.querySelector("summary")?.click();
+    });
+    expect(alert?.querySelector("details")?.open).toBe(true);
+    expect(switchLibrary).toHaveBeenCalledTimes(1);
+    await click("Choose another library");
+    expect(document.body.querySelector('[role="alert"]')).toBeNull();
+    expect(switchLibrary).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the review modal while switching and exposes failure before another review", async () => {

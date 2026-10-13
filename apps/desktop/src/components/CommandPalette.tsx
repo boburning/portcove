@@ -40,6 +40,8 @@ function OpenCommandPalette({
   const activeCommand = useRef<HTMLButtonElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
   const palette = useRef<HTMLDivElement>(null);
+  const composing = useRef(false);
+  const dispatched = useRef(false);
   const filtered = useMemo(() => filterCommands(commands, query), [commands, query]);
   const eligible = filtered.filter((command) => !command.disabled);
   const fallbackId = preferredCommandId(filtered);
@@ -63,7 +65,9 @@ function OpenCommandPalette({
   }, [filtered]);
 
   const run = (command: PaletteCommand) => {
-    if (command.disabled) return;
+    if (command.disabled || dispatched.current) return;
+    // Consume this opening before close/action can synchronously send more input.
+    dispatched.current = true;
     close();
     command.action();
   };
@@ -101,7 +105,15 @@ function OpenCommandPalette({
               setQuery(nextQuery);
               setSelectedId(preferredCommandId(filterCommands(commands, nextQuery)));
             }}
+            onCompositionStart={() => {
+              composing.current = true;
+            }}
+            onCompositionEnd={() => {
+              composing.current = false;
+            }}
             onKeyDown={(event) => {
+              if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229)
+                return;
               if (event.key === "ArrowDown") {
                 event.preventDefault();
                 const nextIndex = Math.min(
@@ -116,13 +128,9 @@ function OpenCommandPalette({
                   0,
                 );
                 setSelectedId(eligible[nextIndex]?.id);
-              } else if (
-                event.key === "Enter" &&
-                !event.nativeEvent.isComposing &&
-                filtered[activeIndex]
-              ) {
+              } else if (event.key === "Enter" && filtered[activeIndex]) {
                 event.preventDefault();
-                run(filtered[activeIndex]);
+                if (!event.repeat) run(filtered[activeIndex]);
               }
             }}
             aria-controls={filtered.length ? "command-palette-results" : undefined}
@@ -156,6 +164,13 @@ function OpenCommandPalette({
                 onFocus={() => setSelectedId(command.id)}
                 className={activeId === command.id ? "palette-command active" : "palette-command"}
                 disabled={command.disabled}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    (event.repeat || event.nativeEvent.isComposing || event.keyCode === 229)
+                  )
+                    event.preventDefault();
+                }}
                 onMouseEnter={() => setSelectedId(command.id)}
                 onClick={() => run(command)}
               >

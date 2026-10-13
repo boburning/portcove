@@ -203,13 +203,13 @@ function bodyFindings(pull, config) {
   if (
     verification &&
     !draftPending &&
-    !/`[^`\r\n]+`|```/.test(verification) &&
+    !/`[^`\r\n]+`|```|https:\/\/(?:github\.com|[A-Za-z0-9.-]+)\/[^\s)]+/u.test(verification) &&
     !/\b(?:Not run|Not applicable)\s*[—:-]\s*\S/i.test(verification)
   ) {
     findings.push(
       finding(
         "verification-detail",
-        "Verification should name an exact command or use 'Not run — reason' / 'Not applicable — reason'.",
+        "Verification should link the exact-head CI result or name observed validation.",
       ),
     );
   }

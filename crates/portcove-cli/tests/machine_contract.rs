@@ -1,5 +1,5 @@
 use std::{
-    io::Write,
+    io::{Read, Write},
     process::{Command, Output, Stdio},
 };
 
@@ -18,6 +18,92 @@ mod artwork_contract;
 mod definition_capability_contract;
 
 static CAPACITY_SENSITIVE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[test]
+fn game_file_query_uses_core_refresh_and_truthful_operation_events() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("query-library");
+    let platform = portcove_core::Platform::current().unwrap();
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    let port = catalog
+        .ports()
+        .iter()
+        .find(|port| {
+            port.source_profile.as_deref() == Some("ocarina-of-time")
+                && port.release.provider != portcove_core::ReleaseSource::UserPrepared
+                && port.platforms.contains(&platform)
+                && port
+                    .channels
+                    .contains(&portcove_core::ReleaseChannel::Stable)
+        })
+        .unwrap();
+    let mut results = Vec::new();
+    for mode in ["--json", "--jsonl"] {
+        let output = portcove(
+            &library,
+            &[
+                mode,
+                "source",
+                "query",
+                &port.id,
+                "--route",
+                "managed-install",
+            ],
+        );
+        assert!(output.status.success(), "{output:?}");
+        let records = String::from_utf8(output.stdout)
+            .unwrap()
+            .lines()
+            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+            .collect::<Vec<_>>();
+        if mode == "--jsonl" {
+            assert_eq!(records[0]["type"], "started");
+            assert_eq!(records[0]["operation"], "verify_source");
+            assert_eq!(records[1]["type"], "finished");
+            assert_eq!(records[1]["result"], "succeeded");
+            assert_eq!(records[0]["operation_id"], records[1]["operation_id"]);
+            assert_eq!(records.len(), 3);
+        } else {
+            assert_eq!(records.len(), 1);
+        }
+        let result = records.last().unwrap();
+        assert_eq!(result["schema_version"], portcove_core::API_SCHEMA_VERSION);
+        assert_eq!(result["command"], "source.query");
+        assert_eq!(result["data"]["routes"][0]["state"], "files_missing");
+        assert_eq!(
+            result["data"]["routes"][0]["reason"],
+            "no_connected_registration"
+        );
+        results.push(result["data"]["routes"].clone());
+    }
+    assert_eq!(results[0], results[1]);
+    let invalid = portcove(
+        &library,
+        &[
+            "--json",
+            "source",
+            "query",
+            &port.id,
+            "--route",
+            "managed-install",
+            "--max-file-bytes",
+            "0",
+        ],
+    );
+    assert!(!invalid.status.success());
+    assert_eq!(json_stdout(&invalid)["error"]["code"], "usage");
+    let output = portcove(
+        &library,
+        &["source", "query", &port.id, "--route", "managed-install"],
+    );
+    assert!(output.status.success(), "{output:?}");
+    let progress = std::str::from_utf8(&output.stderr).unwrap();
+    assert_eq!(progress.lines().count(), 1);
+    assert!(progress.starts_with("verify_source "));
+    let human = std::str::from_utf8(&output.stdout).unwrap();
+    assert!(human.contains("Files missing"));
+    assert!(!human.contains("Ready to play"));
+}
 
 fn cli_binary() -> std::path::PathBuf {
     // Nextest remaps this path when executing an archive on another runner.
@@ -64,7 +150,7 @@ fn consequential_help_explains_actions_and_review_arguments() {
         .output()
         .unwrap();
     let help = std::str::from_utf8(&ensure.stdout).unwrap();
-    assert!(help.contains("Release channel to select if installation is needed"));
+    assert!(help.contains("Release channel if needed"));
     assert!(help.contains("an existing install is not moved"));
     let export = Command::new(cli_binary())
         .args(["library", "export", "--help"])
@@ -72,6 +158,119 @@ fn consequential_help_explains_actions_and_review_arguments() {
         .unwrap();
     let help = std::str::from_utf8(&export.stdout).unwrap();
     assert!(help.contains("Write metadata to PATH instead of printing it"));
+}
+
+#[test]
+fn installation_and_external_help_explain_review_binding_and_file_ownership() {
+    for (args, phrases) in [
+        (
+            &["installation", "plan", "--help"][..],
+            &["without mutation", "Catalog port ID", "managed install"][..],
+        ),
+        (
+            &["installation", "run", "--help"][..],
+            &[
+                "--expected-plan",
+                "Plan SHA-256 returned by `installation plan`",
+                "changed inputs refuse the install",
+                "--yes",
+                "plan check still applies",
+            ][..],
+        ),
+        (
+            &["external", "preview", "--help"][..],
+            &["already prepared runtime", "no files are copied"][..],
+        ),
+        (
+            &["external", "register", "--help"][..],
+            &[
+                "use-in-place runtime registration",
+                "Portcove uses it in place",
+                "--yes",
+                "files are rechecked",
+            ][..],
+        ),
+        (
+            &["external", "remove", "--help"][..],
+            &[
+                "registration should be forgotten",
+                "external files stay in place",
+            ][..],
+        ),
+    ] {
+        let output = Command::new(cli_binary()).args(args).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        let help = std::str::from_utf8(&output.stdout).unwrap();
+        for phrase in phrases {
+            assert!(
+                help.contains(phrase),
+                "{args:?}: missing {phrase:?} in {help}"
+            );
+        }
+    }
+}
+
+#[test]
+fn library_transfer_help_explains_inputs_review_binding_and_recovery_paths() {
+    for (args, phrases) in [
+        (
+            &["library", "import", "--help"][..],
+            &[
+                "Metadata JSON written by `library export`; contains no payload bytes",
+                "Copied library folder containing the exported content roots",
+                "never modified by import",
+                "new or empty root",
+                "Plan SHA-256 from this import review",
+                "changed metadata or payloads refuse the import",
+                "--library <new-or-empty-root> --json library import",
+            ][..],
+        ),
+        (
+            &["library", "move", "--help"][..],
+            &[
+                "New directory beneath an existing parent",
+                "must not overlap the original library",
+                "retain the original as a recovery copy",
+                "Plan SHA-256 from this move review",
+                "changed inputs refuse the move",
+                "--library <original> --json library move",
+            ][..],
+        ),
+        (
+            &["library", "resume-import", "--help"][..],
+            &["--library <destination>", "input backup remains unchanged"][..],
+        ),
+        (
+            &["library", "abort-import", "--help"][..],
+            &[
+                "--library <destination>",
+                "incomplete destination stays closed",
+                "no copied files are deleted",
+            ][..],
+        ),
+        (
+            &["library", "resume-move", "--help"][..],
+            &["--library <original>", "retained original directory"][..],
+        ),
+        (
+            &["library", "abort-move", "--help"][..],
+            &[
+                "--library <original>",
+                "refuses after authority publication",
+                "copied files remain",
+            ][..],
+        ),
+    ] {
+        let output = Command::new(cli_binary()).args(args).output().unwrap();
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        let help = std::str::from_utf8(&output.stdout).unwrap();
+        for phrase in phrases {
+            assert!(
+                help.contains(phrase),
+                "{args:?}: missing {phrase:?} in {help}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -192,8 +391,8 @@ fn json_and_jsonl_preserve_machine_error_fields_and_share_core_presentation() {
             .unwrap(),
     )
     .unwrap();
-    assert_eq!(plain["schema_version"], 59);
-    assert_eq!(stream["schema_version"], 59);
+    assert_eq!(plain["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(stream["schema_version"], portcove_core::API_SCHEMA_VERSION);
     assert_eq!(plain["error"], stream["error"]);
     assert_eq!(plain["error"]["code"], "unsupported");
     assert!(
@@ -449,7 +648,10 @@ fn exported_source_assessment_separates_facts_without_opening_library() {
     let output = portcove(&library, &["--json", "schema", "export"]);
     assert!(output.status.success());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 59);
+    assert_eq!(
+        response["schema_version"],
+        portcove_core::API_SCHEMA_VERSION
+    );
     let schema = &response["data"]["source_assessment"];
     for field in [
         "health",
@@ -743,6 +945,7 @@ fn compile_native_fixture(directory: &std::path::Path) -> std::path::PathBuf {
         "chdman-fixture"
     });
     let compiled = Command::new("rustc")
+        .arg("--edition=2024")
         .arg(&source)
         .arg("-o")
         .arg(&executable)
@@ -906,29 +1109,143 @@ fn declining_backup_deletion_is_a_neutral_non_mutating_result() {
         &["--json", "backup", "create", "zelda64-recomp"],
     ));
     let backup_id = created["data"]["id"].as_str().unwrap();
-    let mut child = Command::new(cli_binary())
-        .arg("--library")
-        .arg(&library)
-        .args(["backup", "delete", "zelda64-recomp", backup_id])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child.stdin.as_mut().unwrap().write_all(b"n\n").unwrap();
-    let declined = child.wait_with_output().unwrap();
+    let declined = decline_backup_action(
+        &library,
+        &["backup", "delete", "zelda64-recomp", backup_id],
+        Some("Delete backup review\n"),
+    );
 
     assert!(declined.status.success());
-    assert!(
-        String::from_utf8_lossy(&declined.stdout)
-            .contains("Backup deletion cancelled. No changes were made.")
-    );
+    let text = std::str::from_utf8(&declined.stdout).unwrap();
+    assert!(text.contains("Backup deletion cancelled. No changes were made."));
+    assert!(text.contains("Preserved: live managed saved data and other backups."));
+    assert!(text.contains(&format!("Backup: {backup_id}")));
+    assert!(text.contains(&format!(
+        "Backup SHA-256: {}",
+        created["data"]["sha256"].as_str().unwrap(),
+    )));
+    assert_eq!(std::fs::read(user.join("save.dat")).unwrap(), b"preserve");
     let listed = json_stdout(&portcove(
         &library,
         &["--json", "backup", "list", "zelda64-recomp"],
     ));
     assert_eq!(listed["data"]["state"], "healthy");
     assert_eq!(listed["data"]["backups"][0]["id"], backup_id);
+}
+
+fn decline_backup_action(
+    library: &std::path::Path,
+    args: &[&str],
+    heading: Option<&str>,
+) -> Output {
+    let mut child = Command::new(cli_binary())
+        .arg("--library")
+        .arg(library)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut prefix = heading.map_or_else(Vec::new, |text| vec![0; text.len()]);
+    if let Some(heading) = heading {
+        // The real child must display its review before it receives consent.
+        child
+            .stdout
+            .as_mut()
+            .unwrap()
+            .read_exact(&mut prefix)
+            .unwrap();
+        assert_eq!(prefix, heading.as_bytes());
+    }
+    child.stdin.as_mut().unwrap().write_all(b"n\n").unwrap();
+    let mut output = child.wait_with_output().unwrap();
+    prefix.extend_from_slice(&output.stdout);
+    output.stdout = prefix;
+    output
+}
+
+#[test]
+fn backup_restore_review_and_decline_preserve_current_data_and_the_selected_backup() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let user = library.join("user/zelda64-recomp");
+    std::fs::create_dir_all(&user).unwrap();
+    std::fs::write(user.join("save.dat"), b"backup contents").unwrap();
+    let created = json_stdout(&portcove(
+        &library,
+        &["--json", "backup", "create", "zelda64-recomp"],
+    ));
+    let backup_id = created["data"]["id"].as_str().unwrap();
+    std::fs::write(user.join("save.dat"), b"current contents").unwrap();
+    let declined = decline_backup_action(
+        &library,
+        &["backup", "restore", "zelda64-recomp", backup_id],
+        Some("Restore backup review\n"),
+    );
+    assert!(declined.status.success());
+    let text = std::str::from_utf8(&declined.stdout).unwrap();
+    assert!(text.contains("Current managed saved data exists: yes"));
+    assert!(text.contains("create a safety backup of current managed saved data"));
+    assert!(text.contains("Backup restore cancelled. No changes were made."));
+    assert_eq!(
+        std::fs::read(user.join("save.dat")).unwrap(),
+        b"current contents"
+    );
+    let listed = json_stdout(&portcove(
+        &library,
+        &["--json", "backup", "list", "zelda64-recomp"],
+    ));
+    assert_eq!(listed["data"]["backups"].as_array().unwrap().len(), 1);
+    assert_eq!(listed["data"]["backups"][0], created["data"]);
+
+    std::fs::remove_file(user.join("save.dat")).unwrap();
+    let restored = portcove(
+        &library,
+        &["backup", "restore", "zelda64-recomp", backup_id, "--yes"],
+    );
+    assert!(restored.status.success());
+    let text = human_stdout(&restored);
+    assert!(text.contains("Current managed saved data exists: yes"));
+    assert!(text.contains("no safety backup is planned"));
+    assert!(!text.contains("create a safety backup"));
+    assert_eq!(
+        std::fs::read(user.join("save.dat")).unwrap(),
+        b"backup contents"
+    );
+}
+
+#[test]
+fn machine_backup_cancellation_keeps_its_existing_result_without_human_review() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let user = library.join("user/zelda64-recomp");
+    std::fs::create_dir_all(&user).unwrap();
+    std::fs::write(user.join("save.dat"), b"preserve").unwrap();
+    let created = json_stdout(&portcove(
+        &library,
+        &["--json", "backup", "create", "zelda64-recomp"],
+    ));
+    let backup_id = created["data"]["id"].as_str().unwrap();
+    for mode in ["--json", "--jsonl"] {
+        for action in ["delete", "restore"] {
+            let output = decline_backup_action(
+                &library,
+                &[mode, "backup", action, "zelda64-recomp", backup_id],
+                None,
+            );
+            assert!(output.status.success());
+            let result = json_stdout(&output);
+            assert_eq!(result["command"], format!("backup.{action}"));
+            assert_eq!(result["ok"], true);
+            assert_eq!(
+                result["data"],
+                serde_json::json!({"cancelled": true, "changed": false})
+            );
+            assert!(!String::from_utf8_lossy(&output.stdout).contains("backup review"));
+        }
+    }
+    assert_eq!(std::fs::read(user.join("save.dat")).unwrap(), b"preserve");
 }
 
 fn json_stdout(output: &Output) -> Value {
@@ -1045,6 +1362,87 @@ fn library_move_requires_review_and_redirects_later_cli_processes() {
     let resumed = portcove(&source, &["--json", "library", "resume-move"]);
     assert!(resumed.status.success());
     assert_eq!(json_stdout(&resumed)["command"], "library.resume_move");
+}
+
+#[test]
+fn human_library_move_review_and_completion_keep_machine_identity() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("original library");
+    let destination = temporary.path().join("new library");
+    let identity = json_stdout(&portcove(&source, &["--json", "library", "identity"]));
+    let args = ["library", "move", destination.to_str().unwrap()];
+    let plan = json_stdout(&portcove(&source, &["--json", args[0], args[1], args[2]]));
+    let preview = portcove(&source, &args);
+    let text = human_stdout(&preview);
+    assert!(text.starts_with("Library move review\n"));
+    assert!(text.contains(&format!(
+        "Original library: {}",
+        plan["data"]["source_root"].as_str().unwrap()
+    )));
+    assert!(text.contains(&format!(
+        "New destination: {}",
+        plan["data"]["destination_root"].as_str().unwrap()
+    )));
+    assert!(text.contains("Content to copy:"));
+    assert!(text.contains("Working space required:"));
+    assert!(text.contains("Original retained as a recovery copy: Yes"));
+    assert!(text.contains("Review only; no move has been applied."));
+    assert!(text.contains("Original game-file references stay at their existing paths."));
+    assert!(!text.contains("Schema version:"));
+    assert!(!destination.exists());
+    let digest = plan["data"]["plan_sha256"].as_str().unwrap();
+    assert_eq!(digest.len(), 64);
+    assert!(text.contains(&format!("Review SHA-256: {digest}")));
+    let stream = json_stdout(&portcove(&source, &["--jsonl", args[0], args[1], args[2]]));
+    assert_eq!(stream["type"], "result");
+    assert_eq!(stream["data"]["plan_sha256"], digest);
+    let stale = portcove(
+        &source,
+        &[
+            args[0],
+            args[1],
+            args[2],
+            "--apply",
+            "--expected-plan",
+            &"0".repeat(64),
+        ],
+    );
+    assert_eq!(stale.status.code(), Some(14));
+    assert!(!destination.exists());
+    let moved = portcove(
+        &source,
+        &[
+            args[0],
+            args[1],
+            args[2],
+            "--apply",
+            "--expected-plan",
+            digest,
+        ],
+    );
+    let text = human_stdout(&moved);
+    assert!(text.starts_with("Library move completed\n"));
+    let result = json_stdout(&portcove(&source, &["--json", "library", "resume-move"]));
+    assert!(text.contains(&format!(
+        "Active library: {}",
+        result["data"]["active_root"].as_str().unwrap()
+    )));
+    assert!(text.contains("Original retained: Yes"));
+    let after = json_stdout(&portcove(&destination, &["--json", "library", "identity"]));
+    assert_eq!(identity["data"]["id"], after["data"]["id"]);
+    let resumed = portcove(&source, &["library", "resume-move"]);
+    assert!(human_stdout(&resumed).starts_with("Library move completed\n"));
+    let aborted = portcove(&source, &["library", "abort-move"]);
+    assert_eq!(aborted.status.code(), Some(14));
+    let machine_abort = portcove(&source, &["--json", "library", "abort-move"]);
+    assert_eq!(aborted.status.code(), machine_abort.status.code());
+    assert!(!aborted.stderr.is_empty());
+    assert!(aborted.stdout.is_empty());
+    assert_eq!(json_stdout(&machine_abort)["ok"], false);
+    assert_eq!(
+        after,
+        json_stdout(&portcove(&destination, &["--json", "library", "identity"]))
+    );
 }
 
 struct CliImportFixture {
@@ -1303,7 +1701,7 @@ fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
         &library,
         &["--json", "source", "inspect", "star-fox-64"],
     ));
-    assert_eq!(json["schema_version"], 59);
+    assert_eq!(json["schema_version"], portcove_core::API_SCHEMA_VERSION);
     assert_eq!(json["command"], "source.inspect");
     assert_eq!(json["data"]["schema_version"], 1);
     assert_eq!(json["data"]["health"], "current");
@@ -1460,6 +1858,29 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
     std::fs::remove_dir(&unavailable).unwrap();
     std::fs::write(available.join("first.fixture"), b"first original").unwrap();
     std::fs::write(available.join("second.fixture"), b"second original").unwrap();
+    std::fs::write(available.join("third.fixture"), b"third original").unwrap();
+    let immediate = portcove(&library, &["source", "roots", "scan", "--max-entries", "1"]);
+    assert!(immediate.status.success(), "{immediate:?}");
+    let immediate = String::from_utf8(immediate.stdout).unwrap();
+    assert!(immediate.contains("Scan limits reached: entries; results may be incomplete."));
+    assert!(immediate.contains("Unavailable folders at scan: 1."));
+    assert!(immediate.contains("does not mean its files were deleted"));
+    assert!(!immediate.contains(available.to_str().unwrap()));
+    assert!(!immediate.contains(unavailable.to_str().unwrap()));
+    let saved = portcove(&library, &["source", "roots", "snapshot"]);
+    assert!(saved.status.success(), "{saved:?}");
+    assert_eq!(immediate, String::from_utf8(saved.stdout).unwrap());
+    assert_eq!(
+        json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
+        serde_json::json!([])
+    );
+    let first_batch = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "snapshot"],
+    ));
+    assert_eq!(first_batch["data"]["report"]["entries_examined"], 1);
+    assert_eq!(first_batch["data"]["coverage"]["batches"], 1);
+    assert_eq!(first_batch["data"]["coverage"]["can_resume"], true);
     let scan = json_stdout(&portcove(
         &library,
         &["--json", "source", "roots", "scan", "--max-entries", "1"],
@@ -1470,6 +1891,9 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
             .unwrap()
             .contains(&serde_json::json!("entries"))
     );
+    assert_eq!(scan["data"]["report"]["entries_examined"], 2);
+    assert_eq!(scan["data"]["coverage"]["batches"], 2);
+    assert_eq!(scan["data"]["coverage"]["can_resume"], true);
     let issues = scan["data"]["report"]["issues"].as_array().unwrap().len();
     assert!(issues > 0);
     assert_eq!(scan["data"]["report"]["issues_omitted"], 0);
@@ -1504,6 +1928,10 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
         std::fs::read(available.join("second.fixture")).unwrap(),
         b"second original"
     );
+    assert_eq!(
+        std::fs::read(available.join("third.fixture")).unwrap(),
+        b"third original"
+    );
     let added = temporary.path().join("new-root");
     std::fs::create_dir(&added).unwrap();
     assert!(
@@ -1521,6 +1949,54 @@ fn human_saved_scan_readback_preserves_recorded_partial_and_unavailable_coverage
         output.contains("Recorded inputs changed; run source roots scan to refresh the evidence.")
     );
     assert!(output.contains("Unavailable folders at scan: 1."));
+}
+
+#[test]
+fn human_saved_scan_completion_without_limits_keeps_machine_readback_unchanged() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let root = temporary.path().join("empty-root");
+    std::fs::create_dir(&root).unwrap();
+    let added = portcove(
+        &library,
+        &["--json", "source", "roots", "add", root.to_str().unwrap()],
+    );
+    assert!(added.status.success(), "{added:?}");
+    let immediate = portcove(&library, &["source", "roots", "scan"]);
+    assert!(immediate.status.success(), "{immediate:?}");
+    let output = String::from_utf8(immediate.stdout).unwrap();
+    assert!(output.starts_with("Game-file folder scan\n"));
+    assert!(output.contains("No recorded scan limits reached."));
+    assert!(output.contains("Unavailable folders at scan: 0."));
+    assert!(output.contains("Candidates: 0"));
+    assert!(!output.contains("scan is complete"));
+    assert!(!output.contains(root.to_str().unwrap()));
+    let before = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "snapshot"],
+    ));
+    assert_eq!(before["command"], "source.roots.snapshot");
+    assert_eq!(before["ok"], true);
+    assert_eq!(
+        before["data"]["report"]["candidates"],
+        serde_json::json!([])
+    );
+    assert_eq!(
+        before["data"]["report"]["limits_reached"],
+        serde_json::json!([])
+    );
+    let saved = portcove(&library, &["source", "roots", "snapshot"]);
+    assert!(saved.status.success(), "{saved:?}");
+    assert_eq!(output, String::from_utf8(saved.stdout).unwrap());
+    let after = json_stdout(&portcove(
+        &library,
+        &["--json", "source", "roots", "snapshot"],
+    ));
+    assert_eq!(before, after);
+    assert_eq!(
+        json_stdout(&portcove(&library, &["--json", "source", "list"]))["data"],
+        serde_json::json!([])
+    );
 }
 
 #[test]
@@ -1570,7 +2046,7 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         &["--json", "source", "roots", "scan", "--max-entries", "4"],
     ));
     assert_eq!(scan["command"], "source.roots.scan");
-    assert_eq!(scan["data"]["format_version"], 3);
+    assert_eq!(scan["data"]["format_version"], 9);
     assert_eq!(scan["data"]["limits"]["max_entries"], 4);
     assert_eq!(scan["data"]["limits"]["max_depth"], 6);
     assert_eq!(scan["data"]["freshness"], "inputs_match");
@@ -1655,7 +2131,7 @@ fn source_inbox_controls_share_stable_scan_and_import_activity_ids() {
         &library,
         &["--json", "source", "inbox", "scan", profile],
     ));
-    assert_eq!(scan["schema_version"], 59);
+    assert_eq!(scan["schema_version"], portcove_core::API_SCHEMA_VERSION);
     assert_eq!(scan["command"], "source.inbox.scan");
     assert_eq!(scan["data"]["state"], "unresolved");
     let scan_id = scan["data"]["operation_id"].as_str().unwrap();
@@ -1813,13 +2289,14 @@ fn port_status_has_human_output_snapshot() {
     let status = human_stdout(&portcove(root.path(), &["status", "lighthouse"])).to_owned();
     assert!(status.starts_with("Status (1)\nPORT"));
     assert!(status.contains("lighthouse"));
-    assert!(status.contains("stable"));
+    assert!(status.contains("Stable"));
     assert!(status.contains("Actions:"));
     assert!(status.contains("launch: waiting (not_installed)"));
     assert!(status.contains("remove_managed: not_offered (not_installed)"));
     assert!(!status.trim_start().starts_with('{'));
     let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
-    assert_eq!(machine["schema_version"], 59);
+    assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(machine["data"]["channel"], "stable");
     assert_eq!(machine["data"]["port_actions"][2]["action"], "launch");
     assert_eq!(
         machine["data"]["port_actions"][2]["availability"],
@@ -1836,7 +2313,7 @@ fn empty_library_lists_has_human_output_snapshot() {
     );
     assert_eq!(
         human_stdout(&portcove(root.path(), &["backup", "list", "lighthouse"])),
-        "No backups for lighthouse.\n",
+        "  backup_create: waiting (missing_data): No owned saves or settings are currently available to back up.\n  backup_restore: waiting (missing_backup): No usable backup is currently available to review for restore.\nNo backups for lighthouse.\n",
     );
     assert_eq!(
         human_stdout(&portcove(root.path(), &["activity"])),
@@ -1881,7 +2358,7 @@ fn capabilities_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 59"));
+    assert!(capabilities.contains(" capabilities\nSchema: 67"));
     assert!(capabilities.contains("\nOperation event schema: 3"));
 }
 
@@ -2183,11 +2660,17 @@ fn capabilities_are_one_clean_versioned_json_document() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 59);
+    assert_eq!(
+        response["schema_version"],
+        portcove_core::API_SCHEMA_VERSION
+    );
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
     assert!(response["error"].is_null());
-    assert_eq!(response["data"]["schema_version"], 59);
+    assert_eq!(
+        response["data"]["schema_version"],
+        portcove_core::API_SCHEMA_VERSION
+    );
     assert_eq!(response["data"]["operation_event_schema_version"], 3);
     assert!(
         response["data"]["commands"]
@@ -2234,7 +2717,10 @@ fn command_errors_keep_the_machine_envelope_and_stable_exit_code() {
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 59);
+    assert_eq!(
+        response["schema_version"],
+        portcove_core::API_SCHEMA_VERSION
+    );
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "catalog.show");
     assert!(response["data"].is_null());
@@ -2251,7 +2737,10 @@ fn parser_errors_are_structured_for_machine_callers() {
     assert!(output.stderr.is_empty());
     assert!(!library.exists());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 59);
+    assert_eq!(
+        response["schema_version"],
+        portcove_core::API_SCHEMA_VERSION
+    );
     assert_eq!(response["ok"], false);
     assert_eq!(response["command"], "cli");
     assert_eq!(response["error"]["code"], "usage");
@@ -2271,7 +2760,10 @@ fn jsonl_read_commands_end_with_one_result_event() {
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let response = json_stdout(&output);
-    assert_eq!(response["schema_version"], 59);
+    assert_eq!(
+        response["schema_version"],
+        portcove_core::API_SCHEMA_VERSION
+    );
     assert_eq!(response["type"], "result");
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "capabilities");
@@ -2319,4 +2811,177 @@ fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_l
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "about");
     assert_eq!(response["data"]["product"], "Portcove");
+}
+
+#[test]
+fn status_disclosure_explains_real_core_decisions_without_changing_machine_output() {
+    let root = tempfile::tempdir().unwrap();
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status", "lighthouse"]));
+    assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(stream["type"], "result");
+    assert_eq!(machine["data"], stream["data"]);
+    let install = machine["data"]["port_actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|assessment| assessment["action"] == "install")
+        .unwrap();
+    assert_eq!(install["availability"], "waiting");
+    assert_eq!(install["reason"], "missing_source");
+    let output = portcove(root.path(), &["status", "lighthouse"]);
+    let human = human_stdout(&output);
+    assert!(
+        human.contains(
+            "install: waiting (missing_source): Add the required game files with source add."
+        ),
+        "actual CLI output has no explanation for the core's missing-game-files decision:\n{human}"
+    );
+    assert!(human.contains("EXTERNAL (USER-OWNED)"), "{human}");
+}
+
+#[test]
+fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
+    let root = tempfile::tempdir().unwrap();
+    let machine = json_stdout(&portcove(root.path(), &["--json", "status"]));
+    let stream = json_stdout(&portcove(root.path(), &["--jsonl", "status"]));
+    assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+    assert_eq!(stream["type"], "result");
+    assert_eq!(machine["data"], stream["data"]);
+    let output = portcove(root.path(), &["status"]);
+    let human = human_stdout(&output);
+    let statuses = machine["data"].as_array().unwrap();
+    assert!(!statuses.is_empty());
+    for status in statuses {
+        let id = status["port_id"].as_str().unwrap();
+        let heading = format!("\n{id}:\n");
+        let assessments = status["port_actions"].as_array();
+        if assessments.is_none_or(|assessments| assessments.is_empty()) {
+            assert!(!human.contains(&heading), "{id}: {human}");
+            continue;
+        }
+        assert!(
+            human.contains(&heading),
+            "actual all-port CLI output omitted the core action group for {id}:\n{human}"
+        );
+        let group = human.split_once(&heading).unwrap().1;
+        let group = group.split("\n\n").next().unwrap();
+        for assessment in assessments.unwrap() {
+            let reason = assessment["definition"]["reason"]
+                .as_str()
+                .or_else(|| assessment["reason"].as_str())
+                .unwrap();
+            let prefix = format!(
+                "  {}: {} ({reason}): ",
+                assessment["action"].as_str().unwrap(),
+                assessment["availability"].as_str().unwrap()
+            );
+            let explanation = group
+                .lines()
+                .find_map(|line| line.strip_prefix(&prefix))
+                .unwrap_or_else(|| panic!("{id}: {group}"));
+            assert!(!explanation.trim().is_empty(), "{id}: {group}");
+        }
+    }
+    let single = portcove(root.path(), &["status", "lighthouse"]);
+    let single = human_stdout(&single);
+    assert_eq!(
+        single.split_once("\nlighthouse:\n").unwrap().1.trim(),
+        human
+            .split_once("\nlighthouse:\n")
+            .unwrap()
+            .1
+            .split("\n\n")
+            .next()
+            .unwrap()
+            .trim()
+    );
+}
+
+#[test]
+fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_machine_data() {
+    let root = tempfile::tempdir().unwrap();
+    let library = root.path().join("catalog-library");
+    let player_file = root.path().join("synthetic-player-file.bin");
+    let player_bytes = b"synthetic player bytes outside the selected library";
+    std::fs::write(&player_file, player_bytes).unwrap();
+    let id = "wave-race-64-recomp";
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    let port = catalog.port(id).unwrap();
+    let expected = serde_json::to_value(port).unwrap();
+    let mut machine_outputs = Vec::new();
+    for mode in ["--json", "--jsonl"] {
+        let output = portcove(&library, &[mode, "catalog", "show", id]);
+        assert!(output.status.success());
+        assert!(output.stderr.is_empty());
+        let value = json_stdout(&output);
+        assert_eq!(value["schema_version"], portcove_core::API_SCHEMA_VERSION);
+        assert_eq!(value["command"], "catalog.show");
+        assert_eq!(value["ok"], true);
+        assert!(value["error"].is_null());
+        assert_eq!(value["data"], expected);
+        if mode == "--jsonl" {
+            assert_eq!(value["type"], "result");
+        }
+        machine_outputs.push(value["data"].clone());
+    }
+    assert_eq!(machine_outputs[0], machine_outputs[1]);
+    let output = portcove(&library, &["catalog", "show", id]);
+    let human = human_stdout(&output);
+    let runtime = &port.release.user_prepared[&portcove_core::Platform::WindowsX86_64];
+    for fact in [
+        format!("Accepted runtime (windows-x86_64): {}", runtime.version),
+        format!(
+            "Package: {} ({} bytes)",
+            runtime.archive_name, runtime.archive_size
+        ),
+        format!("Package SHA-256: {}", runtime.archive_sha256),
+        format!("Executable: {}", runtime.executable),
+        format!("portcove external preview {id} \"<extracted-folder>\""),
+    ] {
+        assert!(
+            human.contains(&fact),
+            "catalog detail omitted {fact:?}:\n{human}"
+        );
+    }
+    assert!(human.contains("matching platform"));
+    assert!(
+        human
+            .contains("Maintenance: user-owned; Portcove does not download or update this runtime")
+    );
+    assert!(human.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
+    assert!(human.contains("create an empty portable.txt"));
+    assert!(human.contains("Saves and settings: user-owned"));
+    assert!(!human.contains("Accepted runtime (linux"));
+    assert!(!human.contains("Accepted runtime (macos"));
+    assert!(!human.contains("n64-recomp-portable"));
+    assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
+}
+
+#[test]
+fn catalog_detail_preserves_managed_output_machine_reads_and_a_player_file() {
+    let root = tempfile::tempdir().unwrap();
+    let library = root.path().join("catalog-library");
+    let player_file = root.path().join("synthetic-player-file.bin");
+    let player_bytes = b"synthetic player bytes outside the selected library";
+    std::fs::write(&player_file, player_bytes).unwrap();
+    let catalog = portcove_core::Catalog::embedded().unwrap();
+    for id in ["shipwright", "lighthouse"] {
+        let output = portcove(&library, &["catalog", "show", id]);
+        let human = human_stdout(&output);
+        assert!(human.contains("Support:"));
+        assert!(human.contains("Project: https://"));
+        assert!(!human.contains("Accepted runtime ("));
+        assert!(!human.contains("portcove external preview"));
+        assert!(!human.contains("Maintenance: user-owned"));
+        let machine = portcove(&library, &["--json", "catalog", "show", id]);
+        assert!(machine.status.success());
+        let machine = json_stdout(&machine);
+        assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
+        assert_eq!(
+            machine["data"],
+            serde_json::to_value(catalog.port(id).unwrap()).unwrap()
+        );
+    }
+    assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
 }

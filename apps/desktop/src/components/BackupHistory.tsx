@@ -5,11 +5,16 @@ import { formatBytes } from "../view-model";
 import { Icon } from "./ui";
 import { BackupReviewDialog, type ApplyBackupAction } from "./BackupReview";
 import { Button } from "./ui/button";
+import { FailureDetails } from "./FailureDetails";
+import type { BackupReadState } from "../features/backups/use-port-backups";
 
 export function BackupHistory({
   backups,
   problems = [],
   state = "healthy",
+  readState,
+  restoreAssessment,
+  retryRead,
   busy,
   generation = 0,
   restore,
@@ -19,6 +24,9 @@ export function BackupHistory({
   backups: BackupRecord[];
   problems?: BackupProblem[];
   state?: BackupInventory["state"];
+  readState?: BackupReadState;
+  restoreAssessment?: BackupInventory["restore_assessment"];
+  retryRead?: () => Promise<void>;
   busy?: string;
   generation?: number;
   restore: ApplyBackupAction;
@@ -27,6 +35,7 @@ export function BackupHistory({
 }) {
   const [expanded, setExpanded] = useState(false);
   const history = useRef<HTMLDivElement>(null);
+  const retryPending = useRef(false);
   const heading = useRef<HTMLSpanElement>(null);
   const [selection, setSelection] = useState<{
     backup: BackupRecord;
@@ -35,15 +44,65 @@ export function BackupHistory({
     index: number;
   }>();
   const visible = expanded ? backups : backups.slice(0, 3);
+  const restoreAllowed =
+    (!readState || readState.status === "current") &&
+    restoreAssessment?.action === "backup_restore" &&
+    restoreAssessment.availability === "allowed" &&
+    restoreAssessment.reason === "available";
   return (
-    <div ref={history} className="backup-history">
+    <div ref={history} className="backup-history" data-backup-read-state={readState?.status}>
       <div className="backup-heading">
         <span ref={heading} role="heading" aria-level={3} tabIndex={-1}>
           Backups
         </span>
-        <small>{backupSummary(backups.length, problems.length, state)}</small>
+        <small>{backupSummary(backups.length, problems.length, state, readState)}</small>
       </div>
       <p>Backups include saves and settings managed by Portcove.</p>
+      {readState && readState.status !== "idle" && (
+        <div className="backup-inventory-notice" role="status">
+          {readState.status === "pending" && (
+            <>
+              <strong>
+                {readState.hasInventory ? "Refreshing backup history" : "Loading backup history"}
+              </strong>
+              <p>
+                {readState.hasInventory
+                  ? "Showing the last loaded backup list while the current list is checked."
+                  : "The backup list has not been loaded yet."}
+              </p>
+            </>
+          )}
+          {readState.status === "failed" && (
+            <>
+              <strong>Backup history could not be loaded</strong>
+              <p>
+                {readState.hasInventory
+                  ? "Showing the last loaded backup list. It may have changed since it was read."
+                  : "The backup list is unknown. Retry to read it again."}
+              </p>
+              {readState.failure && (
+                <FailureDetails presentation={readState.failure} showMutationSummary={false} />
+              )}
+            </>
+          )}
+          {retryRead && (
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={readState.status === "pending"}
+              onClick={() => {
+                if (retryPending.current) return;
+                retryPending.current = true;
+                void retryRead().finally(() => {
+                  retryPending.current = false;
+                });
+              }}
+            >
+              {readState.status === "failed" ? "Retry backup history" : "Refresh backup history"}
+            </Button>
+          )}
+        </div>
+      )}
       {(state !== "healthy" || problems.length > 0) && (
         <div className={`backup-inventory-notice ${state}`} role="status">
           <strong>
@@ -90,6 +149,21 @@ export function BackupHistory({
           </details>
         </div>
       )}
+      {backups.length > 0 && !restoreAllowed && (
+        <p role="status" className="backup-restore-assessment">
+          {readState && readState.status !== "current"
+            ? "Restore eligibility is unknown until backup history is read again."
+            : restoreAssessment?.reason === "recovery_required"
+              ? "Restoring requires recovery to finish. Restart Portcove to retry recovery and review doctor output if it remains."
+              : restoreAssessment?.reason === "unsafe_data"
+                ? "Restore is on hold. Review the owned backup and saved-data locations."
+                : restoreAssessment?.reason === "unreadable_data"
+                  ? "Restore is on hold because the owned saved-data location could not be read."
+                  : restoreAssessment?.reason === "missing_backup"
+                    ? "No usable backup is currently available to restore."
+                    : "Restore eligibility is unknown. Refresh backup history before proceeding."}
+        </p>
+      )}
       {visible.map((backup, index) => {
         const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
         return (
@@ -115,7 +189,7 @@ export function BackupHistory({
                 data-focusable
                 data-backup-action="restore"
                 variant="outline"
-                disabled={Boolean(busy) || state === "recovery_required"}
+                disabled={Boolean(busy) || state === "recovery_required" || !restoreAllowed}
                 onClick={(event) =>
                   setSelection({ backup, action: "restore", opener: event.currentTarget, index })
                 }
@@ -206,7 +280,19 @@ function problemLabel(kind: BackupProblem["kind"]) {
   return Object.hasOwn(labels, kind) ? labels[kind] : "Backup information unavailable";
 }
 
-function backupSummary(count: number, problemCount: number, state: BackupInventory["state"]) {
+function backupSummary(
+  count: number,
+  problemCount: number,
+  state: BackupInventory["state"],
+  readState?: BackupReadState,
+) {
+  if (readState && readState.status !== "current") {
+    if (readState.hasInventory)
+      return count
+        ? `${count} last-loaded backup${count === 1 ? "" : "s"}`
+        : "Last-loaded backup list is empty";
+    return readState.status === "pending" ? "Loading backups" : "Backup history unavailable";
+  }
   if (!count)
     return problemCount > 0 || state !== "healthy" ? "Backups need attention" : "No backups yet";
   return `${count} verified backup${count === 1 ? "" : "s"}`;

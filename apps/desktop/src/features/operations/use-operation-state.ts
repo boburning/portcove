@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listenDesktopEvent } from "../../desktop-events";
 import type { OperationEvent } from "../../types";
-import { isCancellation } from "../../view-model";
+import { failurePresentation, isCancellation } from "../../view-model";
 import {
   addPendingOperation,
   mostRecentPendingOperation,
@@ -63,7 +63,10 @@ export function useOperationState(configuration: {
         const result = await task();
         return result;
       } catch (value) {
-        if (!isCancellation(value)) setError(value);
+        const outcome = failurePresentation(value)?.mutation_state;
+        const quietCancellation =
+          isCancellation(value) && (outcome === "not_started" || outcome === "no_changes");
+        if (!quietCancellation) setError(value);
       } finally {
         if (options.invalidateDiagnostics ?? true) invalidateDiagnostics?.();
         try {

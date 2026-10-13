@@ -10,6 +10,14 @@ rust-version.workspace = true
 [features]
 qualification-fixtures = []
 
+[[example]]
+name = "forbidden-memories-producer"
+required-features = ["qualification-fixtures"]
+
+[[example]]
+name = "forbidden-memories-launcher-probe"
+required-features = ["qualification-fixtures"]
+
 [dependencies]
 async-trait.workspace = true
 directories.workspace = true

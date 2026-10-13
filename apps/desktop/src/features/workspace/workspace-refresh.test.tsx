@@ -165,20 +165,48 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("accepts retained-metadata-only changes and clears a no-longer-available projection", async () => {
+    await render();
+    const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
+    const browsing: NonNullable<WorkspaceSnapshot["browsing"]> = {
+      schema_version: 1,
+      library: { id: "opaque", root: "fixture/library" },
+      host_platform: "windows-x86-64",
+      retained_metadata_complete: false,
+      workspace_binding_sha256: "a".repeat(64),
+      contexts: [],
+    };
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue({
+      ...structuredClone(snapshot),
+      browsing,
+    });
+    await act(async () => data.refresh());
+    expect(data.browsing).toBe(browsing);
+    expect(data.catalog).toBe(before.catalog);
+    expect(data.statuses).toBe(before.statuses);
+    expect(data.sources).toBe(before.sources);
+    vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(structuredClone(snapshot));
+    await act(async () => data.refresh());
+    expect(data.browsing).toBeUndefined();
+  });
   it("compares each essential collection once without increasing serialized identity bytes", () => {
     const combinedIdentity = JSON.stringify([
       snapshot.catalog,
       snapshot.statuses,
       snapshot.sources,
+      snapshot.browsing ?? null,
     ]);
     const stringify = vi.spyOn(JSON, "stringify");
 
     const identities = essentialSnapshotIdentity(snapshot);
 
-    expect(stringify).toHaveBeenCalledTimes(3);
-    expect(identities.catalog.length + identities.statuses.length + identities.sources.length).toBe(
-      combinedIdentity.length - 4,
-    );
+    expect(stringify).toHaveBeenCalledTimes(4);
+    expect(
+      identities.catalog.length +
+        identities.statuses.length +
+        identities.sources.length +
+        identities.browsing.length,
+    ).toBe(combinedIdentity.length - 5);
   });
 
   it("preserves unchanged IPC snapshot references and avoids redundant status indexing", async () => {
@@ -571,6 +599,120 @@ describe("workspace refresh recovery", () => {
     expect(document.activeElement).toBe(workspaceButton);
     region.remove();
   });
+
+  it.each([
+    ["not_started", "This operation did not start."],
+    ["no_changes", "No files were changed by this operation."],
+    ["committed", "The change was saved"],
+    ["recovery_required", "An earlier attempt left unfinished work"],
+    ["unknown", "Portcove couldn't confirm whether anything changed"],
+    ["future-outcome", "Portcove couldn't confirm whether anything changed"],
+  ] as const)(
+    "exposes the supplied %s recovery outcome and diagnostic capture",
+    async (state, message) => {
+      await render();
+      const error = failureReport();
+      error.code = "state";
+      error.presentation.mutation_state = state as typeof error.presentation.mutation_state;
+      error.presentation.phase = "recovery";
+      error.presentation.technical_context = { operation: "retained-operation" };
+      vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(error);
+
+      await act(async () => data.retryRecovery());
+      expect(data.refreshFailure).toBeUndefined();
+      expect(host.textContent).toContain(message);
+      expect(host.textContent).toContain("View technical details");
+      const capture = JSON.parse(host.querySelector("pre")!.textContent!);
+      expect(capture).toEqual({
+        code: error.code,
+        mutation_state: state,
+        phase: "recovery",
+        message: error.presentation.technical_message,
+        context: { operation: "retained-operation" },
+      });
+      expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledTimes(1);
+      expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+      expect(host.textContent).not.toContain("some unfinished work still needs review");
+    },
+  );
+
+  it("retains distinct recovery and refresh evidence and their existing retry routes", async () => {
+    await render();
+    const recoveryError = failureReport();
+    recoveryError.presentation.mutation_state = "recovery_required";
+    recoveryError.presentation.technical_message = "retained recovery diagnostic";
+    const refreshError = failureReport();
+    refreshError.presentation.mutation_state = "committed";
+    refreshError.presentation.technical_message = "separate refresh diagnostic";
+    vi.mocked(desktopApi.discoverOrphanedOperations).mockRejectedValueOnce(recoveryError);
+    vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(refreshError);
+
+    await act(async () => {
+      await expect(data.retryRecovery()).rejects.toBe(refreshError);
+    });
+    const notices = [...host.querySelectorAll("section")];
+    expect(notices).toHaveLength(2);
+    expect(notices[0].textContent).toContain("Library information could not be refreshed");
+    expect(notices[0].textContent).toContain("The change was saved");
+    expect(notices[0].textContent).not.toContain("retained recovery diagnostic");
+    expect(notices[1].textContent).toContain("Library recovery could not finish");
+    expect(notices[1].textContent).toContain("An earlier attempt left unfinished work");
+    expect(notices[1].textContent).not.toContain("separate refresh diagnostic");
+    expect(notices.map((notice) => JSON.parse(notice.querySelector("pre")!.textContent!))).toEqual([
+      expect.objectContaining({ message: "separate refresh diagnostic" }),
+      expect.objectContaining({ message: "retained recovery diagnostic" }),
+    ]);
+
+    const refreshButton = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Retry refresh",
+    );
+    await act(async () => {
+      refreshButton!.click();
+    });
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledTimes(1);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(3);
+    expect(data.recoveryFailure?.error).toBe(recoveryError);
+    expect(data.refreshFailure).toBeUndefined();
+
+    const recoveryButton = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Retry recovery",
+    );
+    await act(async () => {
+      recoveryButton!.click();
+    });
+    expect(desktopApi.discoverOrphanedOperations).toHaveBeenCalledTimes(2);
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(4);
+    expect(data.recoveryFailure).toBeUndefined();
+    expect(data.refreshFailure).toBeUndefined();
+    expect(host.querySelector("section")).toBeNull();
+  });
+
+  it.each([true, false])(
+    "qualifies the available library snapshot (%s) on recovery failure",
+    async (hasSnapshot) => {
+      const retryRecovery = vi.fn().mockResolvedValue(undefined);
+      await act(async () => {
+        root.render(
+          <WorkspaceRefreshNotice
+            recoveryFailure={{ error: new Error("unstructured recovery failure") }}
+            hasSnapshot={hasSnapshot}
+            refreshing={false}
+            retry={vi.fn().mockResolvedValue(undefined)}
+            retryRecovery={retryRecovery}
+          />,
+        );
+      });
+      expect(host.textContent).toContain(
+        hasSnapshot
+          ? "Showing the last loaded library information. It may be out of date."
+          : "Portcove has not loaded the library information yet.",
+      );
+      expect(host.textContent).not.toContain("Current library information is available");
+      expect(host.textContent).not.toContain("unfinished work");
+      expect(host.querySelector("details")).toBeNull();
+      expect(retryRecovery).not.toHaveBeenCalled();
+    },
+  );
 
   it("retains the last essential snapshot and exposes a failed refresh", async () => {
     await render();

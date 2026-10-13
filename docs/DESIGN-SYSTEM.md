@@ -33,11 +33,14 @@ The dependency requirement, Portcove support promise, and observed environment a
 | ------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows x64         | Tailwind/Base UI need a Chromium-family engine at least Chrome/Edge 111                      | Unchanged while #993 establishes an explicit WebView2/OS floor | Run `native-design-system-compatibility` in the actual Tauri app and record the exact WebView2 runtime; a current runtime pass is not minimum proof |
 | Linux x64           | Wry 0.55.1 requires WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Unchanged while #993 proves an explicit Linux/WebKitGTK floor  | Use the existing Linux Tauri/WebKitWebDriver harness on the exact environment                                                                       |
-| Steam Deck          | Must satisfy the proven Linux engine requirement in the actual SteamOS runtime               | Unchanged and not inferred from Ubuntu                         | Run the same retained fixture artifact/procedure on a Deck and record SteamOS/WebKitGTK identity                                                    |
-| macOS Intel         | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unchanged; no macOS minimum is raised by this foundation       | Use the qualification-only embedded WebdriverIO route on an exact Intel WKWebView host                                                              |
-| macOS Apple silicon | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unchanged; architecture does not itself establish an OS floor  | Use the qualification-only embedded WebdriverIO route on an exact Apple-silicon WKWebView host                                                      |
+| Steam Deck          | Must satisfy the proven Linux engine requirement in the actual SteamOS runtime               | Unqualified at initial beta; follow-up required before 1.0     | #51/#217 run the retained fixture on actual Deck and record SteamOS/WebKitGTK identity; #993 beta closure does not wait for this device proof       |
+| macOS Intel         | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unqualified initial beta; qualify before 1.0 during beta       | #45/#226 use the existing qualification route on an exact Intel WKWebView host                                                                      |
+| macOS Apple silicon | Tailwind/Base UI require Safari/WebKit 16.4-era features                                     | Unqualified initial beta; qualify before 1.0 during beta       | #45/#226 use the existing qualification route on an exact Apple-silicon WKWebView host                                                              |
 
-Vite's `es2021`, `chrome105`, and `safari13` transform targets remain unchanged and are not an operating-system support declaration. A support-policy reduction requires a separate reviewed change reconciling build targets, packages, updater behavior, and stable support documentation. Until #993 records the required native-family and claimed-minimum evidence, an affected platform remains unqualified for redesign publication even though this non-publishing foundation may be developed and merged. #45 retains broader 1.0 qualification.
+Vite's `es2021`, `chrome105`, and `safari13` transform targets remain unchanged and are not an operating-system support declaration. A support-policy reduction requires a separate reviewed change reconciling build targets, packages, updater behavior, and stable support documentation. Until #993 records the required native-family and claimed-minimum evidence, an affected platform remains unqualified for redesign publication even though this non-publishing foundation may be developed and merged. #993 retains the bounded selected-stack architecture/portability decision and
+Windows/Linux native/minimum proof required by #917. Keep practical macOS CI/build
+health; full Intel/Apple Silicon native/package qualification belongs to #45/#226
+during beta before 1.0, without holding the initial Windows/Linux foundation.
 
 ## Foundations
 
@@ -54,14 +57,18 @@ Vite's `es2021`, `chrome105`, and `safari13` transform targets remain unchanged 
 
 ## Component rules
 
+Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
-- Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Pills are reserved for compact status badges.
+- Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Shared selects use these as minimum heights: option labels and selected decision text wrap within the available width, including long unbroken values, rather than clipping source requirements or relying on hover. Pills are reserved for compact status badges.
 - Ordinary buttons are neutral by default. Signature-red Play, Install, or Apply emphasis is an explicit variant; destructive actions have distinct semantics, wording, placement, and confirmation behavior. Focus remains gold and visibly distinct from both selection and destructive intent, including the combined selected-and-focused state.
 - Buttons name the action or review: `Review installation`, `Play`, `Check game files`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
+- Setup and launch controls consume the current core action availability and supplied reason. A scoped hold or unoffered managed setup route has a readable explanation instead of an enabled installation review; source and BIOS input keep their existing selection/review flow. Installed launch still requires positive core readiness, and a retained-definition hold explains its exact reason. Missing legacy action projections keep the existing readiness behavior; malformed or incomplete current projections do not enable an action. An existing review can still be dismissed during a hold, and owned-operation cancellation stays reachable. A later allowed snapshot can restore the control, but preview and presentation never authorize execution: core rechecks current inputs under its existing guards.
 - Every control needs deliberate default, hover, focus, pressed, selected, disabled, and loading treatment where those states apply. Geometry must remain stable across those states, transitions must name intentional properties rather than use `transition-all`, and forced-colors presentation must retain visible system-compatible outlines, borders, and meaning.
 - Icons come from Lucide through the shared `Icon` wrapper. An icon-only control must have an accessible name. Status never relies on icon or color alone.
 - Dialogs trap focus, close with Escape, restore the initiating focus target, use a named heading, and reserve confirmations for destructive or difficult-to-reverse actions.
+- External-installation folder choices and open reviews belong to the selected game, library generation, and registration; a context change discards them, and late or superseded picker results cannot open a new review.
 - Empty states explain what the area is, why it is empty, and the best next action. Loading copy names real work and does not invent percentages.
 - Logs use monospace type, severity text plus icon and color, concise primary explanations, expandable technical details, and copy affordances.
 
@@ -82,8 +89,10 @@ Shared UI cannot import feature implementations. Features normally select an app
 Finishing is acceptance within the owning journeys, not a separate perpetual polish program:
 
 - Preserve query, filters, sort, scroll anchor, stable item selection, and sensible browsing focus per section and library. Restore context after navigation, picker cancellation, and returning from a launched game without reviving dismissed dialogs, stale review plans, cached authorization, another library's selection, or destructive confirmations.
+- Browsing query/search/sort inputs also survive restart through versioned optional local view preferences, keyed by the supplied canonical library root with the existing Windows namespace aliases. They contain no selected detail, source/BIOS/adoption inputs, review authorization or DOM focus/scroll. Runtime position continuity retains its existing owner. Unsupported query predicates and legacy identifiers remain unresolved for explicit filter correction; unreadable, future-format or oversized preference documents are retained until the player explicitly saves current choices. Storage failure is visible and does not block ordinary browsing or library switching. This persistence does not provide coherent route/build matching or additional filter controls.
 - Reserve artwork and card geometry; retain useful existing content during refresh; keep loading, missing-artwork, failure, pending, and inline-confirmation states from shifting important controls. First paint uses the selected theme, application/window background, and offline typography without a bright flash or disruptive reflow.
 - Acknowledge an action promptly without inventing its outcome. Copy confirmation is local; launch distinguishes accepted, starting, running when authoritative, and failure; install/update uses real stages or an honest indeterminate state; cancellation distinguishes requested from stopped; integration results distinguish core success from optional partial failure. The existing operation/event authority owns progress and durable outcomes, while toasts remain supplemental.
+- Catalog completion identifies the applied update, restored catalog, selected source or publisher trust change. Relocation results display the supplied retained and pending-cleanup folder paths without deletion advice. Retained logs explain available saved output independently of the operation outcome. Digest copy announces success or failure and offers the exact selectable value on failure; an older attempt cannot replace current feedback. Zero-total progress retains the concrete action and indeterminate state without an absent-telemetry sentence or fabricated percentage.
 - Command-palette query changes choose the best eligible result predictably, background refresh preserves the active command by stable identity where possible, and Enter during IME composition never executes a command.
 - Artwork remains legible and stable across bright, dark, white, missing, unusual-aspect, and long-title cases. Optional artwork failure does not become launch failure, and essential actions never depend on imagery.
 - Optical review covers icon/label alignment, tabular numerals where values change or align in columns, consistent dialog geometry, subordinate shortcut hints, long-path identification and exact copying, and reduced nested-card emphasis. Essential instructions and warnings never exist only in a tooltip or browser title.
@@ -118,7 +127,7 @@ The first foundation slice records the actual `components.json` paths, aliases, 
 | Port catalog    | Every reviewed Portcove definition, including ports not installed locally.                             |
 | Source          | A legally obtained original game file or reviewed file set referenced in place.                        |
 | BIOS            | A separately modeled firmware requirement. It is not called a game source in recovery copy.            |
-| Release channel | Stable, beta, or rolling upstream stream selected per port.                                            |
+| Release channel | Stable, Preview (`beta`), or Rolling stream selected per port.                                         |
 | Update policy   | Notify, stage, or automatically install for one installed port.                                        |
 | Staged release  | A verified release retained locally but not yet active.                                                |
 | Active version  | The managed version currently selected for launch.                                                     |
@@ -165,7 +174,17 @@ as that release's existing path. File-health summaries describe the saved files'
 current comparison state in plain language; keep saved checksums in File details
 and do not equate unchanged bytes with a supported edition or launch readiness.
 Game-file inspection reports lead with the identified game, current result, and
-next action. Admission, source authority, and test coverage stay in named
+next action. Source-import reviews show the file requirement matched to the Core plan's profile,
+its actual admission basis and limits, the selected/destination/currently saved
+paths, checked-copy reuse when planned, and additional file-data bytes. Structural,
+informational and upstream-validator admission do not imply an exact edition;
+source admission is not installation or gameplay proof. Use-current-location is
+not Portcove-copy reuse, and move may remove the original after verification and
+registration even when an existing checked copy is reused. Planned bytes are not
+a free-space guarantee. Unknown checks remain explicit and need a new review or
+supported client before confirmation. Core plan binding and native consent remain
+authoritative.
+Admission, source authority, and test coverage stay in named
 disclosures; assistive announcements report the actual result without claiming
 that every check completed.
 When a game-file search reaches a safety limit, name the limit and give a next
@@ -179,6 +198,12 @@ port, a successful last check with no update, an available update, an update
 saved for later whose activation still needs core checks, and a failed or
 unavailable check result.
 Checking for updates does not install them.
+An operation's cancellation code or neutral tone does not prove a safe outcome.
+The operation notice retains Core's committed, recovery-required or unknown
+consequence, including unfamiliar or missing outcome values, through subsequent
+readback failures. Only an explicitly not-started or no-change cancellation stays
+quiet after successful readback. Dismissing a consequence repeats no operation
+and grants no cleanup, restart or resume authority.
 Use sentence case and neutral task names beside authoritative status. Complete
 localized messages use named interpolation and correct plurals; human formatting
 may follow locale while machine contracts remain stable. Keep technical detail
@@ -190,23 +215,27 @@ installation, updates, and saves for native game ports. Use its desktop app, or
 connect another launcher through the command-line interface.” Use named projects
 only where instructions and scoped status make the name useful.
 
-The game-detail command card must describe the command it actually generated,
-not advertise a list of launchers. For an installed game, the planned copy is
-heading **Launch from another app**, help “Use this command in a launcher that
-supports custom commands. Portcove will start this game without opening the
-desktop app.”, and action/accessibility label **Copy launch command**. For an
-uninstalled game, it is heading **Set up from the command line**, help “Use this
-command to set up this port from a terminal or script.”, and
-action/accessibility label **Copy setup command**.
+The game-detail command card describes the command it actually generated.
+`CliContinuity` uses **Launch from another app** and **Copy launch command** for
+an active or registered external installation. The CLI checks that installation
+before launch; the command does not install or update it. An uninstalled port
+uses **Set up from the command line** and **Copy setup command** for managed
+setup, which can download and install the selected release after checking its
+required files. A user-prepared route instead uses **Copy folder-check command**:
+the player prepares the required version, checks its folder, then reviews and
+saves its location. Portcove does not download, copy, update, back up or delete
+those external files.
 
-[#206](https://github.com/boburning/portcove/issues/206) owns that planned
-runtime change. Use the wording only when the generated command and its
-prerequisites make it truthful. A command containing placeholders is a template,
-not ready-to-run. The implementation must also cover executable discovery,
-explicit effective-library selection, spaces, Unicode, escaping, unavailable
-tooling, and the distinction between a shell command and separate launcher
-executable/argument fields. This documentation does not claim the current UI has
-already changed.
+The card shows the effective library and the command's PowerShell 7 or sh/bash
+format. Missing inputs or an unresolved CLI executable produce **Copy command
+template**, with the placeholders and executable prerequisite explained; this
+is not a ready-to-run command. Separate program-path and argument-array fields
+serve integrations that do not accept a shell string. Generation-bound command
+details, retry, spaces, Unicode, escaping and invalid-path refusal retain their
+existing component and command-builder contracts. These presentation boundaries
+do not establish executable availability, platform qualification or successful
+gameplay; [#206](https://github.com/boburning/portcove/issues/206) retains the
+complete contextual-handoff acceptance.
 
 ## Shell and navigation
 
@@ -291,8 +320,9 @@ Public beta outcome. #206 retains information
 architecture, navigation, interaction, focus, content ordering, and domain-driven
 presentation. #203 retains labels, localization, formatting, and safe unknowns.
 #208 retains shared artwork selection/provenance/fallback/ingestion/cache, and
-#527 retains SteamGridDB provider behavior. #29/#44 retain controller performance,
-physical-Xbox, controller-navigation, and minimum-width qualification; #47
+#527 retains SteamGridDB provider behavior before 1.0 during beta, not an initial
+beta gate. #29 retains shared controller performance/navigation/focus/accessibility
+for initial beta; #44 owns later actual Xbox qualification before 1.0. #47
 retains intrinsically packaged human comprehension/controller observations.
 
 Use three levels when reviewing every surface:
@@ -373,3 +403,16 @@ broad fragile pixel-perfect suite is required.
 Run the focused frontend tests, applicable theme/style contracts, production build, and Fallow before accepting a design-system change. The style gates must cover the actual Tailwind CSS and JSX utility sources, reject raw status colors and direct primitive consumption, preserve dark/light, focus/selection, contrast, reduced-motion, and production-variant coverage, and handle third-party directives narrowly rather than with blanket exemptions. Fallow should remain free of dead files, unused dependencies, duplication, circular dependencies, unused theme tokens, and above-threshold functions. Acceptance records intentional reference changes and verifies that each migrated surface has one remaining control/style owner.
 
 The three early finished reference compositions are Library, the game-details workspace, and a complex installation-review dialog with nested selection and errors. Their real-component scenarios cover empty, loading, long-title, missing-artwork, disabled, error, interrupted, and narrow-layout states. Completion requires both themes, current minimum/default/large sizes, 1280×800 where relevant, supported scaling, long text, keyboard/mouse/controller behavior, nested overlays, focus return, async changes, navigation during work, reduced motion, and capability parity. Browser fixtures and screenshots do not replace native or intrinsically human evidence.
+
+Keep scenario evidence attached to its actual consumer boundary. The development
+previews in `dev-scenarios/entry.ts` render inert component markup for shape and
+copy; they do not exercise interaction, focus, controller input, IPC or packaged
+behavior. Interactive browser tests such as `browser/adoption.browser.test.tsx`
+exercise real React controls with mocked transport, not Core installation or
+persistence. Native scenarios registered in `scripts/desktop-scenarios.mjs`
+require their guarded execution and retained receipt: registration alone is not
+a pass. A selected-setup Tauri/Core fixture can establish its observed review,
+cancel, result and return sequence only for the recorded source, platform and
+inputs. It does not establish Play, gameplay, other platforms or human/device
+observations. Keep changing journey gaps and their canonical owners in #206 and
+the owning issues rather than maintaining a second backlog here.

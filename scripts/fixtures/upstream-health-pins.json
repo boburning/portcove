@@ -1,0 +1,343 @@
+{
+  "authority": "Retained public provider metadata fragments; not downloaded bytes or runtime qualification.",
+  "observed": "2026-10-09",
+  "pins": [
+    {
+      "repository": {
+        "id": 1359870979,
+        "full_name": "linkssy2/RoadRash64Recompiled",
+        "archived": false
+      },
+      "release": {
+        "id": 401568775,
+        "tag_name": "v1.4.3",
+        "draft": false,
+        "prerelease": false,
+        "created_at": "2026-10-02T05:46:24Z",
+        "published_at": "2026-10-02T05:47:21Z",
+        "assets": [
+          {
+            "id": 604912156,
+            "name": "MoreCharacters2.0.5.nrm",
+            "size": 92542,
+            "state": "uploaded",
+            "digest": "sha256:a97c5db29e92450c370c03a6f725bd4f8a1808ddb59f9fcb18a840e16be5959a",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/MoreCharacters2.0.5.nrm",
+            "created_at": "2026-10-02T05:47:04Z",
+            "updated_at": "2026-10-02T05:47:04Z"
+          },
+          {
+            "id": 604912180,
+            "name": "RoadRash64Recompiled-Optional-Texture-Mod.zip",
+            "size": 214688827,
+            "state": "uploaded",
+            "digest": "sha256:38cb3c6731ab55c64b8469668926d837be3fbe8ec8f0a2d9974e791bdf80b6f2",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-Optional-Texture-Mod.zip",
+            "created_at": "2026-10-02T05:47:05Z",
+            "updated_at": "2026-10-02T05:47:18Z"
+          },
+          {
+            "id": 604911251,
+            "name": "RoadRash64Recompiled-v1.4.3-Linux-Experimental.zip",
+            "size": 588979291,
+            "state": "uploaded",
+            "digest": "sha256:1090e2dfc7cfc1d4c36b36983e9b2939668fc89f0c9b06252366c6f5d9760fdc",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Linux-Experimental.zip",
+            "created_at": "2026-10-02T05:46:34Z",
+            "updated_at": "2026-10-02T05:47:00Z"
+          },
+          {
+            "id": 604912065,
+            "name": "RoadRash64Recompiled-v1.4.3-Source.zip",
+            "size": 39255325,
+            "state": "uploaded",
+            "digest": "sha256:a5f88c757c74410e6b64943fc5abe7d5b808584d98e21b9d6de43b4eb799c2ca",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Source.zip",
+            "created_at": "2026-10-02T05:47:01Z",
+            "updated_at": "2026-10-02T05:47:04Z"
+          },
+          {
+            "id": 604911121,
+            "name": "RoadRash64Recompiled-v1.4.3-Win64.zip",
+            "size": 47276827,
+            "state": "uploaded",
+            "digest": "sha256:4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip",
+            "created_at": "2026-10-02T05:46:31Z",
+            "updated_at": "2026-10-02T05:46:33Z"
+          },
+          {
+            "id": 604912556,
+            "name": "SHA256SUMS.txt",
+            "size": 528,
+            "state": "uploaded",
+            "digest": "sha256:77e6a7d4539db44b13af6fe2859b94ed874137970b29d4e920ab7c74be554ceb",
+            "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/SHA256SUMS.txt",
+            "created_at": "2026-10-02T05:47:19Z",
+            "updated_at": "2026-10-02T05:47:19Z"
+          }
+        ]
+      },
+      "assets": [
+        {
+          "id": 604912156,
+          "name": "MoreCharacters2.0.5.nrm",
+          "size": 92542,
+          "state": "uploaded",
+          "digest": "sha256:a97c5db29e92450c370c03a6f725bd4f8a1808ddb59f9fcb18a840e16be5959a",
+          "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/MoreCharacters2.0.5.nrm",
+          "created_at": "2026-10-02T05:47:04Z",
+          "updated_at": "2026-10-02T05:47:04Z"
+        },
+        {
+          "id": 604912180,
+          "name": "RoadRash64Recompiled-Optional-Texture-Mod.zip",
+          "size": 214688827,
+          "state": "uploaded",
+          "digest": "sha256:38cb3c6731ab55c64b8469668926d837be3fbe8ec8f0a2d9974e791bdf80b6f2",
+          "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-Optional-Texture-Mod.zip",
+          "created_at": "2026-10-02T05:47:05Z",
+          "updated_at": "2026-10-02T05:47:18Z"
+        },
+        {
+          "id": 604911251,
+          "name": "RoadRash64Recompiled-v1.4.3-Linux-Experimental.zip",
+          "size": 588979291,
+          "state": "uploaded",
+          "digest": "sha256:1090e2dfc7cfc1d4c36b36983e9b2939668fc89f0c9b06252366c6f5d9760fdc",
+          "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Linux-Experimental.zip",
+          "created_at": "2026-10-02T05:46:34Z",
+          "updated_at": "2026-10-02T05:47:00Z"
+        },
+        {
+          "id": 604912065,
+          "name": "RoadRash64Recompiled-v1.4.3-Source.zip",
+          "size": 39255325,
+          "state": "uploaded",
+          "digest": "sha256:a5f88c757c74410e6b64943fc5abe7d5b808584d98e21b9d6de43b4eb799c2ca",
+          "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Source.zip",
+          "created_at": "2026-10-02T05:47:01Z",
+          "updated_at": "2026-10-02T05:47:04Z"
+        },
+        {
+          "id": 604911121,
+          "name": "RoadRash64Recompiled-v1.4.3-Win64.zip",
+          "size": 47276827,
+          "state": "uploaded",
+          "digest": "sha256:4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f",
+          "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip",
+          "created_at": "2026-10-02T05:46:31Z",
+          "updated_at": "2026-10-02T05:46:33Z"
+        },
+        {
+          "id": 604912556,
+          "name": "SHA256SUMS.txt",
+          "size": 528,
+          "state": "uploaded",
+          "digest": "sha256:77e6a7d4539db44b13af6fe2859b94ed874137970b29d4e920ab7c74be554ceb",
+          "browser_download_url": "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/SHA256SUMS.txt",
+          "created_at": "2026-10-02T05:47:19Z",
+          "updated_at": "2026-10-02T05:47:19Z"
+        }
+      ]
+    },
+    {
+      "repository": {
+        "id": 1352790768,
+        "full_name": "alexbeavs-ps1-ports/ape-escape-recomp",
+        "archived": false
+      },
+      "release": {
+        "id": 382786091,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "created_at": "2026-09-04T11:49:25Z",
+        "published_at": "2026-09-04T14:48:29Z",
+        "assets": [
+          {
+            "id": 544444013,
+            "name": "Ape-Escape-Recomp-0.3.6-linux-x64.zip",
+            "size": 28049381,
+            "state": "uploaded",
+            "digest": "sha256:e905e65eb6358b5bd7c6a89d7143a1b718111f7196a8c951f7e5db03808bc070",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-linux-x64.zip",
+            "created_at": "2026-09-04T14:19:49Z",
+            "updated_at": "2026-09-04T14:19:51Z"
+          },
+          {
+            "id": 544444097,
+            "name": "Ape-Escape-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25794724,
+            "state": "uploaded",
+            "digest": "sha256:8114a519613c451385169d37c037cd6abc76f0682aa122fba70fec928acd5655",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-macos-arm64.zip",
+            "created_at": "2026-09-04T14:19:54Z",
+            "updated_at": "2026-09-04T14:19:55Z"
+          },
+          {
+            "id": 544444204,
+            "name": "Ape-Escape-Recomp-0.3.6-macos-x64.zip",
+            "size": 26139678,
+            "state": "uploaded",
+            "digest": "sha256:c6e828bab0259f0e84e507b15021ca6c06f5654500ad563ed36d596dcee98a17",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-macos-x64.zip",
+            "created_at": "2026-09-04T14:19:58Z",
+            "updated_at": "2026-09-04T14:20:00Z"
+          },
+          {
+            "id": 544444303,
+            "name": "Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+            "size": 30155637,
+            "state": "uploaded",
+            "digest": "sha256:0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+            "created_at": "2026-09-04T14:20:02Z",
+            "updated_at": "2026-09-04T14:20:04Z"
+          }
+        ]
+      },
+      "assets": [
+        {
+          "id": 544444013,
+          "name": "Ape-Escape-Recomp-0.3.6-linux-x64.zip",
+          "size": 28049381,
+          "state": "uploaded",
+          "digest": "sha256:e905e65eb6358b5bd7c6a89d7143a1b718111f7196a8c951f7e5db03808bc070",
+          "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-linux-x64.zip",
+          "created_at": "2026-09-04T14:19:49Z",
+          "updated_at": "2026-09-04T14:19:51Z"
+        },
+        {
+          "id": 544444097,
+          "name": "Ape-Escape-Recomp-0.3.6-macos-arm64.zip",
+          "size": 25794724,
+          "state": "uploaded",
+          "digest": "sha256:8114a519613c451385169d37c037cd6abc76f0682aa122fba70fec928acd5655",
+          "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-macos-arm64.zip",
+          "created_at": "2026-09-04T14:19:54Z",
+          "updated_at": "2026-09-04T14:19:55Z"
+        },
+        {
+          "id": 544444204,
+          "name": "Ape-Escape-Recomp-0.3.6-macos-x64.zip",
+          "size": 26139678,
+          "state": "uploaded",
+          "digest": "sha256:c6e828bab0259f0e84e507b15021ca6c06f5654500ad563ed36d596dcee98a17",
+          "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-macos-x64.zip",
+          "created_at": "2026-09-04T14:19:58Z",
+          "updated_at": "2026-09-04T14:20:00Z"
+        },
+        {
+          "id": 544444303,
+          "name": "Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+          "size": 30155637,
+          "state": "uploaded",
+          "digest": "sha256:0a35530fb096cc0992476775f8365f1a2980f75196e220ff895316fbd520bb93",
+          "browser_download_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/releases/download/v0.3.6/Ape-Escape-Recomp-0.3.6-windows-x64.zip",
+          "created_at": "2026-09-04T14:20:02Z",
+          "updated_at": "2026-09-04T14:20:04Z"
+        }
+      ]
+    },
+    {
+      "repository": {
+        "id": 1352789184,
+        "full_name": "alexbeavs-ps1-ports/alundra-recomp",
+        "archived": false
+      },
+      "release": {
+        "id": 382786092,
+        "tag_name": "v0.3.6",
+        "draft": false,
+        "prerelease": false,
+        "created_at": "2026-09-04T11:49:25Z",
+        "published_at": "2026-09-04T14:48:29Z",
+        "assets": [
+          {
+            "id": 544444004,
+            "name": "Alundra-Recomp-0.3.6-linux-x64.zip",
+            "size": 28046637,
+            "state": "uploaded",
+            "digest": "sha256:b19969bed66098367129fec451990248ae833e07771b42d33256337260fc75e1",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-linux-x64.zip",
+            "created_at": "2026-09-04T14:19:49Z",
+            "updated_at": "2026-09-04T14:19:50Z"
+          },
+          {
+            "id": 544444075,
+            "name": "Alundra-Recomp-0.3.6-macos-arm64.zip",
+            "size": 25792100,
+            "state": "uploaded",
+            "digest": "sha256:6e11ef6636140c9476a2ba3a28ffd36a236ae3ed3180e69f0a304a6c5588d411",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-macos-arm64.zip",
+            "created_at": "2026-09-04T14:19:53Z",
+            "updated_at": "2026-09-04T14:19:55Z"
+          },
+          {
+            "id": 544444193,
+            "name": "Alundra-Recomp-0.3.6-macos-x64.zip",
+            "size": 26137055,
+            "state": "uploaded",
+            "digest": "sha256:501bcce394445945a081aa76d175f47891d4de05dfa9fe580c2fc662452624c3",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-macos-x64.zip",
+            "created_at": "2026-09-04T14:19:57Z",
+            "updated_at": "2026-09-04T14:19:59Z"
+          },
+          {
+            "id": 544444294,
+            "name": "Alundra-Recomp-0.3.6-windows-x64.zip",
+            "size": 30152761,
+            "state": "uploaded",
+            "digest": "sha256:bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
+            "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
+            "created_at": "2026-09-04T14:20:02Z",
+            "updated_at": "2026-09-04T14:20:03Z"
+          }
+        ]
+      },
+      "assets": [
+        {
+          "id": 544444004,
+          "name": "Alundra-Recomp-0.3.6-linux-x64.zip",
+          "size": 28046637,
+          "state": "uploaded",
+          "digest": "sha256:b19969bed66098367129fec451990248ae833e07771b42d33256337260fc75e1",
+          "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-linux-x64.zip",
+          "created_at": "2026-09-04T14:19:49Z",
+          "updated_at": "2026-09-04T14:19:50Z"
+        },
+        {
+          "id": 544444075,
+          "name": "Alundra-Recomp-0.3.6-macos-arm64.zip",
+          "size": 25792100,
+          "state": "uploaded",
+          "digest": "sha256:6e11ef6636140c9476a2ba3a28ffd36a236ae3ed3180e69f0a304a6c5588d411",
+          "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-macos-arm64.zip",
+          "created_at": "2026-09-04T14:19:53Z",
+          "updated_at": "2026-09-04T14:19:55Z"
+        },
+        {
+          "id": 544444193,
+          "name": "Alundra-Recomp-0.3.6-macos-x64.zip",
+          "size": 26137055,
+          "state": "uploaded",
+          "digest": "sha256:501bcce394445945a081aa76d175f47891d4de05dfa9fe580c2fc662452624c3",
+          "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-macos-x64.zip",
+          "created_at": "2026-09-04T14:19:57Z",
+          "updated_at": "2026-09-04T14:19:59Z"
+        },
+        {
+          "id": 544444294,
+          "name": "Alundra-Recomp-0.3.6-windows-x64.zip",
+          "size": 30152761,
+          "state": "uploaded",
+          "digest": "sha256:bb6883acd83b54d24857fa045192567e5716ca5476521b79e1887303a75a9a9f",
+          "browser_download_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp/releases/download/v0.3.6/Alundra-Recomp-0.3.6-windows-x64.zip",
+          "created_at": "2026-09-04T14:20:02Z",
+          "updated_at": "2026-09-04T14:20:03Z"
+        }
+      ]
+    }
+  ]
+}

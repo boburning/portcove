@@ -6,6 +6,7 @@ import {
   activityPresentationState,
   currentUpdateSnapshot,
   errorText,
+  failurePresentation,
   releaseChannelPresentation,
 } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
@@ -34,7 +35,8 @@ import type {
 } from "../types";
 import { EmptyState, Icon } from "./ui";
 import { Button } from "./ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { UpdateBatchRead } from "../features/port-updates/use-update-center";
 import type { ActivitySettingsTarget } from "../features/app-shell/focus-settings-target";
 
 const initialActivityNowSeconds = Date.now() / 1000;
@@ -95,6 +97,7 @@ export function UpdateCenter({
   activities,
   activityFeed,
   outcomes,
+  batchRead,
   busy,
   checkAll,
   onSelect,
@@ -120,11 +123,14 @@ export function UpdateCenter({
   activities: ActivityRecord[];
   activityFeed?: ActivityFeed;
   outcomes: UpdateCheckOutcome[];
+  batchRead?: UpdateBatchRead;
   busy?: string;
-  checkAll: () => void;
+  checkAll: () => void | Promise<void>;
   onSelect: (portId: string, originKey?: string) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
+  const earlierBatch =
+    batchRead !== undefined && ["pending", "failed", "cancelled"].includes(batchRead.status);
   const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
   useEffect(() => {
     const refreshNow = () => setNowSeconds(Date.now() / 1000);
@@ -168,7 +174,7 @@ export function UpdateCenter({
         <div className="update-stats grid grid-cols-[repeat(4,minmax(78px,1fr))] gap-2">
           <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
           <UpdateStat
-            label="Updates available"
+            label={earlierBatch ? "Updates at last check" : "Updates available"}
             value={
               installed.length === 0
                 ? "—"
@@ -187,22 +193,21 @@ export function UpdateCenter({
             icon={ShieldCheck}
             accent={staged > 0}
           />
-          <UpdateStat label="Failed" value={failed} icon={AlertTriangle} warning={failed > 0} />
+          <UpdateStat
+            label={earlierBatch ? "Failed at last check" : "Failed"}
+            value={earlierBatch && !batchRead?.hasResults ? "Unknown" : failed}
+            icon={AlertTriangle}
+            warning={failed > 0}
+          />
         </div>
-        <div className="update-buttons flex items-center gap-2">
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy) || installed.length === 0}
-            onClick={checkAll}
-          >
-            <Icon glyph={RefreshCw} />
-            {busy === "check installed"
-              ? "Checking installed ports…"
-              : "Check installed ports for updates"}
-          </Button>
-        </div>
+        <UpdateCheckControl
+          busy={busy}
+          status={batchRead?.status}
+          hasInstalled={installed.length > 0}
+          checkAll={checkAll}
+        />
       </div>
+      <UpdateBatchNotice read={batchRead} />
       <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
         Checking only looks for updates. Open a game below to review a download or installation.
         Saving its update settings runs no update.
@@ -220,7 +225,8 @@ export function UpdateCenter({
       </p>
       {installed.length > 0 && (
         <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Update results cover {checked.length} of {installed.length} installed games.
+          {earlierBatch ? "Earlier update results cover " : "Update results cover "}
+          {checked.length} of {installed.length} installed games.
           {latestSavedCheck > 0 && ` Latest saved check: ${formatActivityTime(latestSavedCheck)}.`}
         </p>
       )}
@@ -241,53 +247,66 @@ export function UpdateCenter({
             const status = statuses.get(port.id)!;
             const outcome = byPort.get(port.id);
             const savedCheck = savedByPort.get(port.id)?.check;
-            const state = updateState(status, outcome, savedCheck);
+            const state = updateState(status, outcome, savedCheck, earlierBatch);
+            const failure = failurePresentation(outcome?.error);
             return (
-              <button
-                data-focusable
-                data-detail-origin={`updates:installed:${port.id}`}
-                className={updateRowClass}
-                key={port.id}
-                title={outcome?.error ? errorText(outcome.error) : undefined}
-                onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
-              >
-                <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
-                  {port.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="update-title min-w-0">
-                  <strong className="block text-sm">{port.name}</strong>
-                  <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
-                    {releaseChannelPresentation(status.channel).label} ·{" "}
-                    {policyLabel(status.update_policy)}
-                  </small>
-                </div>
-                <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
-                  <div className="update-version min-w-0">
-                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                      Installed
-                    </small>
-                    <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
-                      {status.active?.version}
-                    </span>
+              <div key={port.id} className="grid min-w-0 gap-2">
+                <button
+                  data-focusable
+                  data-detail-origin={`updates:installed:${port.id}`}
+                  className={updateRowClass}
+                  onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
+                >
+                  <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
+                    {port.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <div className="update-version min-w-0">
-                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                      Latest eligible
+                  <div className="update-title min-w-0">
+                    <strong className="block text-sm">{port.name}</strong>
+                    <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+                      {releaseChannelPresentation(status.channel).label} ·{" "}
+                      {policyLabel(status.update_policy)}
                     </small>
-                    <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
-                      {releaseLabel(effectiveCheck(port.id), outcome)}
-                    </span>
                   </div>
-                </div>
-                <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
-                  {state.label}
-                </span>
+                  <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
+                    <div className="update-version min-w-0">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                        Installed
+                      </small>
+                      <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                        {status.active?.version}
+                      </span>
+                    </div>
+                    <div className="update-version min-w-0">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                        {earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
+                      </small>
+                      <span className="mt-[3px] block text-sm text-[var(--color-text-secondary)] [overflow-wrap:anywhere]">
+                        {releaseLabel(effectiveCheck(port.id), outcome)}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
+                    {state.label}
+                  </span>
+                </button>
                 {outcome?.error && (
-                  <small className="update-error col-[2/-1] overflow-hidden text-ellipsis whitespace-nowrap text-pc-danger-foreground">
-                    {errorText(outcome.error)}
-                  </small>
+                  <section
+                    aria-label={`Update check failure for ${port.name}`}
+                    data-update-check-failure={port.id}
+                    className="min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
+                  >
+                    <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
+                    {failure && (
+                      <FailureDetails
+                        key={JSON.stringify({ code: outcome.error.code, presentation: failure })}
+                        presentation={failure}
+                        code={outcome.error.code}
+                        showMutationSummary={false}
+                      />
+                    )}
+                  </section>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -359,6 +378,70 @@ export function UpdateCenter({
         nowSeconds={nowSeconds}
       />
     </section>
+  );
+}
+
+function UpdateCheckControl({
+  busy,
+  status,
+  hasInstalled,
+  checkAll,
+}: {
+  busy?: string;
+  status?: UpdateBatchRead["status"];
+  hasInstalled: boolean;
+  checkAll: () => void | Promise<void>;
+}) {
+  const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
+  return (
+    <div className="update-buttons flex items-center gap-2">
+      <Button
+        data-focusable
+        variant="outline"
+        disabled={Boolean(busy) || status === "pending" || !hasInstalled}
+        onClick={() => {
+          if (pendingCheck.current === checkAll) return;
+          pendingCheck.current = checkAll;
+          void Promise.resolve(checkAll()).finally(() => {
+            if (pendingCheck.current === checkAll) pendingCheck.current = undefined;
+          });
+        }}
+      >
+        <Icon glyph={RefreshCw} />
+        {busy === "check installed" || status === "pending"
+          ? "Checking installed ports…"
+          : status === "failed" || status === "cancelled"
+            ? "Retry update check"
+            : "Check installed ports for updates"}
+      </Button>
+    </div>
+  );
+}
+
+function UpdateBatchNotice({ read }: { read?: UpdateBatchRead }) {
+  if (!read || read.status === "idle" || read.status === "current") return null;
+  return (
+    <div
+      className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground"
+      role="status"
+    >
+      <strong>
+        {read.status === "pending"
+          ? "Checking for updates"
+          : read.status === "cancelled"
+            ? "Update check cancelled"
+            : "Update check did not finish"}
+      </strong>
+      <p>
+        {read.status === "pending"
+          ? "Showing earlier results while the current check runs, where available."
+          : "Current update results are unavailable. Earlier results remain shown where available."}
+      </p>
+      <p>Retry only checks for updates. Open a game to review any download or installation.</p>
+      {read.status === "failed" && read.failure && (
+        <FailureDetails presentation={read.failure} showMutationSummary={false} />
+      )}
+    </div>
   );
 }
 
@@ -760,6 +843,7 @@ function updateState(
   status: PortStatus,
   outcome?: UpdateCheckOutcome,
   savedCheck?: UpdateCheck,
+  earlier = false,
 ): { label: string; tone: UpdateTone } {
   if (!outcome) {
     if (status.staged) return { label: "Update saved for later", tone: "staged" };
@@ -768,9 +852,18 @@ function updateState(
     if (savedCheck) return { label: "No update found at last check", tone: "current" };
     return { label: "Not checked", tone: "muted" };
   }
-  if (!outcome.ok) return { label: "Check failed", tone: "failed" };
+  if (!outcome.ok)
+    return { label: earlier ? "Earlier check failed" : "Check failed", tone: "failed" };
   if (status.staged) return { label: "Update saved for later", tone: "staged" };
-  if (!outcome.result) return { label: "Check result unavailable", tone: "muted" };
-  if (outcome.result.update_available) return { label: "Update available", tone: "available" };
+  if (!outcome.result)
+    return {
+      label: earlier ? "Earlier check result unavailable" : "Check result unavailable",
+      tone: "muted",
+    };
+  if (outcome.result.update_available)
+    return {
+      label: earlier ? "Update available at last check" : "Update available",
+      tone: "available",
+    };
   return { label: "No update found at last check", tone: "current" };
 }

@@ -26,7 +26,7 @@ namespace Portcove.ReferenceClient
         private static GuidedSetup Step(GuidedStepKind kind, string label, string detail) =>
             new GuidedSetup { Kind = kind, Label = label, Detail = detail };
 
-        internal static GuidedSetup Choose(object status, object catalog, string sourcePath, string biosPath)
+        internal static GuidedSetup Choose(object status, object catalog, string sourcePath, string biosPath, bool reviewedExternal = false)
         {
             var sourceProfile = Json.OptionalText(catalog, "source_profile");
             var biosProfile = Json.OptionalText(catalog, "bios_source_profile");
@@ -82,6 +82,9 @@ namespace Portcove.ReferenceClient
                 value == "unreadable_bios" || value == "changed_bios"))
                 return Step(GuidedStepKind.ChooseBios, "Choose BIOS file…",
                     "Choose your own BIOS file. Portcove will validate it before use.");
+            if (external && !installed && !reviewedExternal)
+                return Step(GuidedStepKind.ReviewProblem, "Update Portcove CLI",
+                    "Reviewed external registration requires public API schema 67 and external.review. Update the selected CLI; existing managed Play remains available.");
             if (external)
                 return installed ? Step(GuidedStepKind.ReviewProblem, "Review external runtime",
                     "This player-owned runtime is registered but cannot launch. Review the readiness and launch-action reasons above; refresh after resolving them.") :

@@ -1,5 +1,7 @@
 # Build an external Portcove client
 
+Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+
 Start with a verified standalone CLI and an explicit library. The
 [public releases](https://github.com/boburning/portcove/releases) provide separate
 CLI packages; follow their checksum instructions. This guide's schema-42 launch
@@ -22,6 +24,26 @@ interpret.
 
 ## Discover and bind
 
+Agents use this same public route, with an identified verified CLI and explicit
+fixture or player-selected library. Inspect capabilities and output/event schemas,
+then requirements/readiness, review the supported plan, execute only within its
+matching consent, and inspect the terminal response and current state. Use the
+management and reconnect examples below; do not invent a command or per-port
+rule when a public answer is missing. Report that gap to its current owner.
+
+After lost output or interruption, inspect retained activity and current state
+before selecting another mutation. `doctor` and `status` reads do not perform
+recovery. Use only the operation-specific recovery actually advertised. There is
+no universal replay, exactly-once, detached-lifetime or resumable-preparation
+contract. Setup, observed launch and gameplay/device qualification are separate
+claims. Preserve unknown outcomes and share only selected redacted diagnostics.
+
+The completed #30/#243 consumer evidence and existing redistributable reference
+fixtures are reusable at their actual inputs and scope. An identified-agent
+exercise is further evidence, not a reason to repeat every unchanged check or
+claim an unattended service. Record artifact, environment, scenario, observations,
+limits and a bounded continuation state through the existing evidence workflow.
+
 Use the runtime's argument-array API with shell execution disabled. These are
 program/argument objects, not shell command strings:
 
@@ -35,7 +57,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference's current window is API 42–59/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–67/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -48,6 +70,52 @@ and reject unknown consequential enum values or a different used schema with a
 migration message. Future client revisions should extend that window only after
 matching fixtures and package tests. The product version is descriptive, never a
 substitute for these checks. Export authoritative schemas with `schema export`.
+
+API 65 adds explicit `source.query` game-file refresh, tracked as the existing
+`verify_source` activity with a Library target. Its inputs select routes and resource limits;
+inspection batches remain private to Core. The client does not invoke this
+optional command and does not infer readiness from its game-file observations.
+Private schemas 58, 59 and the retained unmerged 64 candidate remain rejected;
+65 does not require that candidate's game-update review fields. Existing launch,
+lifecycle and backup decisions keep their earlier contracts.
+
+Schema 60 introduces retained rollback assessment in status. The reference
+validates exactly one rollback decision per status against the envelope version,
+including batched status, and presents its reason. Supported tuples are
+`allowed/available`, `not_offered/not_installed`,
+`not_offered/route_not_offered` when the port has left the current catalog, and `held` with
+`missing_runtime` or `invalid_installation`; a definition decision cannot replace
+these retained-target checks. Legacy envelopes cannot carry this action. The
+supported membership excludes private paired schemas 58 and 59; accepting 60
+does not imply support for every intervening integer. Event schemas stay 2–3.
+No new client rollback command is exposed and no published package is inferred.
+
+Schema 61 adds exact revoked-artifact and distribution-withdrawal reasons. The
+reference consumes both through install/launch status and its management summary;
+withdrawal cannot become a Launch hold. It admits only the exact revoked-artifact
+rollback tuple described in the CLI contract. Contradictory outcomes, unknown
+reasons and schema-61 meanings carried by older envelopes are refused, including
+batched status. These source changes do not qualify an installed client update.
+
+Schema 66 requires one current `update` decision in every port status. The
+reference displays its stable reason, rejects absent/duplicate or contradictory
+decisions, and rejects this meaning in older envelopes. A status decision cannot
+be `allowed`: only explicit Core candidate review can report a usable update.
+Non-owning routes remain outside managed updates. API and event windows remain
+independent; this change does not alter events 2–3 or grant execution authority.
+
+Schema 62 requires `create_assessment` on backup inventory. Consume the exact
+`backup_create` availability/reason tuple before presenting creation. Schema 63
+also requires `restore_assessment` with action `backup_restore`; consume its
+current availability/reason separately from Delete. Missing, stale or failed
+inventory reads do not establish Restore eligibility. An eligible snapshot still
+requires exact review, fingerprint, consent and locked execution. Do not
+infer it from whether an installation or a backup row exists. Retained owned
+data and collectible managed saves are distinct from unknown external saves.
+An incomplete bounded assessment cannot establish empty data or impose a new
+backup execution cap. The reference validates this contract on `backup.list`
+results, rejects it in older envelopes, and keeps private schemas 58/59 outside
+its accepted window. Source parity remains separate from installed updates.
 
 Runtime discovery is a trust boundary, not permission to execute the first file
 with a matching name. Ask the user to select or approve a verified compatible
@@ -116,7 +184,7 @@ failure does not imply earlier registration was undone.
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's 42–59 window. Some
+schema within the client's supported 42–57, 60–63 or 65–67 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
@@ -205,7 +273,58 @@ batch reads over one CLI process per game, and refresh incrementally where the
 public contract supports it. These measurements may expose a contract gap; they
 do not by themselves justify a daemon, hidden cache authority or invented command.
 
+## Representative source-built developer checks
+
+The source-built Core/public CLI route can exercise disposable installation,
+checksum refusal and controlled interruption without a published package or
+personal game files. Provision the checkout's pinned Core capabilities explicitly
+first; ordinary checks do not install tools. These commands use the existing
+guarded Rust runner and compile the selected CLI from that checkout:
+
+```powershell
+node scripts/run-rust-tests.mjs --locked -p portcove-cli --test machine_contract -E 'test(preparation_plan_reports_missing_inputs_without_starting_work)'
+node scripts/run-rust-tests.mjs --locked -p portcove-core --lib -E 'test(runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes) | test(package_checksum_refusal_preserves_active_install_and_user_data) | test(cancellation_before_prepared_cleans_private_data) | test(cancellation_after_prepared_finishes_publication) | test(interrupted_requested_preparation_is_discarded_without_touching_user_data)'
+```
+
+The CLI case reads the public preparation plan, structured blocking reasons,
+activity completeness and exported schemas from a disposable library. It starts
+no preparation or game process. Core's existing fixture serves tiny synthetic ZIP
+archives on loopback and uses the real installer, verification, activity and
+lifecycle cleanup. The package checksum case retains the previous verified
+installation and exact saved bytes after refusal, including fresh-library
+readback. The cancellation cases distinguish cleanup before publication admission
+from completing an already admitted publication. The interrupted private-intent
+case verifies restart cleanup and preserved user data. These are precise
+operation-specific outcomes, not a general process-kill, replay or resumability
+contract. No fixture executable is launched by this selection.
+
+Loopback fixture traffic does not establish that external networking was denied.
+For the offline acceptance, execute the selected checks only through an existing
+approved environment that denies external network access while allowing the
+fixture's loopback traffic. Retain the enforced boundary and its actual readback,
+exact checkout and compiled CLI identity, pinned tool observations, archive byte
+identities, selected commands, disposable library and terminal/current-state
+results. Cargo's `--locked` protects dependency resolution; it is not a network
+isolation switch. Do not provision during the denied-network execution.
+
+If that environment boundary is unavailable, retain the refusal and leave only
+the external-network-denied criterion pending until an approved capable route is
+available; continue independent fixture work. A namespace permission failure
+does not authorize escalation or a security override. Label Linux and Windows
+results separately and obtain both before claiming representative portability.
+Prepared execution, warm reuse, successful cold acquisition, source-built CLI
+proof and an identified packaged-agent exercise remain separate evidence.
+
 ## Troubleshooting and conformance
+
+The [October 11 packaged-agent evidence map](archive/2026-10-11-packaged-agent-consumer.md)
+records the identified local Windows/Linux candidates, public preparation,
+negative cases, cancellation and lost-output readback. Reuse each result only at
+its stated artifact, fixture and environment scope. In particular, an obstructed
+library path is not a disk-full test, synthetic setup is not retail-source or
+gameplay qualification, and a local package is not a published release. This map
+also identifies accepted source-built offline checks separately from packaged
+consumer observations and retains their failed admission evidence.
 
 | Observation                         | Client response                                                                                                             |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |

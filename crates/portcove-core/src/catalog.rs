@@ -11,6 +11,27 @@ use crate::{
 
 const EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 
+/// Inert declaration checks only; neither trust nor artifact/runtime acceptance.
+#[derive(Debug, serde::Serialize, schemars::JsonSchema)]
+pub struct CatalogProposalInspection {
+    pub format_version: u32,
+    pub input_sha256: String,
+    pub input_bytes: u64,
+    pub catalog_schema: u32,
+    pub ports: Vec<CatalogProposalPortInspection>,
+    pub scope: &'static str,
+}
+
+#[derive(Debug, serde::Serialize, schemars::JsonSchema)]
+pub struct CatalogProposalPortInspection {
+    pub port_id: String,
+    pub definition_sha256: String,
+    pub check: &'static str,
+    /// Hashes declared records; evidence references remain unauthenticated.
+    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub curated_record_sha256: std::collections::BTreeMap<crate::Platform, String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct Catalog {
     document: CatalogDocument,
@@ -19,6 +40,47 @@ pub struct Catalog {
 }
 
 impl Catalog {
+    /// Reuse the ordinary validator on one bounded input, without opening a
+    /// library, resolving releases, executing a template or establishing trust.
+    pub fn inspect_proposal(path: &Path) -> Result<CatalogProposalInspection> {
+        use sha2::{Digest, Sha256};
+        let bytes = crate::path::read_bounded_regular(path, 4 * 1024 * 1024)?;
+        let _: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
+        let value = std::str::from_utf8(&bytes)
+            .map_err(|_| PortcoveError::usage("catalog proposal must be valid UTF-8"))?;
+        let catalog = Self::from_json(value)?;
+        let ports = catalog
+            .ports()
+            .iter()
+            .map(|port| {
+                Ok(CatalogProposalPortInspection {
+                    port_id: port.id.clone(),
+                    definition_sha256: hex::encode(Sha256::digest(serde_json::to_vec(port)?)),
+                    check: "catalog-declared-contract-validation",
+                    curated_record_sha256: port
+                        .release
+                        .curated
+                        .iter()
+                        .map(|(platform, record)| {
+                            Ok((
+                                *platform,
+                                hex::encode(Sha256::digest(serde_json::to_vec(record)?)),
+                            ))
+                        })
+                        .collect::<Result<_>>()?,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(CatalogProposalInspection {
+            format_version: 1,
+            input_sha256: hex::encode(Sha256::digest(&bytes)),
+            input_bytes: bytes.len() as u64,
+            catalog_schema: catalog.document().schema_version,
+            ports,
+            scope: "inert-catalog-declarations; no trust, acquisition, runtime or publication acceptance",
+        })
+    }
+
     pub fn embedded() -> Result<Self> {
         #[cfg(feature = "qualification-fixtures")]
         if let Some(path) = std::env::var_os("PORTCOVE_QUALIFICATION_CATALOG") {
@@ -557,6 +619,23 @@ impl Catalog {
             }
             // Maintenance state describes the upstream; exact source and operation
             // contracts decide whether this port can be admitted and used.
+            if !port.release.curated.is_empty() {
+                if self.document.schema_version != 2
+                    || port.release.provider != ReleaseSource::Github
+                {
+                    return Err(PortcoveError::unsupported(
+                        "curated records require a schema-2 GitHub proposal",
+                    ));
+                }
+                for (platform, record) in &port.release.curated {
+                    if !port.platforms.contains(platform) {
+                        return Err(PortcoveError::usage(
+                            "curated record platform is not declared",
+                        ));
+                    }
+                    record.validate(&port.release.repository, *platform)?;
+                }
+            }
             match port.release.provider {
                 ReleaseSource::Github | ReleaseSource::Gitlab => {
                     if !valid_repository_path(&port.release.repository)
@@ -610,6 +689,14 @@ impl Catalog {
                     }
                 }
                 ReleaseSource::UserPrepared => {
+                    if port.runtime_subdirectory.is_some()
+                        && port.adapter != AdapterKind::StagedSourcePortable
+                    {
+                        return Err(PortcoveError::usage(format!(
+                            "{} prepared runtime subdirectory requires staged-source portable",
+                            port.id
+                        )));
+                    }
                     if port.channels != [ReleaseChannel::Stable]
                         || port.release.rolling_tag.is_some()
                         || !port.release.direct.is_empty()
@@ -635,6 +722,9 @@ impl Catalog {
                             || runtime.archive_size == 0
                             || !is_sha256(&runtime.archive_sha256)
                             || !is_sha256(&runtime.immutable_tree_sha256)
+                            || (runtime.library_user_data
+                                && (port.adapter != AdapterKind::StagedSourcePortable
+                                    || port.user_data_environment.is_none()))
                             || !is_safe_executable_hint(&runtime.executable, *platform)
                             || port.executable_hints.get(platform).is_none_or(|hints| {
                                 hints.len() != 1
@@ -684,6 +774,7 @@ impl Catalog {
                 }
             }
             crate::runtime::validate(port)?;
+            crate::n64_graphics::validate(port)?;
             for pattern in &port.persistent_file_patterns {
                 pattern.validate()?;
             }
@@ -1209,13 +1300,13 @@ fn valid_direct_release_url(value: &str) -> bool {
         let Ok(url) = reqwest::Url::parse(value) else {
             return false;
         };
-        return url.scheme() == "http"
+        url.scheme() == "http"
             && url.host_str() == Some("127.0.0.1")
             && url.port().is_some()
             && url.username().is_empty()
             && url.password().is_none()
             && url.query().is_none()
-            && url.fragment().is_none();
+            && url.fragment().is_none()
     }
     #[cfg(not(feature = "qualification-fixtures"))]
     false
@@ -1267,9 +1358,142 @@ mod tests {
     use super::*;
     use sha2::{Digest, Sha256};
 
+    #[test]
+    fn proposal_inspection_binds_declared_checks_to_exact_bytes_without_mutation() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("proposal.json");
+        std::fs::write(&path, EMBEDDED_CATALOG).unwrap();
+        let report = Catalog::inspect_proposal(&path).unwrap();
+        assert_eq!(
+            report.input_sha256,
+            hex::encode(Sha256::digest(EMBEDDED_CATALOG.as_bytes()))
+        );
+        assert_eq!(report.input_bytes, EMBEDDED_CATALOG.len() as u64);
+        let catalog = Catalog::embedded().unwrap();
+        assert_eq!(report.ports.len(), catalog.ports().len());
+        for (checked, port) in report.ports.iter().zip(catalog.ports()) {
+            assert_eq!(checked.port_id, port.id);
+            assert_eq!(
+                checked.definition_sha256,
+                hex::encode(Sha256::digest(serde_json::to_vec(port).unwrap()))
+            );
+            assert_eq!(checked.check, "catalog-declared-contract-validation");
+        }
+        assert!(report.scope.contains("no trust"));
+        assert_eq!(std::fs::read(&path).unwrap(), EMBEDDED_CATALOG.as_bytes());
+        assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn proposal_inspection_refuses_unsafe_or_unsupported_declarations_and_duplicate_keys() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("proposal.json");
+        for field in [
+            "persistent_paths",
+            "executable_hints",
+            "adapter",
+            "source_profile",
+        ] {
+            let mut value: serde_json::Value = serde_json::from_str(EMBEDDED_CATALOG).unwrap();
+            value["ports"][0][field] = match field {
+                "persistent_paths" => serde_json::json!(["../escape"]),
+                "executable_hints" => serde_json::json!({"windows-x86-64": ["../escape.exe"]}),
+                "adapter" => serde_json::json!("unimplemented-policy-template"),
+                _ => serde_json::json!("missing-proposal-source"),
+            };
+            std::fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+            assert!(Catalog::inspect_proposal(&path).is_err(), "{field}");
+        }
+        std::fs::write(
+            &path,
+            br#"{"schema_version":2,"ports":[],"ports":[],"source_catalog":{}}"#,
+        )
+        .unwrap();
+        assert!(Catalog::inspect_proposal(&path).is_err());
+    }
+
+    #[test]
+    fn proposal_inspection_bounds_file_and_refuses_malformed_inputs() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("proposal.json");
+        assert!(Catalog::inspect_proposal(root.path()).is_err());
+        for bytes in [vec![0xff], b"{".to_vec(), vec![b' '; 4 * 1024 * 1024 + 1]] {
+            std::fs::write(&path, bytes).unwrap();
+            assert!(Catalog::inspect_proposal(&path).is_err());
+        }
+    }
+
     const SCHEMA_1_ADMISSION_BASELINE: &str =
         include_str!("../catalog/catalog-schema1-admission-baseline.json");
     const SCHEMA_1_CATALOG_FIXTURE: &str = include_str!("../catalog/catalog-schema1-fixture.json");
+
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct ReviewedLegacyAdditions {
+        source_profile_ids: Vec<String>,
+        port_ids: Vec<String>,
+    }
+
+    fn reviewed_legacy_additions(legacy: &Catalog, current: &Catalog) -> ReviewedLegacyAdditions {
+        let additions: ReviewedLegacyAdditions = serde_json::from_str(include_str!(
+            "../catalog/catalog-legacy-additions-fixture.json"
+        ))
+        .expect("independently reviewed additive expectations");
+        for (ids, frozen) in [
+            (
+                &additions.source_profile_ids,
+                legacy
+                    .document()
+                    .source_profiles
+                    .iter()
+                    .map(|profile| profile.id.as_str())
+                    .collect::<HashSet<_>>(),
+            ),
+            (
+                &additions.port_ids,
+                legacy
+                    .document()
+                    .ports
+                    .iter()
+                    .map(|port| port.id.as_str())
+                    .collect::<HashSet<_>>(),
+            ),
+        ] {
+            assert!(!ids.is_empty());
+            assert_eq!(ids.iter().collect::<HashSet<_>>().len(), ids.len());
+            for id in ids {
+                assert!(
+                    id.split('-').all(|part| !part.is_empty()
+                        && part
+                            .bytes()
+                            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())),
+                    "invalid expected identity: {id}"
+                );
+                assert!(
+                    !frozen.contains(id.as_str()),
+                    "expected addition overlaps legacy: {id}"
+                );
+            }
+        }
+        for id in &additions.source_profile_ids {
+            assert!(
+                current
+                    .source_catalog()
+                    .unwrap()
+                    .identities
+                    .iter()
+                    .any(|profile| &profile.id == id),
+                "missing independently expected profile: {id}"
+            );
+        }
+        for id in &additions.port_ids {
+            assert!(
+                current.port(id).is_ok(),
+                "missing independently expected port: {id}"
+            );
+        }
+        additions
+    }
 
     fn canonical_json(value: &mut serde_json::Value) {
         match value {
@@ -1302,6 +1526,199 @@ mod tests {
         assert!(!valid_direct_release_url(
             "http://127.0.0.1:43210/fixture.tar.gz"
         ));
+    }
+
+    #[test]
+    fn dkc3_recomp_pins_only_the_nonowning_windows_prepared_route() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("dkc3-recomp").unwrap();
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.release.provider, ReleaseSource::UserPrepared);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert!(port.persistent_paths.is_empty());
+        assert!(port.runtime_source_filename.is_none());
+        assert!(port.setup_executable_hints.is_empty());
+        assert!(port.launch_arguments.is_empty());
+        assert!(port.release.direct.is_empty());
+        assert!(port.release.asset_hints.is_empty());
+        assert_eq!(port.launch_environment.len(), 1);
+        assert_eq!(port.launch_environment["SNESRECOMP_NO_LAUNCHER"], "1");
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        assert_eq!(runtime.version, "v0.0.6");
+        assert_eq!(runtime.archive_name, "DKC3Recomp-v0.0.6-windows-x64.zip");
+        assert_eq!(runtime.archive_size, 6_009_000);
+        assert_eq!(
+            runtime.archive_sha256,
+            "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11"
+        );
+        assert_eq!(runtime.executable, "DKC3Recomp.exe");
+        assert_eq!(
+            runtime.immutable_tree_sha256,
+            "3b8e1a483ada9a544a084717eba4eeb5c8f4b7168cda85b3697776f1a0dacdee"
+        );
+        assert_eq!(runtime.source_argument_extension.as_deref(), Some("sfc"));
+        assert_eq!(
+            runtime.mutable_paths,
+            [
+                "saves",
+                "launcher.cfg",
+                "rom.cfg",
+                "performance.log",
+                "diagnostics",
+                "keybinds.ini",
+                ".snesrecomp_write_probe"
+            ]
+        );
+        let source_catalog = catalog.source_catalog().unwrap();
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(runtime.archive_sha256.clone()),
+            upstream_ref: Some(runtime.version.clone()),
+            contract_id: Some("dkc3-recomp-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "dkc3-na-en-fr".into(),
+                    variant_id: "north-america-en-fr".into(),
+                    representation_id: "headerless-sfc".into(),
+                },
+            },
+            check_version: Some("dkc3-prepared-windows-qualification-v1".into()),
+        };
+        let qualification = source_catalog.assess_qualification(&scope);
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.known_failure,
+            crate::QualificationEvidenceState::Failed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        let different_artifact = crate::SourceEvidenceScope {
+            artifact_sha256: Some("0".repeat(64)),
+            ..scope
+        };
+        let unqualified = source_catalog.assess_qualification(&different_artifact);
+        assert_eq!(
+            unqualified.automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            unqualified.known_failure,
+            crate::QualificationEvidenceState::Missing
+        );
+        let profile = catalog.source_profile("dkc3-na-en-fr").unwrap();
+        assert_eq!(port.source_profile.as_deref(), Some(profile.id.as_str()));
+        assert_eq!(profile.accepted_extensions, ["sfc"]);
+        assert!(profile.accepted_sha1.is_empty());
+        assert_eq!(
+            profile.accepted_sha256,
+            ["2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b"]
+        );
+    }
+
+    #[test]
+    fn f_zero_snes_recomp_pins_an_unqualified_nonowning_windows_route() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("f-zero-snes-recomp").unwrap();
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        assert!(port.persistent_paths.is_empty());
+        assert!(port.runtime_source_filename.is_none());
+        assert!(port.setup_executable_hints.is_empty());
+        assert!(port.launch_arguments.is_empty());
+        assert_eq!(port.release.provider, ReleaseSource::UserPrepared);
+        assert!(port.release.direct.is_empty());
+        assert!(port.release.asset_hints.is_empty());
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        assert_eq!(runtime.version, "v1.8.3");
+        assert_eq!(
+            runtime.archive_name,
+            "FZeroSNESRecomp-1.8.3-windows-x64.zip"
+        );
+        assert_eq!(runtime.archive_size, 8_247_843);
+        assert_eq!(
+            runtime.archive_sha256,
+            "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+        );
+        assert_eq!(runtime.executable, "FZeroSNESRecomp.exe");
+        assert_eq!(
+            runtime.immutable_tree_sha256,
+            "41d4aea0b97cfe01dc26cf7e2a7c509f7f0030688ed66760d82a3efb69f69eb6"
+        );
+        assert_eq!(runtime.source_argument_extension.as_deref(), Some("sfc"));
+        assert!(
+            !runtime
+                .mutable_paths
+                .iter()
+                .any(|path| { path == &runtime.executable || path.starts_with("crash_report_") })
+        );
+        let source_catalog = catalog.source_catalog().unwrap();
+        assert!(
+            source_catalog
+                .qualification
+                .iter()
+                .all(|record| { record.scope.port_id != "f-zero-snes-recomp" })
+        );
+        let profile = catalog.source_profile("f-zero-snes-usa").unwrap();
+        assert_eq!(profile.accepted_extensions, ["sfc"]);
+        assert_eq!(
+            profile.accepted_sha1,
+            ["d3efd32b68f1fe37a82db9d9929b7ca7cc1a3af4"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            ["bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2"]
+        );
+    }
+
+    #[test]
+    fn f_zero_snes_recomp_source_binding_admits_only_exact_raw_sfc() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "f-zero-snes-usa")
+            .unwrap();
+        let crate::SourceRepresentationKind::RawFile { identities } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("F-Zero uses an exact original file, not N64 normalization")
+        };
+        // Exercise this binding with redistributable bytes, never a game ROM.
+        let bytes = b"synthetic headerless source fixture";
+        identities[0].sha1 = Some(hex::encode(sha1::Sha1::digest(bytes)));
+        identities[0].sha256 = Some(hex::encode(Sha256::digest(bytes)));
+        let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("owned.sfc");
+        std::fs::write(&source, bytes).unwrap();
+        let admitted = crate::source_inspection::inspect(&catalog, "f-zero-snes-usa", &source)
+            .unwrap()
+            .require_admitted_record()
+            .unwrap();
+        assert_eq!(admitted.size, bytes.len() as u64);
+        for changed in [
+            [vec![0_u8; 512], bytes.to_vec()].concat(),
+            b"synthetic changed source fixture".to_vec(),
+        ] {
+            std::fs::write(&source, changed).unwrap();
+            assert!(
+                crate::source_inspection::inspect(&catalog, "f-zero-snes-usa", &source)
+                    .unwrap()
+                    .require_admitted_record()
+                    .is_err()
+            );
+        }
     }
 
     #[cfg(feature = "qualification-fixtures")]
@@ -1384,31 +1801,18 @@ mod tests {
     fn schema_2_compatibility_projection_preserves_every_schema_1_profile() {
         let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
         let migrated = Catalog::embedded().unwrap();
+        let additions = reviewed_legacy_additions(&legacy, &migrated);
         assert_eq!(migrated.document().schema_version, 2);
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
         assert_eq!(
             source_catalog.identities.len(),
-            legacy.document().source_profiles.len() + 10
+            legacy.document().source_profiles.len() + additions.source_profile_ids.len()
         );
         let projected_legacy_profiles = migrated
             .document()
             .source_profiles
             .iter()
-            .filter(|profile| {
-                ![
-                    "pokemon-snap",
-                    "castlevania-legacy-of-darkness",
-                    "diddy-kong-racing-golden-balloon",
-                    "star-fox-enhanced-usa-v1-0",
-                    "duke-nukem-zero-hour",
-                    "ape-escape-psx",
-                    "mega-man-x5-psx",
-                    "paperboat-paper-mario-us",
-                    "open-nectar-pikmin-disc",
-                    "wave-race-64",
-                ]
-                .contains(&profile.id.as_str())
-            })
+            .filter(|profile| !additions.source_profile_ids.contains(&profile.id))
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(
@@ -1483,6 +1887,8 @@ mod tests {
             .find(|port| port.id == "dr-mario-64-recomp")
             .unwrap();
         dr_mario.project_url = "https://github.com/theboy181/drmario64_recomp_plus".into();
+        dr_mario.summary = "Native Dr. Mario 64 recompilation. Fresh Windows settings use the qualified D3D12 route; existing settings are preserved. Auto/Vulkan failed on AMD RX 9070 XT driver 32.0.31041.1004; select D3D12 in graphics.json on that configuration.".into();
+        dr_mario.n64_windows_initial_d3d12 = true;
         dr_mario.support_tier = crate::SupportTier::Beta;
         dr_mario.release.repository = "theboy181/drmario64_recomp_plus".into();
         dr_mario.release.asset_hints.insert(
@@ -1561,21 +1967,7 @@ mod tests {
             .document()
             .ports
             .iter()
-            .filter(|port| {
-                ![
-                    "snap64-recomp",
-                    "cvlod-recomp",
-                    "diddy-kong-racing-golden-balloon",
-                    "star-fox-enhanced",
-                    "duke-nukem-zero-hour-recompiled",
-                    "ape-escape-recompiled",
-                    "mega-man-x5-recompiled",
-                    "paperboat",
-                    "open-nectar-pikmin",
-                    "wave-race-64-recomp",
-                ]
-                .contains(&port.id.as_str())
-            })
+            .filter(|port| !additions.port_ids.contains(&port.id))
             .cloned()
             .collect::<Vec<_>>();
         // Presentation and concise summaries are additive schema-2 client
@@ -1594,7 +1986,14 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 18);
+        assert_eq!(qualification.len(), 20);
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "dkc3-recomp")
+                .count(),
+            2
+        );
         assert_eq!(
             qualification
                 .iter()
@@ -1749,7 +2148,10 @@ mod tests {
 
         assert!(document.get("source_catalog").is_some());
         assert!(document.get("source_profiles").is_none());
-        assert_eq!(document["ports"].as_array().unwrap().len(), 77);
+        assert_eq!(
+            document["ports"],
+            serde_json::to_value(catalog.ports()).unwrap()
+        );
     }
 
     #[test]
@@ -1992,25 +2394,12 @@ mod tests {
         );
 
         let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
+        let additions = reviewed_legacy_additions(&legacy, &catalog);
         let projected_legacy_profiles = catalog
             .document()
             .source_profiles
             .iter()
-            .filter(|profile| {
-                ![
-                    "pokemon-snap",
-                    "castlevania-legacy-of-darkness",
-                    "diddy-kong-racing-golden-balloon",
-                    "star-fox-enhanced-usa-v1-0",
-                    "duke-nukem-zero-hour",
-                    "ape-escape-psx",
-                    "mega-man-x5-psx",
-                    "paperboat-paper-mario-us",
-                    "open-nectar-pikmin-disc",
-                    "wave-race-64",
-                ]
-                .contains(&profile.id.as_str())
-            })
+            .filter(|profile| !additions.source_profile_ids.contains(&profile.id))
             .cloned()
             .collect::<Vec<_>>();
         assert_eq!(
@@ -2080,6 +2469,220 @@ mod tests {
         let lighthouse = catalog.port("lighthouse").expect("lighthouse should exist");
         assert_eq!(lighthouse.release.repository, "HarbourMasters/Lighthouse");
         assert_eq!(lighthouse.source_profile.as_deref(), Some("banjo-kazooie"));
+    }
+
+    #[test]
+    fn road_rash_64_pins_its_windows_artifact_and_canonical_source_without_qualification() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("road-rash-64-recompiled").unwrap();
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.channels, [ReleaseChannel::Stable]);
+        assert_eq!(port.release.provider, ReleaseSource::DirectManifest);
+        assert_eq!(port.release.direct.len(), 1);
+        let release = &port.release.direct[&Platform::WindowsX86_64];
+        assert_eq!(release.version, "v1.4.3");
+        assert_eq!(
+            release.url,
+            "https://github.com/linkssy2/RoadRash64Recompiled/releases/download/v1.4.3/RoadRash64Recompiled-v1.4.3-Win64.zip"
+        );
+        assert_eq!(release.size, 47_276_827);
+        assert_eq!(
+            release.sha256,
+            "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f"
+        );
+        assert!(port.release.rolling_tag.is_none());
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+
+        let profile = catalog.source_profile("road-rash-64").unwrap();
+        assert_eq!(port.source_profile.as_deref(), Some(profile.id.as_str()));
+        assert_eq!(profile.accepted_extensions, ["z64"]);
+        assert_eq!(
+            profile.accepted_sha1,
+            ["87727a298f583ec8325f5655088ff21e37b335b2"]
+        );
+        assert_eq!(
+            profile.accepted_sha256,
+            ["74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73"]
+        );
+        assert_eq!(
+            port.runtime_source_hashes["rr64.n64.us.1.0.z64"],
+            profile.accepted_sha256[0]
+        );
+        let presentation = port.presentation.as_ref().unwrap();
+        assert_eq!(presentation.source_requirements[0].label, profile.label);
+        assert!(
+            presentation
+                .manual_preparation
+                .as_ref()
+                .unwrap()
+                .contains("local save backups include that copy")
+        );
+
+        let sources = catalog.source_catalog().unwrap();
+        let contract = sources
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == port.id)
+            .unwrap();
+        assert_eq!(contract.id, "road-rash-64-recompiled-game-source");
+        assert_eq!(
+            contract.admission_mode,
+            crate::CatalogAdmissionMode::Enforced
+        );
+        assert_eq!(contract.supported_variant_ids, ["usa-v1-0"]);
+        assert_eq!(
+            contract.authority_ref,
+            "42bf10065362daf91a77089a9f5c8147dae60de0"
+        );
+        assert_eq!(contract.applicability.len(), 1);
+        assert_eq!(
+            contract.applicability[0].artifact_sha256.as_deref(),
+            Some(release.sha256.as_str())
+        );
+        assert_eq!(contract.applicability[0].upstream_ref, "v1.4.3");
+        assert!(
+            !sources
+                .qualification
+                .iter()
+                .any(|record| { record.scope.port_id == port.id })
+        );
+    }
+
+    #[test]
+    fn road_rash_64_inert_launch_preparation_resolves_the_wrapper_and_named_rom_argument() {
+        use sha2::{Digest, Sha256};
+
+        let catalog = Catalog::embedded().unwrap();
+        let mut port = catalog.port("road-rash-64-recompiled").unwrap().clone();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        let runtime = install.join("RoadRash64Recompiled-v1.4.3-Win64");
+        std::fs::create_dir_all(&runtime).unwrap();
+        let executable = runtime.join("RoadRash64Recompiled.exe");
+        std::fs::write(&executable, b"inert executable; never run").unwrap();
+        let source = temporary.path().join("synthetic.z64");
+        let bytes = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        std::fs::write(&source, bytes).unwrap();
+        // Only this isolated fixture copy accepts synthetic bytes. It establishes
+        // Core path binding, not source admission or a real runtime observation.
+        port.runtime_source_hashes.insert(
+            "rr64.n64.us.1.0.z64".into(),
+            hex::encode(Sha256::digest(bytes)),
+        );
+        let spec = crate::AdapterRegistry
+            .get(port.adapter)
+            .prepare_launch(
+                &library,
+                &port,
+                Platform::WindowsX86_64,
+                &install,
+                Some(&source),
+            )
+            .unwrap();
+        assert_eq!(spec.executable, executable);
+        assert_eq!(spec.working_directory, runtime);
+        assert_eq!(
+            spec.arguments,
+            ["--auto-rom", "rr64.n64.us.1.0.z64", "--skip-launcher"]
+        );
+        assert!(port.user_data_environment.is_none());
+        assert!(runtime.join("portable.txt").is_file());
+        assert!(!install.join("portable.txt").exists());
+        assert_eq!(
+            std::fs::read(runtime.join("rr64.n64.us.1.0.z64")).unwrap(),
+            bytes
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), bytes);
+    }
+
+    #[test]
+    fn road_rash_64_manifest_projects_persistence_and_keeps_package_helpers_immutable() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("road-rash-64-recompiled").unwrap();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        let wrapper = "RoadRash64Recompiled-v1.4.3-Win64";
+        let runtime = install.join(wrapper);
+        std::fs::create_dir_all(runtime.join("tools/mk64-importer")).unwrap();
+        for relative in [
+            "RoadRash64Recompiled.exe",
+            "tools/mk64-importer/rr64-mk64-importer.exe",
+        ] {
+            std::fs::write(runtime.join(relative), b"inert package fixture; never run").unwrap();
+        }
+        let qualification = crate::install::InstallQualification::from_catalog(
+            &catalog,
+            &port.id,
+            Platform::WindowsX86_64,
+        )
+        .unwrap();
+        assert_eq!(
+            qualification.persistence_root(&install, &runtime.join("RoadRash64Recompiled.exe")),
+            install
+        );
+        let installer = crate::Installer::new(library).unwrap();
+        let artifact = crate::ArtifactIdentity {
+            asset_name: "inert-road-rash-layout.zip".into(),
+            sha256: "a".repeat(64),
+            size: 32,
+        };
+        installer
+            .create_manifest(
+                "fixture",
+                &port.id,
+                "fixture",
+                &artifact,
+                &qualification,
+                &install,
+            )
+            .unwrap();
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(install.join(".portcove-manifest.json")).unwrap(),
+        )
+        .unwrap();
+        let actual: std::collections::BTreeSet<String> = manifest["mutable_paths"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|path| path.as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(port.persistent_paths.len(), 35);
+        assert!(
+            port.persistent_paths
+                .iter()
+                .all(|path| path.starts_with(&format!("{wrapper}/")))
+        );
+        let mut expected: std::collections::BTreeSet<String> =
+            port.persistent_paths.iter().cloned().collect();
+        expected.extend([
+            format!("{wrapper}/RoadRash64Recompiled-runtime.log"),
+            format!("{wrapper}/traffic-events.log"),
+            format!("{wrapper}/portable.txt"),
+            format!("{wrapper}/rr64.n64.us.1.0.z64.portcove-source.json"),
+        ]);
+        assert_eq!(actual, expected);
+        for relative in [
+            "RoadRash64Recompiled.exe",
+            "tools/mk64-importer/rr64-mk64-importer.exe",
+        ] {
+            assert!(manifest["files"].as_array().unwrap().iter().any(|file| {
+                file["path"].as_str() == Some(format!("{wrapper}/{relative}").as_str())
+            }));
+        }
+        let backup_entries = crate::persistence::entries(port, &[&install]).unwrap();
+        assert!(backup_entries.contains(&format!("{wrapper}/rr64.n64.us.1.0.z64")));
+        assert!(!backup_entries.contains(&format!("{wrapper}/portable.txt")));
+        assert!(!backup_entries.contains(&format!(
+            "{wrapper}/rr64.n64.us.1.0.z64.portcove-source.json"
+        )));
+        assert!(
+            !backup_entries
+                .iter()
+                .any(|path| path.contains("tools/") || path.ends_with(".log"))
+        );
     }
 
     #[test]
@@ -2884,6 +3487,470 @@ mod tests {
     }
 
     #[test]
+    fn dino_crisis_admissions_bind_independent_platforms_and_two_track_contracts() {
+        let catalog = Catalog::embedded().unwrap();
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        let cases = [
+            (
+                "alexbeav-dino-crisis-recomp",
+                "dino-crisis-usa-rev1-psx",
+                "usa-rev1",
+                "SLUS-00922",
+                "0ef3326f26f1d97f4ab467023ac6be5e1189a6d3",
+                "Dino_Crisis_Recompiled.exe",
+                "7fd9deaa0ef7f8b689b1092821c19ac6a0de87db",
+                26206145u64,
+                "8ef30ffe192343ef4e3c00de993b1ddf99deb106f65bf35f1689fccd4f7996a7",
+                "dino-crisis-0.1.1-windows-x64.zip",
+            ),
+            (
+                "alexbeav-dino-crisis-2-recomp",
+                "dino-crisis-2-usa-psx",
+                "usa",
+                "SLUS-01279",
+                "f7c71427c4c8726c9114514746c42f10928fbaee",
+                "Dino_Crisis_2_Recompiled.exe",
+                "38514024f3a7cea54ff05ae3afdad0929920cb5a",
+                26205977u64,
+                "ce9d77b3d35254ba31b7cd1c3deef58adacde211fc399842e57fff9b78b56283",
+                "dino-crisis-2-0.1.1-windows-x64.zip",
+            ),
+        ];
+        for (id, profile_id, variant, serial, data_sha1, executable, commit, size, sha256, asset) in
+            cases
+        {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+            assert_eq!(
+                port.platforms,
+                [crate::Platform::WindowsX86_64, crate::Platform::LinuxX86_64]
+            );
+            assert_eq!(port.support_tier, crate::SupportTier::Beta);
+            assert!(port.automated_tested_platforms.is_empty());
+            assert!(port.manually_validated_platforms.is_empty());
+            assert_eq!(
+                port.executable_hints[&crate::Platform::WindowsX86_64],
+                [executable]
+            );
+            let declaration = document["ports"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["id"] == id)
+                .unwrap();
+            let pin = &declaration["release"]["direct"]["windows-x86-64"];
+            assert_eq!(pin["version"], "v0.1.1");
+            assert_eq!(pin["size"], size);
+            assert_eq!(pin["sha256"], sha256);
+            assert_eq!(
+                pin["url"],
+                format!("{}/releases/download/v0.1.1/{asset}", port.project_url)
+            );
+            assert_eq!(
+                declaration["release"]["direct"].as_object().unwrap().len(),
+                2
+            );
+            let profile = document["source_catalog"]["identities"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["id"] == profile_id)
+                .unwrap();
+            assert_eq!(profile["variants"].as_array().unwrap().len(), 1);
+            let source = &profile["variants"][0];
+            assert_eq!(source["id"], variant);
+            assert_eq!(source["product_codes"], serde_json::json!([serial]));
+            let representation = &source["representations"][0];
+            assert_eq!(source["representations"].as_array().unwrap().len(), 1);
+            assert_eq!(representation["extensions"], serde_json::json!(["chd"]));
+            assert_eq!(representation["track_counts"], serde_json::json!([2]));
+            assert_eq!(
+                representation["identities"],
+                serde_json::json!([{
+                    "scope": "psx-normalized-track-set", "sha1": data_sha1,
+                    "sha256": null, "crc32": null
+                }])
+            );
+            // This digest authenticates the first data track, not Track 2 or
+            // a combined-disc representation from upstream's unpaired arrays.
+            let contracts = document["source_catalog"]["contracts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|c| c["port_id"] == id)
+                .collect::<Vec<_>>();
+            assert_eq!(contracts.len(), 2);
+            for contract in contracts {
+                assert_eq!(contract["admission_mode"], "enforced");
+                assert_eq!(contract["authority_ref"], commit);
+                assert_eq!(
+                    contract["applicability"],
+                    serde_json::json!([
+                        { "upstream_ref": "v0.1.1", "artifact_sha256": sha256 },
+                        {
+                            "upstream_ref": "v0.1.1",
+                            "artifact_sha256": declaration["release"]["direct"]["linux-x86-64"]["sha256"]
+                        }
+                    ])
+                );
+                if contract["role"] == "game" {
+                    assert_eq!(contract["profile_id"], profile_id);
+                    assert_eq!(
+                        contract["supported_variant_ids"],
+                        serde_json::json!([variant])
+                    );
+                } else {
+                    assert_eq!(contract["role"], "bios");
+                    assert_eq!(contract["profile_id"], "psx-scph-5552-bios");
+                    assert_eq!(
+                        contract["supported_variant_ids"],
+                        serde_json::json!(["europe-v3-0"])
+                    );
+                }
+            }
+            assert!(
+                !document["source_catalog"]["qualification"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|q| q["scope"]["port_id"] == id)
+            );
+            let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
+            assert!(legacy.port(id).is_err());
+        }
+    }
+
+    #[test]
+    fn dino_crisis_runtime_coordinates_preserve_owned_writes_and_refuse_setup_host() {
+        let catalog = Catalog::embedded().unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let runtime = root.path().join("build-portcove");
+        std::fs::create_dir(&runtime).unwrap();
+        for (id, executable) in [
+            ("alexbeav-dino-crisis-recomp", "Dino_Crisis_Recompiled.exe"),
+            (
+                "alexbeav-dino-crisis-2-recomp",
+                "Dino_Crisis_2_Recompiled.exe",
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.launch_arguments, ["--no-launcher"]);
+            let selected = runtime.join(executable);
+            let working = crate::adapter::launch_working_directory(
+                port.adapter,
+                port,
+                root.path(),
+                &selected,
+            )
+            .unwrap();
+            assert_eq!(working, runtime);
+            assert!(
+                crate::adapter::launch_working_directory(
+                    port.adapter,
+                    port,
+                    root.path(),
+                    &root.path().join(executable)
+                )
+                .is_err()
+            );
+            let capture = root
+                .path()
+                .join(&port.launch_environment["PSX_OVERLAY_CAPTURES"]);
+            assert_eq!(
+                capture,
+                working.join("overlay-captures/overlay_captures.json")
+            );
+            for owned in [
+                "saves",
+                "settings.toml",
+                "input.ini",
+                "keybinds.ini",
+                "config.ini",
+                "disc.cfg",
+                "bios.cfg",
+                "mods",
+                "overlay-captures",
+                "overlay_captures.json",
+                "overlay_captures.json.d",
+                "overlay_captures.addendum.jsonl",
+            ] {
+                assert!(port.persistent_paths.iter().any(|p| p == owned));
+                assert!(!port.runtime_mutable_paths.iter().any(|p| p == owned));
+            }
+            assert!(port.runtime_mutable_paths.iter().any(|p| p == "cache"));
+            let fallback_temp = port
+                .runtime_mutable_file_patterns
+                .iter()
+                .find(|pattern| {
+                    pattern.prefix == "overlay_captures.json." && pattern.suffix == ".tmp"
+                })
+                .unwrap();
+            assert!(fallback_temp.matches("overlay_captures.json.42.1.tmp"));
+            for persistent in [
+                "overlay_captures.json",
+                "overlay_captures.json.d",
+                "overlay_captures.addendum.jsonl",
+            ] {
+                assert!(!fallback_temp.matches(persistent));
+            }
+            assert!(port.runtime_source_filename.is_none());
+            assert!(port.runtime_source_materialization.is_none());
+            assert_eq!(
+                port.bios_source_profile.as_deref(),
+                Some("psx-scph-5552-bios")
+            );
+        }
+    }
+
+    #[test]
+    fn alien_resurrection_and_musashi_bind_distinct_four_track_retail_bios_sources() {
+        let catalog = Catalog::embedded().unwrap();
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        for (
+            id,
+            profile_id,
+            serial,
+            track_sha1,
+            track_sha256,
+            bios,
+            bios_variant,
+            exe,
+            version,
+            size,
+            digest,
+            commit,
+        ) in [
+            (
+                "alexbeav-alien-resurrection-recomp",
+                "alien-resurrection-europe-psx",
+                "SLES-02913",
+                "5642c4f4ba6f06323778ae29c59c6dc863d49f55",
+                "af3da8902c6d3f55aaeff960adbeda61c7a630e820e34bc133ffe972cd100237",
+                "psx-scph-5552-bios",
+                "europe-v3-0",
+                "Alien_Resurrection_Recompiled.exe",
+                "v0.1.4",
+                29907400u64,
+                "2eb2ba6aa955684145271393f635e43854deab116a629de69443a7d310e994d5",
+                "38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c",
+            ),
+            (
+                "alexbeav-brave-fencer-musashi-recomp",
+                "brave-fencer-musashi-usa-psx",
+                "SLUS-00726",
+                "b44f0f0a19936f23b26188b658e13201a6a9c211",
+                "5455c324a026e22a8e53ca38f673e9e96e2cf653686ae553f933683aa16d4401",
+                "psx-scph-1001-bios",
+                "legacy-accepted",
+                "Brave_Fencer_Musashi_Recompiled.exe",
+                "v0.1.3",
+                29900215u64,
+                "9c65de1c5b539495f9ec2909ff786ac5b655aba05045d74e4801943a8c3158f5",
+                "54ddfe971dfd79134f2593b00dbd9b78ae51536b",
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+            assert_eq!(
+                port.platforms,
+                [crate::Platform::WindowsX86_64, crate::Platform::LinuxX86_64]
+            );
+            assert!(port.automated_tested_platforms.is_empty());
+            assert!(port.manually_validated_platforms.is_empty());
+            assert_eq!(
+                port.executable_hints[&crate::Platform::WindowsX86_64],
+                [exe]
+            );
+            assert_eq!(port.bios_source_profile.as_deref(), Some(bios));
+            assert_eq!(port.launch_arguments, ["--no-launcher"]);
+            assert_eq!(port.runtime_subdirectory.as_deref(), Some("build-portcove"));
+            for owned in [
+                "saves",
+                "settings.toml",
+                "bios.cfg",
+                "disc.cfg",
+                "overlay-captures",
+                "overlay_captures.json.d",
+            ] {
+                assert!(port.persistent_paths.iter().any(|path| path == owned));
+                assert!(!port.runtime_mutable_paths.iter().any(|path| path == owned));
+            }
+            let declaration = document["ports"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|value| value["id"] == id)
+                .unwrap();
+            let pin = &declaration["release"]["direct"]["windows-x86-64"];
+            assert_eq!(pin["version"], version);
+            assert_eq!(pin["size"], size);
+            assert_eq!(pin["sha256"], digest);
+            assert_eq!(
+                declaration["release"]["direct"].as_object().unwrap().len(),
+                2
+            );
+            let identity = document["source_catalog"]["identities"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|value| value["id"] == profile_id)
+                .unwrap();
+            let variant = &identity["variants"][0];
+            assert_eq!(variant["product_codes"], serde_json::json!([serial]));
+            let representation = &variant["representations"][0];
+            assert_eq!(representation["track_counts"], serde_json::json!([4]));
+            assert_eq!(representation["extensions"], serde_json::json!(["chd"]));
+            assert_eq!(
+                representation["identities"],
+                serde_json::json!([{
+                    "scope": "psx-normalized-track-set", "sha1": track_sha1,
+                    "sha256": track_sha256, "crc32": null
+                }])
+            );
+            let contracts = document["source_catalog"]["contracts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|value| value["port_id"] == id)
+                .collect::<Vec<_>>();
+            assert_eq!(contracts.len(), 2);
+            for contract in contracts {
+                assert_eq!(contract["admission_mode"], "enforced");
+                assert_eq!(contract["authority_ref"], commit);
+                assert_eq!(
+                    contract["applicability"],
+                    serde_json::json!([
+                        { "upstream_ref": version, "artifact_sha256": digest },
+                        {
+                            "upstream_ref": version,
+                            "artifact_sha256": declaration["release"]["direct"]["linux-x86-64"]["sha256"]
+                        }
+                    ])
+                );
+                if contract["role"] == "game" {
+                    assert_eq!(contract["profile_id"], profile_id);
+                } else {
+                    assert_eq!(contract["role"], "bios");
+                    assert_eq!(contract["profile_id"], bios);
+                    assert_eq!(
+                        contract["supported_variant_ids"],
+                        serde_json::json!([bios_variant])
+                    );
+                }
+            }
+            assert!(
+                !document["source_catalog"]["qualification"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|value| value["scope"]["port_id"] == id)
+            );
+        }
+    }
+
+    #[test]
+    fn managed_psx_linux_parity_binds_four_exact_assets_without_runtime_qualification() {
+        let catalog = Catalog::embedded().unwrap();
+        let document = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        for (id, executable, version, asset, size, sha256) in [
+            (
+                "alexbeav-dino-crisis-recomp",
+                "Dino_Crisis_Recompiled",
+                "v0.1.1",
+                "dino-crisis-0.1.1-linux-x64.zip",
+                24179470u64,
+                "d6afd2cc258481d7c8f7365db69fd1d1f6b2379ba2cb55a8d14783ddb838e1a1",
+            ),
+            (
+                "alexbeav-dino-crisis-2-recomp",
+                "Dino_Crisis_2_Recompiled",
+                "v0.1.1",
+                "dino-crisis-2-0.1.1-linux-x64.zip",
+                24179506u64,
+                "f561b73a97abad3ea502283be8819360d52140e9a73e2284318f4bb0843c6125",
+            ),
+            (
+                "alexbeav-alien-resurrection-recomp",
+                "Alien_Resurrection_Recompiled",
+                "v0.1.4",
+                "alien-resurrection-recomp-0.1.4-linux-x64.zip",
+                27800828u64,
+                "f74640da6476e25dcb36b966d33398829639fb470af8435b9dea88f1abc65995",
+            ),
+            (
+                "alexbeav-brave-fencer-musashi-recomp",
+                "Brave_Fencer_Musashi_Recompiled",
+                "v0.1.3",
+                "brave-fencer-musashi-recomp-0.1.3-linux-x64.zip",
+                27794465u64,
+                "d0f4a7c035fd7fc52272cb84f91ba9c4b5dd0fea788a0699dfa98fb9980dea8e",
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.adapter, AdapterKind::PsxRecompManaged);
+            assert_eq!(
+                port.platforms,
+                [crate::Platform::WindowsX86_64, crate::Platform::LinuxX86_64]
+            );
+            assert_eq!(
+                port.executable_hints[&crate::Platform::LinuxX86_64],
+                [executable]
+            );
+            assert_eq!(port.runtime_subdirectory.as_deref(), Some("build-portcove"));
+            assert_eq!(port.launch_arguments, ["--no-launcher"]);
+            assert!(port.automated_tested_platforms.is_empty());
+            assert!(port.manually_validated_platforms.is_empty());
+            let declaration = document["ports"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|value| value["id"] == id)
+                .unwrap();
+            let pin = &declaration["release"]["direct"]["linux-x86-64"];
+            assert_eq!(pin["version"], version);
+            assert_eq!(pin["size"], size);
+            assert_eq!(pin["sha256"], sha256);
+            assert_eq!(
+                pin["url"],
+                format!("{}/releases/download/{version}/{asset}", port.project_url)
+            );
+            let evidence_id = format!("{id}-{}-linux-static-contract", version.replace('.', "-"));
+            assert!(
+                document["source_catalog"]["evidence"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|evidence| evidence["id"].as_str() == Some(evidence_id.as_str()))
+            );
+            let contracts = document["source_catalog"]["contracts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|contract| contract["port_id"] == id)
+                .collect::<Vec<_>>();
+            assert_eq!(contracts.len(), 2);
+            for contract in contracts {
+                assert_eq!(contract["applicability"].as_array().unwrap().len(), 2);
+                assert_eq!(contract["applicability"][1]["artifact_sha256"], sha256);
+                assert!(
+                    contract["evidence_ids"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|evidence| evidence.as_str() == Some(evidence_id.as_str()))
+                );
+            }
+            assert!(
+                !document["source_catalog"]["qualification"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|record| record["scope"]["port_id"] == id)
+            );
+        }
+    }
+
+    #[test]
     fn newly_qualified_psx_ports_use_exact_hash_only_disc_contracts() {
         let catalog = Catalog::embedded().expect("catalog should load");
         for (port_id, profile_id, sha1, executable) in [
@@ -3206,6 +4273,142 @@ mod tests {
                 "Ghostship persistence contract is missing {path}"
             );
         }
+
+        let source_catalog = catalog.source_catalog().unwrap();
+        let contract = source_catalog
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "ghostship-game-source")
+            .unwrap();
+        assert_eq!(
+            contract.supported_variant_ids,
+            ["super-mario-64-us", "super-mario-64-jp"]
+        );
+        assert_eq!(
+            contract.authority_ref,
+            "762ce4a6dff8d69b934a41a326ae41e78431e6cd"
+        );
+        assert_eq!(
+            contract.evidence_ids,
+            [
+                "ghostship-2-0-0-source-contract",
+                "ghostship-3-0-0-source-contract"
+            ]
+        );
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref(),
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("2.0.0", None),
+                (
+                    "3.0.0",
+                    Some("49a0ab6c6624ccb20d29bb433f391d017f638f2b7db0601eae7808574a62aa18")
+                ),
+            ]
+        );
+        let evidence = source_catalog
+            .evidence
+            .iter()
+            .find(|evidence| evidence.id == "ghostship-3-0-0-source-contract")
+            .unwrap();
+        assert_eq!(
+            evidence.authority_ref,
+            "deb091c29caff57dd986398087b058f16b11911e"
+        );
+        assert_eq!(
+            evidence.immutable_url,
+            "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/config.yml"
+        );
+        assert!(
+            source_catalog
+                .identities
+                .iter()
+                .find(|identity| identity.id == "ghostship-source")
+                .unwrap()
+                .variants
+                .iter()
+                .any(|variant| variant.id == "legacy-accepted" && variant.legacy_projection_only)
+        );
+
+        // Isolated structural evidence exercises artifact admission; it is never
+        // written to the embedded catalog or credited as an observed lifecycle.
+        let mut document = catalog.authoritative_document();
+        let fixture = document.source_catalog.as_mut().unwrap();
+        fixture.evidence.push(crate::CatalogEvidence {
+            id: "ghostship-applicability-fixture".into(),
+            role: crate::CatalogEvidenceRole::PortcoveQualification,
+            authority: "Portcove isolated fixture".into(),
+            authority_ref: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".into(),
+            reviewed_at: "2026-10-11".into(),
+            claim: "Synthetic structural applicability admission only".into(),
+            immutable_url: "https://github.com/boburning/portcove/blob/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/fixture.json".into(),
+            live_url: None,
+        });
+        fixture.qualification.push(crate::SourceEvidence {
+            scope: crate::SourceEvidenceScope {
+                port_id: "ghostship".into(),
+                platform: crate::Platform::WindowsX86_64,
+                artifact_sha256: Some(
+                    "49a0ab6c6624ccb20d29bb433f391d017f638f2b7db0601eae7808574a62aa18".into(),
+                ),
+                upstream_ref: Some("3.0.0".into()),
+                contract_id: Some("ghostship-game-source".into()),
+                variant: crate::SourceVariantScope::Exact {
+                    identity: crate::SourceIdentity {
+                        game_id: "ghostship-source".into(),
+                        variant_id: "super-mario-64-us".into(),
+                        representation_id: "canonical-rom".into(),
+                    },
+                },
+                check_version: Some("ghostship-applicability-fixture-v1".into()),
+            },
+            kind: crate::SourceEvidenceKind::StructuralCheck,
+            outcome: crate::SourceEvidenceOutcome::Passed,
+            observed_at: 1,
+            portcove_version: None,
+            portcove_commit: None,
+            method: "isolated structural fixture; no runtime execution".into(),
+            evidence_ids: vec!["ghostship-applicability-fixture".into()],
+        });
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let mut unbound = document.clone();
+        unbound
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .iter_mut()
+            .find(|contract| contract.id == "ghostship-game-source")
+            .unwrap()
+            .applicability
+            .retain(|binding| binding.upstream_ref != "3.0.0");
+        let error = Catalog::from_json(&serde_json::to_string(&unbound).unwrap()).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("reviewed artifact applicability")
+        );
+        document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .qualification
+            .last_mut()
+            .unwrap()
+            .scope
+            .artifact_sha256 = Some("c".repeat(64));
+        let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("reviewed artifact applicability")
+        );
     }
 
     #[test]
@@ -3961,22 +5164,21 @@ mod tests {
         );
         assert!(port.automated_tested_platforms.is_empty());
         assert!(port.manually_validated_platforms.is_empty());
-        for path in [
-            "rom.z64",
-            "saves",
-            "mods",
-            "mods.json",
-            "mod_config",
-            "graphics.json",
-            "audio.json",
-            "controls.json",
-            "rom_path.txt",
-        ] {
-            assert!(
-                port.persistent_paths.iter().any(|value| value == path),
-                "LodRecomp persistence contract is missing {path}"
-            );
-        }
+        assert_eq!(
+            port.persistent_paths,
+            [
+                "rom.z64",
+                "saves",
+                "mods",
+                "mods.json",
+                "mod_config",
+                "graphics.json",
+                "audio.json",
+                "controls.json",
+                "rom_path.txt",
+                "cheats.cfg",
+            ]
+        );
         assert_eq!(
             port.runtime_mutable_paths,
             ["castlevania2.n64.us.z64", "LodRecomp.log"]

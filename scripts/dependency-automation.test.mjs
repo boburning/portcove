@@ -49,6 +49,8 @@ test("the root owns the only pnpm workspace lock and repository tool dependencie
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
     "@taplo/cli",
     "fallow",
+    "husky",
+    "lint-staged",
     "oxfmt",
     "oxlint",
     "oxlint-tsgolint",
@@ -282,6 +284,8 @@ test("compatibility families override inherited groups without coupling unrelate
       "tauri",
       "tauri-build",
       "tauri-plugin-dialog",
+      "tauri-plugin-wdio-webdriver",
+      "webview2-com",
       "@tauri-apps/api",
       "@tauri-apps/cli",
       "@tauri-apps/plugin-dialog",

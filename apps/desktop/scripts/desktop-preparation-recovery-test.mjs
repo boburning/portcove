@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
-import { access, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
 import { By, Key, until } from "selenium-webdriver";
 import {
@@ -783,6 +783,569 @@ export async function interruptedPreparationScenario({
       'arguments[0].scrollIntoView({ block: "start", inline: "nearest" });',
       finalInterruptedRow,
     );
+  });
+  return browser;
+}
+
+async function beginLivePreparation({ browser, activities, library, port, message }) {
+  await browser
+    .findElement(By.xpath('//button[normalize-space(.)="Review game preparation"]'))
+    .click();
+  await browser.wait(
+    until.elementLocated(By.xpath('//button[normalize-space(.)="Prepare game data"]')),
+    15_000,
+  );
+  await browser.findElement(By.xpath('//button[normalize-space(.)="Prepare game data"]')).click();
+  let activity;
+  let checkpoint;
+  await browser.wait(
+    async () => {
+      activity = (await activities()).find(
+        (item) =>
+          item.operation === "prepare" && item.target_id === port.id && item.status === "running",
+      );
+      if (!activity) return false;
+      checkpoint = path.join(library, "staging", activity.id, "payload/data/out/setup-ready");
+      return stat(checkpoint).then(
+        (entry) => entry.isFile(),
+        () => false,
+      );
+    },
+    15_000,
+    message,
+  );
+  return { activity, checkpoint };
+}
+
+export async function minimizedPreparationScenario({
+  browser,
+  invoke,
+  scenario,
+  library,
+  output,
+  artifacts,
+  command,
+  activities,
+  seed,
+  open,
+  status,
+  captureLivePreparation,
+}) {
+  await scenario("native-minimized-preparation-continuity", async () => {
+    assert.equal(process.platform, "win32", "This scenario qualifies Windows only");
+    assert.equal(path.resolve(library), path.resolve(output, "library"));
+    const { port } = await seed("opengoal-jak3", "wait");
+    const executableHint = port.setup_executable_hints["windows-x86-64"][0];
+    const originalExecutable = path.join(output, `owned-${port.id}`, executableHint);
+    const gameHint = port.executable_hints["windows-x86-64"][0];
+    const originalGame = path.join(output, `owned-${port.id}`, gameHint);
+    const source = path.join(output, `${port.id}.iso`);
+    const active = command(["status", port.id]).active;
+    const save = path.join(active.path, "OpenGOAL", "jak3", "save.bin");
+    await mkdir(path.dirname(save), { recursive: true });
+    await writeFile(save, "owned save must survive minimized preparation", { flag: "wx" });
+    const digest = async (file) =>
+      createHash("sha256")
+        .update(await readFile(file))
+        .digest("hex");
+    const before = {
+      active,
+      source_sha256: await digest(source),
+      original_executable_sha256: await digest(originalExecutable),
+      active_setup_sha256: await digest(path.join(active.path, executableHint)),
+      original_game_sha256: await digest(originalGame),
+      active_game_sha256: await digest(path.join(active.path, gameHint)),
+      save_sha256: await digest(save),
+    };
+    const windowState = async () => {
+      const native = await invoke("plugin:window|is_minimized", { label: "main" });
+      assert.equal(native.ok, true, "Existing native minimized read permission must work");
+      assert.equal(typeof native.value, "boolean");
+      const renderer = await browser.executeScript(() => ({
+        label: window.__TAURI_INTERNALS__.metadata.currentWindow.label,
+        hidden: document.hidden,
+        visibility: document.visibilityState,
+      }));
+      assert.equal(renderer.label, "main", "Observe the owned main window");
+      return { observed_at: new Date().toISOString(), minimized: native.value, ...renderer };
+    };
+    await open(port);
+    const initialWindow = await windowState();
+    assert.equal(initialWindow.minimized, false);
+    assert.equal(initialWindow.hidden, false);
+    const rect = await browser.manage().window().getRect();
+    const read = async (name, args) => {
+      const result = await invoke(name, args);
+      assert.equal(result.ok, true, JSON.stringify(result));
+      return result.value;
+    };
+    const beforeBootstrap = await read("get_bootstrap_status");
+    assert.equal(beforeBootstrap.ready, true);
+    assert.equal(path.resolve(beforeBootstrap.library_root), path.resolve(library));
+    const beforeGeneration = beforeBootstrap.generation;
+    const beforeIdentity = await read("get_library_identity", { generation: beforeGeneration });
+    const { activity, checkpoint } = await beginLivePreparation({
+      browser,
+      activities,
+      library,
+      port,
+      message: "Owned preparation must be running before minimization",
+    });
+    const preparationExecutable = path.join(
+      library,
+      "staging",
+      activity.id,
+      "payload",
+      executableHint,
+    );
+    assert.equal(await digest(preparationExecutable), before.original_executable_sha256);
+    const liveProcesses = captureLivePreparation(preparationExecutable);
+    const beforeImage = path.join(output, "native-preparation-before-minimize.png");
+    await writeFile(beforeImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(beforeImage);
+    assert.ok(
+      Date.now() - (await stat(checkpoint)).mtimeMs < 25_000,
+      "Minimize within the unchanged 30-second owned fixture window",
+    );
+    await browser.manage().window().minimize();
+    let minimizedWindow;
+    await browser.wait(
+      async () => {
+        minimizedWindow = await windowState();
+        return (
+          minimizedWindow.minimized &&
+          minimizedWindow.hidden &&
+          minimizedWindow.visibility === "hidden"
+        );
+      },
+      5_000,
+      "Actual native minimization and renderer inactivity must agree",
+    );
+    assert.equal(
+      command(["activity"]).records.find((item) => item.id === activity.id)?.status,
+      "running",
+    );
+    assert.deepEqual(command(["status", port.id]).active, before.active);
+    let completed;
+    // Only public durable reads while minimized; no cancellation, restart,
+    // synthetic visibility event or mutation of the journal on the host's behalf.
+    await browser.wait(
+      () => {
+        completed = command(["activity"]).records.find((item) => item.id === activity.id);
+        return Boolean(completed) && completed.status !== "running";
+      },
+      40_000,
+      "The same owned preparation must finish while minimized",
+    );
+    assert.equal(completed?.status, "succeeded");
+    const terminalWindow = await windowState();
+    assert.equal(terminalWindow.minimized, true);
+    assert.equal(terminalWindow.hidden, true);
+    const prepared = command(["status", port.id]);
+    assert.equal(prepared.readiness.launchable, true);
+    assert.notEqual(prepared.active.id, before.active.id);
+    assert.equal(prepared.previous.id, before.active.id);
+    await browser.manage().window().setRect(rect);
+    let restoredWindow;
+    await browser.wait(
+      async () => {
+        restoredWindow = await windowState();
+        return (
+          !restoredWindow.minimized &&
+          !restoredWindow.hidden &&
+          restoredWindow.visibility === "visible"
+        );
+      },
+      5_000,
+      "Restore the actual native window without simulated visibility",
+    );
+    await browser.wait(
+      until.elementLocated(By.xpath('//button[normalize-space(.)="Play"]')),
+      15_000,
+    );
+    await browser.wait(
+      until.elementIsEnabled(
+        await browser.findElement(By.xpath('//button[normalize-space(.)="Play"]')),
+      ),
+      15_000,
+    );
+    assert.equal(
+      (await browser.findElements(By.css('[aria-labelledby="preparation-review-title"]'))).length,
+      0,
+    );
+    const restoredStatus = await status(port.id);
+    assert.deepEqual(restoredStatus.active, prepared.active);
+    assert.equal(restoredStatus.readiness.launchable, true);
+    const restoredBootstrap = await read("get_bootstrap_status");
+    assert.equal(restoredBootstrap.ready, true);
+    assert.equal(path.resolve(restoredBootstrap.library_root), path.resolve(library));
+    assert.equal(restoredBootstrap.generation, beforeGeneration);
+    assert.deepEqual(restoredBootstrap.selection, beforeBootstrap.selection);
+    const restoredGeneration = restoredBootstrap.generation;
+    const restoredIdentity = await read("get_library_identity", { generation: restoredGeneration });
+    assert.deepEqual(restoredIdentity, beforeIdentity);
+    const restoredWorkspace = await read("get_workspace_snapshot", {
+      generation: restoredGeneration,
+    });
+    const workspaceStatus = restoredWorkspace.statuses.find((item) => item.port_id === port.id);
+    assert.ok(workspaceStatus, "Generation-bound current library must contain the prepared port");
+    assert.deepEqual(workspaceStatus.active, prepared.active);
+    assert.equal(workspaceStatus.readiness.launchable, true);
+    const workspaceActivity = restoredWorkspace.activities.records.find(
+      (item) => item.id === activity.id,
+    );
+    assert.ok(workspaceActivity, "Generation-bound current library must retain the same operation");
+    assert.equal(workspaceActivity.operation, "prepare");
+    assert.equal(workspaceActivity.target_id, port.id);
+    assert.equal(workspaceActivity.status, "succeeded");
+    const preparations = command(["activity"]).records.filter(
+      (item) => item.operation === "prepare" && item.target_id === port.id,
+    );
+    assert.equal(preparations.length, 1, "Restoration must not duplicate privileged preparation");
+    assert.equal(preparations[0].id, activity.id);
+    assert.equal(preparations[0].status, "succeeded");
+    assert.equal(await digest(source), before.source_sha256);
+    assert.equal(await digest(originalExecutable), before.original_executable_sha256);
+    assert.equal(await digest(path.join(active.path, executableHint)), before.active_setup_sha256);
+    assert.equal(await digest(originalGame), before.original_game_sha256);
+    assert.equal(await digest(path.join(active.path, gameHint)), before.active_game_sha256);
+    assert.equal(
+      await digest(path.join(prepared.active.path, gameHint)),
+      before.original_game_sha256,
+    );
+    assert.equal(await digest(save), before.save_sha256);
+    assert.equal(
+      await digest(path.join(prepared.active.path, "OpenGOAL", "jak3", "save.bin")),
+      before.save_sha256,
+    );
+    const afterImage = path.join(output, "native-preparation-after-restore.png");
+    await writeFile(afterImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(afterImage);
+    const evidence = path.join(output, "minimized-preparation-continuity.json");
+    await writeFile(
+      evidence,
+      JSON.stringify(
+        {
+          method:
+            "actual Windows minimize, natural owned preparation completion and native restore",
+          operation_id: activity.id,
+          before,
+          live_processes: liveProcesses,
+          initial_window: initialWindow,
+          minimized_window: minimizedWindow,
+          terminal_window: terminalWindow,
+          restored_window: restoredWindow,
+          completed_activity: completed,
+          prepared_status: prepared,
+          restored_status: restoredStatus,
+          before_generation: beforeGeneration,
+          restored_generation: restoredGeneration,
+          before_bootstrap: beforeBootstrap,
+          restored_bootstrap: restoredBootstrap,
+          before_library_identity: beforeIdentity,
+          restored_library_identity: restoredIdentity,
+          restored_workspace_status: workspaceStatus,
+          restored_workspace_activity: workspaceActivity,
+          limits:
+            "Owned development fixture; minimize/restore only, not suppressed events, OS shutdown, installed package, minimum OS or other platform proof",
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(evidence);
+  });
+  return browser;
+}
+
+async function observeRecoveredPreparation({
+  command,
+  activities,
+  status,
+  invoke,
+  port,
+  activity,
+  ordinaryClose,
+  before,
+  library,
+  privatePath,
+  digest,
+}) {
+  const recovered = command(["activity"]).records.find((item) => item.id === activity.id);
+  assert.ok(recovered, "Fresh startup must retain the exact operation identity");
+  if (ordinaryClose) {
+    assert.ok(["failed", "cancelled", "succeeded"].includes(recovered.status));
+    assert.deepEqual(
+      (await activities()).find((item) => item.id === activity.id),
+      recovered,
+      "Native activity must resynchronize to the authoritative retained operation",
+    );
+  } else {
+    assert.equal(recovered.status, "failed");
+  }
+  if (recovered.status === "failed") {
+    assert.equal(recovered.failure.presentation.presentation_key, "preparation_interrupted");
+    assert.equal(recovered.failure.presentation.mutation_state, "recovery_required");
+  }
+  const repair = command(["doctor"]).repair.items.find((item) => item.operation_id === activity.id);
+  const recoveredStatus = command(["status", port.id]);
+  if (recovered.status !== "succeeded") {
+    assert.equal(repair.kind, "retained_preparation");
+    assert.equal(path.resolve(repair.path), path.resolve(privatePath));
+    assert.deepEqual(recoveredStatus.active, before.active);
+  } else {
+    assert.equal(repair, undefined);
+    assert.equal(recoveredStatus.active.id, activity.id);
+    assert.equal(recoveredStatus.active.port_id, port.id);
+    assert.equal(recoveredStatus.readiness.launchable, true);
+    assert.equal(
+      await digest(
+        path.join(recoveredStatus.active.path, port.executable_hints["windows-x86-64"][0]),
+      ),
+      before.original_game_sha256,
+    );
+    assert.equal(
+      await digest(path.join(recoveredStatus.active.path, "OpenGOAL", "jak3", "save.bin")),
+      before.save_sha256,
+    );
+  }
+  let recoveredWorkspace;
+  if (ordinaryClose) {
+    const nativeStatus = await status(port.id);
+    assert.deepEqual(nativeStatus.active, recoveredStatus.active);
+    assert.deepEqual(nativeStatus.readiness, recoveredStatus.readiness);
+    const bootstrap = await invoke("get_bootstrap_status");
+    assert.equal(bootstrap.ok, true);
+    assert.equal(bootstrap.value.ready, true);
+    assert.equal(path.resolve(bootstrap.value.library_root), path.resolve(library));
+    const workspace = await invoke("get_workspace_snapshot", {
+      generation: bootstrap.value.generation,
+    });
+    assert.equal(workspace.ok, true);
+    recoveredWorkspace = workspace.value;
+    const workspaceStatus = recoveredWorkspace.statuses.find((item) => item.port_id === port.id);
+    assert.ok(workspaceStatus);
+    assert.deepEqual(workspaceStatus.active, recoveredStatus.active);
+    assert.deepEqual(workspaceStatus.readiness, recoveredStatus.readiness);
+    assert.deepEqual(
+      recoveredWorkspace.activities.records.find((item) => item.id === activity.id),
+      recovered,
+    );
+  }
+  return { recovered, repair, recoveredStatus, recoveredWorkspace };
+}
+
+async function previewRecoveredPreparationCleanup({
+  invoke,
+  library,
+  activity,
+  repair,
+  ordinaryClose,
+}) {
+  const generation = (await invoke("get_bootstrap_status")).value.generation;
+  const cleanup = await invoke("preview_preparation_cleanup", {
+    operationId: activity.id,
+    generation,
+  });
+  const database = new DatabaseSync(path.join(library, "portcove.sqlite3"), { readOnly: true });
+  let operation;
+  try {
+    operation = database
+      .prepare("SELECT phase,preparation_process_quiesced FROM lifecycle_operations WHERE id=?")
+      .get(activity.id);
+  } finally {
+    database.close();
+  }
+  if (!ordinaryClose || (repair && operation?.preparation_process_quiesced !== 1)) {
+    assert.equal(cleanup.ok, false);
+    assert.equal(cleanup.error.code, "conflict");
+    assert.equal(cleanup.error.details.recovery_action, "manual_review");
+    assert.match(cleanup.error.message, /process quiescence is not proven/);
+  } else if (repair) {
+    assert.equal(cleanup.ok, true, "Proven quiescence permits review without accepting cleanup");
+  }
+  return { cleanup, operation };
+}
+
+export async function liveInterruptedPreparationScenario(context) {
+  return livePreparationRecoveryScenario(context);
+}
+
+export async function closedPreparationScenario(context) {
+  return livePreparationRecoveryScenario({
+    ...context,
+    interruptApplication: context.closeApplication,
+    scenarioId: "native-closed-preparation-recovery",
+    ordinaryClose: true,
+  });
+}
+
+async function livePreparationRecoveryScenario({
+  browser,
+  invoke,
+  scenario,
+  library,
+  output,
+  artifacts,
+  command,
+  activities,
+  seed,
+  open,
+  status,
+  interruptApplication,
+  scenarioId = "native-host-interrupted-preparation",
+  ordinaryClose = false,
+}) {
+  await scenario(scenarioId, async () => {
+    assert.equal(process.platform, "win32", "This scenario qualifies Windows only");
+    assert.equal(path.resolve(library), path.resolve(output, "library"));
+    const { port } = await seed("opengoal-jak3", "wait");
+    const original = path.join(output, `owned-${port.id}`);
+    const executableHint = port.setup_executable_hints["windows-x86-64"][0];
+    const source = path.join(output, `${port.id}.iso`);
+    const digest = async (file) =>
+      createHash("sha256")
+        .update(await readFile(file))
+        .digest("hex");
+    const originalExecutable = path.join(original, executableHint);
+    const active = command(["status", port.id]).active;
+    const save = path.join(active.path, "OpenGOAL", "jak3", "save.bin");
+    await mkdir(path.dirname(save), { recursive: true });
+    await writeFile(save, "owned save must survive interrupted preparation", { flag: "wx" });
+    const before = {
+      active,
+      source_sha256: await digest(source),
+      original_executable_sha256: await digest(originalExecutable),
+      original_game_sha256: await digest(
+        path.join(original, port.executable_hints["windows-x86-64"][0]),
+      ),
+      active_setup_sha256: await digest(path.join(active.path, executableHint)),
+      active_game_sha256: await digest(
+        path.join(active.path, port.executable_hints["windows-x86-64"][0]),
+      ),
+      save_sha256: await digest(save),
+    };
+    await open(port);
+    const { activity, checkpoint } = await beginLivePreparation({
+      browser,
+      activities,
+      library,
+      port,
+      message: "Owned setup child must be live before host interruption",
+    });
+    const privatePath = path.join(library, "staging", activity.id);
+    const preparationExecutable = path.join(privatePath, "payload", executableHint);
+    assert.equal(await digest(preparationExecutable), before.original_executable_sha256);
+    const suffix = ordinaryClose ? "ordinary-close" : "interruption";
+    const beforeImage = path.join(output, `native-live-preparation-before-${suffix}.png`);
+    await writeFile(beforeImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(beforeImage);
+    browser = await interruptApplication(
+      `live-preparation-${suffix}`,
+      preparationExecutable,
+      async () => {
+        assert.equal(
+          (await activities()).find((item) => item.id === activity.id)?.status,
+          "running",
+        );
+        assert.deepEqual((await status(port.id)).active, before.active);
+        assert.equal((await status(port.id)).readiness.launchable, false);
+        assert.ok(
+          Date.now() - (await stat(checkpoint)).mtimeMs < 25_000,
+          "Act before the owned fixture's 30-second completion window",
+        );
+      },
+    );
+    // Actual host startup owns recovery. These public CLI observations do not
+    // repair SQLite or attest process quiescence on the product's behalf.
+    const { recovered, repair, recoveredStatus, recoveredWorkspace } =
+      await observeRecoveredPreparation({
+        command,
+        activities,
+        status,
+        invoke,
+        port,
+        activity,
+        ordinaryClose,
+        before,
+        library,
+        privatePath,
+        digest,
+      });
+    assert.equal(await digest(source), before.source_sha256);
+    assert.equal(await digest(originalExecutable), before.original_executable_sha256);
+    assert.equal(await digest(path.join(active.path, executableHint)), before.active_setup_sha256);
+    assert.equal(
+      await digest(path.join(active.path, port.executable_hints["windows-x86-64"][0])),
+      before.active_game_sha256,
+    );
+    assert.equal(await digest(save), before.save_sha256);
+    if (recovered.status !== "succeeded") await access(checkpoint);
+    const { cleanup, operation } = await previewRecoveredPreparationCleanup({
+      invoke,
+      library,
+      activity,
+      repair,
+      ordinaryClose,
+    });
+    await browser.findElement(By.xpath('//nav//button[contains(., "Game updates")]')).click();
+    const row = await browser.wait(
+      async () => {
+        for (const candidate of await browser.findElements(
+          By.css(`.activity-row.${recovered.status}`),
+        )) {
+          const text = await candidate.getText();
+          if (
+            text.includes(port.name) &&
+            (!recovered.failure || text.includes(recovered.failure.presentation.summary))
+          )
+            return candidate;
+        }
+        return false;
+      },
+      15_000,
+      "Fresh host must render the recovered durable activity",
+    );
+    if (repair) assert.ok((await row.getText()).includes("Review game preparation"));
+    const afterImage = path.join(output, `native-live-preparation-after-${suffix}.png`);
+    await writeFile(afterImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(afterImage);
+    const evidence = path.join(
+      output,
+      ordinaryClose ? "closed-preparation-preservation.json" : "live-preparation-preservation.json",
+    );
+    await writeFile(
+      evidence,
+      JSON.stringify(
+        {
+          method: ordinaryClose
+            ? "ordinary Windows native host close, distinct owned fixture cleanup, then fresh native startup"
+            : "actual Windows owned host and preparation-child termination followed by fresh native startup",
+          operation_id: activity.id,
+          before,
+          recovered_activity: recovered,
+          recovered_status: recoveredStatus,
+          recovered_workspace: recoveredWorkspace,
+          retained_private_path: privatePath,
+          observed_operation: operation,
+          cleanup_preview: cleanup,
+          cleanup_refusal: cleanup.error,
+          limits:
+            "Owned development fixtures; no OS shutdown, installed package, other operation family, or other platform qualification",
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(evidence);
   });
   return browser;
 }

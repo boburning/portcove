@@ -10,11 +10,15 @@
     "lint:oxlint": "pnpm --dir apps/desktop lint:oxlint",
     "lint:style": "pnpm --dir apps/desktop lint:style",
     "test": "pnpm --dir apps/desktop test",
-    "transport:check": "pnpm --dir apps/desktop transport:check"
+    "transport:check": "pnpm --dir apps/desktop transport:check",
+    "precommit:check": "node scripts/precommit-check.mjs",
+    "hooks:install": "node scripts/hooks-install.mjs"
   },
   "devDependencies": {
     "@taplo/cli": "0.7.0",
     "fallow": "^3.30.0",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
     "oxfmt": "0.71.0",
     "oxlint": "1.86.0",
     "oxlint-tsgolint": "7.0.2003"

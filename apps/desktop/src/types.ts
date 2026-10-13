@@ -53,6 +53,8 @@ export type HostToolProbeResult = Generated.TransportOutputs["host_tool_probe_re
 export type DoctorReport = Generated.TransportOutputs["doctor"];
 
 export type WorkspaceSnapshot = Generated.TransportOutputs["desktop_workspace_snapshot"];
+export type CatalogBrowsingSnapshot = NonNullable<WorkspaceSnapshot["browsing"]>;
+export type CatalogBrowsingContext = CatalogBrowsingSnapshot["contexts"][number];
 
 export type LocalePreferenceSnapshot = Generated.TransportOutputs["desktop_locale_preference"];
 
@@ -73,6 +75,8 @@ export type ExternalRuntimeRecord = Generated.TransportOutputs["desktop_external
 export type { SourceRecord } from "./transport-types.generated";
 
 export type GameFileRoot = Generated.TransportOutputs["game_file_roots"][number];
+export type GameFileQueryRefreshRequest = Requests.TransportInputs["game_file_query_request"];
+export type GameFileQuerySnapshot = Generated.TransportOutputs["game_file_query_snapshot"];
 
 export type GameFileScanSnapshot = NonNullable<
   Generated.TransportOutputs["game_file_scan_snapshot"]

@@ -458,15 +458,30 @@ fn run_package_query(
     let mode = metadata.permissions().mode();
     if !metadata.is_file()
         || metadata.file_type().is_symlink()
-        || metadata.uid() != 0
-        || mode & 0o022 != 0
-        || mode & 0o111 == 0
+        || !package_query_tool_permissions_are_trusted(metadata.uid(), mode)
     {
         return Err(LinuxApplicationUpdateError::InstalledContext(format!(
             "the package ownership query tool {} is not a trusted system executable",
             tool.display()
         )));
     }
+    execute_package_query(tool, arguments, PACKAGE_QUERY_TIMEOUT)
+}
+
+#[cfg(target_os = "linux")]
+fn package_query_tool_permissions_are_trusted(uid: u32, mode: u32) -> bool {
+    uid == 0 && mode & 0o022 == 0 && mode & 0o111 != 0
+}
+
+// Production reaches this executor only after system-tool admission above and
+// always uses the fixed deadline. Tests exercise the same process boundary with
+// an owned native fixture; they do not grant that fixture system-tool trust.
+#[cfg(target_os = "linux")]
+fn execute_package_query(
+    tool: &Path,
+    arguments: &[&std::ffi::OsStr],
+    timeout: Duration,
+) -> Result<Option<Vec<u8>>, LinuxApplicationUpdateError> {
     let mut command = ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, tool)
         .map_err(|error| LinuxApplicationUpdateError::InstalledContext(error.to_string()))?;
     command
@@ -490,7 +505,7 @@ fn run_package_query(
             .read_to_end(&mut output)
             .map(|_| output)
     });
-    let deadline = Instant::now() + PACKAGE_QUERY_TIMEOUT;
+    let deadline = Instant::now() + timeout;
     let status = loop {
         if let Some(status) = child.try_wait()? {
             break status;
@@ -1694,27 +1709,183 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn package_query_rejects_large_output_without_blocking_on_a_full_pipe() {
-        let tool = Path::new(DPKG_QUERY_PATH);
-        if tool.exists() {
-            let error = run_package_query(tool, &[std::ffi::OsStr::new("--list")]).unwrap_err();
-            assert!(
-                error.to_string().contains("exceeded its output limit"),
-                "{error}"
+    fn package_query_tool_requires_root_owned_nonwritable_executable_permissions() {
+        for (uid, mode, trusted) in [
+            (0, 0o755, true),
+            (0, 0o500, true),
+            (1, 0o755, false),
+            (0, 0o775, false),
+            (0, 0o757, false),
+            (0, 0o644, false),
+        ] {
+            assert_eq!(
+                package_query_tool_permissions_are_trusted(uid, mode),
+                trusted,
+                "uid={uid}, mode={mode:o}"
             );
         }
     }
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn installed_deb_query_tool_has_one_deb_owner_when_present() {
-        let tool = Path::new(DPKG_QUERY_PATH);
-        if tool.exists() {
-            assert_eq!(
-                detect_linux_package_manager(tool).unwrap(),
-                Some(ApplicationPackageManager::Deb)
+    fn package_query_refuses_unsafe_tools_before_execution() {
+        let root = TempDir::new().unwrap();
+        let tool = root.path().join("query");
+        assert!(run_package_query(&tool, &[]).unwrap().is_none());
+        fs::write(&tool, b"not an executable").unwrap();
+        let link = root.path().join("query-link");
+        std::os::unix::fs::symlink(&tool, &link).unwrap();
+        for mode in [0o777, 0o644] {
+            fs::set_permissions(&tool, fs::Permissions::from_mode(mode)).unwrap();
+            for path in [&tool, &link, &root.path().to_path_buf()] {
+                let error = run_package_query(path, &[]).unwrap_err();
+                assert!(
+                    error
+                        .to_string()
+                        .contains("not a trusted system executable"),
+                    "{error}"
+                );
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn package_query_native_fixture_covers_output_status_environment_and_timeout() {
+        use std::ffi::OsStr;
+
+        let root = TempDir::new().unwrap();
+        let source = root.path().join("package_query_fixture.rs");
+        let tool = root.path().join("package-query-fixture");
+        // A standalone native fixture has no libtest stdout prefix and no host
+        // package database. Real installed DEB/RPM ownership remains covered by
+        // the separate linux-package-ownership-rehearsal workflow.
+        fs::write(
+            &source,
+            r#"
+use std::{env, fs, io::{self, Read, Write}, thread, time::Duration};
+fn main() {
+    let arguments: Vec<String> = env::args().skip(1).collect();
+    match arguments[0].as_str() {
+        "deb" => print!("portcove:amd64: {}\n", arguments[1]),
+        "rpm" => println!("portcove-desktop"),
+        "bytes" => io::stdout().write_all(&vec![b'x'; arguments[1].parse().unwrap()]).unwrap(),
+        "flood" => {
+            while io::stdout().write_all(&[b'x'; 8192]).is_ok() {}
+        }
+        "no-owner" => {
+            print!("not an ownership record");
+            std::process::exit(1);
+        }
+        "failure" => std::process::exit(23),
+        "environment" => {
+            let observed: std::collections::BTreeMap<_, _> = env::vars().collect();
+            assert_eq!(observed.len(), 2);
+            assert_eq!(observed["LC_ALL"], "C");
+            assert_eq!(observed["PATH"], "/usr/sbin:/usr/bin:/sbin:/bin");
+            let mut input = Vec::new();
+            io::stdin().read_to_end(&mut input).unwrap();
+            assert!(input.is_empty());
+            io::stderr().write_all(&[b'x'; 128 * 1024]).unwrap();
+            print!("{}", arguments[1]);
+        }
+        "wait" => {
+            fs::write(&arguments[1], std::process::id().to_string()).unwrap();
+            thread::sleep(Duration::from_secs(30));
+        }
+        _ => panic!("unknown fixture mode"),
+    }
+}
+"#,
+        )
+        .unwrap();
+        let compiled =
+            ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, "rustc")
+                .unwrap()
+                .arg(&source)
+                .arg("-o")
+                .arg(&tool)
+                .output()
+                .unwrap();
+        assert!(
+            compiled.status.success(),
+            "fixture compilation failed: {}",
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+        let query =
+            |arguments: &[&OsStr]| execute_package_query(&tool, arguments, PACKAGE_QUERY_TIMEOUT);
+        let executable = root.path().join("installed portcove");
+        let deb = parse_dpkg_owners(
+            &query(&[OsStr::new("deb"), executable.as_os_str()])
+                .unwrap()
+                .unwrap(),
+            &executable,
+        )
+        .unwrap();
+        let rpm = parse_rpm_owners(&query(&[OsStr::new("rpm")]).unwrap().unwrap()).unwrap();
+        let empty = BTreeSet::new();
+        assert_eq!(
+            classify_linux_package_manager(&deb, &empty).unwrap(),
+            Some(ApplicationPackageManager::Deb)
+        );
+        assert_eq!(
+            classify_linux_package_manager(&empty, &rpm).unwrap(),
+            Some(ApplicationPackageManager::Rpm)
+        );
+        assert!(classify_linux_package_manager(&deb, &rpm).is_err());
+        assert!(
+            query(&[OsStr::new("no-owner")])
+                .unwrap()
+                .unwrap()
+                .is_empty()
+        );
+        let error = query(&[OsStr::new("failure")]).unwrap_err();
+        assert!(error.to_string().contains("query tool") && error.to_string().ends_with("failed"));
+        let exact_argument = OsStr::new("literal ; $argument with spaces");
+        assert_eq!(
+            query(&[OsStr::new("environment"), exact_argument])
+                .unwrap()
+                .unwrap(),
+            exact_argument.as_bytes()
+        );
+        let boundary = MAX_PACKAGE_QUERY_OUTPUT_BYTES.to_string();
+        assert_eq!(
+            query(&[OsStr::new("bytes"), OsStr::new(&boundary)])
+                .unwrap()
+                .unwrap(),
+            vec![b'x'; MAX_PACKAGE_QUERY_OUTPUT_BYTES]
+        );
+        let excess = (MAX_PACKAGE_QUERY_OUTPUT_BYTES + 1).to_string();
+        for arguments in [
+            vec![OsStr::new("bytes"), OsStr::new(&excess)],
+            vec![OsStr::new("flood")],
+        ] {
+            let error = query(&arguments).unwrap_err();
+            assert!(
+                error.to_string().contains("exceeded its output limit"),
+                "{error}"
             );
         }
+        let pid_file = root.path().join("owned-query-pid");
+        let timeout = Duration::from_secs(1);
+        let started = Instant::now();
+        let error =
+            execute_package_query(&tool, &[OsStr::new("wait"), pid_file.as_os_str()], timeout)
+                .unwrap_err();
+        assert!(
+            error.to_string().contains("query tool") && error.to_string().ends_with("timed out")
+        );
+        assert!(started.elapsed() >= timeout);
+        let pid: libc::pid_t = fs::read_to_string(pid_file).unwrap().parse().unwrap();
+        // The fixture creates no descendants. Timeout must kill and reap this
+        // ordinary owned child and join its output reader before returning.
+        // SAFETY: signal zero only observes this fixture's recorded process id.
+        let observed = unsafe { libc::kill(pid, 0) };
+        assert_eq!(observed, -1);
+        assert_eq!(
+            std::io::Error::last_os_error().raw_os_error(),
+            Some(libc::ESRCH)
+        );
     }
 
     #[cfg(target_os = "linux")]

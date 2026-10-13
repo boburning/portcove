@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { copyText } from "../clipboard";
 import type { DesktopError } from "../types";
 import type { FailureDisplay } from "../view-model";
@@ -27,7 +27,6 @@ export function FailureDetails({
   contextLabel?: (key: string) => string | undefined;
   showMutationSummary?: boolean;
 }) {
-  const [copied, setCopied] = useState(false);
   const technical = JSON.stringify(
     {
       code,
@@ -85,20 +84,53 @@ export function FailureDetails({
         ) : (
           <pre>{technical}</pre>
         )}
-        <Button
-          data-focusable
-          variant="outline"
-          size="sm"
-          className="mt-2"
-          onClick={() => {
-            void copyText(technical)
-              .then(() => setCopied(true))
-              .catch(() => setCopied(false));
-          }}
-        >
-          {copied ? "Copied" : "Copy technical details"}
-        </Button>
+        <FailureDetailsCopy key={technical} technical={technical} />
       </details>
     </div>
+  );
+}
+
+function FailureDetailsCopy({ technical }: { technical: string }) {
+  const [copyOutcome, setCopyOutcome] = useState<"idle" | "copied" | "failed">("idle");
+  const request = useRef(0);
+  useLayoutEffect(() => {
+    return () => {
+      request.current += 1;
+    };
+  }, []);
+  return (
+    <>
+      <Button
+        data-focusable
+        variant="outline"
+        size="sm"
+        className="mt-2"
+        onClick={() => {
+          const current = ++request.current;
+          setCopyOutcome("idle");
+          void copyText(technical)
+            .then(() => {
+              if (request.current === current) setCopyOutcome("copied");
+            })
+            .catch(() => {
+              if (request.current === current) setCopyOutcome("failed");
+            });
+        }}
+      >
+        {copyOutcome === "copied" ? "Copied" : "Copy technical details"}
+      </Button>
+      {copyOutcome === "copied" && <p role="status">Technical details copied.</p>}
+      {copyOutcome === "failed" && (
+        <>
+          <p role="alert">Clipboard unavailable. Select and copy the technical details below.</p>
+          <textarea
+            readOnly
+            className="mt-2 min-h-20 w-full"
+            aria-label="Technical details for manual copy"
+            value={technical}
+          />
+        </>
+      )}
+    </>
   );
 }
