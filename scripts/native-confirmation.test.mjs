@@ -197,7 +197,16 @@ foreach($case in @('duplicate-pane','foreign-pane','mixed-action','wrong-title')
       windowsHide: true,
       timeout: 10000,
     });
-    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      result.status,
+      0,
+      JSON.stringify({
+        error: result.error?.code ?? null,
+        signal: result.signal,
+        stdout: result.stdout?.slice(0, 2048),
+        stderr: result.stderr?.slice(0, 2048),
+      }),
+    );
     assert.match(result.stdout, /explicit-observation-context-passed/);
   },
 );

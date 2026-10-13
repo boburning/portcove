@@ -312,7 +312,7 @@ jobs:
       - name: Check native helper dependency declarations
         run: node scripts/native-helper-dependencies.mjs
       - name: Test Windows helper and prerequisite controls
-        run: node --test --test-timeout=30000 scripts/native-confirmation.test.mjs scripts/native-session.test.mjs scripts/native-session-lock.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/desktop-verify.test.mjs scripts/windows-helper-checks.test.mjs
+        run: node --test --test-concurrency=1 --test-timeout=30000 scripts/native-confirmation.test.mjs scripts/native-session.test.mjs scripts/native-session-lock.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/desktop-verify.test.mjs scripts/windows-helper-checks.test.mjs
       - name: Lint PowerShell scripts and exercise the causal fixture
         shell: pwsh
         run: |

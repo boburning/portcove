@@ -27,6 +27,7 @@ test("Windows helper selection includes rename/delete sides and policy inputs wi
   for (const file of [
     "apps/desktop/scripts/native-window-discovery.ps1",
     "apps/desktop/scripts/desktop-native-confirmation.mjs",
+    "apps/desktop/scripts/desktop-test.mjs",
     "scripts/frontend-command-preflight.mjs",
     "scripts/desktop-verify.mjs",
     ".github/workflows/ci.yml",
@@ -88,6 +89,7 @@ test("workflow runs bounded Windows controls and pinned lint under the existing 
   assert.match(job, /timeout-minutes: 10/);
   assert.match(job, /outputs.windows_helpers == 'true'/);
   assert.match(job, /--test-timeout=30000/);
+  assert.match(job, /--test-concurrency=1/);
   assert.match(job, /native-confirmation.test.mjs/);
   assert.match(job, /native-helper-dependencies.mjs/);
   assert.match(job, /Import-PowerShellDataFile -LiteralPath .config\/powershell-resources.psd1/);

@@ -42,11 +42,16 @@ test("native wrapper imports reject added dynamic URLs and unregistered local mo
     'new URL("./" + helperVariable, import.meta.url)',
     'import { extra } from "./unregistered-helper.mjs";',
     'import "./unregistered-helper.mjs";',
+    'import "../outside.mjs";',
+    'export { extra } from "../outside.mjs";',
+    'import "/outside.mjs";',
+    'import "C:/outside.mjs";',
+    'import "file:///outside.mjs";',
     "await import(variable)",
   ])
     assert.throws(
       () => nativeHelperSourceDependencies(file, literal + extra),
-      /Unsupported|Undeclared/,
+      /Unsupported|Undeclared|Escaping/,
     );
 });
 

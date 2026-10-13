@@ -1,6 +1,7 @@
 import {
   nativeHelperDependencies,
   nativeHelperRegistryPath,
+  nativeHelperSharedSources,
   captureDesktopReceiptInputs,
 } from "./native-helper-dependencies.mjs";
 import assert from "node:assert/strict";
@@ -59,7 +60,9 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       assert(actualInputs.includes(historical), historical);
     for (const added of actualInputs.filter((file) => !row.initial_receipt_inputs.includes(file)))
       assert(
-        Object.hasOwn(nativeHelperDependencies, added) || added === nativeHelperRegistryPath,
+        Object.hasOwn(nativeHelperDependencies, added) ||
+          nativeHelperSharedSources.includes(added) ||
+          added === nativeHelperRegistryPath,
         added,
       );
     assert.equal(new Set(actualInputs).size, actualInputs.length);

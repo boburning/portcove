@@ -23,6 +23,18 @@ export const nativeHelperDependencies = Object.freeze(
   ),
 );
 export const nativeHelperRegistryPath = "scripts/native-helper-dependencies.mjs";
+// Shared repository launcher boundary, captured but not recursively classified as
+// a native helper graph. All other non-builtin imports must be declared helpers.
+export const nativeWrapperSharedImports = Object.freeze({
+  [helper("desktop-native-confirmation.mjs")]: Object.freeze(["../../../scripts/dev-storage.mjs"]),
+});
+export const nativeHelperSharedSources = Object.freeze([
+  ...new Set(
+    Object.values(nativeWrapperSharedImports)
+      .flat()
+      .map((specifier) => path.posix.normalize(path.posix.join(desktop, specifier))),
+  ),
+]);
 export const nativeHelperRoots = Object.freeze(
   [
     "desktop-native-confirmation.mjs",
@@ -88,7 +100,9 @@ export function nativeHelperSourceDependencies(
       if (!match) throw new Error(`Unsupported native wrapper URL in ${file}: ${expression[0]}`);
       result.add(relativeHelper(match[1]));
     }
-    for (const match of source.matchAll(/\b(?:from|import)\s+["'](\.\/[^"']+)["']/gu)) {
+    for (const match of source.matchAll(/\b(?:from|import)\s+["']([^"']+)["']/gu)) {
+      if (match[1].startsWith("node:") || nativeWrapperSharedImports[file]?.includes(match[1]))
+        continue;
       const candidate = relativeHelper(match[1]);
       if (!Object.hasOwn(registry, candidate))
         throw new Error(`Undeclared native wrapper import in ${file}: ${candidate}`);
@@ -122,6 +136,7 @@ export async function validateNativeHelperDependencies({
 } = {}) {
   const files = nativeHelperFiles(Object.keys(registry), registry);
   if (registry === nativeHelperDependencies) {
+    for (const file of nativeHelperSharedSources) await fileIdentity(path.join(root, file));
     const consumer = await readFile(path.join(root, helper("desktop-test.mjs")), "utf8");
     const imports = new Set(
       [...consumer.matchAll(/\bfrom\s+["'](\.\/[^"']+)["']/gu)].map((match) =>
@@ -162,7 +177,11 @@ export function expandNativeHelperInputs(inputs) {
     .filter((file) => Object.hasOwn(nativeHelperDependencies, file));
   if (inputs.some((input) => input.path === helper("desktop-test.mjs")))
     roots.push(...nativeHelperRoots);
-  for (const file of [...nativeHelperFiles(roots), nativeHelperRegistryPath])
+  for (const file of [
+    ...nativeHelperFiles(roots),
+    ...(roots.length ? nativeHelperSharedSources : []),
+    nativeHelperRegistryPath,
+  ])
     unique.set(file, unique.get(file) ?? { kind: "file", path: file });
   return [...unique.values()];
 }

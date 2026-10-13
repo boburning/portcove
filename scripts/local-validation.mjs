@@ -221,6 +221,7 @@ const explicitNodeTests = new Map([
     "scripts/desktop-verify.mjs",
     "scripts/testdata/desktop-execution-baseline.json",
     "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+    "apps/desktop/scripts/desktop-test.mjs",
   ].map((file) => [
     file,
     [

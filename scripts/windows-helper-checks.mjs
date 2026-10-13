@@ -5,6 +5,7 @@ import {
 
 const helperPaths = new Set([
   ...Object.keys(nativeHelperDependencies),
+  "apps/desktop/scripts/desktop-test.mjs",
   nativeHelperRegistryPath,
   "scripts/native-helper-dependencies.test.mjs",
   "scripts/frontend-command-preflight.mjs",
