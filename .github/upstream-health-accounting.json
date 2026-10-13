@@ -206,6 +206,40 @@
       "asset_id": 605927354,
       "asset_facts_sha256": "8d20db5052feda33f1f8cb8c8a9feddfa1fd4f4ecbe179e57a53230265de98d5",
       "release_facts_sha256": "5e81c50d2e3873e2a026f5f56c922b77dd400a42654f481c5462322e92087cd4"
+    },
+    {
+      "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
+      "port_contract_sha256": "57690918e02f91e795bd2cf5cb7122d581f5dd88b81b321b5f333cee1867ad31",
+      "platform": "windows-x86-64",
+      "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
+      "tag": "v0.3.6",
+      "name": "Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
+      "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-windows-x64.zip",
+      "size": 30152495,
+      "sha256": "602843385f5d1e74560e39f7f4741ab8bcd1380711316e1cac80cf69f6a127d9",
+      "repository_id": 1352790657,
+      "archived": false,
+      "release_id": 382785889,
+      "release_facts_sha256": "571b826c649c60035e48635c2b094e1831066b1a7b483c5f2ea5e9df5f18f70c",
+      "asset_id": 544443851,
+      "asset_facts_sha256": "e26303dfd11352ac1c5a8f512b8754b3884c7d94a98ea90dd6fcc9562dfbd0d7"
+    },
+    {
+      "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
+      "port_contract_sha256": "57690918e02f91e795bd2cf5cb7122d581f5dd88b81b321b5f333cee1867ad31",
+      "platform": "linux-x86-64",
+      "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
+      "tag": "v0.3.6",
+      "name": "Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
+      "url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp/releases/download/v0.3.6/Ace-Combat-3-Electrosphere-Japan-Recomp-0.3.6-linux-x64.zip",
+      "size": 28046377,
+      "sha256": "b9e7f4493b80b528e91f9c2382da1fd9e2b9bfeb267935082c312b3ee1c33009",
+      "repository_id": 1352790657,
+      "archived": false,
+      "release_id": 382785889,
+      "release_facts_sha256": "571b826c649c60035e48635c2b094e1831066b1a7b483c5f2ea5e9df5f18f70c",
+      "asset_id": 544443633,
+      "asset_facts_sha256": "d39146a5cec209e3e8b1a1a94c2c9a4fd5e8dd4b9c77e3b3d8f1f0eb1809f1c9"
     }
   ],
   "original_conditions": [

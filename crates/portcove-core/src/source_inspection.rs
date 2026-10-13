@@ -2581,6 +2581,51 @@ mod tests {
     }
 
     #[test]
+    fn ace_combat_3_japan_requires_both_ordered_track_identities() {
+        // Synthetic normalized observations exercise admission, not ROM extraction.
+        let catalog = Catalog::embedded().unwrap();
+        let profile = "ace-combat-3-japan-psx";
+        let path = Path::new("disc-set");
+        let mut discs = vec![
+            optical_disc("disc-1.chd", b"synthetic first track", 1),
+            optical_disc("disc-2.chd", b"synthetic second track", 1),
+        ];
+        discs[0].sha1 = "8c6d58308eb389a7b18bc213a6d1e23d14fd3c10".into();
+        discs[1].sha1 = "a23e046b1eb695e02d214d269fca70dbe0a437f7".into();
+        let inspect = |discs| {
+            inspect_disc_observation(
+                &catalog,
+                profile,
+                path,
+                observed_disc_source(profile, path, discs),
+            )
+            .unwrap()
+        };
+        let accepted = inspect(discs.clone());
+        assert!(matches!(
+            accepted.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity
+            }
+        ));
+        assert_eq!(accepted.components.len(), 2);
+        let mut reversed = discs.clone();
+        reversed.reverse();
+        let mut changed_hash = discs.clone();
+        changed_hash[1].sha1 = "0".repeat(40);
+        let mut changed_tracks = discs.clone();
+        changed_tracks[1].track_count = 2;
+        for refused in [reversed, changed_hash, changed_tracks, discs[..1].to_vec()] {
+            let result = inspect(refused);
+            assert!(matches!(
+                result.assessment.admission,
+                SourceAdmission::Rejected { .. }
+            ));
+            assert!(result.record.is_none());
+        }
+    }
+
+    #[test]
     fn psx_multi_disc_matching_preserves_order_volume_ids_and_per_disc_facts() {
         let path = Path::new("disc-set");
         let mut discs = (1..=4)
