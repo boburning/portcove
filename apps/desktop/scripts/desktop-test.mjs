@@ -1146,7 +1146,10 @@ function observeNativeSession(mode, snapshot) {
 
 function captureBackupFocusDriverLaunch(launchStarted) {
   const suffix =
-    hostInterruptionSession || ordinaryCloseSession || savedLibraryRecoverySession
+    hostInterruptionSession ||
+    ordinaryCloseSession ||
+    savedLibraryRecoverySession ||
+    selection.selected_scenarios.includes("native-selected-setup-completion")
       ? `-${driver.pid}`
       : "";
   const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
