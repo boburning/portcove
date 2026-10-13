@@ -227,11 +227,12 @@ it("rejects monotonic expiry with unchanged wall time and rejects a wall clock e
   await render();
   expect(container.textContent).not.toContain("Files missing");
   monotonic.mockReturnValue(400000);
-  vi.mocked(desktopApi.refreshGameFileQuery).mockResolvedValue(snapshot());
+  const refreshed = snapshot();
+  vi.mocked(desktopApi.refreshGameFileQuery).mockResolvedValue(refreshed);
   await check();
   expect(container.textContent).toContain("Files missing");
   vi.useFakeTimers();
-  vi.setSystemTime(Date.now() - 1000);
+  vi.setSystemTime(refreshed.observed_at * 1000 - 1);
   await render();
   expect(container.textContent).not.toContain("Files missing");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);

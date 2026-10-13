@@ -1453,6 +1453,7 @@ try {
       "desktop-external-runtime-test.mjs",
       "desktop-native-confirmation.mjs",
       "native-confirmation.ps1",
+      "native-window-discovery.ps1",
     ])
       inputs.push(await fileIdentity(fileURLToPath(new URL(`./${name}`, import.meta.url))));
     inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
