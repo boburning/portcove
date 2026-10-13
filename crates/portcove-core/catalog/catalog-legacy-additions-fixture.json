@@ -23,7 +23,9 @@
     "fade-to-black-psx",
     "diablo-europe-psx",
     "psx-scph-5552-bios",
-    "ace-combat-3-japan-psx"
+    "ace-combat-3-japan-psx",
+    "dino-crisis-usa-rev1-psx",
+    "dino-crisis-2-usa-psx"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -49,6 +51,8 @@
     "alexbeav-duke-nukem-time-to-kill-recomp",
     "alexbeav-fade-to-black-recomp",
     "alexbeav-diablo-recomp",
-    "alexbeav-ace-combat-3-electrosphere-recomp"
+    "alexbeav-ace-combat-3-electrosphere-recomp",
+    "alexbeav-dino-crisis-recomp",
+    "alexbeav-dino-crisis-2-recomp"
   ]
 }
