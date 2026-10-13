@@ -446,6 +446,7 @@ export async function createInstallFixture({
   holdFirstDownload = false,
   sourceJourney = false,
   preliminaryJourney = false,
+  hashResumeJourney = false,
   completionJourney = false,
   preparationTool,
   revision,
@@ -454,6 +455,8 @@ export async function createInstallFixture({
     throw new Error("Discovery and completion fixtures require separate isolated selections");
   if (preliminaryJourney && (!sourceJourney || completionJourney))
     throw new Error("Preliminary review requires its standalone source fixture");
+  if (hashResumeJourney && (!sourceJourney || preliminaryJourney || completionJourney))
+    throw new Error("Hash continuation requires its standalone source fixture");
   let artifact = completionJourney
     ? await createCompletionArtifact(preparationTool)
     : createInstallArtifact();
@@ -502,6 +505,7 @@ export async function createInstallFixture({
     requests,
     sourceJourney: sourceJourney || null,
     preliminaryJourney: preliminaryJourney || null,
+    ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
     completionJourney,
     url,
     async publishRelease(portId, { version, publishedAt, seed }) {

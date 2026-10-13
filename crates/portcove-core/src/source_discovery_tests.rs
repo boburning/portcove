@@ -1831,7 +1831,7 @@ fn saved_roots_scan_the_catalog_and_persist_one_current_snapshot() {
         &crate::OperationCoordinator::new("saved-root-scan", None),
     )
     .unwrap();
-    assert_eq!(snapshot.format_version, 9);
+    assert_eq!(snapshot.format_version, CURRENT_SCAN_FORMAT_VERSION);
     assert_eq!(snapshot.limits.as_ref().unwrap().max_entries, 10_000);
     assert_eq!(snapshot.roots.len(), 1);
     assert_eq!(snapshot.report.files_hashed, 1);
@@ -4263,41 +4263,121 @@ fn saved_scan_stale_inputs_refuse_once_and_preserve_prior_report_before_restart(
 }
 
 #[test]
-fn saved_scan_hash_and_candidate_limits_do_not_reset_on_entry_resume() {
-    for hash_limit in [true, false] {
-        let temporary = tempfile::tempdir().unwrap();
-        let root = temporary.path().join("selected");
-        fs::create_dir(&root).unwrap();
-        let payload = b"supported resumable source";
-        for name in ["one.z64", "two.z64", "three.z64"] {
-            fs::write(root.join(name), payload).unwrap();
-        }
-        let library = crate::Library::open(temporary.path().join("library")).unwrap();
-        library.add_game_file_root(&root).unwrap();
-        let limits = SourceDiscoveryLimits {
-            max_entries: 1,
-            max_hash_bytes: if hash_limit {
-                payload.len() as u64
-            } else {
-                4096
-            },
-            max_candidates: if hash_limit { 64 } else { 3 },
-            ..Default::default()
-        };
-        let catalog = catalog(payload);
-        let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
-        assert!(first.coverage.unwrap().can_resume);
-        let second = publish_saved_batch(&catalog, &library, &limits).unwrap();
-        assert!(second.report.limits_reached.contains(&if hash_limit {
-            SourceDiscoveryLimit::HashBytes
-        } else {
-            SourceDiscoveryLimit::Candidates
-        }));
-        assert!(!second.coverage.unwrap().can_resume);
-        assert!(second.continuation.is_none());
-        assert!(second.report.hash_bytes <= limits.max_hash_bytes);
-        assert!(second.report.candidates.len() <= limits.max_candidates as usize);
+fn saved_scan_candidate_limit_remains_cumulative_on_entry_resume() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64", "three.z64"] {
+        fs::write(root.join(name), payload).unwrap();
     }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        max_candidates: 3,
+        ..Default::default()
+    };
+    let catalog = catalog(payload);
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(first.coverage.unwrap().can_resume);
+    let second = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(
+        second
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::Candidates)
+    );
+    assert!(!second.coverage.unwrap().can_resume);
+    assert!(second.continuation.is_none());
+    assert_eq!(second.report.candidates.len(), 3);
+}
+
+#[test]
+fn hash_limited_saved_batches_reach_the_tail_after_restart_without_rehashing_the_prefix() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64", "three.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_hash_bytes: payload.len() as u64,
+        ..Default::default()
+    };
+    let catalog = catalog(payload);
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(first.coverage.as_ref().unwrap().can_resume);
+    assert!(
+        first
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::HashBytes)
+    );
+    assert_eq!(first.report.hash_bytes, limits.max_hash_bytes);
+    assert_eq!(first.report.candidates.len(), 2);
+    drop(library);
+    let library = crate::Library::open(&library_path).unwrap();
+    let second = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(second.coverage.as_ref().unwrap().can_resume);
+    assert_eq!(second.report.hash_bytes, limits.max_hash_bytes * 2);
+    let last = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(last.coverage.as_ref().unwrap().frontier_exhausted);
+    assert!(!last.coverage.as_ref().unwrap().can_resume);
+    assert!(
+        !last
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::HashBytes)
+    );
+    assert_eq!(last.report.hash_bytes, payload.len() as u64 * 3);
+    assert_eq!(last.report.files_hashed, 3);
+    assert_eq!(last.report.candidates.len(), 6);
+    let keys = last
+        .report
+        .candidates
+        .iter()
+        .map(|item| (&item.profile_id, &item.path))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(keys.len(), 6);
+    assert!(library.sources().unwrap().is_empty());
+}
+
+#[test]
+fn an_input_larger_than_a_fresh_hash_batch_is_terminal_and_actionable() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    fs::write(root.join("one.z64"), payload).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_hash_bytes: payload.len() as u64 - 1,
+        ..Default::default()
+    };
+    let result = publish_saved_batch(&catalog(payload), &library, &limits).unwrap();
+    assert!(result.report.candidates.is_empty());
+    assert_eq!(result.report.hash_bytes, 0);
+    assert!(
+        result
+            .report
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::HashBytes)
+    );
+    assert!(!result.coverage.unwrap().can_resume);
+    assert!(result.continuation.is_none());
+    assert!(
+        result
+            .report
+            .issues
+            .iter()
+            .any(|issue| issue.message.contains("within one hash batch"))
+    );
 }
 
 #[test]
@@ -4507,4 +4587,265 @@ fn fresh_scan_preserves_readable_reports_with_bad_metadata_and_refuses_future_fo
             "version is not supported"
         }));
     }
+}
+
+#[test]
+fn resumed_zip_profiles_keep_independent_identities_without_duplicate_events() {
+    let temporary = tempfile::tempdir().unwrap();
+    let prefix = temporary.path().join("a-prefix");
+    let archive_root = temporary.path().join("b-archive");
+    fs::create_dir(&prefix).unwrap();
+    fs::create_dir(&archive_root).unwrap();
+    let payload = b"supported resumable source";
+    fs::write(prefix.join("prefix.z64"), payload).unwrap();
+    let path = archive_root.join("combined.zip");
+    let mut archive = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+    for name in ["game.z64", "game.n64"] {
+        archive
+            .start_file(name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        archive.write_all(payload).unwrap();
+    }
+    archive.finish().unwrap();
+    let mut document = catalog(payload).document().clone();
+    document.source_profiles[1].accepted_extensions = vec!["n64".into()];
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&prefix).unwrap();
+    library.add_game_file_root(&archive_root).unwrap();
+    let cost = fs::metadata(&path).unwrap().len() + payload.len() as u64;
+    let limits = SourceDiscoveryLimits {
+        max_hash_bytes: cost * 2,
+        ..Default::default()
+    };
+    let mut emitted = Vec::new();
+    let operation = crate::OperationCoordinator::new("zip-hash-resume", None);
+    let (first, outputs, preimage) = super::build_game_file_scan_with_registry_events(
+        &catalog,
+        &library,
+        &limits,
+        &operation,
+        &mut |event| {
+            if let crate::OperationEventKind::SourceCandidate {
+                profile_id, path, ..
+            } = event.event
+            {
+                emitted.push((profile_id, path));
+            }
+        },
+    )
+    .unwrap();
+    assert!(first.coverage.as_ref().unwrap().can_resume);
+    assert_eq!(first.report.candidates.len(), 2);
+    super::publish_game_file_scan(&library, &operation, &first, &outputs, preimage.as_deref())
+        .unwrap();
+    let operation = crate::OperationCoordinator::new("zip-hash-resume-next", None);
+    let (last, _, _) = super::build_game_file_scan_with_registry_events(
+        &catalog,
+        &library,
+        &limits,
+        &operation,
+        &mut |event| {
+            if let crate::OperationEventKind::SourceCandidate {
+                profile_id, path, ..
+            } = event.event
+            {
+                emitted.push((profile_id, path));
+            }
+        },
+    )
+    .unwrap();
+    assert!(last.coverage.as_ref().unwrap().frontier_exhausted);
+    assert_eq!(last.report.candidates.len(), 3);
+    assert_eq!(emitted.len(), 3);
+    assert_eq!(emitted.iter().collect::<BTreeSet<_>>().len(), 3);
+    assert!(last.report.hash_bytes > limits.max_hash_bytes);
+    assert_eq!(fs::read(prefix.join("prefix.z64")).unwrap(), payload);
+    assert!(library.sources().unwrap().is_empty());
+}
+
+#[test]
+fn hash_batches_recheck_split_directory_members_before_admitting_a_set() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    let bytes = fixtures
+        .iter()
+        .map(|(_, bytes)| bytes.len() as u64)
+        .sum::<u64>();
+    for (name, bytes) in &fixtures {
+        fs::write(root.join(name), bytes).unwrap();
+    }
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        max_hash_bytes: bytes,
+        ..Default::default()
+    };
+    let mut last = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    for _ in 0..6 {
+        if !last.coverage.as_ref().unwrap().can_resume {
+            break;
+        }
+        last = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    }
+    assert!(last.coverage.as_ref().unwrap().frontier_exhausted);
+    assert!(last.report.hash_bytes > bytes);
+    assert!(last.coverage.as_ref().unwrap().prior_member_rechecks > 0);
+    assert_eq!(
+        last.report
+            .candidates
+            .iter()
+            .filter(|source| source.profile_id == "g-diffuser-source-set")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn forged_deferred_inputs_and_impossible_hash_totals_refuse_continuation() {
+    for counter in [false, true] {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("selected");
+        fs::create_dir(&root).unwrap();
+        let payload = b"supported resumable source";
+        for name in ["one.z64", "two.z64"] {
+            fs::write(root.join(name), payload).unwrap();
+        }
+        let catalog = catalog(payload);
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        library.add_game_file_root(&root).unwrap();
+        let limits = SourceDiscoveryLimits {
+            max_hash_bytes: payload.len() as u64,
+            ..Default::default()
+        };
+        let mut prior = publish_saved_batch(&catalog, &library, &limits).unwrap();
+        if counter {
+            prior.report.hash_bytes = u64::MAX;
+            prior.continuation.as_mut().unwrap()["report_sha256"] = serde_json::json!(hex::encode(
+                Sha256::digest(serde_json::to_vec(&prior.report).unwrap())
+            ));
+        } else {
+            prior.continuation.as_mut().unwrap()["pending"][0]["deferred_file"] =
+                serde_json::json!("../outside.z64");
+        }
+        library.replace_game_file_scan_snapshot(&prior).unwrap();
+        let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict);
+        let retained = current_game_file_scan(&catalog, &library).unwrap().unwrap();
+        assert_eq!(
+            retained.report.candidates.len(),
+            prior.report.candidates.len()
+        );
+        assert!(retained.coverage.unwrap().restart_required);
+        assert!(retained.continuation.is_none());
+    }
+}
+
+#[test]
+fn deferred_inspection_precedes_fresh_entries_when_enumeration_order_changes() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported resumable source";
+    for name in ["one.z64", "two.z64"] {
+        fs::write(root.join(name), payload).unwrap();
+    }
+    let names = fs::read_dir(&root)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .collect::<Vec<_>>();
+    let deferred = names[1].clone();
+    let root = fs::canonicalize(root).unwrap();
+    let deferred_path = root.join(&deferred);
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let mut limits = SourceDiscoveryLimits {
+        max_hash_bytes: payload.len() as u64,
+        ..Default::default()
+    };
+    let mut prior = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    // A valid prior enumeration can inspect the later-returned name first.
+    // Neither filesystem bytes nor metadata change when constructing this cursor.
+    let mut cursor: ScanContinuation =
+        serde_json::from_value(prior.continuation.take().unwrap()).unwrap();
+    cursor
+        .observed
+        .retain(|path, _| path == &root || path == &deferred_path);
+    cursor.remember(&deferred_path).unwrap();
+    let directory = cursor.pending.front_mut().unwrap();
+    directory.seen = BTreeSet::from([deferred.clone()]);
+    directory.deferred_file = Some(deferred);
+    prior.report.candidates.clear();
+    prior.report.hash_bytes = 0;
+    prior.report.files_hashed = 0;
+    prior.report.entries_examined = 1;
+    limits.max_hash_bytes *= 2;
+    prior.limits = Some(limits.clone());
+    cursor.report_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&prior.report).unwrap()));
+    prior.continuation = Some(serde_json::to_value(cursor).unwrap());
+    library.replace_game_file_scan_snapshot(&prior).unwrap();
+    let resumed = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(
+        resumed
+            .report
+            .candidates
+            .iter()
+            .any(|source| source.path == deferred_path)
+    );
+    let last = if resumed.coverage.as_ref().unwrap().can_resume {
+        publish_saved_batch(&catalog, &library, &limits).unwrap()
+    } else {
+        resumed
+    };
+    assert!(last.coverage.unwrap().frontier_exhausted);
+    assert_eq!(last.report.candidates.len(), 4);
+    assert_eq!(last.report.files_hashed, 2);
+    assert_eq!(last.report.hash_bytes, payload.len() as u64 * 2);
+}
+
+#[test]
+fn resumed_zip_file_set_conflict_preserves_the_exact_published_snapshot() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let (catalog, fixtures) = directory_set_catalog();
+    let path = root.join("set.zip");
+    write_file_set_zip(&path, &fixtures);
+    fs::write(root.join("other.ignored"), b"not a source").unwrap();
+    let root = fs::canonicalize(root).unwrap();
+    let path = fs::canonicalize(path).unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let mut prior = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    let mut record = crate::source_inspection::inspect(&catalog, "g-diffuser-source-set", &path)
+        .unwrap()
+        .record
+        .unwrap();
+    record.storage_sha256 = "f".repeat(64);
+    prior.report.candidates = vec![record];
+    let mut cursor: ScanContinuation =
+        serde_json::from_value(prior.continuation.take().unwrap()).unwrap();
+    cursor
+        .observed
+        .retain(|entry, _| entry == &root || entry == &path);
+    cursor.remember(&path).unwrap();
+    let directory = cursor.pending.front_mut().unwrap();
+    directory.seen = BTreeSet::from(["set.zip".into()]);
+    directory.deferred_file = Some("set.zip".into());
+    cursor.report_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&prior.report).unwrap()));
+    prior.continuation = Some(serde_json::to_value(cursor).unwrap());
+    library.replace_game_file_scan_snapshot(&prior).unwrap();
+    let original = library.stored_game_file_scan_payload().unwrap();
+    let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert!(error.message.contains("source identity changed"));
+    assert_eq!(library.stored_game_file_scan_payload().unwrap(), original);
 }

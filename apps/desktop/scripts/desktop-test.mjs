@@ -1423,6 +1423,7 @@ try {
       revision,
       sourceJourney: executionPlan.fixtures.sourceJourney,
       preliminaryJourney: executionPlan.fixtures.preliminaryJourney,
+      hashResumeJourney: executionPlan.fixtures.hashResumeJourney,
       completionJourney: executionPlan.fixtures.completionJourney,
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       preparationTool: values["preparation-tool"],

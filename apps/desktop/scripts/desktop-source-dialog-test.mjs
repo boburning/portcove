@@ -5,6 +5,7 @@ import {
   requireTrustedProbeCleanup,
 } from "./desktop-owned-ipc-probe.mjs";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
@@ -631,6 +632,21 @@ export function seedSelectedSetup(context) {
   assert.deepEqual(command(["source", "list"]), []);
   assert.deepEqual(command(["source", "roots", "list"]), []);
   const root = command(["source", "roots", "add", context.fixture.sourceJourney.directory]);
+  if (context.fixture.hashResumeJourney) {
+    const owned = context.fixture.sourceJourney;
+    const allowance = Math.max(
+      readFileSync(owned.gameBefore).length,
+      readFileSync(owned.biosBefore).length,
+    );
+    const initial = command(["source", "roots", "scan", "--max-hash-bytes", String(allowance)]);
+    assert.equal(initial.coverage.batches, 1);
+    assert.equal(initial.coverage.can_resume, true);
+    assert.equal(initial.coverage.restart_required, false);
+    assert.ok(initial.report.limits_reached.includes("hash_bytes"));
+    assert.equal(initial.report.candidates.length, 1);
+    assert.ok(owned.profiles.includes(initial.report.candidates[0].profile_id));
+    context.fixture.hashResumeInitial = initial;
+  }
   if (context.fixture.completionJourney) {
     const initial = command(["source", "roots", "scan", "--max-entries", "2"]);
     assert.equal(initial.coverage.batches, 1);
@@ -1023,6 +1039,176 @@ async function preliminarySourceReviewScenario(context) {
   });
 }
 
+async function hashResumeScenario(context) {
+  const { browser, invoke, scenario, library, output, artifacts, cli, fixture } = context;
+  await scenario("native-saved-folder-hash-resume", async () => {
+    const owned = fixture.sourceJourney;
+    assert.ok(fixture.hashResumeJourney && fixture.hashResumeInitial);
+    assertOwnedSelectedSetupPath(owned.root.path, owned.directory);
+    const command = selectedSetupCommand({ cli, library, output, fixture });
+    const { button, click } = reviewControls(browser);
+    const nativeRead = async (name, args) => {
+      const response = await invoke(name, args);
+      assert.equal(response.ok, true, JSON.stringify(response.error));
+      return response.value;
+    };
+    const report = {
+      scope: "Actual saved hash-batch continuation and fresh source review/cancel",
+      limitations: [
+        "Inert owned Windows development inputs; no gameplay, installed package, physical storage or Linux proof",
+        "Root and initial batch seeded by first-party CLI; native picker not exercised",
+        "No registration, installation or preparation authorized",
+      ],
+      observations: {},
+    };
+    const artifact = path.join(output, "saved-folder-hash-resume.json");
+    const capture = async (name) => {
+      const screenshot = path.join(output, `${name}.png`);
+      await writeFile(screenshot, await browser.takeScreenshot(), "base64");
+      artifacts.push(screenshot);
+      await captureAccessibilityReport(
+        browser,
+        path.join(output, `${name}-accessibility.json`),
+        artifacts,
+      );
+    };
+    try {
+      report.checkpoint = "initial persisted batch";
+      assert.deepEqual(command(["source", "list"]), []);
+      await click(
+        By.xpath(
+          '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
+        ),
+      );
+      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await click(button("Refresh folders"));
+      await browser.wait(async () => {
+        const controls = await browser.findElements(button("Continue scan"));
+        return controls.length === 1 && (await controls[0].isEnabled());
+      }, 5_000);
+      const initial = await nativeRead("get_game_file_scan_snapshot");
+      assert.equal(initial.freshness, "inputs_match");
+      assert.deepEqual(initial.report, fixture.hashResumeInitial.report);
+      assert.deepEqual(initial.limits, fixture.hashResumeInitial.limits);
+      assert.equal(initial.coverage.can_resume, true);
+      const presentation = await browser
+        .findElement(By.css('[aria-label="Saved folder scan results"]'))
+        .getText();
+      assert.match(presentation, /Continue the scan to check the next batch/);
+      report.observations.initial = initial;
+      await capture("hash-batch-initial");
+      const previous = new Set(command(["activity"]).records.map((record) => record.id));
+      report.checkpoint = "keyboard continuation";
+      const continueButton = await browser.findElement(button("Continue scan"));
+      await browser.executeScript((element) => element.focus(), continueButton);
+      await continueButton.sendKeys(Key.SPACE);
+      await browser.wait(
+        async () =>
+          command(["activity"]).records.some(
+            (record) =>
+              record.operation === "discover_sources" &&
+              record.status === "succeeded" &&
+              !previous.has(record.id),
+          ),
+        15_000,
+      );
+      await browser.wait(async () => {
+        const controls = await browser.findElements(button("Scan saved folders"));
+        return controls.length === 1 && (await controls[0].isEnabled());
+      }, 5_000);
+      const continued = await nativeRead("get_game_file_scan_snapshot");
+      assert.equal(continued.freshness, "inputs_match");
+      assert.equal(continued.coverage.batches, 2);
+      assert.equal(continued.coverage.can_resume, false);
+      assert.equal(continued.coverage.frontier_exhausted, true);
+      assert.deepEqual(continued.limits, initial.limits);
+      assert.ok(continued.report.hash_bytes > continued.limits.max_hash_bytes);
+      assert.equal(continued.report.hash_bytes, owned.game.length + owned.bios.length);
+      assert.equal(continued.report.files_hashed, 2);
+      assert.deepEqual(
+        continued.report.candidates.find(
+          (item) => item.profile_id === initial.report.candidates[0].profile_id,
+        ),
+        initial.report.candidates[0],
+      );
+      assert.deepEqual(
+        continued.report.candidates.map((item) => item.profile_id).sort(),
+        [...owned.profiles].sort(),
+      );
+      const newlyDiscovered = continued.report.candidates.find(
+        (item) => item.profile_id !== initial.report.candidates[0].profile_id,
+      );
+      assert.ok(newlyDiscovered);
+      report.observations.continued = continued;
+      await capture("hash-batch-complete");
+      report.checkpoint = "fresh review and neutral cancel";
+      const candidate = await browser.wait(
+        until.elementLocated(
+          By.css(`[data-completed-candidate][data-profile-id="${newlyDiscovered.profile_id}"]`),
+        ),
+        5_000,
+      );
+      const reviewButton = await candidate.findElement(By.css("[data-candidate-review]"));
+      await clickVisible(browser, reviewButton);
+      const review = await browser.wait(
+        until.elementLocated(By.css('[aria-label="Source import review"]')),
+        15_000,
+      );
+      report.observations.review_text = await review.getText();
+      const plan = await nativeRead("plan_source_import", {
+        profileId: newlyDiscovered.profile_id,
+        path: newlyDiscovered.path,
+        mode: "use_current_location",
+      });
+      assert.equal(plan.profile_id, newlyDiscovered.profile_id);
+      assertOwnedSelectedSetupPath(plan.source.path, newlyDiscovered.path);
+      assert.equal(plan.source.sha256, newlyDiscovered.sha256);
+      assert.equal(plan.mode, "use_current_location");
+      assert.equal(plan.admission_mode, "exact_identity");
+      const expectedLabel =
+        newlyDiscovered.profile_id === owned.profiles[0]
+          ? "Selected setup inert game"
+          : "Selected setup inert BIOS";
+      assert.ok(report.observations.review_text.includes(`File requirement: ${expectedLabel}`));
+      assert.ok(report.observations.review_text.includes("Use current location"));
+      assert.ok(report.observations.review_text.includes("Source check: Exact identity."));
+      const displayedPath = await review
+        .findElement(By.xpath('.//p[contains(.,"Selected location:")]/code'))
+        .getText();
+      assertOwnedSelectedSetupPath(displayedPath, plan.source.path);
+      report.observations.fresh_plan = plan;
+      await capture("hash-batch-review");
+      await clickVisible(
+        browser,
+        await review.findElement(By.xpath('.//button[normalize-space(.)="Cancel review"]')),
+      );
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[aria-label="Source import review"]'))).length === 0,
+        5_000,
+      );
+      assert.equal(
+        await browser.executeScript((element) => document.activeElement === element, reviewButton),
+        true,
+      );
+      assert.deepEqual(command(["source", "list"]), []);
+      assert.deepEqual(await readFile(owned.gamePath), await readFile(owned.gameBefore));
+      assert.deepEqual(await readFile(owned.biosPath), await readFile(owned.biosBefore));
+      assert.equal(fixture.requests.length, 0);
+      report.observations.originals_unchanged = true;
+      report.observations.registration_unchanged = true;
+      report.observations.no_acquisition = true;
+      report.checkpoint = "completed";
+    } catch (error) {
+      await recordSelectedSetupFailure(browser, report, error);
+      throw error;
+    } finally {
+      await writeFile(artifact, JSON.stringify(report, null, 2), { flag: "wx" });
+      artifacts.push(artifact);
+    }
+  });
+}
+
 export async function selectedSetupScenario({
   browser,
   invoke,
@@ -1033,6 +1219,17 @@ export async function selectedSetupScenario({
   cli,
   fixture,
 }) {
+  if (fixture?.hashResumeJourney)
+    return hashResumeScenario({
+      browser,
+      invoke,
+      scenario,
+      library,
+      output,
+      artifacts,
+      cli,
+      fixture,
+    });
   if (fixture?.preliminaryJourney)
     return preliminarySourceReviewScenario({
       browser,

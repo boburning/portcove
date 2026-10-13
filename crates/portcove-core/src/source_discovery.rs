@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCAN_FORMAT_VERSION: u32 = 9;
+const CURRENT_SCAN_FORMAT_VERSION: u32 = 10;
 const MAX_CONTINUATION_RECORDS: usize = 16_384;
 const MAX_CONTINUATION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESUME_CHECKS: u32 = 100_000;
@@ -31,6 +31,9 @@ struct ScanDirectory {
     depth: u32,
     seen: BTreeSet<String>,
     complete: bool,
+    // An examined file whose inspection must restart with a fresh batch budget.
+    // Its ordinary-file stamp remains in observed; no hash facts cross batches.
+    deferred_file: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -94,7 +97,7 @@ struct ScanContinuation {
 impl ScanContinuation {
     fn new(roots: &[PathBuf], outputs_sha256: String) -> Self {
         Self {
-            format_version: 1,
+            format_version: 2,
             platform: std::env::consts::OS.into(),
             outputs_sha256,
             report_sha256: String::new(),
@@ -105,6 +108,7 @@ impl ScanContinuation {
                     depth: 0,
                     seen: BTreeSet::new(),
                     complete: true,
+                    deferred_file: None,
                 })
                 .collect(),
             observed: BTreeMap::new(),
@@ -494,12 +498,10 @@ fn build_game_file_scan_with_registry_events(
         .is_none_or(|cursor| cursor.pending.is_empty());
     let can_resume = !frontier_exhausted
         && !batch.terminal_limited
-        && !report.limits_reached.iter().any(|limit| {
-            matches!(
-                limit,
-                SourceDiscoveryLimit::HashBytes | SourceDiscoveryLimit::Candidates
-            )
-        });
+        && !report
+            .limits_reached
+            .iter()
+            .any(|limit| matches!(limit, SourceDiscoveryLimit::Candidates));
     let pending_directories = batch
         .continuation
         .as_ref()
@@ -636,7 +638,14 @@ fn validate_continuation(
             .coverage
             .as_ref()
             .is_none_or(|coverage| !coverage.can_resume || coverage.restart_required)
-        || snapshot.report.hash_bytes > limits.max_hash_bytes
+        || u128::from(snapshot.report.hash_bytes)
+            > u128::from(limits.max_hash_bytes)
+                * u128::from(
+                    snapshot
+                        .coverage
+                        .as_ref()
+                        .map_or(0, |coverage| coverage.batches),
+                )
         || snapshot.report.candidate_count() > limits.max_candidates as usize
         || value
             .get("observed")
@@ -653,7 +662,7 @@ fn validate_continuation(
         ));
     }
     let mut cursor: ScanContinuation = serde_json::from_value(value.clone())?;
-    if cursor.format_version != 1
+    if cursor.format_version != 2
         || cursor.platform != std::env::consts::OS
         || cursor.outputs_sha256 != outputs_identity
         || cursor.report_sha256
@@ -705,6 +714,13 @@ fn validate_continuation(
                     .is_ok_and(|relative| relative.components().count() == directory.depth as usize)
             })
             || directory.seen.len() > MAX_CONTINUATION_RECORDS
+            || directory.deferred_file.as_ref().is_some_and(|name| {
+                !directory.seen.contains(name)
+                    || cursor
+                        .observed
+                        .get(&directory.path.join(name))
+                        .is_none_or(|stamp| stamp.as_ref().is_none_or(|stamp| stamp.kind != 0))
+            })
             || cursor
                 .observed
                 .get(&directory.path)
@@ -878,6 +894,7 @@ struct Discovery<'a> {
     prior_member_rechecks: u32,
     prior_paths: BTreeSet<PathBuf>,
     terminal_limited: bool,
+    batch_hash_limited: bool,
 }
 
 struct DiscoveryExclusion {
@@ -1036,7 +1053,12 @@ fn scan_with_continuation<'a>(
                 .limits_reached
                 .iter()
                 .copied()
-                .filter(|limit| *limit != SourceDiscoveryLimit::Entries)
+                .filter(|limit| {
+                    !matches!(
+                        limit,
+                        SourceDiscoveryLimit::Entries | SourceDiscoveryLimit::HashBytes
+                    )
+                })
                 .collect()
         })
         .unwrap_or_default();
@@ -1058,6 +1080,7 @@ fn scan_with_continuation<'a>(
                 depth: 0,
                 seen: BTreeSet::new(),
                 complete: true,
+                deferred_file: None,
             })
             .collect();
     }
@@ -1091,7 +1114,7 @@ fn scan_with_continuation<'a>(
         budget: HashBudget {
             operation: Some(operation.clone()),
             limit: request.limits.max_hash_bytes,
-            hashed: hash_bytes,
+            hashed: 0,
             max_zip_entries: 4096,
         },
         exclusions,
@@ -1104,6 +1127,7 @@ fn scan_with_continuation<'a>(
         prior_member_rechecks: 0,
         prior_paths,
         terminal_limited: false,
+        batch_hash_limited: false,
     };
     let omitted_owned_paths = discovery
         .exclusions
@@ -1182,7 +1206,9 @@ fn scan_with_continuation<'a>(
             }
         }
     }
-    discovery.report.hash_bytes = discovery.budget.hashed;
+    discovery.report.hash_bytes = hash_bytes
+        .checked_add(discovery.budget.hashed)
+        .ok_or_else(|| PortcoveError::state("scan hash byte counter reached its limit"))?;
     discovery.report.limits_reached = discovery.reached.into_iter().collect();
     discovery.report.candidates.sort_by(|left, right| {
         (&left.profile_id, &left.path).cmp(&(&right.profile_id, &right.path))
@@ -1204,6 +1230,84 @@ fn scan_with_continuation<'a>(
 }
 
 impl Discovery<'_> {
+    fn record_limit(&mut self, error: &PortcoveError) {
+        if error
+            .details
+            .get("scan_limit")
+            .is_some_and(|limit| limit == "file_size")
+        {
+            self.reached.insert(SourceDiscoveryLimit::FileSize);
+        } else {
+            self.batch_hash_limited = true;
+            self.reached.insert(SourceDiscoveryLimit::HashBytes);
+        }
+    }
+
+    fn defer_hash_work(&mut self, before_work: u64, path: &Path) -> bool {
+        if !self.batch_hash_limited || self.continuation.is_none() {
+            return false;
+        }
+        if before_work > 0 {
+            return true;
+        }
+        // This indivisible inspection has already had the whole fresh allowance.
+        // Retrying identical work cannot help and must not become a no-progress loop.
+        self.terminal_limited = true;
+        self.issue(Some(path.into()), None,
+            "This input cannot be fully inspected within one hash batch. Use a larger bounded hash allowance with the CLI or select this input from game details; coverage remains limited.".into());
+        false
+    }
+
+    fn record_candidate(&mut self, candidate: SourceRecord) -> Result<()> {
+        if let Some(previous) = self.report.candidates.iter().find(|previous| {
+            previous.profile_id == candidate.profile_id && previous.path == candidate.path
+        }) {
+            let mut earlier = previous.clone();
+            let mut current = candidate;
+            earlier.updated_at = 0;
+            current.updated_at = 0;
+            if serde_json::to_value(earlier)? != serde_json::to_value(current)? {
+                return Err(PortcoveError::conflict(
+                    "source identity changed while resuming discovery",
+                ));
+            }
+            return Ok(());
+        }
+        let operation = self
+            .budget
+            .operation
+            .as_ref()
+            .expect("discovery owns operation");
+        operation.checkpoint()?;
+        (self.emit)(operation.source_candidate(&candidate));
+        operation.checkpoint()?;
+        self.report.candidates.push(candidate);
+        Ok(())
+    }
+
+    fn record_preliminary(&mut self, inspection: crate::SourceInspection) -> Result<()> {
+        if let Some(previous) = self.report.preliminary_selections.iter().find(|previous| {
+            previous.profile_id == inspection.profile_id && previous.path == inspection.path
+        }) {
+            let mut earlier = previous.clone();
+            let mut current = inspection;
+            if let Some(record) = &mut earlier.record {
+                record.updated_at = 0;
+            }
+            if let Some(record) = &mut current.record {
+                record.updated_at = 0;
+            }
+            if serde_json::to_value(earlier)? != serde_json::to_value(current)? {
+                return Err(PortcoveError::conflict(
+                    "preliminary source facts changed while resuming discovery",
+                ));
+            }
+            return Ok(());
+        }
+        self.report.preliminary_selections.push(inspection);
+        Ok(())
+    }
+
     fn is_excluded(&self, path: &Path) -> bool {
         self.exclusions
             .iter()
@@ -1267,6 +1371,7 @@ impl Discovery<'_> {
                     depth: 0,
                     seen: BTreeSet::new(),
                     complete: true,
+                    deferred_file: None,
                 })
                 .collect()
         };
@@ -1314,6 +1419,7 @@ impl Discovery<'_> {
             let mut members = state
                 .seen
                 .iter()
+                .filter(|name| state.deferred_file.as_ref() != Some(*name))
                 .filter_map(|name| {
                     let path = directory.join(name);
                     self.continuation
@@ -1326,6 +1432,7 @@ impl Discovery<'_> {
                 .collect::<Vec<_>>();
             let mut observations = DirectoryObservations::default();
             let mut complete = state.complete;
+            let mut skipped_for_deferred = false;
             for entry in entries {
                 if let Some(operation) = &self.budget.operation {
                     operation.checkpoint()?;
@@ -1346,11 +1453,28 @@ impl Discovery<'_> {
                         return Ok(());
                     }
                 }
+                // read_dir ordering is not stable across batches. Finish the
+                // retained inspection before any new entry can replace it.
+                if let Some(deferred) = &state.deferred_file
+                    && let Ok(entry) = &entry
+                    && entry.file_name().to_str() != Some(deferred.as_str())
+                {
+                    if entry
+                        .file_name()
+                        .to_str()
+                        .is_none_or(|name| !state.seen.contains(name))
+                    {
+                        skipped_for_deferred = true;
+                    }
+                    continue;
+                }
                 if entry
                     .as_ref()
                     .ok()
                     .and_then(|entry| entry.file_name().to_str().map(str::to_owned))
-                    .is_some_and(|name| state.seen.contains(&name))
+                    .is_some_and(|name| {
+                        state.seen.contains(&name) && state.deferred_file.as_ref() != Some(&name)
+                    })
                 {
                     continue;
                 }
@@ -1450,11 +1574,14 @@ impl Discovery<'_> {
                             depth: depth + 1,
                             seen: BTreeSet::new(),
                             complete: true,
+                            deferred_file: None,
                         });
                     } else {
                         self.reached.insert(SourceDiscoveryLimit::Depth);
                     }
                 } else if kind.is_file() {
+                    let before_work = self.budget.hashed;
+                    self.batch_hash_limited = false;
                     if let Some(name) = entry.file_name().to_str() {
                         members.push((name.to_owned(), canonical.clone()));
                     } else if !self.directory_profiles.is_empty() {
@@ -1466,11 +1593,22 @@ impl Discovery<'_> {
                         );
                     }
                     if let Err(error) = self.file(&canonical, &mut observations) {
-                        if error.code == crate::ErrorCode::Cancelled {
+                        if matches!(
+                            error.code,
+                            crate::ErrorCode::Cancelled | crate::ErrorCode::Conflict
+                        ) {
                             return Err(error);
                         }
-                        self.issue(Some(canonical), None, error.message);
+                        self.issue(Some(canonical.clone()), None, error.message);
                     }
+                    if self.defer_hash_work(before_work, &canonical) {
+                        state.deferred_file = entry.file_name().into_string().ok();
+                        state.complete = complete;
+                        pending.push_front(state);
+                        self.save_frontier(pending);
+                        return Ok(());
+                    }
+                    state.deferred_file = None;
                     if self.report.candidate_count() >= self.limits.max_candidates as usize {
                         self.reached.insert(SourceDiscoveryLimit::Candidates);
                         state.complete = complete;
@@ -1480,10 +1618,30 @@ impl Discovery<'_> {
                     }
                 }
             }
+            if state.deferred_file.is_some() {
+                return Err(PortcoveError::conflict(
+                    "deferred source was not found in its recorded directory",
+                ));
+            }
+            if skipped_for_deferred {
+                // Earlier fresh entries were intentionally left unexamined.
+                // Re-list them in a bounded batch before evaluating file sets.
+                state.complete = complete;
+                pending.push_front(state);
+                self.save_frontier(pending);
+                return Ok(());
+            }
             if complete && !self.directory_profiles.is_empty() {
+                let before_work = self.budget.hashed;
+                self.batch_hash_limited = false;
                 self.refresh_output_exclusions(&directory, true)?;
                 if !self.is_excluded(&directory) {
                     self.directory(&directory, &members, &mut observations)?;
+                }
+                if self.defer_hash_work(before_work, &directory) {
+                    pending.push_front(state);
+                    self.save_frontier(pending);
+                    return Ok(());
                 }
                 if self.report.candidate_count() >= self.limits.max_candidates as usize {
                     self.reached.insert(SourceDiscoveryLimit::Candidates);
@@ -1588,7 +1746,7 @@ impl Discovery<'_> {
                 Ok(false) => {}
                 Err(error) if error.details.contains_key("scan_limit") => {
                     observations.failed.insert(path.into());
-                    self.reached.insert(SourceDiscoveryLimit::HashBytes);
+                    self.record_limit(&error);
                     return Ok(());
                 }
                 Err(error) => {
@@ -1626,14 +1784,7 @@ impl Discovery<'_> {
                                 }
                             ) {
                                 if let Some(candidate) = inspection.record {
-                                    (self.emit)(
-                                        self.budget
-                                            .operation
-                                            .as_ref()
-                                            .expect("discovery always owns an operation")
-                                            .source_candidate(&candidate),
-                                    );
-                                    self.report.candidates.push(candidate);
+                                    self.record_candidate(candidate)?;
                                 }
                             } else if inspection.record.is_some()
                                 && matches!(
@@ -1646,7 +1797,7 @@ impl Discovery<'_> {
                                     validator.result == crate::SourceValidatorResult::NotRun
                                 })
                             {
-                                self.report.preliminary_selections.push(inspection);
+                                self.record_preliminary(inspection)?;
                             }
                             if self.report.candidate_count() >= self.limits.max_candidates as usize
                             {
@@ -1660,12 +1811,7 @@ impl Discovery<'_> {
                     if !extension.eq_ignore_ascii_case("zip") {
                         observations.failed.insert(path.into());
                     }
-                    self.reached
-                        .insert(if error.details["scan_limit"] == "file_size" {
-                            SourceDiscoveryLimit::FileSize
-                        } else {
-                            SourceDiscoveryLimit::HashBytes
-                        });
+                    self.record_limit(&error);
                 }
                 Err(error)
                     if error
@@ -1689,14 +1835,16 @@ impl Discovery<'_> {
         {
             match self.zip_file_sets(path) {
                 Ok(()) => {}
-                Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
+                Err(error)
+                    if matches!(
+                        error.code,
+                        crate::ErrorCode::Cancelled | crate::ErrorCode::Conflict
+                    ) =>
+                {
+                    return Err(error);
+                }
                 Err(error) if error.details.contains_key("scan_limit") => {
-                    self.reached
-                        .insert(if error.details["scan_limit"] == "file_size" {
-                            SourceDiscoveryLimit::FileSize
-                        } else {
-                            SourceDiscoveryLimit::HashBytes
-                        });
+                    self.record_limit(&error);
                 }
                 Err(error) => self.issue(Some(path.into()), None, error.message),
             }
@@ -1764,14 +1912,7 @@ impl Discovery<'_> {
                 )
                 && let Some(candidate) = inspection.record
             {
-                let operation = self
-                    .budget
-                    .operation
-                    .as_ref()
-                    .expect("discovery owns operation");
-                operation.checkpoint()?;
-                (self.emit)(operation.source_candidate(&candidate));
-                self.report.candidates.push(candidate);
+                self.record_candidate(candidate)?;
                 if self.report.candidate_count() >= self.limits.max_candidates as usize {
                     break;
                 }
@@ -1813,12 +1954,7 @@ impl Discovery<'_> {
                 Ok(inspection) => inspection,
                 Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
                 Err(error) if error.details.contains_key("scan_limit") => {
-                    self.reached
-                        .insert(if error.details["scan_limit"] == "file_size" {
-                            SourceDiscoveryLimit::FileSize
-                        } else {
-                            SourceDiscoveryLimit::HashBytes
-                        });
+                    self.record_limit(&error);
                     continue;
                 }
                 Err(error) => {
@@ -1833,14 +1969,7 @@ impl Discovery<'_> {
                 }
             ) && let Some(candidate) = inspection.record
             {
-                let operation = self
-                    .budget
-                    .operation
-                    .as_ref()
-                    .expect("discovery owns operation");
-                (self.emit)(operation.source_candidate(&candidate));
-                operation.checkpoint()?;
-                self.report.candidates.push(candidate);
+                self.record_candidate(candidate)?;
                 if self.report.candidate_count() >= self.limits.max_candidates as usize {
                     break;
                 }
@@ -1965,19 +2094,7 @@ impl Discovery<'_> {
                         }
                     ) && let Some(candidate) = inspection.record
                     {
-                        (self.emit)(
-                            self.budget
-                                .operation
-                                .as_ref()
-                                .expect("discovery owns operation")
-                                .source_candidate(&candidate),
-                        );
-                        self.budget
-                            .operation
-                            .as_ref()
-                            .expect("discovery owns operation")
-                            .checkpoint()?;
-                        self.report.candidates.push(candidate);
+                        self.record_candidate(candidate)?;
                         if self.report.candidate_count() >= self.limits.max_candidates as usize {
                             break;
                         }
@@ -1985,12 +2102,7 @@ impl Discovery<'_> {
                 }
                 Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
                 Err(error) if error.details.contains_key("scan_limit") => {
-                    self.reached
-                        .insert(if error.details["scan_limit"] == "file_size" {
-                            SourceDiscoveryLimit::FileSize
-                        } else {
-                            SourceDiscoveryLimit::HashBytes
-                        });
+                    self.record_limit(&error);
                 }
                 Err(error) => {
                     self.issue(Some(path.into()), Some(profile.id.clone()), error.message)
