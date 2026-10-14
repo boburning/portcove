@@ -2141,7 +2141,14 @@ fn selected_directory_copy_preserves_native_optical_basenames() {
         .unwrap();
     source.path = temporary.path().join("selected");
     fs::create_dir(&source.path).unwrap();
-    let names = ["disc:01.chd", "Disc.chd", "disc.chd", "遊戲.chd"];
+    let names = [
+        "disc:01.chd",
+        "Disc.chd",
+        "disc.chd",
+        "遊戲.chd",
+        "disc\\01.chd",
+        "disc\n01.chd",
+    ];
     let mut identity = observed_optical_identity(names[0]);
     let template = identity.components[0].clone();
     identity.components = names

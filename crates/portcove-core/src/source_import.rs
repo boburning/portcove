@@ -1102,9 +1102,8 @@ fn selected_directory_names(source: &SourceRecord) -> Result<Vec<String>> {
         let relative = Path::new(name);
         if name.is_empty()
             || matches!(name, "." | "..")
-            || name.contains(['/', '\\'])
-            || (cfg!(windows) && name.contains(':'))
-            || name.chars().any(char::is_control)
+            || name.contains('/')
+            || (cfg!(windows) && (name.contains(['\\', ':']) || name.chars().any(char::is_control)))
             || relative.components().count() != 1
             || relative.file_name() != Some(std::ffi::OsStr::new(name))
             || !keys.insert(if cfg!(windows) {
