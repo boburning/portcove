@@ -27,6 +27,74 @@ const CISO_HEADER_BYTES: usize = 0x8000;
 const MAX_DECODER_BLOCK_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_CONTAINER_METADATA_BYTES: u64 = 4 * 1024 * 1024;
 
+/// The complete private observation tree shares the decoder's closure flag.
+/// Normal errors and unwinding retain both child and parent until proof arrives.
+pub(crate) struct InspectionDirectory {
+    directory: Option<tempfile::TempDir>,
+    quiesced: Cell<bool>,
+}
+
+impl InspectionDirectory {
+    pub(crate) fn new(directory: tempfile::TempDir) -> Self {
+        Self {
+            directory: Some(directory),
+            quiesced: Cell::new(true),
+        }
+    }
+    pub(crate) fn path(&self) -> &Path {
+        self.directory
+            .as_ref()
+            .expect("owned inspection directory")
+            .path()
+    }
+    pub(crate) fn keep(mut self) -> std::path::PathBuf {
+        self.directory
+            .take()
+            .expect("owned inspection directory")
+            .keep()
+    }
+}
+
+impl Drop for InspectionDirectory {
+    fn drop(&mut self) {
+        if !self.quiesced.get()
+            && let Some(directory) = self.directory.take()
+        {
+            let _retained = directory.keep();
+        }
+    }
+}
+
+struct InspectionWorkspace<'a> {
+    directory: Option<tempfile::TempDir>,
+    quiesced: &'a Cell<bool>,
+}
+
+impl InspectionWorkspace<'_> {
+    fn path(&self) -> &Path {
+        self.directory
+            .as_ref()
+            .expect("owned inspection workspace")
+            .path()
+    }
+    fn keep(mut self) -> std::path::PathBuf {
+        self.directory
+            .take()
+            .expect("owned inspection workspace")
+            .keep()
+    }
+}
+
+impl Drop for InspectionWorkspace<'_> {
+    fn drop(&mut self) {
+        if !self.quiesced.get()
+            && let Some(directory) = self.directory.take()
+        {
+            let _retained = directory.keep();
+        }
+    }
+}
+
 /// Current accepted representations, never informational or legacy projections.
 pub(crate) fn scan_extensions(
     catalog: &crate::Catalog,
@@ -158,7 +226,7 @@ pub(crate) fn observe(
     profile_id: &str,
     kind: SourceKind,
     path: &Path,
-    parent: &Path,
+    parent: &InspectionDirectory,
     maximum_size: u64,
     budget: &mut HashBudget,
 ) -> Result<DiscObservation> {
@@ -168,18 +236,22 @@ pub(crate) fn observe(
     {
         return observe_ciso_facts(profile_id, path, maximum_size, budget);
     }
-    // The existing Unix process-group contract cannot prove escaped-descendant
-    // closure. Avoid launching or generating output that cannot be consumed safely.
-    if !cfg!(windows) {
+    // Windows jobs and Linux decoder namespaces prove descendant closure.
+    // Other Unix process groups cannot safely admit generated decoder output.
+    if !cfg!(any(windows, target_os = "linux")) {
         return Err(PortcoveError::unsupported(
             "normalized disc inspection needs verified decoder-tree closure on this platform; choose an accepted normalized input directly",
         ));
     }
-    fs::create_dir_all(parent)?;
-    let workspace = tempfile::Builder::new()
+    fs::create_dir_all(parent.path())?;
+    let directory = tempfile::Builder::new()
         .prefix("portcove-disc-inspection-")
-        .tempdir_in(parent)?;
-    let quiesced = Cell::new(true);
+        .tempdir_in(parent.path())?;
+    let quiesced = &parent.quiesced;
+    let workspace = InspectionWorkspace {
+        directory: Some(directory),
+        quiesced,
+    };
     let result = observe_converted_disc(
         DiscInput {
             profile_id,
@@ -189,7 +261,7 @@ pub(crate) fn observe(
         },
         workspace.path(),
         budget,
-        &quiesced,
+        quiesced,
         None,
     );
     if !quiesced.get() {

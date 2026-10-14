@@ -1625,7 +1625,7 @@ fn opaque_one_off_names_leave_readable_results_and_serializable_unknown_coverage
     assert_eq!(fs::read(opaque).unwrap(), b"uninspected opaque fixture");
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 #[test]
 #[ignore = "explicit owned GCZ/WIA/RVZ and reviewed Dolphin tool; synthetic discovery acceptance"]
 fn real_owned_gamecube_containers_share_admission_and_resume_with_progress() {
@@ -1852,7 +1852,7 @@ fn non_chd_disc_sets_do_not_decode_chd_folders_or_hide_independent_raw_candidate
     );
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 #[test]
 #[ignore = "explicit owned CHD and reviewed installed codec; synthetic complete-set acceptance"]
 fn real_owned_disc_set_resumes_with_fresh_members_and_manual_identity_parity() {

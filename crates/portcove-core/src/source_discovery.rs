@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCAN_FORMAT_VERSION: u32 = 11;
+const CURRENT_SCAN_FORMAT_VERSION: u32 = 12;
 const MAX_CONTINUATION_RECORDS: usize = 16_384;
 const MAX_CONTINUATION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESUME_CHECKS: u32 = 100_000;
@@ -882,7 +882,7 @@ struct Discovery<'a> {
     compound_profiles: Vec<&'a SourceProfile>,
     normalized_profiles_by_extension: BTreeMap<String, Vec<&'a SourceProfile>>,
     disc_set_profiles: Vec<&'a SourceProfile>,
-    inspection_directory: Option<tempfile::TempDir>,
+    inspection_directory: Option<crate::source_disc::InspectionDirectory>,
     hashed_paths: BTreeSet<PathBuf>,
     limits: &'a SourceDiscoveryLimits,
     reached: BTreeSet<SourceDiscoveryLimit>,
@@ -1228,7 +1228,8 @@ fn scan_with_continuation<'a>(
                 path: fs::canonicalize(private.path())?,
                 kind: DiscoveryExclusionKind::Inspection,
             });
-            discovery.inspection_directory = Some(private);
+            discovery.inspection_directory =
+                Some(crate::source_disc::InspectionDirectory::new(private));
         }
         discovery.walk()?;
     } else if let Some(cursor) = &mut discovery.continuation {
@@ -2010,14 +2011,12 @@ impl Discovery<'_> {
         let parent = self
             .inspection_directory
             .as_ref()
-            .expect("normalized discovery owns private workspace")
-            .path()
-            .to_path_buf();
+            .expect("normalized discovery owns private workspace");
         let observed = match crate::source_disc::observe(
             &first.id,
             first.kind,
             path,
-            &parent,
+            parent,
             self.limits.max_file_bytes,
             &mut self.budget,
         ) {

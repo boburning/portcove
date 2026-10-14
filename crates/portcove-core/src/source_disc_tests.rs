@@ -1,5 +1,96 @@
 use super::*;
 
+#[cfg(target_os = "linux")]
+#[test]
+fn active_decoder_unwinding_retains_private_tree_after_exact_shutdown() {
+    use crate::process::{ChildProcessClass, ChildProcessPolicy, DecoderLimits};
+    let owner = tempfile::tempdir().unwrap();
+    let parent_path = owner.path().join("inspection");
+    let child_path = Cell::new(None);
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let parent = InspectionDirectory::new(
+            tempfile::Builder::new()
+                .prefix("inspection-")
+                .tempdir_in(owner.path())
+                .unwrap(),
+        );
+        let path = parent.path().to_path_buf();
+        fs::write(&parent_path, path.to_string_lossy().as_bytes()).unwrap();
+        let workspace = InspectionWorkspace {
+            directory: Some(tempfile::tempdir_in(parent.path()).unwrap()),
+            quiesced: &parent.quiesced,
+        };
+        child_path.set(Some(workspace.path().to_path_buf()));
+        let mut launch =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, "/bin/sh").unwrap();
+        launch.args(["-c", "echo ready > ready; i=0; while [ $i -lt 800 ]; do i=$((i+1)); echo $i > writes; /bin/sleep 0.01; done"]);
+        launch.current_dir(workspace.path());
+        launch.decoder_limits = Some(DecoderLimits {
+            memory_bytes: 512 * 1024 * 1024,
+            file_bytes: 4096,
+        });
+        parent.quiesced.set(false);
+        let mut confirm = || {
+            parent.quiesced.set(true);
+            Ok(())
+        };
+        let _ = crate::tool_process::run_tool(
+            &mut launch,
+            &|| {
+                if workspace.path().join("writes").exists() {
+                    panic!("owned active decoder unwind");
+                }
+                Ok(())
+            },
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut confirm),
+            },
+        );
+        panic!("active unwind was not observed");
+    }));
+    assert!(result.is_err());
+    let path = child_path.take().expect("actual decoder workspace");
+    assert!(path.exists());
+    assert!(path.parent().unwrap().exists());
+    let bytes = fs::read(path.join("writes")).unwrap();
+    std::thread::sleep(Duration::from_millis(50));
+    assert_eq!(fs::read(path.join("writes")).unwrap(), bytes);
+}
+
+#[test]
+fn unproved_inspection_retains_child_and_parent_during_unwinding() {
+    let owner = tempfile::tempdir().unwrap();
+    let directory = InspectionDirectory::new(tempfile::tempdir_in(owner.path()).unwrap());
+    let parent = directory.path().to_path_buf();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let workspace = InspectionWorkspace {
+            directory: Some(tempfile::tempdir_in(directory.path()).unwrap()),
+            quiesced: &directory.quiesced,
+        };
+        fs::write(
+            workspace.path().join("owned-private-proof"),
+            b"retain until closure is known",
+        )
+        .unwrap();
+        directory.quiesced.set(false);
+        panic!("owned unwinding control; no decoder was actually launched");
+    }));
+    assert!(result.is_err());
+    drop(directory);
+    assert!(parent.is_dir());
+    let children = fs::read_dir(&parent)
+        .unwrap()
+        .collect::<std::io::Result<Vec<_>>>()
+        .unwrap();
+    assert_eq!(children.len(), 1);
+    assert_eq!(
+        fs::read(children[0].path().join("owned-private-proof")).unwrap(),
+        b"retain until closure is known"
+    );
+    // The outer fixture owner removes only this control's inert files.
+}
+
 fn observed_size(bytes: &[u8], extension: &str) -> Result<u64> {
     let mut file = tempfile::tempfile()?;
     file.write_all(bytes)?;
@@ -226,7 +317,7 @@ fn ordered_disc_aggregate_keeps_normalized_and_original_identities_separate() {
     assert_ne!(reversed.record.storage_sha256, set.record.storage_sha256);
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 #[test]
 #[ignore = "explicit owned CHD plus installed codec acceptance; not a gameplay or retail fixture"]
 fn real_owned_chd_decoder_matches_manual_observation() {
@@ -295,7 +386,7 @@ fn real_owned_chd_decoder_matches_manual_observation() {
     );
 }
 
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 #[test]
 #[ignore = "explicit owned GameCube inputs plus reviewed Dolphin codec; not retail or gameplay acceptance"]
 fn real_owned_gamecube_containers_match_the_original_iso_observation() {
