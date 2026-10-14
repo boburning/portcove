@@ -56,6 +56,22 @@ function deliveryOutcomeError(status, message, evidence = {}, cause = null) {
   return error;
 }
 
+export function retainMergeReceipt(directory, packet, io = { mkdirSync, writeFileSync }) {
+  const file = path.join(directory, `${randomUUID()}-merge.json`);
+  try {
+    io.mkdirSync(directory, { recursive: true });
+    io.writeFileSync(file, JSON.stringify(packet), { flag: "wx" });
+    return file;
+  } catch (error) {
+    throw deliveryOutcomeError(
+      "failed",
+      `Merge completed as ${packet.result.sha}; receipt retention failed; do not retry merge: ${error.message}`,
+      { merge_completed: true, ...packet },
+      error,
+    );
+  }
+}
+
 function exactKeys(value, expected, label) {
   const actual = Object.keys(value ?? {}).sort();
   const wanted = [...expected].sort();
@@ -1164,9 +1180,7 @@ async function main(argv) {
       JSON.parse(await readFile(options["--merge-message-file"], "utf8")),
     );
     const directory = path.join(projectRoot, "work/pr-delivery");
-    mkdirSync(directory, { recursive: true });
-    const closureReceipt = path.join(directory, `${randomUUID()}-merge.json`);
-    writeFileSync(closureReceipt, JSON.stringify({ number, head, ...merged }), { flag: "wx" });
+    const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });
     const summary =
       `Merged pull request #${number} at exact head ${head} as ${merged.result.sha}; ` +
       "remote readback confirmed.";

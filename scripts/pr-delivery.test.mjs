@@ -15,12 +15,36 @@ import {
   inspectRenovateQueue,
   baselineTimingWindow,
   lockedAgeVerdict,
+  retainMergeReceipt,
 } from "./pr-delivery.mjs";
 
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
 const head = "a".repeat(40);
 const base = "b".repeat(40);
 const merge = "c".repeat(40);
+
+test("postmerge receipt retention failure preserves confirmed completion and forbids retry", () => {
+  const packet = {
+    number: 7,
+    head,
+    result: { merged: true, sha: merge },
+    readback: { merged: true, merge_commit_sha: merge },
+  };
+  for (const phase of ["mkdirSync", "writeFileSync"]) {
+    const io = { mkdirSync() {}, writeFileSync() {} };
+    io[phase] = () => {
+      throw new Error("ENOSPC");
+    };
+    assert.throws(
+      () => retainMergeReceipt("unused", packet, io),
+      (error) =>
+        /Merge completed.*receipt retention failed; do not retry/.test(error.message) &&
+        error.operationEvidence.merge_completed === true &&
+        error.operationEvidence.result.sha === merge &&
+        error.operationEvidence.readback.merge_commit_sha === merge,
+    );
+  }
+});
 const emptyIntent = { format_version: 1, allowed_targets: [] };
 const squashMessage = { title: "fix: safe delivery", body: "Related to #244." };
 function closingPage(overrides = {}) {
