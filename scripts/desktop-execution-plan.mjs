@@ -112,6 +112,7 @@ export function planDesktopExecution(
       "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
     ])
       inputs.push({ kind: "file", path: source });
+  inputs.push({ kind: "file", path: "scripts/native-readiness.mjs" });
   inputs.push(receiptSource(harnessUrl));
   if (
     selection.selected_scenarios.some((id) =>

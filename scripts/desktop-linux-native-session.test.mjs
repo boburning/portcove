@@ -1,3 +1,4 @@
+import { readLinuxX11Configuration } from "./desktop-linux-x11.mjs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { spawn, spawnSync } from "node:child_process";
@@ -363,3 +364,31 @@ test(
     assert.match(custody.protocol_error, /wrong-nonce/u);
   },
 );
+
+test("private-X11 configuration refuses missing prerequisites and undeclared authentication fields", async () => {
+  const fs = await import("node:fs/promises");
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "pcv-x11-config-"));
+  try {
+    const file = path.join(temporary, "config.json");
+    await fs.writeFile(
+      file,
+      JSON.stringify({ format_version: 1, stage: "hardware", harness_args: [] }),
+    );
+    await assert.rejects(readLinuxX11Configuration(file), /Unsupported/u);
+    await fs.writeFile(
+      file,
+      JSON.stringify({
+        format_version: 1,
+        stage: "gtk",
+        xvfb: path.join(temporary, "Xvfb"),
+        xkbcomp: path.join(temporary, "xkbcomp"),
+        output_root: temporary,
+        harness_args: [],
+        cookie: "must never capture",
+      }),
+    );
+    await assert.rejects(readLinuxX11Configuration(file), /Unsupported/u);
+  } finally {
+    await fs.rm(temporary, { recursive: true, force: true });
+  }
+});

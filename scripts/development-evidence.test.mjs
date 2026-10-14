@@ -1,3 +1,10 @@
+import { runInNewContext } from "node:vm";
+import {
+  observeGamepadCapability,
+  capabilityRequirement,
+  captureSettledVisual,
+  observeVisibleTarget,
+} from "./native-readiness.mjs";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
@@ -357,4 +364,184 @@ test("evidence hashes bytes and never replaces prior observations", async () => 
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test("native capability distinguishes API absence, restriction, exposed absence and scoped observations", () => {
+  const observe = (navigator) =>
+    runInNewContext(`(${observeGamepadCapability.toString()})()`, { navigator });
+  assert.equal(observe({}).outcome, "api-absent");
+  assert.equal(
+    observe({
+      get getGamepads() {
+        throw Error("restricted lookup");
+      },
+    }).outcome,
+    "api-access-failed-or-restricted",
+  );
+  assert.equal(
+    observe({
+      getGamepads: () => {
+        throw Error("restricted");
+      },
+    }).outcome,
+    "api-access-failed-or-restricted",
+  );
+  assert.equal(observe({ getGamepads: () => [null] }).outcome, "no-exposed-device");
+  assert.equal(observe({ getGamepads: () => [{}] }).outcome, "devices-exposed");
+  assert.equal(
+    capabilityRequirement({ outcome: "api-absent" }, "declared-api-fallback").outcome,
+    "passed",
+  );
+  assert.equal(
+    capabilityRequirement({ outcome: "api-absent" }, "injected-controller").outcome,
+    "unsupported",
+  );
+  assert.equal(
+    capabilityRequirement({ outcome: "devices-exposed" }, "physical-controller").outcome,
+    "unsupported",
+  );
+});
+
+test("serialized visual target observation rejects absent, loading and offscreen targets", () => {
+  const observe = (rect, loading = 0) =>
+    runInNewContext(`(${observeVisibleTarget.toString()})("#target")`, {
+      document: {
+        readyState: "complete",
+        querySelectorAll: (selector) =>
+          selector === "#target"
+            ? rect
+              ? [{ getBoundingClientRect: () => rect, closest: () => null }]
+              : []
+            : Array(loading).fill({}),
+      },
+      getComputedStyle: () => ({ display: "block", visibility: "visible", opacity: "1" }),
+      innerWidth: 800,
+      innerHeight: 600,
+      devicePixelRatio: 1,
+    });
+  assert.equal(observe(null).visible, false);
+  assert.equal(
+    observe({ x: 900, y: 0, left: 900, top: 0, right: 950, bottom: 20, width: 50, height: 20 })
+      .visible,
+    false,
+  );
+  assert.equal(
+    observe({ x: 0, y: 0, left: 0, top: 0, right: 50, bottom: 20, width: 50, height: 20 }, 1)
+      .application_state.loading,
+    1,
+  );
+});
+
+test("settled visual binds retained image to semantic state and preserves negative diagnostics", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-settled-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const state = {
+    visible: true,
+    viewport: { width: 800, height: 600 },
+    application_state: { document_ready: "complete", loading: 0 },
+    target: "#review",
+  };
+  const browser = {
+    executeScript: async () => structuredClone(state),
+    takeScreenshot: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64"),
+  };
+  const run = (name, readiness = async () => ({ ready: true, phase: "review" })) =>
+    captureSettledVisual({
+      browser,
+      output: directory,
+      name,
+      scenario: "owned-review",
+      target: "#review",
+      readiness,
+      timeoutMs: 30,
+    });
+  const captured = await run("positive");
+  assert.deepEqual(await fileIdentity(captured.image.path), captured.image);
+  assert.equal(JSON.parse(await readFile(captured.receipt, "utf8")).scenario, "owned-review");
+  await assert.rejects(
+    run("loading", async () => ({ ready: false })),
+    /timed out/u,
+  );
+  state.visible = false;
+  await assert.rejects(run("offscreen"), /timed out/u);
+  state.visible = true;
+  browser.takeScreenshot = async () => {
+    throw Error("screen failure");
+  };
+  await assert.rejects(run("failed"), /screen failure/u);
+  browser.takeScreenshot = async () => {
+    state.application_state.loading = 1;
+    return Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64");
+  };
+  await assert.rejects(run("changed"), /changed during capture/u);
+  for (const name of ["loading", "offscreen", "failed", "changed"]) {
+    assert.equal(
+      JSON.parse(await readFile(path.join(directory, `${name}-capture-failure.json`), "utf8"))
+        .acceptance,
+      false,
+    );
+    await assert.rejects(stat(path.join(directory, `${name}-capture.json`)), { code: "ENOENT" });
+  }
+});
+
+test("timed-out capture joins the blocked filesystem worker without publishing a completed receipt", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-capture-join-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let enter, release, aborted;
+  const entered = new Promise((resolve) => {
+    enter = resolve;
+  });
+  const blocked = new Promise((resolve) => {
+    release = resolve;
+  });
+  const cancellation = new Promise((resolve) => {
+    aborted = resolve;
+  });
+  let settled = false;
+  const operation = captureSettledVisual({
+    browser: {
+      executeScript: async () => ({
+        visible: true,
+        viewport: { width: 800, height: 600 },
+        application_state: { document_ready: "complete", loading: 0 },
+      }),
+      takeScreenshot: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64"),
+    },
+    output: directory,
+    name: "blocked",
+    scenario: "owned-review",
+    target: "#review",
+    readiness: async () => ({ ready: true }),
+    timeoutMs: 100,
+    write: async (file, bytes, options) => {
+      if (file.endsWith(".partial")) {
+        options.signal.addEventListener("abort", () => aborted(), { once: true });
+        enter();
+        await blocked;
+      }
+      // Deliberately uncancellable worker: its eventual bytes must stay partial.
+      await writeFile(file, bytes, { flag: "wx" });
+    },
+  });
+  const rejection = assert.rejects(operation, /timed out/u).finally(() => {
+    settled = true;
+  });
+  await entered;
+  await cancellation;
+  assert.equal(settled, false);
+  await assert.rejects(stat(path.join(directory, "blocked-capture-failure.json")), {
+    code: "ENOENT",
+  });
+  release();
+  await rejection;
+  await assert.rejects(stat(path.join(directory, "blocked-capture.json")), { code: "ENOENT" });
+  assert.equal(
+    JSON.parse(await readFile(path.join(directory, "blocked-capture-failure.json"), "utf8"))
+      .acceptance,
+    false,
+  );
+  assert.equal(
+    JSON.parse(await readFile(path.join(directory, "blocked-capture.partial"), "utf8")).outcome,
+    "captured",
+  );
 });

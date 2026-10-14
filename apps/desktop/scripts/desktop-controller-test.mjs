@@ -1,3 +1,7 @@
+import {
+  observeGamepadCapability,
+  capabilityRequirement,
+} from "../../../scripts/native-readiness.mjs";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
@@ -5,14 +9,35 @@ import { By } from "selenium-webdriver";
 
 /** Native layout/input observations with an injected pad, not physical-controller evidence. */
 export async function controllerScenario({ browser, scenario, output, artifacts }) {
+  const capability = await browser.executeScript(observeGamepadCapability);
+  const capabilityFile = path.join(output, "controller-capability.json");
+  await writeFile(
+    capabilityFile,
+    JSON.stringify(
+      { ...capability, physical_observation: "not-qualified", injected_observation: "not-run" },
+      null,
+      2,
+    ),
+    { flag: "wx" },
+  );
+  artifacts.push(capabilityFile);
+  await scenario("native-controller-api-fallback", async () => {
+    const outcome = capabilityRequirement(capability, "declared-api-fallback");
+    assert.equal(
+      outcome.outcome,
+      "passed",
+      "Declared absence fallback requires absence/restriction; devices need their applicable scenario",
+    );
+  });
   await scenario("native-controller-large-list", async () => {
+    assert.ok(
+      !["api-absent", "api-access-failed-or-restricted"].includes(capability.outcome),
+      "Controller injection prerequisite unmet; absence is not controller functionality",
+    );
     // A newly restarted window may be behind the host. Establish native input
     // focus with an ordinary navigation click before injecting the pad fixture.
     await browser.findElement(By.css('nav[aria-label="Primary navigation"] button')).click();
     const result = await browser.executeAsyncScript(async (done) => {
-      const physical = Array.from(navigator.getGamepads())
-        .filter(Boolean)
-        .map((pad) => ({ id: pad.id, mapping: pad.mapping }));
       const previousPads = navigator.getGamepads;
       const previousFocus = document.activeElement;
       const previousMode = document.documentElement.dataset.inputMode;
@@ -92,7 +117,8 @@ export async function controllerScenario({ browser, scenario, output, artifacts 
         report = {
           method: "native injected-controller layout profile",
           control_count: 1000,
-          physical_devices_exposed: physical,
+          capability_scope:
+            "injected-controller behavior only; physical observations not qualified",
           focused: document.hasFocus(),
           samples,
         };

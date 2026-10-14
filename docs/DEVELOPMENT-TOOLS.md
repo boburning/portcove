@@ -528,6 +528,54 @@ directory and can be used outside Portcove. Keep a repository skill focused:
 update its trigger and owning references when behavior changes instead of copying
 the same detailed contract into the root instructions.
 
+## Bounded native readiness and private Linux execution
+
+`captureSettledVisual` requires a scenario, intended target and caller-specific
+semantic readiness. The connected-folder completion journey uses it for each
+required image. Its bounded operation records viewport/application state before
+and after PNG capture, retains and hashes the exact image, then publishes the
+capture receipt. Loading, offscreen targets, changed state, timeouts and retention
+failures produce diagnostic evidence; they cannot publish an accepted capture.
+Other legacy diagnostic screenshots retain their existing scope.
+
+Controller capability receipts distinguish API absence, access failure/restriction,
+no exposed device and exposed-device inventory. The exact opt-in
+`native-controller-api-fallback` declares absence/restriction as fallback coverage.
+It cannot satisfy controller functionality. `native-controller-large-list` still
+requires actual injected behavior and an available API; no physical-controller
+qualification is added. Device exposure alone is not a physical observation.
+
+`node scripts/desktop-linux-x11.mjs --config ABSOLUTE_JSON` reuses the proven uid-1000
+ext4/private authenticated virtual-X11 route. On Windows it holds the existing
+Windows native slot and Heavy Rust guard while dispatching existing Ubuntu tools;
+Linux holds its own native slot and maintained PID namespace/init controls.
+Stages `gtk` and `harness` permit selected diagnostics without running a whole
+journey. A version-1 configuration declares existing absolute `xvfb`, `xkbcomp`,
+`output_root` and `harness_args`; Windows dispatch additionally requires existing
+absolute Linux `node` and `tool_cache` paths. It installs nothing. For example:
+
+```json
+{
+  "format_version": 1,
+  "stage": "gtk",
+  "xvfb": "/existing/Xvfb",
+  "xkbcomp": "/existing/xkbcomp",
+  "output_root": "/owned/ext4/evidence",
+  "harness_args": [],
+  "node": "/existing/node",
+  "tool_cache": "/existing/tool-cache"
+}
+```
+
+Use `stage: "harness"` with the existing `desktop-test` arguments for the selected
+scenario. Keep outputs fresh and isolated. Runtime receipts exclude the private
+X11 cookie and its file identity. Positive current namespace joins are required;
+unknown closure retains guards instead of reclaiming another process. The route
+preserves GTK chooser ownership checks. It establishes only actual GTK/WebKit on
+that private virtual display; WSLg, physical display/controller and other Linux
+routes remain separate. Missing or unsupported prerequisites are reported; no
+provisioning or fallback qualification is implied.
+
 ## Native desktop smoke tests
 
 For the normal Codex and maintainer workflow, start with a non-launching plan and

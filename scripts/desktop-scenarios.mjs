@@ -170,6 +170,14 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   scenario("accessibility", "The native renderer passes the automated accessibility scan.", {
     source: "desktop-review-controls.mjs",
   }),
+  scenario(
+    "native-controller-api-fallback",
+    "Declare and observe expected controller API absence/restriction without claiming controller functionality.",
+    {
+      source: "desktop-controller-test.mjs",
+      qualification_only: true,
+    },
+  ),
   scenario("native-controller-large-list", "Injected controller navigation handles a large list.", {
     source: "desktop-controller-test.mjs",
   }),

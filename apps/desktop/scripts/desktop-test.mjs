@@ -1,3 +1,4 @@
+import { captureSettledVisual } from "../../../scripts/native-readiness.mjs";
 import {
   parseDesktopHarnessOptions,
   resolveDesktopHarnessSelection,
@@ -1797,9 +1798,29 @@ try {
     await assertCompactReview(browser, '[aria-labelledby="library-selection-review-title"]');
     const accessibility = path.join(output, "library-selection-review-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);
-    const screenshot = path.join(output, "native-library-selection-review.png");
-    await writeFile(screenshot, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
-    artifacts.push(screenshot);
+    const capture = await captureSettledVisual({
+      browser,
+      output,
+      name: "native-library-selection-review",
+      scenario: "native-library-selection-review",
+      target: '[aria-labelledby="library-selection-review-title"]',
+      readiness: () =>
+        browser.executeScript(() => {
+          const review = document.querySelector(
+            '[aria-labelledby="library-selection-review-title"]',
+          );
+          const title = document.querySelector("#library-selection-review-title");
+          return {
+            ready: Boolean(
+              review &&
+              title?.textContent.includes("Open the default library?") &&
+              [...review.querySelectorAll("button")].some((control) => !control.disabled),
+            ),
+            phase: "default-library-consent-review",
+          };
+        }),
+    });
+    artifacts.push(capture.image.path, capture.receipt);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
     await browser.wait(

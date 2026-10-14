@@ -1,3 +1,4 @@
+import { captureSettledVisual } from "../../../scripts/native-readiness.mjs";
 // Actual Tauri/Core journey; synthetic source and first-party probe, never a game qualification.
 import assert from "node:assert/strict";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
@@ -130,17 +131,56 @@ export async function selectedSetupCompletionScenario({
           item.operation === operation && item.target_id === port.id && item.status === terminal,
       );
     const screenshot = async (name) => {
-      const file = path.join(output, `${name}.png`);
-      await writeFile(file, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
-      artifacts.push(file);
-      const window = await browser.manage().window().getRect();
-      const viewport = await browser.executeScript(() => ({
-        width: innerWidth,
-        height: innerHeight,
-        devicePixelRatio,
-      }));
-      assert.ok(window.width > 0 && window.height > 0 && viewport.width > 0 && viewport.height > 0);
-      (report.observations.geometry ??= {})[name] = { window, viewport };
+      const targets = {
+        "initial-folder-connection": '[aria-label="Connect your game files"]',
+        "connected-folder-management": "#game-file-libraries-heading",
+        "selected-setup-prepared": "[data-detail-workspace]",
+        "selected-setup-queue-return": '[aria-label="Selected setup reviews"]',
+        "selected-setup-bios-queue-return": '[aria-label="Selected setup reviews"]',
+        "selected-setup-bios-settled-return": '[aria-label="Selected setup reviews"]',
+      };
+      const target = targets[name] ?? '[aria-labelledby="install-review-title"]';
+      const capture = await captureSettledVisual({
+        browser,
+        output,
+        name,
+        scenario: "native-selected-setup-completion",
+        target,
+        readiness: () =>
+          browser.executeScript(
+            (phase, selector) => {
+              const node = document.querySelector(selector);
+              const controls = [...(node?.querySelectorAll("button") ?? [])];
+              const enabled = (label) =>
+                controls.some(
+                  (control) => control.textContent.trim() === label && !control.disabled,
+                );
+              const ready =
+                phase === "initial-folder-connection"
+                  ? controls.some((control) => !control.disabled)
+                  : phase === "connected-folder-management"
+                    ? Boolean(
+                        node && !document.querySelector('[aria-label="Source import review"]'),
+                      )
+                    : phase === "selected-setup-prepared"
+                      ? enabled("Play")
+                      : phase.includes("queue-return") || phase.includes("settled-return")
+                        ? Boolean(
+                            node &&
+                            !document.querySelector(
+                              '[aria-labelledby="install-review-title"], [aria-labelledby="preparation-review-title"]',
+                            ),
+                          )
+                        : enabled("Cancel review") &&
+                          Boolean(document.querySelector("#install-review-title"));
+              return { ready, phase };
+            },
+            name,
+            target,
+          ),
+      });
+      artifacts.push(capture.image.path, capture.receipt);
+      (report.observations.geometry ??= {})[name] = capture.observation;
     };
     const report = {
       scope: `${process.platform} synthetic selected setup: ordinary install, inert N64 preparation, BIOS-plus-game review and saved-input restart`,
