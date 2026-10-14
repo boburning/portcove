@@ -18,7 +18,7 @@ use crate::{
     operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
 };
 
-const IMPORT_PLAN_SCHEMA_VERSION: u32 = 1;
+const IMPORT_PLAN_SCHEMA_VERSION: u32 = 2;
 const PUBLICATION_RECEIPT_SCHEMA_VERSION: u32 = 1;
 const PUBLICATION_RECEIPT_FILE: &str = ".portcove-publication-receipt.json";
 const MAX_IMPORT_ENTRIES: u32 = 4_096;
@@ -140,7 +140,7 @@ impl SourceImportOperation {
             || operation.preparation.is_some()
             || operation.preparation_process_quiesced.is_some()
             || operation.activate
-            || plan.schema_version != IMPORT_PLAN_SCHEMA_VERSION
+            || !matches!(plan.schema_version, 1 | IMPORT_PLAN_SCHEMA_VERSION)
             || plan.profile_id.is_empty()
             || plan.profile_id != operation.port_id
             || plan.source.profile_id != plan.profile_id
@@ -272,6 +272,12 @@ impl PortcoveService {
         };
         let source = inspection.require_admitted_record()?;
         let existing_registration = self.library().source(profile_id)?;
+        let copy_bytes = if mode == SourceImportMode::Copy && source_path.is_dir() {
+            selected_directory_names(&source)?;
+            source.storage_size
+        } else {
+            guard.bytes
+        };
 
         let (destination, destination_exists, reuse_existing, required_bytes) = match mode {
             SourceImportMode::UseCurrentLocation => (source_path.clone(), true, true, 0),
@@ -284,6 +290,7 @@ impl PortcoveService {
                     &source_path,
                     &guard,
                     &profile_dir,
+                    copy_bytes,
                 )?
             }
         };
@@ -513,13 +520,28 @@ where
                 crate::operation::LifecycleFaultPoint::SourceImportCopyStarted,
             )?;
             emit(coordinator.progress("copy", 0, Some(plan.required_bytes)));
-            copy_source(
-                &plan.source.path,
-                staging,
-                coordinator,
-                emit,
-                plan.required_bytes,
-            )?;
+            if plan.schema_version == IMPORT_PLAN_SCHEMA_VERSION
+                && plan.mode == SourceImportMode::Copy
+                && plan.source.path.is_dir()
+            {
+                copy_selected_directory(
+                    &plan.source,
+                    staging,
+                    coordinator,
+                    emit,
+                    plan.required_bytes,
+                )?;
+            } else {
+                // Released journals and explicitly reviewed Move retain their
+                // original whole-selection semantics.
+                copy_source(
+                    &plan.source.path,
+                    staging,
+                    coordinator,
+                    emit,
+                    plan.required_bytes,
+                )?;
+            }
             service
                 .check_lifecycle_fault(crate::operation::LifecycleFaultPoint::SourceImportCopied)?;
             revalidate_source(service, &plan, &plan.source.path)?;
@@ -630,11 +652,12 @@ fn choose_destination(
     source_path: &Path,
     guard: &SourceGuard,
     profile_dir: &Path,
+    required_bytes: u64,
 ) -> Result<(PathBuf, bool, bool, u64)> {
     let name = safe_import_name(source_path, &source.storage_sha256)?;
     let base = profile_dir.join(&name);
     if !base.try_exists()? {
-        return Ok((base, false, false, guard.bytes));
+        return Ok((base, false, false, required_bytes));
     }
     require_regular_source_shape(&base)?;
     if object_identity(&base)? == guard.root_identity {
@@ -647,7 +670,7 @@ fn choose_destination(
     }
     let suffixed = profile_dir.join(digest_name(&name, &source.storage_sha256));
     if !suffixed.try_exists()? {
-        return Ok((suffixed, false, false, guard.bytes));
+        return Ok((suffixed, false, false, required_bytes));
     }
     require_regular_source_shape(&suffixed)?;
     if object_identity(&suffixed)? == guard.root_identity {
@@ -1054,6 +1077,91 @@ fn require_owned_staging_root(staging_root: &Path, profile: &Path) -> Result<()>
             "source import staging tree is not an owned profile child",
         ));
     }
+    Ok(())
+}
+
+/// Admission supplies exact original member names. Optical component digests
+/// describe normalized tracks, so capacity is checked against original metadata
+/// and the admitted storage baseline instead of logical component sizes.
+fn selected_directory_names(source: &SourceRecord) -> Result<Vec<String>> {
+    let identity = source.observed_identity.as_ref().ok_or_else(|| {
+        PortcoveError::verification("directory copy has no admitted member inventory")
+    })?;
+    if identity.components.is_empty() || identity.components.len() >= MAX_IMPORT_ENTRIES as usize {
+        return Err(PortcoveError::verification(
+            "directory copy has no bounded complete member inventory",
+        ));
+    }
+    let mut names = Vec::with_capacity(identity.components.len());
+    let mut keys = std::collections::HashSet::new();
+    let mut bytes = 0_u64;
+    for component in &identity.components {
+        let name = component.name.as_deref().ok_or_else(|| {
+            PortcoveError::verification("directory copy member has no original filename")
+        })?;
+        let relative = Path::new(name);
+        if name.is_empty()
+            || matches!(name, "." | "..")
+            || name.contains('/')
+            || (cfg!(windows) && (name.contains(['\\', ':']) || name.chars().any(char::is_control)))
+            || relative.components().count() != 1
+            || relative.file_name() != Some(std::ffi::OsStr::new(name))
+            || !keys.insert(if cfg!(windows) {
+                name.to_ascii_lowercase()
+            } else {
+                name.to_owned()
+            })
+        {
+            return Err(PortcoveError::verification(
+                "directory copy member is not one distinct original basename",
+            ));
+        }
+        let member = source.path.join(relative);
+        crate::path::refuse_symlink_ancestors(&member)?;
+        let metadata = fs::symlink_metadata(&member)?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(PortcoveError::verification(
+                "directory copy member is no longer a regular file",
+            ));
+        }
+        bytes = bytes
+            .checked_add(metadata.len())
+            .ok_or_else(|| PortcoveError::verification("directory copy member sizes overflowed"))?;
+        names.push(name.to_owned());
+    }
+    if bytes != source.storage_size {
+        return Err(PortcoveError::conflict(
+            "directory copy originals differ from the admitted storage baseline",
+        ));
+    }
+    Ok(names)
+}
+
+fn copy_selected_directory<F>(
+    source: &SourceRecord,
+    destination: &Path,
+    coordinator: &OperationCoordinator,
+    emit: &mut F,
+    total: u64,
+) -> Result<()>
+where
+    F: FnMut(OperationEvent),
+{
+    let names = selected_directory_names(source)?;
+    fs::create_dir(destination)?;
+    let mut copied = 0;
+    for name in names {
+        coordinator.checkpoint()?;
+        copied = copy_file(
+            &source.path.join(&name),
+            &destination.join(name),
+            coordinator,
+            emit,
+            copied,
+            total,
+        )?;
+    }
+    fs::set_permissions(destination, fs::metadata(&source.path)?.permissions())?;
     Ok(())
 }
 

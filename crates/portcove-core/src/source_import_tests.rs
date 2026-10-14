@@ -1925,6 +1925,25 @@ fn missing_published_destination_blocks_recovery_and_preserves_the_original() {
 
 #[test]
 fn directory_file_sets_copy_with_names_and_identity_intact() {
+    assert_directory_import(SourceImportMode::Copy, false, false);
+}
+
+#[test]
+fn interrupted_directory_copy_recovers_only_selected_members() {
+    assert_directory_import(SourceImportMode::Copy, true, false);
+}
+
+#[test]
+fn released_directory_copy_journal_preserves_whole_selection() {
+    assert_directory_import(SourceImportMode::Copy, true, true);
+}
+
+#[test]
+fn reviewed_directory_move_preserves_whole_selection() {
+    assert_directory_import(SourceImportMode::Move, false, false);
+}
+
+fn assert_directory_import(mode: SourceImportMode, interrupted: bool, released: bool) {
     eprintln!("directory import: initialize library");
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
@@ -1972,14 +1991,85 @@ fn directory_file_sets_copy_with_names_and_identity_intact() {
     ] {
         fs::write(source.join(name), bytes).unwrap();
     }
+    fs::write(
+        source.join("unselected-game.bin"),
+        b"another game in the selected folder",
+    )
+    .unwrap();
+    fs::create_dir(source.join("unselected-collection")).unwrap();
+    fs::write(
+        source.join("unselected-collection/keep.bin"),
+        b"owned collection sentinel",
+    )
+    .unwrap();
     eprintln!("directory import: plan and publish");
-    let result = import_profile(
-        &service,
-        "g-diffuser-source-set",
-        &source,
-        SourceImportMode::Copy,
+    let mut plan = service
+        .plan_source_import("g-diffuser-source-set", &source, mode)
+        .unwrap();
+    assert_eq!(plan.schema_version, 2);
+    let selected_bytes = member_bytes.iter().map(|bytes| bytes.len() as u64).sum();
+    assert_eq!(
+        plan.required_bytes,
+        if mode == SourceImportMode::Copy {
+            selected_bytes
+        } else {
+            source_guard(&source).unwrap().bytes
+        }
     );
+    let result = if interrupted {
+        if released {
+            plan.schema_version = 1;
+            plan.required_bytes = source_guard(&source).unwrap().bytes;
+            plan.plan_sha256 = plan_fingerprint(&plan).unwrap();
+        }
+        let store = OperationStore::new(service.library().clone());
+        let mut operation = import_journal(plan);
+        store.put(&mut operation).unwrap();
+        ensure_profile_directory(&service, "g-diffuser-source-set").unwrap();
+        let staging = operation.paths.staging.as_ref().unwrap();
+        prepare_staging(
+            staging,
+            &operation.source_import.as_ref().unwrap().destination,
+            &operation.id,
+        )
+        .unwrap();
+        fs::create_dir(staging).unwrap();
+        fs::write(staging.join("baserom.us.rev0.z64"), b"partial").unwrap();
+        recover(&service, &store, &mut operation).unwrap()
+    } else {
+        import_profile(&service, "g-diffuser-source-set", &source, mode)
+    };
+    let whole_selection = released || mode == SourceImportMode::Move;
     assert!(result.registered.path.is_dir());
+    assert_eq!(
+        fs::read_dir(&result.registered.path).unwrap().count(),
+        if whole_selection { 5 } else { 3 }
+    );
+    assert_eq!(
+        result.registered.path.join("unselected-game.bin").exists(),
+        whole_selection
+    );
+    assert_eq!(
+        result
+            .registered
+            .path
+            .join("unselected-collection")
+            .exists(),
+        whole_selection
+    );
+    let original = if mode == SourceImportMode::Move {
+        &result.registered.path
+    } else {
+        &source
+    };
+    assert_eq!(
+        fs::read(original.join("unselected-game.bin")).unwrap(),
+        b"another game in the selected folder"
+    );
+    assert_eq!(
+        fs::read(original.join("unselected-collection/keep.bin")).unwrap(),
+        b"owned collection sentinel"
+    );
     eprintln!("directory import: verify published bytes");
     for name in [
         "baserom.us.rev0.z64",
@@ -1987,7 +2077,7 @@ fn directory_file_sets_copy_with_names_and_identity_intact() {
         "N64DDIPLROM.n64",
     ] {
         assert_eq!(
-            fs::read(source.join(name)).unwrap(),
+            fs::read(original.join(name)).unwrap(),
             fs::read(result.registered.path.join(name)).unwrap()
         );
     }
@@ -2004,6 +2094,93 @@ fn impossible_capacity_fails_before_staging() {
     let error = require_capacity(&plan.destination, u64::MAX).unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
     assert!(!plan.destination.exists());
+}
+
+#[test]
+fn selected_directory_inventory_refuses_escaping_and_changed_originals() {
+    let (temporary, _library, service, original) = fixture();
+    let mut source = service
+        .inspect_source(PROFILE, &original)
+        .unwrap()
+        .require_admitted_record()
+        .unwrap();
+    source.path = temporary.path().join("selected");
+    fs::create_dir(&source.path).unwrap();
+    fs::write(source.path.join("disc.chd"), b"stored bytes").unwrap();
+    source.storage_size = 12;
+    source.observed_identity = Some(observed_optical_identity("disc.chd"));
+    // Optical logical sizes differ from the stored original size.
+    assert_eq!(selected_directory_names(&source).unwrap(), ["disc.chd"]);
+    for name in [
+        "",
+        ".",
+        "..",
+        "../disc.chd",
+        "nested/disc.chd",
+        "nested\\disc.chd",
+    ] {
+        source.observed_identity.as_mut().unwrap().components[0].name = Some(name.into());
+        assert!(
+            selected_directory_names(&source).is_err(),
+            "accepted {name}"
+        );
+    }
+    source.observed_identity.as_mut().unwrap().components[0].name = Some("disc.chd".into());
+    fs::write(source.path.join("disc.chd"), b"changed stored bytes").unwrap();
+    assert!(selected_directory_names(&source).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn selected_directory_copy_preserves_native_optical_basenames() {
+    let (temporary, _library, service, original) = fixture();
+    let mut source = service
+        .inspect_source(PROFILE, &original)
+        .unwrap()
+        .require_admitted_record()
+        .unwrap();
+    source.path = temporary.path().join("selected");
+    fs::create_dir(&source.path).unwrap();
+    let names = [
+        "disc:01.chd",
+        "Disc.chd",
+        "disc.chd",
+        "遊戲.chd",
+        "disc\\01.chd",
+        "disc\n01.chd",
+    ];
+    let mut identity = observed_optical_identity(names[0]);
+    let template = identity.components[0].clone();
+    identity.components = names
+        .iter()
+        .enumerate()
+        .map(|(index, name)| {
+            fs::write(source.path.join(name), [index as u8 + 1]).unwrap();
+            let mut component = template.clone();
+            component.id = format!("disc-{index}");
+            component.name = Some((*name).into());
+            component
+        })
+        .collect();
+    source.storage_size = names.len() as u64;
+    source.observed_identity = Some(identity);
+    let destination = temporary.path().join("copied");
+    let coordinator = OperationCoordinator::resume("owned-copy", "import_source", None);
+    copy_selected_directory(
+        &source,
+        &destination,
+        &coordinator,
+        &mut |_| {},
+        source.storage_size,
+    )
+    .unwrap();
+    assert_eq!(fs::read_dir(&destination).unwrap().count(), names.len());
+    for name in names {
+        assert_eq!(
+            fs::read(source.path.join(name)).unwrap(),
+            fs::read(destination.join(name)).unwrap()
+        );
+    }
 }
 
 #[cfg(unix)]
