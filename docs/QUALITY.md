@@ -241,6 +241,16 @@ covered.
 
 ### Bounded dependency delivery
 
+The serde_json Cargo patch-only artifact pilot (#1973) remains held: deployed
+Renovate 44.156.3 rejects combining `matchUpdateTypes` with `rangeStrategy`,
+including migrated nested patch rules. A post-lookup strategy cannot repair an
+already-bumped manifest range. Production range policy is unchanged. See the
+[October 14 evidence](releases/2026-10-14-maintenance-tooling-evidence.md).
+Resume only with a supported pre-lookup strategy that preserves the authorized
+patch-only scope and passes actual workspace/artifact controls. Keep local replay
+distinct from a naturally occurring hosted proposal; do not widen rules or weaken
+release age to clear this hold.
+
 Start one authorized maintenance cycle with
 `just renovate-check --queue [--json]`. It reads the complete current proposal
 inventory, exact source heads, target interactions, required checks and run

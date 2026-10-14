@@ -6,6 +6,7 @@ import { createGitHubRunner } from "./github-api.mjs";
 
 import {
   RoadmapClient,
+  roadmapCommandHelp,
   deliveryMode,
   analyzeReleaseReadiness,
   catalogQualificationSummary,
@@ -5060,4 +5061,38 @@ test("explicit pickup references do not revive coordinator authority in single m
     options,
   );
   assert.match(historical.reservation.assessment, /accepted grant.*coordinator/);
+});
+
+test("set help renders every configured field option without live access", async () => {
+  const config = JSON.parse(
+    await readFile(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
+  );
+  const help = roadmapCommandHelp("set", config);
+  assert.match(help, /--type:/);
+  assert.match(help, /--status: Inbox/);
+  for (const name of ["Status", "Work type", "Effort"])
+    for (const value of config.fields.find((field) => field.name === name).options)
+      assert(help.includes(value));
+  assert.match(roadmapCommandHelp("doctor", config), /--summary/);
+  assert.throws(() => roadmapCommandHelp("unknown", config), /unknown/);
+});
+
+test("Roadmap command help is available without the GitHub executable or operation lock", () => {
+  for (const command of ["set", "capture-feature", "doctor", "context"]) {
+    const result = spawnSync(process.execPath, ["scripts/roadmap.mjs", command, "--help"], {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, new RegExp(command));
+    assert.equal(result.stderr, "");
+  }
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/roadmap.mjs", "doctor", "--summary", "--json"],
+    { encoding: "utf8", timeout: 5000, env: { ...process.env, PATH: "" } },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /mutually exclusive/);
 });

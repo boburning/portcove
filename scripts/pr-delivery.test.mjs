@@ -1,8 +1,11 @@
+import { spawnSync as spawnHelp } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
   PullRequestDeliveryClient,
   createWatchClient,
+  createWatchProgress,
+  deliveryHelp,
   parseArguments,
   parsePullRequestReference,
   renovateCheckEnvelope,
@@ -169,7 +172,10 @@ test("queue recommends only an actionable exact-head candidate and never supplie
   assert.match(queue.candidates[0].next_action, /renovate-check --pr 7 --head/);
   assert.equal(queue.candidates[0].runs[0].id, 42);
   assert.equal(queue.candidates[0].runs[0].attempt, 1);
-  assert.match(queue.selection_boundary, /Accepted coordinator assignments and reserved scopes/);
+  assert.match(
+    queue.selection_boundary,
+    /Single-local-runner delivery requires actual writer and source-ownership checks/,
+  );
   assert.throws(
     () =>
       inspectRenovateQueue(
@@ -850,4 +856,67 @@ test("merge refuses draft conflict and incomplete-check states before mutation",
   client.checkRuns = () => successfulRuns().slice(1);
   client.commitStatuses = () => [];
   assert.throws(() => client.merge(7, head, required), /not successful/);
+});
+
+test("delivery help shares supported flags and performs no API work", () => {
+  assert.match(deliveryHelp("watch"), /--progress/);
+  assert.match(deliveryHelp("renovate-check"), /--summary/);
+  assert.deepEqual(parseArguments(["watch", "--help"]), {
+    command: "watch",
+    options: { "--help": true },
+  });
+  assert.throws(() => parseArguments(["merge", "--progress"]), /unsupported/);
+  assert.throws(() => deliveryHelp("unknown"), /unknown command/);
+});
+test("progress is change-only and preserves source/run/attempt identity", () => {
+  const output = [];
+  const progress = createWatchProgress((text) => output.push(text));
+  const observation = {
+    kind: "delivery-observation",
+    head,
+    run: 42,
+    attempt: 1,
+    workflow: { head_sha: head, run_attempt: 1, status: "in_progress", conclusion: null },
+    contexts: [{ context: "frontend", outcome: "pending", conclusion: "pending" }],
+  };
+  progress(observation);
+  progress({ ...observation, recorded_at: "later" });
+  assert.equal(output.length, 1);
+  progress({
+    ...observation,
+    contexts: [{ context: "frontend", outcome: "success", conclusion: "success" }],
+  });
+  assert.equal(output.length, 2);
+  progress({ ...observation, workflow: { ...observation.workflow, head_sha: base } });
+  assert.equal(output.length, 3);
+  assert.match(output[2], new RegExp(head));
+  assert.match(output[2], new RegExp(base));
+  assert.match(output[2], /42\/1/);
+  assert(output.every((text) => Buffer.byteLength(text + "\n") <= 16 * 1024));
+});
+
+test("command help and incompatible output modes fail offline before network access", () => {
+  for (const command of ["watch", "renovate-check", "merge"]) {
+    const result = spawnHelp(process.execPath, ["scripts/pr-delivery.mjs", command, "--help"], {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /usage:/);
+    assert.equal(result.stderr, "");
+  }
+  const incompatible = spawnHelp(
+    process.execPath,
+    ["scripts/pr-delivery.mjs", "renovate-check", "--queue", "--json", "--summary"],
+    { encoding: "utf8", timeout: 5000, env: { ...process.env, PATH: "" } },
+  );
+  assert.equal(incompatible.status, 1);
+  assert.match(incompatible.stderr, /mutually exclusive/);
+});
+test("all authored Renovate next-action branches preserve current execution authority", () => {
+  assert.doesNotMatch(
+    inspectRenovateQueue.toString(),
+    /configured operational board|Accepted coordinator assignments|Confirm the accepted assignment/,
+  );
 });

@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { renderBoundedSummary, summarizeReport } from "./report-summary.mjs";
+import { renderBoundedSummary, summarizeReport, retainReportSummary } from "./report-summary.mjs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -398,6 +398,47 @@ export function createWatchClient({ now = Date.now, spawn = spawnSync } = {}) {
   return client;
 }
 
+export function createWatchProgress(write) {
+  let previous;
+  return (observation) => {
+    if (observation.kind !== "delivery-observation") return;
+    const current = {
+      head: observation.head,
+      run: observation.run,
+      attempt: observation.attempt,
+      workflow_head: observation.workflow?.head_sha,
+      workflow_attempt: observation.workflow?.run_attempt,
+      status: observation.workflow?.status,
+      conclusion: observation.workflow?.conclusion,
+      checks: (observation.contexts ?? [])
+        .map(({ context, outcome, conclusion }) => ({ context, outcome, conclusion }))
+        .sort((a, b) => a.context.localeCompare(b.context)),
+    };
+    const fingerprint = JSON.stringify(current);
+    if (fingerprint === previous) return;
+    previous = fingerprint;
+    write(
+      renderBoundedSummary("CI progress (observation; final qualification remains separate)", [
+        "Source " +
+          current.head +
+          "; observed " +
+          current.workflow_head +
+          "; run " +
+          current.run +
+          "/" +
+          current.attempt +
+          "; workflow " +
+          current.status +
+          "/" +
+          (current.conclusion ?? "pending"),
+        ...current.checks.map(
+          (check) => check.context + ": " + check.outcome + "/" + check.conclusion,
+        ),
+      ]).text,
+    );
+  };
+}
+
 export async function watchRequiredChecks(
   client,
   {
@@ -678,7 +719,7 @@ export function inspectRenovateQueue(client, config, contexts, inspectBase = ins
           url: html_url,
         })),
       next_action: snapshot.pull.draft
-        ? "Resume the current owner's draft using the configured operational board and fixed lane checkpoint."
+        ? "Resume the current owner's draft after verifying actual writer release and the retained checkpoint."
         : failures.length
           ? "Inspect the first failed exact-head job and retained evidence; repair causally before rerunning."
           : pending.length
@@ -690,8 +731,8 @@ export function inspectRenovateQueue(client, config, contexts, inspectBase = ins
                 : ["reject", "waiting"].includes(result.verdict)
                   ? "Resolve the reported classifier condition before selection."
                   : result.verdict === "metadata-required"
-                    ? `Confirm the accepted assignment on the configured operational board, then just renovate-check --pr ${listed.number} --head ${head}; final delivering-agent review and guarded merge follow only merge-ready.`
-                    : "Confirm the accepted assignment on the configured operational board, inspect advisory/graph/features and select the existing local/hosted/behavior plan; independent review and guarded merge remain.",
+                    ? `Verify actual writer activity and source ownership, then just renovate-check --pr ${listed.number} --head ${head}; final delivering-agent review and guarded merge follow only merge-ready.`
+                    : "Verify actual writer activity and source ownership, inspect advisory/graph/features and select the existing local/hosted/behavior plan; independent review and guarded merge remain.",
     };
   });
   candidates.sort(
@@ -708,8 +749,52 @@ export function inspectRenovateQueue(client, config, contexts, inspectBase = ins
     candidates,
     selected: candidates.find(({ actionable }) => actionable)?.number ?? null,
     selection_boundary:
-      "Recommendation only. Accepted coordinator assignments and reserved scopes on the configured operational board govern ownership; this command neither approves, rebases, retries nor merges. Refresh after each delivered candidate.",
+      "Recommendation only. Single-local-runner delivery requires actual writer and source-ownership checks; this command neither approves, rebases, retries nor merges. Refresh after each delivered candidate.",
   };
+}
+
+const deliveryFlags = {
+  watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress"],
+  "renovate-check": ["--pr", "--head", "--queue", "--json", "--summary"],
+  merge: ["--pr", "--head", "--json"],
+};
+const deliveryRequired = {
+  watch: ["--pr", "--head", "--run", "--attempt", "--deadline"],
+  "renovate-check": ["--pr", "--head"],
+  merge: ["--pr", "--head"],
+};
+const deliveryValues = {
+  "--pr": "number-or-url",
+  "--head": "40-character-sha",
+  "--run": "run-id",
+  "--attempt": "positive-attempt",
+  "--deadline": "UTC-time",
+};
+export function deliveryHelp(command = null) {
+  const commands = command ? [command] : Object.keys(deliveryFlags);
+  const lines = [];
+  for (const name of commands) {
+    if (!Object.hasOwn(deliveryFlags, name)) throw new Error("unknown command: " + name);
+    const render = (flags, required) =>
+      "  node scripts/pr-delivery.mjs " +
+      name +
+      " " +
+      flags
+        .map((flag) => {
+          const value = deliveryValues[flag] ? flag + " <" + deliveryValues[flag] + ">" : flag;
+          return required.includes(flag) ? value : "[" + value + "]";
+        })
+        .join(" ");
+    if (name === "renovate-check")
+      lines.push(render(["--queue", "--json", "--summary"], ["--queue"]));
+    lines.push(
+      render(
+        deliveryFlags[name].filter((flag) => flag !== "--queue"),
+        deliveryRequired[name],
+      ),
+    );
+  }
+  return "usage:\n" + lines.join("\n");
 }
 
 export function parseArguments(argv) {
@@ -717,8 +802,14 @@ export function parseArguments(argv) {
   const options = {};
   for (let index = 1; index < argv.length; index += 1) {
     const name = argv[index];
+    if (
+      Object.hasOwn(deliveryFlags, command) &&
+      !deliveryFlags[command].includes(name) &&
+      name !== "--help"
+    )
+      throw new Error(`unsupported ${command} option: ${name}; use ${command} --help`);
     if (Object.hasOwn(options, name)) throw new Error(`duplicate option: ${name}`);
-    if (name === "--json" || name === "--queue") {
+    if (["--json", "--queue", "--help", "--summary", "--progress"].includes(name)) {
       options[name] = true;
       continue;
     }
@@ -743,18 +834,22 @@ async function requiredContexts() {
 
 async function main(argv) {
   const { command, options } = parseArguments(argv);
-  if (["help", "--help"].includes(command)) {
-    console.log(
-      "usage:\n" +
-        "  node scripts/pr-delivery.mjs watch --pr <number-or-url> --head <sha> --run <id> --attempt <number> --deadline <UTC-time> [--json]\n" +
-        "  node scripts/pr-delivery.mjs renovate-check --queue [--json]\n" +
-        "  node scripts/pr-delivery.mjs renovate-check --pr <number-or-url> --head <sha> [--json]\n" +
-        "  node scripts/pr-delivery.mjs merge --pr <number-or-url> --head <sha> [--json]",
-    );
+  if (["help", "--help"].includes(command) || options["--help"]) {
+    console.log(deliveryHelp(options["--help"] ? command : null));
     return;
   }
+  if (options["--summary"] && options["--json"])
+    throw new Error("--summary and --json are mutually exclusive");
   if (command === "renovate-check" && options["--queue"]) {
-    exactKeys(options, ["--queue", ...(options["--json"] ? ["--json"] : [])], "queue options");
+    exactKeys(
+      options,
+      [
+        "--queue",
+        ...(options["--json"] ? ["--json"] : []),
+        ...(options["--summary"] ? ["--summary"] : []),
+      ],
+      "queue options",
+    );
     const config = JSON.parse(await readFile(path.join(projectRoot, "renovate.json"), "utf8"));
     const queue = inspectRenovateQueue(
       new PullRequestDeliveryClient(),
@@ -762,6 +857,18 @@ async function main(argv) {
       await requiredContexts(),
     );
     const summary = `Renovate queue: ${queue.candidates.length} complete candidates; recommended selection ${queue.selected ?? "none"}.`;
+    if (options["--summary"]) {
+      const output = githubOperationEnvelope({
+        operation: "pr-delivery.renovate-queue",
+        status: "succeeded",
+        summary,
+        evidence: queue,
+      });
+      console.log(
+        retainReportSummary("renovate", output, path.join(projectRoot, "work/report-summary")).text,
+      );
+      return;
+    }
     console.log(
       options["--json"]
         ? JSON.stringify(
@@ -782,19 +889,12 @@ async function main(argv) {
     );
     return;
   }
+  if (!Object.hasOwn(deliveryRequired, command)) throw new Error("unknown command: " + command);
+  const required = deliveryRequired[command];
   exactKeys(
     options,
-    command === "watch"
-      ? [
-          "--head",
-          "--pr",
-          "--run",
-          "--attempt",
-          "--deadline",
-          ...(options["--json"] ? ["--json"] : []),
-        ]
-      : ["--head", "--pr", ...(options["--json"] ? ["--json"] : [])],
-    `${command} options`,
+    [...required, ...Object.keys(options).filter((flag) => !required.includes(flag))],
+    command + " options",
   );
   const number = parsePullRequestReference(options["--pr"]);
   const head = options["--head"];
@@ -864,7 +964,11 @@ async function main(argv) {
       }
     }
     const output = renovateCheckEnvelope({ number, head, result, snapshot });
-    if (options["--json"]) console.log(JSON.stringify(output));
+    if (options["--summary"])
+      console.log(
+        retainReportSummary("renovate", output, path.join(projectRoot, "work/report-summary")).text,
+      );
+    else if (options["--json"]) console.log(JSON.stringify(output));
     else console.log(output.summary);
     if (result.verdict !== "merge-ready") process.exitCode = 2;
     return;
@@ -872,6 +976,9 @@ async function main(argv) {
   if (command === "watch") {
     const directory = path.join(projectRoot, "work/pr-delivery");
     const references = [];
+    const progress = options["--progress"]
+      ? createWatchProgress((text) => console.error(text))
+      : () => {};
     const retain = (observation) => {
       try {
         mkdirSync(directory, { recursive: true });
@@ -891,7 +998,10 @@ async function main(argv) {
       run: Number(options["--run"]),
       attempt: Number(options["--attempt"]),
       deadline: options["--deadline"],
-      observe: retain,
+      observe: (observation) => {
+        retain(observation);
+        progress(observation);
+      },
     });
     retain({ format: 1, kind: "delivery-result", ...state.watch });
     const summary = `Pull request #${number} exact head ${head} passed required checks: ${state.contexts

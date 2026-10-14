@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { resolveUiSelection } from "./ui-test-selection.mjs";
 import { fileURLToPath } from "node:url";
 import {
   nativeHelperDependencies,
@@ -269,6 +270,7 @@ const explicitNodeTests = new Map([
     ["scripts/ci-baseline.test.mjs", "scripts/local-validation.test.mjs"],
   ],
   ["scripts/rust-test-impact.mjs", ["scripts/rust-test-impact.test.mjs"]],
+  ["scripts/ui-test-selection.mjs", ["scripts/ui-test-selection.test.mjs"]],
   ["scripts/check-vitest-durations.mjs", ["scripts/test-duration-reporter.test.mjs"]],
   ["scripts/pr-delivery.mjs", ["scripts/repository-skills.test.mjs"]],
   ["scripts/package-local.ps1", ["scripts/repository-skills.test.mjs"]],
@@ -888,7 +890,7 @@ function uiRelatedCommand(files) {
       "exec",
       "vitest",
       "related",
-      ...files.map((file) => path.join(projectRoot, file)),
+      ...files.map((file) => path.resolve(projectRoot, file)),
       "--run",
       "--pool=threads",
       "--isolate",
@@ -1588,7 +1590,7 @@ export function requireFocusedArguments(kind, args) {
   const hasSelection =
     kind === "test-node"
       ? args.some((value) => /\.(?:test|integration\.test)\.(?:mjs|cjs|js)$/.test(value))
-      : kind === "test-ui-related"
+      : kind === "test-ui-related" || kind === "test-ui"
         ? args.some((value) => /\.(?:[cm]?[jt]sx?|css)$/.test(value))
         : args.some((value) => !value.startsWith("-"));
   if (!args.length || !hasSelection)
@@ -1620,7 +1622,44 @@ function runFocusedCommand(kind, args) {
       ]),
     ];
   } else if (kind === "test-ui-related") {
-    plan = [uiRelatedCommand(args.map(normalizePath)), uiRelatedDurationCommand()];
+    plan = [
+      uiRelatedCommand(resolveUiSelection(args, desktopRoot, "related")),
+      uiRelatedDurationCommand(),
+    ];
+  } else if (kind === "test-ui") {
+    const files = resolveUiSelection(args, desktopRoot);
+    const directory = path.join(projectRoot, "work/ui-explicit", randomUUID());
+    mkdirSync(directory, { recursive: true });
+    const selectionFile = path.join(directory, "selection.json");
+    const reportFile = path.join(directory, "report.json");
+    writeFileSync(selectionFile, JSON.stringify(files), { flag: "wx" });
+    plan = [
+      corepackCommand(
+        "ui-explicit-tests",
+        "literal UI test files",
+        [
+          "pnpm",
+          "exec",
+          "vitest",
+          "run",
+          ...files,
+          "--pool=threads",
+          "--isolate",
+          "--maxWorkers=2",
+          "--testTimeout=5000",
+          "--reporter=default",
+          "--reporter=json",
+          `--outputFile=${reportFile}`,
+        ],
+        { cwd: desktopRoot },
+      ),
+      command(
+        "ui-explicit-coverage",
+        "reconcile requested UI files and timing evidence",
+        process.execPath,
+        ["scripts/check-vitest-durations.mjs", reportFile, "--expected-tests", selectionFile],
+      ),
+    ];
   } else if (kind === "test-node") {
     plan = [nodeTestCommand(args)];
   } else {
@@ -1663,12 +1702,12 @@ function parseCheckArgs(args) {
 export async function main(argv = process.argv.slice(2), options = {}) {
   if (argv.includes("--help")) {
     console.log(
-      "usage: local-validation.mjs [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui-related FILES|test-node TESTS]",
+      "usage: local-validation.mjs [check [--base REV] [--plan|--preflight [--json] [--hosted-authority SHA --hosted-controller SHA --hosted-ref NAME]] [--fresh]|test-rust ARGS|test-ui FILES|test-ui-related FILES|test-node TESTS]",
     );
     return;
   }
   const [kind = "check", ...args] = argv;
-  if (["test-rust", "test-ui-related", "test-node"].includes(kind)) {
+  if (["test-rust", "test-ui", "test-ui-related", "test-node"].includes(kind)) {
     runFocusedCommand(kind, args);
     return;
   }

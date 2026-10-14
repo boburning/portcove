@@ -1,3 +1,4 @@
+import { deliveryHelp } from "./pr-delivery.mjs";
 import assert from "node:assert/strict";
 import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -330,7 +331,7 @@ test("documented repository-skill and PR-delivery commands exist", async () => {
       ),
     ].map((match) => [match[1], match[2]]),
   );
-  const usage = deliveryUsage(deliveryScript);
+  const usage = deliveryUsage(deliveryHelp());
   assert.deepEqual([...delegates.keys()].sort(), ["pr-merge-rest", "pr-watch"]);
   assert.deepEqual([...usage.keys()].sort(), ["merge", "watch"]);
   const documentedCommands = documentedPrCommands(conventions);
