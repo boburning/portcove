@@ -210,6 +210,23 @@ try: scope['show_location']()
 except RuntimeError: pass
 else: raise AssertionError('Ambiguous location actions admitted')
 assert widget.actions==1
+scope['controls']=lambda:[widget]
+original_action_count=widget.get_n_actions
+counts=iter([2,0])
+widget.get_n_actions=lambda:next(counts)
+try: scope['show_location']()
+except RuntimeError: pass
+else: raise AssertionError('Changed location action count admitted')
+assert widget.actions==1
+widget.get_n_actions=original_action_count
+original_action_name=widget.get_action_name
+names=iter(['other','show_location','changed'])
+widget.get_action_name=lambda index:next(names)
+try: scope['show_location']()
+except RuntimeError: pass
+else: raise AssertionError('Changed location action name admitted')
+assert widget.actions==1
+widget.get_action_name=original_action_name
 scope['controls']=production_controls
 entry=Node('/entry','foreign',root,role=Role.ENTRY)
 input_block=[node for node in ast.walk(tree) if isinstance(node,ast.If) and isinstance(node.test,ast.Name) and node.test.id=='directory']

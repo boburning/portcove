@@ -262,14 +262,14 @@ def main():
                     raise RuntimeError("GTK chooser action inventory exceeded its bound")
                 for index in range(count):
                     if action.get_action_name(index) == "show_location":
-                        matches.append((node, index))
+                        matches.append((node, index, count))
             if len(matches) != 1:
                 raise RuntimeError("Expected one exact owned GTK show_location action")
-            node, index = matches[0]
+            node, index, captured_count = matches[0]
             bound_control(node)
             action = node.get_action_iface()
             count = action.get_n_actions() if action is not None else 0
-            if not index < count <= 8 or action.get_action_name(index) != "show_location" or not action.do_action(index):
+            if count != captured_count or not 0 <= index < count <= 8 or action.get_action_name(index) != "show_location" or not action.do_action(index):
                 raise RuntimeError("Owned GTK location action changed or was refused")
 
         if directory:
