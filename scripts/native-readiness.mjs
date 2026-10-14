@@ -1,12 +1,12 @@
-import { writeFile } from "node:fs/promises";
+import { writeFile, link, unlink } from "node:fs/promises";
 import path from "node:path";
 import { fileIdentity } from "./development-evidence.mjs";
 
 // Serializable in the actual WebView; do not import host state into this probe.
 export function observeGamepadCapability() {
-  if (typeof navigator.getGamepads !== "function")
-    return { outcome: "api-absent", exposed_devices: 0 };
   try {
+    if (typeof navigator.getGamepads !== "function")
+      return { outcome: "api-absent", exposed_devices: 0 };
     const devices = Array.from(navigator.getGamepads()).filter(Boolean);
     return {
       outcome: devices.length ? "devices-exposed" : "no-exposed-device",
@@ -79,6 +79,7 @@ export async function captureSettledVisual({
   target,
   readiness,
   timeoutMs = 5000,
+  write = writeFile,
 }) {
   if (
     !scenario ||
@@ -93,6 +94,23 @@ export async function captureSettledVisual({
   const end = Date.now() + timeoutMs;
   const observations = [];
   let image;
+  async function writeJoined(file, bytes) {
+    const remaining = end - Date.now();
+    if (remaining <= 0) throw new Error("Settled capture timed out");
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(new Error("Settled capture timed out")),
+      remaining,
+    );
+    try {
+      // Cancellation requests stop work; they never substitute for joining it.
+      await write(file, bytes, { flag: "wx", signal: controller.signal });
+      if (controller.signal.aborted || Date.now() >= end)
+        throw new Error("Settled capture timed out");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   async function bounded(operation) {
     const remaining = end - Date.now();
     if (remaining <= 0) throw new Error("Settled capture timed out");
@@ -137,12 +155,7 @@ export async function captureSettledVisual({
     if (!ready(after) || JSON.stringify(before) !== JSON.stringify(after))
       throw new Error("Application state changed during capture");
     image = path.join(output, `${name}.png`);
-    await bounded(() =>
-      writeFile(image, bytes, {
-        flag: "wx",
-        signal: AbortSignal.timeout(Math.max(1, end - Date.now())),
-      }),
-    );
+    await writeJoined(image, bytes);
     const identity = await bounded(() => fileIdentity(image));
     const receipt = path.join(output, `${name}-capture.json`);
     const record = {
@@ -152,7 +165,15 @@ export async function captureSettledVisual({
       image: identity,
       observation: after,
     };
-    await bounded(() => writeFile(receipt, JSON.stringify(record, null, 2) + "\n", { flag: "wx" }));
+    const staging = path.join(output, `${name}-capture.partial`);
+    await writeJoined(staging, JSON.stringify(record, null, 2) + "\n");
+    if (Date.now() >= end) throw new Error("Settled capture timed out");
+    await link(staging, receipt); // no-clobber publication; await its actual result
+    if (Date.now() >= end) {
+      await unlink(receipt); // only our just-created link; retain staging and image
+      throw new Error("Settled capture timed out");
+    }
+    await unlink(staging);
     return { ...record, receipt };
   } catch (error) {
     const diagnostic = path.join(output, `${name}-capture-failure.json`);

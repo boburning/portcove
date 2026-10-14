@@ -372,6 +372,14 @@ test("native capability distinguishes API absence, restriction, exposed absence 
   assert.equal(observe({}).outcome, "api-absent");
   assert.equal(
     observe({
+      get getGamepads() {
+        throw Error("restricted lookup");
+      },
+    }).outcome,
+    "api-access-failed-or-restricted",
+  );
+  assert.equal(
+    observe({
       getGamepads: () => {
         throw Error("restricted");
       },
@@ -474,4 +482,66 @@ test("settled visual binds retained image to semantic state and preserves negati
     );
     await assert.rejects(stat(path.join(directory, `${name}-capture.json`)), { code: "ENOENT" });
   }
+});
+
+test("timed-out capture joins the blocked filesystem worker without publishing a completed receipt", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-capture-join-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let enter, release, aborted;
+  const entered = new Promise((resolve) => {
+    enter = resolve;
+  });
+  const blocked = new Promise((resolve) => {
+    release = resolve;
+  });
+  const cancellation = new Promise((resolve) => {
+    aborted = resolve;
+  });
+  let settled = false;
+  const operation = captureSettledVisual({
+    browser: {
+      executeScript: async () => ({
+        visible: true,
+        viewport: { width: 800, height: 600 },
+        application_state: { document_ready: "complete", loading: 0 },
+      }),
+      takeScreenshot: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64"),
+    },
+    output: directory,
+    name: "blocked",
+    scenario: "owned-review",
+    target: "#review",
+    readiness: async () => ({ ready: true }),
+    timeoutMs: 100,
+    write: async (file, bytes, options) => {
+      if (file.endsWith(".partial")) {
+        options.signal.addEventListener("abort", () => aborted(), { once: true });
+        enter();
+        await blocked;
+      }
+      // Deliberately uncancellable worker: its eventual bytes must stay partial.
+      await writeFile(file, bytes, { flag: "wx" });
+    },
+  });
+  const rejection = assert.rejects(operation, /timed out/u).finally(() => {
+    settled = true;
+  });
+  await entered;
+  await cancellation;
+  assert.equal(settled, false);
+  await assert.rejects(stat(path.join(directory, "blocked-capture-failure.json")), {
+    code: "ENOENT",
+  });
+  release();
+  await rejection;
+  await assert.rejects(stat(path.join(directory, "blocked-capture.json")), { code: "ENOENT" });
+  assert.equal(
+    JSON.parse(await readFile(path.join(directory, "blocked-capture-failure.json"), "utf8"))
+      .acceptance,
+    false,
+  );
+  assert.equal(
+    JSON.parse(await readFile(path.join(directory, "blocked-capture.partial"), "utf8")).outcome,
+    "captured",
+  );
 });
