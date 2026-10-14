@@ -216,16 +216,15 @@ def main():
                     if node.get_role() not in (Atspi.Role.PUSH_BUTTON, Atspi.Role.TOGGLE_BUTTON):
                         continue
                     states = node.get_state_set()
-                    if not states.contains(Atspi.StateType.SENSITIVE) or not states.contains(Atspi.StateType.SHOWING):
-                        continue
-                    bound_control(node)
+                    bound_control(node, input_required=False)
                     name = node.get_name().replace("_", "")
                     description = node.get_description()
-                    projection.append({"role": node.get_role_name(), "name": name if name in labels else "<other>", "description": description if description in labels else "<other>"})
-                raise RuntimeError("Expected one exact enabled GTK chooser action: " + json.dumps(projection))
+                    projection.append({"role": node.get_role_name(), "name": name if name in labels else "<other>", "description": description if description in labels else "<other>", "showing": states.contains(Atspi.StateType.SHOWING), "sensitive": states.contains(Atspi.StateType.SENSITIVE)})
+                bounds = chooser().get_component_iface().get_extents(Atspi.CoordType.SCREEN)
+                raise RuntimeError("Expected one exact enabled GTK chooser action: " + json.dumps({"bounds": [bounds.x, bounds.y, bounds.width, bounds.height], "controls": projection}))
             return nodes[0]
 
-        def bound_control(node):
+        def bound_control(node, input_required=True):
             chooser()
             ancestor = node
             for _ in range(16):
@@ -240,7 +239,7 @@ def main():
                 raise RuntimeError("GTK action ancestry exceeded its bound")
             node.clear_cache()
             states = node.get_state_set()
-            if not states.contains(Atspi.StateType.SENSITIVE) or not states.contains(Atspi.StateType.SHOWING):
+            if input_required and (not states.contains(Atspi.StateType.SENSITIVE) or not states.contains(Atspi.StateType.SHOWING)):
                 raise RuntimeError("Owned GTK control became unavailable")
 
         def invoke(node):
