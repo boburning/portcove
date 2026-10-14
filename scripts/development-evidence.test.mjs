@@ -19,7 +19,73 @@ import {
   retainEvidenceInput,
   verifyConsumedInputs,
   validateEvidenceStore,
+  executionAdmission,
+  retainedExecutableCanLaunch,
 } from "./retained-evidence.mjs";
+
+test("retention rejects absent and untagged cleanup roots before creating them", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-cleanup-boundary-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const suffix of [
+    "target/evidence",
+    "target/debug/incremental/evidence",
+    "node_modules/evidence",
+  ]) {
+    const candidate = path.join(directory, suffix);
+    await assert.rejects(validateEvidenceStore(candidate), /cleanup roots/u);
+    await assert.rejects(stat(candidate), { code: "ENOENT" });
+    await mkdir(candidate, { recursive: true });
+    await assert.rejects(validateEvidenceStore(candidate), /cleanup roots/u);
+  }
+});
+
+test("matching product metadata cannot authorize relocation of a path-sensitive executable", () => {
+  const drivers = { driver: "/trusted/tauri-driver", nativeDriver: "/trusted/native-driver" };
+  for (const role of ["app", "preparation-cli", "preparation-tool"]) {
+    assert.equal(
+      retainedExecutableCanLaunch(
+        {
+          role,
+          path: "/unrelated/product",
+          verification_build: { compiled_source_revision: "a".repeat(40) },
+          source_state: { clean: true },
+        },
+        drivers,
+      ),
+      false,
+    );
+  }
+  assert.equal(
+    retainedExecutableCanLaunch({ role: "driver", path: drivers.driver }, drivers),
+    true,
+  );
+  assert.equal(
+    retainedExecutableCanLaunch({ role: "driver", path: "/unrelated/driver" }, drivers),
+    false,
+  );
+});
+
+test("capture/read/verification expiry refuses every later launch", async () => {
+  let launches = 0;
+  for (const elapsed of [100, 101]) {
+    const admission = executionAdmission(new Date(0).toISOString(), 100, () => elapsed);
+    await assert.rejects(async () => {
+      await admission.verify([]);
+      admission.assertReady();
+      launches++;
+    }, /deadline/u);
+  }
+  let clock = 0;
+  const admission = executionAdmission(new Date(0).toISOString(), 100, () => clock);
+  const verification = admission.verify([]);
+  clock = 100;
+  await assert.rejects(verification, /deadline/u);
+  assert.throws(() => {
+    admission.assertReady();
+    launches++;
+  }, /deadline/u);
+  assert.equal(launches, 0);
+});
 
 test("retained input is published without overwrite, deduplicated and bound before consumption", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-"));

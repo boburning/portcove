@@ -2,7 +2,11 @@ import {
   parseDesktopHarnessOptions,
   resolveDesktopHarnessSelection,
 } from "../../../scripts/desktop-execution-plan.mjs";
-import { readPrelaunchCustody, verifyConsumedInputs } from "../../../scripts/retained-evidence.mjs";
+import {
+  readPrelaunchCustody,
+  verifyConsumedInputs,
+  executionAdmission,
+} from "../../../scripts/retained-evidence.mjs";
 import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mjs";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mjs";
@@ -145,6 +149,7 @@ const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
   ? await readPrelaunchCustody(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, {
       root,
       revision,
+      deadlineMs: desktopHarnessDeadlineMs(selection),
       plan: executionPlan,
       values,
       selectedScenarios: selection.selected_scenarios,
@@ -239,6 +244,10 @@ const nativeLock = await acquireNativeSessionLock({
   scenarios: selection.selected_scenarios,
 });
 const harnessStarted = custody ? new Date(custody.execution_started_at) : new Date();
+const admission = executionAdmission(
+  harnessStarted.toISOString(),
+  desktopHarnessDeadlineMs(selection),
+);
 async function stopDriver() {
   if (linuxSelectedSession) {
     if (!linuxLaunch) return;
@@ -906,7 +915,7 @@ async function scenario(name, action) {
 }
 
 async function connectObservedDriver() {
-  if (custody) await verifyConsumedInputs(custody.inputs);
+  await admission.verify(custody?.inputs ?? []);
   const finishObservation =
     process.platform === "win32"
       ? await observeStartup({
@@ -918,6 +927,7 @@ async function connectObservedDriver() {
         })
       : null;
   try {
+    admission.assertReady();
     browser = await new Builder()
       .disableEnvironmentOverrides()
       .usingServer(`http://127.0.0.1:${port}`)
@@ -1226,7 +1236,7 @@ function driverEnvironment(childEnvironment) {
 }
 
 async function startDriver(childEnvironment = {}) {
-  if (custody) await verifyConsumedInputs(custody.inputs);
+  await admission.verify(custody?.inputs ?? []);
   ownedSession.beginLaunch();
   const launchStarted = Date.now();
   const arguments_ = [
@@ -1244,15 +1254,18 @@ async function startDriver(childEnvironment = {}) {
       values.driver,
       arguments_,
       driverEnvironment(childEnvironment),
+      { beforeLaunch: admission.assertReady },
     );
     driver = linuxLaunch.child;
-  } else
+  } else {
+    admission.assertReady();
     driver = spawn(values.driver, arguments_, {
       windowsHide: true,
       detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
       env: driverEnvironment(childEnvironment),
     });
+  }
   let spawnError;
   driver.on("error", (error) => {
     spawnError = error;
@@ -3217,7 +3230,8 @@ try {
     await writeEvidence(output, {
       revision,
       executable: values.app,
-      capturedExecutable: custody ? inputs[0].retained : inputs[0],
+      capturedExecutable:
+        custody && inputs[0].binding === "retained-artifact" ? inputs[0].retained : inputs[0],
       checks,
       setupChecks,
       artifacts,

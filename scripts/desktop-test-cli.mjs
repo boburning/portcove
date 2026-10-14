@@ -155,8 +155,12 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
       await import("./desktop-execution-plan.mjs");
     const { cachedDesktopDrivers } = await import("./tool-cache.mjs");
     const { getPaths } = await import("./dev-storage.mjs");
-    const { retainedEvidenceRoot, ensureRetainedEvidenceStore, verifyConsumedInputs } =
-      await import("./retained-evidence.mjs");
+    const {
+      retainedEvidenceRoot,
+      ensureRetainedEvidenceStore,
+      verifyConsumedInputs,
+      retainedExecutableCanLaunch,
+    } = await import("./retained-evidence.mjs");
     const { captureDesktopReceiptInputs } = await import("./native-helper-dependencies.mjs");
     const { acquireNativeSessionLock } = await import("./native-session-lock.mjs");
     const { values } = parseDesktopHarnessOptions(args);
@@ -193,15 +197,6 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
       captureOutput = path.join(store, "observations", randomUUID());
       await mkdir(captureOutput, { recursive: true, mode: 0o700 });
       const plan = planDesktopExecution(selection, { prelaunchCustody: true });
-      let producedVerification = null;
-      if (values["run-metadata"] && !values["package-evidence"]) {
-        const metadata = JSON.parse(await readFile(values["run-metadata"], "utf8"));
-        if (
-          metadata.verification_build?.compiled_source_revision === revision &&
-          metadata.source_state?.clean === true
-        )
-          producedVerification = metadata.verification_build;
-      }
       const inputs = await captureDesktopReceiptInputs({
         root,
         values,
@@ -213,15 +208,7 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
       });
       captureSignal.throwIfAborted();
       for (const input of inputs) {
-        if (
-          input.binding === "retained-artifact" &&
-          !(
-            (producedVerification &&
-              ["app", "preparation-cli", "preparation-tool"].includes(input.role)) ||
-            (input.role === "driver" && input.path === drivers?.driver) ||
-            (input.role === "native-driver" && input.path === drivers?.nativeDriver)
-          )
-        )
+        if (input.binding === "retained-artifact" && !retainedExecutableCanLaunch(input, drivers))
           input.binding = "live-path-checked-cooperative";
         input.consumption_phase =
           input.binding === "retained-artifact"

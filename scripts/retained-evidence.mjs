@@ -14,6 +14,7 @@ import {
 import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { fileIdentity } from "./development-evidence.mjs";
 
 const initializing = new Map();
@@ -116,6 +117,25 @@ export function retainedEvidenceRoot(
 
 export async function validateEvidenceStore(root) {
   if (!path.isAbsolute(root)) throw new Error("Retained evidence root must be absolute");
+  const workspace = fileURLToPath(new URL("../", import.meta.url));
+  const relative = path.relative(workspace, root);
+  if (
+    !relative ||
+    (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
+  )
+    throw new Error("Retained evidence must be outside the checkout and its cleanup roots");
+  // Cargo clean can remove an absent or untagged target later. Tags alone do
+  // not establish retention. Also refuse common dependency/cache roots in
+  // other checkouts; nested incremental storage is covered by target.
+  if (
+    path
+      .resolve(root)
+      .split(path.sep)
+      .some((part) =>
+        ["target", "node_modules", "pnpm-store", "browser-cache"].includes(part.toLowerCase()),
+      )
+  )
+    throw new Error("Retained evidence cannot live in disposable cleanup roots");
   let current = path.resolve(root);
   for (;;) {
     try {
@@ -261,9 +281,39 @@ export async function verifyConsumedInputs(inputs, { livePaths = true, signal } 
   }
 }
 
+export function executionAdmission(startedAt, budgetMs, now = Date.now) {
+  const expires = Date.parse(startedAt) + budgetMs;
+  if (!Number.isFinite(expires) || !Number.isFinite(budgetMs) || budgetMs <= 0)
+    throw new Error("Invalid execution deadline");
+  const remaining = () => expires - now();
+  const signal = AbortSignal.timeout(Math.max(0, Math.min(2_147_483_647, remaining())));
+  function assertReady() {
+    signal.throwIfAborted();
+    if (remaining() <= 0) throw new Error("Execution deadline expired before launch");
+  }
+  return {
+    signal,
+    assertReady,
+    async verify(inputs) {
+      assertReady();
+      await verifyConsumedInputs(inputs, { signal });
+      assertReady();
+    },
+  };
+}
+
+export function retainedExecutableCanLaunch(input, drivers) {
+  // Product metadata is provenance, never proof of a relocatable layout.
+  // Only the bootstrap's standalone cached driver executables are established.
+  return (
+    (input.role === "driver" && input.path === drivers?.driver) ||
+    (input.role === "native-driver" && input.path === drivers?.nativeDriver)
+  );
+}
+
 export async function readPrelaunchCustody(
   file,
-  { root, revision, plan, values, selectedScenarios },
+  { root, revision, plan, values, selectedScenarios, deadlineMs },
 ) {
   const manifest = JSON.parse(await readFile(file, "utf8"));
   if (
@@ -309,6 +359,6 @@ export async function readPrelaunchCustody(
     )
       throw new Error("Consumed input differs from the prelaunch declaration");
   }
-  await verifyConsumedInputs(manifest.inputs);
+  await executionAdmission(manifest.execution_started_at, deadlineMs).verify(manifest.inputs);
   return manifest;
 }

@@ -22,7 +22,12 @@ const deadline = (promise, message) => {
 
 // Ephemeral native-harness custody only. Ordinary Core None supervision and
 // product launch policy remain unchanged. Numeric host PIDs are never signaled.
-export async function launchLinuxNativeSession(program, args, environment) {
+export async function launchLinuxNativeSession(
+  program,
+  args,
+  environment,
+  { beforeLaunch = () => {} } = {},
+) {
   assert.equal(process.platform, "linux");
   const nonce = randomUUID();
   const receipt = {
@@ -46,6 +51,7 @@ export async function launchLinuxNativeSession(program, args, environment) {
     node_sha256: nodeDigest,
     inputs_captured_at: new Date().toISOString(),
   });
+  beforeLaunch();
   const child = spawn(
     unshare,
     [
