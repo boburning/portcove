@@ -19,6 +19,13 @@
   },
   "packageRules": [
     {
+      "description": "Keep serde_json updates within its existing Cargo range and lock the eligible selected version",
+      "matchManagers": ["cargo"],
+      "matchDatasources": ["crate"],
+      "matchPackageNames": ["serde_json"],
+      "rangeStrategy": "update-lockfile"
+    },
+    {
       "description": "Keep immutable GitHub Action references and group their reviewed updates",
       "matchManagers": ["github-actions"],
       "groupName": "github-actions",
