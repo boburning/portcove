@@ -15,12 +15,58 @@ import {
   inspectRenovateQueue,
   baselineTimingWindow,
   lockedAgeVerdict,
+  retainMergeReceipt,
 } from "./pr-delivery.mjs";
 
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
 const head = "a".repeat(40);
 const base = "b".repeat(40);
 const merge = "c".repeat(40);
+
+test("postmerge receipt retention failure preserves confirmed completion and forbids retry", () => {
+  const packet = {
+    number: 7,
+    head,
+    result: { merged: true, sha: merge },
+    readback: { merged: true, merge_commit_sha: merge },
+  };
+  for (const phase of ["mkdirSync", "writeFileSync"]) {
+    const io = { mkdirSync() {}, writeFileSync() {} };
+    io[phase] = () => {
+      throw new Error("ENOSPC");
+    };
+    assert.throws(
+      () => retainMergeReceipt("unused", packet, io),
+      (error) =>
+        /Merge completed.*receipt retention failed; do not retry/.test(error.message) &&
+        error.operationEvidence.merge_completed === true &&
+        error.operationEvidence.result.sha === merge &&
+        error.operationEvidence.readback.merge_commit_sha === merge,
+    );
+  }
+});
+const emptyIntent = { format_version: 1, allowed_targets: [] };
+const squashMessage = { title: "fix: safe delivery", body: "Related to #244." };
+function closingPage(overrides = {}) {
+  return {
+    data: {
+      repository: {
+        pullRequest: {
+          number: 7,
+          headRefOid: head,
+          title: "fix: safe delivery",
+          body: "Related to #244.",
+          closingIssuesReferences: {
+            totalCount: 0,
+            nodes: [],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+          ...overrides,
+        },
+      },
+    },
+  };
+}
 
 test("actual lock age overrides green selected-version readiness but never overrides rejection", () => {
   const result = { verdict: "metadata-required", reason: "remote gates ready", evidence: { head } };
@@ -83,6 +129,8 @@ function included(body, headers = {}) {
 function pull(overrides = {}) {
   return {
     number: 7,
+    title: "fix: safe delivery",
+    body: "Related to #244.",
     commits: 1,
     changed_files: 2,
     head: { sha: head },
@@ -799,8 +847,13 @@ test("REST merge uses the exact SHA and verifies remote completion", () => {
   let merged = false;
   const client = new PullRequestDeliveryClient((args, input) => {
     const method = args[4];
-    const endpoint = args[2];
+    const endpoint = args[1] === "graphql" ? "graphql" : args[2];
     calls.push({ method, endpoint, input });
+    if (endpoint === "graphql") return included(closingPage());
+    if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
+      return included([{ sha: head, commit: { message: squashMessage.title } }]);
+    if (endpoint === `repos/boburning/portcove/git/commits/${merge}`)
+      return included({ sha: merge, message: `${squashMessage.title}\n\n${squashMessage.body}` });
     if (endpoint === "repos/boburning/portcove/pulls/7") {
       return included(
         merged ? pull({ merged: true, state: "closed", merge_commit_sha: merge }) : pull(),
@@ -811,24 +864,34 @@ test("REST merge uses the exact SHA and verifies remote completion", () => {
     if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
     if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
       merged = true;
-      assert.deepEqual(JSON.parse(input), { merge_method: "squash", sha: head });
+      assert.deepEqual(JSON.parse(input), {
+        merge_method: "squash",
+        sha: head,
+        commit_title: squashMessage.title,
+        commit_message: squashMessage.body,
+      });
       return included({ merged: true, sha: merge, message: "Pull Request successfully merged" });
     }
     throw new Error(`unexpected endpoint ${endpoint}`);
   });
-  const result = client.merge(7, head, required);
+  const result = client.merge(7, head, required, emptyIntent, squashMessage);
   assert.equal(result.result.sha, merge);
   assert.equal(calls.filter((call) => call.method === "PUT").length, 1);
   assert.equal(
     calls.some((call) => call.endpoint === "graphql"),
-    false,
+    true,
   );
 });
 
 test("merge command errors are reconciled through remote readback before retry", () => {
   let merged = false;
   const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = args[2];
+    const endpoint = args[1] === "graphql" ? "graphql" : args[2];
+    if (endpoint === "graphql") return included(closingPage());
+    if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
+      return included([{ sha: head, commit: { message: squashMessage.title } }]);
+    if (endpoint === `repos/boburning/portcove/git/commits/${merge}`)
+      return included({ sha: merge, message: `${squashMessage.title}\n\n${squashMessage.body}` });
     if (endpoint === "repos/boburning/portcove/pulls/7")
       return included(
         merged ? pull({ merged: true, state: "closed", merge_commit_sha: merge }) : pull(),
@@ -842,13 +905,15 @@ test("merge command errors are reconciled through remote readback before retry",
     }
     throw new Error(`unexpected endpoint ${endpoint}`);
   });
-  const result = client.merge(7, head, required);
+  const result = client.merge(7, head, required, emptyIntent, squashMessage);
   assert.equal(result.result.sha, merge);
   assert.match(result.result.message, /readback confirmed/);
 });
 
 test("merge reports unknown when mutation and remote readback are both ambiguous", () => {
   const client = new PullRequestDeliveryClient();
+  client.api = { graphql: () => closingPage() };
+  client.pullCommits = () => [{ sha: head, commit: { message: squashMessage.title } }];
   client.requiredCheckState = () => ({
     pull: pull(),
     contexts: required.map((context) => ({ context, outcome: "success", conclusion: "success" })),
@@ -860,7 +925,7 @@ test("merge reports unknown when mutation and remote readback are both ambiguous
     throw new Error("readback unavailable");
   };
   assert.throws(
-    () => client.merge(7, head, required),
+    () => client.merge(7, head, required, emptyIntent, squashMessage),
     (error) =>
       error.operationStatus === "unknown" &&
       error.operationEvidence.pull_request === 7 &&
@@ -881,6 +946,137 @@ test("merge refuses draft conflict and incomplete-check states before mutation",
   client.checkRuns = () => successfulRuns().slice(1);
   client.commitStatuses = () => [];
   assert.throws(() => client.merge(7, head, required), /not successful/);
+});
+
+function closureGuardClient(
+  pages,
+  commits = [{ sha: head, commit: { message: "fix: scoped component" } }],
+) {
+  let index = 0;
+  const client = new PullRequestDeliveryClient();
+  client.api = { graphql: () => pages[Math.min(index++, pages.length - 1)] };
+  client.requiredCheckState = () => ({
+    pull: pull(),
+    contexts: required.map((context) => ({ context, outcome: "success", conclusion: "success" })),
+  });
+  client.pullCommits = () => commits;
+  client.request = () => assert.fail("Closure refusal must precede merge mutation");
+  return client;
+}
+
+test("empty component intent refuses keyword-free manual closure relationships", () => {
+  const page = closingPage({
+    closingIssuesReferences: {
+      totalCount: 1,
+      nodes: [
+        { id: "manual-issue", number: 244, repository: { nameWithOwner: "boburning/portcove" } },
+      ],
+      pageInfo: { hasNextPage: false, endCursor: null },
+    },
+  });
+  const client = closureGuardClient([page]);
+  assert.throws(
+    () => client.merge(7, head, required, emptyIntent, squashMessage),
+    /Undeclared closing relationship/,
+  );
+});
+
+test("unchanged source head does not hide PR body or relationship changes", () => {
+  for (const second of [
+    closingPage({ body: "Related to #202." }),
+    closingPage({
+      closingIssuesReferences: {
+        totalCount: 1,
+        nodes: [
+          { id: "manual-issue", number: 244, repository: { nameWithOwner: "boburning/portcove" } },
+        ],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    }),
+  ]) {
+    assert.throws(
+      () =>
+        closureGuardClient([closingPage(), second]).merge(
+          7,
+          head,
+          required,
+          emptyIntent,
+          squashMessage,
+        ),
+      /changed before merge/,
+    );
+  }
+});
+
+test("candidate commit and actual proposed squash text require explicit closure permission", () => {
+  for (const text of [
+    "Fixes https://github.com/boburning/portcove/issues/244",
+    "Fixes https://github.com/other/repo/issues/244",
+  ]) {
+    assert.throws(
+      () =>
+        closureGuardClient([closingPage()], [{ sha: head, commit: { message: text } }]).merge(
+          7,
+          head,
+          required,
+          emptyIntent,
+          squashMessage,
+        ),
+      /Undeclared/,
+    );
+    assert.throws(
+      () =>
+        closureGuardClient([closingPage()]).merge(7, head, required, emptyIntent, {
+          ...squashMessage,
+          body: text,
+        }),
+      /Undeclared/,
+    );
+  }
+  assert.throws(
+    () =>
+      closureGuardClient(
+        [closingPage()],
+        [{ sha: head, commit: { message: "Closes #244" } }],
+      ).merge(7, head, required, emptyIntent, squashMessage),
+    /Undeclared/,
+  );
+  assert.throws(
+    () =>
+      closureGuardClient([closingPage()]).merge(7, head, required, emptyIntent, {
+        ...squashMessage,
+        body: "Fixes: #244",
+      }),
+    /Undeclared/,
+  );
+  assert.throws(
+    () => closureGuardClient([closingPage()]).merge(7, head, required, undefined, squashMessage),
+    /independent/,
+  );
+});
+
+test("unexpected actual squash message preserves a merged outcome without retry", () => {
+  const client = closureGuardClient([closingPage()]);
+  let writes = 0;
+  client.request = (method) => {
+    if (method === "PUT") {
+      writes++;
+      return { body: { merged: true, sha: merge, message: "merged" } };
+    }
+    return { body: { sha: merge, message: "Unexpected Closes #244" } };
+  };
+  client.pull = () => pull({ merged: true, state: "closed", merge_commit_sha: merge });
+  assert.throws(
+    () => client.merge(7, head, required, emptyIntent, squashMessage),
+    (error) =>
+      error.operationStatus === "unknown" &&
+      error.operationEvidence.merge_commit_sha === merge &&
+      /Actual merged commit message differs/.test(error.message) &&
+      error.operationEvidence.closure_readback.actual_commit.message === "Unexpected Closes #244" &&
+      error.operationEvidence.closure_readback.mutation.merged === true &&
+      error.operationEvidence.closure_readback.pull.merge_commit_sha === merge,
+  );
+  assert.equal(writes, 1);
 });
 
 test("delivery help shares supported flags and performs no API work", () => {
