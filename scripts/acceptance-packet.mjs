@@ -7,6 +7,9 @@ import { fileIdentity } from "./development-evidence.mjs";
 const hash = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const sha = (value) => /^[a-f0-9]{40}$/u.test(value ?? "");
 const outcomes = new Set(["passed", "failed", "skipped", "unsupported", "not-run"]);
+const contentIdentities = (inputs) =>
+  inputs.map(({ role, sha256, bytes }) => ({ role, sha256, bytes }));
+const harnessIdentity = (bindings) => hash(contentIdentities(bindings.harness_inputs));
 function requireIdentities(inputs) {
   if (
     !Array.isArray(inputs) ||
@@ -106,9 +109,7 @@ export async function writeAcceptancePreflight(
     interpretation:
       "Evidence record only; no acceptance, merge authority or permission to change its verifier",
   };
-  packet.harness_identity = hash(
-    bindings.harness_inputs.map(({ sha256, bytes, role }) => ({ sha256, bytes, role })),
-  );
+  packet.harness_identity = harnessIdentity(bindings);
   packet.execution_qualification_identity = hash(bindings.execution_qualification);
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const file = path.join(directory, "preflight.json");
@@ -131,11 +132,14 @@ export function reusableAcceptanceScenarios(previous, next) {
   }
   const previousExecution = previous.bindings.execution_qualification,
     nextExecution = next.bindings.execution_qualification;
-  const products = (inputs) => inputs.map(({ role, sha256, bytes }) => ({ role, sha256, bytes }));
+  const products = contentIdentities;
   const productChanged =
     hash(products(previous.bindings.product_artifacts)) !==
     hash(products(next.bindings.product_artifacts));
-  const harnessChanged = previous.harness_identity !== next.harness_identity;
+  const harnessChanged =
+    harnessIdentity(previous.bindings) !== harnessIdentity(next.bindings) ||
+    previous.harness_identity !== harnessIdentity(previous.bindings) ||
+    next.harness_identity !== harnessIdentity(next.bindings);
   const commonChanged =
     ["runtime_conditions", "initial_state"].some(
       (key) => hash(previousExecution[key]) !== hash(nextExecution[key]),
@@ -174,6 +178,71 @@ async function verifyIdentity(identity) {
     throw new Error("Packet retained artifact bytes changed");
 }
 
+async function closureProof(identity, retained, evidence) {
+  const record = JSON.parse(await readFile(identity.path, "utf8"));
+  if (record.method === "private-pid-namespace-init-normal-unshare-join") {
+    // The normal PID-1 join proves kernel teardown of descendants. A driver
+    // exit event is optional when closing the control pipe initiates teardown.
+    return (
+      record.quiesced === true &&
+      !record.protocol_error &&
+      record.exit?.code === 0 &&
+      record.exit.signal === null &&
+      Number.isFinite(Date.parse(record.exit.observed_at)) &&
+      record.ready?.kind === "namespace-ready" &&
+      record.ready.pid === 1 &&
+      /^[a-f0-9-]{36}$/u.test(record.nonce ?? "") &&
+      record.events?.some(
+        (event) =>
+          event.kind === "driver-started" &&
+          event.nonce === record.nonce &&
+          Number.isInteger(event.pid) &&
+          event.pid > 1,
+      ) &&
+      ["unshare_sha256", "init_sha256", "node_sha256"].every((key) =>
+        /^[a-f0-9]{64}$/u.test(record[key] ?? ""),
+      )
+    );
+  }
+  if (typeof record.snapshot === "string" && record.exited && !record.session_quit_error) {
+    const snapshotIdentity = retained.find((item) => item.path === record.snapshot);
+    if (!snapshotIdentity) return false;
+    const snapshot = JSON.parse(await readFile(snapshotIdentity.path, "utf8"));
+    const validProcess = (process) =>
+      Number.isInteger(process?.pid) &&
+      process.pid > 0 &&
+      path.isAbsolute(process.path ?? "") &&
+      /^\d+$/u.test(String(process.started_filetime ?? ""));
+    const app = evidence.execution_binding.product_artifacts.find((input) => input.role === "app");
+    const driver = evidence.execution_binding.runtime_tools?.find(
+      (input) => input.role === "driver",
+    );
+    const driverPath =
+      driver?.binding === "retained-artifact" ? driver.retained?.path : driver?.path;
+    return (
+      validProcess(snapshot.driver) &&
+      snapshot.driver.path.toLowerCase() === driverPath?.toLowerCase() &&
+      Array.isArray(snapshot.processes) &&
+      snapshot.processes.length > 1 &&
+      snapshot.processes.every(validProcess) &&
+      snapshot.processes.some(
+        (item) =>
+          item.pid === snapshot.driver.pid &&
+          item.started_filetime === snapshot.driver.started_filetime &&
+          item.path === snapshot.driver.path,
+      ) &&
+      snapshot.processes.some((item) => item.path.toLowerCase() === app?.path?.toLowerCase()) &&
+      record.exited.observed_processes === snapshot.processes.length &&
+      Number.isFinite(Date.parse(record.exited.exited_at)) &&
+      Date.parse(record.exited.exited_at) >= Date.parse(snapshot.captured_at) &&
+      Number.isFinite(record.exited.wait_ms) &&
+      record.exited.wait_ms >= 0 &&
+      record.exited.wait_ms <= 5000
+    );
+  }
+  return false;
+}
+
 export async function completeAcceptancePacket(
   preflightIdentity,
   {
@@ -202,6 +271,8 @@ export async function completeAcceptancePacket(
   await verifyIdentity(evidence_identity);
   const evidence = JSON.parse(await readFile(evidence_identity.path, "utf8"));
   const selected = preflight.bindings.execution_qualification.scenarios;
+  let observedPreflight = preflight,
+    observedPreflightIdentity = preflightIdentity;
   if (evidence.revision !== preflight.bindings.source_head) {
     const reusable = preflight.reusable_evidence.find(
       (item) =>
@@ -214,12 +285,38 @@ export async function completeAcceptancePacket(
     const prior = JSON.parse(await readFile(reusable.packet.path, "utf8"));
     if (
       prior.evidence?.sha256 !== evidence_identity.sha256 ||
-      prior.bindings.source_head !== evidence.revision ||
+      (prior.execution_observation_source_head ?? prior.bindings.source_head) !==
+        evidence.revision ||
       !prior.qualification_complete ||
       !selected.every((id) => reusableAcceptanceScenarios(prior, preflight).reusable.includes(id))
     )
       throw new Error("Effective dependencies require requalification");
+    observedPreflightIdentity = prior.execution_preflight ?? prior.preflight;
+    await verifyIdentity(observedPreflightIdentity);
+    observedPreflight = JSON.parse(await readFile(observedPreflightIdentity.path, "utf8"));
   }
+  const observed = evidence.execution_binding;
+  if (
+    evidence.format_version !== 3 ||
+    !observed ||
+    evidence.acceptance_preflight?.path !== observedPreflightIdentity.path ||
+    evidence.acceptance_preflight?.sha256 !== observedPreflightIdentity.sha256 ||
+    evidence.acceptance_preflight?.bytes !== observedPreflightIdentity.bytes ||
+    !Array.isArray(evidence.setup_checks) ||
+    !Array.isArray(evidence.selected_scenarios) ||
+    hash(evidence.selected_scenarios) !==
+      hash(observedPreflight.bindings.execution_qualification.scenarios) ||
+    !Array.isArray(observed.product_artifacts) ||
+    !Array.isArray(observed.harness_inputs) ||
+    hash(contentIdentities(observed.product_artifacts)) !==
+      hash(contentIdentities(observedPreflight.bindings.product_artifacts)) ||
+    hash(contentIdentities(observed.harness_inputs)) !==
+      hash(contentIdentities(observedPreflight.bindings.harness_inputs)) ||
+    hash(observed.build_inputs) !== hash(observedPreflight.bindings.build_inputs) ||
+    hash(observed.execution_qualification) !==
+      hash(observedPreflight.bindings.execution_qualification)
+  )
+    throw new Error("Canonical execution evidence does not bind the frozen preflight dependencies");
   if (
     !Array.isArray(actualOutcomes) ||
     actualOutcomes.length !== selected.length ||
@@ -262,6 +359,13 @@ export async function completeAcceptancePacket(
     )
       throw new Error("Process closure is not bound to retained run evidence");
   }
+  const positiveClosure = (
+    await Promise.all(
+      process_closure.artifacts.map((identity) =>
+        closureProof(identity, retained_artifacts, evidence).catch(() => false),
+      ),
+    )
+  ).some(Boolean);
   const requiredNames = preflight.bindings.execution_qualification.acceptance_criteria.flatMap(
     (item) => item.required_images ?? [],
   );
@@ -286,6 +390,11 @@ export async function completeAcceptancePacket(
     if (
       capture.outcome !== "captured" ||
       !selected.includes(capture.scenario) ||
+      !preflight.bindings.execution_qualification.acceptance_criteria.some(
+        (criterion) =>
+          criterion.required_images?.includes(path.basename(image.path)) &&
+          criterion.scenarios?.includes(capture.scenario),
+      ) ||
       capture.image?.sha256 !== image.sha256 ||
       capture.image?.bytes !== image.bytes ||
       capture.observation?.semantic?.ready !== true ||
@@ -341,9 +450,12 @@ export async function completeAcceptancePacket(
   }
   const complete =
     !missingImages.length &&
+    evidence.outcome === "passed" &&
+    evidence.setup_checks.every((check) => check.outcome === "passed") &&
     actualOutcomes.every((item) => item.outcome === "passed") &&
     process_closure.outcome === "passed" &&
     process_closure.positive_exit === true &&
+    positiveClosure &&
     outcome_review.outcome === "passed" &&
     preflight.source_review.outcome === "passed" &&
     preflight.source_review.source_head === preflight.bindings.source_head &&
@@ -355,9 +467,11 @@ export async function completeAcceptancePacket(
     preflight: preflightIdentity,
     evidence: evidence_identity,
     execution_observation_source_head: evidence.revision,
+    execution_preflight: observedPreflightIdentity,
     outcomes: actualOutcomes,
     retained_artifacts,
     process_closure,
+    verified_positive_closure: positiveClosure,
     image_inspections,
     outcome_review,
     final_delivery,

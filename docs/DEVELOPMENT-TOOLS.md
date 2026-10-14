@@ -538,22 +538,31 @@ actual author/source review, requirements with required scenarios, acceptance
 criteria with required image filenames, reusable evidence and visible gaps.
 These are execution declarations, not a new universal packet gate.
 
-After owned fixture preparation and before launch, the harness writes
+The harness retains declared inputs before launch. After initial isolated
+application readiness and before selected scenarios, it writes
 `preflight.json` outside the source checkout, alongside the retained prelaunch
 observation. It freezes source/current-target/composed-tree, partial build-input
 fingerprint, product artifact identities, declared harness inputs, runtime,
-initial fixture identities/state, requirements and scenarios. It needs no future
+initial fixture identities/state, requirements and scenarios. Runtime bindings
+include observed browser/OS/Node versions and the retained public private-X11
+receipt where applicable; authentication bytes remain excluded. Original fixture
+reads remain protected by the existing cooperative ownership and content checks;
+retaining fixture copies does not prove immutable Core consumption. It needs no future
 screenshots. The build inventory's incomplete external native SDK coverage
 continues to require the normal Cargo build; it is not a native cache waiver.
 
 After the run, `evidence.json` remains the actual run observation. The existing
 `completeAcceptancePacket` helper writes the same format at stage `completed`
-only after real outcomes, retained artifacts, process-closure evidence,
+only after the canonical run binds the exact preflight and its observed build,
+product, harness and execution dependencies, real outcomes, retained artifacts, process-closure evidence,
 image-specific inspection, separate outcome review and final delivery bindings
 are supplied. Never insert placeholders or treat report reading as image
 inspection. Inspect each required PNG itself, rehash it and record reviewer,
 time and findings against those exact bytes. Required visuals also bind to their
-successful settled capture receipts. Missing images, required gaps, failed,
+successful settled capture receipts and their criterion's declared scenario.
+Closure uses the existing Windows process inventory/exit receipt or Linux
+positive PID-1 namespace join; an arbitrary artifact and caller flag are insufficient.
+Missing images, failed mandatory setup, required gaps, failed,
 skipped or unsupported outcomes cannot become qualification success. Preserve
 failed evidence and the original preflight; a packet does not confer acceptance,
 merge authority or permission to change its own verifier.

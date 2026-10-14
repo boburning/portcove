@@ -1,3 +1,4 @@
+import os from "node:os";
 import {
   writeAcceptancePreflight,
   observePacketDeliveryBindings,
@@ -190,6 +191,7 @@ if (values["run-metadata"]) {
   runnerMetadata = JSON.parse(await readFile(values["run-metadata"], "utf8"));
 }
 let acceptancePreflight;
+const packetFixtureIdentities = [];
 let installFixture;
 let externalFixture;
 let bootstrapRecoveryFixture;
@@ -1530,11 +1532,10 @@ try {
     assert.equal(
       custody?.retained_metadata,
       true,
-      "Finite packet declarations must be consumed from retained non-secret metadata",
+      "Finite packet declarations require retained metadata",
     );
-    const declaration = runnerMetadata.acceptance_bindings;
     const retainedRoot = retainedEvidenceRoot(output);
-    const fixtures = [];
+    const fixtures = packetFixtureIdentities;
     for (let index = 0; index < inputs.length; index++)
       if (!inputs[index].retained) {
         const retained = await retainEvidenceInput({
@@ -1551,10 +1552,43 @@ try {
           kind: "fixture",
         };
       }
+  }
+  await requireUnusedPort(port);
+  await requireUnusedPort(port + 1);
+  await startDriver();
+  await connect();
+  if (runnerMetadata.acceptance_bindings) {
+    assert.equal(
+      custody?.retained_metadata,
+      true,
+      "Finite packet declarations must be consumed from retained non-secret metadata",
+    );
+    const declaration = runnerMetadata.acceptance_bindings;
+    const retainedRoot = retainedEvidenceRoot(output);
+    const fixtures = packetFixtureIdentities;
+    const capabilities = await browser.getCapabilities();
+    const nodeIdentity = await fileIdentity(process.execPath, { signal: admission.signal });
+    let privateDisplay;
+    if (process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT) {
+      privateDisplay = await retainEvidenceInput({
+        root: retainedRoot,
+        file: process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT,
+        signal: admission.signal,
+      });
+      inputs.push({ ...privateDisplay, role: "private-display-observation", kind: "runtime" });
+    }
     const runtime = {
       platform: process.platform,
       architecture: process.arch,
       node: process.version,
+      node_executable: nodeIdentity,
+      operating_system: os.release(),
+      browser: {
+        name: capabilities.get("browserName") ?? null,
+        version: capabilities.get("browserVersion") ?? null,
+        platform: capabilities.get("platformName") ?? null,
+      },
+      ...(privateDisplay ? { private_display: privateDisplay.retained } : {}),
       display_route: process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT
         ? "private-authenticated-virtual-X11"
         : "native-platform-display",
@@ -1583,6 +1617,8 @@ try {
             fixture_identities: fixtures,
             initial_state: {
               isolated: true,
+              fixture_consumption:
+                "Original owned paths; cooperative ownership and pre/post content checks, not immutable Core consumption",
               seeded_owned_fixture: Boolean(installFixture),
               restart_cycles: restartCycles,
               reload_cycles: reloadCycles,
@@ -1602,10 +1638,6 @@ try {
     );
     console.log(JSON.stringify({ acceptance_preflight: acceptancePreflight.identity }));
   }
-  await requireUnusedPort(port);
-  await requireUnusedPort(port + 1);
-  await startDriver();
-  await connect();
   if (historySession) {
     historyInventory = await captureHistorySession(driver.pid, values.driver, values.app);
     const record = path.join(output, "qualification-history-process-identities.json");
@@ -3376,6 +3408,13 @@ try {
                 ["driver", "native-driver"].includes(input.role),
               ),
               harness_inputs: custody.inputs.filter((input) => input.kind === "file"),
+              ...(acceptancePreflight
+                ? {
+                    build_inputs: runnerMetadata.verification_build,
+                    execution_qualification:
+                      acceptancePreflight.packet.bindings.execution_qualification,
+                  }
+                : {}),
               verification:
                 "Content checked before target import, each application/driver launch and after execution; trusted launcher/verifier source observations are not immutable execution proof",
               limitations: custody.limitations,

@@ -614,13 +614,38 @@ async function packetFixture(t) {
     }),
   );
   const closure = path.join(directory, "closure.json");
-  await writeFile(closure, JSON.stringify({ quiesced: true, exit: { code: 0, signal: null } }));
+  const nonce = "12345678-1234-1234-1234-123456789abc";
+  await writeFile(
+    closure,
+    JSON.stringify({
+      method: "private-pid-namespace-init-normal-unshare-join",
+      nonce,
+      quiesced: true,
+      exit: { code: 0, signal: null, observed_at: new Date().toISOString() },
+      ready: { kind: "namespace-ready", pid: 1 },
+      events: [{ kind: "driver-started", nonce, pid: 2 }],
+      unshare_sha256: "1".repeat(64),
+      init_sha256: "2".repeat(64),
+      node_sha256: "3".repeat(64),
+    }),
+  );
   const artifacts = await Promise.all([image, capture, closure].map(fileIdentity));
   const evidenceFile = path.join(directory, "evidence.json");
   await writeFile(
     evidenceFile,
     JSON.stringify({
+      format_version: 3,
       revision: head,
+      outcome: "passed",
+      selected_scenarios: ["review"],
+      setup_checks: [{ scenario: "setup", outcome: "passed" }],
+      acceptance_preflight: preflight.identity,
+      execution_binding: {
+        product_artifacts: bindings.product_artifacts,
+        harness_inputs: bindings.harness_inputs,
+        build_inputs: bindings.build_inputs,
+        execution_qualification: bindings.execution_qualification,
+      },
       checks: [{ scenario: "review", outcome: "passed" }],
       artifacts,
     }),
@@ -651,7 +676,22 @@ async function packetFixture(t) {
       review_reference: "isolated fixture delivery record",
     },
   };
-  return { directory, source, bindings, source_review, preflight, create, completion };
+  const rebindEvidence = async (nextPreflight, changes = {}) => {
+    const receipt = JSON.parse(await readFile(evidenceFile, "utf8"));
+    Object.assign(receipt, { acceptance_preflight: nextPreflight.identity }, changes);
+    await writeFile(evidenceFile, JSON.stringify(receipt));
+    return { ...completion, evidence_identity: await fileIdentity(evidenceFile) };
+  };
+  return {
+    directory,
+    source,
+    bindings,
+    source_review,
+    preflight,
+    create,
+    completion,
+    rebindEvidence,
+  };
 }
 
 test("preflight freezes prospective bindings without requiring final screenshots or a completed placeholder", async (t) => {
@@ -745,6 +785,7 @@ test("reuse keeps source provenance separate and conservatively invalidates effe
   for (const mutate of [
     (value) => (value.bindings.product_artifacts[0].sha256 = "f".repeat(64)),
     (value) => (value.harness_identity = "f".repeat(64)),
+    (value) => (value.bindings.harness_inputs[0].sha256 = "f".repeat(64)),
     (value) => (value.bindings.execution_qualification.runtime_conditions.display = "physical"),
     (value) => (value.bindings.execution_qualification.initial_state.isolated = false),
     (value) =>
@@ -798,29 +839,113 @@ test("required gaps and distinct failed/skipped/unsupported outcomes do not waiv
     known_gaps: [{ id: "required-closure-gap", required: true }],
   });
   assert.equal(
-    (await completeAcceptancePacket(gap.identity, fixture.completion)).packet
+    (await completeAcceptancePacket(gap.identity, await fixture.rebindEvidence(gap))).packet
       .qualification_complete,
     false,
   );
   for (const outcome of ["failed", "skipped", "unsupported"]) {
     const preflight = await fixture.create(outcome);
-    const file = path.join(fixture.directory, `${outcome}.json`);
-    await writeFile(
-      file,
-      JSON.stringify({
-        revision: fixture.bindings.source_head,
-        checks: [{ scenario: "review", outcome }],
-        artifacts: fixture.completion.retained_artifacts,
-      }),
-    );
+    const completion = await fixture.rebindEvidence(preflight, {
+      outcome,
+      checks: [{ scenario: "review", outcome }],
+    });
     const completed = await completeAcceptancePacket(preflight.identity, {
-      ...fixture.completion,
-      evidence_identity: await fileIdentity(file),
+      ...completion,
       outcomes: [{ scenario: "review", outcome }],
     });
     assert.equal(completed.packet.outcomes[0].outcome, outcome);
     assert.equal(completed.packet.qualification_complete, false);
   }
+});
+
+test("same-head completion refuses unbound or changed execution dependencies", async (t) => {
+  const fixture = await packetFixture(t);
+  const original = JSON.parse(await readFile(fixture.completion.evidence_identity.path, "utf8"));
+  for (const mutate of [
+    (value) => delete value.acceptance_preflight,
+    (value) => delete value.execution_binding,
+    (value) => (value.execution_binding.product_artifacts[0].sha256 = "e".repeat(64)),
+    (value) => (value.execution_binding.harness_inputs[0].sha256 = "e".repeat(64)),
+    (value) => (value.execution_binding.build_inputs.build_input_fingerprint = "e".repeat(64)),
+    (value) =>
+      (value.execution_binding.execution_qualification.runtime_conditions.display = "other"),
+    (value) =>
+      value.execution_binding.execution_qualification.fixture_identities.push({
+        ...fixture.bindings.product_artifacts[0],
+        role: "different-fixture",
+      }),
+  ]) {
+    const receipt = structuredClone(original);
+    mutate(receipt);
+    await writeFile(fixture.completion.evidence_identity.path, JSON.stringify(receipt));
+    await assert.rejects(
+      completeAcceptancePacket(fixture.preflight.identity, {
+        ...fixture.completion,
+        evidence_identity: await fileIdentity(fixture.completion.evidence_identity.path),
+      }),
+      /Canonical execution/u,
+    );
+  }
+  const completion = await fixture.rebindEvidence(fixture.preflight, {
+    ...original,
+    setup_checks: [{ scenario: "mandatory-setup", outcome: "failed" }],
+  });
+  assert.equal(
+    (await completeAcceptancePacket(fixture.preflight.identity, completion)).packet
+      .qualification_complete,
+    false,
+  );
+});
+
+test("arbitrary retained artifacts cannot assert positive process closure", async (t) => {
+  const fixture = await packetFixture(t);
+  const completed = await completeAcceptancePacket(fixture.preflight.identity, {
+    ...fixture.completion,
+    process_closure: {
+      outcome: "passed",
+      positive_exit: true,
+      artifacts: [fixture.completion.retained_artifacts[0]],
+    },
+  });
+  assert.equal(completed.packet.qualification_complete, false);
+});
+
+test("a required image must belong to its criterion's scenario", async (t) => {
+  const fixture = await packetFixture(t);
+  const bindings = structuredClone(fixture.bindings);
+  bindings.execution_qualification.scenarios.push("other-selected");
+  const preflight = await fixture.create("wrong-scenario", { bindings });
+  const capture = fixture.completion.retained_artifacts[1];
+  const record = JSON.parse(await readFile(capture.path, "utf8"));
+  record.scenario = "other-selected";
+  await writeFile(capture.path, JSON.stringify(record));
+  const artifacts = [...fixture.completion.retained_artifacts];
+  artifacts[1] = await fileIdentity(capture.path);
+  const completion = await fixture.rebindEvidence(preflight, {
+    selected_scenarios: bindings.execution_qualification.scenarios,
+    execution_binding: {
+      product_artifacts: bindings.product_artifacts,
+      harness_inputs: bindings.harness_inputs,
+      build_inputs: bindings.build_inputs,
+      execution_qualification: bindings.execution_qualification,
+    },
+    checks: [
+      { scenario: "review", outcome: "passed" },
+      { scenario: "other-selected", outcome: "passed" },
+    ],
+    artifacts,
+  });
+  await assert.rejects(
+    completeAcceptancePacket(preflight.identity, {
+      ...completion,
+      retained_artifacts: artifacts,
+      outcomes: [
+        { scenario: "review", outcome: "passed" },
+        { scenario: "other-selected", outcome: "passed" },
+      ],
+    }),
+    /another scenario\/state/u,
+  );
 });
 
 test("retained metadata read binds validated bytes even after the original file changes", async (t) => {
