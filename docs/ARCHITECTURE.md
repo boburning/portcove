@@ -1977,6 +1977,9 @@ Shared dialog presentation marks its navigation scope explicitly. Controller
 Back belongs to the top open scope even when it declines dismissal. Closing a
 setup review returns focus to its initiating control and must not also navigate
 away from game details.
+When a native webview does not expose the Gamepad API, polling treats that as no
+connected controller and continues; keyboard navigation remains available. This
+does not imply physical controller support in that webview.
 For an exact candidate, Settings compares profile ID, original path, and scanned
 SHA-256 with the current registered-source list. A match is labeled already added
 and can open each catalog port using that profile for its authoritative setup
