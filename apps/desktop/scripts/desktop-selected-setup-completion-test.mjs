@@ -418,6 +418,7 @@ export async function selectedSetupCompletionScenario({
             const originalPads = navigator.getGamepads;
             const originalMode = document.documentElement.dataset.inputMode;
             let pressed = [];
+            let adapterSamples = 0;
             const frames = async (count) => {
               for (let frame = 0; frame < count; frame++) await new Promise(requestAnimationFrame);
             };
@@ -426,18 +427,21 @@ export async function selectedSetupCompletionScenario({
               const review = document.querySelector('[aria-labelledby="install-review-title"]');
               if (!review || !document.hasFocus())
                 throw new Error("Actual setup review must own native focus");
-              navigator.getGamepads = () => [
-                {
-                  index: 0,
-                  id: "Owned connected-folder input adapter",
-                  axes: [0, 0],
-                  buttons: Array.from({ length: 16 }, (_, index) => ({
-                    pressed: pressed.includes(index),
-                    touched: pressed.includes(index),
-                    value: pressed.includes(index) ? 1 : 0,
-                  })),
-                },
-              ];
+              navigator.getGamepads = () => {
+                adapterSamples++;
+                return [
+                  {
+                    index: 0,
+                    id: "Owned connected-folder input adapter",
+                    axes: [0, 0],
+                    buttons: Array.from({ length: 16 }, (_, index) => ({
+                      pressed: pressed.includes(index),
+                      touched: pressed.includes(index),
+                      value: pressed.includes(index) ? 1 : 0,
+                    })),
+                  },
+                ];
+              };
               await frames(2);
               const beforeDirection = document.activeElement;
               if (beforeDirection !== installControl || !review.contains(installControl))
@@ -454,6 +458,8 @@ export async function selectedSetupCompletionScenario({
               await frames(4);
               observation = {
                 method: "injected controller adapter on actual setup components",
+                original_api_type: typeof originalPads,
+                adapter_samples: adapterSamples,
                 stayed_in_top_review: stayedInReview,
                 moved_to_cancel_review: movedToCancel,
                 dismissed_review: !document.querySelector(
