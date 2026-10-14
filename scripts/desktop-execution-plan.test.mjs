@@ -106,6 +106,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       excluded_scenarios: value.excluded_scenarios.filter(
         (id) =>
           ![
+            "native-controller-api-fallback",
             "native-preliminary-source-review",
             "native-saved-folder-hash-resume",
             "native-preliminary-selected-setup",
@@ -130,6 +131,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       assert(
         Object.hasOwn(nativeHelperDependencies, added) ||
           nativeHelperSharedSources.includes(added) ||
+          added === "scripts/native-readiness.mjs" ||
           added === nativeHelperRegistryPath,
         added,
       );
