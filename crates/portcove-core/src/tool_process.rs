@@ -6,8 +6,16 @@ mod tests;
 mod windows;
 #[cfg(windows)]
 pub(crate) use windows::{ToolChild, ToolProcessGroup, spawn_tool};
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+pub(crate) use linux::{ToolChild, ToolProcessGroup, poll_setup, spawn_tool};
+#[cfg(all(unix, not(target_os = "linux")))]
 pub(crate) type ToolChild = std::process::Child;
+#[cfg(all(unix, not(target_os = "linux")))]
+pub(crate) use spawn_unix_tool as spawn_tool;
+#[cfg(all(unix, not(target_os = "linux")))]
+pub(crate) type ToolProcessGroup = UnixProcessGroup;
 #[cfg(unix)]
 use std::process::{Command, Stdio};
 use std::{
@@ -49,15 +57,15 @@ impl ToolSpawnFailure {
 }
 
 #[cfg(unix)]
-pub(crate) fn spawn_tool(
+pub(crate) fn spawn_unix_tool(
     spec: &crate::process::NativeToolLaunchSpec,
-) -> std::result::Result<(ToolChild, ToolProcessGroup), ToolSpawnFailure> {
+) -> std::result::Result<(std::process::Child, UnixProcessGroup), ToolSpawnFailure> {
     let mut command = spec.command().map_err(ToolSpawnFailure::before_spawn)?;
     command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    ToolProcessGroup::prepare(&mut command);
+    UnixProcessGroup::prepare(&mut command);
     if let Some(limits) = spec.decoder_limits {
         use std::os::unix::process::CommandExt;
         // SAFETY: this child-only callback performs only async-signal-safe
@@ -81,7 +89,7 @@ pub(crate) fn spawn_tool(
         }
     }
     let mut child = command.spawn().map_err(ToolSpawnFailure::io_before_spawn)?;
-    match ToolProcessGroup::attach(&child) {
+    match UnixProcessGroup::attach(&child) {
         Ok(group) => Ok((child, group)),
         Err(error) => {
             let _ = child.kill();
@@ -98,6 +106,7 @@ pub(crate) fn spawn_tool(
 pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, String> {
     const KEYS: &[&str] = &[
         "process_tree_first_failure",
+        "process_tree_proof_method",
         "process_tree_api_error",
         "process_tree_retained_members",
         "process_tree_membership_complete",
@@ -285,11 +294,11 @@ pub(crate) fn run_tool(
     // Windows closes this exact job's descendants. Unix poll_setup stops the
     // group before reaping its leader, while its PID still cannot be reused;
     // its group marker owns no resource that requires a destructor.
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     let process_tree_proof = copy_proof_details(
         &group.with_proof_details(PortcoveError::state("native tool process-tree observation")),
     );
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "linux")))]
     let process_tree_proof = BTreeMap::new();
     #[cfg(windows)]
     drop(group);
@@ -360,9 +369,9 @@ fn poll_setup(
 }
 
 #[cfg(unix)]
-fn poll_setup(
+fn poll_unix_setup(
     child: &mut std::process::Child,
-    group: &ToolProcessGroup,
+    group: &UnixProcessGroup,
 ) -> std::io::Result<Option<ExitStatus>> {
     // SAFETY: info is initialized writable siginfo_t storage; P_PID selects
     // this owned child. WNOWAIT observes exit without releasing its PID.
@@ -391,6 +400,14 @@ fn poll_setup(
     group.terminate_and_wait(child).map(Some)
 }
 
+#[cfg(all(unix, not(target_os = "linux")))]
+fn poll_setup(
+    child: &mut std::process::Child,
+    group: &ToolProcessGroup,
+) -> std::io::Result<Option<ExitStatus>> {
+    poll_unix_setup(child, group)
+}
+
 fn capture_setup_output(
     mut reader: impl Read + Send + 'static,
     capture: DiagnosticCapture,
@@ -413,10 +430,10 @@ fn capture_setup_output(
 }
 
 #[cfg(unix)]
-pub(crate) struct ToolProcessGroup;
+pub(crate) struct UnixProcessGroup;
 
 #[cfg(unix)]
-impl ToolProcessGroup {
+impl UnixProcessGroup {
     pub(crate) fn prepare(command: &mut Command) {
         use std::os::unix::process::CommandExt;
         command.process_group(0);
