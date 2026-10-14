@@ -19,6 +19,7 @@ use crate::{
 };
 
 pub(crate) const UPSTREAM_SETUP_METADATA: &str = ".portcove-upstream-setup.json";
+pub(crate) const GAMECUBE_DISC_CAPACITY_BYTES: u64 = 1_459_978_240;
 const MANAGED_PSX_RUNTIME_CONFIG: &str = ".portcove-psx-runtime.toml";
 
 #[derive(Debug, Clone, Copy)]
@@ -2013,6 +2014,19 @@ pub(crate) fn observe_gamecube_disc_source(
     let (sha256, sha1, size) = if matches!(extension.as_str(), "iso" | "gcm") {
         let (sha256, size) = hash_file(path)?;
         (sha256, hash_file_sha1(path)?, size)
+    } else if extension == "ciso" {
+        let canonical = std::fs::canonicalize(path)?;
+        return crate::source_disc::observe_ciso(
+            &profile.id,
+            &canonical,
+            u64::MAX,
+            &mut crate::source_file::HashBudget {
+                operation: None,
+                limit: u64::MAX,
+                hashed: 0,
+                max_zip_entries: 4096,
+            },
+        );
     } else {
         let temporary_parent = std::env::var_os("PORTCOVE_TEMP_DIR")
             .filter(|value| !value.is_empty())
@@ -2092,6 +2106,49 @@ fn materialize_gamecube_iso_with_tool(
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
 ) -> Result<()> {
+    materialize_gamecube_iso_controlled(
+        source,
+        destination,
+        pinned_tool,
+        checkpoint,
+        observer,
+        None,
+    )
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct DecoderInspection<'a> {
+    pub(crate) limits: crate::process::DecoderLimits,
+    pub(crate) quiesced: &'a std::cell::Cell<bool>,
+    pub(crate) user_directory: Option<&'a Path>,
+}
+
+pub(crate) fn materialize_gamecube_iso_for_discovery(
+    source: &Path,
+    destination: &Path,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+    inspection: DecoderInspection<'_>,
+) -> Result<()> {
+    materialize_gamecube_iso_controlled(
+        source,
+        destination,
+        pinned_tool,
+        checkpoint,
+        observer,
+        Some(inspection),
+    )
+}
+
+fn materialize_gamecube_iso_controlled(
+    source: &Path,
+    destination: &Path,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+    inspection: Option<DecoderInspection<'_>>,
+) -> Result<()> {
     let extension = source
         .extension()
         .and_then(|value| value.to_str())
@@ -2114,6 +2171,7 @@ fn materialize_gamecube_iso_with_tool(
         .map_or_else(resolve_dolphin_tool, Ok)?;
     let temporary = destination.with_extension(format!("tmp-{}.iso", Uuid::new_v4()));
     let mut command = ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, &program)?;
+    command.decoder_limits = inspection.map(|inspection| inspection.limits);
     command
         .arg("convert")
         .arg("-i")
@@ -2122,6 +2180,12 @@ fn materialize_gamecube_iso_with_tool(
         .arg(&temporary)
         .arg("-f")
         .arg("iso");
+    if let Some(directory) = inspection.and_then(|inspection| inspection.user_directory) {
+        command.arg("--user").arg(directory);
+    }
+    if let Some(inspection) = inspection {
+        inspection.quiesced.set(false);
+    }
     let output = crate::tool_process::run_tool(&mut command, checkpoint, observer)?;
     if !output.status.success() {
         return Err(PortcoveError::source(format!(
@@ -2409,6 +2473,35 @@ pub(crate) fn materialize_psx_chd_with_tool(
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
 ) -> Result<PathBuf> {
+    materialize_psx_chd_controlled(source, destination, pinned_tool, checkpoint, observer, None)
+}
+
+pub(crate) fn materialize_psx_chd_for_discovery(
+    source: &Path,
+    destination: &Path,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+    inspection: DecoderInspection<'_>,
+) -> Result<PathBuf> {
+    materialize_psx_chd_controlled(
+        source,
+        destination,
+        pinned_tool,
+        checkpoint,
+        observer,
+        Some(inspection),
+    )
+}
+
+fn materialize_psx_chd_controlled(
+    source: &Path,
+    destination: &Path,
+    pinned_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+    inspection: Option<DecoderInspection<'_>>,
+) -> Result<PathBuf> {
     std::fs::create_dir_all(destination)?;
     let cue = destination.join("disc.cue");
     let bins = destination.join("disc%t.bin");
@@ -2416,6 +2509,7 @@ pub(crate) fn materialize_psx_chd_with_tool(
         .map(Path::to_path_buf)
         .map_or_else(resolve_chdman, Ok)?;
     let mut command = ChildProcessPolicy::native_tool_spec(ChildProcessClass::HostTool, &program)?;
+    command.decoder_limits = inspection.map(|inspection| inspection.limits);
     command
         .arg("extractcd")
         .arg("-i")
@@ -2425,6 +2519,9 @@ pub(crate) fn materialize_psx_chd_with_tool(
         .arg("-ob")
         .arg(&bins)
         .arg("-sb");
+    if let Some(inspection) = inspection {
+        inspection.quiesced.set(false);
+    }
     let output = crate::tool_process::run_tool(&mut command, checkpoint, observer)?;
     if !output.status.success() {
         return Err(PortcoveError::source(format!(
@@ -2607,8 +2704,16 @@ fn resolve_host_tool_path(
     crate::host_tools::require_path(&status, &candidates)
 }
 
-fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
-    let body = std::fs::read_to_string(cue)?;
+pub(crate) fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
+    let mut body = String::new();
+    File::open(cue)?
+        .take(64 * 1024 + 1)
+        .read_to_string(&mut body)?;
+    if body.len() > 64 * 1024 {
+        return Err(PortcoveError::source(
+            "cue sheet exceeds its bounded metadata size",
+        ));
+    }
     let track_count = body
         .lines()
         .filter(|line| line.trim_start().starts_with("TRACK "))
@@ -2643,7 +2748,7 @@ fn inspect_psx_cue(cue: &Path) -> Result<(u32, PathBuf)> {
     Ok((track_count, data_track))
 }
 
-fn inspect_psx_volume_id(data_track: &Path) -> Result<String> {
+pub(crate) fn inspect_psx_volume_id(data_track: &Path) -> Result<String> {
     const PVD_SECTOR: u64 = 16;
     const VOLUME_ID_OFFSET: u64 = 40;
     let size = std::fs::metadata(data_track)?.len();

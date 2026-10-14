@@ -977,7 +977,7 @@ pub(crate) fn inspect_disc(
     inspect_disc_observation(catalog, profile_id, path, observation)
 }
 
-fn inspect_disc_observation(
+pub(crate) fn inspect_disc_observation(
     catalog: &Catalog,
     profile_id: &str,
     path: &Path,

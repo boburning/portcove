@@ -89,8 +89,17 @@ pub(crate) struct NativeToolLaunchSpec {
     pub(crate) arguments: Vec<OsString>,
     pub(crate) environment: BTreeMap<OsString, OsString>,
     pub(crate) working_directory: Option<PathBuf>,
+    pub(crate) decoder_limits: Option<DecoderLimits>,
     #[cfg(all(windows, test))]
     pub(crate) raw_arguments: Vec<OsString>,
+}
+
+/// Private resource boundary for decoding an untrusted source container.
+/// Ordinary setup and launch specifications do not enable this boundary.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct DecoderLimits {
+    pub(crate) memory_bytes: usize,
+    pub(crate) file_bytes: u64,
 }
 
 impl std::fmt::Debug for NativeToolLaunchSpec {
@@ -161,6 +170,14 @@ impl NativeToolLaunchSpec {
     }
 
     pub(crate) fn command(&self) -> Result<Command> {
+        if self
+            .decoder_limits
+            .is_some_and(|limits| limits.memory_bytes == 0 || limits.file_bytes == 0)
+        {
+            return Err(PortcoveError::launch(
+                "source decoder resource limits must be positive",
+            ));
+        }
         for name in self.environment.keys() {
             if name.to_str().is_some_and(is_credential_name) {
                 return Err(PortcoveError::launch(
@@ -233,6 +250,7 @@ impl ChildProcessPolicy {
             arguments: Vec::new(),
             environment: BTreeMap::new(),
             working_directory: None,
+            decoder_limits: None,
             #[cfg(all(windows, test))]
             raw_arguments: Vec::new(),
         };

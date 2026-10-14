@@ -371,6 +371,7 @@ async function writeFixtureCatalog({
   port,
   artifact,
   sourceJourney,
+  preliminarySetupJourney,
   completionJourney,
   revision,
 }) {
@@ -430,6 +431,41 @@ async function writeFixtureCatalog({
     portDefinitions.push(alternative);
     sourceJourney.reviewPort = { id: alternative.id, name: alternative.name };
   }
+  if (preliminarySetupJourney) {
+    const original = baseCatalog.ports.find((item) => item.id === "opengoal-jak1");
+    const originalContract = baseCatalog.source_catalog.contracts.find(
+      (item) => item.port_id === original?.id && item.role === "game",
+    );
+    if (!original || !originalContract)
+      throw new Error("Preliminary setup requires the maintained pinned-validator contract");
+    const owned = portDefinition;
+    portDefinition = {
+      ...structuredClone(original),
+      id: owned.id,
+      name: owned.name,
+      summary:
+        "Inert preliminary-selection review fixture; no validation or preparation execution.",
+      release: owned.release,
+      platforms: owned.platforms,
+      automated_platforms: owned.platforms,
+      manually_verified_platforms: [],
+      executable_hints: owned.executable_hints,
+    };
+    portDefinitions[0] = portDefinition;
+    baseCatalog.source_catalog.contracts = baseCatalog.source_catalog.contracts.filter(
+      (item) => item.port_id !== owned.id,
+    );
+    baseCatalog.source_catalog.contracts.push({
+      ...structuredClone(originalContract),
+      id: `${owned.id}-game`,
+      port_id: owned.id,
+      evidence_ids: [],
+      authority_ref: revision,
+      reviewed_at: "2026-10-13",
+      immutable_review_url: `https://github.com/boburning/portcove/blob/${revision}/apps/desktop/scripts/desktop-install-fixture.mjs`,
+      evidence_gap: "Owned inert selection; no upstream validation or preparation proof.",
+    });
+  }
   baseCatalog.ports.push(...portDefinitions);
   artifactPath = path.join(output, artifactName);
   catalogPath = path.join(output, "qualification-catalog.json");
@@ -446,6 +482,8 @@ export async function createInstallFixture({
   holdFirstDownload = false,
   sourceJourney = false,
   preliminaryJourney = false,
+  preliminarySetupJourney = false,
+  hashResumeJourney = false,
   completionJourney = false,
   preparationTool,
   revision,
@@ -454,6 +492,10 @@ export async function createInstallFixture({
     throw new Error("Discovery and completion fixtures require separate isolated selections");
   if (preliminaryJourney && (!sourceJourney || completionJourney))
     throw new Error("Preliminary review requires its standalone source fixture");
+  if (preliminarySetupJourney && (!preliminaryJourney || hashResumeJourney))
+    throw new Error("Preliminary setup review requires its standalone preliminary fixture");
+  if (hashResumeJourney && (!sourceJourney || preliminaryJourney || completionJourney))
+    throw new Error("Hash continuation requires its standalone source fixture");
   let artifact = completionJourney
     ? await createCompletionArtifact(preparationTool)
     : createInstallArtifact();
@@ -475,6 +517,7 @@ export async function createInstallFixture({
         port,
         artifact,
         sourceJourney,
+        preliminarySetupJourney,
         completionJourney,
         revision,
       }));
@@ -502,6 +545,8 @@ export async function createInstallFixture({
     requests,
     sourceJourney: sourceJourney || null,
     preliminaryJourney: preliminaryJourney || null,
+    ...(preliminarySetupJourney ? { preliminarySetupJourney: true } : {}),
+    ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
     completionJourney,
     url,
     async publishRelease(portId, { version, publishedAt, seed }) {

@@ -25,15 +25,23 @@ async function transport() {
   const api = new URL("../node_modules/@tauri-apps/api/", import.meta.url);
   assert.match(
     await readFile(new URL("../../../Cargo.lock", import.meta.url), "utf8"),
-    /name = "tauri"\nversion = "2\.11\.6"/,
+    /name = "tauri"\nversion = "2\.12\.3"/,
   );
-  assert.equal(JSON.parse(await readFile(new URL("package.json", api), "utf8")).version, "2.11.1");
+  assert.equal(JSON.parse(await readFile(new URL("package.json", api), "utf8")).version, "2.12.3");
+  const clientSource = await readFile(new URL("core.js", api), "utf8");
+  assert.equal(
+    createHash("sha256").update(clientSource).digest("hex"),
+    "956eba26ffeb23576f29f70813c272c2915722b3b19bf00f86718c335b313da0",
+  );
+  const tslibUrl = new URL("external/tslib/tslib.es6.js", api);
   assert.equal(
     createHash("sha256")
-      .update(await readFile(new URL("core.js", api)))
+      .update(await readFile(tslibUrl))
       .digest("hex"),
-    "b2187a1c0c0a25806dc64f8823757ce553c09d3bbe3e409bd05cab32e245f1c9",
+    "88571c39817ebe327cfb45cf2d5ff9e68c544523d526f09ac2cc99acfc8fcf1b",
   );
+  const tslib = await import(tslibUrl);
+  const asyncErrors = [];
   const dispatch = { forwarded: 0, fallback: 0 };
   const context = createContext({
     Response,
@@ -42,6 +50,19 @@ async function transport() {
     ArrayBuffer,
     Uint8Array,
     setTimeout,
+    // The current real Channel reports throwing handlers asynchronously while
+    // continuing delivery. Observe only this isolated runtime's scheduled errors.
+    queueMicrotask(callback) {
+      queueMicrotask(() => {
+        try {
+          callback();
+        } catch (error) {
+          asyncErrors.push(error);
+        }
+      });
+    },
+    __classPrivateFieldSet: tslib.__classPrivateFieldSet,
+    __classPrivateFieldGet: tslib.__classPrivateFieldGet,
     console: { warn() {} },
     crypto: webcrypto,
     __TAURI_INTERNALS__: {},
@@ -72,6 +93,20 @@ async function transport() {
     context,
   );
   context.__TAURI_INTERNALS__.ipc = context.__TAURI_INTERNALS__.postMessage;
+  // Preserve the hash-pinned API implementation. Only its one import/export
+  // boundary is wired into this VM, avoiding process-global window/error hooks.
+  const importLine =
+    "import { __classPrivateFieldSet, __classPrivateFieldGet } from './external/tslib/tslib.es6.js';";
+  const exportLine =
+    "export { Channel, PluginListener, Resource, SERIALIZE_TO_IPC_FN, addPluginListener, checkPermissions, convertFileSrc, invoke, isTauri, requestPermissions, transformCallback };";
+  assert.ok(clientSource.startsWith(importLine));
+  assert.ok(clientSource.endsWith(`${exportLine}\n`));
+  runInContext(
+    clientSource
+      .replace(importLine, "")
+      .replace(exportLine, exportLine.replace("export ", "globalThis.__client = ")),
+    context,
+  );
   const browser = {
     executeScript: async (fn, ...args) => {
       context.__args = args;
@@ -79,20 +114,17 @@ async function transport() {
       return value === undefined ? null : JSON.parse(JSON.stringify(value));
     },
   };
-  return { context, browser, dispatch, client: await import(new URL("core.js", api)) };
+  return { context, browser, dispatch, client: context.__client, asyncErrors };
 }
 
-async function runCase(check) {
+async function runCase(check, expectedAsyncErrors = []) {
   const fixture = await transport();
-  const previous = globalThis.window;
-  globalThis.window = fixture.context;
-  try {
-    await check(fixture);
-    assert.deepEqual(fixture.dispatch, { forwarded: 0, fallback: 0 });
-  } finally {
-    if (previous === undefined) delete globalThis.window;
-    else globalThis.window = previous;
-  }
+  await check(fixture);
+  assert.deepEqual(
+    fixture.asyncErrors.map((error) => error.message),
+    expectedAsyncErrors,
+  );
+  assert.deepEqual(fixture.dispatch, { forwarded: 0, fallback: 0 });
 }
 
 const source = { profile_id: "owned", path: "owned", sha256: "owned", size: 1 };
@@ -198,61 +230,74 @@ export async function verifyOwnedProbeTransport() {
     assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 0);
   });
   for (const fault of ["none", "channel-close", "foreign-fetch", "event-handler"]) {
-    await runCase(async ({ context, browser, client }) => {
-      const events = [];
-      if (fault === "channel-close") {
-        const native = context.__TAURI_INTERNALS__;
-        const facade = Object.create(native);
-        Object.defineProperty(facade, "runCallback", {
-          value(id, value) {
-            if (value.end) throw new Error("Owned Channel close failed");
-            return native.runCallback(id, value);
-          },
+    await runCase(
+      async ({ context, browser, client, asyncErrors }) => {
+        const events = [];
+        if (fault === "channel-close") {
+          const native = context.__TAURI_INTERNALS__;
+          const facade = Object.create(native);
+          Object.defineProperty(facade, "runCallback", {
+            value(id, value) {
+              if (value.end) throw new Error("Owned Channel close failed");
+              return native.runCallback(id, value);
+            },
+          });
+          context.__TAURI_INTERNALS__ = facade;
+        }
+        const original = context.fetch;
+        const probe = await beginProgressiveScanProbe(browser, { source });
+        const channel = new client.Channel((message) => {
+          if (fault === "event-handler") throw new Error("Owned event handler failed");
+          events.push(message);
         });
-        context.__TAURI_INTERNALS__ = facade;
-      }
-      const original = context.fetch;
-      const probe = await beginProgressiveScanProbe(browser, { source });
-      const channel = new client.Channel((message) => {
-        if (fault === "event-handler") throw new Error("Owned event handler failed");
-        events.push(message);
-      });
-      const invocation = client.invoke("scan_game_file_roots", { onEvent: channel });
-      const rejected = assert.rejects(invocation, /Controlled scan/);
-      assert.deepEqual(
-        events.map((event) => event.type),
-        fault === "event-handler" ? [] : ["started", "source_candidate"],
-      );
-      if (fault !== "event-handler") {
-        assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 3, "Owned response stays pending");
-        assert.equal((await probe.capture()).response_cleanup[0].attempted, false);
-      }
-      const foreign = () => assert.fail("Foreign replacement must not run during cleanup");
-      if (fault === "foreign-fetch") context.fetch = foreign;
-      const first = probe.restore();
-      assert.strictEqual(probe.restore(), first, "Concurrent restoration is the same operation");
-      const report = await first;
-      await rejected;
-      assert.strictEqual(await probe.restore(), report, "Terminal report is retained");
-      assert.equal(report.response_cleanup[0].attempted, true);
-      assert.equal(
-        report.response_cleanup[0].completed,
-        true,
-        "Channel failure cannot prevent response completion",
-      );
-      assert.equal(report.channel_cleanup[0].index, fault === "event-handler" ? 0 : 2);
-      assert.equal(report.trustworthy, fault === "none" || fault === "event-handler");
-      if (fault === "channel-close") {
-        assert.equal(report.channel_cleanup[0].attempted, true);
-        assert.equal(report.channel_cleanup[0].completed, false);
-        assert.match(report.channel_cleanup[0].error, /close failed/);
-        assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 1);
-        channel.cleanupCallback(); // Test fixture owns the intentionally retained callback.
-      } else assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 0);
-      assert.strictEqual(context.fetch, fault === "foreign-fetch" ? foreign : original);
-      assert.equal(report.fetch.attempted, fault !== "foreign-fetch");
-      assert.equal(report.fetch.completed, fault !== "foreign-fetch");
-    });
+        const invocation = client.invoke("scan_game_file_roots", { onEvent: channel });
+        const rejected = assert.rejects(invocation, /Controlled scan/);
+        assert.deepEqual(
+          events.map((event) => event.type),
+          fault === "event-handler" ? [] : ["started", "source_candidate"],
+        );
+        if (fault !== "event-handler") {
+          assert.equal(
+            context.__TAURI_INTERNALS__.callbacks.size,
+            3,
+            "Owned response stays pending",
+          );
+          assert.equal((await probe.capture()).response_cleanup[0].attempted, false);
+        }
+        const foreign = () => assert.fail("Foreign replacement must not run during cleanup");
+        if (fault === "foreign-fetch") context.fetch = foreign;
+        const first = probe.restore();
+        assert.strictEqual(probe.restore(), first, "Concurrent restoration is the same operation");
+        const report = await first;
+        await rejected;
+        assert.strictEqual(await probe.restore(), report, "Terminal report is retained");
+        assert.equal(report.response_cleanup[0].attempted, true);
+        assert.equal(
+          report.response_cleanup[0].completed,
+          true,
+          "Channel failure cannot prevent response completion",
+        );
+        assert.equal(report.channel_cleanup[0].index, 2);
+        assert.deepEqual(
+          asyncErrors.map((error) => error.message),
+          fault === "event-handler"
+            ? ["Owned event handler failed", "Owned event handler failed"]
+            : [],
+        );
+        assert.equal(report.trustworthy, fault === "none" || fault === "event-handler");
+        if (fault === "channel-close") {
+          assert.equal(report.channel_cleanup[0].attempted, true);
+          assert.equal(report.channel_cleanup[0].completed, false);
+          assert.match(report.channel_cleanup[0].error, /close failed/);
+          assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 1);
+          channel.cleanupCallback(); // Test fixture owns the intentionally retained callback.
+        } else assert.equal(context.__TAURI_INTERNALS__.callbacks.size, 0);
+        assert.strictEqual(context.fetch, fault === "foreign-fetch" ? foreign : original);
+        assert.equal(report.fetch.attempted, fault !== "foreign-fetch");
+        assert.equal(report.fetch.completed, fault !== "foreign-fetch");
+      },
+      fault === "event-handler" ? ["Owned event handler failed", "Owned event handler failed"] : [],
+    );
   }
   for (const fault of ["missing-state", "lost-window"]) {
     await runCase(async ({ browser }) => {

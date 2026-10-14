@@ -27,6 +27,44 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
+test("hash continuation routes only the isolated selected-setup fixture with positive closure", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-saved-folder-hash-resume"],
+    platform: "win32",
+  });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "saved-folder-hash-resume");
+  assert.equal(plan.fixtures.hashResumeJourney, true);
+  assert.equal(plan.fixtures.sourceJourney, true);
+  assert.equal(plan.fixtures.completionJourney, false);
+  assert.equal(plan.fixtures.holdFirstDownload, false);
+  assert.deepEqual(plan.fixtureFamilies.find((item) => item.family === "selected-setup").members, [
+    { id: "native-saved-folder-hash-resume", role: "selected" },
+  ]);
+  assert.deepEqual(plan.fixtureFamilies.find((item) => item.family === "preparation").members, []);
+  assert.ok(
+    plan.receiptInputs.some(
+      (item) => item.path === "apps/desktop/scripts/desktop-source-dialog-test.mjs",
+    ),
+  );
+  for (const platform of ["linux", "darwin"])
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: ["native-saved-folder-hash-resume"], platform }),
+      /requires Windows/,
+    );
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: ["native-saved-folder-hash-resume", "native-selected-setup-completion"],
+        platform: "win32",
+      }),
+    /standalone/,
+  );
+});
+
 test("execution planning preserves the independently reviewed pre-change oracle", () => {
   assert.equal(baseline.starting_main, "a9e3db4e6cd9fd41111b58705e4fa54790eb57d7");
   assert.equal(baseline.rows.length, 222);
@@ -43,11 +81,18 @@ test("execution planning preserves the independently reviewed pre-change oracle"
     const historicalSelection = (value) => ({
       ...value,
       excluded_scenarios: value.excluded_scenarios.filter(
-        (id) => id !== "native-preliminary-source-review",
+        (id) =>
+          ![
+            "native-preliminary-source-review",
+            "native-saved-folder-hash-resume",
+            "native-preliminary-selected-setup",
+          ].includes(id),
       ),
     });
     assert.ok(!selection.selected_scenarios.includes("native-preliminary-source-review"));
     assert.ok(selection.excluded_scenarios.includes("native-preliminary-source-review"));
+    assert.ok(!selection.selected_scenarios.includes("native-saved-folder-hash-resume"));
+    assert.ok(selection.excluded_scenarios.includes("native-saved-folder-hash-resume"));
     assert.deepEqual(historicalSelection(selection), row.selection);
     const plan = planDesktopExecution(selection, { platform: row.platform });
     assert.deepEqual(historicalSelection(plan.selection), row.selection);
@@ -471,4 +516,33 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
   assert.equal(inputs.length, expectedFiles.length);
   for (const [index, file] of expectedFiles.entries())
     assert.deepEqual(inputs[index], await fileIdentity(file));
+});
+
+test("preliminary selected setup is standalone, identity-bound and excluded from historical runs", () => {
+  const id = "native-preliminary-selected-setup";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.fixtures.preliminaryJourney, true);
+  assert.equal(plan.fixtures.preliminarySetupJourney, true);
+  assert.equal(plan.fixtures.sourceJourney, true);
+  assert.equal(plan.fixtures.completionJourney, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "preliminary-selected-setup");
+  assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+  assert.equal(
+    plan.receiptInputs.filter((input) => input.path?.endsWith("desktop-source-dialog-test.mjs"))
+      .length,
+    1,
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: [id, "native-preliminary-source-review"],
+        platform: "win32",
+      }),
+    /standalone/,
+  );
 });

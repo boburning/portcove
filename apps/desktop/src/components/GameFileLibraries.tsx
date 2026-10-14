@@ -352,7 +352,7 @@ function CompletedScan({
           {report.limits_reached.map((limit) => (
             <li key={limit}>
               {sourceDiscoveryLimitLabel(limit)}:{" "}
-              {limit === "entries" && canContinue
+              {(limit === "entries" || limit === "hash_bytes") && canContinue
                 ? "Continue the scan to check the next batch. Earlier matches were kept."
                 : savedRootLimitGuidance(limit)}
             </li>
@@ -392,6 +392,24 @@ function CompletedScan({
         profiles={profiles}
         disabled={busy || !readConfirmed || snapshot.freshness !== "inputs_match"}
         onReview={review}
+        renderActions={(candidate) => (
+          <>
+            <CatalogPortAssociations profileId={candidate.profile_id} ports={ports} />
+            <CandidateAction
+              candidate={candidate}
+              registeredSources={registeredSources}
+              statuses={statuses}
+              registrationConfirmed={registrationConfirmed}
+              workspaceRefreshFailed={workspaceRefreshFailed}
+              ports={ports}
+              onOpenPort={onOpenPort}
+              busy={busy}
+              stale={!readConfirmed || snapshot.freshness !== "inputs_match"}
+              review={() => review(candidate)}
+              reviewLabel="Review preliminary selection"
+            />
+          </>
+        )}
       />
       {report.issues.map((issue, index) => (
         <p key={`${issue.path}:${index}`}>
@@ -696,7 +714,9 @@ export function GameFileLibraries({
     }
     const candidate = reviewedCandidate.current;
     const rows = document.querySelectorAll<HTMLElement>(
-      scanning ? "[data-live-candidate]" : "[data-completed-candidate]",
+      scanning
+        ? "[data-live-candidate], [data-preliminary-selection]"
+        : "[data-completed-candidate], [data-preliminary-selection]",
     );
     const row = [...rows].find(
       (element) =>
@@ -955,6 +975,7 @@ export function GameFileLibraries({
         ports={ports}
         statuses={statuses}
         candidates={scanning ? liveCandidates : (snapshot?.report.candidates ?? [])}
+        preliminarySelections={scanning ? [] : snapshot?.report.preliminary_selections}
         registeredSources={registeredSources}
         current={
           refreshConfirmed &&

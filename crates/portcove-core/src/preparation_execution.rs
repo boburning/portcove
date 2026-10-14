@@ -29,7 +29,7 @@ pub(super) struct PreparationReceipt {
 // A GameCube disc image is at most 1,459,978,240 bytes. The pinned source
 // validator records compressed containers by their stored size, so reserve a
 // full image for materialization and another for generated setup output.
-const GAMECUBE_DISC_CAPACITY_BYTES: u64 = 1_459_978_240;
+use crate::adapter::GAMECUBE_DISC_CAPACITY_BYTES;
 
 fn preparation_capacity_bytes(
     copy_bytes: u64,

@@ -11,7 +11,12 @@ import {
 import { useSetupSource } from "../features/app-shell/use-setup-source";
 import { SetupReviewSelectionProvider } from "../features/game-file-discovery/setup-review-selection";
 import * as picker from "../file-picker";
-import { portDefinition, portStatus } from "../test-fixtures";
+import {
+  portDefinition,
+  portStatus,
+  preliminarySourceInspection,
+  sourceProfile,
+} from "../test-fixtures";
 import type {
   GameFileRoot,
   GameFileScanSnapshot,
@@ -165,6 +170,183 @@ it("continues Core's saved frontier without discarding matches or changing scan 
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
+
+it("connects a registered preliminary selection to truthful port guidance and bounded setup review", async () => {
+  const record = { ...snapshot.report.candidates[0], path: "D:/Games/selected.iso" };
+  const inspection = preliminarySourceInspection(record);
+  const observed = {
+    ...snapshot,
+    report: { ...snapshot.report, candidates: [], preliminary_selections: [inspection] },
+  };
+  const port = {
+    ...portDefinition(),
+    id: "preliminary-port",
+    name: "Preliminary port",
+    source_profile: record.profile_id,
+  };
+  const status = {
+    ...portStatus(),
+    port_id: port.id,
+    port_actions: [
+      {
+        action: "install" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
+    ],
+  };
+  const open = vi.fn();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(observed);
+  const render = (records = [record]) =>
+    root.render(
+      <SetupReviewSelectionProvider>
+        <GameFileLibraries
+          ports={[port]}
+          profiles={[
+            {
+              ...sourceProfile(),
+              id: record.profile_id,
+              label: "Selected disc",
+              kind: "upstream-validated-disc",
+              accepted_extensions: ["iso"],
+            },
+          ]}
+          registeredSources={records}
+          statuses={new Map([[port.id, status]])}
+          onOpenPort={open}
+        />
+      </SetupReviewSelectionProvider>,
+    );
+  await act(async () => render());
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("Found no exact matches");
+  expect(document.body.textContent).toContain("Validation has not run");
+  expect(document.body.textContent).toContain("Catalog ports using this profile: Preliminary port");
+  expect(document.body.textContent).toContain("Preliminary port: Ready for setup review");
+  expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1);
+  await act(async () =>
+    document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
+  );
+  await click("Review Preliminary port setup");
+  expect(open).toHaveBeenCalledWith(port.id, "game-file-libraries-setup");
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+  await act(async () => render([]));
+  expect(button("Review Preliminary port setup").disabled).toBe(true);
+  expect(button("Review preliminary selection").disabled).toBe(false);
+});
+
+it("returns preliminary review cancellation to its opener or the heading when that control is unavailable", async () => {
+  const record = { ...snapshot.report.candidates[0], path: "D:/Games/selected.iso" };
+  const inspection = preliminarySourceInspection(record);
+  const observed = {
+    ...snapshot,
+    report: { ...snapshot.report, candidates: [], preliminary_selections: [inspection] },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(observed);
+  const plan: SourceImportPlan = {
+    schema_version: 1,
+    profile_id: record.profile_id,
+    mode: "use_current_location",
+    source: record,
+    admission_mode: "structural_checks",
+    destination: record.path,
+    destination_exists: false,
+    existing_registration: null,
+    reuse_existing: false,
+    required_bytes: 0,
+    source_guard_sha256: "c".repeat(64),
+    plan_sha256: "d".repeat(64),
+  };
+  vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
+  const profile = {
+    ...sourceProfile(),
+    id: record.profile_id,
+    label: "Selected disc",
+    kind: "upstream-validated-disc" as const,
+    accepted_extensions: ["iso"],
+  };
+  const render = (profiles = [profile]) =>
+    root.render(<GameFileLibraries ports={[]} profiles={profiles} />);
+  await act(async () => render());
+  await click("Refresh folders");
+  await click("Review preliminary selection");
+  expect(document.activeElement).toBe(button("Cancel review"));
+  expect(document.body.textContent).toContain("Structural checks");
+  await click("Cancel review");
+  expect(document.activeElement).toBe(button("Review preliminary selection"));
+  await click("Review preliminary selection");
+  await act(async () => render([]));
+  await click("Cancel review");
+  expect(button("Review preliminary selection").disabled).toBe(true);
+  expect(document.activeElement).toBe(document.getElementById("game-file-libraries-heading"));
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it.each(["inputs_match", "inputs_changed"] as const)(
+  "suspends preliminary queued review during an active batch and respects completed freshness: %s",
+  async (freshness) => {
+    const record = { ...snapshot.report.candidates[0], path: "D:/Games/selected.iso" };
+    const inspection = preliminarySourceInspection(record);
+    const observed = {
+      ...resumableSnapshot(),
+      report: { ...snapshot.report, candidates: [], preliminary_selections: [inspection] },
+    };
+    const port = {
+      ...portDefinition(),
+      id: "preliminary-port",
+      name: "Preliminary port",
+      source_profile: record.profile_id,
+    };
+    const status = {
+      ...portStatus(),
+      port_id: port.id,
+      port_actions: [
+        {
+          action: "install" as const,
+          availability: "allowed" as const,
+          reason: "available" as const,
+        },
+      ],
+    };
+    const open = vi.fn();
+    let finish: ((result: GameFileScanSnapshot) => void) | undefined;
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(observed);
+    vi.mocked(desktopApi.scanGameFileRoots).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await act(async () =>
+      root.render(
+        <SetupReviewSelectionProvider>
+          <GameFileLibraries
+            ports={[port]}
+            profiles={[]}
+            registeredSources={[record]}
+            statuses={new Map([[port.id, status]])}
+            onOpenPort={open}
+          />
+        </SetupReviewSelectionProvider>,
+      ),
+    );
+    await click("Refresh folders");
+    await act(async () =>
+      document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
+    );
+    await click("Continue scan");
+    expect(document.body.textContent).toContain("Scanning selected folders…");
+    expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(0);
+    expect(button("Review Preliminary port setup").disabled).toBe(true);
+    const completed = { ...observed, freshness };
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(completed);
+    await act(async () => finish?.(completed));
+    expect(document.body.textContent).not.toContain("Scanning selected folders…");
+    expect(button("Review Preliminary port setup").disabled).toBe(freshness !== "inputs_match");
+    expect(desktopApi.importSource).not.toHaveBeenCalled();
+    expect(open).not.toHaveBeenCalled();
+  },
+);
 
 it.each(["continued", "fresh", "stale", "restart"] as const)(
   "keeps earlier setup reviews available only during a confirmed continuation: %s",
@@ -1611,4 +1793,18 @@ it("explains that all nine saved folders are unavailable without starting a scan
   expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
   expect(document.body.textContent).toContain("No saved folder is available");
   expect(document.body.textContent).toContain("D:/Games-8");
+});
+
+it("offers Core's hash-limited continuation without widening the allowance or authorizing setup", async () => {
+  const continued = resumableSnapshot();
+  continued.report = { ...continued.report, limits_reached: ["hash_bytes"] };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain(
+    "Continue the scan to check the next batch. Earlier matches were kept.",
+  );
+  expect(document.body.textContent).not.toContain("Remove or update saved folders");
+  await click("Continue scan");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
 });

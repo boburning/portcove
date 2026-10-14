@@ -72,6 +72,7 @@ mod source;
 mod source_assessment;
 mod source_batch;
 mod source_catalog;
+mod source_disc;
 mod source_discovery;
 mod source_file;
 mod source_import;

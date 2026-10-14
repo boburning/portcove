@@ -5,7 +5,35 @@ import type {
   PortDefinition,
   PortStatus,
   SourceProfile,
+  SourceRecord,
+  SourceInspectionReport,
 } from "./types";
+
+export function preliminarySourceInspection(
+  record: SourceRecord,
+): NonNullable<SourceInspectionReport["inspection"]> {
+  return {
+    profile_id: record.profile_id,
+    path: record.path,
+    observed_digests: [],
+    components: [],
+    validator: {
+      contract_id: "owned-validator-v1",
+      tool_id: "owned-validator",
+      protocol_version: "1",
+      result: "not_run",
+    },
+    assessment: {
+      health: "not_baselined",
+      classification: { state: "not_evaluated" },
+      contract: { state: "not_evaluated" },
+      admission: { state: "admitted", mode: "structural_checks" },
+      evidence: [],
+    },
+    record,
+    message: "Preliminary selection; validation has not run",
+  };
+}
 
 // Complete serialized values; tests override only the behavior they exercise.
 export function artworkState(

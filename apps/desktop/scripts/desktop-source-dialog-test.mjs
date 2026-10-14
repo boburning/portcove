@@ -5,6 +5,7 @@ import {
   requireTrustedProbeCleanup,
 } from "./desktop-owned-ipc-probe.mjs";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
@@ -631,6 +632,21 @@ export function seedSelectedSetup(context) {
   assert.deepEqual(command(["source", "list"]), []);
   assert.deepEqual(command(["source", "roots", "list"]), []);
   const root = command(["source", "roots", "add", context.fixture.sourceJourney.directory]);
+  if (context.fixture.hashResumeJourney) {
+    const owned = context.fixture.sourceJourney;
+    const allowance = Math.max(
+      readFileSync(owned.gameBefore).length,
+      readFileSync(owned.biosBefore).length,
+    );
+    const initial = command(["source", "roots", "scan", "--max-hash-bytes", String(allowance)]);
+    assert.equal(initial.coverage.batches, 1);
+    assert.equal(initial.coverage.can_resume, true);
+    assert.equal(initial.coverage.restart_required, false);
+    assert.ok(initial.report.limits_reached.includes("hash_bytes"));
+    assert.equal(initial.report.candidates.length, 1);
+    assert.ok(owned.profiles.includes(initial.report.candidates[0].profile_id));
+    context.fixture.hashResumeInitial = initial;
+  }
   if (context.fixture.completionJourney) {
     const initial = command(["source", "roots", "scan", "--max-entries", "2"]);
     assert.equal(initial.coverage.batches, 1);
@@ -1023,6 +1039,514 @@ async function preliminarySourceReviewScenario(context) {
   });
 }
 
+async function preliminarySelectedSetupScenario(context) {
+  const { browser, invoke, scenario, library, output, artifacts, cli, fixture } = context;
+  await scenario("native-preliminary-selected-setup", async () => {
+    const owned = fixture.preliminaryJourney;
+    assert.ok(owned && fixture.preliminarySetupJourney);
+    const command = selectedSetupCommand({ cli, library, output, fixture });
+    const { button, click } = reviewControls(browser);
+    const read = async (name, args) => {
+      const response = await invoke(name, args);
+      assert.equal(response.ok, true);
+      return response.value;
+    };
+    const enabled = async (locator) =>
+      browser.wait(async () => {
+        const matches = await browser.findElements(locator);
+        return matches.length === 1 && (await matches[0].isEnabled()) ? matches[0] : false;
+      }, 15_000);
+    const screenshot = async (name) => {
+      const file = path.join(output, `${name}.png`);
+      await writeFile(file, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+      artifacts.push(file);
+      await captureAccessibilityReport(
+        browser,
+        path.join(output, `${name}-accessibility.json`),
+        artifacts,
+      );
+    };
+    const before = await readFile(owned.before);
+    const expectedHash = createHash("sha256").update(before).digest("hex");
+    const report = {
+      scope:
+        "Inert Windows development fixture: actual discovery, deliberate NotRun registration, bounded selection, fresh Core setup review and cancellation; no validator, preparation or gameplay execution.",
+      observations: {},
+    };
+    const artifact = path.join(output, "preliminary-selected-setup.json");
+    try {
+      assert.deepEqual(command(["source", "list"]), []);
+      await click(
+        By.xpath(
+          '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
+        ),
+      );
+      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await click(button("Refresh folders"));
+      await enabled(button("Scan saved folders"));
+      const activities = new Set(command(["activity"]).records.map((item) => item.id));
+      await click(button("Scan saved folders"));
+      await browser.wait(
+        () =>
+          command(["activity"]).records.some(
+            (item) =>
+              item.operation === "discover_sources" &&
+              item.status === "succeeded" &&
+              !activities.has(item.id),
+          ),
+        15_000,
+      );
+      const snapshot = await read("get_game_file_scan_snapshot");
+      const selection = snapshot.report.preliminary_selections.find(
+        (item) => item.profile_id === owned.profile,
+      );
+      assert.ok(selection);
+      assert.equal(selection.validator.result, "not_run");
+      assert.equal(selection.assessment.admission.mode, "structural_checks");
+      assert.equal(selection.assessment.classification.state, "not_evaluated");
+      assert.equal(selection.assessment.contract.state, "not_evaluated");
+      assert.equal(selection.record.sha256, expectedHash);
+      report.observations.scan = snapshot;
+      const rowLocator = By.css(`[data-preliminary-selection][data-profile-id="${owned.profile}"]`);
+      const row = await browser.wait(until.elementLocated(rowLocator), 5_000);
+      assert.match(await row.getText(), /Validation has not run\./);
+      assert.equal(
+        (await browser.findElements(By.css(`input[data-setup-review-port="${fixture.port.id}"]`)))
+          .length,
+        0,
+      );
+      const opener = await row.findElement(By.css("[data-candidate-review]"));
+      await clickVisible(browser, opener);
+      const sourceReview = await browser.wait(
+        until.elementLocated(By.css('[aria-label="Source import review"]')),
+        15_000,
+      );
+      const sourceText = await sourceReview.getText();
+      assert.match(sourceText, /validation.*not.*run|not.*validated|structural/i);
+      assertOwnedSelectedSetupPath(
+        await sourceReview.findElement(By.css("code")).getText(),
+        owned.path,
+      );
+      assert.deepEqual(command(["source", "list"]), []);
+      report.observations.source_review_text = sourceText;
+      await screenshot("preliminary-registration-review");
+      await click(button("Cancel review"));
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[aria-label="Source import review"]'))).length === 0,
+        5_000,
+      );
+      const returnedOpener = await (
+        await browser.findElement(rowLocator)
+      ).findElement(By.css("[data-candidate-review]"));
+      assert.equal(await returnedOpener.isEnabled(), true);
+      await browser.wait(
+        () =>
+          browser.executeScript((element) => document.activeElement === element, returnedOpener),
+        5_000,
+      );
+      assert.deepEqual(command(["source", "list"]), []);
+      report.observations.neutral_source_cancel_restored_opener_focus = true;
+      await clickVisible(browser, returnedOpener);
+      await browser.wait(
+        until.elementLocated(By.css('[aria-label="Source import review"]')),
+        15_000,
+      );
+      await click(button("Use current location"));
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[aria-label="Source import review"]'))).length === 0,
+        15_000,
+      );
+      const checkboxLocator = By.css(`input[data-setup-review-port="${fixture.port.id}"]`);
+      const checkbox = await enabled(checkboxLocator);
+      const registered = await read("get_sources");
+      assert.deepEqual(registered, command(["source", "list"]));
+      assert.equal(registered.length, 1);
+      assert.equal(registered[0].profile_id, owned.profile);
+      assert.equal(registered[0].sha256, expectedHash);
+      assertOwnedSelectedSetupPath(registered[0].path, owned.path);
+      assert.equal(registered[0].observed_identity.validator.result, "not_run");
+      const statuses = await read("get_statuses");
+      const status = statuses.find((item) => item.port_id === fixture.port.id);
+      assert.deepEqual(status, command(["status", fixture.port.id]));
+      assert.equal(status.active, null);
+      assert.ok(
+        status.port_actions.some(
+          (item) => item.action === "install" && item.availability === "allowed",
+        ),
+      );
+      const queue = await browser.findElement(By.css('[aria-label="Selected setup reviews"]'));
+      assert.match(await queue.getText(), /Validation has not run for a selected input/);
+      report.observations.registered = registered;
+      report.observations.status = status;
+      await clickVisible(browser, checkbox);
+      assert.match(await queue.getText(), /1 of 16 ports selected/);
+      assert.deepEqual(await read("get_statuses"), statuses);
+      await screenshot("preliminary-selected-queue");
+      await click(button(`Review ${fixture.port.name} setup`));
+      const installLocator = By.css('[aria-labelledby="install-review-title"]');
+      const review = await browser.wait(until.elementLocated(installLocator), 15_000);
+      assert.equal(
+        await browser.findElement(By.id("port-detail-title")).getText(),
+        fixture.port.name,
+      );
+      const plan = await read("plan_port", { portId: fixture.port.id, channel: "stable" });
+      const corePlan = command(["plan", fixture.port.id]);
+      const { storage: nativeStorage, ...nativePlan } = plan;
+      const { storage: cliStorage, ...cliPlan } = corePlan;
+      assert.deepEqual(nativePlan, cliPlan);
+      for (const storage of [nativeStorage, cliStorage]) {
+        assertOwnedSelectedSetupPath(storage.library_root, library);
+        assert.ok(
+          Number.isSafeInteger(storage.volume_total_bytes) && storage.volume_total_bytes > 0,
+        );
+        assert.ok(
+          Number.isSafeInteger(storage.volume_available_bytes) &&
+            storage.volume_available_bytes > 0,
+        );
+        assert.ok(storage.volume_available_bytes <= storage.volume_total_bytes);
+      }
+      assert.equal(plan.port_id, fixture.port.id);
+      assert.equal(plan.source_requirements.length, 1);
+      assert.equal(plan.source_requirements[0].profile_id, owned.profile);
+      assert.equal(plan.source_requirements[0].registered, true);
+      const reviewText = await review.getText();
+      assert.ok(reviewText.includes(plan.release.version));
+      assert.equal(plan.action, "download");
+      assertOwnedSelectedSetupPath(
+        await review.findElement(By.css(".install-plan-destination code")).getText(),
+        plan.output_location.effective_output_directory,
+      );
+      assert.match(
+        await review
+          .findElement(By.xpath('.//button[starts-with(normalize-space(.),"Install ·")]'))
+          .getText(),
+        /^Install ·/,
+      );
+      report.observations.setup_plan = plan;
+      report.observations.independent_cli_plan = corePlan;
+      report.observations.setup_review_text = reviewText;
+      assert.deepEqual(await read("get_statuses"), statuses);
+      await screenshot("preliminary-setup-review");
+      // Axe cannot determine the runtime tab trap for aria-hidden background
+      // controls and Base UI focus guards. Observe actual native keyboard focus.
+      const keyboardFocus = [];
+      const installControl = await review.findElement(
+        By.xpath('.//button[starts-with(normalize-space(.),"Install ·")]'),
+      );
+      const cancelControl = await review.findElement(
+        By.xpath('.//button[normalize-space(.)="Cancel review"]'),
+      );
+      await browser.wait(
+        () =>
+          browser.executeScript((element) => document.activeElement === element, installControl),
+        5_000,
+      );
+      report.observations.initial_keyboard_focus = await browser.executeScript(() => ({
+        document_focused: document.hasFocus(),
+        active_html: document.activeElement?.outerHTML?.slice(0, 1200),
+      }));
+      for (const reverse of [false, true]) {
+        for (let index = 0; index < 8; index += 1) {
+          await browser.executeScript(() => {
+            if (window.__portcove244FocusTrace) throw new Error("Focus trace already owned");
+            const events = [];
+            const dialog = document.querySelector('[aria-labelledby="install-review-title"]');
+            const guards = [dialog?.previousElementSibling, dialog?.nextElementSibling];
+            if (
+              !guards.every(
+                (guard) =>
+                  guard?.matches(
+                    'span[data-base-ui-focus-guard][data-type="inside"][aria-hidden="true"]',
+                  ) && guard.tabIndex === 0,
+              )
+            )
+              throw new Error("The setup popup must have its two associated inside focus guards");
+            const capture = (event) => {
+              const target = event.target;
+              events.push({
+                type: event.type,
+                key: event.key,
+                shift: event.shiftKey,
+                inside: !!dialog && dialog.contains(target),
+                guard: guards.includes(target),
+                html: target?.outerHTML?.slice(0, 1200),
+                document_focused: document.hasFocus(),
+              });
+            };
+            document.addEventListener("focusin", capture, true);
+            document.addEventListener("keydown", capture, true);
+            window.__portcove244FocusTrace = {
+              events,
+              guards: guards.map((guard) => guard.outerHTML),
+              close() {
+                document.removeEventListener("focusin", capture, true);
+                document.removeEventListener("keydown", capture, true);
+              },
+            };
+          });
+          const keys = browser.actions();
+          if (reverse) keys.keyDown(Key.SHIFT);
+          keys.sendKeys(Key.TAB);
+          if (reverse) keys.keyUp(Key.SHIFT);
+          await keys.perform();
+          await browser.executeAsyncScript((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => done())),
+          );
+          const focus = await browser.executeScript(() => {
+            const dialog = document.querySelector('[aria-labelledby="install-review-title"]');
+            const active = document.activeElement;
+            return {
+              inside: !!dialog && dialog.contains(active),
+              label: active?.textContent?.trim(),
+              disabled: active?.disabled ?? false,
+              html: active?.outerHTML?.slice(0, 1200),
+              document_focused: document.hasFocus(),
+              events: window.__portcove244FocusTrace.events,
+              guards: window.__portcove244FocusTrace.guards,
+            };
+          });
+          await browser.executeScript(() => {
+            window.__portcove244FocusTrace.close();
+            delete window.__portcove244FocusTrace;
+          });
+          keyboardFocus.push({ reverse, index, ...focus });
+          report.observations.native_keyboard_focus = keyboardFocus;
+          assert.ok(
+            focus.events.every((event) => event.inside || event.guard),
+            "Native keyboard focus must not enter background controls",
+          );
+          assert.equal(focus.inside, true, "Native Tab must stay in the topmost setup review");
+          assert.equal(focus.disabled, false);
+          assert.ok(focus.label === "Cancel review" || focus.label.startsWith("Install ·"));
+          const expectedControl = index % 2 === 0 ? cancelControl : installControl;
+          assert.equal(
+            await browser.executeScript(
+              (element) => document.activeElement === element,
+              expectedControl,
+            ),
+            true,
+            "Every native Tab must alternate between the two enabled review controls",
+          );
+        }
+      }
+      report.observations.native_keyboard_focus = keyboardFocus;
+      await click(button("Cancel review"));
+      await browser.wait(
+        async () => (await browser.findElements(installLocator)).length === 0,
+        5_000,
+      );
+      const setupOpener = await enabled(button("Review installation"));
+      assert.equal(await setupOpener.isDisplayed(), true);
+      await browser.wait(
+        () => browser.executeScript((element) => document.activeElement === element, setupOpener),
+        5_000,
+      );
+      report.observations.neutral_setup_cancel_restored_opener_focus = true;
+      await click(By.css('[aria-label="Back to previous workspace"]'));
+      const returned = await enabled(checkboxLocator);
+      assert.equal(await returned.isSelected(), true);
+      await enabled(button(`Review ${fixture.port.name} setup`));
+      await browser.wait(
+        () =>
+          browser.executeScript(() => {
+            const owner = document.querySelector(
+              '[data-detail-origin="game-file-libraries-setup"]',
+            );
+            return !!owner && owner.contains(document.activeElement);
+          }),
+        5_000,
+      );
+      assert.deepEqual(await read("get_statuses"), statuses);
+      assert.deepEqual(command(["source", "list"]), registered);
+      assert.deepEqual(await readFile(owned.path), before);
+      assert.equal(fixture.requests.length, 0);
+      report.observations.original_unchanged = true;
+      report.observations.no_acquisition_or_installation = true;
+      report.observations.returned_selection = true;
+      report.observations.returned_owner_focus = true;
+      report.checkpoint = "completed";
+    } catch (error) {
+      await recordSelectedSetupFailure(browser, report, error);
+      throw error;
+    } finally {
+      await writeFile(artifact, JSON.stringify(report, null, 2), { flag: "wx" });
+      artifacts.push(artifact);
+    }
+  });
+}
+
+async function hashResumeScenario(context) {
+  const { browser, invoke, scenario, library, output, artifacts, cli, fixture } = context;
+  await scenario("native-saved-folder-hash-resume", async () => {
+    const owned = fixture.sourceJourney;
+    assert.ok(fixture.hashResumeJourney && fixture.hashResumeInitial);
+    assertOwnedSelectedSetupPath(owned.root.path, owned.directory);
+    const command = selectedSetupCommand({ cli, library, output, fixture });
+    const { button, click } = reviewControls(browser);
+    const nativeRead = async (name, args) => {
+      const response = await invoke(name, args);
+      assert.equal(response.ok, true, JSON.stringify(response.error));
+      return response.value;
+    };
+    const report = {
+      scope: "Actual saved hash-batch continuation and fresh source review/cancel",
+      limitations: [
+        "Inert owned Windows development inputs; no gameplay, installed package, physical storage or Linux proof",
+        "Root and initial batch seeded by first-party CLI; native picker not exercised",
+        "No registration, installation or preparation authorized",
+      ],
+      observations: {},
+    };
+    const artifact = path.join(output, "saved-folder-hash-resume.json");
+    const capture = async (name) => {
+      const screenshot = path.join(output, `${name}.png`);
+      await writeFile(screenshot, await browser.takeScreenshot(), "base64");
+      artifacts.push(screenshot);
+      await captureAccessibilityReport(
+        browser,
+        path.join(output, `${name}-accessibility.json`),
+        artifacts,
+      );
+    };
+    try {
+      report.checkpoint = "initial persisted batch";
+      assert.deepEqual(command(["source", "list"]), []);
+      await click(
+        By.xpath(
+          '//nav[@aria-label="Primary navigation"]//button[./span[normalize-space(.)="Settings"]]',
+        ),
+      );
+      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await click(button("Refresh folders"));
+      await browser.wait(async () => {
+        const controls = await browser.findElements(button("Continue scan"));
+        return controls.length === 1 && (await controls[0].isEnabled());
+      }, 5_000);
+      const initial = await nativeRead("get_game_file_scan_snapshot");
+      assert.equal(initial.freshness, "inputs_match");
+      assert.deepEqual(initial.report, fixture.hashResumeInitial.report);
+      assert.deepEqual(initial.limits, fixture.hashResumeInitial.limits);
+      assert.equal(initial.coverage.can_resume, true);
+      const presentation = await browser
+        .findElement(By.css('[aria-label="Saved folder scan results"]'))
+        .getText();
+      assert.match(presentation, /Continue the scan to check the next batch/);
+      report.observations.initial = initial;
+      await capture("hash-batch-initial");
+      const previous = new Set(command(["activity"]).records.map((record) => record.id));
+      report.checkpoint = "keyboard continuation";
+      const continueButton = await browser.findElement(button("Continue scan"));
+      await browser.executeScript((element) => element.focus(), continueButton);
+      await continueButton.sendKeys(Key.SPACE);
+      await browser.wait(
+        async () =>
+          command(["activity"]).records.some(
+            (record) =>
+              record.operation === "discover_sources" &&
+              record.status === "succeeded" &&
+              !previous.has(record.id),
+          ),
+        15_000,
+      );
+      await browser.wait(async () => {
+        const controls = await browser.findElements(button("Scan saved folders"));
+        return controls.length === 1 && (await controls[0].isEnabled());
+      }, 5_000);
+      const continued = await nativeRead("get_game_file_scan_snapshot");
+      assert.equal(continued.freshness, "inputs_match");
+      assert.equal(continued.coverage.batches, 2);
+      assert.equal(continued.coverage.can_resume, false);
+      assert.equal(continued.coverage.frontier_exhausted, true);
+      assert.deepEqual(continued.limits, initial.limits);
+      assert.ok(continued.report.hash_bytes > continued.limits.max_hash_bytes);
+      assert.equal(continued.report.hash_bytes, owned.game.length + owned.bios.length);
+      assert.equal(continued.report.files_hashed, 2);
+      assert.deepEqual(
+        continued.report.candidates.find(
+          (item) => item.profile_id === initial.report.candidates[0].profile_id,
+        ),
+        initial.report.candidates[0],
+      );
+      assert.deepEqual(
+        continued.report.candidates.map((item) => item.profile_id).sort(),
+        [...owned.profiles].sort(),
+      );
+      const newlyDiscovered = continued.report.candidates.find(
+        (item) => item.profile_id !== initial.report.candidates[0].profile_id,
+      );
+      assert.ok(newlyDiscovered);
+      report.observations.continued = continued;
+      await capture("hash-batch-complete");
+      report.checkpoint = "fresh review and neutral cancel";
+      const candidate = await browser.wait(
+        until.elementLocated(
+          By.css(`[data-completed-candidate][data-profile-id="${newlyDiscovered.profile_id}"]`),
+        ),
+        5_000,
+      );
+      const reviewButton = await candidate.findElement(By.css("[data-candidate-review]"));
+      await clickVisible(browser, reviewButton);
+      const review = await browser.wait(
+        until.elementLocated(By.css('[aria-label="Source import review"]')),
+        15_000,
+      );
+      report.observations.review_text = await review.getText();
+      const plan = await nativeRead("plan_source_import", {
+        profileId: newlyDiscovered.profile_id,
+        path: newlyDiscovered.path,
+        mode: "use_current_location",
+      });
+      assert.equal(plan.profile_id, newlyDiscovered.profile_id);
+      assertOwnedSelectedSetupPath(plan.source.path, newlyDiscovered.path);
+      assert.equal(plan.source.sha256, newlyDiscovered.sha256);
+      assert.equal(plan.mode, "use_current_location");
+      assert.equal(plan.admission_mode, "exact_identity");
+      const expectedLabel =
+        newlyDiscovered.profile_id === owned.profiles[0]
+          ? "Selected setup inert game"
+          : "Selected setup inert BIOS";
+      assert.ok(report.observations.review_text.includes(`File requirement: ${expectedLabel}`));
+      assert.ok(report.observations.review_text.includes("Use current location"));
+      assert.ok(report.observations.review_text.includes("Source check: Exact identity."));
+      const displayedPath = await review
+        .findElement(By.xpath('.//p[contains(.,"Selected location:")]/code'))
+        .getText();
+      assertOwnedSelectedSetupPath(displayedPath, plan.source.path);
+      report.observations.fresh_plan = plan;
+      await capture("hash-batch-review");
+      await clickVisible(
+        browser,
+        await review.findElement(By.xpath('.//button[normalize-space(.)="Cancel review"]')),
+      );
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[aria-label="Source import review"]'))).length === 0,
+        5_000,
+      );
+      assert.equal(
+        await browser.executeScript((element) => document.activeElement === element, reviewButton),
+        true,
+      );
+      assert.deepEqual(command(["source", "list"]), []);
+      assert.deepEqual(await readFile(owned.gamePath), await readFile(owned.gameBefore));
+      assert.deepEqual(await readFile(owned.biosPath), await readFile(owned.biosBefore));
+      assert.equal(fixture.requests.length, 0);
+      report.observations.originals_unchanged = true;
+      report.observations.registration_unchanged = true;
+      report.observations.no_acquisition = true;
+      report.checkpoint = "completed";
+    } catch (error) {
+      await recordSelectedSetupFailure(browser, report, error);
+      throw error;
+    } finally {
+      await writeFile(artifact, JSON.stringify(report, null, 2), { flag: "wx" });
+      artifacts.push(artifact);
+    }
+  });
+}
+
 export async function selectedSetupScenario({
   browser,
   invoke,
@@ -1033,6 +1557,28 @@ export async function selectedSetupScenario({
   cli,
   fixture,
 }) {
+  if (fixture?.preliminarySetupJourney)
+    return preliminarySelectedSetupScenario({
+      browser,
+      invoke,
+      scenario,
+      library,
+      output,
+      artifacts,
+      cli,
+      fixture,
+    });
+  if (fixture?.hashResumeJourney)
+    return hashResumeScenario({
+      browser,
+      invoke,
+      scenario,
+      library,
+      output,
+      artifacts,
+      cli,
+      fixture,
+    });
   if (fixture?.preliminaryJourney)
     return preliminarySourceReviewScenario({
       browser,

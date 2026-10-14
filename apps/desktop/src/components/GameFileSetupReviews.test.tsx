@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { SetupReviewSelectionProvider } from "../features/game-file-discovery/setup-review-selection";
-import { portDefinition, portStatus } from "../test-fixtures";
+import { portDefinition, portStatus, preliminarySourceInspection } from "../test-fixtures";
 import { GameFileSetupReviews } from "./GameFileSetupReviews";
 
 const source = {
@@ -46,6 +46,57 @@ afterEach(async () => {
 });
 const button = (name: string) =>
   [...element.querySelectorAll("button")].find((b) => b.textContent === name)!;
+
+it("keeps registered preliminary inputs distinct while opening only fresh Core-eligible setup reviews", async () => {
+  const record = { ...source, path: "D:/selected-disc.iso" };
+  const inspection = preliminarySourceInspection(record);
+  const open = vi.fn();
+  const render = (
+    current = true,
+    registeredSources = [record],
+    eligible = true,
+    selections = [inspection],
+  ) =>
+    root.render(
+      <SetupReviewSelectionProvider>
+        <GameFileSetupReviews
+          ports={ports}
+          statuses={eligible ? statuses : new Map()}
+          candidates={[]}
+          preliminarySelections={selections}
+          registeredSources={registeredSources}
+          current={current}
+          busy={false}
+          onOpenPort={open}
+        />
+      </SetupReviewSelectionProvider>,
+    );
+  await act(async () => render());
+  expect(element.querySelectorAll("[data-setup-review-port]")).toHaveLength(18);
+  expect(element.textContent).toContain("Validation has not run for a selected input");
+  expect(element.textContent).not.toContain("Exact identity");
+  await act(async () => element.querySelectorAll<HTMLInputElement>("input")[0].click());
+  await act(async () => element.querySelectorAll<HTMLInputElement>("input")[1].click());
+  await act(async () => button("Review Port 0 setup").click());
+  expect(open).toHaveBeenCalledWith("p0", "game-file-libraries-setup");
+  await act(async () => render(false));
+  expect(button("Review Port 0 setup").disabled).toBe(true);
+  await act(async () => render(true, []));
+  expect(button("Review Port 0 setup").disabled).toBe(true);
+  await act(async () => render(true, [{ ...record, sha256: "b".repeat(64) }]));
+  expect(button("Review Port 1 setup").disabled).toBe(true);
+  await act(async () => render(true, [record], false));
+  expect(button("Review Port 1 setup").disabled).toBe(true);
+  await act(async () =>
+    render(true, [record], true, [
+      { ...inspection, validator: { ...inspection.validator!, result: "passed" } },
+    ]),
+  );
+  expect(button("Review Port 1 setup").disabled).toBe(true);
+  await act(async () => render());
+  expect(button("Review Port 1 setup").disabled).toBe(false);
+  expect(element.textContent).toContain("2 of 16 ports selected");
+});
 
 it("retains independent selections through details/back and never treats opening as completion", async () => {
   const open = vi.fn();

@@ -1943,11 +1943,8 @@ scan cannot publish a snapshot; the final registry comparison and snapshot
 write share one database transaction. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
-limits and completion time. Current format 7 records the exact validated limits
-and directory/ZIP-file-set, raw GameCube ISO/GCM and exact STFS LIVE coverage. Earlier format-6 snapshots retain raw GameCube coverage and are stale until rescanned. Earlier format-5 snapshots retain directory/ZIP-file-set coverage and are stale until rescanned. Earlier format-4 snapshots retain directory-file-set coverage and are stale until rescanned. Earlier format-3 snapshots retain their original-file/ZIP coverage and are stale until rescanned. Earlier format-2 snapshots remain
-readable with their recorded limits, and format-1 snapshots remain readable with
-unknown limits rather than invented coverage. All earlier formats are stale until
-a new scan runs; cancellation or failure preserves the prior snapshot. Reached limits remain explicit partial coverage; the current request/report has no continuation token, so another foreground scan starts anew rather than claiming resumable traversal.
+limits and completion time. Current format 12 retains the delivered original-file/ZIP, directory/ZIP-file-set, normalized raw GameCube, exact STFS LIVE and pinned-validator preliminary discovery contracts, plus bounded normalized disc observations admitted independently through the existing schema-2 disc matcher. CISO streams the standard GameCube logical extent without materializing a full ISO. Windows decoder inspection copies one bounded original atom into private local staging, preflights fixed container headers/maps/metadata before decoder buffering, applies an OS-enforced job memory cap, supervises output growth and time, and requires positive tree closure before consuming output or cleanup. Output polling is not a hard Windows file-write quota. Original bytes are rehashed before publishing the observation. Complete PSX sets require the pre-enumeration directory handle, all ordered members, checked aggregate sizes and hashes, and final original-byte verification. No scan registers or prepares a source. On Linux, decoder inspection uses a private user/PID namespace with an atomic init pidfd and a bounded private startup gate. Positive terminal waitid(P_PIDFD) joins namespace teardown before consuming output or cleanup, including detached and nested descendants. Per-process address-space and per-file write limits are hard bounds; output-tree polling supplies the separate aggregate/depth/entry bound. Ordinary Unix process groups cannot prove escaped-descendant closure, and other Unix platforms report tool-based normalized discovery as uninspected. Unsupported Linux namespace capabilities fail explicitly without a weaker fallback. Unknown closure retains private inspection paths and aborts publication. Preliminary NotRun selections remain separate from exact matches and do not establish compatibility. Earlier formats retain their original readable evidence and become stale until rescanned; unknown historical limits are not invented.
+Saved scans retain a library-owned bounded continuation for unfinished entry or hash processing. Each explicitly requested batch replenishes only those processing allowances, while cumulative byte measurements include fresh reinspection work. Deferred files and complete file-set evaluations are checked from bytes again; saved hashes do not grant admission. Identical retry results do not duplicate progressive candidate events. An indivisible input that cannot fit a fresh hash allowance remains explicitly limited and offers a bounded larger CLI allowance or deliberate source selection, rather than a repeated no-progress continuation. Candidate/storage, metadata-work, file-size, depth, archive, symlink and path protections remain bounded. One-off discovery starts anew. Cancellation or failure preserves the last published snapshot. No client can submit a continuation as authorization.
 Reads report whether catalog bytes, roots, availability, relink state and scan
 rules still match the recorded inputs. That does not claim the collection stayed byte-identical after
 the scan; the snapshot is local evidence, not a watcher, source registration, setup
@@ -1971,6 +1968,18 @@ core-owned workspace status and action assessments. A missing or failed workspac
 read leaves readiness unavailable; a match alone cannot imply that a source is
 registered, a port is installed, or installation will succeed. The player still
 enters the existing source or game setup review before any mutation.
+
+Preliminary pinned-validator selections retain their separate NotRun presentation.
+After deliberate registration, a consistent preliminary record with the same
+profile, original path and digest in the current registry can expose related
+ports' Core-owned setup guidance and eligible setup reviews. The view repeats
+that validation has not run; registration does not establish an exact edition or
+compatibility. Stale snapshots, changed or missing registrations, and unavailable
+Core actions cannot open a queued setup review. Preliminary choices wait for a
+completed scan batch rather than carrying an old observation into an active scan.
+The existing sixteen-port selection bound and independent implementations apply;
+each selected port opens its fresh Core plan without automatic registration or
+installation.
 
 ## Install transaction
 
