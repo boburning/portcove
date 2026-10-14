@@ -85,12 +85,14 @@
             "crates/portcove-core/src/source_assessment_tests.rs",
             "crates/portcove-core/src/source_discovery.rs",
             "crates/portcove-core/src/source_discovery_tests.rs",
+            "crates/portcove-core/src/source_disc.rs",
+            "crates/portcove-core/src/source_disc_tests.rs",
             "crates/portcove-core/src/source_file.rs",
             "crates/portcove-core/src/source_inspection.rs",
             "crates/portcove-core/src/source_report.rs",
             "crates/portcove-core/src/stfs.rs"
           ],
-          "filter": "test(/^source_assessment::tests::/) | test(/^source_discovery::tests::/) | test(/^source_inspection::tests::/) | test(/^source_report::tests::/) | test(/^source_inbox::tests::/) | test(/^stfs::tests::/) | test(/^adapter::tests::/) | test(/^adapter::source_conversion_tests::/)"
+          "filter": "test(/^source_assessment::tests::/) | test(/^source_discovery::tests::/) | test(/^source_disc::tests::/) | test(/^source_inspection::tests::/) | test(/^source_report::tests::/) | test(/^source_inbox::tests::/) | test(/^stfs::tests::/) | test(/^adapter::tests::/) | test(/^adapter::source_conversion_tests::/)"
         },
         {
           "id": "release-discovery",

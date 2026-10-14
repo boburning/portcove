@@ -481,11 +481,19 @@ fn owned_psx_conversion(args: &[String]) {
     match mode.as_str() {
         "success" => {},
         "failure" => std::process::exit(29),
-        "wait" => {
+        "wait" | "inspection-held" => {
             let child = Command::new(env::current_exe().unwrap()).args(["--grandchild-held", source.with_extension("orphan-output").to_str().unwrap(), source.with_extension("conversion-release").to_str().unwrap()]).spawn().unwrap();
             fs::write(source.with_extension("conversion-child-pid"), child.id().to_string()).unwrap();
             fs::write(source.with_extension("conversion-ready"), b"owned helper and descendant started").unwrap();
-            thread::sleep(Duration::from_secs(8));
+            if mode == "inspection-held" {
+                let deadline = std::time::Instant::now() + Duration::from_secs(5);
+                while !source.with_extension("conversion-release").is_file() {
+                    assert!(std::time::Instant::now() < deadline, "owned inspection release did not arrive");
+                    thread::sleep(Duration::from_millis(10));
+                }
+            } else {
+                thread::sleep(Duration::from_secs(8));
+            }
             fs::write(source.with_extension("conversion-unexpected-completion"), b"unexpected").unwrap();
         },
         _ => panic!("unknown owned PSX conversion mode"),

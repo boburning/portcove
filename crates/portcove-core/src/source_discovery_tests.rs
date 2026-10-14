@@ -1464,7 +1464,7 @@ fn raw_gamecube_discovery_retains_request_size_and_hash_bounds() {
 }
 
 #[test]
-fn raw_gamecube_discovery_does_not_claim_compressed_archive_or_psx_contracts() {
+fn malformed_containers_are_not_raw_identity_matches_or_registration() {
     let temporary = tempfile::tempdir().unwrap();
     let bytes = b"exact raw digest under an unsupported representation";
     let mut document =
@@ -1507,16 +1507,470 @@ fn raw_gamecube_discovery_does_not_claim_compressed_archive_or_psx_contracts() {
     assert!(report.candidates.is_empty());
     assert_eq!(report.files_hashed, 0);
     assert_eq!(report.hash_bytes, 0);
-    assert_eq!(report.searched_profiles, ["animal-crossing-gamecube"]);
-    assert!(report.issues.iter().any(|issue| issue.profile_id.as_deref()
-        == Some("masters-of-teras-kasi-psx")
-        && issue.message.contains("Choose them directly")));
+    assert_eq!(
+        report.searched_profiles,
+        ["animal-crossing-gamecube", "masters-of-teras-kasi-psx"]
+    );
+    assert!(report.issues.iter().any(|issue| {
+        issue
+            .path
+            .as_ref()
+            .is_some_and(|path| path.extension().is_some_and(|extension| extension == "chd"))
+    }));
     for extension in ["rvz", "ciso", "gcz", "wia", "chd"] {
         assert_eq!(
             fs::read(temporary.path().join(format!("game.{extension}"))).unwrap(),
             bytes
         );
     }
+}
+
+#[cfg(windows)]
+#[test]
+fn unavailable_disc_directory_handle_does_not_abort_independent_readable_sources() {
+    use std::os::windows::fs::OpenOptionsExt;
+    use windows_sys::Win32::Storage::FileSystem::FILE_FLAG_BACKUP_SEMANTICS;
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    let blocked = root.join("blocked-child");
+    fs::create_dir(&blocked).unwrap();
+    fs::write(
+        blocked.join("unrelated.txt"),
+        b"owned blocked directory control",
+    )
+    .unwrap();
+    let payload = b"independent readable normalized raw source";
+    fs::write(root.join("readable.iso"), payload).unwrap();
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let disc_profile = document
+        .source_catalog
+        .as_ref()
+        .unwrap()
+        .identities
+        .iter()
+        .find(|identity| {
+            identity
+                .variants
+                .iter()
+                .flat_map(|variant| &variant.representations)
+                .any(|representation| {
+                    matches!(
+                        representation.kind,
+                        crate::SourceRepresentationKind::MultiDiscSet { .. }
+                    )
+                })
+        })
+        .unwrap()
+        .id
+        .clone();
+    let raw = raw_gamecube_catalog(payload)
+        .source_catalog()
+        .unwrap()
+        .identities[0]
+        .clone();
+    let raw_id = raw.id.clone();
+    document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .iter_mut()
+        .find(|identity| identity.id == raw_id)
+        .unwrap()
+        .variants
+        .extend(raw.variants);
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let held = fs::OpenOptions::new()
+        .read(true)
+        .share_mode(0)
+        .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
+        .open(&blocked)
+        .unwrap();
+    assert!(crate::external_runtime::open_identity_handle(&blocked).is_err());
+    let mut selected = request(&root);
+    selected.profile_ids = vec!["animal-crossing-gamecube".into(), disc_profile];
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(
+        report.candidates[0].path,
+        fs::canonicalize(root.join("readable.iso")).unwrap()
+    );
+    assert!(report.issues.iter().any(|issue| issue.path.as_ref()
+        == Some(&fs::canonicalize(&blocked).unwrap())
+        && issue.message.contains("disc-set inspection is unavailable")));
+    drop(held);
+}
+
+#[cfg(unix)]
+#[test]
+fn opaque_one_off_names_leave_readable_results_and_serializable_unknown_coverage() {
+    use std::os::unix::ffi::OsStringExt;
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"independent readable source";
+    fs::write(temporary.path().join("readable.iso"), payload).unwrap();
+    let opaque = temporary
+        .path()
+        .join(std::ffi::OsString::from_vec(b"opaque-\xff.chd".to_vec()));
+    fs::write(&opaque, b"uninspected opaque fixture").unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["animal-crossing-gamecube".into()];
+    let report = scan(&raw_gamecube_catalog(payload), &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert!(
+        report.issues.iter().any(|issue| issue.path.is_none()
+            && issue.message.contains("cannot be displayed as Unicode"))
+    );
+    serde_json::to_string(&report).unwrap();
+    assert_eq!(fs::read(opaque).unwrap(), b"uninspected opaque fixture");
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "explicit owned GCZ/WIA/RVZ and reviewed Dolphin tool; synthetic discovery acceptance"]
+fn real_owned_gamecube_containers_share_admission_and_resume_with_progress() {
+    let inputs = PathBuf::from(std::env::var_os("PORTCOVE_OWNED_GAMECUBE_ROOT").unwrap());
+    let original_iso = fs::read(inputs.join("owned.iso")).unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    for extension in ["gcz", "wia", "rvz"] {
+        fs::copy(
+            inputs.join(format!("owned.{extension}")),
+            root.join(format!("owned.{extension}")),
+        )
+        .unwrap();
+    }
+    let catalog = raw_gamecube_catalog(&original_iso);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let operation = crate::OperationCoordinator::new("owned-gamecube-progress", None);
+    let mut emitted = Vec::new();
+    let (first, outputs, payload) = super::build_game_file_scan_with_registry_events(
+        &catalog,
+        &library,
+        &limits,
+        &operation,
+        &mut |event| {
+            if let crate::OperationEventKind::SourceCandidate {
+                profile_id, path, ..
+            } = event.event
+            {
+                emitted.push((profile_id, path));
+            }
+        },
+    )
+    .unwrap();
+    assert_eq!(emitted.len(), 1);
+    assert_eq!(emitted[0].0, "animal-crossing-gamecube");
+    super::publish_game_file_scan(&library, &operation, &first, &outputs, payload.as_deref())
+        .unwrap();
+    assert_eq!(first.report.candidates.len(), 1);
+    assert!(first.coverage.as_ref().unwrap().can_resume);
+    drop(library);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let mut snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    for _ in 0..4 {
+        if !snapshot.coverage.as_ref().unwrap().can_resume {
+            break;
+        }
+        snapshot = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    }
+    assert!(!snapshot.coverage.as_ref().unwrap().can_resume);
+    assert!(snapshot.report.issues.is_empty());
+    assert!(snapshot.report.limits_reached.is_empty());
+    assert_eq!(snapshot.report.candidates.len(), 3);
+    assert_eq!(snapshot.report.files_hashed, 3);
+    assert_eq!(
+        snapshot.report.hash_bytes,
+        306 * 2 + 163840 * 2 + 65612 * 2 + 131072 * 3
+    );
+    for candidate in &snapshot.report.candidates {
+        assert_eq!(candidate.sha256, hex::encode(Sha256::digest(&original_iso)));
+        assert!(candidate.observed_identity.is_some());
+        let name = candidate.path.file_name().unwrap();
+        assert_eq!(
+            fs::read(&candidate.path).unwrap(),
+            fs::read(inputs.join(name)).unwrap()
+        );
+    }
+    assert!(library.sources().unwrap().is_empty());
+    println!(
+        "owned GCZ/WIA/RVZ: complete_candidates=3 batches={} measured_hash_work={}; no registration or original mutation",
+        snapshot.coverage.unwrap().batches,
+        snapshot.report.hash_bytes
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn opaque_linked_chd_names_keep_serializable_incomplete_sets_and_readable_candidates() {
+    use std::os::unix::{ffi::OsStringExt, fs::symlink};
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"owned independent readable image";
+    let readable = temporary.path().join("readable.iso");
+    fs::write(&readable, bytes).unwrap();
+    let opaque = temporary
+        .path()
+        .join(std::ffi::OsString::from_vec(b"linked-\xff.chd".to_vec()));
+    symlink(&readable, &opaque).unwrap();
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let source = document.source_catalog.as_mut().unwrap();
+    let set_id = source
+        .identities
+        .iter()
+        .find(|identity| {
+            identity
+                .variants
+                .iter()
+                .filter(|variant| !variant.legacy_projection_only)
+                .flat_map(|variant| &variant.representations)
+                .any(|representation| {
+                    matches!(
+                        representation.kind,
+                        crate::SourceRepresentationKind::MultiDiscSet { .. }
+                    )
+                })
+        })
+        .unwrap()
+        .id
+        .clone();
+    let raw_catalog = raw_gamecube_catalog(bytes);
+    let raw = &raw_catalog.source_catalog().unwrap().identities[0];
+    source
+        .identities
+        .iter_mut()
+        .find(|identity| identity.id == raw.id)
+        .unwrap()
+        .variants
+        .extend(raw.variants.clone());
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["animal-crossing-gamecube".into(), set_id];
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(report.symlinks_skipped, 1);
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|issue| issue.path.is_none() && issue.message.contains("linked disc"))
+    );
+    serde_json::to_string(&report).unwrap();
+    assert!(
+        fs::symlink_metadata(opaque)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(fs::read(readable).unwrap(), bytes);
+}
+
+#[test]
+fn non_chd_disc_sets_do_not_decode_chd_folders_or_hide_independent_raw_candidates() {
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"owned independent raw image";
+    fs::write(temporary.path().join("readable.iso"), bytes).unwrap();
+    for name in ["disc-01.chd", "disc-02.chd"] {
+        fs::write(
+            temporary.path().join(name),
+            b"not selected for CHD inspection",
+        )
+        .unwrap();
+    }
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let source = document.source_catalog.as_mut().unwrap();
+    let set = source
+        .identities
+        .iter_mut()
+        .find(|identity| {
+            identity
+                .variants
+                .iter()
+                .filter(|variant| !variant.legacy_projection_only)
+                .flat_map(|variant| &variant.representations)
+                .any(|representation| {
+                    matches!(
+                        representation.kind,
+                        crate::SourceRepresentationKind::MultiDiscSet { .. }
+                    )
+                })
+        })
+        .unwrap();
+    let set_id = set.id.clone();
+    // Keep historical CHD compatibility valid while the current accepted
+    // representation deliberately requires a different source format.
+    let mut legacy = set
+        .variants
+        .iter()
+        .find(|variant| !variant.legacy_projection_only)
+        .unwrap()
+        .clone();
+    legacy.id = "owned-historical-chd".into();
+    legacy.legacy_projection_only = true;
+    set.variants.push(legacy);
+    for representation in set
+        .variants
+        .iter_mut()
+        .filter(|variant| !variant.legacy_projection_only)
+        .flat_map(|variant| &mut variant.representations)
+    {
+        representation.extensions = vec!["bin".into()];
+    }
+    let raw_catalog = raw_gamecube_catalog(bytes);
+    let raw = &raw_catalog.source_catalog().unwrap().identities[0];
+    source
+        .identities
+        .iter_mut()
+        .find(|identity| identity.id == raw.id)
+        .unwrap()
+        .variants
+        .extend(raw.variants.clone());
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    assert!(crate::source_disc::set_sizes(&catalog, &set_id).is_empty());
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["animal-crossing-gamecube".into(), set_id.clone()];
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(report.candidates[0].profile_id, "animal-crossing-gamecube");
+    assert_eq!(report.files_hashed, 1);
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|issue| issue.profile_id.as_deref() == Some(&set_id))
+    );
+    assert!(
+        report
+            .issues
+            .iter()
+            .all(|issue| issue.path.as_ref().is_none())
+    );
+}
+
+#[cfg(windows)]
+#[test]
+#[ignore = "explicit owned CHD and reviewed installed codec; synthetic complete-set acceptance"]
+fn real_owned_disc_set_resumes_with_fresh_members_and_manual_identity_parity() {
+    let input =
+        PathBuf::from(std::env::var_os("PORTCOVE_OWNED_CHD_INPUT").expect("owned CHD input"));
+    let bytes = fs::read(input).unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    for name in ["disc-01.chd", "disc-02.chd"] {
+        fs::write(root.join(name), &bytes).unwrap();
+    }
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let profile = document.source_catalog.as_mut().unwrap().identities.iter_mut().find(|identity| identity.variants.iter().filter(|variant| !variant.legacy_projection_only).flat_map(|variant| &variant.representations).any(|representation| matches!(&representation.kind, crate::SourceRepresentationKind::MultiDiscSet { discs } if discs.len() == 2))).unwrap();
+    let profile_id = profile.id.clone();
+    let representation = profile.variants.iter_mut().filter(|variant| !variant.legacy_projection_only).flat_map(|variant| &mut variant.representations).find(|representation| matches!(&representation.kind, crate::SourceRepresentationKind::MultiDiscSet { discs } if discs.len() == 2)).unwrap();
+    let crate::SourceRepresentationKind::MultiDiscSet { discs } = &mut representation.kind else {
+        unreachable!()
+    };
+    for disc in discs {
+        disc.track_counts = vec![1];
+        disc.volume_ids.clear();
+        disc.identities = vec![crate::DigestIdentity {
+            scope: crate::DigestScope::DiscSetMember,
+            sha256: Some("f04a98f6d9294ae7b7b8bde4c6ac1da6f6677fb9a0a64210d8f7c3c1eaf7a653".into()),
+            sha1: None,
+            crc32: None,
+        }];
+    }
+    let stored = hex::encode(Sha256::digest(&bytes));
+    let original_members = ["disc-01.chd", "disc-02.chd"].map(|name| {
+        serde_json::json!({
+            "id": name.replace('.', "-"), "label": name, "filenames": [name],
+            "identities": [{"scope": "file-set-member", "sha256": stored}]
+        })
+    });
+    document.source_catalog.as_mut().unwrap().identities.push(serde_json::from_value(serde_json::json!({
+        "id": "owned-raw-disc-set", "label": "Owned original container pair", "kind": "file-set",
+        "evidence_gap": "Synthetic bytes; no retail/gameplay acceptance", "variants": [{
+            "id": "fixture", "title": "Owned original pair", "representations": [{
+                "id": "original-pair", "kind": "file-set", "members": original_members
+            }]
+        }]
+    })).unwrap());
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    for maximum in [1, 2] {
+        let mut selected = request(&root);
+        selected.profile_ids = vec![profile_id.clone(), "owned-raw-disc-set".into()];
+        selected.limits.max_candidates = maximum;
+        let report = scan(&catalog, &selected).unwrap();
+        assert_eq!(report.candidates.len(), maximum as usize);
+        assert!(
+            report
+                .candidates
+                .iter()
+                .any(|candidate| candidate.profile_id == profile_id)
+        );
+        if maximum == 2 {
+            assert!(
+                report
+                    .candidates
+                    .iter()
+                    .any(|candidate| candidate.profile_id == "owned-raw-disc-set")
+            );
+        }
+    }
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(
+        !first
+            .report
+            .candidates
+            .iter()
+            .any(|candidate| candidate.profile_id == profile_id)
+    );
+    assert!(first.coverage.as_ref().unwrap().can_resume);
+    assert_eq!(first.report.hash_bytes, bytes.len() as u64 * 2 + 94080);
+    drop(library);
+    let restarted = crate::Library::open(&library_path).unwrap();
+    let last = publish_saved_batch(&catalog, &restarted, &limits).unwrap();
+    let candidate = last
+        .report
+        .candidates
+        .iter()
+        .find(|candidate| candidate.profile_id == profile_id)
+        .expect("only the full pair can match");
+    let manual = crate::source_inspection::inspect_disc(
+        &catalog,
+        &profile_id,
+        &fs::canonicalize(&root).unwrap(),
+    )
+    .unwrap()
+    .require_admitted_record()
+    .unwrap();
+    assert_eq!(candidate.sha256, manual.sha256);
+    assert_eq!(candidate.storage_sha256, manual.storage_sha256);
+    assert_eq!(candidate.size, 2 * 94080);
+    assert_eq!(candidate.storage_size, bytes.len() as u64 * 2);
+    assert_eq!(candidate.observed_identity, manual.observed_identity);
+    assert!(last.coverage.as_ref().unwrap().prior_member_rechecks > 0);
+    assert!(!last.coverage.as_ref().unwrap().can_resume);
+    assert!(restarted.sources().unwrap().is_empty());
+    for name in ["disc-01.chd", "disc-02.chd"] {
+        assert_eq!(fs::read(root.join(name)).unwrap(), bytes);
+    }
+    println!(
+        "owned real set: profile={} files_hashed={} hash_work={} prior_member_rechecks={} complete=true no_registration=true original_bytes_unchanged=true",
+        profile_id,
+        last.report.files_hashed,
+        last.report.hash_bytes,
+        last.coverage.unwrap().prior_member_rechecks
+    );
 }
 
 #[test]

@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const CURRENT_SCAN_FORMAT_VERSION: u32 = 10;
+const CURRENT_SCAN_FORMAT_VERSION: u32 = 11;
 const MAX_CONTINUATION_RECORDS: usize = 16_384;
 const MAX_CONTINUATION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESUME_CHECKS: u32 = 100_000;
@@ -880,6 +880,9 @@ struct Discovery<'a> {
     zip_profile_groups: BTreeMap<Vec<String>, Vec<&'a SourceProfile>>,
     directory_profiles: Vec<&'a SourceProfile>,
     compound_profiles: Vec<&'a SourceProfile>,
+    normalized_profiles_by_extension: BTreeMap<String, Vec<&'a SourceProfile>>,
+    disc_set_profiles: Vec<&'a SourceProfile>,
+    inspection_directory: Option<tempfile::TempDir>,
     hashed_paths: BTreeSet<PathBuf>,
     limits: &'a SourceDiscoveryLimits,
     reached: BTreeSet<SourceDiscoveryLimit>,
@@ -903,6 +906,7 @@ struct DiscoveryExclusion {
 }
 
 enum DiscoveryExclusionKind {
+    Inspection,
     Library,
     ManagedOutput,
 }
@@ -946,6 +950,9 @@ fn path_within(path: &Path, parent: &Path) -> bool {
 impl DiscoveryExclusionKind {
     fn root_error(&self) -> &'static str {
         match self {
+            Self::Inspection => {
+                "source discovery roots cannot be inside private source inspection output"
+            }
             Self::Library => "source discovery roots cannot be inside the Portcove library",
             Self::ManagedOutput => {
                 "source discovery roots cannot be inside a Portcove-managed game output"
@@ -955,6 +962,9 @@ impl DiscoveryExclusionKind {
 
     fn omission(&self) -> &'static str {
         match self {
+            Self::Inspection => {
+                "Private source inspection output is excluded from game-file discovery."
+            }
             Self::Library => "Portcove's own library is excluded from game-file discovery.",
             Self::ManagedOutput => {
                 "Portcove-managed game output is excluded from game-file discovery."
@@ -1108,6 +1118,9 @@ fn scan_with_continuation<'a>(
         zip_profile_groups: BTreeMap::new(),
         directory_profiles: Vec::new(),
         compound_profiles: Vec::new(),
+        normalized_profiles_by_extension: BTreeMap::new(),
+        disc_set_profiles: Vec::new(),
+        inspection_directory: None,
         hashed_paths: BTreeSet::new(),
         limits: &request.limits,
         reached,
@@ -1154,10 +1167,27 @@ fn scan_with_continuation<'a>(
         let (raw_extensions, zip_extensions) =
             crate::source_inspection::file_scan_extensions(catalog, profile);
         let compound = crate::source_inspection::compound_scan_eligible(catalog, &profile.id, None);
+        let normalized_extensions = crate::source_disc::scan_extensions(catalog, profile);
+        if profile.kind == crate::SourceKind::PsxDisc
+            && !crate::source_disc::set_sizes(catalog, &profile.id).is_empty()
+        {
+            discovery.disc_set_profiles.push(profile);
+        }
+        for extension in &normalized_extensions {
+            discovery
+                .normalized_profiles_by_extension
+                .entry(extension.clone())
+                .or_default()
+                .push(profile);
+        }
         if compound {
             discovery.compound_profiles.push(profile);
         }
-        if raw_extensions.is_empty() && zip_extensions.is_empty() && !compound {
+        if raw_extensions.is_empty()
+            && zip_extensions.is_empty()
+            && !compound
+            && normalized_extensions.is_empty()
+        {
             discovery.issue(
                 None,
                 Some(profile.id.clone()),
@@ -1185,7 +1215,21 @@ fn scan_with_continuation<'a>(
         || !discovery.zip_profile_groups.is_empty()
         || !discovery.directory_profiles.is_empty()
         || !discovery.compound_profiles.is_empty()
+        || !discovery.normalized_profiles_by_extension.is_empty()
     {
+        if !discovery.normalized_profiles_by_extension.is_empty() {
+            let parent =
+                output_library.map_or_else(std::env::temp_dir, crate::Library::staging_dir);
+            fs::create_dir_all(&parent)?;
+            let private = tempfile::Builder::new()
+                .prefix("portcove-discovery-")
+                .tempdir_in(parent)?;
+            discovery.exclusions.push(DiscoveryExclusion {
+                path: fs::canonicalize(private.path())?,
+                kind: DiscoveryExclusionKind::Inspection,
+            });
+            discovery.inspection_directory = Some(private);
+        }
         discovery.walk()?;
     } else if let Some(cursor) = &mut discovery.continuation {
         cursor.pending.clear();
@@ -1273,6 +1317,10 @@ impl Discovery<'_> {
             }
             return Ok(());
         }
+        if self.report.candidate_count() >= self.limits.max_candidates as usize {
+            self.reached.insert(SourceDiscoveryLimit::Candidates);
+            return Ok(());
+        }
         let operation = self
             .budget
             .operation
@@ -1302,6 +1350,10 @@ impl Discovery<'_> {
                     "preliminary source facts changed while resuming discovery",
                 ));
             }
+            return Ok(());
+        }
+        if self.report.candidate_count() >= self.limits.max_candidates as usize {
+            self.reached.insert(SourceDiscoveryLimit::Candidates);
             return Ok(());
         }
         self.report.preliminary_selections.push(inspection);
@@ -1403,6 +1455,30 @@ impl Discovery<'_> {
                 self.report.symlinks_skipped += 1;
                 continue;
             }
+            let disc_directory = if self.disc_set_profiles.is_empty() {
+                None
+            } else {
+                match crate::external_runtime::open_identity_handle(&directory).and_then(|handle| {
+                    let initial = handle.metadata()?;
+                    crate::source_inspection::verify_open_source_directory(
+                        &directory, &handle, &initial,
+                    )?;
+                    Ok((handle, initial))
+                }) {
+                    Ok(observation) => Some(observation),
+                    Err(error) => {
+                        self.issue(
+                            Some(directory.clone()),
+                            None,
+                            format!(
+                                "Complete disc-set inspection is unavailable for this folder: {}",
+                                error.message
+                            ),
+                        );
+                        None
+                    }
+                }
+            };
             let entries = match fs::read_dir(&directory) {
                 Ok(entries) => entries,
                 Err(error) => {
@@ -1430,8 +1506,12 @@ impl Discovery<'_> {
                         .map(|_| (name.clone(), path))
                 })
                 .collect::<Vec<_>>();
-            let mut observations = DirectoryObservations::default();
-            let mut complete = state.complete;
+            let mut observations = DirectoryObservations {
+                directory: disc_directory,
+                ..Default::default()
+            };
+            let mut complete = state.complete
+                && (self.disc_set_profiles.is_empty() || observations.directory.is_some());
             let mut skipped_for_deferred = false;
             for entry in entries {
                 if let Some(operation) = &self.budget.operation {
@@ -1540,6 +1620,15 @@ impl Discovery<'_> {
                 };
                 if kind.is_symlink() {
                     self.report.symlinks_skipped += 1;
+                    if !self.disc_set_profiles.is_empty()
+                        && entry
+                            .path()
+                            .extension()
+                            .is_some_and(|extension| extension.eq_ignore_ascii_case("chd"))
+                    {
+                        complete = false;
+                        self.issue(Some(entry.path()), None, "A linked disc was skipped; this folder cannot establish a complete disc set.".into());
+                    }
                     continue;
                 }
                 let path = entry.path();
@@ -1551,6 +1640,11 @@ impl Discovery<'_> {
                         continue;
                     }
                 };
+                if canonical.to_str().is_none() {
+                    complete = false;
+                    self.issue(None, None, "A game-file path cannot be displayed as Unicode; it was not inspected and cannot establish a complete source set.".into());
+                    continue;
+                }
                 if self.is_excluded(&canonical) {
                     continue;
                 }
@@ -1584,19 +1678,22 @@ impl Discovery<'_> {
                     self.batch_hash_limited = false;
                     if let Some(name) = entry.file_name().to_str() {
                         members.push((name.to_owned(), canonical.clone()));
-                    } else if !self.directory_profiles.is_empty() {
+                    } else if !self.directory_profiles.is_empty()
+                        || !self.disc_set_profiles.is_empty()
+                    {
                         complete = false;
                         self.issue(
                             Some(canonical.clone()),
                             None,
-                            "Directory file sets require Unicode member names.".into(),
+                            "Complete source sets require Unicode member names.".into(),
                         );
                     }
                     if let Err(error) = self.file(&canonical, &mut observations) {
                         if matches!(
                             error.code,
                             crate::ErrorCode::Cancelled | crate::ErrorCode::Conflict
-                        ) {
+                        ) || error.details.contains_key("retained_inspection")
+                        {
                             return Err(error);
                         }
                         self.issue(Some(canonical.clone()), None, error.message);
@@ -1631,7 +1728,9 @@ impl Discovery<'_> {
                 self.save_frontier(pending);
                 return Ok(());
             }
-            if complete && !self.directory_profiles.is_empty() {
+            if complete
+                && (!self.directory_profiles.is_empty() || !self.disc_set_profiles.is_empty())
+            {
                 let before_work = self.budget.hashed;
                 self.batch_hash_limited = false;
                 self.refresh_output_exclusions(&directory, true)?;
@@ -1721,8 +1820,14 @@ impl Discovery<'_> {
                     )
             })
             .collect::<Vec<_>>();
+        let normalized_profiles = self
+            .normalized_profiles_by_extension
+            .get(&extension.to_ascii_lowercase())
+            .cloned()
+            .unwrap_or_default();
         if groups.is_empty()
             && compound_profiles.is_empty()
+            && normalized_profiles.is_empty()
             && !(extension.eq_ignore_ascii_case("zip") && !self.directory_profiles.is_empty())
         {
             return Ok(());
@@ -1736,6 +1841,33 @@ impl Discovery<'_> {
             return Ok(());
         }
         let before = self.budget.hashed;
+        if !normalized_profiles.is_empty() {
+            let result = self.normalized_file(path, &normalized_profiles, observations);
+            if self.budget.hashed > before && self.hashed_paths.insert(path.into()) {
+                self.report.files_hashed += 1;
+            }
+            match result {
+                Ok(()) => {}
+                Err(error) if error.details.contains_key("scan_limit") => {
+                    self.record_limit(&error);
+                    observations.failed_discs.insert(path.into());
+                }
+                Err(error) => {
+                    observations.failed_discs.insert(path.into());
+                    if matches!(
+                        error.code,
+                        crate::ErrorCode::Cancelled | crate::ErrorCode::Conflict
+                    ) || error.details.contains_key("retained_inspection")
+                    {
+                        return Err(error);
+                    }
+                    self.issue(Some(path.into()), None, error.message);
+                }
+            }
+        }
+        if self.report.candidate_count() >= self.limits.max_candidates as usize {
+            return Ok(());
+        }
         if !compound_profiles.is_empty() {
             let result = self.compound_file(path, &compound_profiles, observations);
             if self.budget.hashed > before && self.hashed_paths.insert(path.into()) {
@@ -1756,12 +1888,23 @@ impl Discovery<'_> {
             }
         }
         for (extensions, profiles) in groups {
-            match read_identity(
-                path,
-                &extensions,
-                self.limits.max_file_bytes,
-                &mut self.budget,
-            ) {
+            let identity = observations
+                .identities
+                .get(path)
+                .filter(|_| extensions.is_empty())
+                .cloned()
+                .map_or_else(
+                    || {
+                        read_identity(
+                            path,
+                            &extensions,
+                            self.limits.max_file_bytes,
+                            &mut self.budget,
+                        )
+                    },
+                    Ok,
+                );
+            match identity {
                 Ok(identity) => {
                     if !identity.archive_member {
                         observations
@@ -1851,6 +1994,71 @@ impl Discovery<'_> {
         }
         if self.budget.hashed > before && self.hashed_paths.insert(path.into()) {
             self.report.files_hashed += 1;
+        }
+        Ok(())
+    }
+
+    fn normalized_file(
+        &mut self,
+        path: &Path,
+        profiles: &[&SourceProfile],
+        observations: &mut DirectoryObservations,
+    ) -> Result<()> {
+        let first = profiles
+            .first()
+            .expect("normalized profile group is not empty");
+        let parent = self
+            .inspection_directory
+            .as_ref()
+            .expect("normalized discovery owns private workspace")
+            .path()
+            .to_path_buf();
+        let observed = match crate::source_disc::observe(
+            &first.id,
+            first.kind,
+            path,
+            &parent,
+            self.limits.max_file_bytes,
+            &mut self.budget,
+        ) {
+            Ok(observed) => observed,
+            Err(error) => {
+                if error.details.contains_key("retained_inspection") {
+                    let retained_parent = self
+                        .inspection_directory
+                        .take()
+                        .expect("owned inspection parent")
+                        .keep();
+                    return Err(error.detail(
+                        "retained_inspection_parent",
+                        retained_parent.display().to_string(),
+                    ));
+                }
+                return Err(error);
+            }
+        };
+        observations
+            .identities
+            .insert(path.into(), observed.original);
+        let observed = observed.source;
+        observations.discs.insert(path.into(), observed.clone());
+        for profile in profiles {
+            // The decoded fact is scan-local. Every profile/variant/representation
+            // is admitted independently by the same matcher as registration.
+            let mut observed = observed.clone();
+            observed.record.profile_id.clone_from(&profile.id);
+            let inspection = crate::source_inspection::inspect_disc_observation(
+                self.catalog,
+                &profile.id,
+                path,
+                observed,
+            )?;
+            if inspection.record.is_some() {
+                self.record_candidate(inspection.require_admitted_record()?)?;
+            }
+            if self.report.candidate_count() >= self.limits.max_candidates as usize {
+                break;
+            }
         }
         Ok(())
     }
@@ -2068,6 +2276,10 @@ impl Discovery<'_> {
         members: &[(String, PathBuf)],
         observations: &mut DirectoryObservations,
     ) -> Result<()> {
+        self.disc_directory(path, members, observations)?;
+        if self.report.candidate_count() >= self.limits.max_candidates as usize {
+            return Ok(());
+        }
         let names = members
             .iter()
             .map(|(name, _)| name.clone())
@@ -2112,6 +2324,140 @@ impl Discovery<'_> {
         Ok(())
     }
 
+    fn disc_directory(
+        &mut self,
+        path: &Path,
+        members: &[(String, PathBuf)],
+        observations: &mut DirectoryObservations,
+    ) -> Result<()> {
+        if observations.directory.is_none() {
+            return Ok(());
+        }
+        let mut selected = members
+            .iter()
+            .filter(|(_, path)| {
+                path.extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("chd"))
+            })
+            .collect::<Vec<_>>();
+        if selected.is_empty() {
+            return Ok(());
+        }
+        selected.sort_by_key(|(name, _)| name.to_ascii_lowercase());
+        let profiles = self
+            .disc_set_profiles
+            .iter()
+            .copied()
+            .filter(|profile| {
+                crate::source_disc::set_sizes(self.catalog, &profile.id).contains(&selected.len())
+            })
+            .collect::<Vec<_>>();
+        if profiles.is_empty() {
+            return Ok(());
+        }
+        {
+            let (directory, initial) = observations
+                .directory
+                .as_ref()
+                .expect("complete disc set has a pre-enumeration directory handle");
+            crate::source_inspection::verify_open_source_directory(path, directory, initial)?;
+        }
+        let mut discs = Vec::with_capacity(selected.len());
+        for (_, member) in &selected {
+            if observations.failed_discs.contains(member) {
+                return Ok(());
+            }
+            if !observations.discs.contains_key(member) {
+                if self.prior_paths.contains(member) {
+                    self.prior_member_rechecks += 1;
+                }
+                let before = self.budget.hashed;
+                if let Err(error) = self.normalized_file(member, &profiles, observations) {
+                    if self.budget.hashed > before && self.hashed_paths.insert((*member).clone()) {
+                        self.report.files_hashed += 1;
+                    }
+                    if error.details.contains_key("scan_limit") {
+                        self.record_limit(&error);
+                        return Ok(());
+                    }
+                    if matches!(
+                        error.code,
+                        crate::ErrorCode::Cancelled | crate::ErrorCode::Conflict
+                    ) || error.details.contains_key("retained_inspection")
+                    {
+                        return Err(error);
+                    }
+                    observations.failed_discs.insert(member.clone());
+                    self.issue(Some(member.clone()), None, error.message);
+                    return Ok(());
+                }
+                if self.budget.hashed > before && self.hashed_paths.insert((*member).clone()) {
+                    self.report.files_hashed += 1;
+                }
+            }
+            discs.push(
+                observations
+                    .discs
+                    .get(member)
+                    .expect("fresh disc observation")
+                    .clone(),
+            );
+        }
+        // A complete set is one atomic inspection. Rehash every original after
+        // all decoding, so earlier members cannot change while later ones run.
+        let stored_bytes = discs
+            .iter()
+            .try_fold(0_u64, |sum, disc| sum.checked_add(disc.record.storage_size))
+            .ok_or_else(|| PortcoveError::source("disc set storage size overflowed"))?;
+        if let Err(error) = self.budget.reserve(stored_bytes) {
+            self.record_limit(&error);
+            return Ok(());
+        }
+        for ((_, member), observed) in selected.iter().zip(&discs) {
+            let file = fs::File::open(member)?;
+            let metadata = file.metadata()?;
+            crate::source_inspection::verify_open_source_location(member, &file, &metadata)?;
+            let current = crate::source_file::read_raw_identity_from_reader(
+                member,
+                &file,
+                metadata.len(),
+                self.limits.max_file_bytes,
+                &mut self.budget,
+            )?;
+            crate::source_inspection::verify_open_source_location(member, &file, &metadata)?;
+            if current.sha256 != observed.record.storage_sha256
+                || current.size != observed.record.storage_size
+            {
+                return Err(PortcoveError::conflict(
+                    "disc set member changed during inspection",
+                ));
+            }
+        }
+        {
+            let (directory, initial) = observations
+                .directory
+                .as_ref()
+                .expect("complete disc set has a pre-enumeration directory handle");
+            crate::source_inspection::verify_open_source_directory(path, directory, initial)?;
+        }
+        for profile in profiles {
+            let observation = crate::source_disc::aggregate(&profile.id, path, &discs)?;
+            let inspection = crate::source_inspection::inspect_disc_observation(
+                self.catalog,
+                &profile.id,
+                path,
+                observation,
+            )?;
+            if inspection.record.is_some() {
+                self.record_candidate(inspection.require_admitted_record()?)?;
+            }
+            if self.report.candidate_count() >= self.limits.max_candidates as usize {
+                break;
+            }
+        }
+        Ok(())
+    }
+
     fn owned_path_issue(&mut self, path: PathBuf, message: &str) -> Result<()> {
         if self.continuation.is_some()
             && self.report.issues.iter().any(|issue| {
@@ -2132,6 +2478,9 @@ impl Discovery<'_> {
     }
 
     fn issue(&mut self, path: Option<PathBuf>, profile_id: Option<String>, message: String) {
+        // OS paths can contain opaque names. Errors must still serialize through
+        // the shared JSON transport without hiding independent readable results.
+        let path = path.filter(|path| path.to_str().is_some());
         if self.continuation.is_some()
             && self.report.issues.iter().any(|issue| {
                 issue.path == path && issue.profile_id == profile_id && issue.message == message
@@ -2154,6 +2503,9 @@ impl Discovery<'_> {
 // Facts and failures are scan-local, never persisted or used as admission decisions.
 #[derive(Default)]
 struct DirectoryObservations {
+    failed_discs: BTreeSet<PathBuf>,
+    directory: Option<(fs::File, fs::Metadata)>,
+    discs: BTreeMap<PathBuf, crate::adapter::ObservedDiscSource>,
     identities: BTreeMap<PathBuf, crate::source_file::FileIdentity>,
     failed: BTreeSet<PathBuf>,
 }
