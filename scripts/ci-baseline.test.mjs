@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { createCiMetrics } from "./ci-metrics.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
+import { discoverCiPlan } from "./select-ci-plan.mjs";
 import { buildPlan } from "./local-validation.mjs";
 import {
   baselineContractTests,
@@ -97,6 +98,35 @@ test("local and hosted lint use one full stage for relevant inputs, including re
     assert.equal(baselineLintPlan(plan).length, 1, change.status);
   }
   assert.equal(baselineLintPlan(make(["scripts/a.mjs", "apps/desktop/src/App.tsx"])).length, 1);
+});
+
+test("first pushes and missing historical bases retain full lint without changed-file entries", () => {
+  const options = {
+    eventName: "push",
+    baseSha: "a".repeat(40),
+    headSha: "b".repeat(40),
+    checkoutSha: "b".repeat(40),
+    fastValidationEnabled: true,
+    proseOnlyEnabled: true,
+  };
+  const first = discoverCiPlan({ ...options, baseSha: "0".repeat(40) }, () =>
+    assert.fail("first push needs no historical Git reads"),
+  );
+  const missing = discoverCiPlan(options, (args) => {
+    if (args[0] === "cat-file" && args[2].startsWith("a".repeat(40)))
+      throw Object.assign(new Error("missing base"), { status: 128 });
+    return Buffer.alloc(0);
+  });
+  for (const plan of [first, missing]) {
+    assert.deepEqual(plan.changes, []);
+    assert.equal(plan.fallback, null);
+    assert.equal(plan.groups.length, 5);
+    const local = buildPlan(baselineSelection(plan), { validationPlan: plan }).filter(
+      (entry) => entry.id === "repository-lint",
+    );
+    assert.equal(local.length, 1);
+    assert.deepEqual(baselineLintPlan(plan), local);
+  }
 });
 test("Playnite and handoff repairs select their cheap regressions in ordinary CI", () => {
   const tests = baselineContractTests(

@@ -932,7 +932,7 @@ export function buildPlan(selection, context = {}) {
       context.mergeBase ?? "<merge-base>",
     ]),
   ];
-  if (selection.repositoryLint || broad || validation?.fallback)
+  if (selection.repositoryLint || broad || validation?.fallback || validation?.changes.length === 0)
     commands.push(
       corepackCommand(
         "repository-lint",
