@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolvePhysicalPath, spawnCommand } from "../../../scripts/dev-storage.mjs";
+import { checkBrowserPackageCompatibility } from "./browser-package-compatibility.mjs";
 
 const desktop = fileURLToPath(new URL("../", import.meta.url));
 const root = path.resolve(desktop, "../..");
@@ -17,11 +18,12 @@ if (
   throw new Error(`Browser cache resolves outside the checkout: ${physicalCache}`);
 const packageJson = JSON.parse(readFileSync(path.join(desktop, "package.json"), "utf8"));
 if (
-  packageJson.devDependencies["@vitest/browser-playwright"] !== "5.0.2" ||
+  packageJson.devDependencies["@vitest/browser-playwright"] !== "5.0.3" ||
   packageJson.devDependencies.playwright !== "1.63.0"
 ) {
   throw new Error("Browser package versions differ from the reviewed browser contract");
 }
+checkBrowserPackageCompatibility(path.join(desktop, "package.json"));
 process.env.PLAYWRIGHT_BROWSERS_PATH = browserCache;
 const { chromium } = await import("playwright");
 const executable = chromium.executablePath();
