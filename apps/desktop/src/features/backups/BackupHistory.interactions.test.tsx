@@ -691,30 +691,38 @@ it("offers retained owned-data backup without an install and rejects last-loaded
 });
 
 it("waits for current degraded inventory rather than a pending or failed read notice", async () => {
-  const { default: native } = await import("../../../scripts/desktop-backup-review-test.mjs?raw");
-  const selectors = native.match(
-    /const backupSectionSelector = [^]*?(?=export async function)/u,
-  )?.[0];
-  const wait = native.match(
-    /    const degradedInventory = [^]*?(?=    const restoreTrigger)/u,
-  )?.[0];
-  expect(selectors).toBeDefined();
-  expect(wait).toBeDefined();
   const element = (node: Element) => ({
     findElements: async (selector: string) => [...node.querySelectorAll(selector)],
   });
   const browser = {
     findElements: async (selector: string) =>
       [...container.querySelectorAll(selector)].map(element),
-    wait: async (predicate: () => Promise<unknown>, deadline: number) => {
+    wait: async <T,>(predicate: () => Promise<T>, deadline: number) => {
       expect(deadline).toBe(15_000);
       return predicate();
     },
   };
-  const current = new Function("browser", "By", `${selectors}\n${wait}\nreturn degradedInventory;`)(
-    browser,
-    { css: (selector: string) => selector },
-  );
+  type Notice = ReturnType<typeof element>;
+  const { waitForDegradedInventory, degradedInventorySelector } = await vi.importActual<{
+    degradedInventorySelector: string;
+    waitForDegradedInventory: (
+      observer: {
+        readNotices: () => Promise<Notice[]>;
+        readProblems: (notice: Notice) => Promise<unknown[]>;
+        wait: typeof browser.wait;
+      },
+      count: number,
+    ) => Promise<Notice | false>;
+  }>("../../../scripts/desktop-backup-review-test.mjs");
+  const current = (count: number) =>
+    waitForDegradedInventory(
+      {
+        readNotices: () => browser.findElements(degradedInventorySelector),
+        readProblems: (notice) => notice.findElements("ul li"),
+        wait: browser.wait,
+      },
+      count,
+    );
   const render = async (status: "pending" | "failed" | "idle" | "current") =>
     act(async () =>
       root.render(

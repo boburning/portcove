@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useObservationExpired } from "./use-observation-expiry";
+import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import type {
   CatalogDocument,
@@ -44,12 +45,11 @@ export function useGameFileFilterContext({
     libraryKey,
     selection,
   ]);
-  const owner = useRef({ key, epoch: 0, closed: false, processing: false });
-  if (owner.current.key !== key) {
-    owner.current.key = key;
-    owner.current.epoch += 1;
-  }
-  const epoch = owner.current.epoch;
+  const [identity, setIdentity] = useState({ key, epoch: 0 });
+  const currentIdentity = identity.key === key ? identity : { key, epoch: identity.epoch + 1 };
+  if (identity.key !== key) setIdentity(currentIdentity);
+  const epoch = currentIdentity.epoch;
+  const owner = useRef({ epoch: 0, closed: false, processing: false });
   const [pending, setPending] = useState(false);
   const [operation, setOperation] = useState<{ epoch: number; id: string }>();
   const [result, setResult] = useState<{
@@ -58,49 +58,24 @@ export function useGameFileFilterContext({
     deadline: number;
   }>();
   const [error, setError] = useState<{ epoch: number; message: string }>();
-  const [expiredObservation, setExpiredObservation] = useState<GameFileFilterContext>();
-  const invalidObservation = useRef<GameFileFilterContext | undefined>(undefined);
-  useEffect(() => {
-    owner.current.closed = false;
+  useLayoutEffect(() => {
+    const lifecycle = owner.current;
+    lifecycle.epoch = epoch;
+    lifecycle.closed = false;
     return () => {
-      owner.current.closed = true;
+      lifecycle.closed = true;
     };
-  }, []);
-  if (
-    result?.epoch === epoch &&
-    (Date.now() >= result.context.expiresAt * 1000 ||
-      Date.now() < result.context.observedAt * 1000 ||
-      performance.now() >= result.deadline)
-  )
-    invalidObservation.current = result.context;
-  const expired = Boolean(
-    result?.epoch === epoch &&
-    (expiredObservation === result.context || invalidObservation.current === result.context),
-  );
+  }, [epoch]);
+  const window = result
+    ? {
+        observedAt: result.context.observedAt,
+        expiresAt: result.context.expiresAt,
+        deadline: result.deadline,
+      }
+    : undefined;
+  const windowExpired = useObservationExpired(result, window);
+  const expired = Boolean(result?.epoch === epoch && windowExpired);
   const context = result?.epoch === epoch && !expired ? result.context : undefined;
-  useEffect(() => {
-    if (!context || !result) return;
-    const deadline = result.deadline;
-    const expire = () => {
-      if (
-        Date.now() >= context.expiresAt * 1000 ||
-        Date.now() < context.observedAt * 1000 ||
-        performance.now() >= deadline
-      )
-        setExpiredObservation(context);
-    };
-    const timer = setTimeout(
-      () => setExpiredObservation(context),
-      Math.max(0, deadline - performance.now()),
-    );
-    const clock = setInterval(expire, 1000);
-    document.addEventListener("visibilitychange", expire);
-    return () => {
-      clearTimeout(timer);
-      clearInterval(clock);
-      document.removeEventListener("visibilitychange", expire);
-    };
-  }, [context, result]);
   const refresh = async () => {
     if (owner.current.processing || !catalog || !libraryKey) return;
     const request = gameFileFilterRequest(catalog.ports, selection);
@@ -119,8 +94,6 @@ export function useGameFileFilterContext({
     setOperation(undefined);
     setResult(undefined);
     setError(undefined);
-    setExpiredObservation(undefined);
-    invalidObservation.current = undefined;
     try {
       const library = await desktopApi.libraryIdentity(generation);
       if (!active()) return;

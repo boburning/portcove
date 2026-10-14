@@ -412,7 +412,7 @@ it("composes observed update choices and removes retained zero/unavailable selec
       check: {
         ...preview.last_update_check!.check,
         channel: "beta",
-        release: { ...preview.last_update_check!.check.release!, channel: "beta" },
+        release: { ...preview.last_update_check!.check.release, channel: "beta" },
       },
     },
   });

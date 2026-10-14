@@ -403,9 +403,9 @@ it.each(["continued", "fresh", "stale", "restart"] as const)(
     expect(button("Review Game A setup").disabled).toBe(mode !== "continued");
     expect(desktopApi.scanGameFileRoots).toHaveBeenCalledTimes(1);
     expect(desktopApi.importSource).not.toHaveBeenCalled();
+    const priorCandidateCount = document.querySelectorAll("[data-live-candidate]").length;
     if (mode === "continued") {
       await click("Review Game A setup");
-      expect(open).toHaveBeenCalledWith(port.id, "game-file-libraries-setup");
       // New observations join the carried matches without duplicating a prior observation.
       await act(async () =>
         emit?.({
@@ -436,9 +436,14 @@ it.each(["continued", "fresh", "stale", "restart"] as const)(
           sha256: "c".repeat(64),
         }),
       );
-      expect(document.querySelectorAll("[data-live-candidate]")).toHaveLength(2);
-      expect(button("Review Game A setup").disabled).toBe(false);
     }
+    expect(open.mock.calls).toEqual(
+      mode === "continued" ? [[port.id, "game-file-libraries-setup"]] : [],
+    );
+    expect(document.querySelectorAll("[data-live-candidate]")).toHaveLength(
+      mode === "continued" ? 2 : priorCandidateCount,
+    );
+    expect(button("Review Game A setup").disabled).toBe(mode !== "continued");
     await act(async () => finish?.(current));
     expect(document.body.textContent).not.toContain("Scanning selected folders…");
   },

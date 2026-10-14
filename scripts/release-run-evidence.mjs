@@ -29,7 +29,9 @@ function text(value, label, maximum = 256) {
     typeof value !== "string" ||
     value.length < 1 ||
     value.length > maximum ||
-    /[\u0000-\u001f\u007f]/u.test(value)
+    [...value].some(
+      (character) => character.codePointAt(0) < 32 || character.codePointAt(0) === 127,
+    )
   )
     throw new Error(`${label} is invalid`);
   return value;

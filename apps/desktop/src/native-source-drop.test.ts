@@ -10,7 +10,13 @@ import {
   type NativeSourceDragState,
 } from "./native-source-drop";
 
-const nativeEvents = vi.hoisted(() => ({ current: vi.fn(), register: vi.fn() }));
+const nativeEvents = vi.hoisted(() => ({
+  current: vi.fn(),
+  register:
+    vi.fn<
+      (callback: (event: { payload: DragDropEvent }) => void) => Promise<() => void | Promise<void>>
+    >(),
+}));
 vi.mock("@tauri-apps/api/webview", () => ({ getCurrentWebview: nativeEvents.current }));
 
 beforeEach(() => {

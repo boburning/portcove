@@ -15,7 +15,25 @@ import {
 import { fileIdentity } from "../../../scripts/development-evidence.mjs";
 
 const backupSectionSelector = '[aria-labelledby="detail-saves-and-storage"]';
-const degradedInventorySelector = `${backupSectionSelector} .backup-history[data-backup-read-state="current"] .backup-inventory-notice.degraded`;
+export const degradedInventorySelector = `${backupSectionSelector} .backup-history[data-backup-read-state="current"] .backup-inventory-notice.degraded`;
+
+/**
+ * @template T
+ * @param {{readNotices: () => Promise<T[]>, readProblems: (notice: T) => Promise<unknown[]>, wait: (probe: () => Promise<T | false>, timeout: number, message: string) => Promise<T | false>}} observer
+ * @param {number} problemCount
+ */
+export function waitForDegradedInventory(observer, problemCount) {
+  return observer.wait(
+    async () => {
+      const notices = await observer.readNotices();
+      if (notices.length !== 1) return false;
+      const actions = await observer.readProblems(notices[0]);
+      return actions.length === problemCount ? notices[0] : false;
+    },
+    15_000,
+    "Fresh degraded backup inventory must finish loading",
+  );
+}
 
 export async function backupReviewScenario({
   browser,
@@ -52,15 +70,13 @@ export async function backupReviewScenario({
       );
     const list = () => command(["backup", "list", port.id]).backups;
     const degradedInventory = (problemCount) =>
-      browser.wait(
-        async () => {
-          const notices = await browser.findElements(By.css(degradedInventorySelector));
-          if (notices.length !== 1) return false;
-          const actions = await notices[0].findElements(By.css("ul li"));
-          return actions.length === problemCount ? notices[0] : false;
+      waitForDegradedInventory(
+        {
+          readNotices: () => browser.findElements(By.css(degradedInventorySelector)),
+          readProblems: (notice) => notice.findElements(By.css("ul li")),
+          wait: (probe, timeout, message) => browser.wait(probe, timeout, message),
         },
-        15_000,
-        "Fresh degraded backup inventory must finish loading",
+        problemCount,
       );
     const restoreTrigger = async () =>
       (await row(selected.id)).findElement(By.xpath('.//button[normalize-space(.)="Restore"]'));

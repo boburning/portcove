@@ -421,9 +421,11 @@ it.each(["ready", "setup"])(
       libraryReadiness: readiness,
       filter: { version: 1, platforms: ["linux-x86-64"] },
     });
-    const saved = JSON.parse(localStorage.getItem(key)!);
-    expect(saved.version).toBe(2);
-    expect(saved.inputs.sections.catalog).toEqual({ filter: "beta", query: "other search" });
+    const saved: unknown = JSON.parse(localStorage.getItem(key)!);
+    expect(saved).toMatchObject({
+      version: 2,
+      inputs: { sections: { catalog: { filter: "beta", query: "other search" } } },
+    });
   },
 );
 
@@ -483,7 +485,10 @@ it("restores membership in its section/library without losing legacy or unsuppor
   await act(async () => browsing.ui.setView("catalog"));
   expect(browsing.ui.filter).toMatchObject({ membership: ["not-in-library"] });
   const key = libraryBrowsingPreferenceKey(libraryRoot);
-  const stored = JSON.parse(localStorage.getItem(key)!);
+  const stored = JSON.parse(localStorage.getItem(key)!) as {
+    version: number;
+    inputs: { sections: Record<string, { query?: string; filter: unknown }> };
+  };
   stored.version = 1;
   stored.inputs.sections.library = { query: "legacy", filter: "setup" };
   stored.inputs.sections.catalog.filter = { version: 1, membership: ["future-membership"] };

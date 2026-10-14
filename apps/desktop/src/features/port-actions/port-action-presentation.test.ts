@@ -404,8 +404,9 @@ it.each([
     const operation = portActionPresentation(status, "launch");
     expect(installedCardInputPresentation(status)?.label).toBe(label);
     expect(installedCardInputPresentation(status)?.reasons[0]).toContain(reason);
-    if (blocker.startsWith("unreadable"))
-      expect(installedCardInputPresentation(status)?.reasons[0]).toContain("restore access");
+    expect(installedCardInputPresentation(status)?.reasons[0]?.includes("restore access")).toBe(
+      blocker.startsWith("unreadable"),
+    );
     expect(portActionPresentation(status, "launch")).toEqual(operation);
     expect(JSON.stringify(status)).toBe(before);
   },

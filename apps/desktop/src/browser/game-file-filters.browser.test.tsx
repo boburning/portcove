@@ -68,14 +68,13 @@ const response = (request: GameFileQueryRefreshRequest): GameFileQuerySnapshot =
 });
 
 function Session({ library }: { library: string }) {
-  const browsing = useLibraryBrowsingContext({
+  const { ui, workspace } = useLibraryBrowsingContext({
     root: library,
     remember,
     switchLibrary,
     resetLibrary: switchLibrary,
     ready: false,
   });
-  const ui = browsing.ui;
   const [generation, setGeneration] = useState(1);
   const observation = useGameFileFilterContext({
     catalog,
@@ -84,15 +83,12 @@ function Session({ library }: { library: string }) {
     generation,
     libraryKey: library,
   });
-  const navigation = useDetailWorkspaceNavigation(
-    browsing.workspace,
-    ui.setSelectedId,
-    availableIds,
-  );
+  const navigation = useDetailWorkspaceNavigation(workspace, ui.setSelectedId, availableIds);
   const context = { library: { id: library, statuses: empty }, gameFiles: observation.context };
-  useEffect(() => ui.setView("catalog"), [ui.setView]);
+  const { setView } = ui;
+  useEffect(() => setView("catalog"), [setView]);
   return (
-    <main ref={browsing.workspace} data-focus-region="workspace" tabIndex={-1}>
+    <main ref={workspace} data-focus-region="workspace" tabIndex={-1}>
       <label>
         Search catalog
         <input value={ui.query} onChange={(event) => ui.setQuery(event.target.value)} />

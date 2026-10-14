@@ -7,6 +7,7 @@ import {
 import { recoveryKey } from "../dev-scenarios/interactive/transport";
 import "../styles.css";
 beforeEach(async () => {
+  localStorage.clear();
   await page.viewport(1280, 800);
 });
 
@@ -19,6 +20,7 @@ function mount(journey: string) {
 afterEach(() => {
   stopInteractiveScenarios();
   sessionStorage.removeItem(recoveryKey);
+  localStorage.clear();
   document.body.replaceChildren();
   window.history.replaceState(null, "", "/");
 });
@@ -35,9 +37,9 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   await expect
     .element(page.getByRole("button", { name: "View details for Orchard Quest", exact: true }))
     .not.toBeInTheDocument();
-  await userEvent.click(page.getByRole("button", { name: "Ready", exact: true }));
+  await userEvent.click(page.getByRole("button", { name: "Ready (1)", exact: true }));
   await expect
-    .element(page.getByRole("button", { name: "Ready", exact: true }))
+    .element(page.getByRole("button", { name: "Ready (1)", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
   await expect
     .element(page.getByRole("button", { name: "View details for Harbor Adventure", exact: true }))
@@ -57,6 +59,9 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   );
   await expect.element(page.getByPlaceholder("Search ports")).toHaveValue("Harbor");
   await userEvent.click(page.getByRole("button", { name: "Reset journey", exact: true }));
+  // Reset remounts the renderer fixture; private browsing preferences still restore.
+  await expect.element(page.getByPlaceholder("Search ports")).toHaveValue("Harbor");
+  await userEvent.fill(page.getByPlaceholder("Search ports"), "");
   await expect.element(page.getByPlaceholder("Search ports")).toHaveValue("");
   await expect
     .element(page.getByRole("button", { name: "View details for Orchard Quest", exact: true }))

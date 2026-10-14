@@ -75,7 +75,7 @@ const statuses = new Map<string, PortStatus>(
                 },
               ]
             : undefined,
-      } as PortStatus,
+      },
     ];
   }),
 );
@@ -135,10 +135,9 @@ it.each([
       await expect.element(card).toMatchTextContent(reason);
       await expect.element(card).toHaveAccessibleDescription(new RegExp(reason));
       await expect.element(card).toMatchTextContent("Release channel: Preview");
-      if (view === "library")
-        await expect
-          .element(card.getByRole("button", { name: "Play", exact: true }))
-          .not.toBeInTheDocument();
+      await expect
+        .element(card.getByRole("button", { name: "Play", exact: true }))
+        .not.toBeInTheDocument();
       const details =
         view === "library"
           ? page.getByRole("button", { name: `View details for ${name}`, exact: true })
@@ -163,12 +162,14 @@ it.each([
         name: new RegExp(`^${name}\\. Ready to play\\.`),
       });
       await expect.element(card).not.toHaveAccessibleDescription();
-      if (view === "library") {
-        await expect.element(card.getByRole("button", { name: "Play", exact: true })).toBeEnabled();
-        await userEvent.click(card.getByRole("button", { name: "Play", exact: true }));
-      }
-      if (name === "Staged ready")
-        await expect.element(card).toMatchTextContent("Update downloaded");
+      const play = card.getByRole("button", { name: "Play", exact: true });
+      await expect
+        .poll(() => play.query()?.matches(":disabled") ?? null)
+        .toBe(view === "library" ? false : null);
+      if (view === "library") await userEvent.click(play);
+      await expect
+        .element(card)
+        .toMatchTextContent(name === "Staged ready" ? "Update downloaded" : "Ready to play");
     }
     expect(launch).toHaveBeenCalledTimes(view === "library" ? 2 : 0);
     expect(invoke).not.toHaveBeenCalled();
