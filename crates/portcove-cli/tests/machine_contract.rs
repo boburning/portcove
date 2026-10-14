@@ -17,6 +17,10 @@ mod artwork_contract;
 #[path = "machine_contract/definition_capabilities.rs"]
 mod definition_capability_contract;
 
+#[cfg(all(windows, feature = "qualification-fixtures"))]
+#[path = "machine_contract/source_discovery.rs"]
+mod source_discovery_contract;
+
 static CAPACITY_SENSITIVE_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
@@ -2046,7 +2050,7 @@ fn saved_game_file_roots_survive_unavailability_and_relink_by_stable_identity() 
         &["--json", "source", "roots", "scan", "--max-entries", "4"],
     ));
     assert_eq!(scan["command"], "source.roots.scan");
-    assert_eq!(scan["data"]["format_version"], 10);
+    assert_eq!(scan["data"]["format_version"], 11);
     assert_eq!(scan["data"]["limits"]["max_entries"], 4);
     assert_eq!(scan["data"]["limits"]["max_depth"], 6);
     assert_eq!(scan["data"]["freshness"], "inputs_match");

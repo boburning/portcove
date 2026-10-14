@@ -58,6 +58,28 @@ pub(crate) fn spawn_tool(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     ToolProcessGroup::prepare(&mut command);
+    if let Some(limits) = spec.decoder_limits {
+        use std::os::unix::process::CommandExt;
+        // SAFETY: this child-only callback performs only async-signal-safe
+        // setrlimit calls using copied values; it allocates and locks nothing.
+        unsafe {
+            command.pre_exec(move || {
+                for (resource, value) in [
+                    (libc::RLIMIT_AS, limits.memory_bytes as libc::rlim_t),
+                    (libc::RLIMIT_FSIZE, limits.file_bytes as libc::rlim_t),
+                ] {
+                    let bound = libc::rlimit {
+                        rlim_cur: value,
+                        rlim_max: value,
+                    };
+                    if libc::setrlimit(resource, &bound) != 0 {
+                        return Err(std::io::Error::last_os_error());
+                    }
+                }
+                Ok(())
+            });
+        }
+    }
     let mut child = command.spawn().map_err(ToolSpawnFailure::io_before_spawn)?;
     match ToolProcessGroup::attach(&child) {
         Ok(group) => Ok((child, group)),

@@ -44,11 +44,11 @@ use windows_sys::Win32::{
         },
         JobObjects::{
             AssignProcessToJobObject, CreateJobObjectW, IsProcessInJob,
-            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
-            JOBOBJECT_BASIC_PROCESS_ID_LIST, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-            JobObjectBasicAccountingInformation, JobObjectBasicProcessIdList,
-            JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject,
-            TerminateJobObject,
+            JOB_OBJECT_LIMIT_JOB_MEMORY, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+            JOBOBJECT_BASIC_ACCOUNTING_INFORMATION, JOBOBJECT_BASIC_PROCESS_ID_LIST,
+            JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectBasicAccountingInformation,
+            JobObjectBasicProcessIdList, JobObjectExtendedLimitInformation,
+            QueryInformationJobObject, SetInformationJobObject, TerminateJobObject,
         },
         Pipes::CreatePipe,
         SystemInformation::{
@@ -465,6 +465,7 @@ struct EncodedLaunch {
     command: Vec<u16>,
     environment: Vec<u16>,
     directory: Option<Vec<u16>>,
+    decoder_memory_bytes: Option<usize>,
 }
 
 impl EncodedLaunch {
@@ -543,6 +544,7 @@ impl EncodedLaunch {
             application,
             command,
             environment,
+            decoder_memory_bytes: spec.decoder_limits.map(|limits| limits.memory_bytes),
             directory: spec
                 .working_directory
                 .as_ref()
@@ -819,6 +821,10 @@ impl Controller {
             .map_err(ToolSpawnFailure::io_before_spawn)?;
         let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
         limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if let Some(memory_bytes) = launch.decoder_memory_bytes {
+            limits.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_JOB_MEMORY;
+            limits.JobMemoryLimit = memory_bytes;
+        }
         if unsafe {
             SetInformationJobObject(
                 job.as_raw_handle(),
