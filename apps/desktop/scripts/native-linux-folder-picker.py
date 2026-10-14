@@ -203,11 +203,26 @@ def main():
             return found
 
         def button(names):
-            nodes = [node for node in controls() if node.get_role() in (Atspi.Role.PUSH_BUTTON, Atspi.Role.TOGGLE_BUTTON)
+            inventory = controls()
+            nodes = [node for node in inventory if node.get_role() in (Atspi.Role.PUSH_BUTTON, Atspi.Role.TOGGLE_BUTTON)
                      and node.get_name().replace("_", "") in names and node.get_state_set().contains(Atspi.StateType.SENSITIVE)
                      and node.get_state_set().contains(Atspi.StateType.SHOWING)]
             if len(nodes) != 1:
-                raise RuntimeError("Expected one exact enabled GTK chooser action")
+                labels = names | {"Cancel", "Select", "Open", "Select Folder", "Search", "Type a file name", "Enter Location", "Location"}
+                projection = []
+                for node in inventory:
+                    if len(projection) >= 32:
+                        break
+                    if node.get_role() not in (Atspi.Role.PUSH_BUTTON, Atspi.Role.TOGGLE_BUTTON):
+                        continue
+                    states = node.get_state_set()
+                    if not states.contains(Atspi.StateType.SENSITIVE) or not states.contains(Atspi.StateType.SHOWING):
+                        continue
+                    bound_control(node)
+                    name = node.get_name().replace("_", "")
+                    description = node.get_description()
+                    projection.append({"role": node.get_role_name(), "name": name if name in labels else "<other>", "description": description if description in labels else "<other>"})
+                raise RuntimeError("Expected one exact enabled GTK chooser action: " + json.dumps(projection))
             return nodes[0]
 
         def bound_control(node):
