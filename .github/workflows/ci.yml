@@ -958,6 +958,7 @@ jobs:
           node-version-file: .node-version
       - run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - name: Audit actual changed pnpm artifacts
+        if: github.event_name == 'pull_request'
         env:
           AGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           AGE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -993,6 +994,7 @@ jobs:
           node-version-file: .node-version
       - run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - name: Audit actual changed pnpm artifacts
+        if: github.event_name == 'pull_request'
         env:
           AGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           AGE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}

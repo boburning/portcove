@@ -11,7 +11,17 @@ import {
   validateEngine,
   freezeProbeClock,
   validateArtifactResult,
+  probeFailureSummary,
 } from "./renovate-engine-probe.mjs";
+test("probe failures bound oversized Unicode assertions and expose the retained raw report", () => {
+  const error = new Error("different lock: " + "未知😀".repeat(10000));
+  error.reportReference = "work/probe/failed/report.json";
+  const text = probeFailureSummary(error) + "\n";
+  assert(Buffer.byteLength(text) <= 16 * 1024);
+  assert.match(text, /Raw evidence: work\/probe\/failed\/report.json/);
+  assert.match(text, /different lock/);
+  assert(error.message.length > 30000);
+});
 test("artifact contents normalize real Buffer results and reject ambiguous shapes", () => {
   assert.equal(
     validateArtifactResult([

@@ -302,8 +302,10 @@ Use four delivery paths:
   signatures, required checks and affected native/installed behavior remain.
 
 The actual pnpm lock delta is audited by `dependency-release-age.mjs` in the
-existing hosted dependency-review lanes and `renovate-check`. Every newly
-introduced registry artifact, including transitives, needs an authoritative npm
+existing hosted dependency-review lanes and `renovate-check`.
+The blocking hosted audit runs at the PR delivery boundary. Main push checks do
+not reclassify an already reviewed security merge without its PR intent metadata.
+Every newly introduced registry artifact, including transitives, needs an authoritative npm
 publication timestamp and three complete days. Unchanged artifacts and removals
 are excluded; peer contexts retain package identity. Young artifacts report their
 exact eligibility time. Unsupported sources, malformed locks or unavailable

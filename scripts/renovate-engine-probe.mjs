@@ -116,6 +116,14 @@ export function validateArtifactResult(artifacts) {
   return Buffer.isBuffer(contents) ? contents.toString("utf8") : contents;
 }
 
+export function probeFailureSummary(error) {
+  return renderBoundedSummary(
+    "Renovate probe failed",
+    [String(error.message ?? error).slice(0, 2000)],
+    { reference: error.reportReference ?? null },
+  ).text;
+}
+
 const locked = (text, name) =>
   text.match(new RegExp(`name = "${name}"\\r?\\nversion = "([^"]+)"`))?.[1];
 const otherEntries = (text) =>
@@ -411,6 +419,7 @@ export async function runEngineProbe({ engine, workspace, configFile, observedAt
   } catch (error) {
     report.state = "failed";
     report.failure = error.message;
+    error.reportReference = reportPath;
     throw error;
   } finally {
     restoreClock();
@@ -446,7 +455,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       ).text,
     );
   } catch (error) {
-    console.error(error.message);
+    console.error(probeFailureSummary(error));
     process.exitCode = 1;
   }
 }
