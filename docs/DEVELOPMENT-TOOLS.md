@@ -457,6 +457,16 @@ The receipt binds the actual executables, source, screenshots and positive
 owned-process closure. This case does not establish native picker, setup
 execution, gameplay, physical storage or Linux acceptance.
 
+`just desktop-verify --scenario native-preliminary-selected-setup --require-clean`
+selects an isolated Windows journey for the missing NotRun continuation. The
+fixture uses the maintained pinned-validator selection contract with an owned
+inert release. Real Core discovery and deliberate current-location registration
+make the preliminary input eligible for bounded setup selection. The journey
+checks the warning, fresh Core setup review, neutral cancellation and return
+with selection preserved. No validator, preparation, acquisition, gameplay,
+physical-storage or Linux execution is claimed. The existing preliminary
+review-only scenario remains separately selectable.
+
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
 flags are repeatable and mutually exclusive with `--profile`; selection is normalized
 in catalog order. The pure `scripts/desktop-execution-plan.mjs` supplies fixture

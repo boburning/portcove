@@ -82,7 +82,11 @@ test("execution planning preserves the independently reviewed pre-change oracle"
       ...value,
       excluded_scenarios: value.excluded_scenarios.filter(
         (id) =>
-          !["native-preliminary-source-review", "native-saved-folder-hash-resume"].includes(id),
+          ![
+            "native-preliminary-source-review",
+            "native-saved-folder-hash-resume",
+            "native-preliminary-selected-setup",
+          ].includes(id),
       ),
     });
     assert.ok(!selection.selected_scenarios.includes("native-preliminary-source-review"));
@@ -512,4 +516,33 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
   assert.equal(inputs.length, expectedFiles.length);
   for (const [index, file] of expectedFiles.entries())
     assert.deepEqual(inputs[index], await fileIdentity(file));
+});
+
+test("preliminary selected setup is standalone, identity-bound and excluded from historical runs", () => {
+  const id = "native-preliminary-selected-setup";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.fixtures.preliminaryJourney, true);
+  assert.equal(plan.fixtures.preliminarySetupJourney, true);
+  assert.equal(plan.fixtures.sourceJourney, true);
+  assert.equal(plan.fixtures.completionJourney, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "preliminary-selected-setup");
+  assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+  assert.equal(
+    plan.receiptInputs.filter((input) => input.path?.endsWith("desktop-source-dialog-test.mjs"))
+      .length,
+    1,
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: [id, "native-preliminary-source-review"],
+        platform: "win32",
+      }),
+    /standalone/,
+  );
 });

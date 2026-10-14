@@ -1423,6 +1423,7 @@ try {
       revision,
       sourceJourney: executionPlan.fixtures.sourceJourney,
       preliminaryJourney: executionPlan.fixtures.preliminaryJourney,
+      preliminarySetupJourney: executionPlan.fixtures.preliminarySetupJourney,
       hashResumeJourney: executionPlan.fixtures.hashResumeJourney,
       completionJourney: executionPlan.fixtures.completionJourney,
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
