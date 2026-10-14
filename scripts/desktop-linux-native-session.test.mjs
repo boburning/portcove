@@ -142,12 +142,12 @@ test(
 import ast, sys
 from pathlib import Path
 tree = ast.parse(Path(sys.argv[1]).read_text())
-names = {'controls','bound_control','invoke'}
+names = {'controls','bound_control','invoke','show_location'}
 functions = [node for node in ast.walk(tree) if isinstance(node,ast.FunctionDef) and node.name in names]
-assert len(functions) == 3
+assert len(functions) == 4
 class Role:
     TABLE='table'; TREE='tree'; TREE_TABLE='tree-table'; LIST='list'
-    PUSH_BUTTON='button'; TOGGLE_BUTTON='toggle'; TEXT='text'; ENTRY='entry'
+    PUSH_BUTTON='button'; TOGGLE_BUTTON='toggle'; TEXT='text'; ENTRY='entry'; FILE_CHOOSER='file-chooser'
 class StateType:
     SENSITIVE='sensitive'; SHOWING='showing'; EDITABLE='editable'
 class Atspi: pass
@@ -169,7 +169,8 @@ class Node:
         self.reads+=1
         return self.children[index] if self.children else Node(path=f'/child{index}',parent=self)
     def get_action_iface(self): return self
-    def get_n_actions(self): return 1
+    def get_n_actions(self): return getattr(self,'action_count',1)
+    def get_action_name(self,index): return 'show_location' if index==1 else 'other'
     def do_action(self,index): self.actions+=1; return True
     def get_editable_text_iface(self): return self
     def set_text_contents(self,text): self.writes+=1; return True
@@ -189,6 +190,27 @@ else: raise AssertionError('Foreign same-path button admitted')
 assert foreign.actions == 0
 owned=Node('/button',parent=root,role=Role.PUSH_BUTTON)
 scope['invoke'](owned); assert owned.actions == 1
+widget=Node('/widget',parent=root,role=Role.FILE_CHOOSER); widget.action_count=2
+production_controls=scope['controls']
+scope['controls']=lambda:[widget]
+scope['show_location'](); assert widget.actions==1
+widget.app=Peer('foreign')
+try: scope['show_location']()
+except RuntimeError: pass
+else: raise AssertionError('Foreign location action admitted')
+assert widget.actions==1
+widget.app=Peer('owned'); widget.action_count=9
+try: scope['show_location']()
+except RuntimeError: pass
+else: raise AssertionError('Unbounded location actions admitted')
+assert widget.actions==1
+widget.action_count=2
+scope['controls']=lambda:[widget,widget]
+try: scope['show_location']()
+except RuntimeError: pass
+else: raise AssertionError('Ambiguous location actions admitted')
+assert widget.actions==1
+scope['controls']=production_controls
 entry=Node('/entry','foreign',root,role=Role.ENTRY)
 input_block=[node for node in ast.walk(tree) if isinstance(node,ast.If) and isinstance(node.test,ast.Name) and node.test.id=='directory']
 assert len(input_block)==1

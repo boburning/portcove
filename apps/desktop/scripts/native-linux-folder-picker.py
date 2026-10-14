@@ -194,7 +194,7 @@ def main():
                 role = node.get_role()
                 if role in (Atspi.Role.TABLE, Atspi.Role.TREE, Atspi.Role.TREE_TABLE, Atspi.Role.LIST):
                     continue
-                if role in (Atspi.Role.PUSH_BUTTON, Atspi.Role.TOGGLE_BUTTON, Atspi.Role.TEXT, Atspi.Role.ENTRY):
+                if role in (Atspi.Role.PUSH_BUTTON, Atspi.Role.TOGGLE_BUTTON, Atspi.Role.TEXT, Atspi.Role.ENTRY, Atspi.Role.FILE_CHOOSER):
                     found.append(node)
                 count = node.get_child_count()
                 if count > 512 - visited - len(pending) or (depth == 12 and count):
@@ -248,6 +248,30 @@ def main():
             if action.get_n_actions() != 1 or not action.do_action(0):
                 raise RuntimeError("Owned GTK chooser action was refused")
 
+        def show_location():
+            matches = []
+            for node in controls():
+                if node.get_role() != Atspi.Role.FILE_CHOOSER:
+                    continue
+                bound_control(node)
+                action = node.get_action_iface()
+                if action is None:
+                    continue
+                count = action.get_n_actions()
+                if count < 0 or count > 8:
+                    raise RuntimeError("GTK chooser action inventory exceeded its bound")
+                for index in range(count):
+                    if action.get_action_name(index) == "show_location":
+                        matches.append((node, index))
+            if len(matches) != 1:
+                raise RuntimeError("Expected one exact owned GTK show_location action")
+            node, index = matches[0]
+            bound_control(node)
+            action = node.get_action_iface()
+            count = action.get_n_actions() if action is not None else 0
+            if not index < count <= 8 or action.get_action_name(index) != "show_location" or not action.do_action(index):
+                raise RuntimeError("Owned GTK location action changed or was refused")
+
         if directory:
             def editable(node):
                 states = node.get_state_set()
@@ -255,7 +279,7 @@ def main():
 
             entries = [node for node in controls() if editable(node)]
             if not entries:
-                invoke(button({"Type a file name", "Enter Location", "Location"}))
+                show_location()
                 entries = [node for node in controls() if editable(node)]
             if len(entries) != 1:
                 raise RuntimeError("Expected one editable owned GTK location field")
