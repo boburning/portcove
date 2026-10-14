@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GitHubApiClient, sanitizeOperationError } from "./github-api.mjs";
+import { checkClosureIntent, readClosingRelationships } from "./closure-intent.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const repository = JSON.parse(
@@ -44,6 +45,8 @@ function targetNumber(target, type) {
 export function writeGitHubBody(options, api = new GitHubApiClient()) {
   const { operation, body, previousBody, target, title, head, base } = options;
   validateGitHubBody(body);
+  if (["pr-create", "pr-edit"].includes(operation))
+    checkClosureIntent(options.closureIntent, { repository, texts: [body] });
   if (!["issue-edit", "issue-comment", "pr-edit", "pr-comment", "pr-create"].includes(operation))
     throw new Error("Unsupported GitHub body operation");
   const prefix = `repos/${repository}`;
@@ -69,6 +72,17 @@ export function writeGitHubBody(options, api = new GitHubApiClient()) {
       if (typeof previousBody !== "string") throw new Error("Edits require --previous-body-file");
       if ((before.body ?? "") !== previousBody)
         throw new Error("Remote body changed; refresh the preimage before editing");
+      if (operation === "pr-edit") {
+        const closing = readClosingRelationships(api, repository, number);
+        options.observe?.({ phase: "closure-preimage", result: closing });
+        if (closing.body !== previousBody || closing.head !== before.head?.sha)
+          throw new Error("Remote PR closure preimage changed; refresh before editing");
+        checkClosureIntent(options.closureIntent, {
+          repository,
+          texts: [body],
+          relationships: closing.relationships,
+        });
+      }
       result = api.request("PATCH", item, { body }).body;
       options.observe?.({ phase: "mutation", result });
       if (result?.id !== before.id)
@@ -86,6 +100,17 @@ export function writeGitHubBody(options, api = new GitHubApiClient()) {
   options.observe?.({ phase: "readback", result: observed });
   if (observed?.id !== result?.id || observed?.body !== body)
     throw new Error("GitHub body readback mismatch; reconcile before retrying");
+  if (["pr-create", "pr-edit"].includes(operation)) {
+    const closing = readClosingRelationships(api, repository, observed.number);
+    options.observe?.({ phase: "closure-readback", result: closing });
+    if (closing.body !== body || closing.head !== observed.head?.sha)
+      throw new Error("PR closure readback changed; reconcile before retrying");
+    checkClosureIntent(options.closureIntent, {
+      repository,
+      texts: [body],
+      relationships: closing.relationships,
+    });
+  }
   return {
     operation,
     url: observed.html_url,
@@ -105,6 +130,7 @@ export function parseBodyArguments(argv) {
     "--title",
     "--head",
     "--base",
+    "--closure-intent-file",
   ]);
   for (let index = 0; index < args.length; index += 2) {
     const key = args[index];
@@ -122,11 +148,12 @@ export function parseBodyArguments(argv) {
     operation === "check"
       ? ["--body-file"]
       : operation === "pr-create"
-        ? ["--body-file", "--title", "--head", "--base"]
+        ? ["--body-file", "--title", "--head", "--base", "--closure-intent-file"]
         : [
             "--body-file",
             "--target",
             ...(operation.endsWith("edit") ? ["--previous-body-file"] : []),
+            ...(operation === "pr-edit" ? ["--closure-intent-file"] : []),
           ];
   if (
     keys.some((key) => !options[key]) ||
@@ -141,7 +168,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     if (["--help", "help"].includes(process.argv[2])) {
       console.log(
-        "usage: github-body.mjs check --body-file FILE\n  github-body.mjs issue-edit|pr-edit --target NUMBER_OR_URL --body-file FILE --previous-body-file FILE\n  github-body.mjs issue-comment|pr-comment --target NUMBER_OR_URL --body-file FILE\n  github-body.mjs pr-create --title TITLE --head BRANCH --base BRANCH --body-file FILE",
+        "usage: github-body.mjs check --body-file FILE\n  github-body.mjs issue-edit|pr-edit --target NUMBER_OR_URL --body-file FILE --previous-body-file FILE [--closure-intent-file FILE (required for pr-edit)]\n  github-body.mjs issue-comment|pr-comment --target NUMBER_OR_URL --body-file FILE\n  github-body.mjs pr-create --title TITLE --head BRANCH --base BRANCH --body-file FILE --closure-intent-file FILE",
       );
     } else {
       const options = parseBodyArguments(process.argv.slice(2));
@@ -166,6 +193,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           title: options["--title"],
           head: options["--head"],
           base: options["--base"],
+          closureIntent: options["--closure-intent-file"]
+            ? JSON.parse(readGitHubBody(options["--closure-intent-file"]))
+            : undefined,
           observe: (observation) =>
             writeFileSync(
               path.join(evidence, `${observation.phase}.json`),

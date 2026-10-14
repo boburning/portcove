@@ -95,7 +95,9 @@ export function validationCapabilities(entry, platform = process.platform) {
   if (entry.id === "dependency-policy") ids.add("cargo-deny");
   if (
     entry.id.startsWith("ui-") ||
-    ["oxfmt", "oxlint", "toml-format", "fallow", "transport-export"].includes(entry.id)
+    ["oxfmt", "oxlint", "repository-lint", "toml-format", "fallow", "transport-export"].includes(
+      entry.id,
+    )
   ) {
     ids.add("pnpm");
     ids.add("frontend-dependencies");

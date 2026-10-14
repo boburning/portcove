@@ -110,14 +110,13 @@ const switchLibrary = async () => {};
 let host: HTMLDivElement;
 let root: Root;
 function Session({ library }: { library: string }) {
-  const browsing = useLibraryBrowsingContext({
+  const { ui, workspace } = useLibraryBrowsingContext({
     root: library,
     remember,
     switchLibrary,
     resetLibrary: switchLibrary,
     ready: false,
   });
-  const ui = browsing.ui;
   const [detail, setDetail] = useState(false);
   const [only, setOnly] = useState(false);
   const [facts, setFacts] = useState(true);
@@ -138,7 +137,7 @@ function Session({ library }: { library: string }) {
       )
     : [];
   return (
-    <main ref={browsing.workspace}>
+    <main ref={workspace}>
       <label>
         Search library
         <input value={ui.query} onChange={(event) => ui.setQuery(event.target.value)} />
@@ -315,7 +314,9 @@ it("holds unknown migrated readiness and query separately until correction", asy
   flushSync(() => root.render(<Fixture />));
   await userEvent.click(button("Ready (2)"));
   const key = libraryBrowsingPreferenceKey("/library-filters-a");
-  const stored = JSON.parse(localStorage.getItem(key)!);
+  const stored = JSON.parse(localStorage.getItem(key)!) as {
+    inputs: { sections: { library: { filter: unknown; readiness: string } } };
+  };
   stored.inputs.sections.library.readiness = "future";
   stored.inputs.sections.library.filter = { version: 99, platforms: ["future"] };
   localStorage.setItem(key, JSON.stringify(stored));
@@ -326,7 +327,9 @@ it("holds unknown migrated readiness and query separately until correction", asy
     .element(page.getByText(/Restored readiness “future” is not supported/))
     .toBeInTheDocument();
   await userEvent.click(button("All (unavailable)"));
-  expect(JSON.parse(localStorage.getItem(key)!).inputs.sections.library.filter.version).toBe(99);
+  expect(JSON.parse(localStorage.getItem(key)!) as unknown).toMatchObject({
+    inputs: { sections: { library: { filter: { version: 99 } } } },
+  });
   await userEvent.click(button("Filters (0)"));
   await expect.element(button("Linux (unavailable)")).toBeDisabled();
   await userEvent.click(button("Reset library filters"));

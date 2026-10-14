@@ -187,6 +187,9 @@ importers:
       oxlint-tsgolint:
         specifier: 7.0.2003
         version: 7.0.2003
+      yaml:
+        specifier: 2.9.1
+        version: 2.9.1
 
   apps/desktop:
     dependencies:

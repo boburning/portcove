@@ -10,7 +10,9 @@ describe("desktop static-copy safeguards", () => {
       ["--files", "../outside.tsx"],
       ["--files", "apps/desktop/src/thing.test.tsx"],
     ])
-      expect(() => explicitCopyFiles(args, process.cwd())).toThrow();
+      expect(() => explicitCopyFiles(args, process.cwd())).toThrow(
+        /copy|files|path|source|unknown/iu,
+      );
     expect(isProductionCopyPath("apps/desktop/src/test-fixtures.ts")).toBe(false);
     expect(isProductionCopyPath("apps/desktop/src/types.d.ts")).toBe(false);
     expect(isProductionCopyPath("apps/desktop/src/components/Hello.tsx")).toBe(true);

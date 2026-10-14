@@ -1,9 +1,275 @@
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import {
+  mkdtemp,
+  writeFile,
+  rm,
+  readdir,
+  readFile,
+  utimes,
+  stat,
+  mkdir,
+  chmod,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { writeEvidence, evidenceOutcome, fileIdentity } from "./development-evidence.mjs";
+import {
+  retainEvidenceInput,
+  verifyConsumedInputs,
+  validateEvidenceStore,
+  executionAdmission,
+  retainedExecutableCanLaunch,
+  readPrelaunchCustody,
+} from "./retained-evidence.mjs";
+
+test("prelaunch custody accepts native equivalent absolute path separators", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-prelaunch-path-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "product");
+  await writeFile(file, "product bytes");
+  const captured = await retainEvidenceInput({ root: path.join(directory, "evidence"), file });
+  const manifest = path.join(directory, "manifest.json");
+  const timestamp = new Date().toISOString();
+  await writeFile(
+    manifest,
+    JSON.stringify({
+      format_version: 1,
+      root: directory,
+      revision: "a".repeat(40),
+      pre_import_for: "apps/desktop/scripts/desktop-test.mjs",
+      selected_scenarios: [],
+      execution_started_at: timestamp,
+      created_at: timestamp,
+      inputs: [{ ...captured, role: "app", kind: "executable" }],
+    }),
+  );
+  await readPrelaunchCustody(manifest, {
+    root: directory,
+    revision: "a".repeat(40),
+    plan: { receiptInputs: [{ kind: "executable", name: "app" }] },
+    values: { app: file.replaceAll("\\", "/") },
+    selectedScenarios: [],
+    deadlineMs: 60_000,
+  });
+});
+
+test("retention rejects absent and untagged cleanup roots before creating them", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-cleanup-boundary-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  for (const suffix of [
+    "target/evidence",
+    "target/debug/incremental/evidence",
+    "node_modules/evidence",
+  ]) {
+    const candidate = path.join(directory, suffix);
+    await assert.rejects(validateEvidenceStore(candidate), /cleanup roots/u);
+    await assert.rejects(stat(candidate), { code: "ENOENT" });
+    await mkdir(candidate, { recursive: true });
+    await assert.rejects(validateEvidenceStore(candidate), /cleanup roots/u);
+  }
+});
+
+test("matching product metadata cannot authorize relocation of a path-sensitive executable", () => {
+  const drivers = { driver: "/trusted/tauri-driver", nativeDriver: "/trusted/native-driver" };
+  for (const role of ["app", "preparation-cli", "preparation-tool"]) {
+    assert.equal(
+      retainedExecutableCanLaunch(
+        {
+          role,
+          path: "/unrelated/product",
+          verification_build: { compiled_source_revision: "a".repeat(40) },
+          source_state: { clean: true },
+        },
+        drivers,
+      ),
+      false,
+    );
+  }
+  assert.equal(
+    retainedExecutableCanLaunch({ role: "driver", path: drivers.driver }, drivers),
+    true,
+  );
+  assert.equal(
+    retainedExecutableCanLaunch({ role: "driver", path: "/unrelated/driver" }, drivers),
+    false,
+  );
+});
+
+test("capture/read/verification expiry refuses every later launch", async () => {
+  let launches = 0;
+  for (const elapsed of [100, 101]) {
+    const admission = executionAdmission(new Date(0).toISOString(), 100, () => elapsed);
+    await assert.rejects(async () => {
+      await admission.verify([]);
+      admission.assertReady();
+      launches++;
+    }, /deadline/u);
+  }
+  let clock = 0;
+  const admission = executionAdmission(new Date(0).toISOString(), 100, () => clock);
+  const verification = admission.verify([]);
+  clock = 100;
+  await assert.rejects(verification, /deadline/u);
+  assert.throws(() => {
+    admission.assertReady();
+    launches++;
+  }, /deadline/u);
+  assert.equal(launches, 0);
+});
+
+test("retained input is published without overwrite, deduplicated and bound before consumption", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "source");
+  const root = path.join(directory, "evidence");
+  await writeFile(file, "original");
+  const copies = await Promise.all([
+    retainEvidenceInput({ root, file }),
+    retainEvidenceInput({ root, file }),
+  ]);
+  assert.equal(copies[0].retained.path, copies[1].retained.path);
+  assert.equal(copies.filter((input) => input.deduplicated).length, 1);
+  await verifyConsumedInputs(copies);
+  const metadata = await stat(file);
+  await writeFile(file, "modified");
+  await utimes(file, metadata.atime, metadata.mtime);
+  assert.equal((await stat(file)).size, metadata.size);
+  assert.equal((await stat(file)).mtime.getTime(), metadata.mtime.getTime());
+  await assert.rejects(verifyConsumedInputs(copies), /changed after capture/);
+  await verifyConsumedInputs(copies, { livePaths: false });
+});
+
+test("a retained executable is actually consumed through its retained path", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-launch-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const captured = await retainEvidenceInput({
+    root: path.join(directory, "evidence"),
+    file: process.execPath,
+    executable: true,
+  });
+  await verifyConsumedInputs([captured]);
+  const child = spawnSync(
+    captured.retained.path,
+    ["-e", "process.stdout.write(process.execPath)"],
+    {
+      encoding: "utf8",
+      timeout: 10_000,
+      windowsHide: true,
+      env: { ...process.env, NODE_OPTIONS: "" },
+    },
+  );
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(path.resolve(child.stdout).toLowerCase(), captured.retained.path.toLowerCase());
+  await verifyConsumedInputs([captured]);
+});
+
+test("corrupt published evidence and interrupted publication preserve partial failures", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-failure-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "source");
+  const root = path.join(directory, "evidence");
+  await writeFile(file, "original");
+  const captured = await retainEvidenceInput({ root, file });
+  await chmod(captured.retained.path, 0o600);
+  await writeFile(captured.retained.path, "modified");
+  await assert.rejects(retainEvidenceInput({ root, file }), /corrupt; refusing overwrite/);
+  assert.equal(await readFile(captured.retained.path, "utf8"), "modified");
+  assert.equal(await readFile(file, "utf8"), "original");
+  await assert.rejects(
+    retainEvidenceInput({
+      root: path.join(directory, "interrupted"),
+      file,
+      beforePublish: async () => {
+        throw new Error("interrupted before publication");
+      },
+    }),
+    /interrupted before publication/,
+  );
+  const partials = await readdir(path.join(directory, "interrupted/staging"));
+  assert(partials.some((name) => name.endsWith(".partial")));
+  assert(partials.some((name) => name.endsWith(".failure.json")));
+});
+
+test("retained evidence refuses disposable ancestry and unavailable capacity", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-capacity-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "source");
+  await writeFile(file, "original");
+  await assert.rejects(
+    retainEvidenceInput({
+      root: path.join(directory, "evidence"),
+      file,
+      capacity: async () => ({ bavail: 0, bsize: 4096 }),
+    }),
+    /capacity/,
+  );
+  const cache = path.join(directory, "cache");
+  await mkdir(cache);
+  await writeFile(path.join(cache, "CACHEDIR.TAG"), "disposable");
+  await assert.rejects(validateEvidenceStore(path.join(cache, "nested")), /disposable/);
+});
+
+test("cancellation joins the blocked publication worker and preserves staging without publication", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-cancel-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "source");
+  await writeFile(file, "original");
+  const controller = new AbortController();
+  let entered, release;
+  const reached = new Promise((resolve) => {
+    entered = resolve;
+  });
+  const blocked = new Promise((resolve) => {
+    release = resolve;
+  });
+  let finished = false,
+    partial,
+    published;
+  const operation = retainEvidenceInput({
+    root: path.join(directory, "evidence"),
+    file,
+    signal: controller.signal,
+    beforePublish: async (state) => {
+      partial = state.partial;
+      published = state.published;
+      entered();
+      await blocked;
+    },
+  });
+  const rejected = assert.rejects(operation, /abort|cancel/iu).finally(() => {
+    finished = true;
+  });
+  await reached;
+  controller.abort(new Error("cancel requested"));
+  await Promise.resolve();
+  assert.equal(finished, false);
+  assert.equal(await readFile(partial, "utf8"), "original");
+  release();
+  await rejected;
+  await assert.rejects(stat(published), { code: "ENOENT" });
+  assert.equal(await readFile(partial, "utf8"), "original");
+});
+
+test("late cancellation preserves already admitted evidence publication", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-late-cancel-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "source");
+  await writeFile(file, "original");
+  const controller = new AbortController();
+  const captured = await retainEvidenceInput({
+    root: path.join(directory, "evidence"),
+    file,
+    signal: controller.signal,
+    afterPublish: async () => {
+      controller.abort(new Error("late cancellation"));
+    },
+  });
+  assert.equal(controller.signal.aborted, true);
+  assert.equal(await readFile(captured.retained.path, "utf8"), "original");
+  await verifyConsumedInputs([captured]);
+});
 
 test("partial and failed evidence cannot become a pass", () => {
   assert.equal(evidenceOutcome([]), "not-run");

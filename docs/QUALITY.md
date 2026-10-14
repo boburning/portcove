@@ -20,7 +20,7 @@ the entire Windows baseline, never an empty package selection or an automatic au
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | rust              | Windows workspace test-target compilation (`--locked --workspace --all-targets`), then affected maintained test families      |
 | frontend          | Build/typecheck and import-related unit tests; full unit fallback for shared/configuration/uncertain or empty graph selection |
-| rust-quality      | Repository/TOML formatting, plus Rust formatting for Rust inputs                                                              |
+| rust-quality      | Repository/TOML formatting, Rust formatting for Rust inputs, and full frontend/tooling lint for affected inputs               |
 | catalog           | Relevant cheap schema, repository and tooling contract tests                                                                  |
 | dependency-review | Relevant dependency diff, with the existing high-severity rejection policy                                                    |
 
@@ -32,6 +32,14 @@ pinned PowerShell lint with its causal fixture. It builds no Desktop application
 and uses no drivers, native session or game inputs. Both rename sides select it;
 unknown-path broad fallback includes it. A failed or missing selected producer
 fails `catalog`. Exhaustive qualification retains its Windows coverage.
+
+Linted JavaScript/TypeScript/CSS inputs, their lint configuration and dependency
+or toolchain inputs select one full `corepack pnpm lint` stage. Both rename sides
+and deletions count; safe unknown-impact fallback also selects it. The existing
+quality producer owns hosted execution, including tooling-only changes, while
+the optional local baseline runs the same obligation. Prose-only, Rust-only and
+unrelated assets do not select lint. Pre-commit remains formatting/syntax/copy
+feedback. Exhaustive qualification retains full lint independently.
 
 Rust execution reuses `.config/rust-test-impact.json`. Every group is package
 qualified, has nonzero runnable tests, and contributes its exact binary/test
@@ -300,6 +308,20 @@ Use four delivery paths:
   advisory, locked graph and exposed function. Necessary fixes proceed separately
   from elective upgrades, without the ordinary release-age or intake delay; review,
   signatures, required checks and affected native/installed behavior remain.
+
+The actual pnpm lock delta is audited by `dependency-release-age.mjs` in the
+existing hosted dependency-review lanes and `renovate-check`.
+The blocking hosted audit runs at the PR delivery boundary. Main push checks do
+not reclassify an already reviewed security merge without its PR intent metadata.
+Every newly introduced registry artifact, including transitives, needs an authoritative npm
+publication timestamp and three complete days. Unchanged artifacts and removals
+are excluded; peer contexts retain package identity. Young artifacts report their
+exact eligibility time. Unsupported sources, malformed locks or unavailable
+registry evidence are explicit unknowns requiring a specific reviewed resolution.
+A green Renovate selected-version status does not qualify newer lock resolutions.
+Security intent reports the same age findings and routes to the existing
+advisory-backed controlled review described above; it never grants ordinary age
+eligibility. No global pnpm resolver setting or new required status is introduced.
 
 The fast-lane whole-lock comparison permits only the claimed direct version and
 registry integrity transition. Unknown syntax, other resolution changes, source,

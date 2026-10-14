@@ -16,6 +16,20 @@ import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
 import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+test("both existing dependency lanes audit exact changed pnpm artifacts", () => {
+  for (const name of ["fast_dependency_review", "dependency_review_full"]) {
+    const block = workflow.split("  " + name + ":")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
+    assert.match(block, /fetch-depth: 0/u);
+    assert.match(block, /dependency-release-age\.mjs --base/u);
+    assert.match(
+      block,
+      /name: Audit actual changed pnpm artifacts\n\s+if: github\.event_name == 'pull_request'/u,
+    );
+    assert.match(block, /pull_request\.base\.sha/u);
+    assert.match(block, /pull_request\.head\.sha/u);
+    assert.match(block, /--frozen-lockfile --ignore-scripts/u);
+  }
+});
 const qualificationWorkflow = await readFile(
   new URL("../.github/workflows/qualification.yml", import.meta.url),
   "utf8",
@@ -465,10 +479,14 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(fastDependencyReview, /head-ref:/);
 });
 
-test("ordinary formatting has one owner and analyzers stay in qualification", () => {
+test("ordinary formatting and lint have one quality owner; deep analyzers stay in qualification", () => {
   const formatting = workflow.split("  fast_rust_quality:")[1].split("  fast_frontend:")[0];
   assert.match(formatting, /format:check/);
   assert.match(formatting, /cargo fmt/);
+  assert.match(formatting, /node scripts\/ci-baseline\.mjs lint/);
+  assert.match(formatting, /PORTCOVE_PLAN_JSON:/);
+  assert.match(formatting, /PORTCOVE_CI_METRICS_DIR:/);
+  assert.match(formatting, /ci-metrics\.mjs summarize/);
   assert.doesNotMatch(formatting, /cargo clippy|lint:oxlint|run-fallow/);
   const frontend = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
   assert.doesNotMatch(frontend, /format:check|pnpm lint/);

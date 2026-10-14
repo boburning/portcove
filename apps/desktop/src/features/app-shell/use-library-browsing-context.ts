@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAppShellState, type BrowsingInputs } from "./use-app-shell-state";
 import { useWorkspaceContinuity, type WorkspaceBrowsingPositions } from "../../keyboard-shortcuts";
 
@@ -12,6 +12,25 @@ const maximumStoredCharacters = 64 * 1024;
 const browsingSections = ["library", "catalog", "updates", "settings"] as const;
 
 type PreferenceFailure = "read" | "write";
+
+function preferenceFeedback(initial: PreferenceFailure | undefined) {
+  let failure = initial;
+  const listeners = new Set<() => void>();
+  return {
+    read: () => failure,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    publish: (next: PreferenceFailure | undefined) => {
+      if (failure === next) return;
+      failure = next;
+      for (const listener of listeners) listener();
+    },
+  };
+}
 
 export function libraryBrowsingPreferenceKey(root: string): string {
   return `portcove.browsing-inputs.v1:${libraryBrowsingKey(root)}`;
@@ -82,7 +101,7 @@ function writeBrowsingInputs(root: string, serializedInputs: string): void {
   const serialized = JSON.stringify({
     version: 2,
     library: libraryBrowsingKey(root),
-    inputs: JSON.parse(serializedInputs),
+    inputs: JSON.parse(serializedInputs) as unknown,
   });
   if (serialized.length > maximumStoredCharacters) throw new Error("oversized preference");
   window.localStorage.setItem(libraryBrowsingPreferenceKey(root), serialized);
@@ -122,9 +141,10 @@ export function useLibraryBrowsingContext({
       existed: Boolean(initial) || stored.existed,
     };
   });
-  const [preferenceFailure, setPreferenceFailure] = useState<PreferenceFailure | undefined>(
-    "failure" in restored ? restored.failure : undefined,
+  const [feedback] = useState(() =>
+    preferenceFeedback("failure" in restored ? restored.failure : undefined),
   );
+  const preferenceFailure = useSyncExternalStore(feedback.subscribe, feedback.read, feedback.read);
   const unreadablePreference = useRef(preferenceFailure === "read");
   const [mountedRoot] = useState(root);
   const ui = useAppShellState(returnToSelection ? "settings" : "library", restored.inputs);
@@ -135,10 +155,10 @@ export function useLibraryBrowsingContext({
     try {
       writeBrowsingInputs(root, serializedInputs);
       unreadablePreference.current = false;
-      setPreferenceFailure(undefined);
+      feedback.publish(undefined);
       return true;
     } catch {
-      setPreferenceFailure(unreadablePreference.current ? "read" : "write");
+      feedback.publish(unreadablePreference.current ? "read" : "write");
       return false;
     }
   };
@@ -152,11 +172,11 @@ export function useLibraryBrowsingContext({
       return;
     try {
       writeBrowsingInputs(root, serializedInputs);
-      setPreferenceFailure(undefined);
+      feedback.publish(undefined);
     } catch {
-      setPreferenceFailure("write");
+      feedback.publish("write");
     }
-  }, [root, mountedRoot, restored.existed, serializedInputs, initialInputs]);
+  }, [root, mountedRoot, restored.existed, serializedInputs, initialInputs, feedback]);
   const { view, setView } = ui;
   const interactedBeforeReady = useRef(false);
   useEffect(() => {

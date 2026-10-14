@@ -59,11 +59,11 @@ it.each(["first-workspace", "changed-workspace"])(
       expect(buttons().every((button) => button.getAttribute("aria-pressed") === "false")).toBe(
         true,
       );
-      await act(async () => buttons()[1]!.click());
+      await act(async () => buttons()[1].click());
       expect(host.textContent).toContain("Retained setup method unknown");
       expect(host.textContent).toContain("observation unavailable");
       await render("first-workspace");
-      expect(buttons()[1]!.getAttribute("aria-pressed")).toBe("true");
+      expect(buttons()[1].getAttribute("aria-pressed")).toBe("true");
       result.matchingContexts = new Map([["port", [installed]]]);
       await render(replacementBinding);
       expect(buttons().every((button) => button.getAttribute("aria-pressed") === "false")).toBe(
@@ -72,8 +72,8 @@ it.each(["first-workspace", "changed-workspace"])(
       expect(host.textContent).not.toContain("Retained setup method unknown");
       expect(host.textContent).toContain("Your previous choice is no longer current");
       expect(host.textContent).not.toContain("This is the matching retained installation");
-      await act(async () => buttons()[0]!.click());
-      expect(buttons()[0]!.getAttribute("aria-pressed")).toBe("true");
+      await act(async () => buttons()[0].click());
+      expect(buttons()[0].getAttribute("aria-pressed")).toBe("true");
       expect(host.textContent).toContain("This is the matching retained installation");
       gameFiles = {
         libraryKey: "selected",

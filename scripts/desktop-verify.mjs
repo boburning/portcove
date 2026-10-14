@@ -27,6 +27,7 @@ import {
   checkFrontendBuildReuse,
   createFrontendBuildIdentity,
   recordFrontendBuild,
+  createVerificationBuildIdentity,
 } from "./desktop-build-cache.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -449,6 +450,25 @@ async function runVerification(options, selection) {
       timings.at(-1).reuse = frontendReuse;
     }
     const desktopFeatures = ["tauri/custom-protocol", ...plan.qualification_features];
+    const buildIdentity = ["win32", "linux"].includes(process.platform)
+      ? await createVerificationBuildIdentity({
+          root,
+          frontendIdentity,
+          frontendOutputFingerprint: frontendReuse.output_fingerprint,
+          features: desktopFeatures,
+          cliFeatures: plan.cli_features,
+          environment,
+        })
+      : {
+          fingerprint: null,
+          inventory_complete: false,
+          native_reuse: { reused: false, reason: "outside-windows-linux-verification-extension" },
+        };
+    await writeFile(
+      path.join(runDirectory, "build-identity.json"),
+      JSON.stringify(buildIdentity, null, 2),
+      { flag: "wx" },
+    );
     await phase("desktop-build", "cargo", [
       "build",
       "-p",
@@ -489,6 +509,12 @@ async function runVerification(options, selection) {
           reload_cycles: options.reloadCycles,
           source_state: source,
           build_reuse: frontendReuse,
+          verification_build: {
+            build_input_fingerprint: buildIdentity.fingerprint,
+            inventory_complete: buildIdentity.inventory_complete,
+            native_reuse: buildIdentity.native_reuse,
+            compiled_source_revision: source.revision,
+          },
           phases: timings,
         },
         null,

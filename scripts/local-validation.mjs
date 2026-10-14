@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { resolveUiSelection } from "./ui-test-selection.mjs";
+import { isRepositoryLintInput } from "./run-oxlint.mjs";
 import { fileURLToPath } from "node:url";
 import {
   nativeHelperDependencies,
@@ -458,6 +459,7 @@ function existingSiblingTest(file, fileExists) {
 
 function classifyOnePath(selection, input, fileExists, options = {}) {
   const file = normalizePath(input);
+  if (isRepositoryLintInput(file)) selection.repositoryLint = true;
   const extension = path.posix.extname(file).toLowerCase();
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
@@ -822,6 +824,7 @@ export function classifyChanges(changes, options = {}) {
     browser: false,
     uiFullTests: false,
     oxlint: false,
+    repositoryLint: false,
     stylelint: false,
     actionsLint: false,
     powershellLint: false,
@@ -929,6 +932,15 @@ export function buildPlan(selection, context = {}) {
       context.mergeBase ?? "<merge-base>",
     ]),
   ];
+  if (selection.repositoryLint || broad || validation?.fallback || validation?.changes.length === 0)
+    commands.push(
+      corepackCommand(
+        "repository-lint",
+        "complete repository frontend/tooling lint",
+        ["pnpm", "lint"],
+        { cwd: projectRoot },
+      ),
+    );
   const files = sorted(selection.oxfmtFiles).filter((file) =>
     existsSync(path.join(projectRoot, file)),
   );
@@ -1450,6 +1462,7 @@ function localStageDomains(entry) {
       "actionlint",
       "lint-tool-fixtures",
       "oxlint",
+      "repository-lint",
       "powershell-lint",
       "python-lint",
       "shell-lint",
@@ -1479,6 +1492,7 @@ function localStageReusable(entry) {
     localStageDomains(entry).length > 0 &&
     entry.id !== "dependency-policy" &&
     entry.id !== "oxlint" &&
+    entry.id !== "repository-lint" &&
     entry.id !== "ui-related-durations" &&
     entry.id !== "ui-browser-tests"
   );
@@ -1603,7 +1617,8 @@ export function storageScopeForPlan(plan) {
   for (const { id } of plan) {
     if (["rustfmt", "dependency-policy", "test-rust"].includes(id) || id.startsWith("rust-"))
       rust = true;
-    else if (id.startsWith("ui-") || ["oxfmt", "oxlint", "fallow"].includes(id)) frontend = true;
+    else if (id.startsWith("ui-") || ["oxfmt", "oxlint", "repository-lint", "fallow"].includes(id))
+      frontend = true;
     else if (id !== "diff-check" && id !== "node-tests" && !id.startsWith("node-syntax:"))
       return "all";
   }

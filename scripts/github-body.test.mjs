@@ -3,6 +3,231 @@ import test from "node:test";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { checkClosureIntent, readClosingRelationships } from "./closure-intent.mjs";
+
+const repository = "boburning/portcove";
+const emptyIntent = { format_version: 1, allowed_targets: [] };
+function closingPage(nodes = [], extra = {}) {
+  return {
+    data: {
+      repository: {
+        pullRequest: {
+          number: 7,
+          headRefOid: "a".repeat(40),
+          title: "fix: safe",
+          body: "Related to #244.",
+          closingIssuesReferences: {
+            totalCount: nodes.length,
+            nodes,
+            pageInfo: { hasNextPage: false, endCursor: null },
+            ...extra,
+          },
+        },
+      },
+    },
+  };
+}
+
+test("closure permission is independent, canonical and covers variants and hidden text", () => {
+  for (const keyword of [
+    "close",
+    "closes",
+    "closed",
+    "fix",
+    "fixes",
+    "fixed",
+    "resolve",
+    "resolves",
+    "resolved",
+  ]) {
+    for (const target of [
+      "#244",
+      "Boburning/Portcove#244",
+      "https://github.com/boburning/portcove/issues/244",
+      "<https://github.com/boburning/portcove/issues/244>",
+    ]) {
+      const text = `${keyword.toUpperCase()}: ${target}`;
+      assert.throws(
+        () => checkClosureIntent(emptyIntent, { repository, texts: [text] }),
+        /Undeclared/,
+      );
+      assert.deepEqual(
+        checkClosureIntent(
+          { format_version: 1, allowed_targets: ["boburning/portcove#244"] },
+          { repository, texts: [text] },
+        ),
+        ["boburning/portcove#244"],
+      );
+    }
+  }
+  assert.throws(() => checkClosureIntent(undefined, { repository }), /independent/);
+  assert.throws(
+    () => checkClosureIntent(emptyIntent, { repository, texts: ["<!-- Closes #244 -->"] }),
+    /Undeclared/,
+  );
+  assert.throws(
+    () =>
+      checkClosureIntent(
+        { format_version: 1, allowed_targets: ["boburning/portcove#244"] },
+        { repository, texts: ["does not close #244"] },
+      ),
+    /negated/,
+  );
+  assert.deepEqual(
+    checkClosureIntent(emptyIntent, { repository, texts: ["Related to #244."] }),
+    [],
+  );
+  assert.throws(
+    () =>
+      checkClosureIntent(
+        { format_version: 1, allowed_targets: ["boburning/portcove#244"] },
+        { repository, texts: ["does not close https://github.com/boburning/portcove/issues/244"] },
+      ),
+    /negated/,
+  );
+  assert.throws(
+    () => checkClosureIntent(emptyIntent, { repository, relationships: ["other/repo#244"] }),
+    /Undeclared/,
+  );
+});
+
+test("closing relationships require complete stable opaque identities and cursors", () => {
+  const issue = { id: "opaque-issue", number: 244, repository: { nameWithOwner: repository } };
+  assert.deepEqual(
+    readClosingRelationships({ graphql: () => closingPage([issue]) }, repository, 7).relationships,
+    ["boburning/portcove#244"],
+  );
+  for (const extra of [
+    { totalCount: 2 },
+    { pageInfo: {} },
+    { totalCount: 2, pageInfo: { hasNextPage: true, endCursor: null } },
+  ])
+    assert.throws(
+      () => readClosingRelationships({ graphql: () => closingPage([issue], extra) }, repository, 7),
+      /incomplete/,
+    );
+  assert.throws(
+    () => readClosingRelationships({ graphql: () => closingPage([issue, issue]) }, repository, 7),
+    /Duplicate/,
+  );
+  let page = 0;
+  const api = {
+    graphql() {
+      const value = closingPage([{ ...issue, id: `id-${page}`, number: 244 + page }], {
+        totalCount: 2,
+        pageInfo: { hasNextPage: page === 0, endCursor: "cursor" },
+      });
+      if (page++) value.data.repository.pullRequest.body = "Changed without head change";
+      return value;
+    },
+  };
+  assert.throws(() => readClosingRelationships(api, repository, 7), /changed/);
+});
+
+test("PR writer refuses undeclared intent before mutation", () => {
+  const api = {
+    request() {
+      assert.fail("No remote mutation permitted");
+    },
+  };
+  assert.throws(
+    () =>
+      writeGitHubBody(
+        {
+          operation: "pr-create",
+          body: "Closes #244",
+          title: "fix: scoped",
+          head: "feature/scoped",
+          base: "main",
+          closureIntent: emptyIntent,
+        },
+        api,
+      ),
+    /Undeclared/,
+  );
+  assert.throws(
+    () =>
+      writeGitHubBody(
+        {
+          operation: "pr-create",
+          body: "Fixes https://github.com/boburning/portcove/issues/244",
+          title: "fix: scoped",
+          head: "feature/scoped",
+          base: "main",
+          closureIntent: emptyIntent,
+        },
+        api,
+      ),
+    /Undeclared/,
+  );
+  assert.throws(
+    () =>
+      parseBodyArguments([
+        "pr-create",
+        "--body-file",
+        "body",
+        "--title",
+        "title",
+        "--head",
+        "branch",
+        "--base",
+        "main",
+      ]),
+    /Missing/,
+  );
+});
+
+test("PR body edit checks fresh manual links before any write", () => {
+  let writes = 0;
+  const page = closingPage([
+    { id: "manual", number: 244, repository: { nameWithOwner: repository } },
+  ]);
+  const api = {
+    graphql: () => page,
+    request(method) {
+      if (method !== "GET") writes++;
+      return {
+        body: { id: 123, number: 7, body: "Related to #244.", head: { sha: "a".repeat(40) } },
+      };
+    },
+  };
+  assert.throws(
+    () =>
+      writeGitHubBody(
+        {
+          operation: "pr-edit",
+          target: 7,
+          previousBody: "Related to #244.",
+          body: "Related to #202.",
+          closureIntent: emptyIntent,
+        },
+        api,
+      ),
+    /Undeclared/,
+  );
+  assert.equal(writes, 0);
+});
+
+test("relationship pagination completes multiple pages and refuses repeated cursors", () => {
+  let page = 0;
+  const api = {
+    graphql() {
+      const index = page++;
+      return closingPage(
+        [{ id: `id-${index}`, number: 244 + index, repository: { nameWithOwner: repository } }],
+        { totalCount: 2, pageInfo: { hasNextPage: index === 0, endCursor: "first" } },
+      );
+    },
+  };
+  assert.equal(readClosingRelationships(api, repository, 7).relationships.length, 2);
+  page = 0;
+  api.graphql = () =>
+    closingPage(
+      [{ id: `id-${page}`, number: 244 + page++, repository: { nameWithOwner: repository } }],
+      { totalCount: 4, pageInfo: { hasNextPage: true, endCursor: "same" } },
+    );
+  assert.throws(() => readClosingRelationships(api, repository, 7), /pagination is incomplete/);
+});
 import {
   validateGitHubBody,
   readGitHubBody,

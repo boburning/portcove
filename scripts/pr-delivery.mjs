@@ -5,6 +5,7 @@ import { renderBoundedSummary, summarizeReport, retainReportSummary } from "./re
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkClosureIntent, readClosingRelationships } from "./closure-intent.mjs";
 import {
   GitHubApiClient,
   createGitHubRunner,
@@ -53,6 +54,22 @@ function deliveryOutcomeError(status, message, evidence = {}, cause = null) {
   error.operationStatus = status;
   error.operationEvidence = evidence;
   return error;
+}
+
+export function retainMergeReceipt(directory, packet, io = { mkdirSync, writeFileSync }) {
+  const file = path.join(directory, `${randomUUID()}-merge.json`);
+  try {
+    io.mkdirSync(directory, { recursive: true });
+    io.writeFileSync(file, JSON.stringify(packet), { flag: "wx" });
+    return file;
+  } catch (error) {
+    throw deliveryOutcomeError(
+      "failed",
+      `Merge completed as ${packet.result.sha}; receipt retention failed; do not retry merge: ${error.message}`,
+      { merge_completed: true, ...packet },
+      error,
+    );
+  }
 }
 
 function exactKeys(value, expected, label) {
@@ -233,7 +250,7 @@ export class PullRequestDeliveryClient {
     };
   }
 
-  merge(number, head, requiredContexts) {
+  merge(number, head, requiredContexts, closureIntent, mergeMessage) {
     const state = this.requiredCheckState(number, head, requiredContexts);
     if (state.pull.draft) throw new Error(`pull request #${number} is still a draft`);
     if (state.pull.mergeable !== true)
@@ -249,12 +266,51 @@ export class PullRequestDeliveryClient {
           .map((context) => `${context.context}=${context.conclusion}`)
           .join(", ")}`,
       );
+    if (
+      !mergeMessage ||
+      typeof mergeMessage.title !== "string" ||
+      !mergeMessage.title.trim() ||
+      /[\r\n]/u.test(mergeMessage.title) ||
+      typeof mergeMessage.body !== "string"
+    )
+      throw new Error("An explicit squash message with title and body is required");
+    const closing = readClosingRelationships(this.api, repository, number);
+    if (
+      closing.head !== head ||
+      closing.body !== state.pull.body ||
+      closing.title !== state.pull.title
+    )
+      throw new Error("PR body or closing relationships changed; refresh delivery review");
+    const commits = this.pullCommits(number);
+    if (
+      commits.length !== state.pull.commits ||
+      commits.at(-1)?.sha !== head ||
+      commits.some((commit) => typeof commit.commit?.message !== "string")
+    )
+      throw new Error("Candidate commit message inventory is incomplete");
+    checkClosureIntent(closureIntent, {
+      repository,
+      texts: [
+        closing.body,
+        ...commits.map((commit) => commit.commit.message),
+        mergeMessage.title,
+        mergeMessage.body,
+      ],
+      relationships: closing.relationships,
+    });
+    const refreshed = readClosingRelationships(this.api, repository, number);
+    if (refreshed.fingerprint !== closing.fingerprint)
+      throw new Error(
+        "PR body or closing relationships changed before merge; refresh delivery review",
+      );
     let result = null;
     let requestError = null;
     try {
       result = this.request("PUT", `repos/${repository}/pulls/${number}/merge`, {
         merge_method: "squash",
         sha: head,
+        commit_title: mergeMessage.title,
+        commit_message: mergeMessage.body,
       }).body;
     } catch (error) {
       requestError = error;
@@ -310,7 +366,51 @@ export class PullRequestDeliveryClient {
         requestError,
       );
     }
-    return { result, readback, contexts: state.contexts };
+    const closureReadback = {
+      mutation: result,
+      pull: readback,
+      actual_commit: null,
+      closing: null,
+    };
+    try {
+      const actual = this.request(
+        "GET",
+        `repos/${repository}/git/commits/${readback.merge_commit_sha}`,
+      ).body;
+      closureReadback.actual_commit = actual;
+      const expectedMessage = mergeMessage.body
+        ? `${mergeMessage.title}\n\n${mergeMessage.body}`
+        : mergeMessage.title;
+      if (
+        actual?.sha !== readback.merge_commit_sha ||
+        actual.message?.replace(/\n$/u, "") !== expectedMessage.replace(/\n$/u, "")
+      )
+        throw new Error("Actual merged commit message differs from the checked squash message");
+      const after = readClosingRelationships(this.api, repository, number);
+      closureReadback.closing = after;
+      if (after.fingerprint !== closing.fingerprint)
+        throw new Error("PR body or closing relationships changed across merge");
+    } catch (error) {
+      throw deliveryOutcomeError(
+        "unknown",
+        `Merge occurred; closure readback needs reconciliation: ${error.message}`,
+        {
+          pull_request: number,
+          head,
+          merge_commit_sha: readback.merge_commit_sha,
+          closing,
+          closure_readback: closureReadback,
+        },
+        error,
+      );
+    }
+    return {
+      result,
+      readback,
+      contexts: state.contexts,
+      closing,
+      closure_readback: closureReadback,
+    };
   }
 }
 
@@ -371,6 +471,25 @@ export function renovateCheckEnvelope({ number, head, result, snapshot }) {
       ...result.evidence,
     },
   });
+}
+
+export function lockedAgeVerdict(result, lockedAge) {
+  const evidence = { ...result.evidence, locked_release_age: lockedAge };
+  if (result.verdict === "reject" || lockedAge.state === "eligible") return { ...result, evidence };
+  const eligibility = lockedAge.findings
+    .filter((finding) => finding.state === "young")
+    .map((finding) => finding.eligibleAt)
+    .sort()
+    .at(-1);
+  return {
+    ...result,
+    evidence,
+    verdict:
+      lockedAge.securityIntent || lockedAge.state === "unknown"
+        ? "manual-review-required"
+        : "waiting",
+    reason: `Actual locked release age: ${lockedAge.state}; ${lockedAge.route}${eligibility ? "; eligible at " + eligibility : ""}`,
+  };
 }
 
 // This read-only client bounds both each gh subprocess and all pages/reads in
@@ -756,12 +875,12 @@ export function inspectRenovateQueue(client, config, contexts, inspectBase = ins
 const deliveryFlags = {
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress"],
   "renovate-check": ["--pr", "--head", "--queue", "--json", "--summary"],
-  merge: ["--pr", "--head", "--json"],
+  merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file", "--json"],
 };
 const deliveryRequired = {
   watch: ["--pr", "--head", "--run", "--attempt", "--deadline"],
   "renovate-check": ["--pr", "--head"],
-  merge: ["--pr", "--head"],
+  merge: ["--pr", "--head", "--closure-intent-file", "--merge-message-file"],
 };
 const deliveryValues = {
   "--pr": "number-or-url",
@@ -769,6 +888,8 @@ const deliveryValues = {
   "--run": "run-id",
   "--attempt": "positive-attempt",
   "--deadline": "UTC-time",
+  "--closure-intent-file": "JSON-file",
+  "--merge-message-file": "JSON-file",
 };
 export function deliveryHelp(command = null) {
   const commands = command ? [command] : Object.keys(deliveryFlags);
@@ -936,6 +1057,19 @@ async function main(argv) {
         reason: `pull request head changed to ${baseEvidence.changedHead}`,
         evidence: { expected_head: head, observed_head: baseEvidence.changedHead },
       };
+    if (
+      !baseEvidence.changedHead &&
+      snapshot.files.some((file) => file.filename === "pnpm-lock.yaml")
+    ) {
+      const { auditGitReleaseAge } = await import("./dependency-release-age.mjs");
+      const lockedAge = await auditGitReleaseAge({
+        root: projectRoot,
+        base: baseEvidence.currentMergeBase,
+        head,
+        securityIntent: renovateSecurityIntent(snapshot.pull),
+      });
+      result = lockedAgeVerdict(result, lockedAge);
+    }
     if (result.verdict === "metadata-required") {
       try {
         const metadata = await runMetadataValidation({
@@ -1038,7 +1172,15 @@ async function main(argv) {
     return;
   }
   if (command === "merge") {
-    const merged = client.merge(number, head, contexts);
+    const merged = client.merge(
+      number,
+      head,
+      contexts,
+      JSON.parse(await readFile(options["--closure-intent-file"], "utf8")),
+      JSON.parse(await readFile(options["--merge-message-file"], "utf8")),
+    );
+    const directory = path.join(projectRoot, "work/pr-delivery");
+    const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });
     const summary =
       `Merged pull request #${number} at exact head ${head} as ${merged.result.sha}; ` +
       "remote readback confirmed.";
@@ -1058,6 +1200,7 @@ async function main(argv) {
                 conclusion,
               })),
               remote_readback: true,
+              closure_receipt: closureReceipt,
             },
           }),
         ),

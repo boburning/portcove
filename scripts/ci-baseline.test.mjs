@@ -6,12 +6,16 @@ import os from "node:os";
 import path from "node:path";
 import { createCiMetrics } from "./ci-metrics.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
+import { discoverCiPlan } from "./select-ci-plan.mjs";
+import { buildPlan } from "./local-validation.mjs";
 import {
   baselineContractTests,
   baselineFrontendPlan,
+  baselineLintPlan,
   baselineIntegrityCommands,
   baselineBootstrapTests,
   baselineTestEnvironment,
+  baselineSelection,
 } from "./ci-baseline.mjs";
 const make = (files) =>
   buildValidationPlan({
@@ -28,6 +32,102 @@ const make = (files) =>
     head: "b".repeat(40),
     checkout: "b".repeat(40),
   });
+
+test("local and hosted lint use one full stage for relevant inputs, including rename and deletion", () => {
+  for (const file of [
+    "apps/desktop/src/App.tsx",
+    "apps/desktop/src/app.css",
+    "scripts/tool.test.mjs",
+    "scripts/new.ts",
+    ".oxlintrc.json",
+    ".node-version",
+    "apps/desktop/stylelint.config.mjs",
+    "apps/desktop/tsconfig.json",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "unknown/input.bin",
+    "apps/desktop/assets/unmapped.bin",
+  ]) {
+    const plan = make([file]);
+    const hosted = baselineLintPlan(plan);
+    assert.equal(hosted.length, 1, file);
+    assert.equal(hosted[0].id, "repository-lint");
+    assert.equal(hosted[0].executable, "corepack");
+    assert.deepEqual(hosted[0].args, ["pnpm", "lint"]);
+    assert.equal(path.resolve(hosted[0].cwd), process.cwd());
+    assert.deepEqual(
+      hosted,
+      buildPlan(baselineSelection(plan), { validationPlan: plan }).filter(
+        (entry) => entry.id === "repository-lint",
+      ),
+    );
+  }
+  for (const file of [
+    "docs/QUALITY.md",
+    "crates/portcove-core/src/lib.rs",
+    "apps/desktop/public/logo.png",
+    "apps/desktop/src/artwork.png",
+  ])
+    assert.deepEqual(baselineLintPlan(make([file])), [], file);
+  const changes = [
+    {
+      status: "R100",
+      oldPath: "scripts/old.mjs",
+      newPath: "docs/old.md",
+      oldMode: "100644",
+      newMode: "100644",
+    },
+    {
+      status: "D",
+      oldPath: "apps/desktop/src/old.tsx",
+      newPath: "apps/desktop/src/old.tsx",
+      oldMode: "100644",
+      newMode: "000000",
+    },
+  ];
+  for (const change of changes) {
+    const plan = buildValidationPlan({
+      changes: [change],
+      eventName: "pull_request",
+      base: "a".repeat(40),
+      mergeBase: "a".repeat(40),
+      head: "b".repeat(40),
+      checkout: "b".repeat(40),
+    });
+    assert.equal(baselineLintPlan(plan).length, 1, change.status);
+  }
+  assert.equal(baselineLintPlan(make(["scripts/a.mjs", "apps/desktop/src/App.tsx"])).length, 1);
+});
+
+test("first pushes and missing historical bases retain full lint without changed-file entries", () => {
+  const options = {
+    eventName: "push",
+    baseSha: "a".repeat(40),
+    headSha: "b".repeat(40),
+    checkoutSha: "b".repeat(40),
+    fastValidationEnabled: true,
+    proseOnlyEnabled: true,
+  };
+  const first = discoverCiPlan({ ...options, baseSha: "0".repeat(40) }, () =>
+    assert.fail("first push needs no historical Git reads"),
+  );
+  const missing = discoverCiPlan(options, (args) => {
+    if (args[0] === "cat-file" && args[2].startsWith("a".repeat(40)))
+      throw Object.assign(new Error("missing base"), { status: 128 });
+    return Buffer.alloc(0);
+  });
+  for (const plan of [first, missing]) {
+    assert.deepEqual(plan.changes, []);
+    assert.equal(plan.fallback, null);
+    assert.equal(plan.groups.length, 5);
+    const local = buildPlan(baselineSelection(plan), { validationPlan: plan }).filter(
+      (entry) => entry.id === "repository-lint",
+    );
+    assert.equal(local.length, 1);
+    assert.deepEqual(baselineLintPlan(plan), local);
+  }
+});
 test("Playnite and handoff repairs select their cheap regressions in ordinary CI", () => {
   const tests = baselineContractTests(
     make(["integrations/playnite/check.ps1", "scripts/handoff-evidence.mjs"]),

@@ -313,7 +313,6 @@ test("documented repository-skill and PR-delivery commands exist", async () => {
     new URL("../docs/CONTRIBUTION-CONVENTIONS.md", import.meta.url),
     "utf8",
   );
-  const deliveryScript = await readFile(new URL("./pr-delivery.mjs", import.meta.url), "utf8");
 
   const catalogTest = /`just test-rust -p portcove-core ([a-z0-9_]+)`/iu.exec(portSkill)?.[1];
   assert.ok(catalogTest, "optional focused catalog command must name a real test");

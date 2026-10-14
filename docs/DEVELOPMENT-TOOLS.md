@@ -1,5 +1,39 @@
 # Development tools
 
+## Verification input and execution identities
+
+The Windows/Linux native CLI wrapper captures declared inputs before importing
+the harness. Supported standalone products and cached drivers execute retained
+bytes; path-sensitive or unestablished layouts retain the original path with
+cooperative content checks. Helpers are checked before the target import,
+application/driver launch boundaries and after execution. Already loaded trusted
+verifier inputs remain separately labeled observations. These mechanisms do not
+prove immutable consumption of every live-path dependency.
+
+Version-3 native receipts keep original and retained identities, consumed paths,
+binding mechanisms and limits. Version-2 receipts remain readable historical
+observations; retention established later is a new observation, never backdated
+custody. Input capture shares the selected existing execution deadline and awaits
+its worker before reporting cancellation. Publication admitted before late
+cancellation is preserved; required execution/acceptance is never inferred from
+the retained object.
+
+Build-input fingerprints, product-artifact identities, harness identities and
+execution/qualification bindings are separate comparison fields. Runtime,
+fixtures, initial state, selected requirements/scenarios and criteria affect
+execution reuse even when product bytes match. Source-head provenance is separate
+from content reuse; documentation-only changes need not rebuild the frontend.
+Existing exact-head CI remains required.
+
+The existing frontend cache verifies its complete declared inputs and outputs.
+Native compiler/version observations do not seal SDK/system-provider inputs;
+native product build skipping remains unavailable at that boundary. Normal
+Cargo invocation and supported incremental behavior remain. This extends only
+the existing Windows/Linux profiles, not a universal cache or dependency engine.
+See [the comparison decision](adr/0002-separate-build-reuse-from-qualification.md)
+and [delivery terminology](../GLOSSARY.md). Packet stages described in that ADR
+are the chosen boundary for the later package component, not a new global gate.
+
 Before overlapping local Rust or native commands, use `just resource-status` for
 a passive snapshot of existing guard records. It reports recorded identities and
 unknown coverage; the guards still own admission. Sequence conflicting owned
@@ -32,6 +66,8 @@ execution and reconciles requested files with Vitest's executed report. A succes
 partial match is a failure; skip counts are reported separately. Use
 `just test-ui-related FILES` for source files and import-graph coverage instead.
 Both routes retain the existing isolation, timing and resource contracts.
+Use the literal-file wrapper rather than direct Vitest filename filters, which
+can silently accept a partial match.
 
 Read `node scripts/roadmap.mjs set --help` for current field flags and values;
 command-specific help runs offline without acquiring a live-operation lock.
@@ -43,7 +79,45 @@ summary success, and missing retention fails explicitly.
 Use one `just pr-watch` per source/run/attempt/deadline binding. Opt into
 `--progress` for change-only workflow/check observations on stderr while final
 JSON stays on stdout. Repeated unchanged observations remain quiet. Consume the
-watch result or retained snapshots; retrieve the identified failed job when needed.
+progress stream live; redirect only stdout when retaining the final JSON result.
+Use `node scripts/report-summary.mjs watch FILE` for its bounded final summary.
+Consume the watch result or retained snapshots; retrieve the identified failed
+job when needed.
+When a tool returns a running session, consume it with a bounded wait of at most
+60 seconds before the next commentary update. Reuse its final report; do not
+start another watcher or repeatedly fetch unchanged state.
+
+Frontend command chains use `corepack pnpm`, including nested typecheck and
+test commands. The build child filters `TAURI_SIGNING_*` and reports missing
+Corepack with the repository bootstrap route; no global pnpm shim is needed.
+
+For a dependency-only bundle comparison, use:
+
+`node scripts/frontend-build-compare.mjs --baseline ROOT --candidate ROOT --dependency NAME --evidence-root ROOT`
+
+Both inputs must be clean, distinct, nonnested Git checkout roots with equivalent
+tracked source/configuration except the declared dependency and its narrow lock
+transition. Archives, dirty/ignored source contamination and existing build
+outputs are refused. Run install and build in both using the same pinned manager.
+The external evidence root retains a unique attempt, heads, input hashes, versions,
+command streams and asset inventories. JS and CSS raw/gzip totals stay separate.
+Failures and build outputs are preserved; the command never cleans caller roots.
+
+For the retained serde_json engine investigation, use:
+
+`node scripts/renovate-engine-probe.mjs --engine ENGINE --workspace INPUT --config renovate.json --observed-at ISO_TIME --evidence-root ROOT`
+
+Supply a complete isolated Cargo input with its pre-update lock and the official
+engine matched to `scripts/fixtures/serde-json-renovate-44.156.3.json`. The probe
+copies inputs to a unique evidence attempt and checks source hashes, extraction,
+preset/lookup Result shapes, effective policy and pending flags before Cargo.
+It needs an eligible selected release plus a newer ineligible compatible release
+at the explicit clock. Historical clock replay is local evidence, not hosted
+uptake. Real registry/artifact observations and synthetic policy boundaries are
+labelled separately. Engine/source drift requires fresh capture and adapter
+review; missing command records fail. #1973 still needs a naturally occurring
+hosted proposal/artifact readback, and full lockfile maintenance remains outside
+this scoped transitive-age guarantee.
 
 ## Early commit feedback
 

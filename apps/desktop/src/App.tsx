@@ -393,8 +393,10 @@ function Workspace({
     operations.perform,
   );
   const setupReviews = useSetupReviewSelection();
+  const { pendingReview, takeReview } = setupReviews;
+  const { review: reviewInstallation } = installPlanning;
   useEffect(() => {
-    const request = setupReviews.pendingReview;
+    const request = pendingReview;
     if (!request) return;
     // Consume once, including StrictMode replay, and never plan a different detail.
     const matches =
@@ -407,15 +409,15 @@ function Workspace({
       model.status.port_actions?.some(
         (action) => action.action === "install" && action.availability === "allowed",
       );
-    if (setupReviews.takeReview(request) && matches) void installPlanning.review();
+    if (takeReview(request) && matches) void reviewInstallation();
   }, [
-    setupReviews.pendingReview,
-    setupReviews.takeReview,
+    pendingReview,
+    takeReview,
     ui.selectedId,
     model.port?.id,
     model.status,
     data.refreshFailure,
-    installPlanning.review,
+    reviewInstallation,
   ]);
   const backups = usePortBackups(model.port?.id);
   useLibrarySelectionLanding(returnToSelection, workspace, consumeLibrarySelectionReturn);

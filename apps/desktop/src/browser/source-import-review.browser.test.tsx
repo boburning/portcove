@@ -128,20 +128,18 @@ it.each(["light", "dark"])(
         .toMatchTextContent(
           containsText(`Additional file data planned: ${mode === "copy" ? "64 B" : "0 B"}`),
         );
-      if (mode === "move") {
-        await expect
-          .element(review)
-          .toMatchTextContent(containsText("existing Portcove copy will be checked and reused"));
-        await expect
-          .element(review)
-          .toMatchTextContent(containsText("original is deleted only after"));
-      }
-      if (mode === "use_current_location") {
-        await expect.element(review).not.toMatchTextContent(containsText("existing Portcove copy"));
-        await expect
-          .element(review)
-          .toMatchTextContent(containsText("Keep this location available"));
-      }
+      const present =
+        mode === "move"
+          ? ["existing Portcove copy will be checked and reused", "original is deleted only after"]
+          : mode === "use_current_location"
+            ? ["Keep this location available"]
+            : [];
+      const absent = mode === "use_current_location" ? ["existing Portcove copy"] : [];
+      for (const message of present)
+        await expect.element(review).toMatchTextContent(containsText(message));
+      for (const message of absent)
+        await expect.element(review).not.toMatchTextContent(containsText(message));
+
       const element = document.querySelector<HTMLElement>('[aria-label="Source import review"]')!;
       for (const code of element.querySelectorAll("code")) {
         const box = code.getBoundingClientRect();

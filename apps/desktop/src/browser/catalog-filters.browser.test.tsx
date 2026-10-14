@@ -124,14 +124,13 @@ const switchLibrary = async () => {};
 let host: HTMLDivElement;
 let root: Root;
 function Session({ library }: { library: string }) {
-  const browsing = useLibraryBrowsingContext({
+  const { ui, workspace } = useLibraryBrowsingContext({
     root: library,
     remember,
     switchLibrary,
     resetLibrary: switchLibrary,
     ready: false,
   });
-  const ui = browsing.ui;
   const [detail, setDetail] = useState<string>();
   const [facts, setFacts] = useState(true);
   const [downloaded, setDownloaded] = useState(true);
@@ -143,11 +142,12 @@ function Session({ library }: { library: string }) {
       })
     : new Map<string, PortStatus>();
   const context = facts ? browsingContextFixture(ports, selectedStatuses, library) : {};
+  const { setView } = ui;
   useEffect(() => {
-    ui.setView("catalog");
-  }, [ui.setView]);
+    setView("catalog");
+  }, [setView]);
   return (
-    <main ref={browsing.workspace}>
+    <main ref={workspace}>
       <label>
         Search catalog
         <input value={ui.query} onChange={(event) => ui.setQuery(event.target.value)} />
@@ -315,7 +315,9 @@ it("retains unsupported persisted intent until explicit reset", async () => {
   await expect.element(roleButton("Filters (0)")).toBeInTheDocument();
   const key = libraryBrowsingPreferenceKey("/filters-library-a");
   await userEvent.click(roleButton("Stable"));
-  const stored = JSON.parse(localStorage.getItem(key)!);
+  const stored = JSON.parse(localStorage.getItem(key)!) as {
+    inputs: { sections: { catalog: { filter: unknown } } };
+  };
   stored.inputs.sections.catalog.filter = { version: 999, platforms: ["future"] };
   localStorage.setItem(key, JSON.stringify(stored));
   flushSync(() => root.unmount());
@@ -323,7 +325,9 @@ it("retains unsupported persisted intent until explicit reset", async () => {
   flushSync(() => root.render(<Fixture />));
   await userEvent.click(roleButton("Filters (0)"));
   await expect.element(roleButton("Windows (unavailable)")).toBeDisabled();
-  expect(JSON.parse(localStorage.getItem(key)!).inputs.sections.catalog.filter.version).toBe(999);
+  expect(JSON.parse(localStorage.getItem(key)!) as unknown).toMatchObject({
+    inputs: { sections: { catalog: { filter: { version: 999 } } } },
+  });
   await userEvent.click(roleButton("Reset catalog filters"));
   await expect.element(roleButton("Windows (2)")).toBeEnabled();
   await userEvent.keyboard("{Escape}");
