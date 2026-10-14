@@ -350,8 +350,16 @@ export async function selectedSetupCompletionScenario({
       assert.deepEqual(await read("get_statuses"), beforeSelection, "Selection grants no mutation");
       report.observations.setup_selection = [port.id, owned.reviewPort.id];
       await click(button(`Review ${port.name} setup`));
-      await browser.wait(until.elementLocated(By.id("port-detail-title")), 5_000);
-      assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
+      // The review may already hide its background from accessibility. Verify the
+      // selected detail's DOM identity, then require the actual review below.
+      await browser.wait(
+        async () =>
+          (await browser.executeScript(() =>
+            document.getElementById("port-detail-title")?.textContent?.trim(),
+          )) === port.name,
+        5_000,
+        "Selected setup must open the expected game details",
+      );
       await browser.wait(
         until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
         15_000,
