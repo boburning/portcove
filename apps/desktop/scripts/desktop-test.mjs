@@ -1479,7 +1479,7 @@ try {
           inputs.push(await fileIdentity(installFixture.preliminaryJourney[name]));
       for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
         inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
-      if (installFixture.completionJourney && process.platform === "win32") {
+      if (installFixture.completionJourney && ["win32", "linux"].includes(process.platform)) {
         installFixture.nativeConnectionJourney = true;
       } else
         installFixture.sourceJourney.root = seedSelectedSetup({
@@ -3007,15 +3007,15 @@ try {
           interruptApplication,
           closeApplication,
           captureLivePreparation,
-          chooseGameFileFolder:
-            process.platform === "win32"
-              ? nativeGameFileFolderPicker({
-                  application: values.app,
-                  getDriverIdentity: () => ownedSession.driver,
-                  output,
-                  artifacts,
-                })
-              : undefined,
+          chooseGameFileFolder: ["win32", "linux"].includes(process.platform)
+            ? nativeGameFileFolderPicker({
+                application: values.app,
+                getDriverIdentity: () => ownedSession.driver,
+                getLinuxLaunch: () => linuxSelectedSession,
+                output,
+                artifacts,
+              })
+            : undefined,
         }),
         confirmNative: () =>
           nativeConfirmation({

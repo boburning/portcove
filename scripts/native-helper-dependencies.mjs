@@ -11,7 +11,11 @@ const helper = (name) => `${desktop}${name}`;
 export const nativeHelperDependencies = Object.freeze(
   Object.fromEntries(
     [
-      ["desktop-native-confirmation.mjs", ["native-confirmation.ps1"]],
+      [
+        "desktop-native-confirmation.mjs",
+        ["native-confirmation.ps1", "native-linux-folder-picker.py"],
+      ],
+      ["native-linux-folder-picker.py", []],
       ["desktop-owned-native-session.mjs", ["native-session.ps1"]],
       ["desktop-linux-native-session.mjs", ["native-linux-init.mjs"]],
       ["native-linux-init.mjs", []],
@@ -97,10 +101,34 @@ export function nativeHelperSourceDependencies(
         throw new Error(`Escaping native helper dependency in ${file}`);
       result.add(relativeHelper(match[1]));
     }
+  } else if (file.endsWith(".py")) {
+    if (file !== helper("native-linux-folder-picker.py"))
+      throw new Error(`Unsupported Python native helper: ${file}`);
+    const runtimeImports = new Set([
+      "argparse",
+      "hashlib",
+      "json",
+      "os",
+      "select",
+      "time",
+      "sys",
+      "pathlib",
+      "gi",
+      "gi.repository",
+    ]);
+    for (const expression of source.matchAll(
+      /^\s*(?:import\s+([^\r\n]+)|from\s+([^\s]+)\s+import\s+[^\r\n]+)$/gmu,
+    )) {
+      const module = (expression[1] ?? expression[2]).trim();
+      if (!runtimeImports.has(module))
+        throw new Error(`Undeclared Python runtime import in ${file}: ${module}`);
+    }
+    if (/\b(?:__import__|exec|eval)\s*\(/u.test(source))
+      throw new Error(`Unsupported dynamic Python helper import in ${file}`);
   } else {
     for (const expression of source.matchAll(/\bnew\s+URL\s*\(([^)]*)\)/gu)) {
       const match = expression[1].match(
-        /^\s*["']([^"']+\.(?:ps1|mjs))["']\s*,\s*import\.meta\.url\s*$/u,
+        /^\s*["']([^"']+\.(?:ps1|mjs|py))["']\s*,\s*import\.meta\.url\s*$/u,
       );
       if (!match) throw new Error(`Unsupported native wrapper URL in ${file}: ${expression[0]}`);
       const dependency = relativeHelper(match[1]);

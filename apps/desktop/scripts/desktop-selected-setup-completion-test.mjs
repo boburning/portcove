@@ -146,7 +146,7 @@ export async function selectedSetupCompletionScenario({
       scope: `${process.platform} synthetic selected setup: ordinary install, inert N64 preparation, BIOS-plus-game review and saved-input restart`,
       limitations: [
         fixture.nativeConnectionJourney
-          ? "Windows folder connections use the actual native picker; the bounded scan pre-state uses the CLI"
+          ? "Folder connections use the actual native picker; the bounded scan pre-state uses the CLI"
           : "Saved root seeded by the existing CLI; native picker credited separately",
         "No real game, BIOS preparation, gameplay, full representation matrix or other platform qualification",
       ],
