@@ -890,7 +890,7 @@ function uiRelatedCommand(files) {
       "exec",
       "vitest",
       "related",
-      ...files.map((file) => path.join(projectRoot, file)),
+      ...files.map((file) => path.resolve(projectRoot, file)),
       "--run",
       "--pool=threads",
       "--isolate",
