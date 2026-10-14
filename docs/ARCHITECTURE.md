@@ -109,6 +109,15 @@ Windows receipt publication uses one existing canonical parent for both temporar
 and final names, preserving long and Unicode paths without replacing an occupied
 name unless the core-owned journal writer explicitly permits replacement.
 
+Source-import plan version 2 copies only the admitted original members of a
+directory input, preserving their exact names and reporting their stored byte
+total for capacity. Normalized optical track sizes are not original-file sizes.
+The existing bounded whole-source guard still rejects unsafe or oversized
+selected trees and binds original objects through final revalidation. Released
+version-1 journals retain whole-selection Copy recovery; explicit Move retains
+its separately authorized whole-selection behavior. Neither interpretation grants
+authority to copy an unadmitted directory member in a new Copy plan.
+
 ## Staged activation interpretation
 
 Normal staged activation and recovery share one private checked activation family.
