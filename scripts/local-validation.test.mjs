@@ -765,6 +765,7 @@ test("UI sources build and run import-related units in optional feedback", () =>
   const { plan } = planFor(["apps/desktop/src/view-model.ts"]);
   assert.deepEqual(ids(plan), [
     "diff-check",
+    "repository-lint",
     "oxfmt",
     "ui-copy",
     "ui-transport-types",
@@ -1376,7 +1377,7 @@ test("Node receipt fingerprints include the domain of each selected test", () =>
   );
 });
 
-test("local receipts reuse proven independent stages while repository-wide Oxlint reruns", (t) => {
+test("local receipts reuse proven independent stages while full repository lint reruns", (t) => {
   const receiptRoot = mkdtempSync(path.join(tmpdir(), "portcove-local-receipts-"));
   t.after(() => rmSync(receiptRoot, { recursive: true, force: true }));
   const plan = [
@@ -1397,12 +1398,12 @@ test("local receipts reuse proven independent stages while repository-wide Oxlin
       obligation: "repository",
     },
     {
-      id: "oxlint",
+      id: "repository-lint",
       reason: "lint",
       executable: "corepack",
-      args: ["pnpm", "run", "lint:oxlint"],
+      args: ["pnpm", "lint"],
       cwd: process.cwd(),
-      obligation: "repository-oxlint",
+      obligation: "repository-lint",
     },
   ];
   const first = [];
@@ -1593,12 +1594,42 @@ test("optional local baseline compiles workspace tests once without duplicate li
     assert.ok(!p.some((entry) => /clippy|rust-docs|audit|fallow/.test(entry.id)));
   }
 });
-test("optional frontend baseline retains build and related units without browser/analyzers", () => {
+test("optional frontend baseline retains full lint, build and related units without deep analyzers", () => {
   const p = buildPlan(classifyChanges([{ status: "M", path: "apps/desktop/src/App.tsx" }]));
   assert.ok(p.some((entry) => entry.id === "ui-build"));
   assert.ok(p.some((entry) => entry.id === "ui-related-tests"));
-  assert.ok(!p.some((entry) => /browser|lint|fallow|theme/.test(entry.id)));
+  assert.deepEqual(
+    p.filter((entry) => entry.id === "repository-lint").map((entry) => entry.args),
+    [["pnpm", "lint"]],
+  );
+  assert.ok(!p.some((entry) => /browser|fallow|theme/.test(entry.id)));
   assert.equal(p.filter((entry) => entry.id === "ui-copy").length, 1);
+});
+
+test("lint follows source/configuration ownership on both rename sides without forcing UI work", () => {
+  for (const change of [
+    { status: "M", path: "scripts/tool.mjs" },
+    { status: "D", path: "scripts/deleted.mjs" },
+    { status: "R100", path: "docs/moved.md", previousPath: "scripts/tool.mjs" },
+    { status: "M", path: "apps/desktop/src/App.tsx" },
+    { status: "M", path: "apps/desktop/src/app.css" },
+    { status: "M", path: ".oxlintrc.json" },
+    { status: "M", path: "pnpm-lock.yaml" },
+  ]) {
+    const { plan } = planFor([change]);
+    assert.equal(plan.filter((entry) => entry.id === "repository-lint").length, 1, change.path);
+  }
+  const script = planFor([{ status: "M", path: "scripts/tool.mjs" }]).plan;
+  assert.ok(!script.some((entry) => entry.id === "ui-build"));
+  for (const file of [
+    "docs/README.md",
+    "crates/portcove-core/src/lib.rs",
+    "apps/desktop/public/logo.png",
+  ])
+    assert.ok(
+      !planFor([{ status: "M", path: file }]).plan.some((entry) => entry.id === "repository-lint"),
+      file,
+    );
 });
 
 test("Rust receipts bind narrower or broader selection even when source inventory is identical", () => {

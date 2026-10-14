@@ -105,6 +105,13 @@ export function baselineFrontendPlan(plan, options) {
   );
 }
 
+export function baselineLintPlan(plan, options) {
+  if (!plan.groups.includes("rust-quality")) throw new Error("Plan omitted repository quality");
+  return buildPlan(baselineSelection(plan, options), { validationPlan: plan }).filter(
+    (entry) => entry.id === "repository-lint",
+  );
+}
+
 // Fixture execution must not publish synthetic timings under the hosted job identity.
 export function baselineTestEnvironment(environment = process.env) {
   const isolated = { ...environment };
@@ -178,8 +185,9 @@ function main() {
         return;
       }
     }
-  } else if (process.argv[2] === "frontend") {
-    const commands = baselineFrontendPlan(plan);
+  } else if (["frontend", "lint"].includes(process.argv[2])) {
+    const commands =
+      process.argv[2] === "lint" ? baselineLintPlan(plan) : baselineFrontendPlan(plan);
     executePlan(commands, {
       spawn: (executable, args, options) => {
         const entry = commands.find(
@@ -190,7 +198,7 @@ function main() {
         );
       },
     });
-  } else throw new Error("Expected bootstrap, frontend or contracts");
+  } else throw new Error("Expected bootstrap, frontend, lint or contracts");
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {

@@ -479,10 +479,14 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(fastDependencyReview, /head-ref:/);
 });
 
-test("ordinary formatting has one owner and analyzers stay in qualification", () => {
+test("ordinary formatting and lint have one quality owner; deep analyzers stay in qualification", () => {
   const formatting = workflow.split("  fast_rust_quality:")[1].split("  fast_frontend:")[0];
   assert.match(formatting, /format:check/);
   assert.match(formatting, /cargo fmt/);
+  assert.match(formatting, /node scripts\/ci-baseline\.mjs lint/);
+  assert.match(formatting, /PORTCOVE_PLAN_JSON:/);
+  assert.match(formatting, /PORTCOVE_CI_METRICS_DIR:/);
+  assert.match(formatting, /ci-metrics\.mjs summarize/);
   assert.doesNotMatch(formatting, /cargo clippy|lint:oxlint|run-fallow/);
   const frontend = workflow.split("  fast_frontend:")[1].split("  fast_catalog:")[0];
   assert.doesNotMatch(frontend, /format:check|pnpm lint/);

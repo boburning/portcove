@@ -56,6 +56,11 @@ test("frontend and direct Core inventories are independent; daily and native are
 
 test("validation consumers share the exact mapping and keep Node wrappers and fixture subsets", () => {
   assert.equal(selectedPrerequisites, validationCapabilities);
+  assert.deepEqual(selectedPrerequisites({ id: "repository-lint" }), [
+    "node",
+    "pnpm",
+    "frontend-dependencies",
+  ]);
   assert.deepEqual(selectedPrerequisites({ id: "rust-tests:portcove-core" }), [
     "node",
     "rustc",
@@ -102,6 +107,9 @@ function bootstrapFixture(t) {
     "scripts/tool-cache.mjs",
     "scripts/bootstrap-quality-tools.sh",
     "scripts/bootstrap-quality-tools.ps1",
+    "scripts/hooks-install.mjs",
+    "scripts/checked-git.mjs",
+    "scripts/report-summary.mjs",
     ".node-version",
     "rust-toolchain.toml",
     "package.json",

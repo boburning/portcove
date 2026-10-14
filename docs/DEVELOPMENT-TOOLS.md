@@ -32,6 +32,8 @@ execution and reconciles requested files with Vitest's executed report. A succes
 partial match is a failure; skip counts are reported separately. Use
 `just test-ui-related FILES` for source files and import-graph coverage instead.
 Both routes retain the existing isolation, timing and resource contracts.
+Use the literal-file wrapper rather than direct Vitest filename filters, which
+can silently accept a partial match.
 
 Read `node scripts/roadmap.mjs set --help` for current field flags and values;
 command-specific help runs offline without acquiring a live-operation lock.
@@ -43,7 +45,10 @@ summary success, and missing retention fails explicitly.
 Use one `just pr-watch` per source/run/attempt/deadline binding. Opt into
 `--progress` for change-only workflow/check observations on stderr while final
 JSON stays on stdout. Repeated unchanged observations remain quiet. Consume the
-watch result or retained snapshots; retrieve the identified failed job when needed.
+progress stream live; redirect only stdout when retaining the final JSON result.
+Use `node scripts/report-summary.mjs watch FILE` for its bounded final summary.
+Consume the watch result or retained snapshots; retrieve the identified failed
+job when needed.
 When a tool returns a running session, consume it with a bounded wait of at most
 60 seconds before the next commentary update. Reuse its final report; do not
 start another watcher or repeatedly fetch unchanged state.
