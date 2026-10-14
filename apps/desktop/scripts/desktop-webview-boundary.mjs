@@ -237,6 +237,64 @@ try {
     await browser.takeScreenshot(),
     "base64",
   );
+  const armedMainNavigation = await invoke(browser, "arm_boundary_main_navigation");
+  assert.equal(armedMainNavigation.ok, true);
+  await browser.get(fixtureUrl);
+  assert.equal(await browser.getWindowHandle(), "main");
+  assert.equal(await browser.getCurrentUrl(), fixtureUrl);
+  // A navigation replaces the driver's async completion callback. Poll the
+  // actual IPC promise through synchronous evaluation, as with label recreation.
+  const invokeNavigated = async (command, args = {}) => {
+    await browser.executeScript(
+      (command_, args_) => {
+        window.__boundaryOriginReply = null;
+        if (typeof window.__TAURI_INTERNALS__?.invoke !== "function") {
+          window.__boundaryOriginReply = { unavailable: true };
+          return;
+        }
+        window.__TAURI_INTERNALS__.invoke(command_, args_).then(
+          (value) => {
+            window.__boundaryOriginReply = { ok: true, value };
+          },
+          (error) => {
+            window.__boundaryOriginReply = { ok: false, error: String(error) };
+          },
+        );
+      },
+      command,
+      args,
+    );
+    await browser.wait(
+      () => browser.executeScript(() => window.__boundaryOriginReply !== null),
+      10_000,
+      `navigated context did not settle ${command}`,
+    );
+    return browser.executeScript(() => window.__boundaryOriginReply);
+  };
+  const sameLabelRemote = {
+    label: await browser.getWindowHandle(),
+    url: await browser.getCurrentUrl(),
+    armedMainNavigation,
+  };
+  report.observations.sameLabelRemote = sameLabelRemote;
+  for (const [name, command, args] of [
+    ["custom", "get_bootstrap_status", {}],
+    ["mutation", "set_locale_preference", { locale: null }],
+    ["dialog", "plugin:dialog|open", { options: {} }],
+    ["qualification", "arm_boundary_main_navigation", {}],
+  ]) {
+    const refusal = await invokeNavigated(command, args);
+    sameLabelRemote[name] = refusal;
+    assert.equal(refusal.ok, false, `${command} must reach and fail the actual IPC boundary`);
+    assert.match(
+      refusal.error,
+      /not allowed/i,
+      `${command} must fail upstream ACL, not the main-label guard`,
+    );
+  }
+  await browser.get(initialUrl);
+  sameLabelRemote.returnedMain = await invokeNavigated("get_bootstrap_status");
+  assert.equal(sameLabelRemote.returnedMain.ok, true);
   report.outcome = "passed";
 } catch (error) {
   report.failure = String(error.stack ?? error);
