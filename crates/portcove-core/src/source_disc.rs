@@ -81,6 +81,9 @@ pub(crate) fn scan_extensions(
 }
 
 pub(crate) fn set_sizes(catalog: &crate::Catalog, profile_id: &str) -> BTreeSet<usize> {
+    let Ok(profile) = catalog.source_profile(profile_id) else {
+        return BTreeSet::new();
+    };
     catalog
         .source_catalog()
         .into_iter()
@@ -89,6 +92,16 @@ pub(crate) fn set_sizes(catalog: &crate::Catalog, profile_id: &str) -> BTreeSet<
         .flat_map(|identity| &identity.variants)
         .filter(|variant| !variant.legacy_projection_only)
         .flat_map(|variant| &variant.representations)
+        .filter(|representation| {
+            let extensions = if representation.extensions.is_empty() {
+                &profile.accepted_extensions
+            } else {
+                &representation.extensions
+            };
+            extensions
+                .iter()
+                .any(|extension| extension.eq_ignore_ascii_case("chd"))
+        })
         .filter_map(|representation| match &representation.kind {
             crate::SourceRepresentationKind::MultiDiscSet { discs } => Some(discs.len()),
             _ => None,

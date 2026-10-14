@@ -1613,7 +1613,9 @@ fn opaque_one_off_names_leave_readable_results_and_serializable_unknown_coverage
         .path()
         .join(std::ffi::OsString::from_vec(b"opaque-\xff.chd".to_vec()));
     fs::write(&opaque, b"uninspected opaque fixture").unwrap();
-    let report = scan(&raw_gamecube_catalog(payload), &request(temporary.path())).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["animal-crossing-gamecube".into()];
+    let report = scan(&raw_gamecube_catalog(payload), &selected).unwrap();
     assert_eq!(report.candidates.len(), 1);
     assert!(
         report.issues.iter().any(|issue| issue.path.is_none()
@@ -1701,6 +1703,88 @@ fn real_owned_gamecube_containers_share_admission_and_resume_with_progress() {
         "owned GCZ/WIA/RVZ: complete_candidates=3 batches={} measured_hash_work={}; no registration or original mutation",
         snapshot.coverage.unwrap().batches,
         snapshot.report.hash_bytes
+    );
+}
+
+#[test]
+fn non_chd_disc_sets_do_not_decode_chd_folders_or_hide_independent_raw_candidates() {
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"owned independent raw image";
+    fs::write(temporary.path().join("readable.iso"), bytes).unwrap();
+    for name in ["disc-01.chd", "disc-02.chd"] {
+        fs::write(
+            temporary.path().join(name),
+            b"not selected for CHD inspection",
+        )
+        .unwrap();
+    }
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let source = document.source_catalog.as_mut().unwrap();
+    let set = source
+        .identities
+        .iter_mut()
+        .find(|identity| {
+            identity
+                .variants
+                .iter()
+                .filter(|variant| !variant.legacy_projection_only)
+                .flat_map(|variant| &variant.representations)
+                .any(|representation| {
+                    matches!(
+                        representation.kind,
+                        crate::SourceRepresentationKind::MultiDiscSet { .. }
+                    )
+                })
+        })
+        .unwrap();
+    let set_id = set.id.clone();
+    // Keep historical CHD compatibility valid while the current accepted
+    // representation deliberately requires a different source format.
+    let mut legacy = set
+        .variants
+        .iter()
+        .find(|variant| !variant.legacy_projection_only)
+        .unwrap()
+        .clone();
+    legacy.id = "owned-historical-chd".into();
+    legacy.legacy_projection_only = true;
+    set.variants.push(legacy);
+    for representation in set
+        .variants
+        .iter_mut()
+        .filter(|variant| !variant.legacy_projection_only)
+        .flat_map(|variant| &mut variant.representations)
+    {
+        representation.extensions = vec!["bin".into()];
+    }
+    let raw_catalog = raw_gamecube_catalog(bytes);
+    let raw = &raw_catalog.source_catalog().unwrap().identities[0];
+    source
+        .identities
+        .iter_mut()
+        .find(|identity| identity.id == raw.id)
+        .unwrap()
+        .variants
+        .extend(raw.variants.clone());
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    assert!(crate::source_disc::set_sizes(&catalog, &set_id).is_empty());
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["animal-crossing-gamecube".into(), set_id.clone()];
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(report.candidates[0].profile_id, "animal-crossing-gamecube");
+    assert_eq!(report.files_hashed, 1);
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|issue| issue.profile_id.as_deref() == Some(&set_id))
+    );
+    assert!(
+        report
+            .issues
+            .iter()
+            .all(|issue| issue.path.as_ref().is_none())
     );
 }
 
