@@ -160,6 +160,24 @@ fn decoder_output_tree_rejects_oversize_and_deep_empty_directories() {
         fs::create_dir(&nested).unwrap();
     }
     assert!(check_output_tree(temporary.path(), 5).is_err());
+    let many = tempfile::tempdir().unwrap();
+    for index in 0..1025 {
+        fs::write(many.path().join(index.to_string()), []).unwrap();
+    }
+    assert!(check_output_tree(many.path(), 0).is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn decoder_output_tree_rejects_dangling_links_before_missing_path_tolerance() {
+    let temporary = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink("missing-target", temporary.path().join("dangling")).unwrap();
+    assert!(
+        check_output_tree(temporary.path(), 4096)
+            .unwrap_err()
+            .message
+            .contains("symlink")
+    );
 }
 
 #[test]

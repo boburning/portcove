@@ -435,17 +435,27 @@ fn check_output_tree(root: &Path, limit: u64) -> Result<()> {
         };
         for entry in entries_in_directory {
             entries += 1;
+            if entries > 1024 {
+                return Err(PortcoveError::source(
+                    "disc decoder exceeded its private output structure boundary",
+                ));
+            }
             let entry = entry?;
             let metadata = match fs::symlink_metadata(entry.path()) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
                 result => result?,
             };
             let kind = metadata.file_type();
+            if kind.is_symlink() || (!kind.is_dir() && !kind.is_file()) {
+                return Err(PortcoveError::source(
+                    "disc decoder produced a symlink or non-file output",
+                ));
+            }
             let location = match fs::canonicalize(entry.path()) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
                 result => result?,
             };
-            if entries > 1024 || kind.is_symlink() || !location.starts_with(&canonical) {
+            if !location.starts_with(&canonical) {
                 return Err(PortcoveError::source(
                     "disc decoder exceeded its private output structure boundary",
                 ));
@@ -461,10 +471,6 @@ fn check_output_tree(root: &Path, limit: u64) -> Result<()> {
                         "disc decoder exceeded its private output size boundary",
                     ));
                 }
-            } else {
-                return Err(PortcoveError::source(
-                    "disc decoder produced a non-file output",
-                ));
             }
         }
     }
