@@ -14,12 +14,37 @@ import {
   watchRequiredChecks,
   inspectRenovateQueue,
   baselineTimingWindow,
+  lockedAgeVerdict,
 } from "./pr-delivery.mjs";
 
 const required = ["catalog", "dependency-review", "frontend", "rust", "rust-quality"];
 const head = "a".repeat(40);
 const base = "b".repeat(40);
 const merge = "c".repeat(40);
+
+test("actual lock age overrides green selected-version readiness but never overrides rejection", () => {
+  const result = { verdict: "metadata-required", reason: "remote gates ready", evidence: { head } };
+  const age = {
+    state: "waiting",
+    route: "wait-for-release-age",
+    findings: [{ state: "young", eligibleAt: "2026-10-16T06:15:46.124Z" }],
+  };
+  assert.equal(lockedAgeVerdict(result, age).verdict, "waiting");
+  assert.match(lockedAgeVerdict(result, age).reason, /2026-10-16/);
+  assert.equal(
+    lockedAgeVerdict(result, { ...age, securityIntent: true }).verdict,
+    "manual-review-required",
+  );
+  assert.equal(
+    lockedAgeVerdict(result, { ...age, state: "unknown" }).verdict,
+    "manual-review-required",
+  );
+  assert.equal(
+    lockedAgeVerdict(result, { ...age, state: "eligible" }).verdict,
+    "metadata-required",
+  );
+  assert.equal(lockedAgeVerdict({ ...result, verdict: "reject" }, age).verdict, "reject");
+});
 
 test("baseline timings separate initial queue and all required gate completion", () => {
   const workflow = { created_at: "2026-10-09T00:00:00Z", run_started_at: "2026-10-09T00:00:10Z" };

@@ -54,6 +54,7 @@ test("the root owns the only pnpm workspace lock and repository tool dependencie
     "oxfmt",
     "oxlint",
     "oxlint-tsgolint",
+    "yaml",
   ]);
   assert.deepEqual(
     Object.keys(repositoryPackage.devDependencies).filter((name) =>

@@ -44,6 +44,41 @@ Use one `just pr-watch` per source/run/attempt/deadline binding. Opt into
 `--progress` for change-only workflow/check observations on stderr while final
 JSON stays on stdout. Repeated unchanged observations remain quiet. Consume the
 watch result or retained snapshots; retrieve the identified failed job when needed.
+When a tool returns a running session, consume it with a bounded wait of at most
+60 seconds before the next commentary update. Reuse its final report; do not
+start another watcher or repeatedly fetch unchanged state.
+
+Frontend command chains use `corepack pnpm`, including nested typecheck and
+test commands. The build child filters `TAURI_SIGNING_*` and reports missing
+Corepack with the repository bootstrap route; no global pnpm shim is needed.
+
+For a dependency-only bundle comparison, use:
+
+`node scripts/frontend-build-compare.mjs --baseline ROOT --candidate ROOT --dependency NAME --evidence-root ROOT`
+
+Both inputs must be clean, distinct, nonnested Git checkout roots with equivalent
+tracked source/configuration except the declared dependency and its narrow lock
+transition. Archives, dirty/ignored source contamination and existing build
+outputs are refused. Run install and build in both using the same pinned manager.
+The external evidence root retains a unique attempt, heads, input hashes, versions,
+command streams and asset inventories. JS and CSS raw/gzip totals stay separate.
+Failures and build outputs are preserved; the command never cleans caller roots.
+
+For the retained serde_json engine investigation, use:
+
+`node scripts/renovate-engine-probe.mjs --engine ENGINE --workspace INPUT --config renovate.json --observed-at ISO_TIME --evidence-root ROOT`
+
+Supply a complete isolated Cargo input with its pre-update lock and the official
+engine matched to `scripts/fixtures/serde-json-renovate-44.156.3.json`. The probe
+copies inputs to a unique evidence attempt and checks source hashes, extraction,
+preset/lookup Result shapes, effective policy and pending flags before Cargo.
+It needs an eligible selected release plus a newer ineligible compatible release
+at the explicit clock. Historical clock replay is local evidence, not hosted
+uptake. Real registry/artifact observations and synthetic policy boundaries are
+labelled separately. Engine/source drift requires fresh capture and adapter
+review; missing command records fail. #1973 still needs a naturally occurring
+hosted proposal/artifact readback, and full lockfile maintenance remains outside
+this scoped transitive-age guarantee.
 
 ## Early commit feedback
 

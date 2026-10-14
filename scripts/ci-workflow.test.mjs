@@ -16,6 +16,20 @@ import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
 import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+test("both existing dependency lanes audit exact changed pnpm artifacts", () => {
+  for (const name of ["fast_dependency_review", "dependency_review_full"]) {
+    const block = workflow.split("  " + name + ":")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
+    assert.match(block, /fetch-depth: 0/u);
+    assert.match(block, /dependency-release-age\.mjs --base/u);
+    assert.match(
+      block,
+      /name: Audit actual changed pnpm artifacts\n\s+if: github\.event_name == 'pull_request'/u,
+    );
+    assert.match(block, /pull_request\.base\.sha/u);
+    assert.match(block, /pull_request\.head\.sha/u);
+    assert.match(block, /--frozen-lockfile --ignore-scripts/u);
+  }
+});
 const qualificationWorkflow = await readFile(
   new URL("../.github/workflows/qualification.yml", import.meta.url),
   "utf8",

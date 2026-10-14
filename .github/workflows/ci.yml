@@ -905,11 +905,15 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .node-version
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
       - name: Verify repository and release contracts
         run: |
           node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/rust-test-impact.test.mjs scripts/qualification-coverage.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
+          node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/check-release-metadata.test.mjs scripts/desktop-build-cache.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/release-package-policy.test.mjs scripts/write-release-checksums.test.mjs scripts/updater-artifact-inventory.test.mjs scripts/reconcile-release-assets.test.mjs scripts/finalize-release-assets.test.mjs scripts/generate-release-downloads.test.mjs scripts/release-workflow.test.mjs scripts/release-result-gate.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/rust-test-impact.test.mjs scripts/qualification-coverage.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/dependency-release-age.test.mjs scripts/corepack-frontend.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/repository-skills.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/renovate-fast-lane.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/process-lock.test.mjs scripts/source-provenance-audit.test.mjs scripts/check-child-process-policy.test.mjs scripts/check-transport-contract.test.mjs scripts/check-fallow-report.test.mjs scripts/run-fallow.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs scripts/roadmap.test.mjs
           node scripts/check-release-metadata.mjs
           node scripts/quality-tools.mjs --validate
           node scripts/qualification-coverage.mjs
@@ -944,6 +948,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
+      - name: Audit actual changed pnpm artifacts
+        if: github.event_name == 'pull_request'
+        env:
+          AGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          AGE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/dependency-release-age.mjs --base "$AGE_BASE" --head "$AGE_HEAD"
+      - name: Retain changed-lock age evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-age-fast_dependency_review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/dependency-age/*.json
+          retention-days: 7
+          if-no-files-found: warn
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           base-ref: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -957,6 +984,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
+      - name: Audit actual changed pnpm artifacts
+        if: github.event_name == 'pull_request'
+        env:
+          AGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          AGE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/dependency-release-age.mjs --base "$AGE_BASE" --head "$AGE_HEAD"
+      - name: Retain changed-lock age evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-age-dependency_review_full-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/dependency-age/*.json
+          retention-days: 7
+          if-no-files-found: warn
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high

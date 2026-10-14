@@ -373,6 +373,25 @@ export function renovateCheckEnvelope({ number, head, result, snapshot }) {
   });
 }
 
+export function lockedAgeVerdict(result, lockedAge) {
+  const evidence = { ...result.evidence, locked_release_age: lockedAge };
+  if (result.verdict === "reject" || lockedAge.state === "eligible") return { ...result, evidence };
+  const eligibility = lockedAge.findings
+    .filter((finding) => finding.state === "young")
+    .map((finding) => finding.eligibleAt)
+    .sort()
+    .at(-1);
+  return {
+    ...result,
+    evidence,
+    verdict:
+      lockedAge.securityIntent || lockedAge.state === "unknown"
+        ? "manual-review-required"
+        : "waiting",
+    reason: `Actual locked release age: ${lockedAge.state}; ${lockedAge.route}${eligibility ? "; eligible at " + eligibility : ""}`,
+  };
+}
+
 // This read-only client bounds both each gh subprocess and all pages/reads in
 // one observation. Merge and other GitHub consumers keep their existing runner.
 export function createWatchClient({ now = Date.now, spawn = spawnSync } = {}) {
@@ -936,6 +955,19 @@ async function main(argv) {
         reason: `pull request head changed to ${baseEvidence.changedHead}`,
         evidence: { expected_head: head, observed_head: baseEvidence.changedHead },
       };
+    if (
+      !baseEvidence.changedHead &&
+      snapshot.files.some((file) => file.filename === "pnpm-lock.yaml")
+    ) {
+      const { auditGitReleaseAge } = await import("./dependency-release-age.mjs");
+      const lockedAge = await auditGitReleaseAge({
+        root: projectRoot,
+        base: baseEvidence.currentMergeBase,
+        head,
+        securityIntent: renovateSecurityIntent(snapshot.pull),
+      });
+      result = lockedAgeVerdict(result, lockedAge);
+    }
     if (result.verdict === "metadata-required") {
       try {
         const metadata = await runMetadataValidation({
