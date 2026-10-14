@@ -910,6 +910,67 @@ test("arbitrary retained artifacts cannot assert positive process closure", asyn
   assert.equal(completed.packet.qualification_complete, false);
 });
 
+test("Windows closure binds production consumed app paths and captured process identities", async (t) => {
+  const fixture = await packetFixture(t);
+  const snapshotPath = path.join(fixture.directory, "exit-inventory.json");
+  const driverPath = path.join(fixture.directory, "driver.exe");
+  const driver = { pid: 42, path: driverPath, started_filetime: "123" };
+  const app = {
+    pid: 43,
+    path: fixture.bindings.product_artifacts[0].path,
+    started_filetime: "124",
+  };
+  await writeFile(
+    snapshotPath,
+    JSON.stringify({ captured_at: new Date().toISOString(), driver, processes: [driver, app] }),
+  );
+  const closure = fixture.completion.retained_artifacts[2];
+  await writeFile(
+    closure.path,
+    JSON.stringify({
+      snapshot: snapshotPath,
+      exited: { observed_processes: 2, exited_at: new Date().toISOString(), wait_ms: 100 },
+    }),
+  );
+  const artifacts = [
+    ...fixture.completion.retained_artifacts.slice(0, 2),
+    await fileIdentity(closure.path),
+    await fileIdentity(snapshotPath),
+  ];
+  const product = fixture.bindings.product_artifacts[0];
+  const completion = await fixture.rebindEvidence(fixture.preflight, {
+    artifacts,
+    execution_binding: {
+      product_artifacts: [
+        {
+          role: "app",
+          consumed_path: product.path,
+          sha256: product.sha256,
+          bytes: product.bytes,
+          binding: "live-path-checked-cooperative",
+          retained: product,
+        },
+      ],
+      runtime_tools: [
+        { role: "driver", path: driverPath, binding: "live-path-checked-cooperative" },
+      ],
+      harness_inputs: fixture.bindings.harness_inputs,
+      build_inputs: fixture.bindings.build_inputs,
+      execution_qualification: fixture.bindings.execution_qualification,
+    },
+  });
+  assert.equal(
+    (
+      await completeAcceptancePacket(fixture.preflight.identity, {
+        ...completion,
+        retained_artifacts: artifacts,
+        process_closure: { outcome: "passed", positive_exit: true, artifacts: [artifacts[2]] },
+      })
+    ).packet.qualification_complete,
+    true,
+  );
+});
+
 test("a required image must belong to its criterion's scenario", async (t) => {
   const fixture = await packetFixture(t);
   const bindings = structuredClone(fixture.bindings);

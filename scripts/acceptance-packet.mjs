@@ -219,9 +219,15 @@ async function closureProof(identity, retained, evidence) {
     );
     const driverPath =
       driver?.binding === "retained-artifact" ? driver.retained?.path : driver?.path;
+    const equivalentPath = (left, right) =>
+      typeof left === "string" &&
+      typeof right === "string" &&
+      left.replaceAll("\\", "/").toLowerCase() === right.replaceAll("\\", "/").toLowerCase();
+    const appPath = app?.consumed_path;
     return (
       validProcess(snapshot.driver) &&
-      snapshot.driver.path.toLowerCase() === driverPath?.toLowerCase() &&
+      equivalentPath(snapshot.driver.path, driverPath) &&
+      ["retained-artifact", "live-path-checked-cooperative"].includes(app?.binding) &&
       Array.isArray(snapshot.processes) &&
       snapshot.processes.length > 1 &&
       snapshot.processes.every(validProcess) &&
@@ -231,7 +237,7 @@ async function closureProof(identity, retained, evidence) {
           item.started_filetime === snapshot.driver.started_filetime &&
           item.path === snapshot.driver.path,
       ) &&
-      snapshot.processes.some((item) => item.path.toLowerCase() === app?.path?.toLowerCase()) &&
+      snapshot.processes.some((item) => equivalentPath(item.path, appPath)) &&
       record.exited.observed_processes === snapshot.processes.length &&
       Number.isFinite(Date.parse(record.exited.exited_at)) &&
       Date.parse(record.exited.exited_at) >= Date.parse(snapshot.captured_at) &&
