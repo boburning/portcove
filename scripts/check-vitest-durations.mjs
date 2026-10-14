@@ -4,6 +4,8 @@ import { slowTestThresholdMs } from "./test-duration-reporter.mjs";
 
 import { spawnCommand } from "./dev-storage.mjs";
 import { fileURLToPath } from "node:url";
+import { writeFile } from "node:fs/promises";
+import { reconcileUiSelection } from "./ui-test-selection.mjs";
 
 export function completeRelatedUiCoverage(report, run = spawnCommand) {
   const measurement = checkVitestDurations(report, { allowEmpty: true });
@@ -51,11 +53,24 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const reportPath = args.shift();
   const allowEmpty = args.length === 1 && args[0] === "--allow-empty";
   const fullOnEmpty = args.length === 1 && args[0] === "--full-suite-on-empty";
-  if (!reportPath || (args.length > 0 && !allowEmpty && !fullOnEmpty))
+  const expected = args.length === 2 && args[0] === "--expected-tests" ? args[1] : null;
+  if (!reportPath || (args.length > 0 && !allowEmpty && !fullOnEmpty && !expected))
     throw new Error(
-      "usage: check-vitest-durations.mjs <report> [--allow-empty|--full-suite-on-empty]",
+      "usage: check-vitest-durations.mjs <report> [--allow-empty|--full-suite-on-empty|--expected-tests FILE]",
     );
   const report = JSON.parse(await readFile(reportPath, "utf8"));
+  if (expected) {
+    const files = JSON.parse(await readFile(expected, "utf8"));
+    const coverage = reconcileUiSelection(report, files);
+    await writeFile(
+      `${reportPath}.selection.json`,
+      JSON.stringify({ ...coverage, report_file: reportPath }),
+    );
+    console.log(`Coverage evidence: ${reportPath}.selection.json`);
+    console.log(
+      `UI files: requested ${files.length}, discovered ${coverage.discovered_files.length}, executed ${coverage.executed_files.length}; skipped tests ${coverage.skipped}`,
+    );
+  }
   const result = fullOnEmpty
     ? completeRelatedUiCoverage(report)
     : checkVitestDurations(report, { allowEmpty });

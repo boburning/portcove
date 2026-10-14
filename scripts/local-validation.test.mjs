@@ -37,6 +37,7 @@ import {
 } from "./local-validation.mjs";
 import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
+import { resolveUiSelection } from "./ui-test-selection.mjs";
 
 const allFilesExist = () => true;
 
@@ -773,6 +774,18 @@ test("UI sources build and run import-related units in optional feedback", () =>
     "ui-related-durations",
   ]);
   assert.equal(plan.find((entry) => entry.id === "ui-build").executable, "corepack");
+});
+
+test("related UI commands preserve validated absolute source paths", () => {
+  const projectRoot = fileURLToPath(new URL("../", import.meta.url));
+  const desktopRoot = path.join(projectRoot, "apps/desktop");
+  const files = resolveUiSelection(["src/components/ChoiceSelect.tsx"], desktopRoot, "related");
+  const { selection } = planFor(["apps/desktop/src/components/ChoiceSelect.tsx"]);
+  selection.uiRelatedFiles = new Set(files);
+  const plan = buildPlan(selection);
+  const related = plan.find((entry) => entry.id === "ui-related-tests");
+  assert.ok(related);
+  assert.deepEqual(related.args.slice(4, 4 + files.length), files);
 });
 
 test("frontend configuration changes use the complete small UI suite", () => {

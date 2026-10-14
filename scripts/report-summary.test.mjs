@@ -9,6 +9,7 @@ import {
   describeFailure,
   renderBoundedSummary,
   summarizeReport,
+  retainReportSummary,
 } from "./report-summary.mjs";
 
 test("only structured launch facts classify prerequisites; exits, timeouts and signals stay unknown", () => {
@@ -177,4 +178,49 @@ test("single-line CI JSON remains intact while the CLI emits a bounded summary",
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("queue summaries retain raw Unicode records before projecting within the stream budget", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "queue-summary-"));
+  try {
+    const report = {
+      summary: "Queue",
+      evidence: {
+        candidates: Array.from({ length: 1000 }, (_, number) => ({
+          number,
+          head: "a".repeat(40),
+          verdict: "held",
+          reason: "日本語".repeat(100),
+          next_action: "inspect",
+        })),
+      },
+    };
+    const result = retainReportSummary("renovate", report, root);
+    assert(Buffer.byteLength(result.text + "\n") <= 16 * 1024);
+    assert(result.omitted > 0);
+    const reference = result.text
+      .split("\n")
+      .find((line) => line.startsWith("Raw evidence: "))
+      .slice(14);
+    assert.deepEqual(JSON.parse(readFileSync(reference, "utf8")), report);
+    const obstacle = path.join(root, "obstacle");
+    writeFileSync(obstacle, "file");
+    assert.throws(() => retainReportSummary("renovate", report, obstacle));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+test("UI projections expose requested/discovered/executed and skips rather than inferring coverage", () => {
+  const result = summarizeReport(
+    "ui",
+    {
+      requested_files: ["one"],
+      discovered_files: ["one"],
+      executed_files: [],
+      passed: 0,
+      skipped: 1,
+    },
+    "raw.json",
+  );
+  assert.match(result.text, /requested 1; discovered 1; executed 0; passed 0; skipped 1/);
 });
