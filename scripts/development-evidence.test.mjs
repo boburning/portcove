@@ -21,7 +21,39 @@ import {
   validateEvidenceStore,
   executionAdmission,
   retainedExecutableCanLaunch,
+  readPrelaunchCustody,
 } from "./retained-evidence.mjs";
+
+test("prelaunch custody accepts native equivalent absolute path separators", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-prelaunch-path-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "product");
+  await writeFile(file, "product bytes");
+  const captured = await retainEvidenceInput({ root: path.join(directory, "evidence"), file });
+  const manifest = path.join(directory, "manifest.json");
+  const timestamp = new Date().toISOString();
+  await writeFile(
+    manifest,
+    JSON.stringify({
+      format_version: 1,
+      root: directory,
+      revision: "a".repeat(40),
+      pre_import_for: "apps/desktop/scripts/desktop-test.mjs",
+      selected_scenarios: [],
+      execution_started_at: timestamp,
+      created_at: timestamp,
+      inputs: [{ ...captured, role: "app", kind: "executable" }],
+    }),
+  );
+  await readPrelaunchCustody(manifest, {
+    root: directory,
+    revision: "a".repeat(40),
+    plan: { receiptInputs: [{ kind: "executable", name: "app" }] },
+    values: { app: file.replaceAll("\\", "/") },
+    selectedScenarios: [],
+    deadlineMs: 60_000,
+  });
+});
 
 test("retention rejects absent and untagged cleanup roots before creating them", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-cleanup-boundary-"));

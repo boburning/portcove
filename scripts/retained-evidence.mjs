@@ -359,7 +359,7 @@ export async function readPrelaunchCustody(
       !path.isAbsolute(input.retained?.path ?? "") ||
       (expected.kind === "executable"
         ? !["retained-artifact", "live-path-checked-cooperative"].includes(input.binding) ||
-          values[expected.name] !==
+          path.resolve(values[expected.name] ?? ".") !==
             (input.binding === "retained-artifact" ? input.retained.path : input.path)
         : input.binding !== "live-path-checked-cooperative" ||
           input.path !== path.join(root, expected.path))
