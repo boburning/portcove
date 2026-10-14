@@ -20,7 +20,7 @@ the entire Windows baseline, never an empty package selection or an automatic au
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | rust              | Windows workspace test-target compilation (`--locked --workspace --all-targets`), then affected maintained test families      |
 | frontend          | Build/typecheck and import-related unit tests; full unit fallback for shared/configuration/uncertain or empty graph selection |
-| rust-quality      | Repository/TOML formatting, plus Rust formatting for Rust inputs                                                              |
+| rust-quality      | Repository/TOML formatting, Rust formatting for Rust inputs, and full frontend/tooling lint for affected inputs               |
 | catalog           | Relevant cheap schema, repository and tooling contract tests                                                                  |
 | dependency-review | Relevant dependency diff, with the existing high-severity rejection policy                                                    |
 
@@ -32,6 +32,14 @@ pinned PowerShell lint with its causal fixture. It builds no Desktop application
 and uses no drivers, native session or game inputs. Both rename sides select it;
 unknown-path broad fallback includes it. A failed or missing selected producer
 fails `catalog`. Exhaustive qualification retains its Windows coverage.
+
+Linted JavaScript/TypeScript/CSS inputs, their lint configuration and dependency
+or toolchain inputs select one full `corepack pnpm lint` stage. Both rename sides
+and deletions count; safe unknown-impact fallback also selects it. The existing
+quality producer owns hosted execution, including tooling-only changes, while
+the optional local baseline runs the same obligation. Prose-only, Rust-only and
+unrelated assets do not select lint. Pre-commit remains formatting/syntax/copy
+feedback. Exhaustive qualification retains full lint independently.
 
 Rust execution reuses `.config/rust-test-impact.json`. Every group is package
 qualified, has nonzero runnable tests, and contributes its exact binary/test

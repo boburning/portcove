@@ -168,9 +168,20 @@ async function oxlintFixture() {
     ]);
     expectFailure("overlapping Oxlint Hooks fixture", hooksResult, /rules-of-hooks/);
     expectFailure("overlapping Oxlint a11y fixture", a11yResult, /alt-text/);
+    await writeFile(
+      fixture,
+      'export function Fixture() {\n  Promise.resolve(1);\n  return <img src="fixture" />;\n}\n',
+    );
+    const combined = runOxlint(fixture);
+    expectFailure(
+      "Oxlint combined standard and typed failures",
+      combined,
+      /\[standard\].*alt-text/,
+    );
+    assert.match(`${combined.stdout}${combined.stderr}`, /\[type-aware\].*no-floating-promises/);
     assert.equal(
       childInvocations,
-      10,
+      11,
       "Oxlint fixture contract should keep a bounded representative subprocess inventory",
     );
     console.log("Oxlint overlapping negative fixtures remained independently deterministic.");
