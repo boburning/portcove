@@ -421,11 +421,12 @@ it.each(["ready", "setup"])(
       libraryReadiness: readiness,
       filter: { version: 1, platforms: ["linux-x86-64"] },
     });
-    const saved: unknown = JSON.parse(localStorage.getItem(key)!);
-    expect(saved).toMatchObject({
-      version: 2,
-      inputs: { sections: { catalog: { filter: "beta", query: "other search" } } },
-    });
+    const saved = JSON.parse(localStorage.getItem(key)!) as {
+      version: unknown;
+      inputs: { sections: { catalog: unknown } };
+    };
+    expect(saved.version).toBe(2);
+    expect(saved.inputs.sections.catalog).toEqual({ filter: "beta", query: "other search" });
   },
 );
 
