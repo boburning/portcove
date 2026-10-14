@@ -142,6 +142,37 @@ fn parse(
     runtime: &str,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<Vec<Vec<String>>> {
+    parse_selected(text, root, build, runtime, checkpoint, None)
+}
+
+pub(super) fn selected_closure(
+    text: &str,
+    root: &Path,
+    runtime: &str,
+    targets: &[String],
+    operation: &OperationCoordinator,
+) -> Result<Vec<String>> {
+    Ok(parse_selected(
+        text,
+        root,
+        &root.join("build-portcove"),
+        runtime,
+        &|| operation.checkpoint(),
+        Some(targets),
+    )?
+    .into_iter()
+    .flatten()
+    .collect())
+}
+
+fn parse_selected(
+    text: &str,
+    root: &Path,
+    build: &Path,
+    runtime: &str,
+    checkpoint: &dyn Fn() -> Result<()>,
+    targets: Option<&[String]>,
+) -> Result<Vec<Vec<String>>> {
     if text.len() as u64 > MAX_GRAPH_BYTES {
         return Err(refused("graph byte limit"));
     }
@@ -229,6 +260,11 @@ fn parse(
         if rule.is_empty() || matches!(rule.as_str(), ":" | "|" | "||") {
             return Err(refused("invalid rule name"));
         }
+        // Even an unselected regeneration edge runs before targets in Ninja.
+        // Freshly configured immutable graphs must have none anywhere.
+        if matches!(rule.as_str(), "RERUN_CMAKE" | "VERIFY_GLOBS") {
+            return Err(refused("automatic configuration regeneration"));
+        }
         let outputs = tokens[..colon]
             .iter()
             .filter(|token| token.as_str() != "|")
@@ -284,15 +320,29 @@ fn parse(
     }
     let mut states = vec![0_u8; edges.len()];
     let mut ordered = Vec::new();
-    visit(
-        selected,
-        0,
-        &edges,
-        &owners,
-        &mut states,
-        &mut ordered,
-        checkpoint,
-    )?;
+    let selected = match targets {
+        Some(targets) => targets
+            .iter()
+            .map(|target| {
+                owners
+                    .get(target)
+                    .copied()
+                    .ok_or_else(|| refused("unknown selected target"))
+            })
+            .collect::<Result<Vec<_>>>()?,
+        None => vec![selected],
+    };
+    for selected in selected {
+        visit(
+            selected,
+            0,
+            &edges,
+            &owners,
+            &mut states,
+            &mut ordered,
+            checkpoint,
+        )?;
+    }
     if ordered.is_empty() {
         return Err(refused("empty compile closure"));
     }

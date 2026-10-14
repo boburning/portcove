@@ -33,6 +33,32 @@ pub(super) struct GeneratedTree {
 }
 
 impl GeneratedTree {
+    pub(super) fn require_absent(&self, relative: &Path) -> Result<()> {
+        let (_, forbidden) = crate::archive::validate_relative_path(
+            &crate::path::unicode(relative, "PS1 outputless utility")?.replace('\\', "/"),
+            false,
+        )?;
+        for path in self
+            .entries
+            .keys()
+            .filter(|path| !path.as_os_str().is_empty())
+        {
+            let (_, key) = crate::archive::validate_relative_path(
+                &crate::path::unicode(path, "PS1 outputless utility inventory")?.replace('\\', "/"),
+                false,
+            )?;
+            if key == forbidden
+                || key
+                    .strip_prefix(&forbidden)
+                    .is_some_and(|suffix| suffix.starts_with('/'))
+            {
+                return Err(PortcoveError::verification(
+                    "PS1 outputless utility acquired a material output",
+                ));
+            }
+        }
+        Ok(())
+    }
     pub(super) fn require_file_bytes(&self, relative: &Path, bytes: &[u8]) -> Result<()> {
         use sha2::Digest;
         if !matches!(self.entries.get(relative), Some(Entry::File(file))
@@ -226,6 +252,52 @@ impl GeneratedTree {
         quiesced: bool,
     ) -> Result<Self> {
         self.output_transition(root, operation, quiesced, &[], false)
+    }
+
+    /// Repeating completion guards may update Ninja accounting, never objects,
+    /// the executable, graph or original inputs. Keep the stored predecessor
+    /// inventory intact and use this separate local inventory for packaging.
+    pub(super) fn guard_transition(
+        &self,
+        operation: &OperationCoordinator,
+        quiesced: bool,
+    ) -> Result<Self> {
+        let current = Self::capture(&self.root, operation, quiesced)?;
+        let mutable = |relative: &Path| {
+            relative == Path::new("build-portcove/.ninja_log")
+                || relative == Path::new("build-portcove/.ninja_deps")
+                || relative.starts_with(".portcove-builder-environment")
+        };
+        for (relative, original) in &self.entries {
+            if mutable(relative) {
+                continue;
+            }
+            let unchanged = match (original, current.entries.get(relative)) {
+                (Entry::Directory(before), Some(Entry::Directory(after))) => {
+                    before.same_object(after)
+                }
+                (Entry::File(before), Some(Entry::File(after))) => before == after,
+                _ => false,
+            };
+            if !unchanged {
+                return Err(PortcoveError::verification(
+                    "PS1 completion guard changed a sealed output",
+                ));
+            }
+        }
+        if current.root != self.root
+            || current.operation_id != self.operation_id
+            || current
+                .entries
+                .keys()
+                .any(|path| !self.entries.contains_key(path) && !mutable(path))
+        {
+            return Err(PortcoveError::verification(
+                "PS1 completion guard changed custody or membership",
+            ));
+        }
+        current.verify(&self.root, operation)?;
+        Ok(current)
     }
 
     pub(super) fn finalized_transition(
@@ -679,6 +751,32 @@ fn verify_inventory(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn completion_guard_transition_preserves_material_outputs_and_closure() {
+        use super::*;
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("build-portcove")).unwrap();
+        let executable = root.path().join("build-portcove/game.exe");
+        fs::write(&executable, b"sealed executable").unwrap();
+        let log = root.path().join("build-portcove/.ninja_log");
+        fs::write(&log, b"prior accounting").unwrap();
+        let operation = OperationCoordinator::new("guard-owner", None);
+        let tree = GeneratedTree::capture(root.path(), &operation, true).unwrap();
+        fs::write(&log, b"new accounting").unwrap();
+        assert!(tree.guard_transition(&operation, false).is_err());
+        tree.guard_transition(&operation, true).unwrap();
+        // The predecessor remains immutable despite a permitted local capture.
+        assert!(tree.verify(root.path(), &operation).is_err());
+        let modified = fs::metadata(&executable).unwrap().modified().unwrap();
+        fs::write(&executable, b"changed executable").unwrap();
+        fs::File::options()
+            .write(true)
+            .open(&executable)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+        assert!(tree.guard_transition(&operation, true).is_err());
+    }
     use super::*;
 
     #[test]

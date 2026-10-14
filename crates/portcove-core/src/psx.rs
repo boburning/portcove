@@ -153,9 +153,11 @@ fn configure_install_with_recovery(
             "PS1 configure completed without its Ninja graph and cache",
         ));
     }
+    let cache = verify_configure_cache(&build, &preparation.toolchain_root)?;
     let tree = generated
         .tree
         .configured_transition(root, operation, *quiesced)?;
+    tree.require_file_bytes(Path::new("build-portcove/CMakeCache.txt"), &cache)?;
     let compile_plan = compile_plan::derive(root, &preparation.executable_basename, operation)?;
     tree.verify(root, operation)?;
     Ok(ConfiguredInstall {
@@ -205,6 +207,13 @@ fn configure_arguments(root: &Path, build: &Path, toolchain: &Path) -> Result<Ve
             builder_path(&platform_executable(&bin, "clang++"))?
         ),
         "-DCMAKE_BUILD_TYPE=Release".into(),
+        // The sealed graph is immutable across batches. CMake's always-dirty
+        // glob/regeneration preflight otherwise hides target work in Ninja -n.
+        "-DCMAKE_SUPPRESS_REGENERATION=ON".into(),
+        format!(
+            "-DPython3_EXECUTABLE={}",
+            builder_path(&toolchain_python(toolchain)?)?
+        ),
         "-DPSX_PGO=".into(),
         "-DBPE_FORCE_SETUP_HOST=OFF".into(),
         "-DPSXRECOMP_FORCE_SETUP_HOST=OFF".into(),
@@ -232,6 +241,33 @@ fn configure_arguments(root: &Path, build: &Path, toolchain: &Path) -> Result<Ve
         }
     }
     Ok(arguments)
+}
+
+fn verify_configure_cache(build: &Path, toolchain: &Path) -> Result<Vec<u8>> {
+    let cache = crate::external_runtime::read_stable_metadata(
+        &build.join("CMakeCache.txt"),
+        4 * 1024 * 1024,
+    )?;
+    let text = std::str::from_utf8(&cache)
+        .map_err(|_| PortcoveError::verification("PS1 configuration cache is not UTF-8"))?;
+    let expected_python = builder_path(&toolchain_python(toolchain)?)?.replace('\\', "/");
+    for (key, expected) in [
+        ("CMAKE_SUPPRESS_REGENERATION", "ON"),
+        ("Python3_EXECUTABLE", expected_python.as_str()),
+    ] {
+        let mut values = text.lines().filter_map(|line| {
+            let (name, value) = line.split_once('=')?;
+            (name.split_once(':')?.0 == key).then_some(value)
+        });
+        if values.next().map(|value| value.replace('\\', "/")) != Some(expected.to_owned())
+            || values.next().is_some()
+        {
+            return Err(PortcoveError::verification(
+                "PS1 configuration did not retain pinned Python and immutable graph policy",
+            ));
+        }
+    }
+    Ok(cache)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -6148,6 +6184,7 @@ mod tests {
         );
         for required in [
             "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_SUPPRESS_REGENERATION=ON",
             "-DPSX_PGO=",
             "-DPSXRECOMP_FORCE_SETUP_HOST=OFF",
             "-DBPE_FORCE_SETUP_HOST=OFF",
@@ -6159,6 +6196,11 @@ mod tests {
         ] {
             assert!(arguments.iter().any(|value| value == required));
         }
+        assert!(arguments.iter().any(|value| value
+            == &format!(
+                "-DPython3_EXECUTABLE={}",
+                builder_path(&toolchain_python(&toolchain).unwrap()).unwrap()
+            )));
         assert!(
             !arguments
                 .iter()
@@ -6171,6 +6213,109 @@ mod tests {
             )));
         fs::remove_file(platform_executable(&toolchain.join("bin"), "clang")).unwrap();
         assert!(configure_arguments(&root, &build, &toolchain).is_err());
+    }
+
+    #[test]
+    fn configure_cache_requires_unique_pinned_python_and_immutable_graph_policy() {
+        let temporary = tempfile::tempdir().unwrap();
+        let toolchain = temporary.path().join("toolchain");
+        toolchain_fixture(&toolchain, None);
+        let build = temporary.path().join("build");
+        fs::create_dir(&build).unwrap();
+        let cache = format!(
+            "CMAKE_SUPPRESS_REGENERATION:BOOL=ON\nPython3_EXECUTABLE:FILEPATH={}\n",
+            builder_path(&toolchain_python(&toolchain).unwrap()).unwrap()
+        );
+        fs::write(build.join("CMakeCache.txt"), &cache).unwrap();
+        verify_configure_cache(&build, &toolchain).unwrap();
+        for invalid in [
+            cache.replace("=ON", "=OFF"),
+            cache.replace("Python3_EXECUTABLE:", "_Python3_EXECUTABLE:"),
+            cache.clone() + "Python3_EXECUTABLE:FILEPATH=foreign/python\n",
+        ] {
+            fs::write(build.join("CMakeCache.txt"), invalid).unwrap();
+            assert!(verify_configure_cache(&build, &toolchain).is_err());
+        }
+    }
+
+    // Explicit representative native diagnostic, through the production builder
+    // and closure boundary. Uses only a copied pinned Ninja and private fixtures;
+    // no failed operation, database, SDK build or game source is opened.
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "explicit pinned-Ninja qualification fixture"]
+    fn ninja_native_manifest_and_repeatable_completion_control() {
+        let pinned = PathBuf::from(
+            std::env::var_os("PORTCOVE_QUALIFICATION_NINJA").expect("explicit pinned Ninja"),
+        );
+        assert_eq!(
+            hex::encode(sha2::Sha256::digest(
+                crate::external_runtime::read_stable_metadata(&pinned, 1024 * 1024).unwrap()
+            )),
+            "e52a7ad9538d9618c67a0bd777964e2eec8a30f68b810a2f6adce1f2daf847b8"
+        );
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path();
+        let toolchain = root.join("owned-toolchain");
+        toolchain_fixture(&toolchain, Some(&pinned));
+        let ninja = platform_executable(&toolchain.join("bin"), "ninja");
+        let build = root.join("build-portcove");
+        fs::create_dir(&build).unwrap();
+        let graph = format!(
+            "cmake_ninja_workdir = {}/\ninclude CMakeFiles/rules.ninja\nrule MATERIAL\n  command = cmd.exe /C echo fixture>first.obj\nrule CUSTOM_COMMAND\n  command = $COMMAND\nrule VERIFY_GLOBS\n  command = cmd.exe /C exit 0\n  generator = 1\n  restat = 1\nrule RERUN_CMAKE\n  command = cmd.exe /C exit 0\n  generator = 1\nbuild first.obj: MATERIAL\nbuild CMakeFiles/psx-stage-configs.util: CUSTOM_COMMAND\n  COMMAND = cmd.exe /C \"copy /Y ..\\game.toml game.toml >NUL && copy /Y ..\\game_options.toml game_options.toml >NUL\"\nbuild CMakeFiles/psx-runtime_require_generated | ${{cmake_ninja_workdir}}CMakeFiles/psx-runtime_require_generated: CUSTOM_COMMAND\n  COMMAND = cmd.exe /C exit 0\nbuild game.exe: phony first.obj CMakeFiles/psx-stage-configs.util CMakeFiles/psx-runtime_require_generated\nbuild psx-runtime: phony game.exe\n",
+            builder_path(&build)
+                .unwrap()
+                .replace('\\', "/")
+                .replace(':', "$:")
+                .replace(' ', "$ ")
+        );
+        fs::create_dir(build.join("CMakeFiles")).unwrap();
+        fs::write(build.join("CMakeFiles/rules.ninja"), "# owned fixture\n").unwrap();
+        for name in ["game.toml", "game_options.toml"] {
+            fs::write(root.join(name), b"owned configuration").unwrap();
+        }
+        let regeneration = "build force: phony\nbuild glob: VERIFY_GLOBS force\nbuild build.ninja: RERUN_CMAKE glob\n";
+        fs::write(build.join("build.ninja"), graph.clone() + regeneration).unwrap();
+        let operation = OperationCoordinator::new("native-pending-control", None);
+        let targets = vec!["game.exe".into()];
+        let mut quiesced = true;
+        let capture = |dry, quiesced: &mut bool| {
+            capture_pinned_builder(
+                &ninja,
+                root,
+                &toolchain,
+                pending::arguments(&targets, dry),
+                &operation,
+                quiesced,
+                true,
+            )
+            .unwrap()
+        };
+        let manifest_only = capture(true, &mut quiesced);
+        assert!(quiesced);
+        assert_eq!(pending::inspect(&manifest_only, quiesced).unwrap().count, 2);
+        assert!(!manifest_only.stdout.text.contains("echo fixture"));
+        assert!(!build.join("first.obj").exists());
+        fs::write(build.join("build.ninja"), &graph).unwrap();
+        assert_eq!(
+            pending::inspect(&capture(true, &mut quiesced), quiesced)
+                .unwrap()
+                .count,
+            3
+        );
+        capture(false, &mut quiesced);
+        assert!(quiesced);
+        assert!(build.join("first.obj").is_file());
+        let after = pending::inspect(&capture(true, &mut quiesced), quiesced).unwrap();
+        assert_eq!(after.count, 2);
+        let tree = stage::GeneratedTree::capture(root, &operation, quiesced).unwrap();
+        assert_eq!(
+            pending::material_remaining(&after, &tree, "game.exe", &targets, &operation).unwrap(),
+            0
+        );
+        println!(
+            "native Ninja control: manifest-only=2; fresh-target=3; executed material=1; repeatable=2; remaining material=0; positive closure=true"
+        );
     }
 
     #[test]

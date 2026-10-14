@@ -205,28 +205,43 @@ impl CompiledInstall {
                     .runtime_target()
                     .to_owned(),
             ];
-            let ninja = platform_executable(&preparation.toolchain_root.join("bin"), "ninja");
-            let observed = capture_pinned_builder(
-                &ninja,
-                self.tree.root(),
-                &preparation.toolchain_root,
-                pending::arguments(&targets, true),
+            // Repeatable SDK guards must actually succeed again at publication.
+            // A dry observation alone never satisfies their postconditions.
+            let remaining = execute_targets(
+                &self.configuration,
+                &self.tree,
+                &targets,
+                preparation,
                 operation,
                 &mut quiesced,
                 true,
             )?;
-            let pending = pending::inspect(&observed, quiesced)?;
-            self.finish_completed(preparation, operation, quiesced, pending.count)
+            let completion = self.tree.guard_transition(operation, quiesced)?;
+            pending::require_outputless_utilities(&completion)?;
+            self.finish_completed_tree(preparation, operation, quiesced, remaining, completion)
         })();
         (result, quiesced)
     }
 
+    #[cfg(test)]
     fn finish_completed(
         self,
         preparation: &PsxManagedPreparation,
         operation: &OperationCoordinator,
         quiesced: bool,
         pending: usize,
+    ) -> Result<FinalizedInstall> {
+        let completion = self.tree.clone();
+        self.finish_completed_tree(preparation, operation, quiesced, pending, completion)
+    }
+
+    fn finish_completed_tree(
+        self,
+        preparation: &PsxManagedPreparation,
+        operation: &OperationCoordinator,
+        quiesced: bool,
+        pending: usize,
+        completion: stage::GeneratedTree,
     ) -> Result<FinalizedInstall> {
         self.require_finalizable(preparation)?;
         if !quiesced || pending != 0 {
@@ -235,7 +250,7 @@ impl CompiledInstall {
             ));
         }
         let root = self.tree.root();
-        self.tree.verify(root, operation)?;
+        completion.verify(root, operation)?;
         verify_inputs(&self.configuration, preparation, operation)?;
         if self.configuration.configured.compile_plan
             != compile_plan::derive(root, &preparation.executable_basename, operation)?
@@ -262,7 +277,7 @@ impl CompiledInstall {
             operation,
             &mut closed,
             self.configuration.generation.generated.staged_bios.clone(),
-            Some(&self.tree),
+            Some(&completion),
         )?;
         if !closed {
             return Err(PortcoveError::verification(
@@ -274,8 +289,8 @@ impl CompiledInstall {
             .iter()
             .map(|(source, _)| source.clone())
             .collect::<Vec<_>>();
-        let tree = self.tree.finalized_transition(operation, &removed_paths)?;
-        let retained_inputs = self.tree.retained_inputs(&retained, &removed, operation)?;
+        let tree = completion.finalized_transition(operation, &removed_paths)?;
+        let retained_inputs = completion.retained_inputs(&retained, &removed, operation)?;
         tree.verify(root, operation)?;
         retained_inputs.verify(&retained, operation)?;
         Ok(FinalizedInstall {
@@ -305,6 +320,7 @@ impl CompiledInstall {
             .configured
             .tree
             .configured_transition(root, operation, quiesced)?;
+        pending::require_outputless_utilities(&tree)?;
         if configuration.configured.compile_plan
             != compile_plan::derive(root, &preparation.executable_basename, operation)?
         {
@@ -420,6 +436,7 @@ impl CompiledInstall {
         let preparation =
             preparation_from_identity(&self.configuration.generation.generated.inputs)?;
         let tree = self.tree.configured_transition(root, operation, quiesced)?;
+        pending::require_outputless_utilities(&tree)?;
         if self.configuration.configured.compile_plan
             != compile_plan::derive(root, &preparation.executable_basename, operation)?
         {
@@ -835,9 +852,20 @@ mod tests {
     fn finalization_publication_intent_fences_compilation_and_preserves_recovery_record() {
         let (_temporary, library, operation, mut journal, compiled, preparation) =
             completed_fixture();
+        let original_receipt = compiled.publication_receipt().unwrap().1.to_owned();
+        fs::write(
+            compiled.tree.root().join("build-portcove/.ninja_log"),
+            "updated guard accounting; no object or input changed",
+        )
+        .unwrap();
+        let completion = compiled.tree.guard_transition(&operation, true).unwrap();
         let mut finalized = compiled
-            .finish_completed(&preparation, &operation, true, 0)
+            .finish_completed_tree(&preparation, &operation, true, 0, completion)
             .unwrap();
+        assert_eq!(
+            finalized.compilation().publication_receipt().unwrap().1,
+            original_receipt
+        );
         fs::write(
             finalized.tree.root().join(".portcove-manifest.json"),
             "inert manifest; not installed acceptance",
@@ -1286,6 +1314,27 @@ fn execute_batch(
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<usize> {
+    let targets = configuration.configured.compile_plan.batch(index)?;
+    execute_targets(
+        configuration,
+        tree,
+        targets,
+        preparation,
+        operation,
+        quiesced,
+        false,
+    )
+}
+
+fn execute_targets(
+    configuration: &ConfiguredInstallWitness,
+    tree: &stage::GeneratedTree,
+    targets: &[String],
+    preparation: &PsxManagedPreparation,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+    guards_only: bool,
+) -> Result<usize> {
     let root = tree.root();
     tree.verify(root, operation)?;
     verify_inputs(configuration, preparation, operation)?;
@@ -1294,7 +1343,6 @@ fn execute_batch(
     {
         return Err(PortcoveError::verification("PS1 compile graph changed"));
     }
-    let targets = configuration.configured.compile_plan.batch(index)?;
     let ninja = platform_executable(&preparation.toolchain_root.join("bin"), "ninja");
     let arguments = |dry_run| pending::arguments(targets, dry_run);
     let before = capture_pinned_builder(
@@ -1307,6 +1355,19 @@ fn execute_batch(
         true,
     )?;
     let pending = pending::inspect(&before, *quiesced)?;
+    if guards_only
+        && pending::material_remaining(
+            &pending,
+            tree,
+            configuration.configured.compile_plan.runtime_target(),
+            targets,
+            operation,
+        )? != 0
+    {
+        return Err(PortcoveError::verification(
+            "PS1 finalization still has material compile work",
+        ));
+    }
     // The dry run is observational. Recheck its entire input tree before
     // dispatch, including the graph used to choose this finite closure.
     tree.verify(root, operation)?;
@@ -1332,5 +1393,11 @@ fn execute_batch(
         true,
     )?;
     let remaining = pending::inspect(&after, *quiesced)?;
-    Ok(remaining.count)
+    pending::material_remaining(
+        &remaining,
+        tree,
+        configuration.configured.compile_plan.runtime_target(),
+        targets,
+        operation,
+    )
 }
