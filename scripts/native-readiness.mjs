@@ -5,9 +5,9 @@ import { fileIdentity } from "./development-evidence.mjs";
 // Serializable in the actual WebView; do not import host state into this probe.
 export function observeGamepadCapability() {
   try {
-    if (typeof navigator.getGamepads !== "function")
+    if (typeof globalThis.navigator.getGamepads !== "function")
       return { outcome: "api-absent", exposed_devices: 0 };
-    const devices = Array.from(navigator.getGamepads()).filter(Boolean);
+    const devices = Array.from(globalThis.navigator.getGamepads()).filter(Boolean);
     return {
       outcome: devices.length ? "devices-exposed" : "no-exposed-device",
       exposed_devices: devices.length,
@@ -41,16 +41,20 @@ export function capabilityRequirement(observation, requirement) {
 }
 
 export function observeVisibleTarget(selector) {
-  const elements = Array.from(document.querySelectorAll(selector));
+  const elements = Array.from(globalThis.document.querySelectorAll(selector));
   const target = elements.length === 1 ? elements[0] : null;
   const rect = target?.getBoundingClientRect();
-  const style = target ? getComputedStyle(target) : null;
-  const viewport = { width: innerWidth, height: innerHeight, device_pixel_ratio: devicePixelRatio };
+  const style = target ? globalThis.getComputedStyle(target) : null;
+  const viewport = {
+    width: globalThis.innerWidth,
+    height: globalThis.innerHeight,
+    device_pixel_ratio: globalThis.devicePixelRatio,
+  };
   return {
     viewport,
     application_state: {
-      document_ready: document.readyState,
-      loading: document.querySelectorAll(".loading-state").length,
+      document_ready: globalThis.document.readyState,
+      loading: globalThis.document.querySelectorAll(".loading-state").length,
     },
     target: selector,
     target_count: elements.length,
@@ -65,8 +69,8 @@ export function observeVisibleTarget(selector) {
       rect.height > 0 &&
       rect.right > 0 &&
       rect.bottom > 0 &&
-      rect.left < innerWidth &&
-      rect.top < innerHeight,
+      rect.left < globalThis.innerWidth &&
+      rect.top < globalThis.innerHeight,
     ),
   };
 }
@@ -147,7 +151,7 @@ export async function captureSettledVisual({
       before = await observe();
       if (ready(before)) break;
       await bounded(() => new Promise((resolve) => setTimeout(resolve, 50)));
-    } while (true);
+    } while (!ready(before));
     const bytes = Buffer.from(await bounded(() => browser.takeScreenshot()), "base64");
     if (!bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))
       throw new Error("Screenshot is not PNG evidence");
