@@ -73,6 +73,7 @@ export async function writeEvidence(
     reload_cycles: context.reload_cycles ?? null,
     harness_deadline_ms: context.harness_deadline_ms ?? null,
     source_state: context.source_state ?? { revision, clean: null },
+    ...(context.acceptance_preflight ? { acceptance_preflight: context.acceptance_preflight } : {}),
     phases: context.phases ?? [],
     known_gaps: context.known_gaps ?? [],
     qualification_complete:

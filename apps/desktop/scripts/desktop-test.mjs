@@ -1,3 +1,7 @@
+import {
+  writeAcceptancePreflight,
+  observePacketDeliveryBindings,
+} from "../../../scripts/acceptance-packet.mjs";
 import { captureSettledVisual } from "../../../scripts/native-readiness.mjs";
 import {
   parseDesktopHarnessOptions,
@@ -7,6 +11,8 @@ import {
   readPrelaunchCustody,
   verifyConsumedInputs,
   executionAdmission,
+  retainedEvidenceRoot,
+  retainEvidenceInput,
 } from "../../../scripts/retained-evidence.mjs";
 import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mjs";
@@ -113,6 +119,11 @@ librarySwitchRecoverySelection(selection, process.platform);
 preferencesRecoverySelection(selection, process.platform);
 const executionPlan = planDesktopExecution(selection, {
   prelaunchCustody: Boolean(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST),
+  retainedMetadata: Boolean(
+    process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST &&
+    JSON.parse(await readFile(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, "utf8"))
+      .retained_metadata,
+  ),
 });
 const {
   bootstrapRecoverySession,
@@ -178,6 +189,7 @@ if (values["run-metadata"]) {
   inputs.push(await fileIdentity(values["run-metadata"]));
   runnerMetadata = JSON.parse(await readFile(values["run-metadata"], "utf8"));
 }
+let acceptancePreflight;
 let installFixture;
 let externalFixture;
 let bootstrapRecoveryFixture;
@@ -1513,6 +1525,82 @@ try {
       ),
     );
     inputs.push(await fileIdentity(externalFixture.catalogPath), ...externalFixture.identities);
+  }
+  if (runnerMetadata.acceptance_bindings) {
+    assert.equal(
+      custody?.retained_metadata,
+      true,
+      "Finite packet declarations must be consumed from retained non-secret metadata",
+    );
+    const declaration = runnerMetadata.acceptance_bindings;
+    const retainedRoot = retainedEvidenceRoot(output);
+    const fixtures = [];
+    for (let index = 0; index < inputs.length; index++)
+      if (!inputs[index].retained) {
+        const retained = await retainEvidenceInput({
+          root: retainedRoot,
+          file: inputs[index].path,
+          signal: admission.signal,
+        });
+        assert.equal(retained.sha256, inputs[index].sha256, "Fixture changed before capture");
+        fixtures.push({ ...retained.retained, role: `fixture-${fixtures.length}` });
+        inputs[index] = {
+          ...inputs[index],
+          ...retained,
+          role: `fixture-${fixtures.length - 1}`,
+          kind: "fixture",
+        };
+      }
+    const runtime = {
+      platform: process.platform,
+      architecture: process.arch,
+      node: process.version,
+      display_route: process.env.PORTCOVE_QUALIFICATION_DISPLAY_RECEIPT
+        ? "private-authenticated-virtual-X11"
+        : "native-platform-display",
+      physical_controller: "not-qualified",
+      driver_inputs: inputs
+        .filter((input) => ["driver", "native-driver"].includes(input.role))
+        .map(({ role, sha256, bytes }) => ({ role, sha256, bytes })),
+    };
+    acceptancePreflight = await writeAcceptancePreflight(
+      path.join(path.dirname(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST), "packet"),
+      {
+        root,
+        author: declaration.author,
+        source_review: declaration.source_review,
+        bindings: {
+          ...observePacketDeliveryBindings(root, revision),
+          build_inputs: runnerMetadata.verification_build,
+          product_artifacts: inputs
+            .filter((input) => ["app", "preparation-cli", "preparation-tool"].includes(input.role))
+            .map((input) => ({ ...input.retained, role: input.role })),
+          harness_inputs: inputs
+            .filter((input) => input.kind === "file")
+            .map((input) => ({ ...input.retained, role: input.role })),
+          execution_qualification: {
+            runtime_conditions: runtime,
+            fixture_identities: fixtures,
+            initial_state: {
+              isolated: true,
+              seeded_owned_fixture: Boolean(installFixture),
+              restart_cycles: restartCycles,
+              reload_cycles: reloadCycles,
+            },
+            requirements: declaration.requirements,
+            scenarios: selection.selected_scenarios,
+            acceptance_criteria: declaration.acceptance_criteria,
+          },
+        },
+        prerequisites: selection.prerequisites.map((id) => ({
+          id,
+          outcome: "available-for-selected-run",
+        })),
+        reusable_evidence: declaration.reusable_evidence ?? [],
+        known_gaps: declaration.known_gaps ?? [],
+      },
+    );
+    console.log(JSON.stringify({ acceptance_preflight: acceptancePreflight.identity }));
   }
   await requireUnusedPort(port);
   await requireUnusedPort(port + 1);
@@ -3266,6 +3354,7 @@ try {
       method: selection.profile ? `native-desktop-${selection.profile}` : "native-desktop-focused",
       context: {
         ...runnerMetadata,
+        ...(acceptancePreflight ? { acceptance_preflight: acceptancePreflight.identity } : {}),
         execution_binding: custody
           ? {
               format_version: 1,

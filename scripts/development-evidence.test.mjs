@@ -1,3 +1,8 @@
+import {
+  writeAcceptancePreflight,
+  completeAcceptancePacket,
+  reusableAcceptanceScenarios,
+} from "./acceptance-packet.mjs";
 import { runInNewContext } from "node:vm";
 import {
   observeGamepadCapability,
@@ -543,5 +548,329 @@ test("timed-out capture joins the blocked filesystem worker without publishing a
   assert.equal(
     JSON.parse(await readFile(path.join(directory, "blocked-capture.partial"), "utf8")).outcome,
     "captured",
+  );
+});
+
+async function packetFixture(t) {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-packet-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const source = path.join(directory, "source");
+  await mkdir(source);
+  const product = path.join(directory, "product");
+  await writeFile(product, "product");
+  const identity = await fileIdentity(product);
+  const head = "a".repeat(40),
+    target = "b".repeat(40),
+    tree = "c".repeat(40);
+  const bindings = {
+    source_head: head,
+    current_target: target,
+    composed_tree: tree,
+    build_inputs: { build_input_fingerprint: "d".repeat(64), inventory_complete: false },
+    product_artifacts: [{ ...identity, role: "app" }],
+    harness_inputs: [{ ...identity, role: "harness-fixture" }],
+    execution_qualification: {
+      runtime_conditions: { platform: "fixture", display: "virtual" },
+      fixture_identities: [],
+      initial_state: { isolated: true },
+      requirements: [{ id: "finite-fixture", required_scenarios: ["review"] }],
+      scenarios: ["review"],
+      acceptance_criteria: [
+        { id: "readable-review", scenarios: ["review"], required_images: ["review.png"] },
+      ],
+    },
+  };
+  const source_review = {
+    reviewer: "separate-fixture-source-reviewer",
+    reference: "isolated fixture source record",
+    source_head: head,
+    outcome: "passed",
+  };
+  const create = (name, extra = {}) =>
+    writeAcceptancePreflight(path.join(directory, name), {
+      root: source,
+      bindings,
+      prerequisites: [],
+      known_gaps: [],
+      source_review,
+      author: "fixture-author",
+      ...extra,
+    });
+  const preflight = await create("first");
+  const image = path.join(directory, "review.png");
+  await writeFile(image, "isolated image identity fixture; no native inspection claim");
+  const imageIdentity = await fileIdentity(image);
+  const capture = path.join(directory, "review-capture.json");
+  await writeFile(
+    capture,
+    JSON.stringify({
+      outcome: "captured",
+      scenario: "review",
+      image: imageIdentity,
+      observation: {
+        semantic: { ready: true },
+        state: { visible: true, application_state: { loading: 0 } },
+      },
+    }),
+  );
+  const closure = path.join(directory, "closure.json");
+  await writeFile(closure, JSON.stringify({ quiesced: true, exit: { code: 0, signal: null } }));
+  const artifacts = await Promise.all([image, capture, closure].map(fileIdentity));
+  const evidenceFile = path.join(directory, "evidence.json");
+  await writeFile(
+    evidenceFile,
+    JSON.stringify({
+      revision: head,
+      checks: [{ scenario: "review", outcome: "passed" }],
+      artifacts,
+    }),
+  );
+  const completion = {
+    evidence_identity: await fileIdentity(evidenceFile),
+    outcomes: [{ scenario: "review", outcome: "passed" }],
+    retained_artifacts: artifacts,
+    process_closure: { outcome: "passed", positive_exit: true, artifacts: [artifacts[2]] },
+    image_inspections: [
+      {
+        ...imageIdentity,
+        reviewer: "fixture-inspector",
+        inspected_at: new Date().toISOString(),
+        findings: "identity fixture only, no native/human qualification",
+      },
+    ],
+    outcome_review: {
+      reviewer: "separate-fixture-outcome-reviewer",
+      reference: "isolated fixture record",
+      source_head: head,
+      outcome: "passed",
+    },
+    final_delivery: {
+      source_head: head,
+      current_target: target,
+      composed_tree: tree,
+      review_reference: "isolated fixture delivery record",
+    },
+  };
+  return { directory, source, bindings, source_review, preflight, create, completion };
+}
+
+test("preflight freezes prospective bindings without requiring final screenshots or a completed placeholder", async (t) => {
+  const fixture = await packetFixture(t);
+  assert.equal(fixture.preflight.packet.stage, "preflight");
+  await assert.rejects(stat(path.join(fixture.directory, "first/completed.json")), {
+    code: "ENOENT",
+  });
+  await assert.rejects(
+    writeAcceptancePreflight(path.join(fixture.source, "packet"), {
+      root: fixture.source,
+      bindings: fixture.bindings,
+      prerequisites: [],
+      known_gaps: [],
+      source_review: fixture.source_review,
+      author: "fixture",
+    }),
+    /outside/u,
+  );
+  await assert.rejects(
+    completeAcceptancePacket(fixture.preflight.identity, {
+      ...fixture.completion,
+      image_inspections: [],
+    }),
+    /actual inspection/u,
+  );
+  await assert.rejects(
+    completeAcceptancePacket(fixture.preflight.identity, {
+      ...fixture.completion,
+      image_inspections: [{ ...fixture.completion.image_inspections[0], sha256: "f".repeat(64) }],
+    }),
+    /exact retained image/u,
+  );
+  await assert.rejects(
+    completeAcceptancePacket(fixture.preflight.identity, {
+      ...fixture.completion,
+      outcome_review: { ...fixture.completion.outcome_review, reviewer: "fixture-author" },
+    }),
+    /Independent/u,
+  );
+  await assert.rejects(
+    completeAcceptancePacket(fixture.preflight.identity, {
+      ...fixture.completion,
+      final_delivery: { ...fixture.completion.final_delivery, source_head: "e".repeat(40) },
+    }),
+    /binding\/source/u,
+  );
+  const completed = await completeAcceptancePacket(fixture.preflight.identity, fixture.completion);
+  assert.equal(completed.packet.stage, "completed");
+  assert.equal(completed.packet.qualification_complete, true);
+  assert.equal(completed.packet.interpretation.includes("no acceptance"), true);
+  await assert.rejects(completeAcceptancePacket(fixture.preflight.identity, fixture.completion), {
+    code: "EEXIST",
+  });
+});
+
+test("changed retained image, placeholder source review and unreviewed composition cannot complete", async (t) => {
+  const fixture = await packetFixture(t);
+  await assert.rejects(
+    completeAcceptancePacket(fixture.preflight.identity, {
+      ...fixture.completion,
+      final_delivery: { ...fixture.completion.final_delivery, current_target: "f".repeat(40) },
+    }),
+    /reviewed qualification/u,
+  );
+  const placeholder = await fixture.create("placeholder", {
+    source_review: { outcome: "not-run" },
+  });
+  await assert.rejects(
+    completeAcceptancePacket(placeholder.identity, fixture.completion),
+    /placeholder source review/u,
+  );
+  await writeFile(fixture.completion.image_inspections[0].path, "mutated image");
+  await assert.rejects(
+    completeAcceptancePacket(fixture.preflight.identity, fixture.completion),
+    /artifact bytes changed/u,
+  );
+});
+
+test("reuse keeps source provenance separate and conservatively invalidates effective observations", async (t) => {
+  const fixture = await packetFixture(t);
+  const previous = (await completeAcceptancePacket(fixture.preflight.identity, fixture.completion))
+    .packet;
+  const next = structuredClone(fixture.preflight.packet);
+  next.bindings.source_head = "e".repeat(40);
+  assert.deepEqual(
+    reusableAcceptanceScenarios(previous, next).reusable,
+    ["review"],
+    "documentation-only source change can retain bound observations",
+  );
+  for (const mutate of [
+    (value) => (value.bindings.product_artifacts[0].sha256 = "f".repeat(64)),
+    (value) => (value.harness_identity = "f".repeat(64)),
+    (value) => (value.bindings.execution_qualification.runtime_conditions.display = "physical"),
+    (value) => (value.bindings.execution_qualification.initial_state.isolated = false),
+    (value) =>
+      (value.bindings.execution_qualification.fixture_identities = [
+        { ...fixture.bindings.product_artifacts[0], role: "new-fixture" },
+      ]),
+    (value) =>
+      (value.bindings.execution_qualification.acceptance_criteria[0].id = "changed-criteria"),
+    (value) => (value.bindings.execution_qualification.requirements[0].id = "changed-requirement"),
+  ]) {
+    const changed = structuredClone(next);
+    mutate(changed);
+    assert.deepEqual(reusableAcceptanceScenarios(previous, changed).rerun, ["review"]);
+  }
+  assert.deepEqual(reusableAcceptanceScenarios({}, next).rerun, ["review"]);
+});
+
+test("bound prior completed evidence may be reused without backdating original execution", async (t) => {
+  const fixture = await packetFixture(t);
+  const previous = await completeAcceptancePacket(fixture.preflight.identity, fixture.completion);
+  const head = "e".repeat(40);
+  const next = await fixture.create("reused", {
+    bindings: { ...fixture.bindings, source_head: head },
+    source_review: { ...fixture.source_review, source_head: head },
+    reusable_evidence: [
+      { evidence: fixture.completion.evidence_identity, packet: previous.identity },
+    ],
+  });
+  const completion = {
+    ...fixture.completion,
+    outcome_review: { ...fixture.completion.outcome_review, source_head: head },
+    final_delivery: { ...fixture.completion.final_delivery, source_head: head },
+  };
+  const complete = await completeAcceptancePacket(next.identity, completion);
+  assert.equal(complete.packet.qualification_complete, true);
+  assert.equal(complete.packet.execution_observation_source_head, fixture.bindings.source_head);
+  assert.equal(complete.packet.bindings.source_head, head);
+  const ambiguous = await fixture.create("ambiguous", {
+    bindings: { ...fixture.bindings, source_head: head },
+    source_review: { ...fixture.source_review, source_head: head },
+  });
+  await assert.rejects(
+    completeAcceptancePacket(ambiguous.identity, completion),
+    /bound reusable evidence/u,
+  );
+});
+
+test("required gaps and distinct failed/skipped/unsupported outcomes do not waive acceptance", async (t) => {
+  const fixture = await packetFixture(t);
+  const gap = await fixture.create("gap", {
+    known_gaps: [{ id: "required-closure-gap", required: true }],
+  });
+  assert.equal(
+    (await completeAcceptancePacket(gap.identity, fixture.completion)).packet
+      .qualification_complete,
+    false,
+  );
+  for (const outcome of ["failed", "skipped", "unsupported"]) {
+    const preflight = await fixture.create(outcome);
+    const file = path.join(fixture.directory, `${outcome}.json`);
+    await writeFile(
+      file,
+      JSON.stringify({
+        revision: fixture.bindings.source_head,
+        checks: [{ scenario: "review", outcome }],
+        artifacts: fixture.completion.retained_artifacts,
+      }),
+    );
+    const completed = await completeAcceptancePacket(preflight.identity, {
+      ...fixture.completion,
+      evidence_identity: await fileIdentity(file),
+      outcomes: [{ scenario: "review", outcome }],
+    });
+    assert.equal(completed.packet.outcomes[0].outcome, outcome);
+    assert.equal(completed.packet.qualification_complete, false);
+  }
+});
+
+test("retained metadata read binds validated bytes even after the original file changes", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-metadata-read-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const original = path.join(directory, "original.json");
+  await writeFile(original, JSON.stringify({ criteria: "original" }));
+  const input = await retainEvidenceInput({
+    root: path.join(directory, "evidence"),
+    file: original,
+  });
+  const timestamp = new Date().toISOString(),
+    manifest = path.join(directory, "prelaunch.json");
+  await writeFile(
+    manifest,
+    JSON.stringify({
+      format_version: 1,
+      root: directory,
+      revision: "a".repeat(40),
+      pre_import_for: "apps/desktop/scripts/desktop-test.mjs",
+      selected_scenarios: [],
+      execution_started_at: timestamp,
+      created_at: timestamp,
+      inputs: [
+        {
+          ...input,
+          role: "run-metadata",
+          kind: "argument-file",
+          binding: "retained-metadata-read",
+        },
+      ],
+    }),
+  );
+  await writeFile(original, JSON.stringify({ criteria: "mutated" }));
+  await readPrelaunchCustody(manifest, {
+    root: directory,
+    revision: "a".repeat(40),
+    plan: { receiptInputs: [{ kind: "argument-file", name: "run-metadata" }] },
+    values: { "run-metadata": input.retained.path },
+    selectedScenarios: [],
+    deadlineMs: 60_000,
+  });
+  assert.equal(JSON.parse(await readFile(input.retained.path, "utf8")).criteria, "original");
+  assert.equal(
+    retainedExecutableCanLaunch(
+      { role: "native-driver", path: "/private/WebKitWebDriver" },
+      { nativeDriver: "/private/WebKitWebDriver" },
+      "linux",
+    ),
+    false,
+    "Private Linux native drivers cannot be assumed relocatable",
   );
 });

@@ -18,7 +18,7 @@ function freeze(value) {
 /** Private planning facts; never execution, consent, or process authority. */
 export function planDesktopExecution(
   selectionInput,
-  { platform = process.platform, prelaunchCustody = false } = {},
+  { platform = process.platform, prelaunchCustody = false, retainedMetadata = false } = {},
 ) {
   const selection = structuredClone(selectionInput);
   const bootstrapRecoverySession = selection.selected_scenarios.includes(
@@ -113,6 +113,7 @@ export function planDesktopExecution(
     ])
       inputs.push({ kind: "file", path: source });
   inputs.push({ kind: "file", path: "scripts/native-readiness.mjs" });
+  inputs.push({ kind: "file", path: "scripts/acceptance-packet.mjs" });
   inputs.push(receiptSource(harnessUrl));
   if (
     selection.selected_scenarios.some((id) =>
@@ -269,6 +270,7 @@ export function planDesktopExecution(
         ]
       : []),
   ];
+  if (retainedMetadata) inputs.push({ kind: "argument-file", name: "run-metadata" });
   return freeze({
     selection,
     receiptInputs: expandNativeHelperInputs(inputs),

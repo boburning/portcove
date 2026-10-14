@@ -309,12 +309,12 @@ export function executionAdmission(startedAt, budgetMs, now = Date.now) {
   };
 }
 
-export function retainedExecutableCanLaunch(input, drivers) {
+export function retainedExecutableCanLaunch(input, drivers, platform = process.platform) {
   // Product metadata is provenance, never proof of a relocatable layout.
   // Only the bootstrap's standalone cached driver executables are established.
   return (
     (input.role === "driver" && input.path === drivers?.driver) ||
-    (input.role === "native-driver" && input.path === drivers?.nativeDriver)
+    (platform === "win32" && input.role === "native-driver" && input.path === drivers?.nativeDriver)
   );
 }
 
@@ -340,7 +340,7 @@ export async function readPrelaunchCustody(
   )
     throw new Error("Prelaunch input custody does not bind this execution");
   const declared = plan.receiptInputs.map((input) =>
-    input.kind === "executable" ? input.name : input.path,
+    ["executable", "argument-file"].includes(input.kind) ? input.name : input.path,
   );
   const roles = manifest.inputs.map((input) => input.role);
   if (
@@ -350,19 +350,24 @@ export async function readPrelaunchCustody(
     throw new Error("Prelaunch input inventory is incomplete");
   for (const input of manifest.inputs) {
     const expected = plan.receiptInputs.find(
-      (entry) => (entry.kind === "executable" ? entry.name : entry.path) === input.role,
+      (entry) =>
+        (["executable", "argument-file"].includes(entry.kind) ? entry.name : entry.path) ===
+        input.role,
     );
     if (
       !/^[a-f0-9]{64}$/u.test(input.sha256 ?? "") ||
       !Number.isSafeInteger(input.bytes) ||
       input.bytes < 0 ||
       !path.isAbsolute(input.retained?.path ?? "") ||
-      (expected.kind === "executable"
-        ? !["retained-artifact", "live-path-checked-cooperative"].includes(input.binding) ||
-          path.resolve(values[expected.name] ?? ".") !==
-            (input.binding === "retained-artifact" ? input.retained.path : input.path)
-        : input.binding !== "live-path-checked-cooperative" ||
-          input.path !== path.join(root, expected.path))
+      (expected.kind === "argument-file"
+        ? input.binding !== "retained-metadata-read" ||
+          path.resolve(values[expected.name] ?? ".") !== input.retained.path
+        : expected.kind === "executable"
+          ? !["retained-artifact", "live-path-checked-cooperative"].includes(input.binding) ||
+            path.resolve(values[expected.name] ?? ".") !==
+              (input.binding === "retained-artifact" ? input.retained.path : input.path)
+          : input.binding !== "live-path-checked-cooperative" ||
+            input.path !== path.join(root, expected.path))
     )
       throw new Error("Consumed input differs from the prelaunch declaration");
   }

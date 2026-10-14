@@ -528,6 +528,56 @@ directory and can be used outside Portcove. Keep a repository skill focused:
 update its trigger and owning references when behavior changes instead of copying
 the same detailed contract into the root instructions.
 
+## Finite acceptance packets
+
+The existing Windows/Linux verification route accepts optional
+`--acceptance-bindings-file ABSOLUTE_JSON` for an owning finite qualification.
+The same declarations can be supplied in retained, explicitly non-secret
+`runner-metadata.json` through the documented low-level route. They name the
+actual author/source review, requirements with required scenarios, acceptance
+criteria with required image filenames, reusable evidence and visible gaps.
+These are execution declarations, not a new universal packet gate.
+
+After owned fixture preparation and before launch, the harness writes
+`preflight.json` outside the source checkout, alongside the retained prelaunch
+observation. It freezes source/current-target/composed-tree, partial build-input
+fingerprint, product artifact identities, declared harness inputs, runtime,
+initial fixture identities/state, requirements and scenarios. It needs no future
+screenshots. The build inventory's incomplete external native SDK coverage
+continues to require the normal Cargo build; it is not a native cache waiver.
+
+After the run, `evidence.json` remains the actual run observation. The existing
+`completeAcceptancePacket` helper writes the same format at stage `completed`
+only after real outcomes, retained artifacts, process-closure evidence,
+image-specific inspection, separate outcome review and final delivery bindings
+are supplied. Never insert placeholders or treat report reading as image
+inspection. Inspect each required PNG itself, rehash it and record reviewer,
+time and findings against those exact bytes. Required visuals also bind to their
+successful settled capture receipts. Missing images, required gaps, failed,
+skipped or unsupported outcomes cannot become qualification success. Preserve
+failed evidence and the original preflight; a packet does not confer acceptance,
+merge authority or permission to change its own verifier.
+
+`reusableAcceptanceScenarios` compares effective product, harness, runtime,
+fixture, state, requirements and criteria bindings. Product changes invalidate
+product-dependent observations; harness changes invalidate scenarios using those
+inputs; runtime/display/fixture/criteria changes invalidate their observations.
+The bounded profiles conservatively rerun the selected affected set when a
+shared binding changes. Missing/ambiguous bindings require requalification.
+Documentation-only source changes may retain fully bound evidence while exact
+source-head CI remains required. Reuse references a previous completed packet
+and the unchanged evidence bytes, preserving its original execution source and
+time. Historical version-2 acceptance is not retroactively subjected to this
+format or granted earlier custody by a later copy.
+
+Keep the existing fresh current-target/composed-tree review and trusted guarded
+delivery route. A changed target requires an explicit reviewed qualification
+decision; candidate declarations cannot waive required acceptance or protected
+pre-change qualification. Retain one existing exact-head watcher and compact
+change-driven progress. At finite completion, summarize already-observed build
+reuse, deduplicated bytes, affected reruns and removed duplicate steps without
+creating a benchmark or numerical gate.
+
 ## Bounded native readiness and private Linux execution
 
 `captureSettledVisual` requires a scenario, intended target and caller-specific
