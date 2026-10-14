@@ -985,6 +985,30 @@ test("unchanged source head does not hide PR body or relationship changes", () =
 });
 
 test("candidate commit and actual proposed squash text require explicit closure permission", () => {
+  for (const text of [
+    "Fixes https://github.com/boburning/portcove/issues/244",
+    "Fixes https://github.com/other/repo/issues/244",
+  ]) {
+    assert.throws(
+      () =>
+        closureGuardClient([closingPage()], [{ sha: head, commit: { message: text } }]).merge(
+          7,
+          head,
+          required,
+          emptyIntent,
+          squashMessage,
+        ),
+      /Undeclared/,
+    );
+    assert.throws(
+      () =>
+        closureGuardClient([closingPage()]).merge(7, head, required, emptyIntent, {
+          ...squashMessage,
+          body: text,
+        }),
+      /Undeclared/,
+    );
+  }
   assert.throws(
     () =>
       closureGuardClient(
@@ -1023,7 +1047,10 @@ test("unexpected actual squash message preserves a merged outcome without retry"
     (error) =>
       error.operationStatus === "unknown" &&
       error.operationEvidence.merge_commit_sha === merge &&
-      /Actual merged commit message differs/.test(error.message),
+      /Actual merged commit message differs/.test(error.message) &&
+      error.operationEvidence.closure_readback.actual_commit.message === "Unexpected Closes #244" &&
+      error.operationEvidence.closure_readback.mutation.merged === true &&
+      error.operationEvidence.closure_readback.pull.merge_commit_sha === merge,
   );
   assert.equal(writes, 1);
 });

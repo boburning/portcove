@@ -350,11 +350,18 @@ export class PullRequestDeliveryClient {
         requestError,
       );
     }
+    const closureReadback = {
+      mutation: result,
+      pull: readback,
+      actual_commit: null,
+      closing: null,
+    };
     try {
       const actual = this.request(
         "GET",
         `repos/${repository}/git/commits/${readback.merge_commit_sha}`,
       ).body;
+      closureReadback.actual_commit = actual;
       const expectedMessage = mergeMessage.body
         ? `${mergeMessage.title}\n\n${mergeMessage.body}`
         : mergeMessage.title;
@@ -364,17 +371,30 @@ export class PullRequestDeliveryClient {
       )
         throw new Error("Actual merged commit message differs from the checked squash message");
       const after = readClosingRelationships(this.api, repository, number);
+      closureReadback.closing = after;
       if (after.fingerprint !== closing.fingerprint)
         throw new Error("PR body or closing relationships changed across merge");
     } catch (error) {
       throw deliveryOutcomeError(
         "unknown",
         `Merge occurred; closure readback needs reconciliation: ${error.message}`,
-        { pull_request: number, head, merge_commit_sha: readback.merge_commit_sha, closing },
+        {
+          pull_request: number,
+          head,
+          merge_commit_sha: readback.merge_commit_sha,
+          closing,
+          closure_readback: closureReadback,
+        },
         error,
       );
     }
-    return { result, readback, contexts: state.contexts, closing };
+    return {
+      result,
+      readback,
+      contexts: state.contexts,
+      closing,
+      closure_readback: closureReadback,
+    };
   }
 }
 
@@ -1143,6 +1163,10 @@ async function main(argv) {
       JSON.parse(await readFile(options["--closure-intent-file"], "utf8")),
       JSON.parse(await readFile(options["--merge-message-file"], "utf8")),
     );
+    const directory = path.join(projectRoot, "work/pr-delivery");
+    mkdirSync(directory, { recursive: true });
+    const closureReceipt = path.join(directory, `${randomUUID()}-merge.json`);
+    writeFileSync(closureReceipt, JSON.stringify({ number, head, ...merged }), { flag: "wx" });
     const summary =
       `Merged pull request #${number} at exact head ${head} as ${merged.result.sha}; ` +
       "remote readback confirmed.";
@@ -1162,6 +1186,7 @@ async function main(argv) {
                 conclusion,
               })),
               remote_readback: true,
+              closure_receipt: closureReceipt,
             },
           }),
         ),

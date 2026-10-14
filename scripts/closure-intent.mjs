@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 const hazardousNegation =
-  /\b(?:(?:do|does|did|will|would|should|can|could|may|might|must)\s+not|(?:do|does|did|would|should|could|must)n['’]t|won['’]t|can(?:not|['’]t))\s+(?:close|fix|resolve)(?:s|d|ing)?\s*:?\s*(?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#\d+\b/i;
+  /\b(?:(?:do|does|did|will|would|should|can|could|may|might|must)\s+not|(?:do|does|did|would|should|could|must)n['’]t|won['’]t|can(?:not|['’]t))\s+(?:close|fix|resolve)(?:s|d|ing)?\s*:?\s*(?:(?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#\d+|<?https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/(?:issues|pull)\/\d+)\b/i;
 
 export function hasHazardousClosingNegation(text) {
   return hazardousNegation.test(text);
@@ -35,9 +35,9 @@ export function closingReferences(text, repository) {
   if (typeof text !== "string") throw new Error("Closure candidate text is unavailable");
   const targets = [];
   const expression =
-    /\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s*:?\s*(?:([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+))?#([1-9]\d*)\b/giu;
+    /\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s*:?\s*(?:<?https:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/(?:issues|pull)\/([1-9]\d*)|(?:([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+))?#([1-9]\d*))\b/giu;
   for (const match of text.matchAll(expression))
-    targets.push(canonicalTarget(`${match[1] ?? repository}#${match[2]}`));
+    targets.push(canonicalTarget(`${match[1] ?? match[3] ?? repository}#${match[2] ?? match[4]}`));
   return [...new Set(targets)].sort();
 }
 

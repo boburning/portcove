@@ -40,7 +40,12 @@ test("closure permission is independent, canonical and covers variants and hidde
     "resolves",
     "resolved",
   ]) {
-    for (const target of ["#244", "Boburning/Portcove#244"]) {
+    for (const target of [
+      "#244",
+      "Boburning/Portcove#244",
+      "https://github.com/boburning/portcove/issues/244",
+      "<https://github.com/boburning/portcove/issues/244>",
+    ]) {
       const text = `${keyword.toUpperCase()}: ${target}`;
       assert.throws(
         () => checkClosureIntent(emptyIntent, { repository, texts: [text] }),
@@ -71,6 +76,14 @@ test("closure permission is independent, canonical and covers variants and hidde
   assert.deepEqual(
     checkClosureIntent(emptyIntent, { repository, texts: ["Related to #244."] }),
     [],
+  );
+  assert.throws(
+    () =>
+      checkClosureIntent(
+        { format_version: 1, allowed_targets: ["boburning/portcove#244"] },
+        { repository, texts: ["does not close https://github.com/boburning/portcove/issues/244"] },
+      ),
+    /negated/,
   );
   assert.throws(
     () => checkClosureIntent(emptyIntent, { repository, relationships: ["other/repo#244"] }),
@@ -123,6 +136,21 @@ test("PR writer refuses undeclared intent before mutation", () => {
         {
           operation: "pr-create",
           body: "Closes #244",
+          title: "fix: scoped",
+          head: "feature/scoped",
+          base: "main",
+          closureIntent: emptyIntent,
+        },
+        api,
+      ),
+    /Undeclared/,
+  );
+  assert.throws(
+    () =>
+      writeGitHubBody(
+        {
+          operation: "pr-create",
+          body: "Fixes https://github.com/boburning/portcove/issues/244",
           title: "fix: scoped",
           head: "feature/scoped",
           base: "main",
