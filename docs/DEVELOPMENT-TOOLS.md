@@ -25,6 +25,26 @@ failed job rather than an entire multi-job workflow. Fallow retains
 original analyzer bytes below `work/fallow-reports`. Selected static gates run
 before compilation and tests; complete selected and hosted obligations remain.
 
+## Focused validation and bounded delivery reads
+
+Use `just test-ui FILES` for literal test files. It validates every path before
+execution and reconciles requested files with Vitest's executed report. A successful
+partial match is a failure; skip counts are reported separately. Use
+`just test-ui-related FILES` for source files and import-graph coverage instead.
+Both routes retain the existing isolation, timing and resource contracts.
+
+Read `node scripts/roadmap.mjs set --help` for current field flags and values;
+command-specific help runs offline without acquiring a live-operation lock.
+Use `--summary` on Roadmap context/doctor and Renovate inspection for a retained,
+16 KiB projection; it is mutually exclusive with full `--json`. The report-summary
+route also supports `renovate` and `ui` reports. Raw evidence is retained before
+summary success, and missing retention fails explicitly.
+
+Use one `just pr-watch` per source/run/attempt/deadline binding. Opt into
+`--progress` for change-only workflow/check observations on stderr while final
+JSON stays on stdout. Repeated unchanged observations remain quiet. Consume the
+watch result or retained snapshots; retrieve the identified failed job when needed.
+
 ## Early commit feedback
 
 After the pinned frozen frontend dependency install, run `pnpm run hooks:install`.

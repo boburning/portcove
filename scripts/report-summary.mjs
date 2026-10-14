@@ -110,6 +110,27 @@ export function renderBoundedSummary(
 
 export function summarizeReport(kind, report, reference) {
   if (!report || typeof report !== "object") throw new Error("Report must be a JSON object");
+  if (kind === "renovate" && report.evidence) {
+    const entries = report.evidence.candidates
+      ? report.evidence.candidates.map(
+          (entry) =>
+            `#${entry.number} ${entry.head}: ${entry.verdict}; ${entry.reason}; ${entry.next_action}`,
+        )
+      : [`${report.evidence.head}: ${report.evidence.verdict}; ${report.evidence.reason}`];
+    return renderBoundedSummary(report.summary, entries, { reference });
+  }
+  if (
+    kind === "ui" &&
+    Array.isArray(report.requested_files) &&
+    Array.isArray(report.discovered_files) &&
+    Array.isArray(report.executed_files)
+  ) {
+    return renderBoundedSummary(
+      `UI selection: requested ${report.requested_files.length}; discovered ${report.discovered_files.length}; executed ${report.executed_files.length}; passed ${report.passed}; skipped ${report.skipped}`,
+      report.requested_files,
+      { reference },
+    );
+  }
   if (kind === "timings" && Array.isArray(report.records)) {
     const failed = report.records.filter((entry) => entry.outcome === "failed");
     const observed = new Map();
@@ -222,11 +243,20 @@ export function summarizeReport(kind, report, reference) {
   throw new Error(`Unsupported or malformed ${kind} report; no result claimed`);
 }
 
+export function retainReportSummary(kind, report, directory) {
+  mkdirSync(directory, { recursive: true });
+  const reference = path.join(directory, `${randomUUID()}.json`);
+  writeFileSync(reference, JSON.stringify(report), { flag: "wx" });
+  return summarizeReport(kind, report, reference);
+}
+
 if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   try {
     const [kind, file, ...rest] = process.argv.slice(2);
     if (!file || rest.length)
-      throw new Error("usage: report-summary.mjs ci|roadmap|fallow|watch|doctor|timings FILE");
+      throw new Error(
+        "usage: report-summary.mjs ci|roadmap|fallow|watch|doctor|timings|renovate|ui FILE",
+      );
     if (statSync(file).size > 32 * 1024 * 1024)
       throw new Error("Report exceeds 32 MiB input limit");
     const result = summarizeReport(

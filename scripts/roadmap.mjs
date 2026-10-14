@@ -16,7 +16,7 @@ import {
 import { acquireOwnedProcessLock } from "./process-lock.mjs";
 import { validateGitHubBody } from "./github-body.mjs";
 import { captureCheckoutContext, checkContextualDoctor } from "./checkout-context.mjs";
-import { summarizeReport } from "./report-summary.mjs";
+import { summarizeReport, retainReportSummary } from "./report-summary.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
@@ -1186,7 +1186,7 @@ export function parseArguments(argv) {
       continue;
     }
     const [name, inline] = token.split("=", 2);
-    if (["--apply", "--json"].includes(name) && inline === undefined) {
+    if (["--apply", "--json", "--summary", "--help"].includes(name) && inline === undefined) {
       options[name] = true;
       continue;
     }
@@ -5271,8 +5271,53 @@ async function runDoctor(config, client, { quiet = false } = {}) {
   };
 }
 
+export function roadmapCommandHelp(command, config) {
+  if (!/^[a-z-]+$/u.test(command)) throw new Error("unknown Roadmap command: " + command);
+  const line = roadmapHelp
+    .split("\n")
+    .find(
+      (line) =>
+        line.trim().startsWith("node scripts/roadmap.mjs " + command + " ") ||
+        line.trim() === "node scripts/roadmap.mjs " + command,
+    );
+  if (!line) throw new Error("unknown Roadmap command: " + command);
+  const fields =
+    command === "set"
+      ? [...setFlags]
+      : command === "capture-feature"
+        ? [...setFlags].filter(([flag]) =>
+            [
+              "--priority",
+              "--horizon",
+              "--release",
+              "--commitment",
+              "--workstream",
+              "--platform",
+            ].includes(flag),
+          )
+        : [];
+  return [
+    line.trim(),
+    ...fields.map(
+      ([flag, field]) =>
+        flag + ": " + config.fields.find((entry) => entry.name === field).options.join(" | "),
+    ),
+    command === "context" || command === "doctor"
+      ? "--summary: retain raw evidence and display a bounded projection; mutually exclusive with --json"
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function main(argv) {
   const parsed = parseArguments(argv);
+  if (parsed.options["--help"]) {
+    console.log(roadmapCommandHelp(parsed.command, JSON.parse(await readFile(configPath, "utf8"))));
+    return;
+  }
+  if (parsed.options["--summary"] && parsed.options["--json"])
+    throw new Error("--summary and --json are mutually exclusive");
   if (["--help", "help"].includes(parsed.command)) {
     console.log(roadmapHelp);
     return;
@@ -5311,7 +5356,9 @@ async function main(argv) {
     if (parsed.command === "doctor") {
       if (
         parsed.positionals.length ||
-        Object.keys(parsed.options).some((key) => !["--expected-head", "--json"].includes(key))
+        Object.keys(parsed.options).some(
+          (key) => !["--expected-head", "--json", "--summary"].includes(key),
+        )
       )
         throw new Error("usage: roadmap.mjs doctor [--expected-head SHA] [--json]");
       let context;
@@ -5322,7 +5369,7 @@ async function main(argv) {
           expectedHead: parsed.options["--expected-head"],
           report: (observed) => {
             context = observed;
-            if (!parsed.options["--json"])
+            if (!parsed.options["--json"] && !parsed.options["--summary"])
               console.log(
                 `Roadmap checkout: ${observed.root}; HEAD: ${observed.head}; branch: ${observed.branch}; catalog SHA-256: ${observed.catalog_sha256}; modified inputs: ${observed.input_dirty}`,
               );
@@ -5365,7 +5412,13 @@ async function main(argv) {
       } catch {
         reference = "retention unavailable";
       }
-      if (parsed.options["--json"]) console.log(JSON.stringify({ ...report, evidence: reference }));
+      if (parsed.options["--summary"]) {
+        if (reference === "retention unavailable")
+          throw new Error("Roadmap summary raw retention failed");
+        if (!context) throw new Error(report.errors.join("; "));
+        console.log(summarizeReport("doctor", report, reference).text);
+      } else if (parsed.options["--json"])
+        console.log(JSON.stringify({ ...report, evidence: reference }));
       else if (context) console.log(summarizeReport("doctor", report, reference).text);
       else console.error(report.errors.join("\n"));
       return;
@@ -5446,10 +5499,12 @@ async function main(argv) {
       const values = {};
       for (const [flag, value] of Object.entries(parsed.options)) {
         const field = setFlags.get(flag);
-        if (!field) throw new Error(`unsupported set option: ${flag}`);
+        if (!field) throw new Error(`unsupported set option: ${flag}; use set --help`);
         const definition = config.fields.find((candidate) => candidate.name === field);
         if (!definition.options.includes(value))
-          throw new Error(`${value} is not a valid ${field} option`);
+          throw new Error(
+            `${value} is not a valid ${field} option; allowed: ${definition.options.join(" | ")}`,
+          );
         values[field] = value;
       }
       if (!Object.keys(values).length) throw new Error("set requires at least one field option");
@@ -5519,6 +5574,7 @@ async function main(argv) {
         "--consumed-comment",
         "--reservation-comment",
         "--json",
+        "--summary",
       ]);
       const value = requiredOption(parsed.options, "--issue");
       if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1)
@@ -5597,6 +5653,13 @@ async function main(argv) {
         context.current_specification = null;
         context.specification_disposition =
           "unchanged from the validated consumed baseline; complete task specification remains bound to its raw observation";
+      }
+      if (parsed.options["--summary"]) {
+        console.log(
+          retainReportSummary("roadmap", context, path.join(projectRoot, "work/report-summary"))
+            .text,
+        );
+        return;
       }
       console.log(
         parsed.options["--json"]
