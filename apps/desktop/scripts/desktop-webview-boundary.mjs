@@ -309,7 +309,11 @@ try {
   approvedExternalLink.afterUrl = await browser.getCurrentUrl();
   approvedExternalLink.afterWindows = await browser.getAllWindowHandles();
   assert.equal(approvedExternalLink.afterUrl, initialUrl);
-  assert.deepEqual(approvedExternalLink.afterWindows, approvedExternalLink.beforeWindows);
+  assert.deepEqual(
+    approvedExternalLink.afterWindows.toSorted(),
+    approvedExternalLink.beforeWindows.toSorted(),
+    "approved external links preserve the complete window inventory",
+  );
   report.outcome = "passed";
 } catch (error) {
   report.failure = String(error.stack ?? error);
