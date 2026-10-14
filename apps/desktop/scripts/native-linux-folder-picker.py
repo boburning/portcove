@@ -169,7 +169,7 @@ def main():
             if count > 16:
                 raise RuntimeError("Owned GTK window inventory exceeded its bound")
             found = [application.get_child_at_index(i) for i in range(count)]
-            found = [window for window in found if window.get_name() == title and window.get_role() in (Atspi.Role.DIALOG, Atspi.Role.FILE_CHOOSER)]
+            found = [window for window in found if window is not None and window.get_name() == title and window.get_role() in (Atspi.Role.DIALOG, Atspi.Role.FILE_CHOOSER)]
             if len(found) != 1:
                 raise RuntimeError("Expected one exact owned GTK folder chooser")
             window = found[0]
