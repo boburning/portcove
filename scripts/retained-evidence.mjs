@@ -47,7 +47,14 @@ export async function ensureRetainedEvidenceStore(root) {
   const task = (async () => {
     await validateEvidenceStore(root);
     let created = false;
-    await mkdir(path.dirname(root), { recursive: true, mode: 0o700 });
+    // Node on Windows rejects recursive mkdir of an existing volume root.
+    // Validate existing ancestors without attempting to recreate them.
+    try {
+      await lstat(path.dirname(root));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      await mkdir(path.dirname(root), { recursive: true, mode: 0o700 });
+    }
     try {
       await mkdir(root, { mode: 0o700 });
       created = true;
