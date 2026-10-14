@@ -405,61 +405,66 @@ export async function selectedSetupCompletionScenario({
 
       if (fixture.nativeConnectionJourney) {
         await openInstall();
-        report.observations.controller_review = await browser.executeAsyncScript(async (done) => {
-          const originalPads = navigator.getGamepads;
-          const originalMode = document.documentElement.dataset.inputMode;
-          let pressed = [];
-          const frames = async (count) => {
-            for (let frame = 0; frame < count; frame++) await new Promise(requestAnimationFrame);
-          };
-          let observation;
-          try {
-            const review = document.querySelector('[aria-labelledby="install-review-title"]');
-            if (!review || !document.hasFocus())
-              throw new Error("Actual setup review must own native focus");
-            navigator.getGamepads = () => [
-              {
-                index: 0,
-                id: "Owned connected-folder input adapter",
-                axes: [0, 0],
-                buttons: Array.from({ length: 16 }, (_, index) => ({
-                  pressed: pressed.includes(index),
-                  touched: pressed.includes(index),
-                  value: pressed.includes(index) ? 1 : 0,
-                })),
-              },
-            ];
-            await frames(2);
-            const beforeDirection = document.activeElement;
-            if (beforeDirection?.textContent?.trim() !== "Install")
-              throw new Error("Actual primary Install control must own initial review focus");
-            pressed = [14];
-            await frames(2);
-            const stayedInReview = review.contains(document.activeElement);
-            const movedToCancel =
-              document.activeElement !== beforeDirection &&
-              document.activeElement?.textContent?.trim() === "Cancel review";
-            pressed = [];
-            await frames(2);
-            pressed = [1];
-            await frames(4);
-            observation = {
-              method: "injected controller adapter on actual setup components",
-              stayed_in_top_review: stayedInReview,
-              moved_to_cancel_review: movedToCancel,
-              dismissed_review: !document.querySelector('[aria-labelledby="install-review-title"]'),
-              stayed_in_game_details: Boolean(document.querySelector("#port-detail-title")),
-              focus: document.activeElement?.textContent?.trim(),
+        report.observations.controller_review = await browser.executeAsyncScript(
+          async (installControl, done) => {
+            const originalPads = navigator.getGamepads;
+            const originalMode = document.documentElement.dataset.inputMode;
+            let pressed = [];
+            const frames = async (count) => {
+              for (let frame = 0; frame < count; frame++) await new Promise(requestAnimationFrame);
             };
-          } catch (error) {
-            observation = { error: String(error) };
-          } finally {
-            navigator.getGamepads = originalPads;
-            if (originalMode === undefined) delete document.documentElement.dataset.inputMode;
-            else document.documentElement.dataset.inputMode = originalMode;
-          }
-          done(observation);
-        });
+            let observation;
+            try {
+              const review = document.querySelector('[aria-labelledby="install-review-title"]');
+              if (!review || !document.hasFocus())
+                throw new Error("Actual setup review must own native focus");
+              navigator.getGamepads = () => [
+                {
+                  index: 0,
+                  id: "Owned connected-folder input adapter",
+                  axes: [0, 0],
+                  buttons: Array.from({ length: 16 }, (_, index) => ({
+                    pressed: pressed.includes(index),
+                    touched: pressed.includes(index),
+                    value: pressed.includes(index) ? 1 : 0,
+                  })),
+                },
+              ];
+              await frames(2);
+              const beforeDirection = document.activeElement;
+              if (beforeDirection !== installControl || !review.contains(installControl))
+                throw new Error("Actual primary Install control must own initial review focus");
+              pressed = [15];
+              await frames(2);
+              const stayedInReview = review.contains(document.activeElement);
+              const movedToCancel =
+                document.activeElement !== beforeDirection &&
+                document.activeElement?.textContent?.trim() === "Cancel review";
+              pressed = [];
+              await frames(2);
+              pressed = [1];
+              await frames(4);
+              observation = {
+                method: "injected controller adapter on actual setup components",
+                stayed_in_top_review: stayedInReview,
+                moved_to_cancel_review: movedToCancel,
+                dismissed_review: !document.querySelector(
+                  '[aria-labelledby="install-review-title"]',
+                ),
+                stayed_in_game_details: Boolean(document.querySelector("#port-detail-title")),
+                focus: document.activeElement?.textContent?.trim(),
+              };
+            } catch (error) {
+              observation = { error: String(error) };
+            } finally {
+              navigator.getGamepads = originalPads;
+              if (originalMode === undefined) delete document.documentElement.dataset.inputMode;
+              else document.documentElement.dataset.inputMode = originalMode;
+            }
+            done(observation);
+          },
+          await browser.findElement(install),
+        );
         assert.equal(report.observations.controller_review.error, undefined);
         assert.equal(report.observations.controller_review.stayed_in_top_review, true);
         assert.equal(report.observations.controller_review.moved_to_cancel_review, true);

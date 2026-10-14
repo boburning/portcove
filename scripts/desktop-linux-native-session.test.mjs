@@ -14,9 +14,11 @@ async function counter(file) {
     return 0;
   }
 }
-async function waitCounter(file) {
+async function waitCounter(file, minimum = 0) {
   const until = Date.now() + 5000;
-  while (!(await counter(file))) {
+  while (true) {
+    const value = await counter(file);
+    if (Number.isFinite(value) && value > minimum) return value;
     assert.ok(Date.now() < until);
     await pause(20);
   }
@@ -39,11 +41,12 @@ test(
       const control = String.raw`
 import hashlib, os, runpy, sys
 from pathlib import Path
+if hasattr(hashlib, 'file_digest'): delattr(hashlib, 'file_digest')
 module = runpy.run_path(sys.argv[1])
 OwnedLaunch, proc = module['OwnedLaunch'], module['proc']
 pid, sentinel, nonce = int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
 started = proc(pid)['started']
-with open('/usr/bin/sleep','rb') as f: digest = hashlib.file_digest(f,'sha256').hexdigest()
+with open('/usr/bin/sleep','rb') as f: digest = hashlib.sha256(f.read()).hexdigest()
 for start, token in [(str(int(started)+1), nonce), (started, 'wrong-nonce')]:
     try: OwnedLaunch(pid,start,token,'/usr/bin/sleep',digest)
     except RuntimeError: pass
@@ -250,13 +253,13 @@ test(
         launch.child.stderr.resume();
         await launch.ready();
         await waitCounter(marker);
-        const sentinelBefore = await counter(sentinelFile);
         const closed = await launch.stop();
         assert.equal(closed.quiesced, true);
+        const sentinelBefore = await waitCounter(sentinelFile);
         const final = await counter(marker);
         await pause(200);
         assert.equal(await counter(marker), final);
-        assert.ok((await counter(sentinelFile)) > sentinelBefore);
+        await waitCounter(sentinelFile, sentinelBefore);
         receipts.push(closed);
       }
       assert.notEqual(receipts[0].nonce, receipts[1].nonce);

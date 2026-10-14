@@ -54,7 +54,10 @@ class OwnedLaunch:
             if str(Path(f"/proc/{pid}/exe").resolve(strict=True)) != self.executable:
                 return False
             with open(f"/proc/{pid}/exe", "rb") as binary:
-                digest = hashlib.file_digest(binary, "sha256").hexdigest()
+                hasher = hashlib.sha256()
+                for block in iter(lambda: binary.read(1024 * 1024), b""):
+                    hasher.update(block)
+                digest = hasher.hexdigest()
             if digest != self.digest or select.select([fd], [], [], 0)[0] or proc(pid)["started"] != started:
                 return False
             if self.application:
