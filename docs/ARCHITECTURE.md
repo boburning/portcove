@@ -105,6 +105,9 @@ capacity, staging containment, publication receipts and quarantine ownership
 remain authoritative. Publication precedes source registration; registration
 precedes optional original cleanup. Phase writes preserve the existing durable
 ordering and interruption recovery, including publication before its phase write.
+Windows receipt publication uses one existing canonical parent for both temporary
+and final names, preserving long and Unicode paths without replacing an occupied
+name unless the core-owned journal writer explicitly permits replacement.
 
 ## Staged activation interpretation
 
