@@ -1706,6 +1706,70 @@ fn real_owned_gamecube_containers_share_admission_and_resume_with_progress() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn opaque_linked_chd_names_keep_serializable_incomplete_sets_and_readable_candidates() {
+    use std::os::unix::{ffi::OsStringExt, fs::symlink};
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"owned independent readable image";
+    let readable = temporary.path().join("readable.iso");
+    fs::write(&readable, bytes).unwrap();
+    let opaque = temporary
+        .path()
+        .join(std::ffi::OsString::from_vec(b"linked-\xff.chd".to_vec()));
+    symlink(&readable, &opaque).unwrap();
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let source = document.source_catalog.as_mut().unwrap();
+    let set_id = source
+        .identities
+        .iter()
+        .find(|identity| {
+            identity
+                .variants
+                .iter()
+                .filter(|variant| !variant.legacy_projection_only)
+                .flat_map(|variant| &variant.representations)
+                .any(|representation| {
+                    matches!(
+                        representation.kind,
+                        crate::SourceRepresentationKind::MultiDiscSet { .. }
+                    )
+                })
+        })
+        .unwrap()
+        .id
+        .clone();
+    let raw_catalog = raw_gamecube_catalog(bytes);
+    let raw = &raw_catalog.source_catalog().unwrap().identities[0];
+    source
+        .identities
+        .iter_mut()
+        .find(|identity| identity.id == raw.id)
+        .unwrap()
+        .variants
+        .extend(raw.variants.clone());
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let mut selected = request(temporary.path());
+    selected.profile_ids = vec!["animal-crossing-gamecube".into(), set_id];
+    let report = scan(&catalog, &selected).unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(report.symlinks_skipped, 1);
+    assert!(
+        report
+            .issues
+            .iter()
+            .any(|issue| issue.path.is_none() && issue.message.contains("linked disc"))
+    );
+    serde_json::to_string(&report).unwrap();
+    assert!(
+        fs::symlink_metadata(opaque)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert_eq!(fs::read(readable).unwrap(), bytes);
+}
+
 #[test]
 fn non_chd_disc_sets_do_not_decode_chd_folders_or_hide_independent_raw_candidates() {
     let temporary = tempfile::tempdir().unwrap();

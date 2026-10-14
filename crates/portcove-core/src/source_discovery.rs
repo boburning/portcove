@@ -2478,6 +2478,9 @@ impl Discovery<'_> {
     }
 
     fn issue(&mut self, path: Option<PathBuf>, profile_id: Option<String>, message: String) {
+        // OS paths can contain opaque names. Errors must still serialize through
+        // the shared JSON transport without hiding independent readable results.
+        let path = path.filter(|path| path.to_str().is_some());
         if self.continuation.is_some()
             && self.report.issues.iter().any(|issue| {
                 issue.path == path && issue.profile_id == profile_id && issue.message == message
