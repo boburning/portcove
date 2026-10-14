@@ -60,7 +60,10 @@ public static class PortcoveNativeWindows {
             GetParent(button) == window && GetDlgCtrlID(button) == 2 && IsWindowEnabled(button);
     }
     public static IntPtr GetFolderActionButton(IntPtr window, int process, string action) {
-        if (!Matches(window, process, "Select Folder") || Class(window) != "#32770" || !IsWindowEnabled(window) ||
+        return GetFolderActionButton(window, process, action, "Select Folder");
+    }
+    public static IntPtr GetFolderActionButton(IntPtr window, int process, string action, string title) {
+        if ((title != "Select Folder" && title != "Choose game-file folder") || !Matches(window, process, title) || Class(window) != "#32770" || !IsWindowEnabled(window) ||
             !MatchesFolderEdit(window, GetDlgItem(window, 1152), process) ||
             !MatchesFolderButton(window, GetDlgItem(window, 1), process))
             throw new InvalidOperationException("Exact owned folder controls changed.");
@@ -78,9 +81,12 @@ public static class PortcoveNativeWindows {
         return cancel;
     }
     public static void PressFolderCancel(IntPtr window, IntPtr button, int process) {
-        if (GetForegroundWindow() != window || GetFolderActionButton(window, process, "Cancel") != button)
+        PressFolderCancel(window, button, process, "Select Folder");
+    }
+    public static void PressFolderCancel(IntPtr window, IntPtr button, int process, string title) {
+        if (GetForegroundWindow() != window || GetFolderActionButton(window, process, "Cancel", title) != button)
             throw new InvalidOperationException("Exact owned folder cancel changed before action.");
-        if (!Matches(window, process, "Select Folder") || Class(window) != "#32770" || !IsWindowEnabled(window) ||
+        if (!Matches(window, process, title) || Class(window) != "#32770" || !IsWindowEnabled(window) ||
             GetForegroundWindow() != window || GetDlgItem(window, 2) != button || !MatchesCancelButtonShape(window, button, process))
             throw new InvalidOperationException("Exact owned folder cancel changed during caption read.");
         UIntPtr result;

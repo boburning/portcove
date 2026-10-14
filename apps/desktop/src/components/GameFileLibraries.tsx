@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
-import { pickInstallFolder } from "../file-picker";
+import { pickGameFileFolder } from "../file-picker";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
 import {
   useGameFileScanObserver,
@@ -449,6 +449,7 @@ function SavedRootRows({
         <div
           className="source-health-row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
           key={root.id}
+          data-game-file-root={root.id}
         >
           <div className="min-w-0">
             <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-nowrap text-pc-muted-foreground">
@@ -758,7 +759,7 @@ export function GameFileLibraries({
   };
   const add = () =>
     run("Choosing folder…", async () => {
-      const path = await pickInstallFolder("");
+      const path = await pickGameFileFolder("");
       if (!path) return;
       if (availableRootCount(await refresh()) >= maxAvailableRootsPerScan) {
         setNotice(
@@ -772,7 +773,7 @@ export function GameFileLibraries({
     });
   const relink = (root: GameFileRoot) =>
     run("Choosing replacement…", async () => {
-      const path = await pickInstallFolder(root.path);
+      const path = await pickGameFileFolder(root.path);
       if (!path) return;
       await desktopApi.relinkGameFileRoot(root.id, path);
       setPlan(undefined);

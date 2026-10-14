@@ -5,6 +5,7 @@ import {
   pickGameOutputFolder,
   pickHostToolExecutable,
   pickInstallFolder,
+  pickGameFileFolder,
   pickSourceArchivePath,
   pickSourcePath,
 } from "./file-picker";
@@ -178,6 +179,25 @@ describe("native path pickers", () => {
       directory: false,
       defaultPath: undefined,
       filters: [{ name: "ZIP file containing the required BIOS", extensions: ["zip"] }],
+    });
+  });
+
+  it("names the game-file folder picker and preserves cancellation and relink location", async () => {
+    openMock.mockResolvedValue(null);
+    await expect(pickGameFileFolder("")).resolves.toBeNull();
+    expect(openMock).toHaveBeenLastCalledWith({
+      title: "Choose game-file folder",
+      multiple: false,
+      directory: true,
+      defaultPath: undefined,
+    });
+    openMock.mockResolvedValue("D:/Originals");
+    await expect(pickGameFileFolder("D:/Old originals")).resolves.toBe("D:/Originals");
+    expect(openMock).toHaveBeenLastCalledWith({
+      title: "Choose game-file folder",
+      multiple: false,
+      directory: true,
+      defaultPath: "D:/Old originals",
     });
   });
 

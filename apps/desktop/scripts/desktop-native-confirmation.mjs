@@ -19,7 +19,7 @@ async function validatePickerInput({ output, title, button, filePath, directoryP
     );
   }
   if (directoryPath) {
-    assert.equal(title, "Choose Portcove library");
+    assert.ok(["Choose Portcove library", "Choose game-file folder"].includes(title));
     assert.equal(button, "Select Folder");
     assert.ok((await stat(directoryPath)).isDirectory(), "Owned picker fixture is not a directory");
   }
@@ -59,12 +59,22 @@ async function retainPickerResult({ output, artifacts }, name, before, result) {
   return observation;
 }
 
-function ownedRuntimePicker({ application, getDriverIdentity, output, artifacts }, select) {
+function ownedRuntimePicker(
+  { application, getDriverIdentity, output, artifacts, gameFilePicker = false },
+  select,
+) {
   return async (name, directoryPath) => {
     assert.equal(process.platform, "win32");
     assert.match(name, /^[a-z0-9-]+$/u);
     if (select) {
-      assert.equal(directoryPath, path.join(output, "player-owned-runtime"));
+      if (gameFilePicker) {
+        await validatePickerInput({
+          output,
+          title: "Choose game-file folder",
+          button: "Select Folder",
+          directoryPath,
+        });
+      } else assert.equal(directoryPath, path.join(output, "player-owned-runtime"));
       const directory = await lstat(directoryPath);
       assert.ok(directory.isDirectory() && !directory.isSymbolicLink());
     } else assert.equal(directoryPath, undefined, "Observation cannot supply directory input");
@@ -92,6 +102,7 @@ function ownedRuntimePicker({ application, getDriverIdentity, output, artifacts 
         "-ApplicationPath",
         application,
         "-ObservePicker",
+        ...(gameFilePicker ? ["-ExpectedPickerTitle", "Choose game-file folder"] : []),
         ...(select ? ["-PreparedRuntimeDirectory", directoryPath] : []),
       ],
       { encoding: "utf8", windowsHide: true, timeout: 15_000 },
@@ -106,6 +117,14 @@ export function nativePickerObservation(options) {
 
 export function nativePreparedRuntimePicker(options) {
   return ownedRuntimePicker(options, true);
+}
+
+export function nativeGameFileFolderPicker(options) {
+  return (name, directoryPath) =>
+    ownedRuntimePicker({ ...options, gameFilePicker: true }, Boolean(directoryPath))(
+      name,
+      directoryPath,
+    );
 }
 
 const failureStages = [

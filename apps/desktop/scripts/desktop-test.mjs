@@ -62,6 +62,7 @@ import {
 import {
   nativePickerObservation,
   nativePreparedRuntimePicker,
+  nativeGameFileFolderPicker,
 } from "./desktop-native-confirmation.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
@@ -1478,12 +1479,15 @@ try {
           inputs.push(await fileIdentity(installFixture.preliminaryJourney[name]));
       for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
         inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
-      installFixture.sourceJourney.root = seedSelectedSetup({
-        cli: values["preparation-cli"],
-        library,
-        output,
-        fixture: installFixture,
-      });
+      if (installFixture.completionJourney && process.platform === "win32") {
+        installFixture.nativeConnectionJourney = true;
+      } else
+        installFixture.sourceJourney.root = seedSelectedSetup({
+          cli: values["preparation-cli"],
+          library,
+          output,
+          fixture: installFixture,
+        });
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     inputs.push(await fileIdentity(installFixture.catalogPath));
@@ -3003,6 +3007,15 @@ try {
           interruptApplication,
           closeApplication,
           captureLivePreparation,
+          chooseGameFileFolder:
+            process.platform === "win32"
+              ? nativeGameFileFolderPicker({
+                  application: values.app,
+                  getDriverIdentity: () => ownedSession.driver,
+                  output,
+                  artifacts,
+                })
+              : undefined,
         }),
         confirmNative: () =>
           nativeConfirmation({

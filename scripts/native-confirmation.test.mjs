@@ -138,8 +138,8 @@ public static class PortcoveNativeWindows {
  public class Observation { public IntPtr handle=new IntPtr(9); public int control_id=1152,parent_id=0; public string parent_class="other"; }
  public static int calls=0; public static bool fail=false;
  public static int actions=0;
- public static IntPtr GetFolderActionButton(IntPtr handle,int process,string action){
-  if(handle.ToInt32()!=7 || process!=42 || action!="Cancel")throw new Exception("wrong native action context");
+ public static IntPtr GetFolderActionButton(IntPtr handle,int process,string action,string title){
+  if(handle.ToInt32()!=7 || process!=42 || action!="Cancel" || (title!="Select Folder" && title!="Choose game-file folder"))throw new Exception("wrong native action context");
   actions++;return new IntPtr(20);
  }
  public static Observation[] InspectEdits(IntPtr handle,int process,string title){
@@ -154,7 +154,7 @@ function Get-NativePickerElement($handle){
  $element|Add-Member ScriptMethod TryGetCurrentPattern {param($pattern,$result) $false}
  $element
 }
-$applicationId=42;$window=$null;$Title=$null
+$applicationId=42;$window=$null;$Title=$null;$ExpectedPickerTitle='Select Folder'
 $observedWindow=[pscustomobject]@{Current=[pscustomobject]@{NativeWindowHandle=7;Name='Select Folder'}}
 $controls=@();$fields=@()
 $source=[IO.File]::ReadAllText('${confirmation}')
@@ -179,15 +179,18 @@ $pane=[pscustomobject]@{Current=[pscustomobject]@{ControlType=[System.Windows.Au
 $controls=@($pane);$fields=@();$actionButton=@()
 . ([scriptblock]::Create($guard))
 if($nativeAction.ToInt32() -ne 20 -or [PortcoveNativeWindows]::actions -ne 1){throw 'exact Pane fallback unavailable'}
+$ExpectedPickerTitle='Choose game-file folder';$observedWindow.Current.Name=$ExpectedPickerTitle
+. ([scriptblock]::Create($guard))
+if($nativeAction.ToInt32() -ne 20 -or [PortcoveNativeWindows]::actions -ne 2){throw 'game-file Pane fallback unavailable'}
 foreach($case in @('duplicate-pane','foreign-pane','mixed-action','wrong-title')){
- $controls=@($pane);$observedWindow.Current.Name='Select Folder';$pane.Current.ProcessId=42;$actionButton=@()
+ $controls=@($pane);$observedWindow.Current.Name=$ExpectedPickerTitle;$pane.Current.ProcessId=42;$actionButton=@()
  if($case -eq 'duplicate-pane'){$controls=@($pane,$pane)}
  if($case -eq 'foreign-pane'){$pane.Current.ProcessId=99}
  if($case -eq 'mixed-action'){$actionButton=@([pscustomobject]@{})}
  if($case -eq 'wrong-title'){$observedWindow.Current.Name='Other'}
  $refused=$false
  try { . ([scriptblock]::Create($guard)) } catch {$refused=$true}
- if(-not $refused -or [PortcoveNativeWindows]::actions -ne 1){throw "ambiguous or foreign Pane accepted $case"}
+ if(-not $refused -or [PortcoveNativeWindows]::actions -ne 2){throw "ambiguous or foreign Pane accepted $case"}
 }
 'explicit-observation-context-passed'
 `,
