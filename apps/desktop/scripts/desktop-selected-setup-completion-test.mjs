@@ -142,8 +142,7 @@ export async function selectedSetupCompletionScenario({
       (report.observations.geometry ??= {})[name] = { window, viewport };
     };
     const report = {
-      scope:
-        "Windows synthetic selected setup: ordinary install, inert N64 preparation, BIOS-plus-game review and saved-input restart",
+      scope: `${process.platform} synthetic selected setup: ordinary install, inert N64 preparation, BIOS-plus-game review and saved-input restart`,
       limitations: [
         "Saved root seeded by the existing CLI; native picker credited separately",
         "No real game, BIOS preparation, gameplay, full representation matrix or other platform qualification",

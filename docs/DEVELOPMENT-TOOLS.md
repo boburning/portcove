@@ -457,6 +457,21 @@ The receipt binds the actual executables, source, screenshots and positive
 owned-process closure. This case does not establish native picker, setup
 execution, gameplay, physical storage or Linux acceptance.
 
+`just desktop-verify --scenario native-selected-setup-completion --require-clean`
+selects the standalone owned-input journey on Windows or Linux: bounded two-port
+review, actual individual installation cancellation/retry and inert preparation,
+return context, complete game/BIOS review and saved-input restart. The Linux
+GTK/WebKit route requires the existing desktop SDK/drivers and permitted private
+user/PID/mount namespaces. Each driver launch has an owned PID1 control wrapper;
+private EOF stops that init, and a launch-bound Ready identity plus a normal
+`unshare` join proves descendant closure before restart. Signaled or unknown
+joins retain the fixture and the owning native slot for custody resolution;
+they never qualify through procfs disappearance or a numeric host-PID kill.
+Runtime/helper identities and failed evidence remain in the receipt directory.
+This is scoped native fixture acceptance, without gameplay, physical-storage or
+shipping-package claims. The separate saved-folder selected-review scenario is
+also available on these two platforms.
+
 `just desktop-verify --scenario native-preliminary-selected-setup --require-clean`
 selects an isolated Windows journey for the missing NotRun continuation. The
 fixture uses the maintained pinned-validator selection contract with an owned

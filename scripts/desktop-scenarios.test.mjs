@@ -1902,10 +1902,17 @@ test("saved-folder selected setup stays standalone and opt-in", () => {
     () => resolveDesktopSelection({ scenarios: [id, "keyboard-layout"], platform: "win32" }),
     /standalone/,
   );
-  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
+  assert.deepEqual(
+    resolveDesktopSelection({ scenarios: [id], platform: "linux" }).selected_scenarios,
+    [id],
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id], platform: "darwin" }),
+    /Windows or Linux/,
+  );
 });
 
-test("selected setup completion remains a separate Windows opt-in with ordinary install prerequisites", () => {
+test("selected setup completion remains a separate Windows/Linux opt-in with ordinary install prerequisites", () => {
   const id = "native-selected-setup-completion";
   const selected = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
   assert.deepEqual(selected.selected_scenarios, [id]);
@@ -1924,8 +1931,14 @@ test("selected setup completion remains a separate Windows opt-in with ordinary 
       }),
     /standalone/,
   );
-  for (const platform of ["linux", "darwin"])
-    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+  assert.deepEqual(
+    resolveDesktopSelection({ scenarios: [id], platform: "linux" }).selected_scenarios,
+    [id],
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id], platform: "darwin" }),
+    /Windows or Linux/,
+  );
 });
 
 test("unavailable-root wait observes enabled state and preserves read rejection", async () => {

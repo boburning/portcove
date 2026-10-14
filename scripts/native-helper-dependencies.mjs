@@ -13,6 +13,8 @@ export const nativeHelperDependencies = Object.freeze(
     [
       ["desktop-native-confirmation.mjs", ["native-confirmation.ps1"]],
       ["desktop-owned-native-session.mjs", ["native-session.ps1"]],
+      ["desktop-linux-native-session.mjs", ["native-linux-init.mjs"]],
+      ["native-linux-init.mjs", []],
       ["desktop-startup-observation.mjs", ["native-startup-observation.ps1"]],
       ["native-confirmation.ps1", ["native-process-tree.ps1", "native-window-discovery.ps1"]],
       ["native-session.ps1", ["native-process-tree.ps1"]],
@@ -39,6 +41,7 @@ export const nativeHelperRoots = Object.freeze(
   [
     "desktop-native-confirmation.mjs",
     "desktop-owned-native-session.mjs",
+    "desktop-linux-native-session.mjs",
     "desktop-startup-observation.mjs",
   ].map(helper),
 );
@@ -96,9 +99,14 @@ export function nativeHelperSourceDependencies(
     }
   } else {
     for (const expression of source.matchAll(/\bnew\s+URL\s*\(([^)]*)\)/gu)) {
-      const match = expression[1].match(/^\s*["']([^"']+\.ps1)["']\s*,\s*import\.meta\.url\s*$/u);
+      const match = expression[1].match(
+        /^\s*["']([^"']+\.(?:ps1|mjs))["']\s*,\s*import\.meta\.url\s*$/u,
+      );
       if (!match) throw new Error(`Unsupported native wrapper URL in ${file}: ${expression[0]}`);
-      result.add(relativeHelper(match[1]));
+      const dependency = relativeHelper(match[1]);
+      if (!Object.hasOwn(registry, dependency))
+        throw new Error(`Undeclared native wrapper URL in ${file}: ${dependency}`);
+      result.add(dependency);
     }
     for (const match of source.matchAll(/\b(?:from|import)\s+["']([^"']+)["']/gu)) {
       if (match[1].startsWith("node:") || nativeWrapperSharedImports[file]?.includes(match[1]))

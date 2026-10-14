@@ -665,8 +665,15 @@ export function seedSelectedSetup(context) {
 
 // Same bounded Windows spelling equivalence used by the existing native fixtures.
 export function assertOwnedSelectedSetupPath(actual, expected) {
-  const normalize = (value) =>
-    path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase();
+  const normalize = (value) => {
+    if (process.platform !== "win32") return path.resolve(value);
+    const ordinary = value.startsWith("\\\\?\\UNC\\")
+      ? "\\\\" + value.slice(8)
+      : value.startsWith("\\\\?\\")
+        ? value.slice(4)
+        : value;
+    return path.resolve(ordinary).toLowerCase();
+  };
   assert.equal(normalize(actual), normalize(expected));
 }
 

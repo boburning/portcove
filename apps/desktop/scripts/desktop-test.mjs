@@ -20,6 +20,7 @@ import {
   verifyNormalPackageEvidence,
 } from "./desktop-main-webview-boundary.mjs";
 import { OwnedNativeSession, nativeSessionScript } from "./desktop-owned-native-session.mjs";
+import { launchLinuxNativeSession } from "./desktop-linux-native-session.mjs";
 import { observeStartupNetwork } from "./desktop-startup-network-diagnostic.mjs";
 import {
   prepareLibrarySwitchRecoveryFixture,
@@ -208,6 +209,14 @@ let browser;
 let driverLog = "";
 let startupAttempt = 0;
 let historyInventory;
+const linuxSelectedSession =
+  process.platform === "linux" &&
+  selection.selected_scenarios.some((name) =>
+    ["native-selected-setup-completion", "native-saved-folder-selected-setup"].includes(name),
+  );
+let linuxLaunch;
+let linuxCleanup;
+let linuxLaunchCount = 0;
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -253,6 +262,17 @@ const nativeLock = await acquireNativeSessionLock({
 });
 const harnessStarted = new Date();
 async function stopDriver() {
+  if (linuxSelectedSession) {
+    if (!linuxLaunch) return;
+    const cleanup = await linuxLaunch.stop();
+    const evidence = path.join(output, `linux-native-launch-${linuxLaunchCount}-join.json`);
+    await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
+    artifacts.push(evidence);
+    linuxCleanup = cleanup;
+    linuxLaunch = undefined;
+    driver = undefined;
+    return;
+  }
   if (identityBoundSession) {
     stopBackupFocusDriver();
     return;
@@ -967,6 +987,20 @@ async function requestApplicationShutdown(snapshot) {
 
 async function restartApplication(name, prepareWhileStopped, childEnvironment = {}) {
   const selectedSetupRestart = name === "selected-setup-inputs";
+  if (linuxSelectedSession) {
+    assert.equal(name, "selected-setup-inputs");
+    assert.equal(prepareWhileStopped, undefined, "Selected restart cannot rewrite fixture state");
+    await browser.quit();
+    browser = undefined;
+    await stopDriver();
+    assert.equal(linuxCleanup.quiesced, true);
+    const evidence = path.join(output, `${name}-restart.json`);
+    await writeFile(evidence, JSON.stringify(linuxCleanup, null, 2) + "\n", { flag: "wx" });
+    artifacts.push(evidence);
+    await startDriver(childEnvironment);
+    await connect();
+    return browser;
+  }
   if (savedLibraryRecoverySession || selectedSetupRestart) {
     if (!preferencesRecoverySession)
       assert.equal(
@@ -1210,23 +1244,30 @@ function driverEnvironment(childEnvironment) {
 async function startDriver(childEnvironment = {}) {
   ownedSession.beginLaunch();
   const launchStarted = Date.now();
-  driver = spawn(
-    values.driver,
-    [
-      "--port",
-      String(port),
-      "--native-port",
-      String(port + 1),
-      "--native-driver",
-      values["native-driver"],
-    ],
-    {
+  const arguments_ = [
+    "--port",
+    String(port),
+    "--native-port",
+    String(port + 1),
+    "--native-driver",
+    values["native-driver"],
+  ];
+  if (linuxSelectedSession) {
+    linuxCleanup = undefined;
+    linuxLaunchCount++;
+    linuxLaunch = await launchLinuxNativeSession(
+      values.driver,
+      arguments_,
+      driverEnvironment(childEnvironment),
+    );
+    driver = linuxLaunch.child;
+  } else
+    driver = spawn(values.driver, arguments_, {
       windowsHide: true,
       detached: process.platform !== "win32",
       stdio: ["ignore", "pipe", "pipe"],
       env: driverEnvironment(childEnvironment),
-    },
-  );
+    });
   let spawnError;
   driver.on("error", (error) => {
     spawnError = error;
@@ -1235,6 +1276,7 @@ async function startDriver(childEnvironment = {}) {
     stream.on("data", (chunk) => {
       driverLog = (driverLog + chunk).slice(-1024 * 1024);
     });
+  if (linuxSelectedSession) await linuxLaunch.ready();
   await captureSelectedDriverLaunch(launchStarted);
   if (historySession) historyInventory = await captureHistoryDriver(driver.pid, values.driver);
   for (let attempt = 0; attempt < 40; attempt++) {
@@ -1247,6 +1289,7 @@ async function startDriver(childEnvironment = {}) {
 }
 
 async function captureSelectedDriverLaunch(launchStarted) {
+  if (linuxSelectedSession) return;
   if (!identityBoundSession) return;
   await new Promise((resolve, reject) => {
     driver.once("spawn", resolve);
@@ -3004,7 +3047,37 @@ try {
   process.exitCode = 1;
 } finally {
   try {
-    if (identityBoundSession) {
+    if (linuxSelectedSession) {
+      try {
+        let quitError;
+        if (browser)
+          await browser.quit().catch((error) => {
+            quitError = error;
+          });
+        browser = undefined;
+        await stopDriver();
+        assert.equal(
+          linuxCleanup?.quiesced,
+          true,
+          "Positive current Linux namespace join is required",
+        );
+        if (quitError) throw quitError;
+      } catch (error) {
+        const evidence = path.join(output, `linux-native-launch-${linuxLaunchCount}-unknown.json`);
+        await writeFile(
+          evidence,
+          JSON.stringify({ error: error.message, receipt: linuxLaunch?.receipt }, null, 2) + "\n",
+          { flag: "wx" },
+        );
+        artifacts.push(evidence);
+        checks.push({
+          scenario: "native-linux-owned-cleanup",
+          outcome: "failed",
+          message: error.message,
+        });
+        process.exitCode = 1;
+      }
+    } else if (identityBoundSession) {
       try {
         if (driver?.pid && !ownedSession.cleanup) captureBackupFocusCleanup();
         let quitError;
@@ -3149,6 +3222,28 @@ try {
     });
     console.log(JSON.stringify(checks, null, 2));
   } finally {
+    if (linuxSelectedSession && linuxLaunch) {
+      try {
+        // A late normal join can release custody but never repair the failed
+        // qualification. Keep the owning runner/slot alive while still pending.
+        const custody = await linuxLaunch.custody();
+        const evidence = path.join(
+          output,
+          `linux-native-launch-${linuxLaunchCount}-retained-join.json`,
+        );
+        await writeFile(evidence, JSON.stringify(custody, null, 2) + "\n", { flag: "wx" });
+      } catch (error) {
+        console.error(
+          `Native custody remains unknown; retained ${output}; native slot and fixture server remain owned: ${error.message}`,
+        );
+        // No owner-death reclamation or foreign-PID fallback is authorized by a
+        // failed launcher. An explicit custody resolution is needed to end this
+        // retained harness; do not release its slot merely to finish the command.
+        const hold = setInterval(() => {}, 60_000);
+        await new Promise(() => {});
+        clearInterval(hold);
+      }
+    }
     if (installFixture) await installFixture.close();
     await nativeLock.release();
   }
