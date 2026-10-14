@@ -8,6 +8,8 @@ import {
   checkFrontendBuildReuse,
   createFrontendBuildIdentity,
   recordFrontendBuild,
+  createVerificationBuildIdentity,
+  qualificationBindingFingerprint,
 } from "./desktop-build-cache.mjs";
 
 const inputFiles = [
@@ -49,6 +51,82 @@ const identity = (root, overrides = {}) =>
     architecture: "x64",
     ...overrides,
   });
+
+test("profile build provenance excludes documentation/harness changes and never treats versions as native completeness", async (t) => {
+  const state = await fixture();
+  t.after(() => rm(state.root, { recursive: true, force: true }));
+  for (const name of [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/fixture/src/lib.rs",
+    "apps/desktop/src-tauri/Cargo.toml",
+    "apps/desktop/src-tauri/build.rs",
+    "apps/desktop/src-tauri/src/main.rs",
+  ]) {
+    await mkdir(path.dirname(path.join(state.root, name)), { recursive: true });
+    await writeFile(path.join(state.root, name), name);
+  }
+  const frontendIdentity = await identity(state.root);
+  const options = {
+    root: state.root,
+    frontendIdentity,
+    frontendOutputFingerprint: "output",
+    features: ["tauri/custom-protocol"],
+    platform: "win32",
+    environment: { SECRET_TOKEN: "must-not-appear", RUSTFLAGS: "-C opt-level=1" },
+    compilerProbe: () => ({ verbose_version: "version-only", sysroot: "mutable/path" }),
+  };
+  const initial = await createVerificationBuildIdentity(options);
+  await writeFile(path.join(state.root, "README.md"), "documentation changed");
+  await writeFile(path.join(state.root, "apps/desktop/scripts/fixture.mjs"), "harness changed");
+  assert.equal((await createVerificationBuildIdentity(options)).fingerprint, initial.fingerprint);
+  assert.equal(initial.inventory_complete, false);
+  assert.equal(initial.native_reuse.reused, false);
+  assert(!JSON.stringify(initial).includes("must-not-appear"));
+  for (const changed of [
+    { features: ["different"] },
+    { environment: { RUSTFLAGS: "-C opt-level=2" } },
+    { compilerProbe: () => ({ verbose_version: "changed" }) },
+  ])
+    assert.notEqual(
+      (await createVerificationBuildIdentity({ ...options, ...changed })).fingerprint,
+      initial.fingerprint,
+    );
+  await writeFile(path.join(state.root, "apps/desktop/src-tauri/src/main.rs"), "product changed");
+  assert.notEqual(
+    (await createVerificationBuildIdentity(options)).fingerprint,
+    initial.fingerprint,
+  );
+});
+
+test("unchanged products do not authorize scenario reuse after effective runtime/fixture/criteria changes", () => {
+  const binding = {
+    productArtifacts: ["product"],
+    harnessInputs: ["harness"],
+    runtimeConditions: { display: "private-X11" },
+    fixtureIdentities: ["fixture"],
+    initialState: "empty",
+    selectedRequirements: ["review"],
+    selectedScenarios: ["journey"],
+    acceptanceCriteria: ["visible"],
+  };
+  const original = qualificationBindingFingerprint(binding);
+  for (const field of [
+    "productArtifacts",
+    "harnessInputs",
+    "runtimeConditions",
+    "fixtureIdentities",
+    "initialState",
+    "selectedRequirements",
+    "selectedScenarios",
+    "acceptanceCriteria",
+  ])
+    assert.notEqual(qualificationBindingFingerprint({ ...binding, [field]: "changed" }), original);
+  assert.throws(
+    () => qualificationBindingFingerprint({ ...binding, fixtureIdentities: null }),
+    /incomplete/,
+  );
+});
 
 test("reuses only exact frontend inputs, toolchain, environment, and output bytes", async (t) => {
   const state = await fixture();

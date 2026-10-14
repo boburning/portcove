@@ -1,6 +1,8 @@
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
-import { readFile, realpath, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -145,5 +147,145 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
       `selenium-webdriver is unavailable; run node scripts/dev-storage.mjs run -- corepack ${readToolPins().packageManager} install --frozen-lockfile`,
     );
   }
-  await import("../apps/desktop/scripts/desktop-test.mjs");
+  if (!["win32", "linux"].includes(process.platform)) {
+    await import("../apps/desktop/scripts/desktop-test.mjs");
+  } else {
+    const root = fileURLToPath(new URL("..", import.meta.url));
+    const { parseDesktopHarnessOptions, resolveDesktopHarnessSelection, planDesktopExecution } =
+      await import("./desktop-execution-plan.mjs");
+    const { cachedDesktopDrivers } = await import("./tool-cache.mjs");
+    const { getPaths } = await import("./dev-storage.mjs");
+    const {
+      retainedEvidenceRoot,
+      ensureRetainedEvidenceStore,
+      verifyConsumedInputs,
+      retainedExecutableCanLaunch,
+    } = await import("./retained-evidence.mjs");
+    const { captureDesktopReceiptInputs } = await import("./native-helper-dependencies.mjs");
+    const { acquireNativeSessionLock } = await import("./native-session-lock.mjs");
+    const { values } = parseDesktopHarnessOptions(args);
+    const drivers = cachedDesktopDrivers();
+    values.driver ??= drivers?.driver;
+    values["native-driver"] ??= drivers?.nativeDriver;
+    for (const name of ["app", "output", "driver", "native-driver"])
+      if (!values[name] || !path.isAbsolute(values[name]))
+        throw new Error(`--${name} requires an absolute path or verified cached driver`);
+    const selection = resolveDesktopHarnessSelection(values);
+    const { desktopHarnessDeadlineMs } = await import("./desktop-scenarios.mjs");
+    const lock = await acquireNativeSessionLock({
+      workspace: root,
+      profile: selection.profile,
+      scenarios: selection.selected_scenarios,
+    });
+    const inherited = process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN;
+    const executionStarted = new Date();
+    const captureSignal = AbortSignal.timeout(desktopHarnessDeadlineMs(selection));
+    const manifestEnv = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST;
+    let captureOutput = null;
+    let harnessRequested = false;
+    try {
+      const revisionResult = spawnSync("git", ["rev-parse", "HEAD"], {
+        cwd: root,
+        encoding: "utf8",
+        windowsHide: true,
+      });
+      const revision = revisionResult.stdout.trim();
+      if (revisionResult.status !== 0 || !/^[a-f0-9]{40}$/u.test(revision))
+        throw new Error("Prelaunch source revision unavailable");
+      const store = retainedEvidenceRoot(getPaths("tooling").output_root);
+      await ensureRetainedEvidenceStore(store);
+      captureOutput = path.join(store, "observations", randomUUID());
+      await mkdir(captureOutput, { recursive: true, mode: 0o700 });
+      const plan = planDesktopExecution(selection, { prelaunchCustody: true });
+      const inputs = await captureDesktopReceiptInputs({
+        root,
+        values,
+        plan,
+        output: captureOutput,
+        revision,
+        retainedRoot: store,
+        signal: captureSignal,
+      });
+      captureSignal.throwIfAborted();
+      for (const input of inputs) {
+        if (input.binding === "retained-artifact" && !retainedExecutableCanLaunch(input, drivers))
+          input.binding = "live-path-checked-cooperative";
+        input.consumption_phase =
+          input.binding === "retained-artifact"
+            ? "retained-artifact-launch"
+            : input.role.startsWith("scripts/")
+              ? "trusted-verifier-observation"
+              : "before-target-import";
+      }
+      await verifyConsumedInputs(inputs, { signal: captureSignal });
+      for (const input of inputs.filter((input) => input.binding === "retained-artifact"))
+        values[input.role] = input.retained.path;
+      const manifest = path.join(captureOutput, "prelaunch.json");
+      await writeFile(
+        manifest,
+        JSON.stringify({
+          format_version: 1,
+          revision,
+          root,
+          selected_scenarios: selection.selected_scenarios,
+          inputs,
+          pre_import_for: "apps/desktop/scripts/desktop-test.mjs",
+          created_at: new Date().toISOString(),
+          execution_started_at: executionStarted.toISOString(),
+          limitations: [
+            "Source helpers use cooperative live-path verification before import and after execution; retained copies alone do not prove loaded bytes",
+            "The trusted launcher/verifier is reviewed separately; this record grants no execution or merge authority",
+            "Path-sensitive or unestablished executable layouts use checked original paths; retained copies do not establish immutable consumption for those paths",
+          ],
+        }),
+        { flag: "wx", mode: 0o600 },
+      );
+      process.argv = [
+        process.argv[0],
+        process.argv[1],
+        ...Object.entries(values).flatMap(([name, value]) =>
+          Array.isArray(value)
+            ? value.flatMap((entry) => [`--${name}`, entry])
+            : typeof value === "boolean"
+              ? value
+                ? [`--${name}`]
+                : []
+              : value === undefined
+                ? []
+                : [`--${name}`, String(value)],
+        ),
+      ];
+      process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN = lock.owner.token;
+      process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST = manifest;
+      await verifyConsumedInputs(inputs, { signal: captureSignal });
+      captureSignal.throwIfAborted();
+      harnessRequested = true;
+      await import("../apps/desktop/scripts/desktop-test.mjs");
+    } catch (error) {
+      if (captureOutput) {
+        try {
+          await writeFile(
+            path.join(captureOutput, "execution-failure.json"),
+            JSON.stringify({
+              captured_at: new Date().toISOString(),
+              phase: harnessRequested ? "harness-requested" : "prelaunch",
+              outcome: "failed",
+              message: error.message,
+              native_acceptance: "not-inferred",
+            }),
+            { flag: "wx", mode: 0o600 },
+          );
+        } catch {
+          /* Preserve the original failure and already retained inputs. */
+        }
+      }
+      throw error;
+    } finally {
+      if (inherited === undefined) delete process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN;
+      else process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN = inherited;
+      if (manifestEnv === undefined) delete process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST;
+      else process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST = manifestEnv;
+      await lock.release();
+    }
+  }
 }

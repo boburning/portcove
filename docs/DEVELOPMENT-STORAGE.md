@@ -47,6 +47,26 @@ environment variables, move existing worktrees, or delete old artifacts simply
 to prepare an isolated validation checkout. A clean SSD run diagnoses a storage
 problem; it does not erase evidence from a failed HDD run.
 
+## Retained verification evidence
+
+Windows/Linux native verification retains declared tooling inputs in a dedicated
+evidence store, separate from disposable build caches and outputs. Configure an
+absolute `PORTCOVE_RETAINED_EVIDENCE_DIR` when needed. Windows defaults to
+`Portcove-Retained-Evidence` on the configured output volume; Linux defaults to
+`~/.local/share/portcove-retained-evidence`. No automatic eviction or garbage
+collection is performed. Existing unknown directories are not adopted or cleaned.
+
+New stores use private ownership/permissions, a retained-evidence marker, private
+staging and verified no-clobber publication. Disposable cache ancestry is refused,
+including malformed cache tags. Capacity is observed before copying; failures
+preserve relevant partial bytes and observations. Only declared non-secret
+tooling/source inputs belong here; authentication material and game collections
+are not store inputs. No redacted copy is represented as original input bytes.
+
+The existing Cargo cleanup routes cannot target this external store. Reclamation
+requires an explicit reference-aware cleanup decision, preserving failed evidence.
+See [retained input custody](adr/0001-retained-input-custody.md).
+
 ## Bootstrap and preflight
 
 Clone or copy the repository to a deliberately selected development path on the spacious volume, such as `E:\Portcove-Development`. Do not copy an old `target`, `node_modules`, `dist`, or `src-tauri/gen` directory; they are reconstructed from `Cargo.lock` and the root `pnpm-lock.yaml`. Preserve ignored source inputs, qualification evidence, and final outputs unless each item has separately been proved disposable.

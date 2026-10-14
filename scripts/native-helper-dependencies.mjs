@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fileIdentity, writeEvidence } from "./development-evidence.mjs";
+import { retainEvidenceInput } from "./retained-evidence.mjs";
 
 const desktop = "apps/desktop/scripts/";
 const helper = (name) => `${desktop}${name}`;
@@ -231,13 +232,28 @@ export async function captureDesktopReceiptInputs({
   output,
   revision,
   validate = validateNativeHelperDependencies,
+  retainedRoot = null,
+  signal,
 }) {
   const inputs = [];
   let failedPath;
   try {
     for (const input of plan.receiptInputs) {
       failedPath = input.kind === "executable" ? values[input.name] : path.join(root, input.path);
-      inputs.push(await fileIdentity(failedPath));
+      inputs.push(
+        retainedRoot
+          ? {
+              ...(await retainEvidenceInput({
+                root: retainedRoot,
+                file: failedPath,
+                executable: input.kind === "executable",
+                signal,
+              })),
+              role: input.kind === "executable" ? input.name : input.path,
+              kind: input.kind,
+            }
+          : await fileIdentity(failedPath),
+      );
     }
     failedPath = "native-helper-dependency-validation";
     await validate({ root });

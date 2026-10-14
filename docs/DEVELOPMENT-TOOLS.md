@@ -1,5 +1,39 @@
 # Development tools
 
+## Verification input and execution identities
+
+The Windows/Linux native CLI wrapper captures declared inputs before importing
+the harness. Supported standalone products and cached drivers execute retained
+bytes; path-sensitive or unestablished layouts retain the original path with
+cooperative content checks. Helpers are checked before the target import,
+application/driver launch boundaries and after execution. Already loaded trusted
+verifier inputs remain separately labeled observations. These mechanisms do not
+prove immutable consumption of every live-path dependency.
+
+Version-3 native receipts keep original and retained identities, consumed paths,
+binding mechanisms and limits. Version-2 receipts remain readable historical
+observations; retention established later is a new observation, never backdated
+custody. Input capture shares the selected existing execution deadline and awaits
+its worker before reporting cancellation. Publication admitted before late
+cancellation is preserved; required execution/acceptance is never inferred from
+the retained object.
+
+Build-input fingerprints, product-artifact identities, harness identities and
+execution/qualification bindings are separate comparison fields. Runtime,
+fixtures, initial state, selected requirements/scenarios and criteria affect
+execution reuse even when product bytes match. Source-head provenance is separate
+from content reuse; documentation-only changes need not rebuild the frontend.
+Existing exact-head CI remains required.
+
+The existing frontend cache verifies its complete declared inputs and outputs.
+Native compiler/version observations do not seal SDK/system-provider inputs;
+native product build skipping remains unavailable at that boundary. Normal
+Cargo invocation and supported incremental behavior remain. This extends only
+the existing Windows/Linux profiles, not a universal cache or dependency engine.
+See [the comparison decision](adr/0002-separate-build-reuse-from-qualification.md)
+and [delivery terminology](../GLOSSARY.md). Packet stages described in that ADR
+are the chosen boundary for the later package component, not a new global gate.
+
 Before overlapping local Rust or native commands, use `just resource-status` for
 a passive snapshot of existing guard records. It reports recorded identities and
 unknown coverage; the guards still own admission. Sequence conflicting owned
