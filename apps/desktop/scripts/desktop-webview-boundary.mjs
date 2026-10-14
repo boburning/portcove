@@ -295,6 +295,21 @@ try {
   await browser.get(initialUrl);
   sameLabelRemote.returnedMain = await invokeNavigated("get_bootstrap_status");
   assert.equal(sameLabelRemote.returnedMain.ok, true);
+  const approvedExternalLink = {
+    url: "https://github.com/boburning/portcove",
+    beforeUrl: await browser.getCurrentUrl(),
+    beforeWindows: await browser.getAllWindowHandles(),
+    browserDestination: "requires separate system-browser observation",
+  };
+  report.observations.approvedExternalLink = approvedExternalLink;
+  approvedExternalLink.result = await invokeNavigated("open_external_url", {
+    url: approvedExternalLink.url,
+  });
+  assert.equal(approvedExternalLink.result.ok, true);
+  approvedExternalLink.afterUrl = await browser.getCurrentUrl();
+  approvedExternalLink.afterWindows = await browser.getAllWindowHandles();
+  assert.equal(approvedExternalLink.afterUrl, initialUrl);
+  assert.deepEqual(approvedExternalLink.afterWindows, approvedExternalLink.beforeWindows);
   report.outcome = "passed";
 } catch (error) {
   report.failure = String(error.stack ?? error);
