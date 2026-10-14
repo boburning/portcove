@@ -2256,7 +2256,7 @@ fn dolphin_tool_candidates() -> Vec<PathBuf> {
 }
 
 pub(crate) fn psx_source_paths(path: &Path, expected_count: usize) -> Result<Vec<PathBuf>> {
-    let mut paths = if path.is_file() {
+    let paths = if path.is_file() {
         vec![path.to_path_buf()]
     } else if path.is_dir() {
         std::fs::read_dir(path)?
@@ -2276,6 +2276,14 @@ pub(crate) fn psx_source_paths(path: &Path, expected_count: usize) -> Result<Vec
             path.display()
         )));
     };
+    order_psx_source_paths(paths, path, expected_count)
+}
+
+pub(crate) fn order_psx_source_paths(
+    mut paths: Vec<PathBuf>,
+    path: &Path,
+    expected_count: usize,
+) -> Result<Vec<PathBuf>> {
     for path in &paths {
         crate::path::unicode(path, "source member")?;
     }

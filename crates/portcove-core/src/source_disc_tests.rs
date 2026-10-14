@@ -1,5 +1,312 @@
 use super::*;
 
+#[cfg(any(windows, target_os = "linux"))]
+#[test]
+#[ignore = "explicit owned real codecs; selected Core registration/import acceptance, no gameplay"]
+fn real_owned_selected_disc_registration_preserves_originals() {
+    let codec = std::env::var("PORTCOVE_OWNED_SELECTED_CODEC")
+        .expect("choose one owned codec so each complete lifecycle has its own timing record");
+    assert!(["gcz", "wia", "rvz", "chd"].contains(&codec.as_str()));
+    use sha2::{Digest, Sha256};
+    let gamecube =
+        std::path::PathBuf::from(std::env::var_os("PORTCOVE_OWNED_GAMECUBE_ROOT").unwrap());
+    let chd = std::path::PathBuf::from(std::env::var_os("PORTCOVE_OWNED_CHD_INPUT").unwrap());
+    let normalized_gc = "aedd4af009037a6e1a0c0a959c24261cf778906f870a564bd875f5fe159286a5";
+    let normalized_psx = "f04a98f6d9294ae7b7b8bde4c6ac1da6f6677fb9a0a64210d8f7c3c1eaf7a653";
+    let catalog = crate::Catalog::from_json(&serde_json::json!({"schema_version":2,"ports":[],"source_catalog":{
+        "identities":[
+            {"id":"owned-gamecube","label":"Owned GC image","kind":"optical-disc","evidence_gap":"Synthetic codec fixture","variants":[{"id":"fixture","title":"Owned GC","representations":[{"id":"normalized","kind":"gamecube-normalized-iso","extensions":["iso","gcz","wia","rvz"],"identities":[{"scope":"gamecube-normalized-iso","sha256":normalized_gc}]}]}]},
+            {"id":"owned-psx","label":"Owned PSX track","kind":"optical-disc","evidence_gap":"Synthetic codec fixture","variants":[{"id":"fixture","title":"Owned PSX","representations":[{"id":"normalized","kind":"optical-track-set","extensions":["chd"],"track_counts":[1],"identities":[{"scope":"psx-normalized-track-set","sha256":normalized_psx}]}]}]}
+        ],"contracts":[],"validators":[],"evidence":[],"qualification":[]
+    }}).to_string()).unwrap();
+    let owned = tempfile::tempdir().unwrap();
+    let mut service =
+        crate::PortcoveService::new(crate::Library::open(owned.path().join("library")).unwrap())
+            .unwrap();
+    service.replace_catalog_for_test(catalog);
+    for (profile, path, expected, size) in [
+        (
+            "owned-gamecube",
+            gamecube.join("owned.gcz"),
+            normalized_gc,
+            131072,
+        ),
+        (
+            "owned-gamecube",
+            gamecube.join("owned.wia"),
+            normalized_gc,
+            131072,
+        ),
+        (
+            "owned-gamecube",
+            gamecube.join("owned.rvz"),
+            normalized_gc,
+            131072,
+        ),
+        ("owned-psx", chd, normalized_psx, 94080),
+    ] {
+        if path.extension().and_then(|value| value.to_str()) != Some(codec.as_str()) {
+            continue;
+        }
+        let original = fs::read(&path).unwrap();
+        let registered = service
+            .register_source_with_digest(profile, &path, expected)
+            .unwrap();
+        assert_eq!(registered.sha256, expected);
+        assert_eq!(registered.size, size);
+        assert_eq!(
+            registered.storage_sha256,
+            hex::encode(Sha256::digest(&original))
+        );
+        let plan = service
+            .plan_source_import(profile, &path, crate::SourceImportMode::UseCurrentLocation)
+            .unwrap();
+        let imported = service
+            .import_source(
+                profile,
+                &path,
+                crate::SourceImportMode::UseCurrentLocation,
+                &plan.plan_sha256,
+                None,
+            )
+            .unwrap();
+        assert!(!imported.copied && !imported.original_deleted);
+        assert_eq!(imported.registered.sha256, expected);
+        assert_eq!(fs::read(&path).unwrap(), original);
+        println!(
+            "selected real codec: profile={profile} original_bytes={} normalized_bytes={size} deliberate_registration=true current_location_import=true originals_unchanged=true",
+            original.len()
+        );
+    }
+}
+
+#[cfg(any(windows, target_os = "linux"))]
+#[test]
+fn selected_registration_rejects_mixed_original_facts_and_changed_set_inventory() {
+    use crate::{ChildProcessClass, ChildProcessPolicy};
+    let owned = tempfile::tempdir().unwrap();
+    let tool = owned.path().join(if cfg!(windows) {
+        "chdman.exe"
+    } else {
+        "chdman"
+    });
+    let source = owned.path().join("selected_disc_probe.rs");
+    fs::write(&source, include_str!("testdata/selected_disc_probe.rs.txt")).unwrap();
+    let mut compiler =
+        ChildProcessPolicy::native_command(ChildProcessClass::ManagedBuilder, "rustc").unwrap();
+    assert!(
+        compiler
+            .args(["--edition=2024"])
+            .arg(&source)
+            .arg("-o")
+            .arg(&tool)
+            .status()
+            .unwrap()
+            .success()
+    );
+    for mode in [
+        "success",
+        "pair-success",
+        "mixed-single",
+        "changed-original",
+        "changed-earlier-member",
+        "changed-inventory",
+        "failure",
+    ] {
+        let working = tempfile::tempdir().unwrap();
+        let copied = working.path().join(tool.file_name().unwrap());
+        fs::copy(&tool, &copied).unwrap();
+        crate::permissions::normalize_archive_entry(&copied, false, true).unwrap();
+        let mut command = ChildProcessPolicy::native_command(
+            ChildProcessClass::HostTool,
+            std::env::current_exe().unwrap(),
+        )
+        .unwrap();
+        let path = std::env::join_paths(std::iter::once(working.path().to_path_buf()).chain(
+            std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()),
+        ))
+        .unwrap();
+        command
+            .args([
+                "--exact",
+                "source_disc::tests::selected_registration_fixture",
+                "--ignored",
+                "--nocapture",
+            ])
+            .env("PATH", path)
+            .env("PORTCOVE_SELECTED_REGISTRATION_FIXTURE", working.path())
+            .env("PORTCOVE_SELECTED_REGISTRATION_MODE", mode);
+        assert!(
+            command.status().unwrap().success(),
+            "selected registration control {mode}"
+        );
+    }
+}
+
+#[cfg(any(windows, target_os = "linux"))]
+#[test]
+#[ignore = "owned isolated Core registration entrypoint"]
+fn selected_registration_fixture() {
+    use sha2::{Digest, Sha256};
+    let root = std::path::PathBuf::from(
+        std::env::var_os("PORTCOVE_SELECTED_REGISTRATION_FIXTURE").unwrap(),
+    );
+    let mode = std::env::var("PORTCOVE_SELECTED_REGISTRATION_MODE").unwrap();
+    let multiple = matches!(
+        mode.as_str(),
+        "changed-earlier-member" | "changed-inventory" | "pair-success"
+    );
+    let selected = root.join(if multiple { "selected" } else { "selected.chd" });
+    let original = chd_header();
+    let mutable = if multiple {
+        fs::create_dir(&selected).unwrap();
+        let first = selected.join("disc-01.chd");
+        fs::write(&first, &original).unwrap();
+        let mut second = original.clone();
+        second[100] = 1;
+        fs::write(selected.join("disc-02.chd"), second).unwrap();
+        first
+    } else {
+        fs::write(&selected, &original).unwrap();
+        selected.clone()
+    };
+    let digest = hex::encode(Sha256::digest(b"owned psx track"));
+    let representation = if multiple {
+        serde_json::json!({"id":"ordered-pair","kind":"multi-disc-set","extensions":["chd"],"discs":[
+            {"id":"first","label":"first","track_counts":[1],"identities":[{"scope":"disc-set-member","sha256":digest}]},
+            {"id":"second","label":"second","track_counts":[1],"identities":[{"scope":"disc-set-member","sha256":digest}]}
+        ]})
+    } else {
+        serde_json::json!({"id":"track","kind":"optical-track-set","extensions":["chd"],"track_counts":[1],"identities":[{"scope":"psx-normalized-track-set","sha256":digest}]})
+    };
+    let mut representations = vec![representation];
+    if mode == "mixed-single" {
+        representations.push(serde_json::json!({"id":"ordered-pair","kind":"multi-disc-set","extensions":[],"discs":[
+            {"id":"first","label":"first","track_counts":[1],"identities":[{"scope":"disc-set-member","sha256":digest}]},
+            {"id":"second","label":"second","track_counts":[1],"identities":[{"scope":"disc-set-member","sha256":digest}]}
+        ]}));
+    }
+    let catalog = crate::Catalog::from_json(&serde_json::json!({"schema_version":2,"ports":[],"source_catalog":{
+        "identities":[{"id":"owned-psx","label":"Owned controlled track","kind":"optical-disc","evidence_gap":"Synthetic inspection fixture","variants":[{"id":"fixture","title":"Owned fixture","representations":representations}]}],
+        "contracts":[],"validators":[],"evidence":[],"qualification":[]
+    }}).to_string()).unwrap();
+    let mut service =
+        crate::PortcoveService::new(crate::Library::open(root.join("library")).unwrap()).unwrap();
+    service.replace_catalog_for_test(catalog);
+    fs::write(
+        root.join("mode"),
+        match mode.as_str() {
+            "changed-original" => "held",
+            "changed-earlier-member" | "changed-inventory" => "held-second",
+            other => other,
+        },
+    )
+    .unwrap();
+    let producer = if mode.starts_with("changed-") {
+        let controls = root.clone();
+        let mutable = mutable.clone();
+        let inventory = selected.clone();
+        Some(std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while !controls.join("ready").exists() {
+                assert!(
+                    Instant::now() < deadline,
+                    "decoder did not reach held phase"
+                );
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            if mode == "changed-inventory" {
+                fs::write(inventory.join("disc-03.chd"), chd_header()).unwrap();
+            } else {
+                let mut changed = fs::read(&mutable).unwrap();
+                changed[100] ^= 4;
+                fs::write(&mutable, changed).unwrap();
+            }
+            fs::write(controls.join("release"), b"owned mutation complete").unwrap();
+        }))
+    } else {
+        None
+    };
+    let expected = if multiple {
+        crate::adapter::aggregate_sha256(&[digest.clone(), digest.clone()])
+    } else {
+        digest.clone()
+    };
+    let result = service.register_source_with_digest("owned-psx", &selected, &expected);
+    if let Some(producer) = producer {
+        producer.join().unwrap();
+    }
+    if matches!(
+        std::env::var("PORTCOVE_SELECTED_REGISTRATION_MODE")
+            .unwrap()
+            .as_str(),
+        "success" | "pair-success" | "mixed-single"
+    ) {
+        let registered = result.unwrap();
+        let mut originals = vec![original.clone()];
+        if multiple {
+            let mut second = original.clone();
+            second[100] = 1;
+            originals.push(second);
+        }
+        let stored = originals
+            .iter()
+            .map(|bytes| hex::encode(Sha256::digest(bytes)))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            registered.storage_sha256,
+            crate::adapter::aggregate_sha256(&stored)
+        );
+        let plan = service
+            .plan_source_import(
+                "owned-psx",
+                &selected,
+                crate::SourceImportMode::UseCurrentLocation,
+            )
+            .unwrap();
+        assert_eq!(plan.required_bytes, 0);
+        let imported = service
+            .import_source(
+                "owned-psx",
+                &selected,
+                crate::SourceImportMode::UseCurrentLocation,
+                &plan.plan_sha256,
+                None,
+            )
+            .unwrap();
+        assert!(!imported.copied && !imported.original_deleted);
+        assert_eq!(imported.registered.sha256, expected);
+        for (index, bytes) in originals.iter().enumerate() {
+            let path = if multiple {
+                selected.join(format!("disc-{:02}.chd", index + 1))
+            } else {
+                selected.clone()
+            };
+            assert_eq!(fs::read(path).unwrap(), *bytes);
+        }
+    } else {
+        let error = result
+            .err()
+            .expect("mixed, incomplete or failed inspection cannot register");
+        assert!(
+            matches!(
+                error.code,
+                crate::ErrorCode::Conflict
+                    | crate::ErrorCode::SourceInvalid
+                    | crate::ErrorCode::Launch
+            ),
+            "{}",
+            error.message
+        );
+        assert!(service.library().source("owned-psx").unwrap().is_none());
+    }
+    #[cfg(target_os = "linux")]
+    assert_eq!(
+        fs::read_to_string(root.join("actual-init-id")).unwrap(),
+        "1"
+    );
+}
+
 #[cfg(target_os = "linux")]
 #[test]
 fn active_decoder_unwinding_retains_private_tree_after_exact_shutdown() {

@@ -26,6 +26,183 @@ use crate::{
 const CISO_HEADER_BYTES: usize = 0x8000;
 const MAX_DECODER_BLOCK_BYTES: u64 = 16 * 1024 * 1024;
 const MAX_CONTAINER_METADATA_BYTES: u64 = 4 * 1024 * 1024;
+// Explicit selection has no scan batch/hash allowance. Its individual original
+// and decoded disc still have a fixed boundary, independent of scan settings.
+#[cfg(any(windows, target_os = "linux"))]
+const MAX_SELECTED_DISC_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+#[cfg(any(windows, target_os = "linux"))]
+pub(crate) fn observe_selected(
+    catalog: &crate::Catalog,
+    profile: &crate::SourceProfile,
+    path: &Path,
+) -> Result<ObservedDiscSource> {
+    let canonical = fs::canonicalize(path)?;
+    let directory = if canonical.is_dir() {
+        let handle = crate::external_runtime::open_identity_handle(&canonical)?;
+        let initial = handle.metadata()?;
+        crate::source_inspection::verify_open_source_directory(&canonical, &handle, &initial)?;
+        Some((handle, initial))
+    } else {
+        None
+    };
+    let mut counts = catalog
+        .source_catalog()
+        .into_iter()
+        .flat_map(|source| &source.identities)
+        .filter(|identity| identity.id == profile.id)
+        .flat_map(|identity| &identity.variants)
+        .filter(|variant| !variant.legacy_projection_only)
+        .flat_map(|variant| &variant.representations)
+        .filter_map(|representation| match &representation.kind {
+            crate::SourceRepresentationKind::OpticalTrackSet { .. }
+            | crate::SourceRepresentationKind::VolumeId { .. } => Some(1),
+            crate::SourceRepresentationKind::MultiDiscSet { discs } if !discs.is_empty() => {
+                Some(discs.len())
+            }
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let paths = if profile.kind == SourceKind::PsxDisc {
+        let count = profile
+            .disc
+            .as_ref()
+            .ok_or_else(|| PortcoveError::state("PS1 profile is missing its disc identity"))?
+            .discs
+            .len()
+            .max(1);
+        counts.insert(count);
+        selected_psx_paths(&canonical, &counts)?
+    } else {
+        vec![canonical.clone()]
+    };
+    let temporary_parent = std::env::var_os("PORTCOVE_TEMP_DIR")
+        .filter(|value| !value.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    fs::create_dir_all(&temporary_parent)?;
+    let parent = InspectionDirectory::new(
+        tempfile::Builder::new()
+            .prefix("portcove-selected-disc-")
+            .tempdir_in(temporary_parent)?,
+    );
+    let mut budget = HashBudget {
+        operation: None,
+        limit: u64::MAX,
+        hashed: 0,
+        max_zip_entries: 4096,
+    };
+    let mut members = Vec::with_capacity(paths.len());
+    for member in &paths {
+        let observed = observe(
+            &profile.id,
+            profile.kind,
+            member,
+            &parent,
+            MAX_SELECTED_DISC_BYTES,
+            &mut budget,
+        )
+        .map_err(|error| {
+            if error.details.contains_key("retained_inspection") {
+                error.detail(
+                    "retained_inspection_parent",
+                    parent.path().display().to_string(),
+                )
+            } else {
+                error
+            }
+        })?;
+        members.push(observed.source);
+    }
+    if let Some((handle, initial)) = &directory {
+        crate::source_inspection::verify_open_source_directory(&canonical, handle, initial)?;
+        if selected_psx_paths(&canonical, &counts)? != paths {
+            return Err(PortcoveError::conflict(
+                "selected disc inventory changed during inspection",
+            ));
+        }
+    }
+    // An earlier member can change while a later decoder runs. Recheck every
+    // original from the same ordered inventory, never a new storage enumeration.
+    for (member, observed) in paths.iter().zip(&members) {
+        let mut input = crate::external_runtime::open_identity_handle(member)?;
+        let initial = input.metadata()?;
+        verify_open_source_location(member, &input, &initial)?;
+        let actual = read_raw_identity_from_reader(
+            member,
+            &mut input,
+            initial.len(),
+            MAX_SELECTED_DISC_BYTES,
+            &mut budget,
+        )?;
+        verify_open_source_location(member, &input, &initial)?;
+        if actual.sha256 != observed.record.storage_sha256
+            || actual.size != observed.record.storage_size
+        {
+            return Err(PortcoveError::conflict(
+                "selected original changed during disc inspection",
+            ));
+        }
+    }
+    if let Some((handle, initial)) = &directory {
+        crate::source_inspection::verify_open_source_directory(&canonical, handle, initial)?;
+    }
+    if fs::canonicalize(path)? != canonical {
+        return Err(PortcoveError::conflict(
+            "selected disc location changed during inspection",
+        ));
+    }
+    let mut result = if profile.kind == SourceKind::PsxDisc {
+        aggregate(&profile.id, path, &members)?
+    } else {
+        members.pop().expect("one selected GameCube disc")
+    };
+    result.record.path = path.to_path_buf();
+    Ok(result)
+}
+
+#[cfg(any(windows, target_os = "linux"))]
+fn selected_psx_paths(path: &Path, counts: &BTreeSet<usize>) -> Result<Vec<std::path::PathBuf>> {
+    let paths = if path.is_file() {
+        vec![path.to_path_buf()]
+    } else if path.is_dir() {
+        // One complete inventory uses the existing order/count authority.
+        let mut paths = Vec::new();
+        for (index, entry) in fs::read_dir(path)?.enumerate() {
+            if index >= 16_384 {
+                return Err(PortcoveError::unsupported(
+                    "selected disc directory exceeds its bounded inventory; select a directory containing only the required inputs",
+                ));
+            }
+            let entry = entry?;
+            let member = entry.path();
+            crate::path::unicode(&member, "source member")?;
+            if member
+                .extension()
+                .and_then(|value| value.to_str())
+                .is_some_and(|value| value.eq_ignore_ascii_case("chd"))
+            {
+                if !entry.file_type()?.is_file() {
+                    return Err(PortcoveError::source(
+                        "complete disc sets require regular CHD members",
+                    ));
+                }
+                paths.push(member);
+            }
+        }
+        paths
+    } else {
+        return Err(PortcoveError::source("selected PS1 source is unavailable"));
+    };
+    if !counts.contains(&paths.len()) {
+        return Err(PortcoveError::source(format!(
+            "selected PS1 source requires one of {counts:?} complete CHD member counts; found {}",
+            paths.len()
+        )));
+    }
+    let count = paths.len();
+    crate::adapter::order_psx_source_paths(paths, path, count)
+}
 
 /// The complete private observation tree shares the decoder's closure flag.
 /// Normal errors and unwinding retain both child and parent until proof arrives.
@@ -230,9 +407,10 @@ pub(crate) fn observe(
     maximum_size: u64,
     budget: &mut HashBudget,
 ) -> Result<DiscObservation> {
-    if path
-        .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("ciso"))
+    if kind == SourceKind::GamecubeDisc
+        && path
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("ciso"))
     {
         return observe_ciso_facts(profile_id, path, maximum_size, budget);
     }
@@ -312,15 +490,20 @@ fn observe_converted_disc(
     let mut file = crate::external_runtime::open_identity_handle(path)?;
     let initial = file.metadata()?;
     verify_open_source_location(path, &file, &initial)?;
-    let extension = path
-        .extension()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default()
-        .to_ascii_lowercase();
+    let extension = if kind == SourceKind::PsxDisc {
+        // The selected-input contract can leave extensions unconstrained. CHD
+        // magic/preflight, rather than the original filename, selects its codec.
+        "chd".to_owned()
+    } else {
+        path.extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+    };
     let decoded_bytes = container_decoded_bytes(&mut file, &extension, &checkpoint)?;
     if initial.len() > maximum_size || decoded_bytes > maximum_size {
         return Err(PortcoveError::unsupported(
-            "disc container exceeds the discovery file-size boundary",
+            "disc container exceeds its per-file inspection boundary",
         )
         .detail("scan_limit", "file_size"));
     }
@@ -802,7 +985,7 @@ fn observe_ciso_facts(
     verify_open_source_location(path, &file, &initial)?;
     if initial.len() > maximum_size || GAMECUBE_DISC_CAPACITY_BYTES > maximum_size {
         return Err(
-            PortcoveError::unsupported("CISO exceeds the discovery file-size boundary")
+            PortcoveError::unsupported("CISO exceeds its per-file inspection boundary")
                 .detail("scan_limit", "file_size"),
         );
     }

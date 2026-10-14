@@ -194,6 +194,19 @@ pub(crate) fn write_bytes_atomically(
     let parent = destination
         .parent()
         .ok_or_else(|| PortcoveError::usage("publication path has no parent"))?;
+    // tempfile's Windows persistence passes paths directly to Win32 rather than
+    // applying std's long-path normalization. Bind both names to the same
+    // existing canonical parent, including its verbatim namespace and UTF-16.
+    #[cfg(windows)]
+    let parent = fs::canonicalize(parent)?;
+    #[cfg(windows)]
+    let destination = parent.join(
+        destination
+            .file_name()
+            .ok_or_else(|| PortcoveError::usage("publication path has no filename"))?,
+    );
+    #[cfg(windows)]
+    let (parent, destination) = (parent.as_path(), destination.as_path());
     let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
     temporary.write_all(bytes)?;
     temporary.as_file().sync_all()?;
@@ -308,6 +321,40 @@ fn sync_directory(_path: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn atomic_receipts_support_long_windows_paths_without_replacing_owned_names() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut parent = temporary.path().to_path_buf();
+        while parent.as_os_str().len() < 220 {
+            parent.push("owned-long-library-directory");
+        }
+        fs::create_dir_all(&parent).unwrap();
+        let destination = parent.join(format!(
+            ".portcove-import-{}.publication-境界.json",
+            "a".repeat(64)
+        ));
+        assert!(destination.as_os_str().len() > 260);
+        let original = serde_json::json!({"import_id": "owned-first"});
+        let replacement = serde_json::json!({"import_id": "owned-second"});
+        write_json_atomically(&destination, &original, false).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&fs::read(&destination).unwrap()).unwrap(),
+            original
+        );
+        assert!(write_json_atomically(&destination, &replacement, false).is_err());
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&fs::read(&destination).unwrap()).unwrap(),
+            original
+        );
+        write_json_atomically(&destination, &replacement, true).unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&fs::read(&destination).unwrap()).unwrap(),
+            replacement
+        );
+        assert_eq!(fs::read_dir(parent).unwrap().count(), 1);
+    }
 
     #[test]
     fn backup_directory_durability_support_is_explicit_for_the_host() {

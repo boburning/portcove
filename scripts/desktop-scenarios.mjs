@@ -62,7 +62,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "install-fixture", "owned-fixture"],
       source: "desktop-selected-setup-completion-test.mjs",
       qualification_only: true,
-      platforms: ["win32"],
+      platforms: ["win32", "linux"],
     },
   ),
   scenario(
@@ -72,7 +72,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "install-fixture", "owned-fixture"],
       source: "desktop-source-dialog-test.mjs",
       qualification_only: true,
-      platforms: ["win32"],
+      platforms: ["win32", "linux"],
     },
   ),
   scenario(
@@ -568,7 +568,8 @@ export function resolveDesktopSelection({
   if (uniqueRequested.includes("native-selected-setup-completion")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-selected-setup-completion requires one exact standalone scenario");
-    if (platform !== "win32") throw new Error("native-selected-setup-completion requires Windows");
+    if (!["win32", "linux"].includes(platform))
+      throw new Error("native-selected-setup-completion requires Windows or Linux");
   }
   if (uniqueRequested.includes("native-startup-network-diagnostic") && uniqueRequested.length !== 1)
     throw new Error("native-startup-network-diagnostic requires one exact standalone scenario");
@@ -577,8 +578,8 @@ export function resolveDesktopSelection({
   if (uniqueRequested.includes("native-saved-folder-selected-setup")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-saved-folder-selected-setup requires one exact standalone scenario");
-    if (platform !== "win32")
-      throw new Error("native-saved-folder-selected-setup requires Windows");
+    if (!["win32", "linux"].includes(platform))
+      throw new Error("native-saved-folder-selected-setup requires Windows or Linux");
   }
   if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
     throw new Error("native-external-runtime-review requires one exact standalone scenario");
