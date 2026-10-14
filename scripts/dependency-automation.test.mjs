@@ -172,6 +172,82 @@ test("Renovate excludes the extracted rusqlite Git dependency identity", async (
   assert.equal(matchingRules[0].enabled, false);
 });
 
+test("serde_json lock updates are confined to the authorized Cargo crate identity", async () => {
+  const config = JSON.parse(await read("renovate.json"));
+  const fixture = JSON.parse(await read("scripts/fixtures/serde-json-renovate-44.156.3.json"));
+  const overrides = config.packageRules.filter((rule) => rule.rangeStrategy);
+  assert.equal(config.rangeStrategy, "bump");
+  assert.equal(overrides.length, 1, "no other dependency range policy is authorized");
+  const [rule] = overrides;
+  assert.deepEqual(rule, fixture.rule);
+  assert.deepEqual(rule.matchManagers, ["cargo"]);
+  assert.deepEqual(rule.matchDatasources, ["crate"]);
+  assert.deepEqual(rule.matchPackageNames, ["serde_json"]);
+  assert.equal(rule.rangeStrategy, "update-lockfile");
+  assert.deepEqual(Object.keys(rule).sort(), [
+    "description",
+    "matchDatasources",
+    "matchManagers",
+    "matchPackageNames",
+    "rangeStrategy",
+  ]);
+  const identity = { manager: "cargo", datasource: "crate", packageName: "serde_json" };
+  const matches = (candidate) =>
+    rule.matchManagers.includes(candidate.manager) &&
+    rule.matchDatasources.includes(candidate.datasource) &&
+    rule.matchPackageNames.includes(candidate.packageName);
+  assert.equal(matches(identity), true);
+  for (const control of fixture.boundaries.negativeControls) {
+    assert.equal(matches({ ...identity, ...control }), false);
+    assert.equal(control.rangeStrategy, config.rangeStrategy);
+  }
+});
+
+test("deployed Cargo replay separates selected lock updates from security and full maintenance", async () => {
+  const fixture = JSON.parse(await read("scripts/fixtures/serde-json-renovate-44.156.3.json"));
+  const observed = Date.parse(fixture.observedAt);
+  const age = 3 * 24 * 60 * 60 * 1000;
+  const selected = fixture.lookup.updates[0];
+  const serde = fixture.extraction.find((dep) => dep.depName === "serde_json");
+  const semver = fixture.extraction.find((dep) => dep.depName === "semver");
+  assert.equal(fixture.engine.version, "44.156.3");
+  assert.equal(fixture.lookup.updates.length, 1);
+  assert.equal(selected.newValue, serde.currentValue);
+  assert.equal(selected.isLockfileUpdate, true);
+  for (const release of fixture.releases.filter((r) =>
+    [selected.newVersion, ...selected.pendingVersions].includes(r.version),
+  )) {
+    assert.equal(
+      observed - Date.parse(release.releaseTimestamp) >= age,
+      release.version === selected.newVersion,
+    );
+  }
+  assert.equal(fixture.artifact.locked, selected.newVersion);
+  assert.equal(fixture.artifact.nearby, semver.lockedVersion);
+  assert.equal(fixture.artifact.manifestUnchanged, true);
+  assert.equal(fixture.artifact.otherLockEntriesUnchanged, true);
+  assert.deepEqual(fixture.artifact.commands, [
+    `cargo update --config net.git-fetch-with-cli=true --manifest-path Cargo.toml --package serde_json@${serde.lockedVersion} --precise ${selected.newVersion}`,
+    "cargo update --config net.git-fetch-with-cli=true --manifest-path Cargo.toml --workspace",
+  ]);
+  const boundaries = fixture.boundaries;
+  assert.equal(boundaries.syntheticVersionInputs, true);
+  assert.equal(boundaries.compatibleMinor.updateType, "minor");
+  assert.equal(boundaries.compatibleMinor.newValue, serde.currentValue);
+  assert.equal(boundaries.compatibleMinor.isLockfileUpdate, true);
+  assert.equal(boundaries.outOfRangeMajor.approval, true);
+  assert.equal(boundaries.outOfRangeMajor.metadata.isLockfileUpdate, undefined);
+  assert.equal(boundaries.security.minimumReleaseAge, null);
+  assert.equal(boundaries.security.majorApproval, false);
+  assert.equal(boundaries.security.automerge, false);
+  assert.equal(boundaries.unknownTimestampPending, true);
+  assert.equal(boundaries.fullLockfileMaintenance.locked, selected.pendingVersions[0]);
+  assert.deepEqual(boundaries.fullLockfileMaintenance.commands, [
+    "cargo update --config net.git-fetch-with-cli=true --manifest-path Cargo.toml",
+  ]);
+  assert.equal(boundaries.fullLockfileMaintenance.universalTransitiveAgeGuarantee, false);
+});
+
 test("Renovate batches development tools and suppresses only the Aqua registry authority", async () => {
   const renovate = JSON.parse(await read("renovate.json"));
   const aqua = await read("aqua.yaml");

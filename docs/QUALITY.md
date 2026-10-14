@@ -241,15 +241,26 @@ covered.
 
 ### Bounded dependency delivery
 
-The serde_json Cargo patch-only artifact pilot (#1973) remains held: deployed
-Renovate 44.156.3 rejects combining `matchUpdateTypes` with `rangeStrategy`,
-including migrated nested patch rules. A post-lookup strategy cannot repair an
-already-bumped manifest range. Production range policy is unchanged. See the
+#1973's owner authorizes `update-lockfile` only for Cargo/crate `serde_json`,
+without an update-type restriction. It selects compatible releases within the
+existing range before lookup; the global `bump` strategy and other dependencies
+remain unchanged. In-range proposals keep the manifest value and reach Cargo's
+precise-update path before `cargo update --workspace`. The deployed 44.156.3
+[replay fixture](../scripts/fixtures/serde-json-renovate-44.156.3.json) records
+eligible 1.0.153 remaining locked while 1.0.154 was pending, with semver unchanged.
+
+The three-day timestamp-required age policy, disabled automerge, existing security
+overrides and major dashboard approval remain intact. Out-of-range proposals can
+still change a manifest and require a separate scope decision; this authorization
+does not approve them. Full lockfile maintenance uses Cargo's general update path
+and needs separate resolved-graph review. Neither the scoped rule nor the workspace follow-up
+establishes universal transitive-dependency age enforcement.
+
+Keep #1973 open after configuration delivery until a naturally occurring hosted
+proposal and generated artifact demonstrate the outcome. Local engine/Cargo replay
+is separate evidence; continue other development while waiting. The rejected
+patch-only and post-lookup candidates remain in the historical
 [October 14 evidence](releases/2026-10-14-maintenance-tooling-evidence.md).
-Resume only with a supported pre-lookup strategy that preserves the authorized
-patch-only scope and passes actual workspace/artifact controls. Keep local replay
-distinct from a naturally occurring hosted proposal; do not widen rules or weaken
-release age to clear this hold.
 
 Start one authorized maintenance cycle with
 `just renovate-check --queue [--json]`. It reads the complete current proposal
