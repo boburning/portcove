@@ -30,9 +30,11 @@ const root = fileURLToPath(new URL("../../..", import.meta.url));
 
 test("owned fixture path checks accept Core's extended spelling and reject a different path", () => {
   const expected = path.join(root, "owned-source-fixture");
-  assertOwnedSelectedSetupPath(`\\\\?\\${expected}`, expected);
+  if (process.platform === "win32") assertOwnedSelectedSetupPath(`\\\\?\\${expected}`, expected);
   assertOwnedSelectedSetupPath(expected, expected);
   assert.throws(() => assertOwnedSelectedSetupPath(`\\\\?\\${expected}-other`, expected));
+  if (process.platform !== "win32")
+    assert.throws(() => assertOwnedSelectedSetupPath(`${expected.toUpperCase()}`, expected));
 });
 
 for (const [focus, selector, expected, mutate] of [

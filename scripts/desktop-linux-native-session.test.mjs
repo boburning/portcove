@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { launchLinuxNativeSession } from "./desktop-linux-native-session.mjs";
+import { launchLinuxNativeSession } from "../apps/desktop/scripts/desktop-linux-native-session.mjs";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function counter(file) {
   try {

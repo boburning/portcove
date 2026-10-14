@@ -458,10 +458,14 @@ owned-process closure. This case does not establish native picker, setup
 execution, gameplay, physical storage or Linux acceptance.
 
 `just desktop-verify --scenario native-selected-setup-completion --require-clean`
-selects the standalone owned-input journey on Windows or Linux: bounded two-port
+selects the standalone owned-input journey on Windows: bounded two-port
 review, actual individual installation cancellation/retry and inert preparation,
-return context, complete game/BIOS review and saved-input restart. The Linux
-GTK/WebKit route requires the existing desktop SDK/drivers and permitted private
+return context, complete game/BIOS review and saved-input restart. On Linux, the
+existing low-level `just desktop-test` route selects the same scenario with
+explicit compiled app, CLI, owned probe and verified Tauri/WebKit drivers in a
+new isolated output directory. Bind the clean source and actual runtime/build
+identities before that launch; a failed legacy desktop doctor remains failed.
+The GTK/WebKit route requires the existing desktop SDK/drivers and permitted private
 user/PID/mount namespaces. Each driver launch has an owned PID1 control wrapper;
 private EOF stops that init, and a launch-bound Ready identity plus a normal
 `unshare` join proves descendant closure before restart. Signaled or unknown

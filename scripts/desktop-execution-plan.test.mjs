@@ -70,8 +70,31 @@ test("execution planning preserves the independently reviewed pre-change oracle"
   assert.equal(baseline.rows.length, 222);
   for (const row of baseline.rows) {
     if (row.selection_error) {
+      // Keep the historical rejection bytes intact. #244 now admits only these
+      // two exact Linux opt-ins, with the existing fixture and deadline contract.
+      const linuxOptIn =
+        row.platform === "linux" &&
+        row.options.scenarios?.length === 1 &&
+        ["native-selected-setup-completion", "native-saved-folder-selected-setup"].includes(
+          row.options.scenarios[0],
+        );
+      if (linuxOptIn) {
+        const selection = resolveDesktopSelection({ ...row.options, platform: row.platform });
+        assert.deepEqual(selection.selected_scenarios, row.options.scenarios);
+        assert.deepEqual(selection.setup_scenarios, []);
+        assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+        const plan = planDesktopExecution(selection, { platform: row.platform });
+        assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
+        continue;
+      }
       assert.throws(() => resolveDesktopSelection({ ...row.options, platform: row.platform }), {
-        message: row.selection_error,
+        message:
+          row.options.scenarios?.length === 1 &&
+          ["native-selected-setup-completion", "native-saved-folder-selected-setup"].includes(
+            row.options.scenarios[0],
+          )
+            ? `${row.options.scenarios[0]} requires Windows or Linux`
+            : row.selection_error,
       });
       continue;
     }
