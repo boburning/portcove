@@ -504,7 +504,7 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
     new URL("../apps/desktop/scripts/desktop-test.mjs", import.meta.url),
     "utf8",
   );
-  const start = source.indexOf("const inputs = await captureDesktopReceiptInputs");
+  const start = source.indexOf("const inputs =");
   const end = source.indexOf("let runnerMetadata = {}");
   assert(start > 0 && end > start);
   const root = fileURLToPath(new URL("../", import.meta.url));
@@ -525,6 +525,7 @@ test("harness hashes preserved inputs and the current planner/coordinator bytes"
     Promise,
     executionPlan: planDesktopExecution(selection),
     captureDesktopReceiptInputs,
+    custody: null,
     output,
     revision: "a".repeat(40),
   });

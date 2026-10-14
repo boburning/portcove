@@ -3,14 +3,21 @@ import { createReadStream } from "node:fs";
 import { lstat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-export async function fileIdentity(file) {
+export async function fileIdentity(file, { maxBytes = Infinity, signal } = {}) {
   const absolute = path.resolve(file);
   const stats = await lstat(absolute);
   if (!stats.isFile() || stats.isSymbolicLink())
     throw new Error(`Evidence requires an ordinary file: ${absolute}`);
   const hash = createHash("sha256");
-  for await (const chunk of createReadStream(absolute)) hash.update(chunk);
-  return { path: absolute, bytes: stats.size, sha256: hash.digest("hex") };
+  let bytes = 0;
+  for await (const chunk of createReadStream(absolute, { signal })) {
+    bytes += chunk.length;
+    if (bytes > maxBytes || bytes > stats.size)
+      throw new Error("Evidence input grew while being observed");
+    hash.update(chunk);
+  }
+  if (bytes !== stats.size) throw new Error("Evidence input size changed while being observed");
+  return { path: absolute, bytes, sha256: hash.digest("hex") };
 }
 
 export function evidenceOutcome(checks, setupChecks = []) {
@@ -46,7 +53,7 @@ export async function writeEvidence(
   const outcome = evidenceOutcome(checks, setupChecks);
   const selectedScenarios = context.selected_scenarios ?? checks.map((check) => check.scenario);
   const report = {
-    format_version: 2,
+    format_version: context.execution_binding ? 3 : 2,
     captured_at: new Date().toISOString(),
     revision,
     platform: process.platform,
@@ -54,6 +61,7 @@ export async function writeEvidence(
     method,
     executable: capturedExecutable ?? (await fileIdentity(executable)),
     inputs,
+    ...(context.execution_binding ? { execution_binding: context.execution_binding } : {}),
     outcome,
     checks,
     setup_checks: setupChecks,

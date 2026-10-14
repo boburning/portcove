@@ -1,4 +1,5 @@
-import { desktopScenarioById } from "./desktop-scenarios.mjs";
+import { parseArgs } from "node:util";
+import { desktopScenarioById, resolveDesktopSelection } from "./desktop-scenarios.mjs";
 import { expandNativeHelperInputs } from "./native-helper-dependencies.mjs";
 
 const harnessUrl = new URL("../apps/desktop/scripts/desktop-test.mjs", import.meta.url);
@@ -15,7 +16,10 @@ function freeze(value) {
 }
 
 /** Private planning facts; never execution, consent, or process authority. */
-export function planDesktopExecution(selectionInput, { platform = process.platform } = {}) {
+export function planDesktopExecution(
+  selectionInput,
+  { platform = process.platform, prelaunchCustody = false } = {},
+) {
   const selection = structuredClone(selectionInput);
   const bootstrapRecoverySession = selection.selected_scenarios.includes(
     "native-startup-library-recovery",
@@ -101,6 +105,13 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
                                   ? "retained-contract-repair"
                                   : "backup-focus";
   const inputs = ["app", "driver", "native-driver"].map((name) => ({ kind: "executable", name }));
+  if (prelaunchCustody)
+    for (const source of [
+      "scripts/desktop-execution-plan.mjs",
+      "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
+      "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
+    ])
+      inputs.push({ kind: "file", path: source });
   inputs.push(receiptSource(harnessUrl));
   if (
     selection.selected_scenarios.some((id) =>
@@ -295,5 +306,62 @@ export function planDesktopExecution(selectionInput, { platform = process.platfo
           : [],
     },
     fixtureFamilies,
+  });
+}
+
+export function parseDesktopHarnessOptions(args = process.argv.slice(2)) {
+  return parseArgs({
+    args,
+    options: {
+      app: { type: "string" },
+      "package-evidence": { type: "string" },
+      driver: { type: "string" },
+      "native-driver": { type: "string" },
+      output: { type: "string" },
+      profile: { type: "string" },
+      scenario: { type: "string", multiple: true, default: [] },
+      port: { type: "string", default: "4444" },
+      "preparation-cli": { type: "string" },
+      "preparation-tool": { type: "string" },
+      "artwork-only": { type: "boolean", default: false },
+      "adoption-only": { type: "boolean", default: false },
+      "accessibility-only": { type: "boolean", default: false },
+      "restart-cycles": { type: "string", default: "1" },
+      "reload-cycles": { type: "string", default: "0" },
+      "run-metadata": { type: "string" },
+    },
+  });
+}
+
+export function resolveDesktopHarnessSelection(values) {
+  const reloadCycles = Number(values["reload-cycles"]);
+  const restartCycles = Number(values["restart-cycles"]);
+  const port = Number(values.port);
+  if (!Number.isInteger(restartCycles) || restartCycles < 1 || restartCycles > 10)
+    throw new Error("--restart-cycles must be 1..10");
+  if (!Number.isInteger(reloadCycles) || reloadCycles < 0 || reloadCycles > 25)
+    throw new Error("--reload-cycles must be 0..25");
+  if (!Number.isInteger(port) || port < 1024 || port > 65533)
+    throw new Error("--port must be 1024..65533");
+  const focusedModes = ["artwork-only", "adoption-only", "accessibility-only"].filter(
+    (name) => values[name],
+  );
+  if (focusedModes.length > 1) throw new Error("Choose only one focused desktop scenario mode");
+  if (focusedModes.length && (values.profile || values.scenario.length))
+    throw new Error("Legacy focused modes cannot be combined with --profile or --scenario");
+  if (Boolean(values["preparation-cli"]) !== Boolean(values["preparation-tool"]))
+    throw new Error("--preparation-cli and --preparation-tool must be supplied together");
+  const legacyScenario = values["accessibility-only"]
+    ? "accessibility"
+    : values["artwork-only"]
+      ? "native-local-artwork-picker-and-recovery"
+      : values["adoption-only"]
+        ? "native-reviewed-existing-install-copy"
+        : null;
+  return resolveDesktopSelection({
+    profile: values.profile,
+    scenarios: legacyScenario ? [legacyScenario] : values.scenario,
+    reloadCycles,
+    defaultProfile: values["preparation-cli"] ? "full" : "smoke",
   });
 }

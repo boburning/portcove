@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { lstat, readdir, readFile, readlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { rustSupportCompilerIdentity } from "./rust-support-cache.mjs";
 
 const FORMAT_VERSION = 1;
 const FRONTEND_INPUTS = [
@@ -161,4 +163,111 @@ export async function recordFrontendBuild({ identity, outputDirectory, stampPath
     output_fingerprint: stamp.output_fingerprint,
     output_files: outputs.length,
   };
+}
+
+// The two existing native verification profiles have mutable SDK/system inputs.
+// These are useful comparison observations, never a complete native cache key.
+export async function createVerificationBuildIdentity({
+  root,
+  frontendIdentity,
+  frontendOutputFingerprint,
+  features,
+  cliFeatures = [],
+  environment = process.env,
+  platform = process.platform,
+  compilerProbe = rustSupportCompilerIdentity,
+}) {
+  if (!["win32", "linux"].includes(platform))
+    throw new Error("Only Windows/Linux verification build profiles are supported");
+  const sources = await inventory(root, [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates",
+    "apps/desktop/src-tauri/src",
+    "apps/desktop/src-tauri/Cargo.toml",
+    "apps/desktop/src-tauri/build.rs",
+  ]);
+  const resources = await optionalInventory(root, [
+    "rust-toolchain.toml",
+    ".cargo",
+    "apps/desktop/src-tauri/icons",
+    "apps/desktop/src-tauri/gen",
+    "apps/desktop/src-tauri/tauri.conf.json",
+    "apps/desktop/src-tauri/tauri.windows.conf.json",
+    "apps/desktop/src-tauri/tauri.native-compatibility.conf.json",
+  ]);
+  let compiler;
+  try {
+    compiler = compilerProbe({ runSync: spawnSync, environment, platform });
+  } catch {
+    compiler = { state: "unavailable" };
+  }
+  const relevantEnvironment = Object.entries(environment)
+    .filter(
+      ([name]) =>
+        /^(RUSTFLAGS|CARGO_ENCODED_RUSTFLAGS|CARGO_BUILD_TARGET|CC|CXX|LD|AR|CFLAGS|CXXFLAGS|LDFLAGS|INCLUDE|LIB|VCToolsInstallDir|WindowsSdkDir|PKG_CONFIG_PATH|PORTCOVE_APPLICATION_UPDATE_(BUNDLED_ROOT_FILE|METADATA_URL|TARGETS_URL))$/u.test(
+          name,
+        ) || /^(VITE_|TAURI_)/u.test(name),
+    )
+    .filter(([name]) => !/(TOKEN|SECRET|PASSWORD|PRIVATE_KEY|AUTH)/iu.test(name))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, value]) => ({ name, fingerprint: sha256(String(value)) }));
+  const identity = {
+    format_version: 1,
+    profile: platform === "win32" ? "windows-native-verification" : "linux-native-verification",
+    workspace: sha256(path.resolve(root)),
+    frontend_input_fingerprint: frontendIdentity.fingerprint,
+    frontend_output_fingerprint: frontendOutputFingerprint,
+    features: [...features].sort(),
+    cli_features: [...cliFeatures].sort(),
+    repository_inputs: [...sources, ...resources].sort((a, b) => a.path.localeCompare(b.path)),
+    compiler_observation: compiler,
+    environment: relevantEnvironment,
+  };
+  return {
+    ...identity,
+    fingerprint: sha256(JSON.stringify(identity)),
+    inventory_complete: false,
+    native_reuse: {
+      reused: false,
+      reason: "external-sdk-system-build-input-completeness-unavailable",
+      action: "Use the existing Cargo build and its supported incremental behavior",
+    },
+  };
+}
+
+export function qualificationBindingFingerprint({
+  productArtifacts,
+  harnessInputs,
+  runtimeConditions,
+  fixtureIdentities,
+  initialState,
+  selectedRequirements,
+  selectedScenarios,
+  acceptanceCriteria,
+}) {
+  for (const value of [
+    productArtifacts,
+    harnessInputs,
+    runtimeConditions,
+    fixtureIdentities,
+    initialState,
+    selectedRequirements,
+    selectedScenarios,
+    acceptanceCriteria,
+  ])
+    if (value === undefined || value === null)
+      throw new Error("Execution qualification binding is incomplete");
+  return sha256(
+    JSON.stringify({
+      productArtifacts,
+      harnessInputs,
+      runtimeConditions,
+      fixtureIdentities,
+      initialState,
+      selectedRequirements,
+      selectedScenarios,
+      acceptanceCriteria,
+    }),
+  );
 }

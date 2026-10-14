@@ -1,3 +1,8 @@
+import {
+  parseDesktopHarnessOptions,
+  resolveDesktopHarnessSelection,
+} from "../../../scripts/desktop-execution-plan.mjs";
+import { readPrelaunchCustody, verifyConsumedInputs } from "../../../scripts/retained-evidence.mjs";
 import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mjs";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mjs";
@@ -7,7 +12,6 @@ import { writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
-import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { Builder, By, Key, until } from "selenium-webdriver";
 import { writeEvidence, fileIdentity } from "../../../scripts/development-evidence.mjs";
@@ -71,32 +75,12 @@ import { defaultCoverScenario } from "./desktop-default-cover-test.mjs";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
-  resolveDesktopSelection,
 } from "../../../scripts/desktop-scenarios.mjs";
 import { acquireNativeSessionLock } from "../../../scripts/native-session-lock.mjs";
 import { observeStartup } from "./desktop-startup-observation.mjs";
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
-const { values } = parseArgs({
-  options: {
-    app: { type: "string" },
-    "package-evidence": { type: "string" },
-    driver: { type: "string" },
-    "native-driver": { type: "string" },
-    output: { type: "string" },
-    profile: { type: "string" },
-    scenario: { type: "string", multiple: true, default: [] },
-    port: { type: "string", default: "4444" },
-    "preparation-cli": { type: "string" },
-    "preparation-tool": { type: "string" },
-    "artwork-only": { type: "boolean", default: false },
-    "adoption-only": { type: "boolean", default: false },
-    "accessibility-only": { type: "boolean", default: false },
-    "restart-cycles": { type: "string", default: "1" },
-    "reload-cycles": { type: "string", default: "0" },
-    "run-metadata": { type: "string" },
-  },
-});
+const { values } = parseDesktopHarnessOptions();
 const cachedDrivers = cachedDesktopDrivers();
 values.driver ??= cachedDrivers?.driver;
 values["native-driver"] ??= cachedDrivers?.nativeDriver;
@@ -117,32 +101,14 @@ if (!Number.isInteger(restartCycles) || restartCycles < 1 || restartCycles > 10)
 const reloadCycles = Number(values["reload-cycles"]);
 if (!Number.isInteger(reloadCycles) || reloadCycles < 0 || reloadCycles > 25)
   throw new Error("--reload-cycles must be 0..25");
-const focusedModes = ["artwork-only", "adoption-only", "accessibility-only"].filter(
-  (name) => values[name],
-);
-if (focusedModes.length > 1) throw new Error("Choose only one focused desktop scenario mode");
-if (focusedModes.length && (values.profile || values.scenario.length))
-  throw new Error("Legacy focused modes cannot be combined with --profile or --scenario");
-if (Boolean(values["preparation-cli"]) !== Boolean(values["preparation-tool"]))
-  throw new Error("--preparation-cli and --preparation-tool must be supplied together");
-const legacyScenario = values["accessibility-only"]
-  ? "accessibility"
-  : values["artwork-only"]
-    ? "native-local-artwork-picker-and-recovery"
-    : values["adoption-only"]
-      ? "native-reviewed-existing-install-copy"
-      : null;
-const selection = resolveDesktopSelection({
-  profile: values.profile,
-  scenarios: legacyScenario ? [legacyScenario] : values.scenario,
-  reloadCycles,
-  defaultProfile: values["preparation-cli"] ? "full" : "smoke",
-});
+const selection = resolveDesktopHarnessSelection(values);
 // Admission stays with the existing native owners; planning never grants it.
 bootstrapRecoverySelection(selection, process.platform);
 librarySwitchRecoverySelection(selection, process.platform);
 preferencesRecoverySelection(selection, process.platform);
-const executionPlan = planDesktopExecution(selection);
+const executionPlan = planDesktopExecution(selection, {
+  prelaunchCustody: Boolean(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST),
+});
 const {
   bootstrapRecoverySession,
   librarySwitchRecoverySession,
@@ -175,19 +141,30 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
 }).stdout.trim();
 const output = path.resolve(values.output);
 await mkdir(output); // Existing output is never reused, including after failed runs.
-const inputs = await captureDesktopReceiptInputs({
-  root,
-  values,
-  plan: executionPlan,
-  output,
-  revision,
-});
+const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
+  ? await readPrelaunchCustody(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, {
+      root,
+      revision,
+      plan: executionPlan,
+      values,
+      selectedScenarios: selection.selected_scenarios,
+    })
+  : null;
+const inputs =
+  custody?.inputs ??
+  (await captureDesktopReceiptInputs({
+    root,
+    values,
+    plan: executionPlan,
+    output,
+    revision,
+  }));
 for (const name of [
   "scripts/desktop-execution-plan.mjs",
   "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
   "apps/desktop/scripts/desktop-owned-ipc-probe.mjs",
 ])
-  inputs.push(await fileIdentity(path.join(root, name)));
+  if (!custody) inputs.push(await fileIdentity(path.join(root, name)));
 let runnerMetadata = {};
 if (values["run-metadata"]) {
   if (!path.isAbsolute(values["run-metadata"]))
@@ -261,7 +238,7 @@ const nativeLock = await acquireNativeSessionLock({
   profile: selection.profile,
   scenarios: selection.selected_scenarios,
 });
-const harnessStarted = new Date();
+const harnessStarted = custody ? new Date(custody.execution_started_at) : new Date();
 async function stopDriver() {
   if (linuxSelectedSession) {
     if (!linuxLaunch) return;
@@ -674,18 +651,23 @@ async function refreshSettings() {
 
 // Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
-const deadline = setTimeout(async () => {
-  try {
-    await stopDriver();
-  } catch (error) {
-    checks.push({
-      scenario: "native-backup-watchdog-cleanup",
-      outcome: "failed",
-      message: error.message,
-    });
-    process.exitCode = 1;
-  }
-}, harnessDeadlineMs);
+const deadline = setTimeout(
+  async () => {
+    try {
+      await stopDriver();
+    } catch (error) {
+      checks.push({
+        scenario: "native-backup-watchdog-cleanup",
+        outcome: "failed",
+        message: error.message,
+      });
+      process.exitCode = 1;
+    }
+  },
+  custody
+    ? Math.max(0, harnessDeadlineMs - (Date.now() - harnessStarted.getTime()))
+    : harnessDeadlineMs,
+);
 deadline.unref();
 
 async function requireUnusedPort(number) {
@@ -924,6 +906,7 @@ async function scenario(name, action) {
 }
 
 async function connectObservedDriver() {
+  if (custody) await verifyConsumedInputs(custody.inputs);
   const finishObservation =
     process.platform === "win32"
       ? await observeStartup({
@@ -1243,6 +1226,7 @@ function driverEnvironment(childEnvironment) {
 }
 
 async function startDriver(childEnvironment = {}) {
+  if (custody) await verifyConsumedInputs(custody.inputs);
   ownedSession.beginLaunch();
   const launchStarted = Date.now();
   const arguments_ = [
@@ -3205,6 +3189,7 @@ try {
     }
     clearTimeout(deadline);
     try {
+      if (custody) await verifyConsumedInputs(custody.inputs);
       assert.equal(
         (await fileIdentity(values.app)).sha256,
         inputs[0].sha256,
@@ -3232,7 +3217,7 @@ try {
     await writeEvidence(output, {
       revision,
       executable: values.app,
-      capturedExecutable: inputs[0],
+      capturedExecutable: custody ? inputs[0].retained : inputs[0],
       checks,
       setupChecks,
       artifacts,
@@ -3240,6 +3225,32 @@ try {
       method: selection.profile ? `native-desktop-${selection.profile}` : "native-desktop-focused",
       context: {
         ...runnerMetadata,
+        execution_binding: custody
+          ? {
+              format_version: 1,
+              prelaunch_manifest: process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST,
+              captured_at: custody.created_at,
+              product_artifacts: custody.inputs
+                .filter((input) =>
+                  ["app", "preparation-cli", "preparation-tool"].includes(input.role),
+                )
+                .map((input) => ({
+                  role: input.role,
+                  consumed_path: values[input.role],
+                  bytes: input.bytes,
+                  sha256: input.sha256,
+                  binding: input.binding,
+                  retained: input.retained,
+                })),
+              runtime_tools: custody.inputs.filter((input) =>
+                ["driver", "native-driver"].includes(input.role),
+              ),
+              harness_inputs: custody.inputs.filter((input) => input.kind === "file"),
+              verification:
+                "Content checked before target import, each application/driver launch and after execution; trusted launcher/verifier source observations are not immutable execution proof",
+              limitations: custody.limitations,
+            }
+          : null,
         profile: selection.profile,
         selected_scenarios: selection.selected_scenarios,
         setup_scenarios: selection.setup_scenarios,
