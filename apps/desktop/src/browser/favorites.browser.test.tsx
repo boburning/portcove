@@ -34,7 +34,7 @@ function Fixture({ generation = 1, renamed = false }: { generation?: number; ren
         ) : (
           <PortBrowser
             view={view}
-            ports={filter === "stable" ? [ports[0]!] : ports}
+            ports={filter === "stable" ? [ports[0]] : ports}
             statuses={new Map()}
             overview={{ installed: 2, ready: 0, needsSetup: 2, staged: 0 }}
             filter={filter}
@@ -135,7 +135,7 @@ it.each(["dark", "light"])(
         page.getByRole("button", { name: "Favorite Corrected independent name", exact: true }),
       )
       .toHaveAttribute("aria-pressed", "true");
-    await page.screenshot({ path: `/workspace/portcove/work/favorites1552/${theme}.png` });
+    await page.screenshot({ path: `../../../../work/favorites1552/${theme}.png` });
   },
 );
 

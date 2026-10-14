@@ -326,74 +326,85 @@ describe("LocalizationProvider", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it.each(["failed save", "moved focus", "moved then blurred", "unmounted", "repeated change"])(
-    "handles picker focus after %s",
-    async (scenario) => {
-      vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-        callback(0);
-        return 1;
-      });
-      vi.stubGlobal("cancelAnimationFrame", vi.fn());
-      let resolveWrite!: (snapshot: { locale: string | null }) => void;
-      let rejectWrite!: (error: Error) => void;
-      const setLocalePreference = vi.fn().mockImplementation(
-        () =>
-          new Promise<{ locale: string | null }>((resolve, reject) => {
-            resolveWrite = resolve;
-            rejectWrite = reject;
-          }),
-      );
-      const api: LocalePreferenceApi = {
-        localePreference: vi.fn().mockResolvedValue({ locale: "ar-XB" }),
-        setLocalePreference,
-      };
-      await act(async () =>
-        root.render(
-          <LocalizationProvider api={api}>
-            <LanguageSettings />
-            <button id="elsewhere">Elsewhere</button>
-          </LocalizationProvider>,
-        ),
-      );
-      const trigger = host.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')!;
-      const elsewhere = host.querySelector<HTMLButtonElement>("#elsewhere")!;
-      const choose = async (label: string) => {
-        await act(async () => trigger.click());
-        const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
-          (item) => item.textContent === label,
-        )!;
-        expect(option).toBeDefined();
-        await act(async () => option.click());
-        expect(trigger.disabled).toBe(true);
-      };
-      await choose("English");
-      const focus = vi.spyOn(trigger, "focus");
-      if (scenario.startsWith("moved")) {
-        elsewhere.focus();
-        if (scenario === "moved then blurred") elsewhere.blur();
-      }
-      if (scenario === "unmounted") await act(async () => root.render(null));
-      await act(async () => {
-        if (scenario === "failed save") rejectWrite(new Error("write denied"));
-        else resolveWrite({ locale: "en" });
-      });
-      if (scenario === "failed save") {
+  it.each([
+    "failed save",
+    "moved focus",
+    "moved then blurred",
+    "unmounted",
+    "repeated change",
+  ] as const)("handles picker focus after %s", async (scenario) => {
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    let resolveWrite!: (snapshot: { locale: string | null }) => void;
+    let rejectWrite!: (error: Error) => void;
+    const setLocalePreference = vi.fn().mockImplementation(
+      () =>
+        new Promise<{ locale: string | null }>((resolve, reject) => {
+          resolveWrite = resolve;
+          rejectWrite = reject;
+        }),
+    );
+    const api: LocalePreferenceApi = {
+      localePreference: vi.fn().mockResolvedValue({ locale: "ar-XB" }),
+      setLocalePreference,
+    };
+    await act(async () =>
+      root.render(
+        <LocalizationProvider api={api}>
+          <LanguageSettings />
+          <button id="elsewhere">Elsewhere</button>
+        </LocalizationProvider>,
+      ),
+    );
+    const trigger = host.querySelector<HTMLButtonElement>('[data-slot="select-trigger"]')!;
+    const elsewhere = host.querySelector<HTMLButtonElement>("#elsewhere")!;
+    const choose = async (label: string) => {
+      await act(async () => trigger.click());
+      const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(
+        (item) => item.textContent === label,
+      )!;
+      expect(option).toBeDefined();
+      await act(async () => option.click());
+      expect(trigger.disabled).toBe(true);
+    };
+    await choose("English");
+    const focus = vi.spyOn(trigger, "focus");
+    if (scenario.startsWith("moved")) {
+      elsewhere.focus();
+      if (scenario === "moved then blurred") elsewhere.blur();
+    }
+    if (scenario === "unmounted") await act(async () => root.render(null));
+    await act(async () => {
+      if (scenario === "failed save") rejectWrite(new Error("write denied"));
+      else resolveWrite({ locale: "en" });
+    });
+    const verifyMovedFocus = (target: Element) => {
+      expect(focus).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(target);
+    };
+    const verify = {
+      "failed save": () => {
         expect(host.querySelector('[role="status"]')?.textContent).toBe(
           "تعذر حفظ اللغة. لم تتغير اللغة الحالية.",
         );
         expect(trigger.disabled).toBe(false);
         expect(document.activeElement).toBe(trigger);
-      } else if (scenario.startsWith("moved") || scenario === "unmounted") {
-        expect(focus).not.toHaveBeenCalled();
-        expect(document.activeElement).toBe(scenario === "moved focus" ? elsewhere : document.body);
-      } else {
+      },
+      "moved focus": () => verifyMovedFocus(elsewhere),
+      "moved then blurred": () => verifyMovedFocus(document.body),
+      unmounted: () => verifyMovedFocus(document.body),
+      "repeated change": async () => {
         expect(document.activeElement).toBe(trigger);
         await choose("System default");
         await act(async () => resolveWrite({ locale: null }));
         expect(setLocalePreference).toHaveBeenCalledTimes(2);
         expect(trigger.disabled).toBe(false);
         expect(document.activeElement).toBe(trigger);
-      }
-    },
-  );
+      },
+    };
+    await verify[scenario]();
+  });
 });

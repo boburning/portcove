@@ -9,7 +9,7 @@ export function resolveUiSelection(files, desktopRoot, kind = "exact") {
   const root = realpathSync(desktopRoot);
   const selected = new Map();
   for (const input of files) {
-    if (input.startsWith("-") || /[?*{}\[\]]/u.test(input))
+    if (input.startsWith("-") || /[?*{}[\]]/u.test(input))
       throw new Error(`UI selection requires a literal path: ${input}`);
     const relative = input.replaceAll("\\", "/").replace(/^apps\/desktop\//u, "");
     const file = path.resolve(root, relative);

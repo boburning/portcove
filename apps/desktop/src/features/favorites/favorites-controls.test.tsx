@@ -85,7 +85,7 @@ it("unavailable favorites expose actionable retry while ordinary details remain 
     root.render(
       <PortBrowser
         view="catalog"
-        ports={[ports[0]!]}
+        ports={[ports[0]]}
         statuses={new Map()}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"

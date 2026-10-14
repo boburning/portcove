@@ -206,16 +206,17 @@ it.each(["copy", "move", "use_current_location"] as const)(
     expect(html).toContain("Currently saved location:");
     expect(html).toContain(review.existing_registration.path);
     expect(html).toContain("Additional file data planned: 0 B");
-    if (mode === "use_current_location") {
-      expect(html).not.toContain("existing Portcove copy");
-      expect(html).toContain("Keep this location available");
-    } else {
-      expect(html).toContain("existing Portcove copy will be checked and reused");
-      expect(html).toContain("No new file copy is planned");
-      expect(html).toContain(
-        mode === "move" ? "original is deleted only after" : "Keep the original",
-      );
-    }
+    const present =
+      mode === "use_current_location"
+        ? ["Keep this location available"]
+        : [
+            "existing Portcove copy will be checked and reused",
+            "No new file copy is planned",
+            mode === "move" ? "original is deleted only after" : "Keep the original",
+          ];
+    const absent = mode === "use_current_location" ? ["existing Portcove copy"] : [];
+    for (const message of present) expect(html).toContain(message);
+    for (const message of absent) expect(html).not.toContain(message);
   },
 );
 

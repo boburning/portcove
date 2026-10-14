@@ -9,38 +9,51 @@ export function useFavorites(generation: number) {
     busy: boolean;
   }>({ generation, busy: true });
   const [only, setOnly] = useState(false);
+  const [selectedGeneration, setSelectedGeneration] = useState(generation);
+  if (selectedGeneration !== generation) {
+    setSelectedGeneration(generation);
+    setSnapshot({ generation, busy: true });
+    setOnly(false);
+  }
   const lifetime = useRef({ generation, request: 0, closed: false, busy: false });
-  const refresh = useCallback(async () => {
+  const loadFavorites = useCallback(async () => {
     const owner = lifetime.current;
     if (owner.closed || owner.generation !== generation || owner.busy) return false;
     owner.busy = true;
     const request = ++owner.request;
-    setSnapshot((current) => ({ ...current, generation, busy: true }));
-    try {
-      const ids = await desktopApi.favoritePorts(generation);
-      if (!owner.closed && owner.request === request) {
-        setSnapshot({ generation, ids: new Set(ids), busy: false });
-        return true;
-      }
-    } catch {
-      if (!owner.closed && owner.request === request)
-        setSnapshot((current) => ({ ...current, generation, failure: "read", busy: false }));
-    } finally {
-      owner.busy = false;
-    }
-    return false;
+    return Promise.resolve()
+      .then(() => desktopApi.favoritePorts(generation))
+      .then((ids) => {
+        if (!owner.closed && owner.request === request) {
+          setSnapshot({ generation, ids: new Set(ids), busy: false });
+          return true;
+        }
+        return false;
+      })
+      .catch(() => {
+        if (!owner.closed && owner.request === request)
+          setSnapshot((current) => ({ ...current, generation, failure: "read", busy: false }));
+        return false;
+      })
+      .finally(() => {
+        owner.busy = false;
+      });
   }, [generation]);
+  const refresh = useCallback(async () => {
+    const owner = lifetime.current;
+    if (owner.closed || owner.generation !== generation || owner.busy) return false;
+    setSnapshot((current) => ({ ...current, generation, busy: true }));
+    return loadFavorites();
+  }, [generation, loadFavorites]);
   useEffect(() => {
     const owner = { generation, request: 0, closed: false, busy: false };
     lifetime.current = owner;
-    setSnapshot({ generation, busy: true });
-    setOnly(false);
-    void refresh();
+    void loadFavorites();
     return () => {
       owner.closed = true;
       owner.request++;
     };
-  }, [generation, refresh]);
+  }, [generation, loadFavorites]);
   const ids = snapshot.generation === generation ? snapshot.ids : undefined;
   const toggle = useCallback(
     async (portId: string) => {

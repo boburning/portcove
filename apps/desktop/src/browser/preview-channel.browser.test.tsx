@@ -7,7 +7,7 @@ import { page, userEvent } from "vitest/browser";
 import { PortBrowser } from "../components/PortBrowser";
 import { ReleaseChannelControl } from "../components/ReleaseChannel";
 import { portDefinition, portStatus } from "../test-fixtures";
-import type { ReleaseChannel } from "../types";
+import type { PortStatus, ReleaseChannel } from "../types";
 import { filterPorts, summarizeLibrary, type Filter } from "../view-model";
 import type { CatalogQuery } from "../features/browsing/catalog-query";
 import "../styles.css";
@@ -17,7 +17,7 @@ const ports = [
   { ...portDefinition(), id: "preview", name: "Upstream Beta 12", channels: ["beta" as const] },
   { ...portDefinition(), id: "stable", name: "Stable-only port", channels: ["stable" as const] },
 ];
-const statuses = new Map();
+const statuses = new Map<string, PortStatus>();
 let root: Root;
 let host: HTMLDivElement;
 let query: Filter | CatalogQuery;

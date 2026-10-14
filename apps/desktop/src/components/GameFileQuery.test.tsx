@@ -198,6 +198,7 @@ it("expires accepted observations without issuing another inspection", async () 
   expect(container.textContent).toContain("Observation expired");
   expect(container.textContent).not.toContain("Files missing");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
 });
 it("rejects a clock jump before timer callbacks, never resurrects the old observation, and allows explicit recheck", async () => {
   vi.useFakeTimers();

@@ -3088,8 +3088,10 @@ try {
 } finally {
   try {
     if (linuxSelectedSession) {
+      let quitError;
+      let cleanupError;
+      let cleanupFailed = false;
       try {
-        let quitError;
         if (browser)
           await browser.quit().catch((error) => {
             quitError = error;
@@ -3101,19 +3103,23 @@ try {
           true,
           "Positive current Linux namespace join is required",
         );
-        if (quitError) throw quitError;
       } catch (error) {
+        cleanupError = error;
+        cleanupFailed = true;
+      }
+      if (cleanupFailed || quitError) {
+        const failure = cleanupFailed ? cleanupError : quitError;
         const evidence = path.join(output, `linux-native-launch-${linuxLaunchCount}-unknown.json`);
         await writeFile(
           evidence,
-          JSON.stringify({ error: error.message, receipt: linuxLaunch?.receipt }, null, 2) + "\n",
+          JSON.stringify({ error: failure.message, receipt: linuxLaunch?.receipt }, null, 2) + "\n",
           { flag: "wx" },
         );
         artifacts.push(evidence);
         checks.push({
           scenario: "native-linux-owned-cleanup",
           outcome: "failed",
-          message: error.message,
+          message: failure.message,
         });
         process.exitCode = 1;
       }

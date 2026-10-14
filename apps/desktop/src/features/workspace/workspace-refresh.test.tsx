@@ -622,7 +622,7 @@ describe("workspace refresh recovery", () => {
       expect(data.refreshFailure).toBeUndefined();
       expect(host.textContent).toContain(message);
       expect(host.textContent).toContain("View technical details");
-      const capture = JSON.parse(host.querySelector("pre")!.textContent!);
+      const capture = JSON.parse(host.querySelector("pre")!.textContent) as unknown;
       expect(capture).toEqual({
         code: error.code,
         mutation_state: state,
@@ -658,7 +658,9 @@ describe("workspace refresh recovery", () => {
     expect(notices[1].textContent).toContain("Library recovery could not finish");
     expect(notices[1].textContent).toContain("An earlier attempt left unfinished work");
     expect(notices[1].textContent).not.toContain("separate refresh diagnostic");
-    expect(notices.map((notice) => JSON.parse(notice.querySelector("pre")!.textContent!))).toEqual([
+    expect(
+      notices.map((notice) => JSON.parse(notice.querySelector("pre")!.textContent) as unknown),
+    ).toEqual([
       expect.objectContaining({ message: "separate refresh diagnostic" }),
       expect.objectContaining({ message: "retained recovery diagnostic" }),
     ]);

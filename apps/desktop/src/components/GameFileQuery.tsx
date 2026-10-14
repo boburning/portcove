@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useObservationExpired } from "../features/browsing/use-observation-expiry";
+import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { GameFileQuerySnapshot, PortDefinition, ReleaseChannel } from "../types";
 import { errorText, platformLabel, releaseChannelPresentation } from "../view-model";
@@ -36,56 +37,31 @@ export function GameFileQueryControl({
   type Observation = { epoch: number; snapshot: GameFileQuerySnapshot; deadline: number };
   const [result, setResult] = useState<Observation>();
   const [error, setError] = useState<{ epoch: number; message: string }>();
-  const [expiredObservation, setExpiredObservation] = useState<Observation>();
-  const invalidObservation = useRef<Observation | undefined>(undefined);
   const key = JSON.stringify([port.id, channel, generation, context, route, platform]);
-  const owner = useRef({ key, epoch: 0, closed: false });
+  const [identity, setIdentity] = useState({ key, epoch: 0 });
+  const currentIdentity = identity.key === key ? identity : { key, epoch: identity.epoch + 1 };
+  if (identity.key !== key) setIdentity(currentIdentity);
+  const epoch = currentIdentity.epoch;
+  const owner = useRef({ epoch: 0, closed: false });
   const processing = useRef(false);
-  if (owner.current.key !== key) {
-    owner.current.key = key;
-    owner.current.epoch += 1;
-  }
-  const epoch = owner.current.epoch;
-  useEffect(() => {
-    owner.current.closed = false;
+  useLayoutEffect(() => {
+    const lifecycle = owner.current;
+    lifecycle.epoch = epoch;
+    lifecycle.closed = false;
     return () => {
-      owner.current.closed = true;
+      lifecycle.closed = true;
     };
-  }, []);
-  if (
-    result?.epoch === epoch &&
-    (Date.now() >= result.snapshot.expires_at * 1000 ||
-      Date.now() < result.snapshot.observed_at * 1000 ||
-      performance.now() >= result.deadline)
-  )
-    invalidObservation.current = result;
-  const expired = Boolean(
-    result?.epoch === epoch &&
-    (expiredObservation === result || invalidObservation.current === result),
-  );
+  }, [epoch]);
+  const window = result
+    ? {
+        observedAt: result.snapshot.observed_at,
+        expiresAt: result.snapshot.expires_at,
+        deadline: result.deadline,
+      }
+    : undefined;
+  const windowExpired = useObservationExpired(result, window);
+  const expired = Boolean(result?.epoch === epoch && windowExpired);
   const current = result?.epoch === epoch && !expired ? result.snapshot : undefined;
-  useEffect(() => {
-    if (!current || !result) return;
-    const expire = () => {
-      if (
-        Date.now() >= current.expires_at * 1000 ||
-        Date.now() < current.observed_at * 1000 ||
-        performance.now() >= result.deadline
-      )
-        setExpiredObservation(result);
-    };
-    const timer = setTimeout(
-      () => setExpiredObservation(result),
-      Math.max(0, result.deadline - performance.now()),
-    );
-    const clock = setInterval(expire, 1000);
-    document.addEventListener("visibilitychange", expire);
-    return () => {
-      clearTimeout(timer);
-      clearInterval(clock);
-      document.removeEventListener("visibilitychange", expire);
-    };
-  }, [current, result]);
   const check = async () => {
     if (processing.current || busy || !platform || !port.platforms.includes(platform)) return;
     processing.current = true;
@@ -96,8 +72,6 @@ export function GameFileQueryControl({
     setOperation(undefined);
     setResult(undefined);
     setError(undefined);
-    setExpiredObservation(undefined);
-    invalidObservation.current = undefined;
     try {
       const library = await desktopApi.libraryIdentity(generation);
       if (!active()) return;
