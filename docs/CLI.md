@@ -561,7 +561,11 @@ and reuses a candidate during install only after one exact match is rechecked.
 API schema 32 adds the core source-import plan and result contracts. A plan
 binds the inspected identity, filesystem objects, current registration, chosen
 Source Inbox destination, capacity requirement, and copy, move, or
-use-current-location mode. Copy is non-destructive. Move consumes a separate
+use-current-location mode. Copy is non-destructive. Import-plan version 2 copies
+only the admitted original members of a directory input, with capacity based on
+their stored bytes; unrelated collection files remain at the original location.
+Version-1 journal recovery preserves its reviewed whole-selection semantics.
+Move consumes a separate
 single-use authorization and reports a verified registered copy with the exact
 retained-original path if cleanup fails. Lifecycle activity and SQLite schema 18
 allow interrupted imports to resume without duplicate registration. A durable
