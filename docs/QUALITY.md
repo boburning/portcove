@@ -301,6 +301,18 @@ Use four delivery paths:
   from elective upgrades, without the ordinary release-age or intake delay; review,
   signatures, required checks and affected native/installed behavior remain.
 
+The actual pnpm lock delta is audited by `dependency-release-age.mjs` in the
+existing hosted dependency-review lanes and `renovate-check`. Every newly
+introduced registry artifact, including transitives, needs an authoritative npm
+publication timestamp and three complete days. Unchanged artifacts and removals
+are excluded; peer contexts retain package identity. Young artifacts report their
+exact eligibility time. Unsupported sources, malformed locks or unavailable
+registry evidence are explicit unknowns requiring a specific reviewed resolution.
+A green Renovate selected-version status does not qualify newer lock resolutions.
+Security intent reports the same age findings and routes to the existing
+advisory-backed controlled review described above; it never grants ordinary age
+eligibility. No global pnpm resolver setting or new required status is introduced.
+
 The fast-lane whole-lock comparison permits only the claimed direct version and
 registry integrity transition. Unknown syntax, other resolution changes, source,
 feature or package metadata changes require controlled review. Missing or ambiguous
