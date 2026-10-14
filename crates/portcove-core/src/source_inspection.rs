@@ -19,10 +19,12 @@ use crate::{
     SourceRejectionReason, SourceRepresentation, SourceRepresentationKind,
     adapter::{
         ObservedDiscSource, ObservedOpticalDisc, aggregate_sha256, observe_gamecube_disc_source,
-        observe_psx_disc_source,
     },
     source_file::{FileIdentity, HashBudget, read_identity},
 };
+
+#[cfg(not(any(windows, target_os = "linux")))]
+use crate::adapter::observe_psx_disc_source;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -963,11 +965,40 @@ pub(crate) fn inspect_disc(
             profile
                 .accepted_extensions
                 .extend(file_scan_extensions(catalog, legacy).0);
+            profile
+                .accepted_extensions
+                .extend(crate::source_disc::scan_extensions(catalog, legacy));
             profile.accepted_extensions.sort_unstable();
             profile.accepted_extensions.dedup();
+            #[cfg(any(windows, target_os = "linux"))]
+            if path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    ["ciso", "gcz", "rvz", "wia"]
+                        .iter()
+                        .any(|accepted| accepted.eq_ignore_ascii_case(extension))
+                })
+            {
+                return inspect_disc_observation(
+                    catalog,
+                    profile_id,
+                    path,
+                    crate::source_disc::observe_selected(catalog, &profile, path)?,
+                );
+            }
             observe_gamecube_disc_source(&profile, path)?
         }
-        SourceKind::PsxDisc => observe_psx_disc_source(legacy, path)?,
+        SourceKind::PsxDisc => {
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                crate::source_disc::observe_selected(catalog, legacy, path)?
+            }
+            #[cfg(not(any(windows, target_os = "linux")))]
+            {
+                observe_psx_disc_source(legacy, path)?
+            }
+        }
         _ => {
             return Err(PortcoveError::state(format!(
                 "{profile_id} is not a specialized disc source"
