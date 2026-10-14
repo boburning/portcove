@@ -208,9 +208,6 @@ export async function retainEvidenceInput({
       if (bytes > before.size) throw new Error("Retention input grew during capture");
       await output.writeFile(chunk);
     }
-    await output.sync();
-    await output.close();
-    output = null;
     identity = { path: path.resolve(file), bytes, sha256: hash.digest("hex") };
     const after = await fileIdentity(file, { maxBytes: bytes, signal });
     const current = await lstat(file);
@@ -232,18 +229,34 @@ export async function retainEvidenceInput({
       directory,
       `${identity.sha256}${executable ? (process.platform === "win32" ? ".exe" : ".executable") : ".input"}`,
     );
+    let deduplicated = false;
+    try {
+      const existing = await fileIdentity(published, { maxBytes: bytes, signal });
+      if (existing.sha256 !== identity.sha256 || existing.bytes !== bytes)
+        throw new Error("Published evidence is corrupt; refusing overwrite");
+      deduplicated = true;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    // Only a new object needs this private copy durably flushed. A verified
+    // published object already has custody; never publish the unsynced copy
+    // if that object disappears before the final verification.
+    if (!deduplicated) await output.sync();
+    await output.close();
+    output = null;
     await chmod(partial, executable ? 0o500 : 0o400);
     await beforePublish({ partial, published, identity });
     signal?.throwIfAborted();
     const ready = await fileIdentity(partial, { maxBytes: bytes, signal });
     if (ready.sha256 !== identity.sha256 || ready.bytes !== bytes)
       throw new Error("Private retained input changed before publication");
-    let deduplicated = false;
-    try {
-      await link(partial, published);
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-      deduplicated = true;
+    if (!deduplicated) {
+      try {
+        await link(partial, published);
+      } catch (error) {
+        if (error.code !== "EEXIST") throw error;
+        deduplicated = true;
+      }
     }
     await afterPublish({ published, identity, deduplicated });
     const actual = await fileIdentity(published);

@@ -282,6 +282,37 @@ test("corrupt published evidence and interrupted publication preserve partial fa
   assert(partials.some((name) => name.endsWith(".failure.json")));
 });
 
+test("deduplication never republishes a discarded copy after published custody changes", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-dedup-race-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "source");
+  await writeFile(file, "original");
+  for (const mutation of ["remove", "corrupt"]) {
+    const root = path.join(directory, mutation);
+    const captured = await retainEvidenceInput({ root, file });
+    await assert.rejects(
+      retainEvidenceInput({
+        root,
+        file,
+        beforePublish: async ({ published }) => {
+          assert.equal(published, captured.retained.path);
+          if (mutation === "remove") await rm(published);
+          else {
+            await chmod(published, 0o600);
+            await writeFile(published, "modified");
+          }
+        },
+      }),
+      /ENOENT|corrupt; refusing overwrite/,
+    );
+    if (mutation === "remove") await assert.rejects(stat(captured.retained.path), /ENOENT/);
+    else assert.equal(await readFile(captured.retained.path, "utf8"), "modified");
+    const partials = await readdir(path.join(root, "staging"));
+    assert(partials.some((name) => name.endsWith(".partial")));
+    assert(partials.some((name) => name.endsWith(".failure.json")));
+  }
+});
+
 test("retained evidence refuses disposable ancestry and unavailable capacity", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-retained-capacity-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
