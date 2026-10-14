@@ -62,6 +62,7 @@ import {
 import {
   nativePickerObservation,
   nativePreparedRuntimePicker,
+  nativeGameFileFolderPicker,
 } from "./desktop-native-confirmation.mjs";
 import { installScenarios } from "./desktop-install-test.mjs";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mjs";
@@ -1478,12 +1479,15 @@ try {
           inputs.push(await fileIdentity(installFixture.preliminaryJourney[name]));
       for (const name of ["gameBefore", "gameReplacement", "biosBefore"])
         inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
-      installFixture.sourceJourney.root = seedSelectedSetup({
-        cli: values["preparation-cli"],
-        library,
-        output,
-        fixture: installFixture,
-      });
+      if (installFixture.completionJourney && ["win32", "linux"].includes(process.platform)) {
+        installFixture.nativeConnectionJourney = true;
+      } else
+        installFixture.sourceJourney.root = seedSelectedSetup({
+          cli: values["preparation-cli"],
+          library,
+          output,
+          fixture: installFixture,
+        });
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     inputs.push(await fileIdentity(installFixture.catalogPath));
@@ -1632,7 +1636,34 @@ try {
     );
     assert.equal(await firstCatalog.isDisplayed(), true);
     assert.ok((await browser.findElements(By.css("button.port-card-selectable"))).length > 0);
-    await captureScenarioScreenshot("first-use-port-catalog");
+    const connection = await browser.findElement(
+      By.css('[aria-label="Connect your game files"] button'),
+    );
+    await browser.wait(until.elementIsVisible(connection), 5_000);
+    const entryState = await browser.executeAsyncScript((control, done) => {
+      control.scrollIntoView({ block: "nearest" });
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          const bounds = control.getBoundingClientRect();
+          done({
+            title: document.querySelector("h1")?.textContent?.trim(),
+            text: control.closest('[aria-label="Connect your game files"]')?.textContent,
+            top: bounds.top,
+            bottom: bounds.bottom,
+            left: bounds.left,
+            right: bounds.right,
+            viewport: { width: innerWidth, height: innerHeight },
+          });
+        }),
+      );
+    }, connection);
+    assert.equal(entryState.title, "Port catalog");
+    assert.ok(entryState.top >= 0 && entryState.bottom <= entryState.viewport.height);
+    assert.ok(entryState.left >= 0 && entryState.right <= entryState.viewport.width);
+    const entryArtifact = path.join(output, "first-use-port-catalog-state.json");
+    await writeFile(entryArtifact, JSON.stringify(entryState, null, 2) + "\n", { flag: "wx" });
+    artifacts.push(entryArtifact);
+    await captureScenarioScreenshot("first-use-port-catalog", true);
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const browse = await browser.wait(
       until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
@@ -3003,6 +3034,15 @@ try {
           interruptApplication,
           closeApplication,
           captureLivePreparation,
+          chooseGameFileFolder: ["win32", "linux"].includes(process.platform)
+            ? nativeGameFileFolderPicker({
+                application: values.app,
+                getDriverIdentity: () => ownedSession.driver,
+                getLinuxLaunch: () => linuxLaunch,
+                output,
+                artifacts,
+              })
+            : undefined,
         }),
         confirmNative: () =>
           nativeConfirmation({

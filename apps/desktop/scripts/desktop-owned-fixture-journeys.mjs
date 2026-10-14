@@ -36,6 +36,7 @@ export async function runOwnedFixtureJourneys({ plan, runtime }, journeys) {
           cli: context.cli,
           fixture: context.installFixture,
           restartApplication: context.restartApplication,
+          chooseGameFileFolder: context.chooseGameFileFolder,
         });
         break;
       case "preparation":

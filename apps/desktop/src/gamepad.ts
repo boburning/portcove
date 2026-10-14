@@ -150,7 +150,7 @@ export function useGamepadNavigation(onBack: () => void) {
     let frame = 0;
     const input = new ControllerInput();
     const poll = (timestamp: number) => {
-      const pad = Array.from(navigator.getGamepads()).find(Boolean);
+      const pad = Array.from(navigator.getGamepads?.() ?? []).find(Boolean);
       const state = input.sample(pad ?? undefined, timestamp);
       if (state.connectionChanged) setController(pad ? "Controller connected" : undefined);
       frame = requestAnimationFrame(poll);

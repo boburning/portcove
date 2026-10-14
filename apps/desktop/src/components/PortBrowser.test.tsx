@@ -91,6 +91,39 @@ describe("Library empty browsing context", () => {
     vi.unstubAllGlobals();
   });
 
+  it("offers optional folder connection on the initial catalog without hiding browsing", async () => {
+    const connect = vi.fn();
+    const select = vi.fn();
+    const port = portDefinition();
+    const render = async (installed: number, loading = false) =>
+      act(async () =>
+        root.render(
+          <PortBrowser
+            view="catalog"
+            ports={[port]}
+            statuses={new Map()}
+            overview={{ installed, ready: 0, needsSetup: 0, staged: 0 }}
+            filter="all"
+            setFilter={vi.fn()}
+            onSelect={select}
+            onConnectGameFiles={connect}
+            loading={loading}
+          />,
+        ),
+      );
+    await render(0);
+    const introduction = host.querySelector('[aria-label="Connect your game files"]')!;
+    expect(introduction.textContent).toContain("Your originals stay in place");
+    await act(async () => introduction.querySelector<HTMLButtonElement>("button")!.click());
+    expect(connect).toHaveBeenCalledOnce();
+    expect(select).not.toHaveBeenCalled();
+    expect(host.textContent).toContain(port.name);
+    await render(1);
+    expect(host.querySelector('[aria-label="Connect your game files"]')).toBeNull();
+    await render(0, true);
+    expect(host.querySelector('[aria-label="Connect your game files"]')).toBeNull();
+  });
+
   it("offers clear filters for an empty library with an active search or filter", async () => {
     const clearFilters = vi.fn();
     const connectGameFiles = vi.fn();

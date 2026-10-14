@@ -11,7 +11,8 @@ param(
     [Parameter(Mandatory, ParameterSetName='Observation')][string]$ExpectedDriverPath,
     [Parameter(Mandatory, ParameterSetName='Observation')][ValidatePattern('^[0-9]+$')][string]$ExpectedDriverStartedFiletime,
     [Parameter(Mandatory, ParameterSetName='Observation')][string]$ObservationPath,
-    [Parameter(ParameterSetName='Observation')][string]$PreparedRuntimeDirectory
+    [Parameter(ParameterSetName='Observation')][string]$PreparedRuntimeDirectory,
+    [Parameter(ParameterSetName='Observation')][ValidateSet('Select Folder', 'Choose game-file folder')][string]$ExpectedPickerTitle = 'Select Folder'
 )
 $ErrorActionPreference = 'Stop'
 $script:lastNativeStage = 'setup'
@@ -127,7 +128,13 @@ if ($ObservePicker) {
         -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ObservationPath))) { throw 'Picker observation requires a fresh owned output file.' }
     Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
     if ($PreparedRuntimeDirectory) {
-        $expectedPreparedDirectory = [IO.Path]::Combine([IO.Path]::GetDirectoryName($ObservationPath), 'player-owned-runtime')
+        $allowedNames = if ($ExpectedPickerTitle -ceq 'Choose game-file folder') {
+            @('selected-setup-inputs', 'connected-folder-extra', 'connected-folder-replacement')
+        } else { @('player-owned-runtime') }
+        $outputDirectory = [IO.Path]::GetFullPath([IO.Path]::GetDirectoryName($ObservationPath))
+        $suppliedName = [IO.Path]::GetFileName($PreparedRuntimeDirectory)
+        if ($suppliedName -cnotin $allowedNames) { throw 'Picker input is not an admitted owned fixture directory.' }
+        $expectedPreparedDirectory = [IO.Path]::Combine($outputDirectory, $suppliedName)
         if (-not [IO.Path]::IsPathFullyQualified($PreparedRuntimeDirectory) -or
             -not [string]::Equals([IO.Path]::GetFullPath($PreparedRuntimeDirectory), $expectedPreparedDirectory, [StringComparison]::OrdinalIgnoreCase) -or
             -not [IO.Directory]::Exists($PreparedRuntimeDirectory) -or
@@ -200,7 +207,7 @@ if ($ObservePicker) {
         # A native folder dialog can be absent from the parent's labeled UIA
         # edit projection. Qualify its exact owned HWND and existing direct
         # controls; a same-title button is not another dialog.
-        foreach ($handle in [PortcoveNativeWindows]::FindFolderDialogs($applicationId, 'Select Folder')) {
+        foreach ($handle in [PortcoveNativeWindows]::FindFolderDialogs($applicationId, $ExpectedPickerTitle)) {
             $windows[[string]$handle] = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
         }
         if ($windows.Count -gt 1) { throw 'Ambiguous owned native folder window; no input supplied.' }
@@ -212,14 +219,14 @@ if ($ObservePicker) {
     $fields = @($controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'Folder:' })
     try { $script:pickerFieldEvidence = Get-PickerFieldEvidence $controls $fields.Count $observedWindow $observedWindow.Current.Name } catch { $null = $_ }
     $buttonName = if ($PreparedRuntimeDirectory) { 'Select Folder' } else { 'Cancel' }
-    if ($PreparedRuntimeDirectory -and $observedWindow.Current.Name -ne 'Select Folder') { throw 'Prepared runtime selection requires the observed exact Select Folder title.' }
+    if ($observedWindow.Current.Name -cne $ExpectedPickerTitle) { throw 'Owned picker title does not match the reviewed input route.' }
     $actionButton = @($controls | Where-Object { $_.Current.ProcessId -eq $applicationId -and $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $_.Current.Name -eq $buttonName -and $_.Current.IsEnabled })
     $nativeAction = [IntPtr]::Zero
     $folderPanes = @($controls | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Pane -and $_.Current.Name -eq 'Folder:' -and $_.Current.ProcessId -eq $applicationId })
-    if ($fields.Count -eq 0 -and $folderPanes.Count -eq 1 -and $actionButton.Count -eq 0 -and $observedWindow.Current.Name -eq 'Select Folder') {
+    if ($fields.Count -eq 0 -and $folderPanes.Count -eq 1 -and $actionButton.Count -eq 0 -and $observedWindow.Current.Name -ceq $ExpectedPickerTitle) {
         # This host exposes the common dialog controls as Panes, without UIA
         # input patterns. Bind the existing native Edit1152 and exact action.
-        $nativeAction = [PortcoveNativeWindows]::GetFolderActionButton([IntPtr]$observedWindow.Current.NativeWindowHandle, $applicationId, $buttonName)
+        $nativeAction = [PortcoveNativeWindows]::GetFolderActionButton([IntPtr]$observedWindow.Current.NativeWindowHandle, $applicationId, $buttonName, $ExpectedPickerTitle)
     } elseif ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId -or $actionButton.Count -ne 1) { throw 'Owned picker requires one exact owned Folder field and action button.' }
     $observation = [ordered]@{
         observed_at = [DateTime]::UtcNow.ToString('o'); title = $observedWindow.Current.Name
@@ -241,15 +248,15 @@ if ($ObservePicker) {
     Assert-LiveApplication
     if ($PreparedRuntimeDirectory) {
         if ($nativeAction -ne [IntPtr]::Zero) {
-            $nativeAction = [PortcoveNativeWindows]::SetFolderText([IntPtr]$observedWindow.Current.NativeWindowHandle, $applicationId, 'Select Folder', $PreparedRuntimeDirectory)
+            $nativeAction = [PortcoveNativeWindows]::SetFolderText([IntPtr]$observedWindow.Current.NativeWindowHandle, $applicationId, $ExpectedPickerTitle, $PreparedRuntimeDirectory)
         } else { $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).SetValue($PreparedRuntimeDirectory) }
         $observation.supplied_directory = $true
         Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
         Assert-LiveApplication
     }
     if ($nativeAction -ne [IntPtr]::Zero) {
-        if ($PreparedRuntimeDirectory) { [PortcoveNativeWindows]::PressFolderButton([IntPtr]$observation.handle, $nativeAction, $applicationId, 'Select Folder') }
-        else { [PortcoveNativeWindows]::PressFolderCancel([IntPtr]$observation.handle, $nativeAction, $applicationId) }
+        if ($PreparedRuntimeDirectory) { [PortcoveNativeWindows]::PressFolderButton([IntPtr]$observation.handle, $nativeAction, $applicationId, $ExpectedPickerTitle) }
+        else { [PortcoveNativeWindows]::PressFolderCancel([IntPtr]$observation.handle, $nativeAction, $applicationId, $ExpectedPickerTitle) }
     } else { $actionButton[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
     $cancelDeadline = [DateTime]::UtcNow.AddSeconds(2)
     $closeSamples = @()

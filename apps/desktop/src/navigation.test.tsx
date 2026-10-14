@@ -162,6 +162,26 @@ afterEach(async () => {
 });
 
 describe("controller and modal integration", () => {
+  it("keeps keyboard navigation and later controller input after an absent Gamepad API", async () => {
+    const available = navigator;
+    vi.stubGlobal("navigator", {});
+    await frame();
+    control("Catalog").focus();
+    await act(async () => {
+      control("Catalog").dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }),
+      );
+    });
+    expect(document.activeElement).toBe(control("Library"));
+    vi.stubGlobal("navigator", available);
+    control("Game card").focus();
+    await frame([0]);
+    expect(document.querySelector('[aria-label="Fixture"]')).not.toBeNull();
+    await frame();
+    await frame([1]);
+    expect(document.querySelector('[aria-label="Fixture"]')).toBeNull();
+  });
+
   it("records keyboard input before a focused control stops propagation", () => {
     document.documentElement.dataset.inputMode = "controller";
     const card = control("Game card");

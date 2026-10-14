@@ -20,6 +20,22 @@ import { fileIdentity, writeEvidence } from "./development-evidence.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const prefix = "apps/desktop/scripts/";
+test("GTK picker runtime imports are explicit and its source is a captured native input", async () => {
+  const file = prefix + "native-linux-folder-picker.py";
+  const source = await readFile(path.join(root, file), "utf8");
+  assert.deepEqual(nativeHelperSourceDependencies(file, source), []);
+  assert.ok(nativeHelperFiles(nativeHelperRoots).includes(file));
+  for (const extra of [
+    "\nimport foreign_helper\n",
+    "\nfrom .foreign import picker\n",
+    "\n__import__('foreign')\n",
+    "\nexec('import foreign')\n",
+  ])
+    assert.throws(
+      () => nativeHelperSourceDependencies(file, source + extra),
+      /Unsupported|Undeclared/,
+    );
+});
 test("actual declarations cover wrappers and every transitive conditional helper", async () => {
   await validateNativeHelperDependencies({ root });
   const files = nativeHelperFiles(nativeHelperRoots);

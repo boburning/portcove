@@ -71,6 +71,7 @@ function DialogContent({
         <div
           role="dialog"
           data-slot="dialog-content"
+          data-portcove-focus-scope=""
           className={resolvedClassName}
           {...(props as React.ComponentProps<"div">)}
         >
@@ -83,6 +84,7 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
+        data-portcove-focus-scope=""
         className={resolvedClassName}
         finalFocus={finalFocus}
         {...props}

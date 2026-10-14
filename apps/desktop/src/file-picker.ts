@@ -75,6 +75,15 @@ export function pickInstallFolder(currentPath: string) {
   });
 }
 
+export function pickGameFileFolder(currentPath: string) {
+  return open({
+    title: "Choose game-file folder",
+    multiple: false,
+    directory: true,
+    defaultPath: currentPath || undefined,
+  });
+}
+
 export function pickLibraryFolder(currentPath: string) {
   return open({
     title: "Choose Portcove library",

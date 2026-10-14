@@ -89,6 +89,7 @@ export async function selectedSetupCompletionScenario({
   cli,
   fixture,
   restartApplication,
+  chooseGameFileFolder,
 }) {
   await scenario("native-selected-setup-completion", async () => {
     assert.equal(fixture?.completionJourney, true);
@@ -144,7 +145,9 @@ export async function selectedSetupCompletionScenario({
     const report = {
       scope: `${process.platform} synthetic selected setup: ordinary install, inert N64 preparation, BIOS-plus-game review and saved-input restart`,
       limitations: [
-        "Saved root seeded by the existing CLI; native picker credited separately",
+        fixture.nativeConnectionJourney
+          ? "Folder connections use the actual native picker; the bounded scan pre-state uses the CLI"
+          : "Saved root seeded by the existing CLI; native picker credited separately",
         "No real game, BIOS preparation, gameplay, full representation matrix or other platform qualification",
       ],
       port_id: port.id,
@@ -154,7 +157,108 @@ export async function selectedSetupCompletionScenario({
     try {
       assert.deepEqual(await read("get_sources"), []);
       assert.equal((await status()).active, null, "No adopted installation may seed completion");
-      await click(By.xpath('//nav//button[contains(., "Settings")]'));
+      if (fixture.nativeConnectionJourney) {
+        assert.equal(typeof chooseGameFileFolder, "function");
+        assert.deepEqual(await read("get_game_file_roots"), []);
+        const connection = By.css('[aria-label="Connect your game files"] button');
+        await browser.wait(until.elementLocated(connection), 5_000);
+        await screenshot("initial-folder-connection");
+        await click(connection);
+        await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+        await browser.wait(
+          async () =>
+            browser.executeScript(
+              () =>
+                document.activeElement?.getAttribute("data-settings-control") ===
+                "add-game-file-root",
+            ),
+          5_000,
+        );
+        await click(button("Add folder"));
+        report.observations.folder_picker_cancel =
+          await chooseGameFileFolder("game-file-picker-cancel");
+        assert.equal(report.observations.folder_picker_cancel.cancelled, true);
+        assert.deepEqual(await read("get_game_file_roots"), []);
+        assert.deepEqual(await read("get_sources"), []);
+        await browser.wait(
+          until.elementIsEnabled(await browser.findElement(button("Add folder"))),
+          5_000,
+        );
+        await click(button("Add folder"));
+        report.observations.folder_picker_add = await chooseGameFileFolder(
+          "game-file-picker-add",
+          owned.directory,
+        );
+        await browser.wait(async () => (await read("get_game_file_roots")).length === 1, 5_000);
+        const first = (await read("get_game_file_roots"))[0];
+        assertOwnedSelectedSetupPath(first.path, owned.directory);
+        const extra = path.join(output, "connected-folder-extra");
+        const replacement = path.join(output, "connected-folder-replacement");
+        for (const directory of [extra, replacement]) {
+          await mkdir(directory);
+          await writeFile(path.join(directory, "keep.txt"), "owned connection sentinel", {
+            flag: "wx",
+          });
+        }
+        await browser.wait(
+          until.elementIsEnabled(await browser.findElement(button("Add folder"))),
+          5_000,
+        );
+        await click(button("Add folder"));
+        report.observations.folder_picker_second = await chooseGameFileFolder(
+          "game-file-picker-second",
+          extra,
+        );
+        await browser.wait(async () => (await read("get_game_file_roots")).length === 2, 5_000);
+        const second = (await read("get_game_file_roots")).find((root) => root.id !== first.id);
+        assertOwnedSelectedSetupPath(second.path, extra);
+        const rootAction = (name) =>
+          By.xpath(
+            `//*[@data-game-file-root="${second.id}"]//button[normalize-space(.)="${name}"]`,
+          );
+        await click(rootAction("Relink"));
+        report.observations.folder_picker_relink = await chooseGameFileFolder(
+          "game-file-picker-relink",
+          replacement,
+        );
+        await browser.wait(async () => {
+          const roots = await read("get_game_file_roots");
+          return (
+            roots.length === 2 && roots.find((root) => root.id === second.id)?.path !== second.path
+          );
+        }, 5_000);
+        const relinked = (await read("get_game_file_roots")).find((root) => root.id === second.id);
+        assertOwnedSelectedSetupPath(relinked.path, replacement);
+        assert.deepEqual(
+          (await read("get_game_file_roots")).find((root) => root.id === first.id),
+          first,
+        );
+        await click(rootAction("Remove"));
+        assert.equal((await read("get_game_file_roots")).length, 2);
+        await click(rootAction("Keep folder"));
+        assert.equal((await read("get_game_file_roots")).length, 2);
+        await click(rootAction("Remove"));
+        await click(rootAction("Remove saved folder"));
+        await browser.wait(async () => (await read("get_game_file_roots")).length === 1, 5_000);
+        assert.deepEqual(await read("get_game_file_roots"), [first]);
+        for (const directory of [extra, replacement])
+          assert.equal(
+            await readFile(path.join(directory, "keep.txt"), "utf8"),
+            "owned connection sentinel",
+          );
+        assert.deepEqual(await read("get_sources"), []);
+        report.observations.connected_folders = {
+          first,
+          second,
+          relinked,
+          remaining: await read("get_game_file_roots"),
+        };
+        // Preserve the existing two-entry progressive scan assertions after native connection.
+        const initial = core(["source", "roots", "scan", "--max-entries", "2"]);
+        assert.equal(initial.coverage.batches, 1);
+        assert.equal(initial.coverage.can_resume, true);
+        await screenshot("connected-folder-management");
+      } else await click(By.xpath('//nav//button[contains(., "Settings")]'));
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       const initialSnapshot = await read("get_game_file_scan_snapshot");
@@ -246,8 +350,16 @@ export async function selectedSetupCompletionScenario({
       assert.deepEqual(await read("get_statuses"), beforeSelection, "Selection grants no mutation");
       report.observations.setup_selection = [port.id, owned.reviewPort.id];
       await click(button(`Review ${port.name} setup`));
-      await browser.wait(until.elementLocated(By.id("port-detail-title")), 5_000);
-      assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
+      // The review may already hide its background from accessibility. Verify the
+      // selected detail's DOM identity, then require the actual review below.
+      await browser.wait(
+        async () =>
+          (await browser.executeScript(() =>
+            document.getElementById("port-detail-title")?.textContent?.trim(),
+          )) === port.name,
+        5_000,
+        "Selected setup must open the expected game details",
+      );
       await browser.wait(
         until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
         15_000,
@@ -298,6 +410,90 @@ export async function selectedSetupCompletionScenario({
       );
       assert.deepEqual(await status(), beforeReview, "Dismissal must preserve authoritative state");
       assert.equal(fixture.requests.length, 0);
+
+      if (fixture.nativeConnectionJourney) {
+        await openInstall();
+        report.observations.controller_review = await browser.executeAsyncScript(
+          async (installControl, done) => {
+            const originalPads = navigator.getGamepads;
+            const originalMode = document.documentElement.dataset.inputMode;
+            let pressed = [];
+            let adapterSamples = 0;
+            const frames = async (count) => {
+              for (let frame = 0; frame < count; frame++) await new Promise(requestAnimationFrame);
+            };
+            let observation;
+            try {
+              const review = document.querySelector('[aria-labelledby="install-review-title"]');
+              if (!review || !document.hasFocus())
+                throw new Error("Actual setup review must own native focus");
+              navigator.getGamepads = () => {
+                adapterSamples++;
+                return [
+                  {
+                    index: 0,
+                    id: "Owned connected-folder input adapter",
+                    axes: [0, 0],
+                    buttons: Array.from({ length: 16 }, (_, index) => ({
+                      pressed: pressed.includes(index),
+                      touched: pressed.includes(index),
+                      value: pressed.includes(index) ? 1 : 0,
+                    })),
+                  },
+                ];
+              };
+              await frames(2);
+              const beforeDirection = document.activeElement;
+              if (beforeDirection !== installControl || !review.contains(installControl))
+                throw new Error("Actual primary Install control must own initial review focus");
+              pressed = [15];
+              await frames(2);
+              const stayedInReview = review.contains(document.activeElement);
+              const movedToCancel =
+                document.activeElement !== beforeDirection &&
+                document.activeElement?.textContent?.trim() === "Cancel review";
+              pressed = [];
+              await frames(2);
+              pressed = [1];
+              await frames(4);
+              observation = {
+                method: "injected controller adapter on actual setup components",
+                original_api_type: typeof originalPads,
+                adapter_samples: adapterSamples,
+                stayed_in_top_review: stayedInReview,
+                moved_to_cancel_review: movedToCancel,
+                dismissed_review: !document.querySelector(
+                  '[aria-labelledby="install-review-title"]',
+                ),
+                stayed_in_game_details: Boolean(document.querySelector("#port-detail-title")),
+                focus: document.activeElement?.textContent?.trim(),
+              };
+            } catch (error) {
+              observation = { error: String(error) };
+            } finally {
+              navigator.getGamepads = originalPads;
+              if (originalMode === undefined) delete document.documentElement.dataset.inputMode;
+              else document.documentElement.dataset.inputMode = originalMode;
+            }
+            done(observation);
+          },
+          await browser.findElement(install),
+        );
+        assert.equal(report.observations.controller_review.error, undefined);
+        assert.equal(report.observations.controller_review.stayed_in_top_review, true);
+        assert.equal(report.observations.controller_review.moved_to_cancel_review, true);
+        assert.equal(report.observations.controller_review.dismissed_review, true);
+        assert.equal(report.observations.controller_review.stayed_in_game_details, true);
+        await browser.wait(
+          () =>
+            browser.executeScript(
+              'return document.activeElement?.textContent?.trim() === "Review installation";',
+            ),
+          5_000,
+        );
+        assert.deepEqual(await status(), beforeReview);
+        assert.equal(fixture.requests.length, 0);
+      }
 
       await openInstall();
       await browser.findElement(install).click();

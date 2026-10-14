@@ -138,8 +138,8 @@ public static class PortcoveNativeWindows {
  public class Observation { public IntPtr handle=new IntPtr(9); public int control_id=1152,parent_id=0; public string parent_class="other"; }
  public static int calls=0; public static bool fail=false;
  public static int actions=0;
- public static IntPtr GetFolderActionButton(IntPtr handle,int process,string action){
-  if(handle.ToInt32()!=7 || process!=42 || action!="Cancel")throw new Exception("wrong native action context");
+ public static IntPtr GetFolderActionButton(IntPtr handle,int process,string action,string title){
+  if(handle.ToInt32()!=7 || process!=42 || action!="Cancel" || (title!="Select Folder" && title!="Choose game-file folder"))throw new Exception("wrong native action context");
   actions++;return new IntPtr(20);
  }
  public static Observation[] InspectEdits(IntPtr handle,int process,string title){
@@ -154,7 +154,7 @@ function Get-NativePickerElement($handle){
  $element|Add-Member ScriptMethod TryGetCurrentPattern {param($pattern,$result) $false}
  $element
 }
-$applicationId=42;$window=$null;$Title=$null
+$applicationId=42;$window=$null;$Title=$null;$ExpectedPickerTitle='Select Folder'
 $observedWindow=[pscustomobject]@{Current=[pscustomobject]@{NativeWindowHandle=7;Name='Select Folder'}}
 $controls=@();$fields=@()
 $source=[IO.File]::ReadAllText('${confirmation}')
@@ -179,15 +179,18 @@ $pane=[pscustomobject]@{Current=[pscustomobject]@{ControlType=[System.Windows.Au
 $controls=@($pane);$fields=@();$actionButton=@()
 . ([scriptblock]::Create($guard))
 if($nativeAction.ToInt32() -ne 20 -or [PortcoveNativeWindows]::actions -ne 1){throw 'exact Pane fallback unavailable'}
+$ExpectedPickerTitle='Choose game-file folder';$observedWindow.Current.Name=$ExpectedPickerTitle
+. ([scriptblock]::Create($guard))
+if($nativeAction.ToInt32() -ne 20 -or [PortcoveNativeWindows]::actions -ne 2){throw 'game-file Pane fallback unavailable'}
 foreach($case in @('duplicate-pane','foreign-pane','mixed-action','wrong-title')){
- $controls=@($pane);$observedWindow.Current.Name='Select Folder';$pane.Current.ProcessId=42;$actionButton=@()
+ $controls=@($pane);$observedWindow.Current.Name=$ExpectedPickerTitle;$pane.Current.ProcessId=42;$actionButton=@()
  if($case -eq 'duplicate-pane'){$controls=@($pane,$pane)}
  if($case -eq 'foreign-pane'){$pane.Current.ProcessId=99}
  if($case -eq 'mixed-action'){$actionButton=@([pscustomobject]@{})}
  if($case -eq 'wrong-title'){$observedWindow.Current.Name='Other'}
  $refused=$false
  try { . ([scriptblock]::Create($guard)) } catch {$refused=$true}
- if(-not $refused -or [PortcoveNativeWindows]::actions -ne 1){throw "ambiguous or foreign Pane accepted $case"}
+ if(-not $refused -or [PortcoveNativeWindows]::actions -ne 2){throw "ambiguous or foreign Pane accepted $case"}
 }
 'explicit-observation-context-passed'
 `,
@@ -772,5 +775,63 @@ foreach ($case in @('overflow', 'failed')) {
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /hwnd-contract-passed/);
+  },
+);
+
+test(
+  "owned observation picker preflight binds exact fixture directories to their title",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-picker-fixtures-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const names = [
+      "player-owned-runtime",
+      "selected-setup-inputs",
+      "connected-folder-extra",
+      "connected-folder-replacement",
+      "foreign",
+    ];
+    for (const name of names) await mkdir(path.join(root, name));
+    await mkdir(path.join(root, "nested"));
+    await mkdir(path.join(root, "nested", "selected-setup-inputs"));
+    const production = path.resolve("apps/desktop/scripts/native-confirmation.ps1");
+    const script = path.join(root, "preflight.ps1");
+    await writeFile(
+      script,
+      String.raw`
+$ErrorActionPreference='Stop'
+$ast=[Management.Automation.Language.Parser]::ParseFile('PRODUCTION',[ref]$null,[ref]$null)
+$guard=$ast.Find({param($node) $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.StartsWith('if ($PreparedRuntimeDirectory)') -and $node.Extent.Text.Contains('$expectedPreparedDirectory =')},$true).Extent.Text
+if(-not $guard){throw 'Actual picker preflight missing'}
+$ObservationPath=[IO.Path]::Combine('ROOT','fresh-observation.json')
+foreach($title in @('Select Folder','Choose game-file folder')){
+ $ExpectedPickerTitle=$title
+ foreach($name in @('player-owned-runtime','selected-setup-inputs','connected-folder-extra','connected-folder-replacement','foreign','nested/selected-setup-inputs','../selected-setup-inputs')){
+  $PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT',$name);$rejected=$false
+  try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
+  $allowed=if($title -ceq 'Select Folder'){$name -ceq 'player-owned-runtime'}else{$name -cin @('selected-setup-inputs','connected-folder-extra','connected-folder-replacement')}
+  if($allowed -eq $rejected){throw "Wrong actual fixture guard result for $title / $name"}
+ }
+ $PreparedRuntimeDirectory='selected-setup-inputs';$rejected=$false
+ try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
+ if(-not $rejected){throw 'Relative fixture accepted'}
+}
+Remove-Item -LiteralPath ([IO.Path]::Combine('ROOT','connected-folder-extra'))
+New-Item -ItemType Junction -Path ([IO.Path]::Combine('ROOT','connected-folder-extra')) -Target ([IO.Path]::Combine('ROOT','foreign')) | Out-Null
+$ExpectedPickerTitle='Choose game-file folder';$PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT','connected-folder-extra');$rejected=$false
+try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
+if(-not $rejected){throw 'Reparse fixture accepted'}
+'picker-preflight-contract-passed'
+`
+        .replaceAll("PRODUCTION", production.replaceAll("'", "''"))
+        .replaceAll("ROOT", root.replaceAll("'", "''")),
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /picker-preflight-contract-passed/);
   },
 );

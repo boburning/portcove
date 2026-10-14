@@ -112,7 +112,7 @@ beforeEach(async () => {
   vi.spyOn(desktopApi, "gameFileScanSnapshot").mockResolvedValue(null);
   vi.spyOn(desktopApi, "scanGameFileRoots").mockResolvedValue(snapshot);
   vi.spyOn(desktopApi, "importSource");
-  vi.spyOn(picker, "pickInstallFolder").mockResolvedValue("E:/More Games");
+  vi.spyOn(picker, "pickGameFileFolder").mockResolvedValue("E:/More Games");
   const host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -1739,7 +1739,7 @@ it("rechecks available folders after choosing a folder before adding it", async 
   );
   expect(button("Add folder").disabled).toBe(false);
   await click("Add folder");
-  expect(picker.pickInstallFolder).toHaveBeenCalledWith("");
+  expect(picker.pickGameFileFolder).toHaveBeenCalledWith("");
   expect(add).not.toHaveBeenCalled();
   expect(button("Add folder").disabled).toBe(true);
   expect(document.body.textContent).toContain("at most eight available folders");

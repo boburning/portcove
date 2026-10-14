@@ -1,7 +1,8 @@
 // UI automation is limited to one exact executable descended from this harness's driver.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { lstat, stat, writeFile } from "node:fs/promises";
+import { lstat, stat, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 
@@ -19,7 +20,7 @@ async function validatePickerInput({ output, title, button, filePath, directoryP
     );
   }
   if (directoryPath) {
-    assert.equal(title, "Choose Portcove library");
+    assert.ok(["Choose Portcove library", "Choose game-file folder"].includes(title));
     assert.equal(button, "Select Folder");
     assert.ok((await stat(directoryPath)).isDirectory(), "Owned picker fixture is not a directory");
   }
@@ -59,12 +60,22 @@ async function retainPickerResult({ output, artifacts }, name, before, result) {
   return observation;
 }
 
-function ownedRuntimePicker({ application, getDriverIdentity, output, artifacts }, select) {
+function ownedRuntimePicker(
+  { application, getDriverIdentity, output, artifacts, gameFilePicker = false },
+  select,
+) {
   return async (name, directoryPath) => {
     assert.equal(process.platform, "win32");
     assert.match(name, /^[a-z0-9-]+$/u);
     if (select) {
-      assert.equal(directoryPath, path.join(output, "player-owned-runtime"));
+      if (gameFilePicker) {
+        await validatePickerInput({
+          output,
+          title: "Choose game-file folder",
+          button: "Select Folder",
+          directoryPath,
+        });
+      } else assert.equal(directoryPath, path.join(output, "player-owned-runtime"));
       const directory = await lstat(directoryPath);
       assert.ok(directory.isDirectory() && !directory.isSymbolicLink());
     } else assert.equal(directoryPath, undefined, "Observation cannot supply directory input");
@@ -92,6 +103,7 @@ function ownedRuntimePicker({ application, getDriverIdentity, output, artifacts 
         "-ApplicationPath",
         application,
         "-ObservePicker",
+        ...(gameFilePicker ? ["-ExpectedPickerTitle", "Choose game-file folder"] : []),
         ...(select ? ["-PreparedRuntimeDirectory", directoryPath] : []),
       ],
       { encoding: "utf8", windowsHide: true, timeout: 15_000 },
@@ -106,6 +118,89 @@ export function nativePickerObservation(options) {
 
 export function nativePreparedRuntimePicker(options) {
   return ownedRuntimePicker(options, true);
+}
+
+export function nativeGameFileFolderPicker(options) {
+  if (process.platform === "linux") return ownedLinuxGameFilePicker(options);
+  return (name, directoryPath) =>
+    ownedRuntimePicker({ ...options, gameFilePicker: true }, Boolean(directoryPath))(
+      name,
+      directoryPath,
+    );
+}
+
+function ownedLinuxGameFilePicker({ application, getLinuxLaunch, output, artifacts }) {
+  return async (name, directoryPath) => {
+    assert.match(name, /^[a-z0-9-]+$/u);
+    if (directoryPath)
+      await validatePickerInput({
+        output,
+        title: "Choose game-file folder",
+        button: "Select Folder",
+        directoryPath,
+      });
+    const launch = getLinuxLaunch();
+    assert.ok(launch?.child.pid > 1 && launch.receipt.ready && !launch.receipt.exit);
+    assert.ok(launch.receipt.events.some((event) => event.kind === "driver-started"));
+    const processState = await readFile(`/proc/${launch.child.pid}/stat`, "utf8");
+    const started = processState
+      .slice(processState.lastIndexOf(")") + 1)
+      .trim()
+      .split(/\s+/u)[19];
+    const sha256 = createHash("sha256")
+      .update(await readFile(application))
+      .digest("hex");
+    const interpreter = await readFile("/usr/bin/python3");
+    const interpreterIdentity = {
+      path: "/usr/bin/python3",
+      bytes: interpreter.length,
+      sha256: createHash("sha256").update(interpreter).digest("hex"),
+    };
+    const result = spawnCommand(
+      "/usr/bin/python3",
+      [
+        fileURLToPath(new URL("./native-linux-folder-picker.py", import.meta.url)),
+        "--launch-pid",
+        String(launch.child.pid),
+        "--launch-started",
+        started,
+        "--launch-nonce",
+        launch.receipt.nonce,
+        "--application",
+        application,
+        "--application-sha256",
+        sha256,
+        "--output",
+        output,
+        ...(directoryPath ? ["--directory", directoryPath] : []),
+      ],
+      { encoding: "utf8", timeout: 15_000 },
+    );
+    const retained = path.join(output, `${name}-helper-result.json`);
+    await writeFile(
+      retained,
+      JSON.stringify(
+        {
+          interpreter: interpreterIdentity,
+          status: result.status,
+          signal: result.signal,
+          error: result.error?.message,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(retained);
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const observation = JSON.parse(result.stdout);
+    const report = path.join(output, `${name}.json`);
+    await writeFile(report, JSON.stringify(observation, null, 2), { flag: "wx" });
+    artifacts.push(report);
+    return observation;
+  };
 }
 
 const failureStages = [

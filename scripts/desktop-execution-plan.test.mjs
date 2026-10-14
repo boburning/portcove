@@ -413,6 +413,7 @@ test("coordinator consumes supplied order and obtains browser at each invocation
     interruptApplication() {},
     closeApplication() {},
     captureLivePreparation() {},
+    chooseGameFileFolder() {},
   };
   const runtime = {
     context: () => ({ ...context, browser }),
@@ -435,6 +436,7 @@ test("coordinator consumes supplied order and obtains browser at each invocation
     selectedSetupCompletion: async (c) => {
       assert.equal(c.browser, "replacement");
       assert.equal(c.restartApplication, context.restartApplication);
+      assert.equal(c.chooseGameFileFolder, context.chooseGameFileFolder);
       trace.push("selected-setup-completion");
     },
     preparation: async (c) => {

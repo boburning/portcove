@@ -94,5 +94,6 @@ export function dismissActiveDialog() {
     cancelable: true,
   });
   scope.dispatchEvent(escape);
-  return escape.defaultPrevented;
+  // A top surface owns Back even when it declines Escape dismissal.
+  return true;
 }

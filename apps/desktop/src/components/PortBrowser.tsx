@@ -212,6 +212,22 @@ export function PortBrowser({
           ? `Game file drop targets are available. ${nativeSourceDrag.pathCount === 1 ? "One path" : `${nativeSourceDrag.pathCount} paths`} selected.`
           : ""}
       </p>
+      {view === "catalog" && !loading && overview.installed === 0 && onConnectGameFiles && (
+        <section
+          aria-label="Connect your game files"
+          className="mb-4 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
+          data-focus-group
+        >
+          <h2 className="m-0 text-lg font-semibold">Find ports for your game files</h2>
+          <p className="my-2 text-pc-muted-foreground">
+            Connect your game-file folders to discover setup options. Your originals stay in place;
+            you choose which games to review and set up. You can also keep browsing the catalog.
+          </p>
+          <Button data-focusable variant="outline" onClick={onConnectGameFiles}>
+            Connect game-file folder
+          </Button>
+        </section>
+      )}
       {view === "library" && recent && onContinue && !favorites?.only && (
         <ContinueCard recent={recent} launch={onContinue} details={onSelect} />
       )}
