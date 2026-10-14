@@ -9,7 +9,39 @@ export async function assertDesignCompatibility({
 }) {
   const fixtureLocator = By.css(".design-compatibility-fixture");
   await browser.wait(until.elementLocated(fixtureLocator), 15_000);
-  const fixture = await browser.findElement(fixtureLocator);
+  const fixtureElement = await browser.findElement(fixtureLocator);
+  const cachedFixtureId = await fixtureElement.getId();
+  const observeStep = async (phase, operation) => {
+    try {
+      return await operation();
+    } catch (error) {
+      let state;
+      try {
+        state = await browser.executeScript(() => {
+          const root = document.querySelector(".design-compatibility-fixture");
+          const trigger = document.querySelector("#fixture-open-dialog");
+          return {
+            url: location.href,
+            readyState: document.readyState,
+            fixtureConnected: root?.isConnected ?? false,
+            fixture: root ? { ...root.dataset } : null,
+            dialogCount: document.querySelectorAll('[data-slot="dialog-content"]').length,
+            triggerExpanded: trigger?.getAttribute("aria-expanded"),
+            activeElement: document.activeElement?.id ?? null,
+          };
+        });
+      } catch (probeError) {
+        state = { probeFailure: String(probeError) };
+      }
+      throw new Error(
+        `design compatibility ${phase} failed: ${String(error)}; cached fixture ${cachedFixtureId}; state: ${JSON.stringify(state)}`,
+        { cause: error },
+      );
+    }
+  };
+  const fixture = {
+    getAttribute: (name) => observeStep(`read ${name}`, () => fixtureElement.getAttribute(name)),
+  };
   const environment = await browser.executeScript(() => ({
     architecture: navigator.userAgentData?.architecture ?? null,
     platform: navigator.platform,
@@ -120,7 +152,9 @@ export async function assertDesignCompatibility({
     "rtl",
   );
 
-  await browser.findElement(By.id("fixture-open-dialog")).click();
+  await observeStep("dialog-trigger-click", () =>
+    browser.findElement(By.id("fixture-open-dialog")).click(),
+  );
   const dialogLocator = By.css('[data-slot="dialog-content"]');
   await browser.wait(
     async () => (await fixture.getAttribute("data-dialog-open")) === "true",
