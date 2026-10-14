@@ -458,7 +458,7 @@ test("settled visual binds retained image to semantic state and preserves negati
       scenario: "owned-review",
       target: "#review",
       readiness,
-      timeoutMs: 30,
+      timeoutMs: 200,
     });
   const captured = await run("positive");
   assert.deepEqual(await fileIdentity(captured.image.path), captured.image);
@@ -489,6 +489,53 @@ test("settled visual binds retained image to semantic state and preserves negati
   }
 });
 
+test("settled capture waits for the actual target geometry without accepting a moving target", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-capture-layout-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let observations = 0,
+    screenshots = 0;
+  const browser = {
+    executeScript: async () => ({
+      visible: true,
+      viewport: { width: 960, height: 640 },
+      application_state: { document_ready: "complete", loading: 0 },
+      rect: { height: [436, 410, 383][Math.min(observations++, 2)] },
+    }),
+    takeScreenshot: async () => {
+      assert.ok(observations >= 4, "Do not photograph transitional geometry");
+      screenshots++;
+      return Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).toString("base64");
+    },
+  };
+  const options = {
+    browser,
+    output: directory,
+    scenario: "owned-return",
+    target: "#queue",
+    readiness: async () => ({ ready: true, phase: "returned" }),
+    timeoutMs: 1000,
+  };
+  const result = await captureSettledVisual({ ...options, name: "settled" });
+  assert.equal(result.observation.state.rect.height, 383);
+  assert.equal(screenshots, 1);
+  browser.executeScript = async () => ({
+    visible: true,
+    viewport: { width: 960, height: 640 },
+    application_state: { document_ready: "complete", loading: 0 },
+    rect: { height: observations++ },
+  });
+  await assert.rejects(
+    captureSettledVisual({ ...options, name: "moving", timeoutMs: 150 }),
+    /timed out/u,
+  );
+  assert.equal(screenshots, 1, "A moving target never produces an acceptance candidate");
+  assert.equal(
+    JSON.parse(await readFile(path.join(directory, "moving-capture-failure.json"), "utf8"))
+      .acceptance,
+    false,
+  );
+});
+
 test("timed-out capture joins the blocked filesystem worker without publishing a completed receipt", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-capture-join-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -517,7 +564,7 @@ test("timed-out capture joins the blocked filesystem worker without publishing a
     scenario: "owned-review",
     target: "#review",
     readiness: async () => ({ ready: true }),
-    timeoutMs: 100,
+    timeoutMs: 1000,
     write: async (file, bytes, options) => {
       if (file.endsWith(".partial")) {
         options.signal.addEventListener("abort", () => aborted(), { once: true });

@@ -146,12 +146,16 @@ export async function captureSettledVisual({
     value.state.application_state.document_ready === "complete" &&
     value.state.application_state.loading === 0;
   try {
-    let before;
-    do {
+    let before, previous;
+    for (;;) {
       before = await observe();
-      if (ready(before)) break;
+      // Semantic readiness can precede a returning panel's layout transition.
+      // Require two matching observations before taking the one candidate PNG;
+      // the post-capture check still rejects any later state change.
+      if (ready(before) && previous && JSON.stringify(previous) === JSON.stringify(before)) break;
+      previous = before;
       await bounded(() => new Promise((resolve) => setTimeout(resolve, 50)));
-    } while (!ready(before));
+    }
     const bytes = Buffer.from(await bounded(() => browser.takeScreenshot()), "base64");
     if (!bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])))
       throw new Error("Screenshot is not PNG evidence");

@@ -591,7 +591,9 @@ creating a benchmark or numerical gate.
 
 `captureSettledVisual` requires a scenario, intended target and caller-specific
 semantic readiness. The connected-folder completion journey uses it for each
-required image. Its bounded operation records viewport/application state before
+required image. Within the same deadline, two consecutive semantic/viewport/target
+observations must match before its single candidate screenshot. This waits for
+layout transitions; a later change still fails capture. It records state before
 and after PNG capture, retains and hashes the exact image, then publishes the
 capture receipt. Loading, offscreen targets, changed state, timeouts and retention
 failures produce diagnostic evidence; they cannot publish an accepted capture.
