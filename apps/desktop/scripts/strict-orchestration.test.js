@@ -29,7 +29,7 @@ describe("selected strict orchestration", () => {
       "src/shared/subscription-lifecycle.ts",
       "src/view-model.ts",
     ]);
-    expect(manifest.scripts.typecheck).toBe("tsc && pnpm typecheck:orchestration");
+    expect(manifest.scripts.typecheck).toBe("tsc && corepack pnpm typecheck:orchestration");
     expect(manifest.scripts["typecheck:orchestration"]).toBe(
       "tsc --project tsconfig.orchestration.json",
     );
