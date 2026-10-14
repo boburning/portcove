@@ -3011,7 +3011,7 @@ try {
             ? nativeGameFileFolderPicker({
                 application: values.app,
                 getDriverIdentity: () => ownedSession.driver,
-                getLinuxLaunch: () => linuxSelectedSession,
+                getLinuxLaunch: () => linuxLaunch,
                 output,
                 artifacts,
               })
