@@ -777,3 +777,61 @@ foreach ($case in @('overflow', 'failed')) {
     assert.match(result.stdout, /hwnd-contract-passed/);
   },
 );
+
+test(
+  "owned observation picker preflight binds exact fixture directories to their title",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-picker-fixtures-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const names = [
+      "player-owned-runtime",
+      "selected-setup-inputs",
+      "connected-folder-extra",
+      "connected-folder-replacement",
+      "foreign",
+    ];
+    for (const name of names) await mkdir(path.join(root, name));
+    await mkdir(path.join(root, "nested"));
+    await mkdir(path.join(root, "nested", "selected-setup-inputs"));
+    const production = path.resolve("apps/desktop/scripts/native-confirmation.ps1");
+    const script = path.join(root, "preflight.ps1");
+    await writeFile(
+      script,
+      String.raw`
+$ErrorActionPreference='Stop'
+$ast=[Management.Automation.Language.Parser]::ParseFile('PRODUCTION',[ref]$null,[ref]$null)
+$guard=$ast.Find({param($node) $node -is [Management.Automation.Language.IfStatementAst] -and $node.Extent.Text.StartsWith('if ($PreparedRuntimeDirectory)') -and $node.Extent.Text.Contains('$expectedPreparedDirectory =')},$true).Extent.Text
+if(-not $guard){throw 'Actual picker preflight missing'}
+$ObservationPath=[IO.Path]::Combine('ROOT','fresh-observation.json')
+foreach($title in @('Select Folder','Choose game-file folder')){
+ $ExpectedPickerTitle=$title
+ foreach($name in @('player-owned-runtime','selected-setup-inputs','connected-folder-extra','connected-folder-replacement','foreign','nested/selected-setup-inputs','../selected-setup-inputs')){
+  $PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT',$name);$rejected=$false
+  try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
+  $allowed=if($title -ceq 'Select Folder'){$name -ceq 'player-owned-runtime'}else{$name -cin @('selected-setup-inputs','connected-folder-extra','connected-folder-replacement')}
+  if($allowed -eq $rejected){throw "Wrong actual fixture guard result for $title / $name"}
+ }
+ $PreparedRuntimeDirectory='selected-setup-inputs';$rejected=$false
+ try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
+ if(-not $rejected){throw 'Relative fixture accepted'}
+}
+Remove-Item -LiteralPath ([IO.Path]::Combine('ROOT','connected-folder-extra'))
+New-Item -ItemType Junction -Path ([IO.Path]::Combine('ROOT','connected-folder-extra')) -Target ([IO.Path]::Combine('ROOT','foreign')) | Out-Null
+$ExpectedPickerTitle='Choose game-file folder';$PreparedRuntimeDirectory=[IO.Path]::Combine('ROOT','connected-folder-extra');$rejected=$false
+try{. ([scriptblock]::Create($guard))}catch{$rejected=$true}
+if(-not $rejected){throw 'Reparse fixture accepted'}
+'picker-preflight-contract-passed'
+`
+        .replaceAll("PRODUCTION", production.replaceAll("'", "''"))
+        .replaceAll("ROOT", root.replaceAll("'", "''")),
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /picker-preflight-contract-passed/);
+  },
+);

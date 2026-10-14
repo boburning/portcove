@@ -128,7 +128,13 @@ if ($ObservePicker) {
         -not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($ObservationPath))) { throw 'Picker observation requires a fresh owned output file.' }
     Assert-CapturedPickerDriver $ExpectedDriverPath $ExpectedDriverStartedFiletime
     if ($PreparedRuntimeDirectory) {
-        $expectedPreparedDirectory = [IO.Path]::Combine([IO.Path]::GetDirectoryName($ObservationPath), 'player-owned-runtime')
+        $allowedNames = if ($ExpectedPickerTitle -ceq 'Choose game-file folder') {
+            @('selected-setup-inputs', 'connected-folder-extra', 'connected-folder-replacement')
+        } else { @('player-owned-runtime') }
+        $outputDirectory = [IO.Path]::GetFullPath([IO.Path]::GetDirectoryName($ObservationPath))
+        $suppliedName = [IO.Path]::GetFileName($PreparedRuntimeDirectory)
+        if ($suppliedName -cnotin $allowedNames) { throw 'Picker input is not an admitted owned fixture directory.' }
+        $expectedPreparedDirectory = [IO.Path]::Combine($outputDirectory, $suppliedName)
         if (-not [IO.Path]::IsPathFullyQualified($PreparedRuntimeDirectory) -or
             -not [string]::Equals([IO.Path]::GetFullPath($PreparedRuntimeDirectory), $expectedPreparedDirectory, [StringComparison]::OrdinalIgnoreCase) -or
             -not [IO.Directory]::Exists($PreparedRuntimeDirectory) -or
