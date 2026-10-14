@@ -156,15 +156,16 @@ const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
       selectedScenarios: selection.selected_scenarios,
     })
   : null;
-const inputs =
-  custody?.inputs ??
-  (await captureDesktopReceiptInputs({
-    root,
-    values,
-    plan: executionPlan,
-    output,
-    revision,
-  }));
+const inputs = [
+  ...(custody?.inputs ??
+    (await captureDesktopReceiptInputs({
+      root,
+      values,
+      plan: executionPlan,
+      output,
+      revision,
+    }))),
+];
 for (const name of [
   "scripts/desktop-execution-plan.mjs",
   "apps/desktop/scripts/desktop-owned-fixture-journeys.mjs",
