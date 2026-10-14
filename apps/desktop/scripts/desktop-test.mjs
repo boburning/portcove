@@ -216,6 +216,7 @@ const linuxSelectedSession =
 let linuxLaunch;
 let linuxCleanup;
 let linuxLaunchCount = 0;
+let linuxStop;
 let packageEvidence;
 if (normalPackageSession) {
   assert.equal(process.platform, "win32");
@@ -267,14 +268,20 @@ const admission = executionAdmission(
 async function stopDriver() {
   if (linuxSelectedSession) {
     if (!linuxLaunch) return;
-    const cleanup = await linuxLaunch.stop();
-    const evidence = path.join(output, `linux-native-launch-${linuxLaunchCount}-join.json`);
-    await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
-    artifacts.push(evidence);
-    linuxCleanup = cleanup;
-    linuxLaunch = undefined;
-    driver = undefined;
-    return;
+    if (!linuxStop) {
+      const launch = linuxLaunch;
+      const launchIndex = linuxLaunchCount;
+      linuxStop = (async () => {
+        const cleanup = await launch.stop();
+        const evidence = path.join(output, `linux-native-launch-${launchIndex}-join.json`);
+        await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
+        artifacts.push(evidence);
+        linuxCleanup = cleanup;
+        linuxLaunch = undefined;
+        driver = undefined;
+      })();
+    }
+    return linuxStop;
   }
   if (identityBoundSession) {
     stopBackupFocusDriver();
@@ -1264,7 +1271,9 @@ async function startDriver(childEnvironment = {}) {
     values["native-driver"],
   ];
   if (linuxSelectedSession) {
+    assert.equal(linuxLaunch, undefined, "The previous Linux launch must finish publication");
     linuxCleanup = undefined;
+    linuxStop = undefined;
     linuxLaunchCount++;
     linuxLaunch = await launchLinuxNativeSession(
       values.driver,

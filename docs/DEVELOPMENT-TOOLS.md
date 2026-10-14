@@ -549,7 +549,14 @@ receipt where applicable; authentication bytes remain excluded. Original fixture
 reads remain protected by the existing cooperative ownership and content checks;
 retaining fixture copies does not prove immutable Core consumption. It needs no future
 screenshots. The build inventory's incomplete external native SDK coverage
-continues to require the normal Cargo build; it is not a native cache waiver.
+continues to require the normal Cargo build in the build-oriented
+`desktop-verify` route; it is not a native cache waiver. The explicit built-product
+`desktop-test` route may rerun a changed harness against an existing executable
+after review establishes unchanged effective product inputs. Preserve that
+product's actual compilation/Cargo-validation revisions and platform-specific
+frontend/build provenance, record the new harness head separately, and keep
+native SDK completeness and automatic native reuse false. This does not require
+restoring another platform's working `dist` or relabeling an older binary as a new build.
 
 After the run, `evidence.json` remains the actual run observation. The existing
 `completeAcceptancePacket` helper writes the same format at stage `completed`

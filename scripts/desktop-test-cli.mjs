@@ -251,7 +251,6 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
               ? "trusted-verifier-observation"
               : "before-target-import";
       }
-      await verifyConsumedInputs(inputs, { signal: captureSignal });
       for (const input of inputs.filter((input) =>
         ["retained-artifact", "retained-metadata-read"].includes(input.binding),
       ))
@@ -294,6 +293,8 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
       ];
       process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN = lock.owner.token;
       process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST = manifest;
+      // Remapping arguments and writing the manifest consume no target bytes.
+      // One full verification here covers that preparation before target import.
       await verifyConsumedInputs(inputs, { signal: captureSignal });
       captureSignal.throwIfAborted();
       harnessRequested = true;

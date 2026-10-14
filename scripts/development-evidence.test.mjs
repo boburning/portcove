@@ -13,6 +13,7 @@ import {
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
   mkdtemp,
   writeFile,
@@ -35,6 +36,83 @@ import {
   retainedExecutableCanLaunch,
   readPrelaunchCustody,
 } from "./retained-evidence.mjs";
+
+test("bounded evidence streams hash and retain the complete multi-buffer tail", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-stream-tail-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "source");
+  const bytes = Buffer.alloc(2 * 1024 * 1024 + 37, 7);
+  bytes[bytes.length - 1] = 29;
+  await writeFile(file, bytes);
+  const expected = createHash("sha256").update(bytes).digest("hex");
+  assert.equal((await fileIdentity(file)).sha256, expected);
+  await assert.rejects(fileIdentity(file, { maxBytes: bytes.length - 1 }), /grew/u);
+  const input = await retainEvidenceInput({ root: path.join(directory, "evidence"), file });
+  assert.equal(input.retained.sha256, expected);
+  assert.deepEqual(await readFile(input.retained.path), bytes);
+  const before = await stat(file);
+  bytes[bytes.length - 1] = 30;
+  await writeFile(file, bytes);
+  await utimes(file, before.atime, before.mtime);
+  await assert.rejects(verifyConsumedInputs([input]), /changed after capture/u);
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(fileIdentity(file, { signal: controller.signal }), /abort/iu);
+  const abortedRoot = path.join(directory, "aborted");
+  await assert.rejects(
+    retainEvidenceInput({ root: abortedRoot, file, signal: controller.signal }),
+    /abort/iu,
+  );
+  assert.ok(
+    (await readdir(path.join(abortedRoot, "staging"))).some((name) =>
+      name.endsWith(".failure.json"),
+    ),
+  );
+});
+
+test("bootstrap verifies late mutation after manifest preparation before importing target bytes", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-bootstrap-guard-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const file = path.join(directory, "source");
+  await writeFile(file, "original");
+  const input = await retainEvidenceInput({ root: path.join(directory, "retained"), file });
+  const source = await readFile(new URL("./desktop-test-cli.mjs", import.meta.url), "utf8");
+  const start = source.indexOf("for (const input of inputs.filter");
+  const target = 'await import("../apps/desktop/scripts/desktop-test.mjs");';
+  const end = source.indexOf(target, start);
+  assert.ok(start >= 0 && end > start);
+  const block = source.slice(start, end + target.length).replace(target, "await importTarget();");
+  let imported = false;
+  const before = await stat(file);
+  await assert.rejects(
+    runInNewContext(`(async()=>{${block}})()`, {
+      inputs: [{ ...input, role: "app", kind: "executable" }],
+      values: { app: file },
+      captureOutput: directory,
+      revision: "a".repeat(40),
+      root: directory,
+      selection: { selected_scenarios: ["test"] },
+      retainedMetadata: false,
+      executionStarted: new Date(),
+      captureSignal: AbortSignal.timeout(10_000),
+      lock: { owner: { token: "fixture-only" } },
+      process: { argv: ["node", "runner"], env: {} },
+      path,
+      writeFile: async (...args) => {
+        await writeFile(...args);
+        await writeFile(file, "modified");
+        await utimes(file, before.atime, before.mtime);
+      },
+      verifyConsumedInputs,
+      importTarget: () => {
+        imported = true;
+      },
+    }),
+    /changed after capture/u,
+  );
+  assert.equal(imported, false);
+  assert.ok((await stat(path.join(directory, "prelaunch.json"))).isFile());
+});
 
 test("prelaunch custody accepts native equivalent absolute path separators", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-prelaunch-path-"));

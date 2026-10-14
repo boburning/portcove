@@ -15,7 +15,7 @@ import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { fileIdentity } from "./development-evidence.mjs";
+import { EVIDENCE_READ_CHUNK_BYTES, fileIdentity } from "./development-evidence.mjs";
 
 const initializing = new Map();
 const verifiedPrivateRoots = new Set();
@@ -195,9 +195,14 @@ export async function retainEvidenceInput({
     if (!opened.isFile() || opened.dev !== before.dev || opened.ino !== before.ino)
       throw new Error("Retention input identity changed before opening");
     output = await open(partial, "wx", 0o600);
+    signal?.throwIfAborted();
     const hash = createHash("sha256");
     let bytes = 0;
-    for await (const chunk of input.createReadStream({ autoClose: false, signal })) {
+    for await (const chunk of input.createReadStream({
+      autoClose: false,
+      signal,
+      highWaterMark: EVIDENCE_READ_CHUNK_BYTES,
+    })) {
       hash.update(chunk);
       bytes += chunk.length;
       if (bytes > before.size) throw new Error("Retention input grew during capture");
