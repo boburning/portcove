@@ -464,3 +464,42 @@ the error and inserts configuration in the same transaction. The ordinary
 generation/contract getter remains strict; qualification obtains the failed
 configuration's retained contract through the separately fenced closed context.
 Fixture checks do not establish native acceptance of this continuation.
+
+## Configuration notification failure — October 13, 2026
+
+Candidate `7e816808691858b0bf1ec5783ac58d2d39c0c8dc`, tree
+`5a0dad0cc51d2a0c28f872b10d2fdbcc543e0912`, passed all five required
+contexts in CI run `38481223698`, attempt 1. Its release producer SHA-256 was
+`ff84c313b2e15e5d517dfbd2e2ec5d1ac3f1a96f28596a7d965ca4cd74d16f1e`.
+The reviewed configuration continuation dispatched actual CMake and failed after
+766,061 ms, before the cooperative deadline. The inner supervisor recorded
+`event_capacity`, incomplete membership, 132 retained signaled lifetimes and
+zero active processes. Its root exit 1 does not establish a natural CMake error:
+supervisor termination can produce that status. Configuration was not accepted.
+
+The outer producer supervisor positively closed 134 lifetimes and released its
+native lease. This outer proof does not replace the missing inner proof. The
+operation journal remains quiesced false with its prior error retained. All five
+predecessor receipts and the three-entry generation history remain unchanged;
+configuration, compilation and installation rows remain absent. Packet
+`E:/pc1785-configure-continuation-7e81680-20261013`, its read-only consistent
+SQLite backup, the original failed build archived in `configuration-failure`,
+and the new partial build remain preserved. No database restoration, journal
+rewrite, extraction or reacquisition was performed.
+
+Windows debug notifications were already processed synchronously without a
+retained queue, but a cumulative 4,096-event counter treated ordinary DLL/thread
+traffic as capacity exhaustion. The repair removes that cumulative counter.
+The 512 retained-process limit, per-turn cancellation and membership checks,
+exception refusals, handle closure and two-second closure deadline remain.
+First-party controls send 4,097 debug notifications through the production
+supervisor and exercise completion and cancellation after that point.
+
+The retained operation cannot currently resume through the maintained route:
+both the quiesced-false guard and the existing exclusive failure directory hold
+it. The streaming repair supplies no retrospective closure authority. A further
+attempt requires a reviewed supported reconciliation and second-failure route;
+manual acknowledgement or deletion of the failure directory is not permitted.
+Native configuration, ordered compilation, finalization and the newly produced
+player-facing lifecycle therefore remain unaccepted. The accepted generation
+and sealing observations above retain their original candidate provenance.

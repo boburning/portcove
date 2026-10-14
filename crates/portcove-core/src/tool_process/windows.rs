@@ -67,7 +67,6 @@ use windows_sys::Win32::{
 };
 
 const MEMBER_LIMIT: usize = 512;
-const EVENT_LIMIT: usize = 4096;
 const CLOSURE_BOUND: Duration = Duration::from_secs(2);
 
 #[derive(Default, Clone)]
@@ -865,7 +864,6 @@ struct Controller {
     control: Arc<Control>,
     job_assigned: bool,
     terminating: bool,
-    events: usize,
     #[cfg(test)]
     options: TestOptions,
     #[cfg(test)]
@@ -978,7 +976,6 @@ impl Controller {
             control,
             job_assigned: false,
             terminating: false,
-            events: 0,
             #[cfg(test)]
             options,
             #[cfg(test)]
@@ -1287,10 +1284,6 @@ impl Controller {
     }
 
     fn event(&mut self, event: &DEBUG_EVENT) -> i32 {
-        self.events += 1;
-        if self.events > EVENT_LIMIT {
-            self.fail("event_capacity", None);
-        }
         // SAFETY: the event code selects the initialized union member. Debug
         // hProcess/hThread are OS-owned and auto-close after EXIT continuation;
         // image hFile handles belong to the debugger and close here exactly once.
@@ -1399,6 +1392,10 @@ impl Controller {
     }
 
     fn run(&mut self) {
+        // Notifications are streamed one per turn, not retained in a queue.
+        // DLL/thread traffic therefore does not consume a lifetime event quota.
+        // Every turn still checks stop, membership, handles and the closure clock;
+        // retained process lifetimes remain capped by MEMBER_LIMIT.
         let mut context = MembershipQueryContext::default();
         let mut membership_episode = MembershipQueryEpisode::default();
         loop {
@@ -2334,6 +2331,89 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
 mod native_control_tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    fn routine_debug_notifications_stream_beyond_the_former_total_limit() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args(["--owned-debug-notifications", "complete"])
+            .current_dir(working.path());
+        let mut quiesced = false;
+        let output = crate::tool_process::run_tool(
+            &mut spec,
+            &|| Ok(()),
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        )
+        .unwrap();
+        assert!(output.status.success());
+        assert!(quiesced);
+        assert_eq!(
+            std::fs::read_to_string(working.path().join("debug-notifications-completed")).unwrap(),
+            "4097"
+        );
+        let proof = output.process_tree_proof;
+        assert_eq!(proof["process_tree_membership_complete"], "true");
+        assert_eq!(proof["process_tree_all_retained_signaled"], "true");
+        assert_eq!(proof["process_tree_active"], "0");
+        assert_eq!(proof["process_tree_root_exit"], "0");
+        assert!(!proof.contains_key("process_tree_first_failure"));
+    }
+
+    #[test]
+    fn routine_debug_notifications_remain_cancellable_after_the_former_total_limit() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let working = tempfile::tempdir().unwrap();
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::UpstreamSetup, &program)
+                .unwrap();
+        spec.args(["--owned-debug-notifications", "wait"])
+            .current_dir(working.path());
+        let ready = working.path().join("debug-notifications-ready");
+        let mut quiesced = false;
+        let outcome = crate::tool_process::run_tool(
+            &mut spec,
+            &|| {
+                if ready.is_file() {
+                    Err(PortcoveError::new(
+                        crate::ErrorCode::Cancelled,
+                        "owned notification cancellation",
+                    ))
+                } else {
+                    Ok(())
+                }
+            },
+            crate::tool_process::ToolProcessObserver {
+                diagnostics: None,
+                quiesced: Some(&mut || {
+                    quiesced = true;
+                    Ok(())
+                }),
+            },
+        );
+        let error = match outcome {
+            Err(error) => error,
+            Ok(_) => panic!("owned notification cancellation accepted"),
+        };
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert!(quiesced);
+        assert_eq!(std::fs::read_to_string(ready).unwrap(), "4097");
+        assert_eq!(error.details["process_tree_membership_complete"], "true");
+        assert_eq!(error.details["process_tree_all_retained_signaled"], "true");
+        assert_eq!(error.details["process_tree_active"], "0");
+        assert_eq!(error.details["process_tree_deadline_exhausted"], "false");
+        assert!(!error.details.contains_key("process_tree_first_failure"));
+    }
 
     #[test]
     fn root_signaling_between_samples_retains_positive_exit_proof() {
