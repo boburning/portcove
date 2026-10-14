@@ -2,6 +2,7 @@ import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mjs";
+import { hasHazardousClosingNegation } from "./closure-intent.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -164,11 +165,7 @@ function bodyFindings(pull, config) {
 
   const visibleBody = stripComments(body);
   const keywordPattern = config.body.issue_keywords.map(escapeRegex).join("|");
-  if (
-    /\b(?:(?:do|does|did|will|would|should|can|could|may|might|must)\s+not|(?:do|does|did|would|should|could|must)n['’]t|won['’]t|can(?:not|['’]t))\s+(?:close|fix|resolve)(?:s|d|ing)?\s*:?\s*(?:[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?#\d+\b/i.test(
-      visibleBody,
-    )
-  ) {
+  if (hasHazardousClosingNegation(body)) {
     findings.push(
       finding(
         "negated-closing-keyword",

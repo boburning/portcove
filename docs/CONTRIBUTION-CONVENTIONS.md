@@ -126,12 +126,34 @@ checkpoint. The watcher neither dispatches nor retries a run, and success does
 not supply review, native, installed-app or merge authority. Once
 the pull request is ready, conflict-free, reviewed under its applicable contract, authorized,
 and all exact-head contexts are successful, use
-`just pr-merge-rest --pr <number-or-url> --head <reviewed-head>` for the routine
+`just pr-merge-rest --pr <number-or-url> --head <reviewed-head> --closure-intent-file <intent.json> --merge-message-file <message.json>` for the routine
 immediate squash merge. It freezes and rechecks the source SHA and required
 contexts, submits that exact SHA, and reads the remote state back before any
 retry or local cleanup. Server-enforced review threads, permissions and
 repository rules remain in force; the helper is a mechanism, not review or
 merge authority, and is not an administrator bypass.
+
+Supported PR body writes (`github-body.mjs pr-create` and `pr-edit`) also require
+`--closure-intent-file`. Its JSON is `{ "format_version": 1, "allowed_targets": [] }`
+for a component PR. Allowed targets are independently declared
+`owner/repository#number` identities, not extracted permissions from candidate
+text. An allowlist does not require every permitted issue to be closed. Prefer
+neutral references such as “Related to #244”; hazardous negated closing phrases
+are refused rather than interpreted as natural language.
+
+The delivery guard reads complete fresh closing-issue relationships, including
+manual links, and checks the body, candidate commit messages and explicit squash
+message. The message JSON contains `title` and `body`; those checked values are
+submitted as the actual merge message and verified afterward. Body and linked
+issue changes matter even at an unchanged source SHA. Unknown inventory refuses
+delivery. An ambiguous mutation or changed post-merge state requires readback
+and reconciliation, never an automatic retry or reopening.
+
+These safeguards cover supported writers and guarded delivery. They do not
+prevent arbitrary GitHub UI/API edits, and GitHub supplies no atomic relationship
+precondition alongside the merge SHA guard. Hosted conventions remain advisory;
+existing acceptance, review, current-target/composed-tree and merge authority
+requirements remain separate.
 
 Repository auto-merge capability remains enabled for an explicitly justified
 deferred merge, but enrollment is not the routine path. Do not describe it as
