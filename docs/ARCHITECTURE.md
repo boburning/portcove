@@ -1973,6 +1973,10 @@ The initial empty-library Catalog offers optional folder connection through that
 same Settings component and focuses its Add folder control. Add and relink use
 the separately titled game-file folder picker; cancellation saves no root. This
 entry point adds no persistent onboarding state or alternate root authority.
+Shared dialog presentation marks its navigation scope explicitly. Controller
+Back belongs to the top open scope even when it declines dismissal. Closing a
+setup review returns focus to its initiating control and must not also navigate
+away from game details.
 For an exact candidate, Settings compares profile ID, original path, and scanned
 SHA-256 with the current registered-source list. A match is labeled already added
 and can open each catalog port using that profile for its authoritative setup
