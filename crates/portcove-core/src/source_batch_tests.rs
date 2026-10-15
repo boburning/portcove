@@ -757,7 +757,11 @@ fn unrecognized_directory_batch_is_read_only_and_bound_to_real_selected_catalog(
     let before = serde_json::to_vec(&service.library().sources().unwrap()).unwrap();
     let activity_before = serde_json::to_vec(&service.library().activities(100).unwrap()).unwrap();
     let batch = service
-        .inspect_registered_sources_bounded(&[record.profile_id.clone()], &limits(), &operation())
+        .inspect_registered_sources_bounded(
+            std::slice::from_ref(&record.profile_id),
+            &limits(),
+            &operation(),
+        )
         .unwrap();
     assert_eq!(report(&batch).health, SourceHealth::Current);
     assert!(matches!(
@@ -788,7 +792,11 @@ fn unrecognized_directory_batch_is_read_only_and_bound_to_real_selected_catalog(
     )
     .unwrap();
     let incomplete = service
-        .inspect_registered_sources_bounded(&[record.profile_id.clone()], &limits(), &operation())
+        .inspect_registered_sources_bounded(
+            std::slice::from_ref(&record.profile_id),
+            &limits(),
+            &operation(),
+        )
         .unwrap();
     assert_eq!(report(&incomplete).health, SourceHealth::NotChecked);
     assert_ne!(
@@ -813,7 +821,7 @@ fn late_directory_inventory_member_and_location_changes_discard_batch() {
         let (_temporary, service, record) = directory_fixture();
         let service = PortcoveService::new(service.library().clone()).unwrap();
         let result = service.inspect_registered_sources_bounded_before_accept(
-            &[record.profile_id.clone()],
+            std::slice::from_ref(&record.profile_id),
             &limits(),
             &operation(),
             || {

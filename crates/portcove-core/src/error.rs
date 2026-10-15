@@ -28,7 +28,7 @@ pub struct PortcoveError {
     pub code: ErrorCode,
     pub message: String,
     pub details: BTreeMap<String, String>,
-    pub(crate) failure: crate::failure::FailureContext,
+    pub(crate) failure: Box<crate::failure::FailureContext>,
 }
 
 impl PortcoveError {
@@ -37,7 +37,7 @@ impl PortcoveError {
             code,
             message: message.into(),
             details: BTreeMap::new(),
-            failure: crate::failure::FailureContext::default(),
+            failure: Box::default(),
         }
     }
 
@@ -93,5 +93,15 @@ impl From<rusqlite::Error> for PortcoveError {
 impl From<serde_json::Error> for PortcoveError {
     fn from(error: serde_json::Error) -> Self {
         Self::state(error.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PortcoveError;
+
+    #[test]
+    fn error_values_stay_small_enough_for_result_return_paths() {
+        assert!(std::mem::size_of::<PortcoveError>() <= 128);
     }
 }

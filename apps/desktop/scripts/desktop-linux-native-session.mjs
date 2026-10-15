@@ -71,6 +71,10 @@ export async function launchLinuxNativeSession(
     ],
     { env: environment, stdio: ["pipe", "pipe", "pipe", "pipe"] },
   );
+  let startupStderr = "";
+  child.stderr.on("data", (data) => {
+    if (!receipt.ready) startupStderr = (startupStderr + data.toString("utf8")).slice(-4096);
+  });
   let buffer = "";
   let protocolError;
   const refuseProtocol = (error) => {
@@ -124,7 +128,14 @@ export async function launchLinuxNativeSession(
   const joined = new Promise((resolve) =>
     child.once("close", (code, signal) => {
       receipt.exit = { code, signal, observed_at: new Date().toISOString() };
-      if (!receipt.ready) rejectReady(new Error("Native namespace startup was not acknowledged"));
+      if (!receipt.ready) {
+        receipt.startup_stderr = startupStderr;
+        rejectReady(
+          new Error(
+            `Native namespace startup was not acknowledged (exit ${code}, signal ${signal ?? "none"}): ${startupStderr.trim()}`,
+          ),
+        );
+      }
       resolve(receipt);
     }),
   );

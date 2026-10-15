@@ -162,8 +162,8 @@ fn projection_fits(
         }
     }
     for status in statuses {
-        if let Some(install) = &status.active {
-            if !charge(
+        if let Some(install) = &status.active
+            && !charge(
                 &[
                     &status.port_id,
                     &install.id,
@@ -171,12 +171,12 @@ fn projection_fits(
                     &install.artifact.sha256,
                 ],
                 1,
-            ) {
-                return Ok(false);
-            }
+            )
+        {
+            return Ok(false);
         }
-        if let Some(runtime) = &status.external_runtime {
-            if !charge(
+        if let Some(runtime) = &status.external_runtime
+            && !charge(
                 &[
                     &status.port_id,
                     &runtime.id,
@@ -184,9 +184,9 @@ fn projection_fits(
                     &runtime.archive_sha256,
                 ],
                 1,
-            ) {
-                return Ok(false);
-            }
+            )
+        {
+            return Ok(false);
         }
     }
     Ok(true)
@@ -215,32 +215,30 @@ impl crate::PortcoveService {
                 break;
             }
             let mut facts = RetainedBrowsingFacts::default();
-            if let Some(install) = &status.active {
-                if let Ok((catalog, platform)) = crate::output_root::validate_install_path(
+            if let Some(install) = &status.active
+                && let Ok((catalog, platform)) = crate::output_root::validate_install_path(
                     self.library(),
                     &status.port_id,
                     &install.path,
                 )
                 .and_then(|_| {
                     crate::install::retained_query_context_with_budget(install, Some(&mut budget))
-                }) {
-                    facts.managed_catalog = catalog;
-                    facts.managed_platform = platform;
-                    facts.managed_observed = true;
-                }
+                })
+            {
+                facts.managed_catalog = catalog;
+                facts.managed_platform = platform;
+                facts.managed_observed = true;
             }
-            if let Some(expected) = &status.external_runtime {
-                if budget > 0 && started.elapsed() <= std::time::Duration::from_millis(250) {
-                    if let Ok(Some((record, catalog))) = self
-                        .library()
-                        .external_runtime_with_port_bounded(&status.port_id, &mut budget)
-                    {
-                        if fingerprint(&record)? == fingerprint(expected)? {
-                            facts.external_catalog = Some(catalog);
-                            facts.external_observed = true;
-                        }
-                    }
-                }
+            if let Some(expected) = &status.external_runtime
+                && budget > 0
+                && started.elapsed() <= std::time::Duration::from_millis(250)
+                && let Ok(Some((record, catalog))) = self
+                    .library()
+                    .external_runtime_with_port_bounded(&status.port_id, &mut budget)
+                && fingerprint(&record)? == fingerprint(expected)?
+            {
+                facts.external_catalog = Some(catalog);
+                facts.external_observed = true;
             }
             retained.insert(status.port_id.clone(), facts);
         }
@@ -466,6 +464,12 @@ pub(crate) fn project_browsing_contexts(
 
 #[cfg(test)]
 mod tests {
+    fn fixture_path(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir()
+            .join("portcove-browsing-fixture")
+            .join(name)
+    }
+
     use super::*;
     use crate::{ArtifactIdentity, ExternalRuntimeRecord, InstallRecord, UpdatePolicy};
 
@@ -491,7 +495,7 @@ mod tests {
         member.active = Some(installed);
         let library = LibraryIdentity {
             id: "selected".into(),
-            root: "/selected".into(),
+            root: fixture_path("selected"),
         };
         assert!(!projection_fits(&catalog, &[member.clone()], &[], &library).unwrap());
         assert!(
@@ -533,7 +537,7 @@ mod tests {
             id: "managed-windows-instance".into(),
             port_id: id.into(),
             version: "retained-managed-version".into(),
-            path: "/private/managed-path".into(),
+            path: fixture_path("private-managed-path"),
             channel: ReleaseChannel::Stable,
             installed_at: 1,
             verified: true,
@@ -570,7 +574,7 @@ mod tests {
             retained,
             LibraryIdentity {
                 id: "opaque-library".into(),
-                root: "/selected/library".into(),
+                root: fixture_path("selected-library"),
             },
             Platform::LinuxX86_64,
         )
@@ -610,7 +614,7 @@ mod tests {
         status.external_runtime = Some(ExternalRuntimeRecord {
             id: "external-linux-instance".into(),
             port_id: id.clone(),
-            path: "/private/external-path".into(),
+            path: fixture_path("private-external-path"),
             executable: "game".into(),
             version: "external-version".into(),
             platform: Platform::LinuxX86_64,
@@ -658,8 +662,8 @@ mod tests {
         );
         assert_ne!(members[0].context_id, members[1].context_id);
         let encoded = serde_json::to_string(&snapshot).unwrap();
-        assert!(!encoded.contains("/private/managed-path"));
-        assert!(!encoded.contains("/private/external-path"));
+        assert!(!encoded.contains("private-managed-path"));
+        assert!(!encoded.contains("private-external-path"));
     }
 
     #[test]
@@ -732,7 +736,7 @@ mod tests {
         status.external_runtime = Some(ExternalRuntimeRecord {
             id: "accepted-external-instance".into(),
             port_id: port.id.clone(),
-            path: "/private/accepted-runtime".into(),
+            path: fixture_path("private-accepted-runtime"),
             executable: "game".into(),
             version: package.version.clone(),
             platform,
@@ -774,7 +778,7 @@ mod tests {
                 &HashMap::new(),
                 LibraryIdentity {
                     id: "opaque-library".into(),
-                    root: "/selected/library".into()
+                    root: fixture_path("selected-library")
                 },
                 Platform::LinuxX86_64,
             )

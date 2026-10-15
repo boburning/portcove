@@ -16,6 +16,17 @@ import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
 import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+
+test("native frontend harness retains the qualified Linux target and a failing namespace preflight", () => {
+  const block = workflow.split("  frontend_full:")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
+  assert.match(block, /runs-on: ubuntu-22\.04/u);
+  assert.match(
+    block,
+    /unshare --user --map-current-user --mount --pid --fork --mount-proc \/usr\/bin\/true/u,
+  );
+  assert.match(block, /scripts\/desktop-linux-native-session\.test\.mjs/u);
+  assert.doesNotMatch(block, /continue-on-error:|sysctl\s+-|apparmor_parser\s/u);
+});
 test("both existing dependency lanes audit exact changed pnpm artifacts", () => {
   for (const name of ["fast_dependency_review", "dependency_review_full"]) {
     const block = workflow.split("  " + name + ":")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
@@ -1109,7 +1120,7 @@ test("release, rehearsal and deep audit Rust callers preserve repository pin, co
     ["release.yml", "validate", undefined],
     ["linux-package-ownership-rehearsal.yml", "build", "key: linux-package-ownership-rehearsal"],
     ["updater-artifact-rehearsal.yml", "packages", "key: updater-artifact-rehearsal"],
-    ["deep-quality.yml", "audit", "shared-key: deep-quality"],
+    ["deep-quality.yml", "audit", "shared-key: deep-quality-ubuntu-22.04"],
   ]) {
     await t.test(`${file} ${name}`, async () => {
       const source = await readFile(
@@ -1521,7 +1532,8 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   );
   assert.match(nativeRust, /cargo nextest run --locked --workspace/);
   assert.match(rustQuality, /cargo shear --deny-warnings/);
-  assert.match(rustQuality, /cargo deny check/);
+  assert.match(rustQuality, /node scripts\/linux-beta-risk-706\.mjs check/);
+  assert.match(rustQuality, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(rustQuality, /check-rust-architecture\.mjs/);
   assert.match(rustQuality, /run-rscheck\.mjs/);
   const bootstrap = rustQuality.indexOf("./scripts/bootstrap-quality-tools.sh");
@@ -1887,10 +1899,7 @@ test("manual deep workflow preserves fresh default with explicit bounded audit r
   assert.match(deep, /^ {2}audit:\r?$/m);
   assert.match(deep, /just audit --fresh/);
   assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check\]/);
-  assert.match(
-    deep,
-    /GH_TOKEN: \$\{\{ inputs.operation == 'audit-reuse' && github.token \|\| '' \}\}/,
-  );
+  assert.match(deep, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(deep, /if: always\(\) && inputs.operation != 'audit-reuse'/);
   assert.doesNotMatch(deep, /actions: read|actions: write|contents: write/);
   assert.doesNotMatch(deep, /^ {2}(?:hawk|duplicates):/m);
@@ -2488,6 +2497,11 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
   );
   const lifecycleFilter = outputOverrides[0].trim().split(/\r?\n/)[0];
+  const intelRollbackBudget = [
+    "platform = 'x86_64-apple-darwin'",
+    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'",
+    'slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }',
+  ].join("\n");
   function assertTimeoutOverrides(source) {
     const [defaults, ...overrides] = source.split("[[profile.default.overrides]]");
     assert.match(
@@ -2495,21 +2509,29 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
       /^slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}$/m,
     );
     const budgets = overrides.filter((override) => /^slow-timeout = /m.test(override));
-    assert.equal(budgets.length, 1);
+    assert.equal(budgets.length, 2);
     assert.equal(budgets[0].trim().split(/\r?\n/)[0], lifecycleFilter);
     assert.match(
       budgets[0],
       /^slow-timeout = \{ period = "5s", terminate-after = 9, grace-period = "0s" \}$/m,
     );
+    assert.equal(budgets[1].trim().split(/\r?\n/).slice(0, 3).join("\n"), intelRollbackBudget);
     for (const override of overrides) {
       assert.doesNotMatch(override, /retries/);
-      if (override !== budgets[0]) assert.doesNotMatch(override, /slow-timeout/);
+      if (!budgets.includes(override)) assert.doesNotMatch(override, /slow-timeout/);
     }
   }
   assertTimeoutOverrides(config);
   for (const changed of [
     config.replace("terminate-after = 9", "terminate-after = 18"),
     config.replace("terminate-after = 6", "terminate-after = 9"),
+    config.replace("platform = 'x86_64-apple-darwin'", "platform = 'aarch64-apple-darwin'"),
+    config.replace("platform = 'x86_64-apple-darwin'\n", ""),
+    config.replace(
+      intelRollbackBudget,
+      intelRollbackBudget.replace("terminate-after = 9", "terminate-after = 18"),
+    ),
+    config.replace(intelRollbackBudget.split("\n")[1], "filter = 'package(portcove-core)'"),
     config.replace(lifecycleFilter, "filter = 'package(portcove-core)'"),
     config.replace(
       'terminate-after = 9, grace-period = "0s"',
@@ -2524,7 +2546,9 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
   assert.match(config, /^test-threads = 2$/m);
-  assert.match(rustDocs, /cargo test --locked --workspace --doc/);
+  assert.match(rustDocs, /cargo test --locked --workspace --exclude portcove-desktop --doc/);
+  assert.match(rustDocs, /cargo test --locked -p portcove-desktop --doc/);
+  assert.doesNotMatch(rustDocs, /--no-default-features|--no-deps|--exclude (?!portcove-desktop)/);
   for (const platform of ["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"]) {
     assert.ok(rustDocs.includes(`platform: ${platform}`));
   }
@@ -2544,10 +2568,17 @@ test("deep audit evidence retains audit status without privilege changes", async
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
   );
+  const auditJob = deep.split("  audit:")[1].split(/\n  [a-z_]+:/u)[0];
+  assert.match(auditJob, /runs-on: ubuntu-22\.04/u);
+  assert.match(auditJob, /^    timeout-minutes: 45$/m);
+  const localJob = deep.split("  local_check:")[1].split(/\n  [a-z_]+:/u)[0];
+  assert.match(localJob, /^    timeout-minutes: 30$/m);
+  assert.match(auditJob, /shared-key: deep-quality-ubuntu-22\.04/u);
+  assert.match(auditJob, /key: quality-rscheck-binaries-v2-ubuntu-22\.04-/u);
   assert.match(deep, /id: fresh-audit/);
   assert.match(
     deep,
-    /if \[\[ "\$AUDIT_OPERATION" == "audit-reuse" \]\]; then\r?\n {12}just audit\r?\n {10}else\r?\n {12}just audit --fresh\r?\n {10}fi\r?\n {10}audit_status=\$\?/,
+    /if \[\[ "\$AUDIT_OPERATION" == "audit-reuse" \]\]; then\r?\n {12}just audit --linux-beta-706\r?\n {10}else\r?\n {12}just audit --fresh --linux-beta-706\r?\n {10}fi\r?\n {10}audit_status=\$\?/,
   );
   assert.match(deep, /exit "\$audit_status"/);
   assert.match(deep, /node scripts\/deep-audit-summary\.mjs --start/);
@@ -2638,6 +2669,40 @@ test("failed full audit retains actual stage failure and exit status", () => {
   assert.match(text, /receipt: failed/);
   assert.match(text, /\| rust \| failed \| 123 \| 2 \|/);
   assert.match(text, /Recorded audit exit status: 1/);
+});
+
+test("accepted #706 qualification remains a failed audit and cannot cover another stage failure", () => {
+  const payload = fixture();
+  payload.success = false;
+  payload.originalExitCode = 1;
+  Object.assign(
+    payload.stages.find((stage) => stage.id === "dependency-policy"),
+    { status: "failed", exitCode: 1 },
+  );
+  payload.policyDecision = {
+    disposition: "accepted-risk",
+    approvalUrl: "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682",
+    candidate: auditSummarySource,
+    purpose: "qualification",
+    scanPassed: false,
+    scanExitCode: 1,
+  };
+  const text = renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload));
+  assert.match(text, /receipt: failed/);
+  assert.match(text, /Original audit exit status: 1/);
+  assert.match(text, /Recorded policy operation exit status: 0/);
+  assert.match(text, /Qualification policy operation outcome: success/);
+  assert.doesNotMatch(text, /Recorded audit exit status: 0/);
+  assert.match(text, /accepted risk \(not an audit pass\)/);
+  assert.doesNotMatch(text, /receipt: passed/);
+  Object.assign(
+    payload.stages.find((stage) => stage.id === "ui"),
+    { status: "failed", exitCode: 1 },
+  );
+  assert.match(
+    renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload)),
+    /unavailable or invalid/,
+  );
 });
 for (const [name, mutate] of [
   [

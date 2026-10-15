@@ -64,7 +64,23 @@ fresh audit. Existing trusted main audit receipt import/reuse is preserved.
 Warm focused PR required CI targets five minutes. This is a measurement goal,
 not a timeout or permission to omit coverage. Report cold builds, broad/unmapped
 changes and root dependencies separately. Preserve nextest's two slots,
-heavyweight reservations, 30-second test budgets and process/resource/storage guards.
+heavyweight reservations, default 30-second test budgets and process/resource/storage guards.
+The owner's [October 15 #706 timing calibration](https://github.com/boburning/portcove/issues/706#issuecomment-6190196270)
+and [exact cancellation-latch addendum](https://github.com/boburning/portcove/issues/706#issuecomment-6191752545)
+permit only three ten-second whole-install-to-copy latches on Intel macOS:
+`curated_cache_retention_revocation_during_copy_refuses_publication`,
+`curated_cache_retention_withdrawal_during_copy_refuses_publication` and
+`curated_cache_retention_cancellation_preserves_partial_after_worker_exit`.
+The same approval permits a 45-second nextest budget only on
+`x86_64-apple-darwin` for
+`curated_rollback_withdrawal_permits_exact_retained_target`, alongside the existing
+exact managed-artifact lifecycle override. Every assertion, actual partial-copy
+observation, restart/rollback, trust/persistence check, resource reservation and
+zero-retry rule remains. Other cases and targets retain their existing limits.
+Only Deep audit's outer `audit` job receives 45 minutes; `local_check` stays at
+30 minutes. All required independent stages must finish with complete evidence;
+these finite calibrations do not accept a failed test or an incomplete audit.
+Retain the original failures and independently review and qualify the final head.
 Use the [CI timing diagnostics](DEVELOPMENT-TOOLS.md#ci-timing-diagnostics) to
 assess the next three genuine warm focused hosted runs; instrumentation alone
 does not establish the target or add another gate.
@@ -381,9 +397,34 @@ The recommended indirect-unsoundness scanner treatment is `unsound = "all"`.
 Before activating it in maintained validation, the separately reviewed protected
 change must preserve the known failing GLib result, record member/target/database
 coverage and an adverse control, and account explicitly for the Required Linux
-release blocker. It must not turn the failure into an advisory exception or a
-passing release result. Coverage correction and production remediation remain
-separate obligations under #706; this guidance does not activate a new gate.
+release finding. Preserve scanner scope, severity, full output and original exit
+status; a separate policy decision never makes a failed scan or audit pass.
+Only the owner's [dated #706 approval](https://github.com/boburning/portcove/issues/706#issuecomment-6182222682)
+may give this exact finding an `accepted-risk` disposition for the declared
+ordinary Linux x86-64 beta scope, including during its protected transition.
+All required audit and qualification stages still execute. Additional findings,
+execution failures, incomplete evidence and unrelated required failures block.
+The existing nonblocking duplicate and proc-macro-error unmaintained warnings
+retain their configured treatment; this acceptance does not waive another advisory.
+
+`scripts/linux-beta-risk-706.mjs` matches the canonical advisory, registry GLib
+0.18.5, candidate native-source and resolved dependency/code-generation inputs,
+production features, complete scan and fixed approval. It expires at
+2026-11-15T04:59:00Z (November 14, 23:59 New York), with no automatic renewal.
+The release path additionally requires the first publication tag to be bound in
+the protected approval record when that actual candidate is reconfirmed. Only
+that tag can rely on this acceptance, even if its GitHub release is later deleted;
+the second ordinary Linux beta requires remediation or a new owner decision.
+Material relevant changes require reassessment; unrelated changes reuse valid
+evidence. Relevant crashes, new exploitation/impact evidence and a compatible fix
+also require reassessment before reliance. See the [exact scope and procedure](releases/2026-10-14-linux-beta-risk-706.md).
+
+Coverage correction (#1993), the separate release decision and actual remediation
+remain distinct. #1993 retains independent review and protected qualification;
+the valid reviewed acceptance path can account for this known finding without
+requiring a GLib fix first. This approval does not itself merge or activate it.
+There is no ignore, advisory dismissal, severity reduction, generic nonzero-exit
+waiver or permission to claim the defect fixed. #706 and #49 stay open.
 
 GitHub also reports GHSA-wrw7-89jp-8q8g for Tauri's Linux-only `glib 0.18.5` graph. Dependabot confirms that `0.18.5` is the newest version compatible with Tauri's GTK3 stack while the advisory declares `0.20.0` as the first fixed release. Keep that alert open in its durable issue and live Project item; do not conceal it with a version-only dismissal, an unreviewed fork, or a broad advisory exception. Re-evaluate when Tauri adopts a compatible maintained GTK stack.
 

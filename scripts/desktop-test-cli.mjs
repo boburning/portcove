@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import assert from "node:assert/strict";
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -196,7 +196,33 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
       await ensureRetainedEvidenceStore(store);
       captureOutput = path.join(store, "observations", randomUUID());
       await mkdir(captureOutput, { recursive: true, mode: 0o700 });
-      const plan = planDesktopExecution(selection, { prelaunchCustody: true });
+      const metadataOriginal = values["run-metadata"];
+      const metadataBytes = metadataOriginal ? await readFile(metadataOriginal) : null;
+      const metadata = metadataBytes ? JSON.parse(metadataBytes.toString("utf8")) : null;
+      const retainedMetadata =
+        metadata?.evidence_input_class === "non-secret-verification-metadata";
+      const plan = planDesktopExecution(selection, { prelaunchCustody: true, retainedMetadata });
+      if (retainedMetadata) {
+        const inspect = (value) => {
+          if (value && typeof value === "object")
+            for (const [key, child] of Object.entries(value)) {
+              if (
+                /(?:^|_)(?:token|password|secret|cookie|credentials|private_key|authorization|xauthority)(?:$|_)/iu.test(
+                  key,
+                )
+              )
+                throw new Error(
+                  "Declared verification metadata contains authentication/secret fields; refuse capture without redaction",
+                );
+              inspect(child);
+            }
+        };
+        inspect(metadata);
+        // Consume exactly the validated read, not a later reread of a mutable
+        // original. Preserve its exact byte identity rather than redacting it.
+        values["run-metadata"] = path.join(captureOutput, "declared-metadata-input.json");
+        await writeFile(values["run-metadata"], metadataBytes, { flag: "wx", mode: 0o600 });
+      }
       const inputs = await captureDesktopReceiptInputs({
         root,
         values,
@@ -208,6 +234,14 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
       });
       captureSignal.throwIfAborted();
       for (const input of inputs) {
+        if (input.kind === "argument-file") {
+          input.binding = "retained-metadata-read";
+          input.original_read_observation = {
+            path: path.resolve(metadataOriginal),
+            bytes: metadataBytes.length,
+            sha256: createHash("sha256").update(metadataBytes).digest("hex"),
+          };
+        }
         if (input.binding === "retained-artifact" && !retainedExecutableCanLaunch(input, drivers))
           input.binding = "live-path-checked-cooperative";
         input.consumption_phase =
@@ -217,8 +251,9 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
               ? "trusted-verifier-observation"
               : "before-target-import";
       }
-      await verifyConsumedInputs(inputs, { signal: captureSignal });
-      for (const input of inputs.filter((input) => input.binding === "retained-artifact"))
+      for (const input of inputs.filter((input) =>
+        ["retained-artifact", "retained-metadata-read"].includes(input.binding),
+      ))
         values[input.role] = input.retained.path;
       const manifest = path.join(captureOutput, "prelaunch.json");
       await writeFile(
@@ -229,6 +264,7 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
           root,
           selected_scenarios: selection.selected_scenarios,
           inputs,
+          retained_metadata: retainedMetadata,
           pre_import_for: "apps/desktop/scripts/desktop-test.mjs",
           created_at: new Date().toISOString(),
           execution_started_at: executionStarted.toISOString(),
@@ -257,6 +293,8 @@ if (args.includes("--current-installed") || args.includes("--verify-installed-ad
       ];
       process.env.PORTCOVE_NATIVE_SESSION_LOCK_TOKEN = lock.owner.token;
       process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST = manifest;
+      // Remapping arguments and writing the manifest consume no target bytes.
+      // One full verification here covers that preparation before target import.
       await verifyConsumedInputs(inputs, { signal: captureSignal });
       captureSignal.throwIfAborted();
       harnessRequested = true;

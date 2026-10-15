@@ -22,9 +22,12 @@ pub(crate) struct CacheWorker {
 }
 
 #[cfg(test)]
+type AfterCacheCopy = std::sync::Arc<dyn Fn(&Path, u64) -> Result<()> + Send + Sync>;
+
+#[cfg(test)]
 #[derive(Clone)]
 pub(crate) struct CacheWorkerTestHook {
-    pub after_copy: std::sync::Arc<dyn Fn(&Path, u64) -> Result<()> + Send + Sync>,
+    pub after_copy: AfterCacheCopy,
     pub finished: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 

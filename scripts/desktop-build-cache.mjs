@@ -18,6 +18,9 @@ const FRONTEND_INPUTS = [
   "apps/desktop/tsconfig.node.json",
   "apps/desktop/tsconfig.orchestration.json",
   "apps/desktop/vite.config.ts",
+  "apps/desktop/scripts/build-frontend.mjs",
+  "scripts/dev-storage.mjs",
+  "scripts/tool-cache.mjs",
 ];
 const FRONTEND_OPTIONAL_INPUTS = [
   "apps/desktop/.env",

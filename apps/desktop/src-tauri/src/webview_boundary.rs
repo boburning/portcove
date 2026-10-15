@@ -31,6 +31,15 @@ pub fn init<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::new("webview-boundary")
         .on_navigation(|webview, url| {
             #[cfg(feature = "native-compatibility-qualification")]
+            if super::webview_boundary_qualification::take_main_fixture_navigation(
+                webview.label(),
+                url,
+            ) {
+                // One explicitly armed, exact loopback document exercises remote
+                // origin ACL with the privileged label. No remote grant is added.
+                return true;
+            }
+            #[cfg(feature = "native-compatibility-qualification")]
             if webview.label() == "boundary-remote" {
                 // This unprivileged test window deliberately exercises remote ACL.
                 // It never has a main-window capability or command grant.

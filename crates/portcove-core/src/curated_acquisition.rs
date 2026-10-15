@@ -769,61 +769,82 @@ mod tests {
                 .is_err()
         );
         let valid = serde_json::to_value(&record).unwrap();
-        for (pointer, replacement) in [
-            ("/record_version", serde_json::json!(2)),
-            ("/release_id", serde_json::json!(0)),
-            ("/asset_id", serde_json::json!(0)),
-            ("/tag", serde_json::json!("../bad")),
-            ("/commit_sha1", serde_json::json!("a".repeat(39))),
-            ("/route", serde_json::json!("direct-manifest")),
-            ("/filename", serde_json::json!("../game.zip")),
-            ("/size", serde_json::json!(0)),
-            ("/sha256", serde_json::json!("C".repeat(64))),
-            ("/acquisition_host", serde_json::json!("other.invalid")),
+        for (key, child, replacement) in [
+            ("record_version", None, serde_json::json!(2)),
+            ("release_id", None, serde_json::json!(0)),
+            ("asset_id", None, serde_json::json!(0)),
+            ("tag", None, serde_json::json!("../bad")),
+            ("commit_sha1", None, serde_json::json!("a".repeat(39))),
+            ("route", None, serde_json::json!("direct-manifest")),
+            ("filename", None, serde_json::json!("../game.zip")),
+            ("size", None, serde_json::json!(0)),
+            ("sha256", None, serde_json::json!("C".repeat(64))),
+            ("acquisition_host", None, serde_json::json!("other.invalid")),
             (
-                "/acquisition_url",
+                "acquisition_url",
+                None,
                 serde_json::json!(
                     "https://github.com/Other/Project/releases/download/fixture/game.zip"
                 ),
             ),
             (
-                "/acquisition_url",
+                "acquisition_url",
+                None,
                 serde_json::json!("http://github.com/game.zip"),
             ),
             (
-                "/acquisition_url",
+                "acquisition_url",
+                None,
                 serde_json::json!("https://user:password@github.com/game.zip"),
             ),
             (
-                "/acquisition_url",
+                "acquisition_url",
+                None,
                 serde_json::json!("https://127.0.0.1/game.zip"),
             ),
             (
-                "/acquisition_url",
+                "acquisition_url",
+                None,
                 serde_json::json!("https://github.com/game.zip?token=secret"),
             ),
-            ("/distribution_basis", serde_json::json!("x".repeat(2049))),
-            ("/independent_review/sha256", serde_json::json!("unknown")),
             (
-                "/protected_acceptance/url",
+                "distribution_basis",
+                None,
+                serde_json::json!("x".repeat(2049)),
+            ),
+            (
+                "independent_review",
+                Some("sha256"),
+                serde_json::json!("unknown"),
+            ),
+            (
+                "protected_acceptance",
+                Some("url"),
                 serde_json::json!("file:///claim.json"),
             ),
         ] {
             let mut value = valid.clone();
-            *value.pointer_mut(pointer).unwrap() = replacement;
+            let target = value.get_mut(key).unwrap();
+            let target = match child {
+                Some(child) => target.get_mut(child).unwrap(),
+                None => target,
+            };
+            *target = replacement;
             let changed: CuratedAcquisitionRecord = serde_json::from_value(value).unwrap();
             assert!(
                 changed
                     .validate(&record.repository, record.platform)
                     .is_err(),
-                "{pointer}"
+                "{key}/{child:?}"
             );
         }
-        for pointer in ["", "/independent_review"] {
+        for key in [None, Some("independent_review")] {
             let mut value = valid.clone();
-            value
-                .pointer_mut(pointer)
-                .unwrap()
+            let target = match key {
+                Some(key) => value.get_mut(key).unwrap(),
+                None => &mut value,
+            };
+            target
                 .as_object_mut()
                 .unwrap()
                 .insert("trust_me".into(), serde_json::json!(true));

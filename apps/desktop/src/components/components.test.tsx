@@ -849,31 +849,67 @@ describe("desktop components", () => {
     };
     const check = status.last_update_check?.check;
     if (!check) throw new Error("Current update fixture is required");
-    if (difference === "newer release") check.release.version = "3.0";
-    if (difference === "different artifact") check.release.asset.sha256 = "e".repeat(64);
-    if (difference === "different asset name") check.release.asset.name = "other.zip";
-    if (difference === "different asset size") check.release.asset.size = 2;
-    if (difference === "different channel") downloaded.channel = "beta";
-    if (difference === "different required runtime") check.required_runtime = runtimeIdentity;
-    if (difference === "different downloaded runtime") downloaded.runtime = runtimeIdentity;
-    if (difference === "different port") downloaded.port_id = "other-port";
-    if (difference === "unverified download") downloaded.verified = false;
-    if (difference === "unknown artifact") {
-      downloaded.artifact = { ...downloaded.artifact, sha256: "" };
-      check.release.asset.sha256 = "";
-    }
-    if (difference === "stale installed version") check.installed_version = "0.9";
-    if (difference === "stale installed artifact")
-      check.installed_artifact = { ...install.artifact, sha256: "e".repeat(64) };
-    if (difference === "stale installed runtime") check.installed_runtime = runtimeIdentity;
-    if (difference === "stale selected channel") status.channel = "beta";
-    if (difference === "stale active port") status.active!.port_id = "other";
-    if (difference === "stale checked port") check.port_id = "other";
-    if (difference === "stale installed name")
-      check.installed_artifact = { ...install.artifact, asset_name: "old.zip" };
-    if (difference === "stale installed size")
-      check.installed_artifact = { ...install.artifact, size: 2 };
-    if (difference === "unspecified asset size") check.release.asset.size = 0;
+    const mutate: Record<string, () => void> = {
+      "newer release": () => {
+        check.release.version = "3.0";
+      },
+      "different artifact": () => {
+        check.release.asset.sha256 = "e".repeat(64);
+      },
+      "different asset name": () => {
+        check.release.asset.name = "other.zip";
+      },
+      "different asset size": () => {
+        check.release.asset.size = 2;
+      },
+      "different channel": () => {
+        downloaded.channel = "beta";
+      },
+      "different required runtime": () => {
+        check.required_runtime = runtimeIdentity;
+      },
+      "different downloaded runtime": () => {
+        downloaded.runtime = runtimeIdentity;
+      },
+      "different port": () => {
+        downloaded.port_id = "other-port";
+      },
+      "unverified download": () => {
+        downloaded.verified = false;
+      },
+      "unknown artifact": () => {
+        downloaded.artifact = { ...downloaded.artifact, sha256: "" };
+        check.release.asset.sha256 = "";
+      },
+      "stale installed version": () => {
+        check.installed_version = "0.9";
+      },
+      "stale installed artifact": () => {
+        check.installed_artifact = { ...install.artifact, sha256: "e".repeat(64) };
+      },
+      "stale installed runtime": () => {
+        check.installed_runtime = runtimeIdentity;
+      },
+      "stale selected channel": () => {
+        status.channel = "beta";
+      },
+      "stale active port": () => {
+        status.active!.port_id = "other";
+      },
+      "stale checked port": () => {
+        check.port_id = "other";
+      },
+      "stale installed name": () => {
+        check.installed_artifact = { ...install.artifact, asset_name: "old.zip" };
+      },
+      "stale installed size": () => {
+        check.installed_artifact = { ...install.artifact, size: 2 };
+      },
+      "unspecified asset size": () => {
+        check.release.asset.size = 0;
+      },
+    };
+    mutate[difference]?.();
     const html = renderToStaticMarkup(
       <PortBrowser
         view={view}

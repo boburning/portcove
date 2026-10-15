@@ -52,7 +52,7 @@ try {
         Pop-Location
     }
 
-    & just audit --fresh
+    & just audit --fresh --linux-beta-706
     if ($LASTEXITCODE -ne 0) { throw "Repository quality audit failed with exit code $LASTEXITCODE" }
 
     & node (Join-Path $PSScriptRoot "check-catalog-repositories.mjs")

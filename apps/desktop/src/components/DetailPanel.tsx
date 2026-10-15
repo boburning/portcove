@@ -254,6 +254,75 @@ export function DetailPanel(props: DetailPanelProps) {
     sourceHealth: status?.readiness?.source,
     biosHealth: status?.readiness?.bios,
   };
+  const renderQueryControl = () =>
+    props.libraryGeneration !== undefined &&
+    selectedChannel && (
+      <GameFileQueryControl
+        port={port}
+        channel={selectedChannel}
+        generation={props.libraryGeneration}
+        context={JSON.stringify([
+          props.gameFileQueryContext,
+          port,
+          status,
+          source,
+          sourceProfile,
+          sourceInspection,
+          bios,
+          biosProfile,
+          biosInspection,
+        ])}
+        busy={Boolean(effectiveBusy)}
+      />
+    );
+  const renderCancellations = () =>
+    props.cancellableActivities
+      ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
+      .map((activity) => (
+        <OperationCancellation
+          key={activity.id}
+          operationId={activity.id}
+          state={activity.cancellation ?? undefined}
+        />
+      ));
+  const renderDetailBody = () => (
+    <DetailBody
+      installCancellations={props.cancellableActivities?.filter(
+        (activity) => activity.operation === "install",
+      )}
+      perform={props.perform}
+      prepare={props.prepare}
+      port={port}
+      status={status}
+      stagedVersion={status?.staged?.version}
+      sources={sources}
+      installed={installed}
+      deferSetupChoices={!installed && missingRequirement !== undefined}
+      sourceReady={sourceReady}
+      biosReady={biosReady}
+      launchReady={launchReady}
+      pendingSetup={pendingSetup}
+      runtimeUpdateAvailable={runtimeUpdateAvailable}
+      installPlan={installPlan}
+      selectedChannel={selectedChannel}
+      policy={policy}
+      backups={backups}
+      backupProblems={backupProblems}
+      backupState={backupState}
+      backupCreateAssessment={backupCreateAssessment}
+      backupRestoreAssessment={backupRestoreAssessment}
+      backupReadState={backupReadState}
+      retryBackupRead={retryBackupRead}
+      busy={effectiveBusy}
+      outputExternalBusy={busy}
+      libraryGeneration={props.libraryGeneration ?? 0}
+      outputLocationChanged={props.outputLocationChanged}
+      externalRuntimeChanged={props.externalRuntimeChanged}
+      outputApplying={setOutputApplying}
+      actions={actions}
+      openLibraryStorage={props.openLibraryStorage}
+    />
+  );
   return (
     <section
       className="detail-panel relative w-full min-w-0"
@@ -285,70 +354,9 @@ export function DetailPanel(props: DetailPanelProps) {
         binding={props.browsingBinding}
         gameFiles={props.gameFileFilterContext}
       />
-      {props.libraryGeneration !== undefined && selectedChannel && (
-        <GameFileQueryControl
-          port={port}
-          channel={selectedChannel}
-          generation={props.libraryGeneration}
-          context={JSON.stringify([
-            props.gameFileQueryContext,
-            port,
-            status,
-            source,
-            sourceProfile,
-            sourceInspection,
-            bios,
-            biosProfile,
-            biosInspection,
-          ])}
-          busy={Boolean(effectiveBusy)}
-        />
-      )}
-      {props.cancellableActivities
-        ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
-        .map((activity) => (
-          <OperationCancellation
-            key={activity.id}
-            operationId={activity.id}
-            state={activity.cancellation ?? undefined}
-          />
-        ))}
-      <DetailBody
-        installCancellations={props.cancellableActivities?.filter(
-          (activity) => activity.operation === "install",
-        )}
-        perform={props.perform}
-        prepare={props.prepare}
-        port={port}
-        status={status}
-        stagedVersion={status?.staged?.version}
-        sources={sources}
-        installed={installed}
-        deferSetupChoices={!installed && missingRequirement !== undefined}
-        sourceReady={sourceReady}
-        biosReady={biosReady}
-        launchReady={launchReady}
-        pendingSetup={pendingSetup}
-        runtimeUpdateAvailable={runtimeUpdateAvailable}
-        installPlan={installPlan}
-        selectedChannel={selectedChannel}
-        policy={policy}
-        backups={backups}
-        backupProblems={backupProblems}
-        backupState={backupState}
-        backupCreateAssessment={backupCreateAssessment}
-        backupRestoreAssessment={backupRestoreAssessment}
-        backupReadState={backupReadState}
-        retryBackupRead={retryBackupRead}
-        busy={effectiveBusy}
-        outputExternalBusy={busy}
-        libraryGeneration={props.libraryGeneration ?? 0}
-        outputLocationChanged={props.outputLocationChanged}
-        externalRuntimeChanged={props.externalRuntimeChanged}
-        outputApplying={setOutputApplying}
-        actions={actions}
-        openLibraryStorage={props.openLibraryStorage}
-      />
+      {renderQueryControl()}
+      {renderCancellations()}
+      {renderDetailBody()}
     </section>
   );
 }

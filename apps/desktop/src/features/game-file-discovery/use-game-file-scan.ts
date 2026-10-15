@@ -68,13 +68,14 @@ export function useGameFileScan() {
         // A corrupt old observation must not prevent Core's explicit fresh-scan recovery.
         const snapshot = await desktopApi.gameFileScanSnapshot().catch(() => null);
         if (!accepts()) return;
-        const continuing =
+        const continuingScan = () =>
           snapshot?.freshness === "inputs_match" &&
           snapshot.coverage?.can_resume &&
           !snapshot.coverage.restart_required &&
           snapshot.limits
             ? snapshot
             : undefined;
+        const continuing = continuingScan();
         const limits = continuing?.limits ?? gameFileScanLimits;
         if (
           Object.entries(gameFileScanLimits).some(

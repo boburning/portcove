@@ -275,13 +275,12 @@ impl crate::PortcoveService {
                 && selected.offered
                 && !selected.empty_requirements
                 && !selected.unknown_requirements
+                && let Some(profile) = &selected.profile_id
             {
-                if let Some(profile) = &selected.profile_id {
-                    // The current authoritative matcher must know the profile;
-                    // unknown retained facts stay unavailable rather than guessed.
-                    if self.catalog().source_profile(profile).is_ok() {
-                        profiles.insert(profile.clone());
-                    }
+                // The current authoritative matcher must know the profile;
+                // unknown retained facts stay unavailable rather than guessed.
+                if self.catalog().source_profile(profile).is_ok() {
+                    profiles.insert(profile.clone());
                 }
             }
             initial_bindings.push(selected.binding(request)?);

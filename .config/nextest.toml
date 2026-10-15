@@ -19,6 +19,13 @@ success-output = "immediate"
 # exact-case harness budget without changing product deadlines.
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# Owner-approved #706 calibration (issuecomment-6190196270), exact Intel case only.
+# Preserve both real rollback/restart/preservation attempts and all assertions.
+[[profile.default.overrides]]
+platform = 'x86_64-apple-darwin'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'
+slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
 [test-groups]

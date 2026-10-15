@@ -35,6 +35,19 @@ level = "warn"
 [rules."portability.absolute_literal_paths"]
 level = "deny"
 allow_regex = [
+  # Exact platform interfaces, not application-owned portable storage paths.
+  # Linux descriptor setup and namespace/supervision controls require these nodes/tools.
+  '^/dev/null$',
+  '^/proc/self/stat$',
+  '^/bin/sh$',
+  '^/bin/sleep$',
+  # cmd.exe invocation and mklink switches. These values are command options,
+  # not filesystem paths. Allowances are value-wide, not callsite-scoped.
+  '^/d$',
+  '^/c$',
+  '^/u$',
+  '^/C$',
+  '^/J$',
   '^/usr/bin/dolphin-tool$',
   '^/usr/local/bin/dolphin-tool$',
   '^/app/bin/dolphin-tool$',

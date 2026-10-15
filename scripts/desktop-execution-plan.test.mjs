@@ -27,6 +27,30 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
+test("Linux origin qualification is explicit, standalone and feature scoped", () => {
+  const id = "native-linux-webview-origin-boundary";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "linux" });
+  const plan = planDesktopExecution(selection, { platform: "linux" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(plan.build.qualificationFeatures, ["native-compatibility-qualification"]);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "win32" }));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "linux" }),
+    /standalone/,
+  );
+  for (const profile of ["smoke", "full"]) {
+    const ordinary = resolveDesktopSelection({ profile, platform: "linux" });
+    assert.ok(!ordinary.selected_scenarios.includes(id));
+    assert.ok(
+      !planDesktopExecution(ordinary, { platform: "linux" }).build.qualificationFeatures.includes(
+        "native-compatibility-qualification",
+      ),
+    );
+  }
+});
+
 test("hash continuation routes only the isolated selected-setup fixture with positive closure", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["native-saved-folder-hash-resume"],
@@ -107,6 +131,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
         (id) =>
           ![
             "native-controller-api-fallback",
+            "native-linux-webview-origin-boundary",
             "native-preliminary-source-review",
             "native-saved-folder-hash-resume",
             "native-preliminary-selected-setup",
@@ -132,6 +157,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
         Object.hasOwn(nativeHelperDependencies, added) ||
           nativeHelperSharedSources.includes(added) ||
           added === "scripts/native-readiness.mjs" ||
+          added === "scripts/acceptance-packet.mjs" ||
           added === nativeHelperRegistryPath,
         added,
       );

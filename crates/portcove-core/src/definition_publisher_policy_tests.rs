@@ -1777,6 +1777,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         },
         time::Duration,
     };
+    let clock = std::time::Instant::now();
     let cache_hit = matches!(
         intervention,
         CacheIntervention::CancelRestore
@@ -1894,20 +1895,28 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     let operation_id = activity.id.clone();
     let staging = library.staging_dir().join(&operation_id);
     let latch = Arc::new((
-        Mutex::new((None::<std::path::PathBuf>, false)),
+        Mutex::new((None::<(std::path::PathBuf, u64)>, false)),
         Condvar::new(),
     ));
     let hook_latch = latch.clone();
     let finished = Arc::new(AtomicBool::new(false));
     let hook = crate::curated_cache::CacheWorkerTestHook {
         after_copy: Arc::new(move |path, written| {
-            if written == 64 * 1024 {
+            if written >= 64 * 1024 {
                 let (lock, condition) = &*hook_latch;
                 let mut state = lock.lock().unwrap();
-                state.0 = Some(path.to_owned());
-                condition.notify_all();
-                while !state.1 {
-                    state = condition.wait(state).unwrap();
+                // A regular-file read may be short. Capture the first threshold
+                // crossing instead of requiring one exact cumulative chunk size.
+                if state.0.is_none() {
+                    println!(
+                        "curated cache first copy: {:?}; written={written}; cache_hit={cache_hit}",
+                        clock.elapsed()
+                    );
+                    state.0 = Some((path.to_owned(), written));
+                    condition.notify_all();
+                    while !state.1 {
+                        state = condition.wait(state).unwrap();
+                    }
                 }
             }
             Ok(())
@@ -1928,13 +1937,44 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
             .with_acquisition_resolution(resolution)
             .unwrap(),
     };
+    println!(
+        "curated cache installer start: {:?}; requests={}",
+        clock.elapsed(),
+        server.requests.lock().unwrap().len()
+    );
+    let mut observed_phase = None;
     let install = tokio::spawn(async move {
         (
             activity,
-            installer.install(request, &operation, |_| {}).await,
+            installer
+                .install(request, &operation, |event| {
+                    if let crate::OperationEventKind::Progress { phase, .. } = event.event
+                        && observed_phase.as_ref() != Some(&phase)
+                    {
+                        println!(
+                            "curated cache installer phase {phase}: {:?}",
+                            clock.elapsed()
+                        );
+                        observed_phase = Some(phase);
+                    }
+                })
+                .await,
         )
     });
-    let reached = tokio::time::timeout(Duration::from_secs(5), async {
+    // Owner-approved #706 calibration (issuecomments 6190196270/6191752545): preserve the
+    // whole-install starting point and every actual partial-copy assertion.
+    let latch_timeout = if cfg!(all(target_os = "macos", target_arch = "x86_64"))
+        && matches!(
+            intervention,
+            CacheIntervention::CancelRetain
+                | CacheIntervention::ArtifactRevocationRetain
+                | CacheIntervention::ArtifactWithdrawalRetain
+        ) {
+        Duration::from_secs(10)
+    } else {
+        Duration::from_secs(5)
+    };
+    let reached = tokio::time::timeout(latch_timeout, async {
         loop {
             if let Some(path) = latch.0.lock().unwrap().0.clone() {
                 break path;
@@ -1957,7 +1997,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     let partial_size = reached
         .as_ref()
         .ok()
-        .map(|path| fs::metadata(path).unwrap().len());
+        .map(|(path, _)| fs::metadata(path).unwrap().len());
     {
         let (lock, condition) = &*latch;
         lock.lock().unwrap().1 = true;
@@ -1965,12 +2005,19 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     }
     let (activity, result) = install.await.unwrap();
     let result = service.finish_activity(activity, result);
-    let partial = reached.expect("actual cache copy reached the bounded latch");
+    let (partial, copied) = reached.unwrap_or_else(|error| {
+        panic!("actual cache copy missed its {latch_timeout:?} latch: {error}; installer={result:?}; worker_finished={worker_finished}; result_finished={result_finished}; final_copy={:?}", latch.0.lock().unwrap().0)
+    });
     disposition.unwrap();
     assert!(!result_finished && !worker_finished);
     assert!(staging_present);
     assert_eq!(journals.unwrap().len(), 1);
-    assert_eq!(partial_size, Some(64 * 1024));
+    assert!((64 * 1024..=128 * 1024).contains(&copied));
+    assert!(
+        copied < record.size,
+        "intervention must observe an incomplete copy"
+    );
+    assert_eq!(partial_size, Some(copied));
     assert!(finished.load(Ordering::SeqCst));
     let refusal = result.unwrap_err();
     if policy_loss {
@@ -2018,7 +2065,7 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
         assert!(partial.starts_with(cache_root));
         assert_eq!(
             fs::metadata(&partial).unwrap().len(),
-            if policy_loss { record.size } else { 64 * 1024 }
+            if policy_loss { record.size } else { copied }
         );
         if policy_loss {
             assert_eq!(fs::read(partial).unwrap(), bytes);
@@ -2593,6 +2640,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .unwrap();
         library.select_definition_candidate(eligible).unwrap();
         let current_catalog = library.load_catalog().unwrap().0;
+        phase("launch transition admission");
         let without_baseline = PortcoveService::new(library.clone())
             .unwrap()
             .status(ID)
@@ -2611,6 +2659,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             baseline_refusal.eligibility.reason,
             crate::DefinitionEligibilityReason::CuratedArtifactRevoked
         );
+        phase("launch without-baseline status");
         let fresh_scope = policy::acquisition_scope(&library, &current_catalog, ID)
             .unwrap()
             .unwrap();
@@ -2647,6 +2696,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         library
             .apply_definition_launch_assessment(&accepted)
             .unwrap();
+        phase("launch baseline admitted");
         let service = PortcoveService::new(library.clone()).unwrap();
         let projected = service.status(ID).unwrap();
         let expected_reason = if status == "revoked" {
@@ -2707,6 +2757,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             rollback.availability,
             crate::PortActionAvailability::Allowed
         );
+        phase("launch single and bulk status");
         if operation == RetainedCuratedOperation::Launch {
             for attempt in 0..2 {
                 // The second construction consumes durable retained authority,
@@ -2714,6 +2765,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 let reopened = PortcoveService::new(library.clone()).unwrap();
                 let release = probe_directory.path().join(format!("release-{attempt}"));
                 let mut started = 0;
+                phase(&format!("launch begin {attempt}"));
                 let outcome = reopened.supervise_launch(
                     ID,
                     None,
@@ -2729,6 +2781,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                         fs::write(&release, b"released").unwrap();
                     },
                 );
+                phase(&format!("launch returned {attempt}"));
                 if status == "revoked" {
                     assert!(outcome.unwrap_err().message.contains("revoked"));
                     assert_eq!(started, 0);
@@ -3012,6 +3065,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             assert_eq!(bulk.definition_operations, projected.definition_operations);
             assert_eq!(bulk.port_actions, projected.port_actions);
         }
+        phase(&format!("single and bulk status {attempt}"));
         if operation != RetainedCuratedOperation::ActivationRecovery {
             let result = match operation {
                 RetainedCuratedOperation::Rollback => service.rollback(ID),
@@ -3070,6 +3124,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             crate::library_transfer::reviewed_tree(&user).unwrap(),
             user_tree
         );
+        phase(&format!("preservation complete {attempt}"));
     }
     assert_eq!(count(&library, "installs"), 2);
     assert_eq!(count(&library, "curated_artifact_admissions"), 2);
@@ -3103,6 +3158,8 @@ async fn curated_installer_boundary_fixture(
 ) {
     use crate::ReleaseProvider;
     use std::io::{Cursor, Write};
+    let clock = std::time::Instant::now();
+    let phase = |name: &str| println!("curated installer {name}: {:?}", clock.elapsed());
     let platform = crate::Platform::current().unwrap();
     let executable = if cfg!(windows) {
         "fixture.exe"
@@ -3149,6 +3206,7 @@ async fn curated_installer_boundary_fixture(
         managed_fixture_for_policy(authored, true).await;
     let original_candidate = acquire(&fixture, &root).await.unwrap();
     let original_admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    phase("initial admission and reacquisition");
     assert_eq!(scope.curated_checks, Some(1));
     let server = AcquisitionHttp::new();
     scope.fixture_origin = Some(server.origin.clone());
@@ -3178,6 +3236,7 @@ async fn curated_installer_boundary_fixture(
             )
             .await
             .unwrap();
+        phase(&format!("resolve {iteration}"));
         assert_eq!(resolved.release.asset.sha256, record.sha256);
         assert_eq!(resolved.release.asset.size, record.size);
         assert_eq!(
@@ -3281,6 +3340,7 @@ async fn curated_installer_boundary_fixture(
                 assert!(refusal.message.contains("owned fixture interruption"));
                 assert_eq!(count(&library, "installs"), 0);
             }
+            phase("pre-install refusals complete");
             let before = server.requests.lock().unwrap().len();
             server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
             server.json(release.clone());
@@ -3400,6 +3460,7 @@ async fn curated_installer_boundary_fixture(
                 server.requests.lock().unwrap().len(),
                 before + if artifact_status.is_some() { 4 } else { 3 }
             );
+            phase("actual install verified");
             if let Some(status) = artifact_status {
                 let qualification =
                     crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap();
@@ -3607,6 +3668,7 @@ async fn curated_installer_boundary_fixture(
         .get_mut(&record.platform)
         .unwrap()
         .sha256 = "d".repeat(64);
+    phase("repin publication begin");
     let repinned = Catalog::from_json(&serde_json::to_string(&repinned).unwrap()).unwrap();
     let mut targets = repository_targets_for(&repinned, ID);
     let mut document = managed_policy_for(&targets, true);

@@ -20,13 +20,39 @@ fn post_exit_error_preserves_final_process_proof_and_original_failure() {
 }
 
 #[cfg(windows)]
+#[track_caller]
 fn wait_nested_file(path: &Path) {
-    let deadline = Instant::now() + Duration::from_secs(5);
+    wait_nested_file_in_mode(path, None);
+}
+
+#[cfg(windows)]
+#[track_caller]
+fn wait_nested_file_in_mode(path: &Path, mode: Option<&str>) {
+    let started = Instant::now();
+    let deadline = started + Duration::from_secs(5);
     while !path.is_file() {
-        assert!(
-            Instant::now() < deadline,
-            "nested handshake did not complete"
-        );
+        if Instant::now() >= deadline {
+            let markers = [
+                "inner-observing",
+                "allow-inner-release",
+                "spawn-child",
+                "child-finished",
+                "descendant-observed",
+                "inner-result.pending",
+                "inner-result.json",
+                "allow-worker-exit",
+            ]
+            .map(|marker| {
+                let observed = path.parent().map(|parent| parent.join(marker).try_exists());
+                (marker, observed)
+            });
+            panic!(
+                "nested handshake did not complete: path={}, caller={}, mode={mode:?}, elapsed={:?}, markers={markers:?}",
+                path.display(),
+                std::panic::Location::caller(),
+                started.elapsed(),
+            );
+        }
         std::thread::sleep(Duration::from_millis(10));
     }
 }
@@ -154,7 +180,10 @@ fn nested_windows_supervisors_report_exact_child_lifetime_coverage() {
                         // observes its child. The outer job has no debug-port
                         // inheritance for the inner debugger's descendants.
                         fs::write(working.path().join("allow-inner-release"), b"release").unwrap();
-                        wait_nested_file(&working.path().join("inner-result.json"));
+                        wait_nested_file_in_mode(
+                            &working.path().join("inner-result.json"),
+                            Some(if short { "short" } else { "held" }),
+                        );
                         fs::write(
                             working.path().join("allow-worker-exit"),
                             b"joined inner worker",
@@ -849,13 +878,19 @@ fn windows_console_image_child_exits_while_the_caller_checkpoint_is_blocked() {
     let images = proof
         .get("process_tree_image_identities")
         .and_then(|value| serde_json::from_str::<Vec<serde_json::Value>>(value).ok());
+    let console_host_image =
+        std::path::PathBuf::from(std::env::var_os("SystemRoot").expect("Windows system root"))
+            .join("System32")
+            .join("conhost.exe")
+            .to_string_lossy()
+            .into_owned();
     let hosts = images.as_ref().map(|images| {
         images
             .iter()
             .filter(|entry| {
-                entry["image"].as_str().is_some_and(|image| {
-                    image.eq_ignore_ascii_case("C:\\Windows\\System32\\conhost.exe")
-                })
+                entry["image"]
+                    .as_str()
+                    .is_some_and(|image| image.eq_ignore_ascii_case(&console_host_image))
             })
             .collect::<Vec<_>>()
     });

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -9,7 +9,11 @@ import { fileIdentity } from "./development-evidence.mjs";
 import { retainEvidenceInput, verifyConsumedInputs } from "./retained-evidence.mjs";
 
 test("runner metadata stays an observation without contaminating prelaunch custody", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "pcv-input-observation-"));
+  // Retained custody deliberately refuses the disposable TMP/TEMP roots supplied
+  // by dev-storage. Keep this owned fixture outside those cleanup roots.
+  const parent = path.join(os.homedir(), ".portcove-test-fixtures");
+  await mkdir(parent, { recursive: true, mode: 0o700 });
+  const directory = await mkdtemp(path.join(parent, "pcv-input-observation-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, "bound-input.json");
   const metadata = path.join(directory, "runner-metadata.json");
