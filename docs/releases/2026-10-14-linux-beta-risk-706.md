@@ -46,10 +46,13 @@ native dependencies are unchanged; no affected iterator constructor is introduce
 The protected fingerprint was refreshed for those conservatively tracked bytes,
 reusing the prior production dependency and constructor analysis.
 
-PR #1997's qualification repairs were also examined as a bounded native delta.
+PR #1997's qualification repairs through `f6a37948249600fee2597b48ccd42b475424076c` were
+also examined as a bounded native delta.
 They box the private error context, preserve the existing public failure report,
 apply mechanical control-flow lint fixes, and correct test fixtures and test-only
-callback lifetimes. They add no GLib API, iterator constructor, dependency,
+callback lifetimes. Host-platform, native filename and partial-copy fixture
+corrections retain the underlying preservation/refusal assertions. They add no
+GLib API, iterator constructor, dependency,
 production feature or code generator. The unchanged lock and resolved dependency
 evidence is reused; the protected native-input fingerprint is refreshed for the
 reviewed source bytes. This is a source assessment, not a universal reachability
