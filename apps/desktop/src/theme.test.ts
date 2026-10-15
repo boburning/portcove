@@ -1,6 +1,6 @@
 import { setTheme as setNativeTheme } from "@tauri-apps/api/app";
 import { isTauri } from "@tauri-apps/api/core";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   applyWebTheme,
   observeSystemTheme,

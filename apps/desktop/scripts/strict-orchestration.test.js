@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 const desktop = fileURLToPath(new URL("../", import.meta.url));
 const readJson = (name) => JSON.parse(readFileSync(path.join(desktop, name), "utf8"));
@@ -29,9 +29,9 @@ describe("selected strict orchestration", () => {
       "src/shared/subscription-lifecycle.ts",
       "src/view-model.ts",
     ]);
-    expect(manifest.scripts.typecheck).toBe("tsc && corepack pnpm typecheck:orchestration");
-    expect(manifest.scripts["typecheck:orchestration"]).toBe(
-      "tsc --project tsconfig.orchestration.json",
-    );
+    expect(manifest.scripts.typecheck).toBe("vp check --no-fmt --no-lint");
+    // The specialized pass is an explicit aggregate task, independent of build/test.
+    const rootConfig = readFileSync(new URL("../../../vite.config.ts", import.meta.url), "utf8");
+    expect(rootConfig).toContain("tsc --project tsconfig.orchestration.json");
   });
 });

@@ -11,7 +11,6 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { resolveUiSelection } from "./ui-test-selection.mjs";
-import { isRepositoryLintInput } from "./run-oxlint.mjs";
 import { fileURLToPath } from "node:url";
 import {
   nativeHelperDependencies,
@@ -43,6 +42,20 @@ import {
   hostedLocalCheckAuthorityPaths,
   isHostedLocalCheckScriptAuthority,
 } from "./workflow-provenance.mjs";
+
+export function isRepositoryLintInput(file) {
+  return (
+    /^(?:scripts|apps\/desktop\/(?:scripts|src))\/.*\.(?:[cm]?[jt]sx?)$/u.test(file) ||
+    /^apps\/desktop\/src\/.*\.css$/u.test(file) ||
+    /^apps\/desktop\/(?:vite\.config\.ts|(?:.*\/)?tsconfig[^/]*\.json|stylelint\.config\.mjs)$/u.test(
+      file,
+    ) ||
+    /^(?:apps\/desktop\/)?(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc)$/u.test(
+      file,
+    ) ||
+    ["vite.config.ts", "tsconfig.json", ".gitignore", ".node-version"].includes(file)
+  );
+}
 
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
 const desktopRoot = path.join(projectRoot, "apps", "desktop");
@@ -568,6 +581,8 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
       "package.json",
       "pnpm-lock.yaml",
       "pnpm-workspace.yaml",
+      "vite.config.ts",
+      "tsconfig.json",
       "apps/desktop/pnpm-workspace.yaml",
     ].includes(file)
   ) {
@@ -680,14 +695,9 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   }
 
   if (
-    file.startsWith(".husky/") ||
-    file === "lint-staged.config.mjs" ||
-    [
-      "scripts/hooks-install.mjs",
-      "scripts/precommit-check.mjs",
-      "scripts/oxfmt-ownership.mjs",
-      "scripts/run-oxfmt.mjs",
-    ].includes(file)
+    file.startsWith(".vite-hooks/") ||
+    file === "vite.config.ts" ||
+    ["scripts/oxfmt-ownership.mjs"].includes(file)
   ) {
     selection.scopes.add("tooling");
     addNodeTest(selection, "scripts/precommit-check.test.mjs");
@@ -895,14 +905,12 @@ function uiRelatedCommand(files) {
     [
       "pnpm",
       "exec",
-      "vitest",
+      "vp",
+      "test",
       "related",
+      "--project=unit",
       ...files.map((file) => path.resolve(projectRoot, file)),
       "--run",
-      "--pool=threads",
-      "--isolate",
-      "--maxWorkers=2",
-      "--testTimeout=5000",
       "--passWithNoTests",
       "--reporter=default",
       "--reporter=json",
@@ -940,20 +948,21 @@ export function buildPlan(selection, context = {}) {
     commands.push(
       corepackCommand(
         "repository-lint",
-        "complete repository frontend/tooling lint",
-        ["pnpm", "lint"],
+        "integrated repository format, lint and type checks",
+        ["pnpm", "check"],
         { cwd: projectRoot },
       ),
     );
   const files = sorted(selection.oxfmtFiles).filter((file) =>
     existsSync(path.join(projectRoot, file)),
   );
-  if (files.length || broad)
+  if (!selection.repositoryLint && (files.length || broad))
     commands.push(
       command("oxfmt", "supported-file formatting", process.execPath, [
-        "scripts/run-oxfmt.mjs",
+        "node_modules/vite-plus/bin/vp",
+        "fmt",
         "--check",
-        ...(broad || files.includes(".oxfmtrc.json")
+        ...(broad || files.includes("vite.config.ts")
           ? []
           : files.map((file) => path.join(projectRoot, file))),
       ]),
@@ -1023,7 +1032,14 @@ export function buildPlan(selection, context = {}) {
       ),
     );
     commands.push(
-      corepackCommand("ui-build", "frontend build and typecheck", ["pnpm", "run", "build"], {
+      ...(!selection.repositoryLint
+        ? [
+            corepackCommand("ui-check", "frontend static checks", ["pnpm", "check"], {
+              cwd: projectRoot,
+            }),
+          ]
+        : []),
+      corepackCommand("ui-build", "frontend production build", ["pnpm", "run", "build"], {
         cwd: desktopRoot,
       }),
     );

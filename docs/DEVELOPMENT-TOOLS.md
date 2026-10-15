@@ -119,46 +119,129 @@ review; missing command records fail. #1973 still needs a naturally occurring
 hosted proposal/artifact readback, and full lockfile maintenance remains outside
 this scoped transitive-age guarantee.
 
+## Frontend workflow
+
+Vite+ owns the JavaScript toolchain. The root `vite.config.ts` contains format,
+lint, test-project, staged-check and composite-task settings; the desktop config
+owns application plugins, dev-server and production-build behavior. The exact
+release is in the pnpm catalog. Inspect the resolved bundle with `pnpm exec vp
+toolchain`; upgrade the release as a unit using the documented migrator.
+
+With a supported Node runtime and the repository-pinned pnpm, a global `vp` is
+optional. From the repository root:
+
+```sh
+corepack pnpm install --frozen-lockfile
+corepack pnpm dev
+corepack pnpm check
+corepack pnpm test --project unit
+corepack pnpm --dir apps/desktop browser:bootstrap
+corepack pnpm test --project browser
+corepack pnpm build
+```
+
+Package scripts resolve the installed local CLI. `corepack pnpm exec vp <command>`
+is the equivalent explicit route. Contributors who already have the pinned pnpm
+can omit `corepack`. Node is pinned in `.node-version`; Corepack is supplied
+separately on Node distributions that do not include it. The existing bootstrap
+profiles still provision Rust, native drivers and other language tools as needed.
+They are independent of the frontend toolchain.
+
+In controlled environments, use the official Vite+ installer with `VP_VERSION`
+pinned to the catalog release, or the SHA-pinned `setup-vp` action. Keep Node
+signature and archive-integrity verification enabled. Global `vp` delegates
+project commands to the local release; its Node/package-manager environment
+management is optional on contributor machines. Use `vp env current` and
+`vp toolchain --global` to distinguish the managed runtime from the project
+bundle. Installation must not silently replace a contributor's existing manager
+or shell configuration.
+
+`vp dev`, `vp check`, `vp test` and `vp build` are built-ins. `vp run <name>`
+selects a configured task or package script. At the workspace root, the ordinary
+app dev/build commands select `apps/desktop`; `vp -C apps/desktop <command>` is
+explicit. Bare `vp test` runs both the unit and browser projects; browser tests
+need the prefetched Chromium shell. `vp test watch --project unit`, a literal
+file filter, and `--project browser` provide focused feedback. Failed browser
+screenshots and traces remain under `.vitest` and `work/browser-traces`.
+The trace-probe script deliberately fails and preserves diagnostics.
+
+`vp check` integrates formatting, linting and TypeScript checking. `pnpm check`
+also runs the narrow stricter orchestration project. The latter retains indexed
+access and exact optional-property checks on lifecycle modules; a whole-app
+trial currently requires a separate application-level migration. Untyped Node
+scripts use Node globals and correctness lint; browser and typed code retain
+their actual execution-environment distinctions. Stylelint, TOML/Rust formatting,
+copy/theme/localization checks and generated transport checks retain their
+specialized responsibilities. `vp run verify:frontend` composes these frontend
+checks with unit tests and a production build. Builds and tests do not silently
+repeat the entire aggregate.
+
+Vite Task caches only named repeatable tasks. Use `vp -C apps/desktop run
+build:cached` and `vp -C apps/desktop run test:cached` for reuse. The ordinary
+`vp build` and `vp test` execute directly; `--no-cache` forces task execution.
+A cached test result is prior deterministic feedback, never new native,
+screenshot, benchmark or acceptance evidence. Native and verification tasks
+explicitly disable caching; package scripts are uncached by default. Build
+restoration is bounded to `dist/**`, and cached tests restore no files. Inspect
+`vp run --last-details` for misses. `vp cache clean` removes the task cache only;
+use the existing storage tool for other bounded cleanup. Cross-run hosted task
+caching remains off until measured benefit justifies its transfer/storage cost.
+
+`just` remains the cross-language entrypoint for Rust, qualification, source
+selection and guarded delivery. It delegates frontend work to this toolchain;
+there is no second frontend task graph. Packaged Portcove users need neither
+Node nor Vite+. The Tauri frontend-build task strips signing credentials before
+launching Vite, while native signing retains its own environment.
+
 ## Early commit feedback
 
-After the pinned frozen frontend dependency install, run `pnpm run hooks:install`.
-Windows selective frontend setup also runs this explicit step. On Linux, run the
-same install command after frontend setup. Repeat it in each linked
-worktree and after replacing dependencies or the hook entrypoint. Setup verifies
-the installed Husky/lint-staged versions and actual generated entrypoint, keeps
-hook configuration local to that worktree, and refuses an existing unrelated
-hook manager. It does not overwrite global Git settings. Source archives and
-actual GitHub Actions setup skip installation; `CI=true` alone does not.
+The supported Vite+ dispatcher replaces Husky and the repository's preflight
+launcher. Dependency installation runs a narrow scope adapter for the supported dispatcher;
+run `pnpm hooks:install` to refresh it and `pnpm hooks:status` to inspect it.
+Vite+ 1.2 writes hook preferences to common Git config (`--local`). In a
+repository with `extensions.worktreeConfig`, the adapter asks that exact local
+CLI to generate its dispatcher in an isolated scratch Git directory, then installs
+those generated files and writes only this worktree's preferences. It preserves
+sibling configuration and explicit disable choices. It owns no staged-file policy. The
+project-owned `.vite-hooks/pre-commit` checks staged whitespace and runs
+`vp staged`. Its standard `vp check --fix` workflow formats, lints and stages
+safe fixes while lint-staged's backup and partial-staging isolation remain on.
+Review the resulting diff before committing. Required CI and separate review
+remain independent gates.
 
-`node scripts/precommit-check.mjs` is the non-installing manual command and executes
-the same path as `.husky/pre-commit`. The package alias `precommit:check` is also
-available after setup; pnpm's default dependency verification can install stale
-dependencies before running an alias, so use Node for installation-free feedback.
-It checks the staged diff for whitespace/conflict markers, explicitly selected
-Oxfmt-owned files, JavaScript/Node syntax (not TypeScript checking), and static
-player-facing copy in staged production sources. Tasks are serial and check-only;
-fix formatting with `pnpm run format`, inspect the reported copy/syntax locations,
-and stage changes explicitly. The copy checker still checks all production
-sources with no arguments; `--files <production-source>...` is its strict subset
-interface. Selected validation checks full copy before frontend build/tests;
-standalone `pnpm test` retains its full copy check without duplicate aggregate scans.
+Existing foreign hook managers are preserved by the installer. To replace an
+old Portcove Husky hook, inspect `git config --show-origin --get core.hooksPath`,
+then explicitly enable `pnpm hooks:enable` in that checkout. In a linked
+worktree inspect both common and worktree config scopes: an existing
+worktree-specific Husky value can shadow a new common dispatcher. Only replace
+the verified Portcove-owned value. Use `pnpm hooks:disable` for a persistent checkout
+opt-out; `VP_GIT_HOOKS=0` is a process-scoped opt-out for non-development commits.
 
-Only relevant already-installed tools are required. Missing tools or unstaged
-changes to consumed checkers/configuration fail before lint-staged changes working
-state. Its supported partial-staging isolation, backup and ordinary failure
-restoration remain enabled; staged source symlinks are refused. SIGINT can cancel
-owned check tasks and trigger restoration. Preserve any reported backup stash or
-`.git/lint-staged` recovery files if restoration fails; uncatchable kills or power
-loss cannot guarantee recovery. Untracked work and preexisting stashes are retained.
+The same installed local CLI works in noninteractive editor commits. A failed
+check restores the original staged/unstaged state. Preserve any reported recovery
+stash after an interrupted or failed restoration. No hook can guarantee cleanup
+after power loss or forced termination.
 
-Rust formatting remains with edition/config-aware `cargo fmt`; repository TOML
-formatting and provisioned workflow lint retain their workspace inventories.
-They are outside this file-local hook, alongside compilation, typed/graph lint,
-tests, browsers/native scenarios, builds, catalog bookkeeping and network checks.
-No commit-time installation or automatic full pre-push check is added. A hook
-pass supplies early feedback only; full selected obligations, independent review,
-required exact-head CI and guarded delivery remain separate. Five seconds for a
-small warm commit is a measurement target, not a deadline or skipped-check rule.
+## Coordinated upgrades and rollback
+
+Select an exact supported Vite+ release from its official release notes. Keep the
+current manifests, lockfile and installed runner until the target migrator has
+read them. Run the target pinned CLI's `help migrate`, then `vp migrate
+--no-interactive --no-agent --no-editor --no-hooks` from the workspace root.
+Review every report and align `vite-plus`, the `vite` core alias, the bundled
+Vitest pin/override and the Playwright provider catalog entry. Install and inspect
+`vp toolchain`, then run checks, unit/browser tests, build and affected native
+consumers. Upgrade the provider from the bundled Vitest version, not its latest
+independent release. Independent Renovate updates of these coupled entries are
+disabled; upstream migration owns that coordinated upgrade. Directly consumed
+React/Tailwind/Playwright/parser packages retain their own reviewed updates.
+
+Rollback is a normal reviewed Git revert of the migration commits followed by a
+frozen install of the restored lockfile. Keep unrelated work and failure evidence.
+Do not uninstall machine-wide Node, pnpm, other runtime managers or user data.
+If the clone had Vite+ hooks enabled, use `pnpm hooks:disable` and run the restored
+hook installer after reinstalling. A global Vite+ install may remain: the restored
+project scripts and dependencies own the repository's behavior.
 
 ## CI timing diagnostics
 

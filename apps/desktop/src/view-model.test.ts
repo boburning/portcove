@@ -1,5 +1,5 @@
 import { portDefinition, portStatus, sourceProfile } from "./test-fixtures";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { ActivityRecord, InstallRecord, PortDefinition, PortStatus } from "./types";
 import {
   activityHistoryPreview,

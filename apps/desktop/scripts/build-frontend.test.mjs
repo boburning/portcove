@@ -4,9 +4,9 @@ import process from "node:process";
 import { runInNewContext } from "node:vm";
 import { build } from "vite";
 
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import config from "../vite.config.ts";
-import { frontendEnvironment } from "./build-frontend.mjs";
+import { frontendEnvironment, buildFrontend } from "./build-frontend.mjs";
 
 it("removes signing inputs before frontend children while preserving native inputs", () => {
   const environment = {
@@ -71,5 +71,54 @@ it("excludes signing sentinels from direct and whole-object frontend access and 
       if (previous[index] === undefined) delete process.env[name];
       else process.env[name] = previous[index];
     }
+  }
+});
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { readFile } from "node:fs/promises";
+
+it("Tauri strips signing inputs before starting the frontend toolchain", async () => {
+  const nativeConfig = JSON.parse(
+    await readFile(new URL("../src-tauri/tauri.conf.json", import.meta.url), "utf8"),
+  );
+  expect(nativeConfig.build.beforeBuildCommand).toBe("node scripts/build-frontend.mjs");
+  const fixture = await mkdtemp(new URL("../../../work/frontend-child-", import.meta.url));
+  const child = path.join(fixture, "observe.mjs");
+  const marker = path.join(fixture, "observed.json");
+  try {
+    await writeFile(
+      child,
+      `import {writeFileSync} from "node:fs";writeFileSync(${JSON.stringify(marker)},JSON.stringify({signing:process.env.TAURI_SIGNING_PRIVATE_KEY??null,native:process.env.TAURI_ENV_PLATFORM,args:process.argv.slice(2)}));`,
+    );
+    let childResult;
+    const status = buildFrontend(
+      {
+        ...process.env,
+        TAURI_SIGNING_PRIVATE_KEY: "fake-only-child-key",
+        TAURI_ENV_PLATFORM: "windows",
+      },
+      (command, args, options) => {
+        expect(command).toBe("corepack");
+        childResult = spawnSync(process.execPath, [child, ...args], {
+          ...options,
+          stdio: "pipe",
+          encoding: "utf8",
+          timeout: 5000,
+          windowsHide: true,
+        });
+        return childResult;
+      },
+    );
+    const result = childResult;
+    expect(status).toBe(0);
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(await readFile(marker, "utf8"))).toEqual({
+      signing: null,
+      native: "windows",
+      args: ["pnpm", "exec", "vp", "build"],
+    });
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
   }
 });

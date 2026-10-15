@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type { PortDefinition, PortStatus } from "../../types";
 import { evaluateCatalogQuery, type CatalogQueryContext } from "./catalog-query";

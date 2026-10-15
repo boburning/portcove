@@ -1,7 +1,7 @@
 {
   "files.eol": "\n",
-  "oxc.configPath": ".oxlintrc.json",
-  "oxc.fmt.configPath": ".oxfmtrc.json",
+  "oxc.configPath": "vite.config.ts",
+  "oxc.fmt.configPath": "vite.config.ts",
   "oxc.requireConfig": true,
   "oxc.typeAware": true,
   "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][html][markdown][yaml]": {
@@ -15,5 +15,12 @@
   "[toml]": {
     "editor.defaultFormatter": "tamasfe.even-better-toml",
     "editor.formatOnSave": true
-  }
+  },
+  "oxc.disableNestedConfig": true,
+  "oxc.fmt.disableNestedConfig": true,
+  "editor.formatOnSaveMode": "file",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "explicit"
+  },
+  "vitest.vitestCommandLine": "node node_modules/vite-plus/bin/vp test"
 }

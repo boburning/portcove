@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { portStatus } from "../test-fixtures";
 import type { PortStatus, ReleaseChannel } from "../types";
 import { ReleaseChannelControl } from "./ReleaseChannel";

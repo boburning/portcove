@@ -1,6 +1,6 @@
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import type {
   ActivityRecord,
   DoctorReport,

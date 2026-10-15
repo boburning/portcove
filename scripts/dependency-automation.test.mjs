@@ -49,11 +49,7 @@ test("the root owns the only pnpm workspace lock and repository tool dependencie
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
     "@taplo/cli",
     "fallow",
-    "husky",
-    "lint-staged",
-    "oxfmt",
-    "oxlint",
-    "oxlint-tsgolint",
+    "vite-plus",
     "yaml",
   ]);
   assert.deepEqual(
@@ -367,9 +363,7 @@ test("compatibility families override inherited groups without coupling unrelate
       "@tauri-apps/cli",
       "@tauri-apps/plugin-dialog",
     ],
-    vite: ["vite", "@vitejs/plugin-react"],
-    vitest: ["vitest", "@vitest/browser-playwright", "@vitest/browser", "@vitest/mocker"],
-    "oxc-toolchain": ["oxc-parser", "oxfmt", "oxlint", "oxlint-tsgolint"],
+    "oxc-parser": ["oxc-parser"],
     tailwind: ["tailwindcss", "@tailwindcss/vite"],
     stylelint: ["stylelint", "stylelint-config-recommended"],
   };
@@ -400,8 +394,11 @@ test("compatibility families override inherited groups without coupling unrelate
   );
   const desktop = JSON.parse(await read("apps/desktop/package.json"));
   const lock = await read("pnpm-lock.yaml");
-  const core = desktop.devDependencies.vitest.replace(/^\^/u, "");
-  assert.equal(desktop.devDependencies["@vitest/browser-playwright"], core);
+  const { parse } = await import("yaml");
+  const workspace = parse(await read("pnpm-workspace.yaml"));
+  const core = String(workspace.catalog.vitest);
+  assert.equal(desktop.devDependencies["@vitest/browser-playwright"], "catalog:");
+  assert.equal(String(workspace.catalog["@vitest/browser-playwright"]), core);
   assert.match(
     lock,
     new RegExp(`'@vitest/browser-playwright@${core.replaceAll(".", "\\.")}'`, "u"),

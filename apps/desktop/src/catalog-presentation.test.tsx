@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { SettingsView } from "./components/Chrome";
 import { PortBrowser } from "./components/PortBrowser";
 import { ReleaseChannelControl } from "./components/ReleaseChannel";

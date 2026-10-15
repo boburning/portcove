@@ -15,6 +15,8 @@ import {
 const inputFiles = [
   ".node-version",
   "package.json",
+  "vite.config.ts",
+  "tsconfig.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "apps/desktop/index.html",

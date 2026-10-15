@@ -1,12 +1,14 @@
 {
   "compilerOptions": {
-    "composite": true,
+    "composite": false,
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
-    "declaration": true,
-    "emitDeclarationOnly": true
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "strict": true,
+    "noEmit": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "vitest.browser.config.ts"]
+  "include": ["vite.config.ts", "i18next.config.ts", "i18next.invalid.config.ts"]
 }

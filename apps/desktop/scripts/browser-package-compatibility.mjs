@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import semver from "semver";
+import { parse } from "yaml";
 
 export function assertBrowserPackageCompatibility(declarations, manifests) {
   for (const name of ["vitest", "@vitest/browser-playwright", "playwright"]) {
@@ -34,7 +35,12 @@ export function assertBrowserPackageCompatibility(declarations, manifests) {
 
 export function checkBrowserPackageCompatibility(packageFile) {
   const read = (file) => JSON.parse(readFileSync(file, "utf8"));
-  const declarations = read(packageFile).devDependencies ?? {};
+  const declarations = { ...read(packageFile).devDependencies };
+  const workspace = parse(
+    readFileSync(new URL("../../../pnpm-workspace.yaml", import.meta.url), "utf8"),
+  );
+  for (const [name, version] of Object.entries(declarations))
+    if (version === "catalog:") declarations[name] = String(workspace.catalog[name]);
   const require = createRequire(packageFile);
   const providerFile = require.resolve("@vitest/browser-playwright/package.json");
   const providerRequire = createRequire(providerFile);

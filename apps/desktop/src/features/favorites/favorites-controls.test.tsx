@@ -2,7 +2,7 @@ import type { PortDefinition } from "../../types";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { PortBrowser } from "../../components/PortBrowser";
 import { filterPorts } from "../../view-model";
 import { portDefinition } from "../../test-fixtures";

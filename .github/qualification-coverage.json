@@ -4,6 +4,7 @@
   "jobs": [
     "catalog_full",
     "frontend_full",
+    "frontend_portability",
     "intel_build",
     "intel_tests",
     "native_rust",

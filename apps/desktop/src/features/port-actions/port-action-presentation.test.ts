@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 import { portStatus } from "../../test-fixtures";
 import type { PortStatus } from "../../types";
 import {

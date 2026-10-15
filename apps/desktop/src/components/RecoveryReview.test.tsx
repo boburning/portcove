@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import type { DoctorReport, PreparationCleanupPreview } from "../types";
 import { portDefinition } from "../test-fixtures";

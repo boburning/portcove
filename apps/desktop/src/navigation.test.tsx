@@ -3,7 +3,7 @@ import { portStatus } from "./test-fixtures";
 // @vitest-environment jsdom
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ChoiceSelect } from "./components/ChoiceSelect";
 import { ExternalLink } from "./components/ExternalLink";
 import { Dialog, DialogContent } from "./components/ui/dialog";

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
+import { versions as bundled } from "vite-plus/versions";
 import { URL, fileURLToPath } from "node:url";
 import {
   assertBrowserPackageCompatibility,
@@ -29,7 +30,7 @@ describe("installed browser package compatibility", () => {
     const versions = checkBrowserPackageCompatibility(
       fileURLToPath(new URL("../package.json", import.meta.url)),
     );
-    expect(versions.vitest).toBe("5.0.3");
+    expect(versions.vitest).toBe(bundled.vitest);
     expect(versions["@vitest/browser-playwright"]).toBe(versions.vitest);
   });
 

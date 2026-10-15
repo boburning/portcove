@@ -1,5 +1,5 @@
 import { portDefinition, portStatus } from "../../test-fixtures";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import type { PortDefinition } from "../../types";
 import type { Perform } from "../operations/use-operation-state";

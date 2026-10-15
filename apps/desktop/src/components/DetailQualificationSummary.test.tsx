@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import catalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import type { PortDefinition, SourceInspectionReport } from "../types";
 import type { SourceCatalog } from "../transport-types.generated";

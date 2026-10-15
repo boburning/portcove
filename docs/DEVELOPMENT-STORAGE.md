@@ -83,7 +83,7 @@ Only when frontend dependencies are missing or incompatible with the lockfile,
 run `node scripts/dev-storage.mjs run -- corepack pnpm install --frozen-lockfile` from the repository root.
 Browser Mode keeps its explicitly provisioned Chromium shell and companions under
 the checkout's ignored `work/browser-cache`; `browser:bootstrap` owns that cache,
-and `test:browser` fails with a prerequisite message when it is absent. Browser
+and the browser project reports the missing executable when it is absent. Browser
 failure traces remain under ignored `work/browser-traces`, and failure screenshots
 under ignored `apps/desktop/.vitest`. Preserve failed evidence during diagnosis.
 Use the owning task's narrow test command and `just local-check`; exhaustive

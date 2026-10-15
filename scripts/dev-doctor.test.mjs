@@ -151,7 +151,7 @@ test("selected fixtures retain their actual direct tools and platform deferrals"
       platform,
     );
   assert.ok(fixtures(["actionlint"], "linux").includes("shellcheck"));
-  assert.ok(fixtures(["oxlint"], "linux").includes("npm-oxlint-tsgolint"));
+  assert.ok(fixtures(["oxlint"], "linux").includes("npm-vite-plus"));
   assert.ok(fixtures(["stylelint"], "linux").includes("npm-stylelint"));
   assert.ok(fixtures(["psscriptanalyzer"], "win32").includes("psscriptanalyzer"));
   assert.ok(!fixtures(["psscriptanalyzer"], "linux").includes("psscriptanalyzer"));
@@ -333,7 +333,7 @@ test("stale npm fixture tools cannot approve their own installed version", (t) =
     marker,
     JSON.stringify({ name: "oxfmt", version: "0.69.0", bin: { oxfmt: "cli.mjs" } }),
   );
-  const definition = existingNpmDefinition("npm-oxfmt", directory, "oxfmt", "oxfmt");
+  const definition = existingNpmDefinition("npm-vite-plus", directory, "oxfmt", "oxfmt");
   assert.equal(definition.version, "0.70.0");
   assert.equal(definition.installed_version, "0.69.0");
   assert.equal(probeTool(definition, () => ({ status: 0, stdout: "0.69.0" })).status, "mismatch");
@@ -341,7 +341,7 @@ test("stale npm fixture tools cannot approve their own installed version", (t) =
     marker,
     JSON.stringify({ name: "wrong-package", version: "0.70.0", bin: { oxfmt: "cli.mjs" } }),
   );
-  assert.equal(existingNpmDefinition("npm-oxfmt", directory, "oxfmt", "oxfmt"), null);
+  assert.equal(existingNpmDefinition("npm-vite-plus", directory, "oxfmt", "oxfmt"), null);
 });
 test("tsgolint observes installed metadata only after successful help startup", (t) => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-tsgolint-prerequisite-"));
@@ -358,7 +358,7 @@ test("tsgolint observes installed metadata only after successful help startup", 
   const metadata = { name: "oxlint-tsgolint", version: "7.0.2003", bin: { tsgolint: "cli.cjs" } };
   const writeMetadata = (value) => writeFileSync(marker, JSON.stringify(value));
   const readDefinition = () =>
-    existingNpmDefinition("npm-oxlint-tsgolint", directory, "oxlint-tsgolint", "tsgolint");
+    existingNpmDefinition("npm-vite-plus", directory, "oxlint-tsgolint", "tsgolint");
   writeMetadata(metadata);
   const definition = readDefinition();
   assert.deepEqual(definition.command, [process.execPath, executable, "--help"]);
@@ -436,7 +436,7 @@ test("tsgolint refuses a launcher symlink outside its installed package", (t) =>
   writeFileSync(outside, "");
   symlinkSync(outside, path.join(packageRoot, "cli.cjs"));
   assert.equal(
-    existingNpmDefinition("npm-oxlint-tsgolint", directory, "oxlint-tsgolint", "tsgolint"),
+    existingNpmDefinition("npm-vite-plus", directory, "oxlint-tsgolint", "tsgolint"),
     null,
   );
 });

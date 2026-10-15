@@ -317,7 +317,9 @@ export function domainsForPath(input) {
       file,
     ) ||
     file === ".oxfmtrc.json" ||
-    file === ".oxlintrc.json"
+    file === ".oxlintrc.json" ||
+    file === "vite.config.ts" ||
+    file === "tsconfig.json"
   ) {
     add(domains, "ui");
     if (

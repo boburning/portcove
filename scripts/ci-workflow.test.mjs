@@ -397,7 +397,7 @@ test("every Node test file is included in required CI and the local quality work
 });
 
 test("application release records run after the maintained SemVer dependency is installed", () => {
-  const installation = frontend.indexOf("pnpm install --frozen-lockfile");
+  const installation = frontend.indexOf("args: [--frozen-lockfile]");
   const selection = frontend.indexOf("scripts/select-release-channel.test.mjs");
   const coordinator = frontend.indexOf("scripts/release-coordinator.test.mjs");
   const reconstruction = frontend.indexOf(
@@ -459,7 +459,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   );
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
-  assert.match(proseChecks, /pnpm install --frozen-lockfile/);
+  assert.match(proseChecks, /args: \[--frozen-lockfile\]/);
   assert.match(proseChecks, /scripts\/repository-settings\.test\.mjs/);
   assert.match(proseChecks, /scripts\/repository-skills\.test\.mjs/);
   assert.match(proseChecks, /node scripts\/check-ci-prose\.mjs/);
@@ -479,9 +479,9 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(fastRust, /runs-on: windows-latest/);
   assert.match(fastRust, /rust-test-impact\.mjs --workspace-run/);
   assert.equal(fastPlatform, "");
-  assert.match(fastRustQuality, /actions\/setup-node@/);
-  assert.match(fastRustQuality, /pnpm install --frozen-lockfile/);
-  assert.match(desktopPackage.scripts["format:oxfmt:check"], /run-oxfmt\.mjs --check/);
+  assert.match(fastRustQuality, /voidzero-dev\/setup-vp@/);
+  assert.match(fastRustQuality, /args: \[--frozen-lockfile\]/);
+  assert.match(desktopPackage.scripts["format:check"], /vp fmt --check/);
   assert.match(fastRustQuality, /format:check/);
   assert.match(fastRust, /key: fast-rust-tests-/);
   assert.doesNotMatch(fastRustQuality, /cargo clippy|rust-cache/);
@@ -1558,11 +1558,11 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
 
 test("frontend keeps deterministic product gates and delegates vulnerability changes", () => {
   assert.match(frontend, /^ {4}env:\r?\n {6}npm_config_audit: "false"$/m);
-  assert.match(frontend, /pnpm install --frozen-lockfile/);
+  assert.match(frontend, /args: \[--frozen-lockfile\]/);
   assert.match(frontend, /Install pinned recipe runner/);
-  const install = frontend.indexOf("pnpm install --frozen-lockfile");
+  const install = frontend.indexOf("args: [--frozen-lockfile]");
   const formatting = frontend.indexOf("pnpm --dir apps/desktop format:check");
-  const lint = frontend.indexOf("pnpm lint");
+  const lint = frontend.indexOf("vp check");
   const build = frontend.indexOf("pnpm build");
   assert.ok(install >= 0 && formatting > install && lint > formatting && build > lint);
   assert.match(frontend, /lint-tools\.integration\.mjs oxfmt oxlint stylelint/);
@@ -1591,189 +1591,13 @@ test("full frontend qualification provisions browser artifacts before compositio
   assert.doesNotMatch(fast, /browser:bootstrap|test:browser/);
 });
 
-test("frontend tooling uses the pinned Oxc contracts without legacy quality layers", async () => {
-  const desktopPackage = JSON.parse(
-    await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
-  );
-  const repositoryPackage = JSON.parse(
-    await readFile(new URL("../package.json", import.meta.url), "utf8"),
-  );
-  assert.equal(desktopPackage.scripts["format:oxfmt"], "node ../../scripts/run-oxfmt.mjs --write");
-  assert.equal(desktopPackage.scripts["lint:oxlint"], "node ../../scripts/run-oxlint.mjs");
-  assert.equal(repositoryPackage.devDependencies.oxfmt, "0.71.0");
-  assert.equal(repositoryPackage.devDependencies.oxlint, "1.86.0");
-  assert.equal(repositoryPackage.devDependencies["oxlint-tsgolint"], "7.0.2003");
-  assert.equal(desktopPackage.devDependencies["oxc-parser"], "0.151.0");
-  assert.equal(desktopPackage.devDependencies.typescript, "7.0.2");
-  for (const retired of [
-    "@babel/parser",
-    "@eslint/js",
-    "@typescript/native",
-    "eslint",
-    "eslint-plugin-jsx-a11y",
-    "eslint-plugin-react-hooks",
-    "globals",
-    "prettier",
-    "typescript-eslint",
-  ]) {
-    assert.equal(repositoryPackage.devDependencies[retired], undefined);
-    assert.equal(desktopPackage.devDependencies[retired], undefined);
-  }
-
-  const oxlint = JSON.parse(await readFile(new URL("../.oxlintrc.json", import.meta.url), "utf8"));
-  assert.deepEqual(oxlint.plugins, [
-    "eslint",
-    "typescript",
-    "react",
-    "jsx-a11y",
-    "oxc",
-    "import",
-    "vitest",
-  ]);
-  assert.deepEqual(oxlint.options, {
-    reportUnusedDisableDirectives: "error",
-    typeAware: false,
-    typeCheck: false,
-  });
-  assert.equal(oxlint.categories.correctness, "error");
-  assert.equal(oxlint.categories.suspicious, "off");
-  assert.equal(oxlint.rules["react/rules-of-hooks"], "error");
-  assert.equal(oxlint.rules["react/refs"], "error");
-  assert.equal(oxlint.rules["react/set-state-in-effect"], "error");
-  assert.equal(oxlint.rules["vitest/require-mock-type-parameters"], "off");
-  assert.deepEqual(oxlint.rules["vitest/valid-expect"], ["error", { maxArgs: 2 }]);
-  for (const rule of [
-    "alt-text",
-    "anchor-has-content",
-    "anchor-is-valid",
-    "aria-activedescendant-has-tabindex",
-    "aria-props",
-    "aria-proptypes",
-    "aria-role",
-    "aria-unsupported-elements",
-    "autocomplete-valid",
-    "click-events-have-key-events",
-    "heading-has-content",
-    "html-has-lang",
-    "iframe-has-title",
-    "img-redundant-alt",
-    "interactive-supports-focus",
-    "label-has-associated-control",
-    "media-has-caption",
-    "mouse-events-have-key-events",
-    "no-access-key",
-    "no-autofocus",
-    "no-distracting-elements",
-    "no-interactive-element-to-noninteractive-role",
-    "no-noninteractive-element-interactions",
-    "no-noninteractive-element-to-interactive-role",
-    "no-noninteractive-tabindex",
-    "no-redundant-roles",
-    "no-static-element-interactions",
-    "role-has-required-aria-props",
-    "role-supports-aria-props",
-    "scope",
-    "tabindex-no-positive",
-  ]) {
-    assert.equal(oxlint.rules[`jsx-a11y/${rule}`], "error");
-  }
-  assert.equal(oxlint.rules["jsx-a11y/prefer-tag-over-role"], "off");
-  for (const rule of ["no-array-constructor", "no-unused-expressions", "no-unused-vars"]) {
-    assert.equal(oxlint.rules[rule], "error");
-  }
-  for (const rule of [
-    "await-thenable",
-    "ban-ts-comment",
-    "no-array-delete",
-    "no-base-to-string",
-    "no-duplicate-enum-values",
-    "no-duplicate-type-constituents",
-    "no-empty-object-type",
-    "no-explicit-any",
-    "no-extra-non-null-assertion",
-    "no-floating-promises",
-    "no-for-in-array",
-    "no-implied-eval",
-    "no-misused-new",
-    "no-misused-promises",
-    "no-namespace",
-    "no-non-null-asserted-optional-chain",
-    "no-redundant-type-constituents",
-    "no-require-imports",
-    "no-this-alias",
-    "no-unnecessary-type-assertion",
-    "no-unnecessary-type-constraint",
-    "no-unsafe-argument",
-    "no-unsafe-assignment",
-    "no-unsafe-call",
-    "no-unsafe-declaration-merging",
-    "no-unsafe-enum-comparison",
-    "no-unsafe-function-type",
-    "no-unsafe-member-access",
-    "no-unsafe-return",
-    "no-unsafe-unary-minus",
-    "no-wrapper-object-types",
-    "only-throw-error",
-    "prefer-as-const",
-    "prefer-namespace-keyword",
-    "prefer-promise-reject-errors",
-    "require-await",
-    "restrict-plus-operands",
-    "restrict-template-expressions",
-    "triple-slash-reference",
-    "unbound-method",
-  ]) {
-    assert.equal(oxlint.rules[`typescript/${rule}`], "error");
-  }
-  const oxlintRunner = await readFile(new URL("./run-oxlint.mjs", import.meta.url), "utf8");
-  assert.match(oxlintRunner, /sourceRoot/);
-  assert.match(oxlintRunner, /viteConfig/);
-  assert.match(oxlintRunner, /"--type-aware"/);
-  assert.match(oxlintRunner, /report\.number_of_files < 1/);
-  assert.match(oxlintRunner, /report\.number_of_rules < 1/);
-
-  const copyChecker = await readFile(
-    new URL("../apps/desktop/scripts/check-copy.mjs", import.meta.url),
-    "utf8",
-  );
-  assert.match(copyChecker, /import \{ parseSync, visitorKeys \} from "oxc-parser"/);
-  assert.doesNotMatch(copyChecker, /@babel\/parser/);
-
-  const oxfmt = JSON.parse(await readFile(new URL("../.oxfmtrc.json", import.meta.url), "utf8"));
-  assert.equal(oxfmt.printWidth, 100);
-  assert.equal(oxfmt.sortImports, false);
-  assert.equal(oxfmt.sortPackageJson, true);
-  assert.ok(oxfmt.ignorePatterns.includes("**/*.toml"));
-
-  const fallow = JSON.parse(
-    await readFile(new URL("../apps/desktop/.fallowrc.json", import.meta.url), "utf8"),
-  );
-  assert.deepEqual(fallow, {
-    $schema: "../../node_modules/fallow/schema.json",
-    entry: [
-      "i18next.invalid.config.ts",
-      "src/i18next-contract.test-d.ts",
-      "src/i18next.d.ts",
-      "vitest.browser.config.ts",
-    ],
-    boundaries: {
-      zones: [
-        { name: "shared", patterns: ["src/shared/**"] },
-        { name: "features", patterns: ["src/features/**"] },
-      ],
-      rules: [{ from: "shared", allow: ["shared"], allowTypeOnly: [] }],
-    },
-  });
-
-  for (const retired of [
-    "../.prettierignore",
-    "../prettier.config.mjs",
-    "../eslint.config.mjs",
-    "../apps/desktop/eslint.config.mjs",
-    "./run-eslint.mjs",
-  ]) {
-    await assert.rejects(readFile(new URL(retired, import.meta.url)), { code: "ENOENT" });
-  }
+test("frontend tools resolve through the pinned Vite+ bundle", async () => {
+  const manifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(manifest.devDependencies["vite-plus"], "catalog:");
+  for (const superseded of ["oxfmt", "oxlint", "oxlint-tsgolint", "husky", "lint-staged"])
+    assert.equal(manifest.devDependencies[superseded], undefined);
+  assert.equal(manifest.scripts.check, "vp check && vp run check:orchestration");
+  assert.equal(manifest.scripts.build, "vp build");
 });
 
 test("ordinary tooling contracts select the workflow contract and full CI retains its inventory", async () => {

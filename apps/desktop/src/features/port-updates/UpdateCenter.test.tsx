@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import * as clipboard from "../../clipboard";
 import type { UpdateBatchRead } from "./use-update-center";
 import { UpdateCenter } from "../../components/UpdateCenter";

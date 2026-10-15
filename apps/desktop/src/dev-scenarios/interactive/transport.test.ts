@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { invoke } from "@tauri-apps/api/core";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import type { OperationEvent } from "../../types";
 import { preparation } from "./scenarios";
