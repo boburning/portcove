@@ -124,14 +124,22 @@ test(
       script,
       `
 $ErrorActionPreference='Stop'
+$projectionClock=[Diagnostics.Stopwatch]::StartNew()
+function Write-ProjectionPhase([string]$Phase){
+ [Console]::Error.WriteLine(('portcove-projection-phase:{0};elapsed_ms={1}' -f $Phase,$projectionClock.ElapsedMilliseconds))
+}
+Write-ProjectionPhase 'entered'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Write-ProjectionPhase 'automation-ready'
 $ast=[Management.Automation.Language.Parser]::ParseFile('${confirmation}',[ref]$null,[ref]$null)
 $other=[Management.Automation.Language.Parser]::ParseFile('${discovery}',[ref]$null,[ref]$null)
+Write-ProjectionPhase 'ast-ready'
 foreach($entry in @(@($ast,'Get-PickerFieldEvidence'),@($other,'Get-NativePickerEditEvidence'))){
  $fn=$entry[0].Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $entry[1]},$true)
  . ([scriptblock]::Create($fn.Extent.Text))
 }
+Write-ProjectionPhase 'functions-ready'
 Add-Type -TypeDefinition @'
 using System;
 public static class PortcoveNativeWindows {
@@ -148,6 +156,7 @@ public static class PortcoveNativeWindows {
  }
 }
 '@
+Write-ProjectionPhase 'stub-ready'
 function Get-NativePickerElement($handle){
  if($handle.ToInt32() -ne 9){throw 'wrong edit'}
  $element=[pscustomobject]@{Current=[pscustomobject]@{ControlType=[System.Windows.Automation.ControlType]::Edit;ProcessId=42}}
@@ -165,6 +174,7 @@ if([PortcoveNativeWindows]::calls -ne 1 -or $pickerFieldEvidence.native_edits.Co
 [PortcoveNativeWindows]::fail=$true;$script:pickerFieldEvidence=$null
 . ([scriptblock]::Create($call))
 if($null -ne $pickerFieldEvidence){throw 'failed diagnostic published evidence'}
+Write-ProjectionPhase 'projection-ready'
 $actionButton=@()
 $guard=[regex]::Match($source,'(?ms)^    \\$nativeAction =.*?(?=^    \\$observation =)').Value
 if(-not $guard){throw 'actual observation guard absent'}
@@ -192,14 +202,27 @@ foreach($case in @('duplicate-pane','foreign-pane','mixed-action','wrong-title')
  try { . ([scriptblock]::Create($guard)) } catch {$refused=$true}
  if(-not $refused -or [PortcoveNativeWindows]::actions -ne 2){throw "ambiguous or foreign Pane accepted $case"}
 }
+Write-ProjectionPhase 'negative-guards-ready'
 'explicit-observation-context-passed'
 `,
     );
+    const started = performance.now();
     const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script], {
       encoding: "utf8",
       windowsHide: true,
       timeout: 10000,
     });
+    t.diagnostic(
+      JSON.stringify({
+        observation: "instrumented field-projection invocation; not original-cause proof",
+        elapsed_ms: performance.now() - started,
+        timeout_ms: 10000,
+        status: result.status,
+        signal: result.signal,
+        error: result.error?.code ?? null,
+        phases: result.stderr?.slice(0, 2048),
+      }),
+    );
     assert.equal(
       result.status,
       0,

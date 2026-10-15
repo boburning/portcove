@@ -50,6 +50,7 @@ import { OutputLocationControl } from "./OutputLocation";
 import { PreparationControl, type RunPreparation } from "./Preparation";
 import {
   currentUpdateSnapshot,
+  defaultReleaseChannel,
   formatBytes,
   installationMethodLabel,
   platformLabel,
@@ -91,44 +92,44 @@ export interface DetailActions {
 type AsyncAction = () => void | Promise<unknown>;
 
 interface DetailPanelProps {
-  perform?: Perform;
-  prepare?: RunPreparation;
-  cancellableActivities?: ActivityRecord[];
+  perform?: Perform | undefined;
+  prepare?: RunPreparation | undefined;
+  cancellableActivities?: ActivityRecord[] | undefined;
   port: PortDefinition;
-  status?: PortStatus;
-  installPlan?: InstallPlan;
+  status?: PortStatus | undefined;
+  installPlan?: InstallPlan | undefined;
   backups?: BackupRecord[];
   backupProblems?: BackupProblem[];
-  backupState?: BackupInventory["state"];
-  backupCreateAssessment?: BackupInventory["create_assessment"];
-  backupRestoreAssessment?: BackupInventory["restore_assessment"];
-  backupReadState?: BackupReadState;
-  retryBackupRead?: () => Promise<void>;
-  source?: SourceRecord;
-  sourceInspection?: SourceInspectionReport;
-  sourceProfile?: SourceProfile;
+  backupState?: BackupInventory["state"] | undefined;
+  backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
+  backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
+  backupReadState?: BackupReadState | undefined;
+  retryBackupRead?: (() => Promise<void>) | undefined;
+  source?: SourceRecord | undefined;
+  sourceInspection?: SourceInspectionReport | undefined;
+  sourceProfile?: SourceProfile | undefined;
   sourcePath: string;
   setSourcePath: (path: string) => void;
-  pickSource?: AsyncAction;
-  pickSourceArchive?: () => void;
-  bios?: SourceRecord;
-  biosInspection?: SourceInspectionReport;
-  biosProfile?: SourceProfile;
-  biosPath?: string;
-  setBiosPath?: (path: string) => void;
-  pickBios?: AsyncAction;
-  busy?: string;
+  pickSource?: AsyncAction | undefined;
+  pickSourceArchive?: (() => void) | undefined;
+  bios?: SourceRecord | undefined;
+  biosInspection?: SourceInspectionReport | undefined;
+  biosProfile?: SourceProfile | undefined;
+  biosPath?: string | undefined;
+  setBiosPath?: ((path: string) => void) | undefined;
+  pickBios?: AsyncAction | undefined;
+  busy?: string | undefined;
   libraryGeneration?: number;
   gameFileQueryContext?: string;
-  gameFileFilterContext?: GameFileFilterContext;
-  browsingMatch?: CatalogQueryResult;
-  browsingBinding?: string;
-  outputLocationChanged?: () => void;
-  externalRuntimeChanged?: () => void;
-  openSourceEvidence?: (evidenceId: string) => void;
-  openHostTool?: (toolId: string) => void;
-  openLibraryStorage?: () => void;
-  inspectSource?: (profile: SourceProfile) => void;
+  gameFileFilterContext?: GameFileFilterContext | undefined;
+  browsingMatch?: CatalogQueryResult | undefined;
+  browsingBinding?: string | undefined;
+  outputLocationChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void) | undefined;
+  openSourceEvidence?: ((evidenceId: string) => void) | undefined;
+  openHostTool?: ((toolId: string) => void) | undefined;
+  openLibraryStorage?: (() => void) | undefined;
+  inspectSource?: ((profile: SourceProfile) => void) | undefined;
   actions: DetailActions;
 }
 
@@ -162,7 +163,7 @@ export function DetailPanel(props: DetailPanelProps) {
   } = props;
   const [outputApplying, setOutputApplying] = useState(false);
   const effectiveBusy = busy ?? (outputApplying ? "storage location" : undefined);
-  const selectedChannel = status?.channel ?? port.channels[0];
+  const selectedChannel = status?.channel ?? defaultReleaseChannel(port);
   const policy = status?.update_policy ?? "notify";
   const {
     sourceReady,
@@ -254,6 +255,75 @@ export function DetailPanel(props: DetailPanelProps) {
     sourceHealth: status?.readiness?.source,
     biosHealth: status?.readiness?.bios,
   };
+  const renderQueryControl = () =>
+    props.libraryGeneration !== undefined &&
+    selectedChannel && (
+      <GameFileQueryControl
+        port={port}
+        channel={selectedChannel}
+        generation={props.libraryGeneration}
+        context={JSON.stringify([
+          props.gameFileQueryContext,
+          port,
+          status,
+          source,
+          sourceProfile,
+          sourceInspection,
+          bios,
+          biosProfile,
+          biosInspection,
+        ])}
+        busy={Boolean(effectiveBusy)}
+      />
+    );
+  const renderCancellations = () =>
+    props.cancellableActivities
+      ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
+      .map((activity) => (
+        <OperationCancellation
+          key={activity.id}
+          operationId={activity.id}
+          state={activity.cancellation ?? undefined}
+        />
+      ));
+  const renderDetailBody = () => (
+    <DetailBody
+      installCancellations={props.cancellableActivities?.filter(
+        (activity) => activity.operation === "install",
+      )}
+      perform={props.perform}
+      prepare={props.prepare}
+      port={port}
+      status={status}
+      stagedVersion={status?.staged?.version}
+      sources={sources}
+      installed={installed}
+      deferSetupChoices={!installed && missingRequirement !== undefined}
+      sourceReady={sourceReady}
+      biosReady={biosReady}
+      launchReady={launchReady}
+      pendingSetup={pendingSetup}
+      runtimeUpdateAvailable={runtimeUpdateAvailable}
+      installPlan={installPlan}
+      selectedChannel={selectedChannel}
+      policy={policy}
+      backups={backups}
+      backupProblems={backupProblems}
+      backupState={backupState}
+      backupCreateAssessment={backupCreateAssessment}
+      backupRestoreAssessment={backupRestoreAssessment}
+      backupReadState={backupReadState}
+      retryBackupRead={retryBackupRead}
+      busy={effectiveBusy}
+      outputExternalBusy={busy}
+      libraryGeneration={props.libraryGeneration ?? 0}
+      outputLocationChanged={props.outputLocationChanged}
+      externalRuntimeChanged={props.externalRuntimeChanged}
+      outputApplying={setOutputApplying}
+      actions={actions}
+      openLibraryStorage={props.openLibraryStorage}
+    />
+  );
   return (
     <section
       className="detail-panel relative w-full min-w-0"
@@ -285,70 +355,9 @@ export function DetailPanel(props: DetailPanelProps) {
         binding={props.browsingBinding}
         gameFiles={props.gameFileFilterContext}
       />
-      {props.libraryGeneration !== undefined && selectedChannel && (
-        <GameFileQueryControl
-          port={port}
-          channel={selectedChannel}
-          generation={props.libraryGeneration}
-          context={JSON.stringify([
-            props.gameFileQueryContext,
-            port,
-            status,
-            source,
-            sourceProfile,
-            sourceInspection,
-            bios,
-            biosProfile,
-            biosInspection,
-          ])}
-          busy={Boolean(effectiveBusy)}
-        />
-      )}
-      {props.cancellableActivities
-        ?.filter((activity) => !(installReviewVisible && activity.operation === "install"))
-        .map((activity) => (
-          <OperationCancellation
-            key={activity.id}
-            operationId={activity.id}
-            state={activity.cancellation ?? undefined}
-          />
-        ))}
-      <DetailBody
-        installCancellations={props.cancellableActivities?.filter(
-          (activity) => activity.operation === "install",
-        )}
-        perform={props.perform}
-        prepare={props.prepare}
-        port={port}
-        status={status}
-        stagedVersion={status?.staged?.version}
-        sources={sources}
-        installed={installed}
-        deferSetupChoices={!installed && missingRequirement !== undefined}
-        sourceReady={sourceReady}
-        biosReady={biosReady}
-        launchReady={launchReady}
-        pendingSetup={pendingSetup}
-        runtimeUpdateAvailable={runtimeUpdateAvailable}
-        installPlan={installPlan}
-        selectedChannel={selectedChannel}
-        policy={policy}
-        backups={backups}
-        backupProblems={backupProblems}
-        backupState={backupState}
-        backupCreateAssessment={backupCreateAssessment}
-        backupRestoreAssessment={backupRestoreAssessment}
-        backupReadState={backupReadState}
-        retryBackupRead={retryBackupRead}
-        busy={effectiveBusy}
-        outputExternalBusy={busy}
-        libraryGeneration={props.libraryGeneration ?? 0}
-        outputLocationChanged={props.outputLocationChanged}
-        externalRuntimeChanged={props.externalRuntimeChanged}
-        outputApplying={setOutputApplying}
-        actions={actions}
-        openLibraryStorage={props.openLibraryStorage}
-      />
+      {renderQueryControl()}
+      {renderCancellations()}
+      {renderDetailBody()}
     </section>
   );
 }
@@ -431,12 +440,12 @@ function DetailBody({
   actions,
   openLibraryStorage,
 }: {
-  installCancellations?: ActivityRecord[];
-  perform?: Perform;
-  prepare?: RunPreparation;
+  installCancellations?: ActivityRecord[] | undefined;
+  perform?: Perform | undefined;
+  prepare?: RunPreparation | undefined;
   port: PortDefinition;
-  status?: PortStatus;
-  stagedVersion?: string;
+  status?: PortStatus | undefined;
+  stagedVersion?: string | undefined;
   sources: SourceControls;
   installed: boolean;
   deferSetupChoices: boolean;
@@ -445,24 +454,24 @@ function DetailBody({
   launchReady: boolean;
   pendingSetup: boolean;
   runtimeUpdateAvailable: boolean;
-  installPlan?: InstallPlan;
+  installPlan?: InstallPlan | undefined;
   selectedChannel: ReleaseChannel;
   policy: UpdatePolicy;
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
-  backupCreateAssessment?: BackupInventory["create_assessment"];
-  backupRestoreAssessment?: BackupInventory["restore_assessment"];
-  backupReadState?: BackupReadState;
-  retryBackupRead?: () => Promise<void>;
-  busy?: string;
-  outputExternalBusy?: string;
+  backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
+  backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
+  backupReadState?: BackupReadState | undefined;
+  retryBackupRead?: (() => Promise<void>) | undefined;
+  busy?: string | undefined;
+  outputExternalBusy?: string | undefined;
   libraryGeneration: number;
-  outputLocationChanged?: () => void;
-  externalRuntimeChanged?: () => void;
+  outputLocationChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void) | undefined;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
-  openLibraryStorage?: () => void;
+  openLibraryStorage?: (() => void) | undefined;
 }) {
   const managedPreparation = Boolean(
     installed &&
@@ -604,10 +613,10 @@ function StatusActionsGroup({
   actions,
   openLibraryStorage,
 }: {
-  installCancellations?: ActivityRecord[];
+  installCancellations?: ActivityRecord[] | undefined;
   port: PortDefinition;
-  status?: PortStatus;
-  stagedVersion?: string;
+  status?: PortStatus | undefined;
+  stagedVersion?: string | undefined;
   sources: SourceControls;
   installed: boolean;
   sourceReady: boolean;
@@ -616,12 +625,12 @@ function StatusActionsGroup({
   pendingSetup: boolean;
   runtimeUpdateAvailable: boolean;
   managedPreparation: boolean;
-  installPlan?: InstallPlan;
-  busy?: string;
+  installPlan?: InstallPlan | undefined;
+  busy?: string | undefined;
   libraryGeneration: number;
-  onChanged?: () => void;
+  onChanged?: (() => void) | undefined;
   actions: DetailActions;
-  openLibraryStorage?: () => void;
+  openLibraryStorage?: (() => void) | undefined;
 }) {
   const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
   if (port.release.provider === "user-prepared" || status?.external_runtime) {
@@ -717,14 +726,14 @@ function RequirementsGroup({
   prepare,
 }: {
   port: PortDefinition;
-  status?: PortStatus;
+  status?: PortStatus | undefined;
   installed: boolean;
   sources: SourceControls;
   managedPreparation: boolean;
   pendingSetup: boolean;
   libraryGeneration: number;
-  busy?: string;
-  prepare?: RunPreparation;
+  busy?: string | undefined;
+  prepare?: RunPreparation | undefined;
 }) {
   const needsAttention =
     !installed ||
@@ -786,15 +795,15 @@ function UpdatesGroup({
   busy,
   actions,
 }: {
-  perform?: Perform;
+  perform?: Perform | undefined;
   port: PortDefinition;
-  status?: PortStatus;
+  status?: PortStatus | undefined;
   installed: boolean;
   deferSetupChoices: boolean;
   selectedChannel: ReleaseChannel;
   policy: UpdatePolicy;
   libraryGeneration: number;
-  busy?: string;
+  busy?: string | undefined;
   actions: DetailActions;
 }) {
   const preferences = (
@@ -873,20 +882,20 @@ function SavesStorageGroup({
   actions,
 }: {
   port: PortDefinition;
-  status?: PortStatus;
+  status?: PortStatus | undefined;
   installed: boolean;
   deferSetupChoices: boolean;
   backups: BackupRecord[];
   backupProblems: BackupProblem[];
   backupState: BackupInventory["state"];
-  backupCreateAssessment?: BackupInventory["create_assessment"];
-  backupRestoreAssessment?: BackupInventory["restore_assessment"];
-  backupReadState?: BackupReadState;
-  retryBackupRead?: () => Promise<void>;
+  backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
+  backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
+  backupReadState?: BackupReadState | undefined;
+  retryBackupRead?: (() => Promise<void>) | undefined;
   libraryGeneration: number;
-  busy?: string;
-  outputExternalBusy?: string;
-  outputLocationChanged?: () => void;
+  busy?: string | undefined;
+  outputExternalBusy?: string | undefined;
+  outputLocationChanged?: (() => void) | undefined;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
 }) {
@@ -1002,7 +1011,7 @@ function InstallationVersionSummary({
   status,
   selectedChannel,
 }: {
-  status?: PortStatus;
+  status?: PortStatus | undefined;
   selectedChannel: ReleaseChannel;
 }) {
   const checked = currentUpdateSnapshot(status)?.check;
@@ -1048,7 +1057,7 @@ function InstallationVersionSummary({
   );
 }
 
-function StorageSummary({ status }: { status?: PortStatus }) {
+function StorageSummary({ status }: { status?: PortStatus | undefined }) {
   return (
     <div className="metadata">
       <span>
@@ -1147,7 +1156,7 @@ function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
   );
 }
 
-function TrustStrip({ status }: { status?: PortStatus }) {
+function TrustStrip({ status }: { status?: PortStatus | undefined }) {
   return (
     <div className="trust-strip">
       <span>
@@ -1227,8 +1236,8 @@ type SourceControls = Pick<
 > & {
   sourceReady: boolean;
   biosReady: boolean;
-  sourceHealth?: SourceHealth | null;
-  biosHealth?: SourceHealth | null;
+  sourceHealth?: SourceHealth | null | undefined;
+  biosHealth?: SourceHealth | null | undefined;
 };
 
 function SourceFields({ controls }: { controls: SourceControls }) {
@@ -1348,10 +1357,10 @@ function TechnicalDetails({
 }: {
   libraryGeneration: number;
   port: PortDefinition;
-  status?: PortStatus;
+  status?: PortStatus | undefined;
   selectedChannel: ReleaseChannel;
   installed: boolean;
-  busy?: string;
+  busy?: string | undefined;
   sources: SourceControls;
   actions: DetailActions;
 }) {
@@ -1464,16 +1473,16 @@ function SourceField({
 }: {
   heading: string;
   profileId: string;
-  profile?: SourceProfile;
-  source?: SourceRecord;
-  inspection?: SourceInspectionReport;
-  health?: SourceHealth | null;
+  profile?: SourceProfile | undefined;
+  source?: SourceRecord | undefined;
+  inspection?: SourceInspectionReport | undefined;
+  health?: SourceHealth | null | undefined;
   path: string;
   setPath: (path: string) => void;
-  pick?: AsyncAction;
-  pickArchive?: () => void;
-  openEvidence?: (evidenceId: string) => void;
-  openHostTool?: (toolId: string) => void;
+  pick?: AsyncAction | undefined;
+  pickArchive?: (() => void) | undefined;
+  openEvidence?: ((evidenceId: string) => void) | undefined;
+  openHostTool?: ((toolId: string) => void) | undefined;
 }) {
   const bios = heading === "Required BIOS";
   const copy = sourceFieldCopy(profile, bios);
@@ -1531,7 +1540,7 @@ function SourceField({
   );
 }
 
-function SourceFileDetails({ source }: { source?: SourceRecord }) {
+function SourceFileDetails({ source }: { source?: SourceRecord | undefined }) {
   if (!source) return null;
   return (
     <details className="source-technical border-t border-pc-border">
@@ -1612,22 +1621,22 @@ function PrimaryActions({
   actions,
   openLibraryStorage,
 }: {
-  installCancellations?: ActivityRecord[];
+  installCancellations?: ActivityRecord[] | undefined;
   sources: SourceControls;
   invalidInstallation: boolean;
   preparationRequired: boolean;
   runtimeNeeded: boolean;
   runtimeUpdateAvailable: boolean;
-  stagedVersion?: string;
+  stagedVersion?: string | undefined;
   installed: boolean;
   sourceReady: boolean;
   biosReady: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
-  plan?: InstallPlan;
-  busy?: string;
+  plan?: InstallPlan | undefined;
+  busy?: string | undefined;
   actions: DetailActions;
-  openLibraryStorage?: () => void;
+  openLibraryStorage?: (() => void) | undefined;
 }) {
   if (invalidInstallation)
     return (
@@ -1711,8 +1720,8 @@ function InstalledPlayActions({
   preparationRequired: boolean;
   launchReady: boolean;
   pendingSetup: boolean;
-  stagedVersion?: string;
-  busy?: string;
+  stagedVersion?: string | undefined;
+  busy?: string | undefined;
   actions: DetailActions;
 }) {
   return (
@@ -1753,8 +1762,8 @@ function StagedActivation({
   busy,
   activate,
 }: {
-  version?: string;
-  busy?: string;
+  version?: string | undefined;
+  busy?: string | undefined;
   activate: DetailActions["activate"];
 }) {
   if (!version) return null;
@@ -1791,20 +1800,20 @@ export function InstallAction({
   openLibraryStorage,
   portaled = true,
 }: {
-  cancellations?: ActivityRecord[];
+  cancellations?: ActivityRecord[] | undefined;
   ready: boolean;
   sourceReady: boolean;
   biosReady: boolean;
-  pickSource?: AsyncAction;
-  pickBios?: AsyncAction;
-  sourceInputId?: string;
-  biosInputId?: string;
-  plan?: InstallPlan;
-  busy?: string;
+  pickSource?: AsyncAction | undefined;
+  pickBios?: AsyncAction | undefined;
+  sourceInputId?: string | undefined;
+  biosInputId?: string | undefined;
+  plan?: InstallPlan | undefined;
+  busy?: string | undefined;
   install: AsyncAction;
   review: AsyncAction;
   dismiss: () => void;
-  openLibraryStorage?: () => void;
+  openLibraryStorage?: (() => void) | undefined;
   portaled?: boolean;
 }) {
   const reviewButton = useRef<HTMLButtonElement>(null);
@@ -1964,10 +1973,10 @@ function MissingInstallAction({
 }: {
   sourceReady: boolean;
   biosReady: boolean;
-  pick?: AsyncAction;
-  inputId?: string;
+  pick?: AsyncAction | undefined;
+  inputId?: string | undefined;
   choosing: boolean;
-  busy?: string;
+  busy?: string | undefined;
   buttonRef: RefObject<HTMLButtonElement | null>;
   onPick: () => void;
 }) {
@@ -2047,7 +2056,7 @@ function PlannedInstallButton({
   install,
 }: {
   plan: InstallPlan;
-  busy?: string;
+  busy?: string | undefined;
   install: AsyncAction;
 }) {
   const blocked = plan.action === "blocked_unverified";
@@ -2106,9 +2115,9 @@ function MaintenanceActions({
   port: PortDefinition;
   libraryGeneration: number;
   canRollback: boolean;
-  status?: PortStatus;
+  status?: PortStatus | undefined;
   verificationPrimary: boolean;
-  busy?: string;
+  busy?: string | undefined;
   actions: DetailActions;
 }) {
   const rollback = portActionPresentation(status, "rollback");
@@ -2160,10 +2169,10 @@ function DataActions({
   assessment,
   readState,
 }: {
-  busy?: string;
+  busy?: string | undefined;
   actions: DetailActions;
-  assessment?: BackupInventory["create_assessment"];
-  readState?: BackupReadState;
+  assessment?: BackupInventory["create_assessment"] | undefined;
+  readState?: BackupReadState | undefined;
 }) {
   const current =
     readState?.status === "current" &&
@@ -2218,7 +2227,13 @@ function DataActions({
   );
 }
 
-function UpdateCheckAction({ busy, check }: { busy?: string; check: DetailActions["check"] }) {
+function UpdateCheckAction({
+  busy,
+  check,
+}: {
+  busy?: string | undefined;
+  check: DetailActions["check"];
+}) {
   return (
     <div className="flex flex-wrap gap-2">
       <Button

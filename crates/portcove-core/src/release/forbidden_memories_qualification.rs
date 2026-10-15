@@ -140,28 +140,35 @@ mod tests {
             DIGEST
         );
         assert!(check(REPOSITORY_ID + 1, value.clone()).is_err());
-        for (pointer, replacement) in [
-            ("/id", serde_json::json!(RELEASE_ID + 1)),
-            ("/tag_name", serde_json::json!("v0.6.2")),
-            ("/draft", serde_json::json!(true)),
-            ("/prerelease", serde_json::json!(true)),
-            ("/assets/0/id", serde_json::json!(ASSET_ID + 1)),
-            ("/assets/0/name", serde_json::json!("alternate-win-x64.zip")),
+        for (asset_field, key, replacement) in [
+            (false, "id", serde_json::json!(RELEASE_ID + 1)),
+            (false, "tag_name", serde_json::json!("v0.6.2")),
+            (false, "draft", serde_json::json!(true)),
+            (false, "prerelease", serde_json::json!(true)),
+            (true, "id", serde_json::json!(ASSET_ID + 1)),
+            (true, "name", serde_json::json!("alternate-win-x64.zip")),
             (
-                "/assets/0/browser_download_url",
+                true,
+                "browser_download_url",
                 serde_json::json!("https://example.invalid/asset.zip"),
             ),
-            ("/assets/0/size", serde_json::json!(SIZE + 1)),
+            (true, "size", serde_json::json!(SIZE + 1)),
             (
-                "/assets/0/digest",
+                true,
+                "digest",
                 serde_json::json!(format!("sha256:{}", "0".repeat(64))),
             ),
         ] {
             let mut changed = value.clone();
-            *changed.pointer_mut(pointer).unwrap() = replacement;
+            let target = if asset_field {
+                &mut changed["assets"][0]
+            } else {
+                &mut changed
+            };
+            *target.get_mut(key).unwrap() = replacement;
             assert!(
                 check(REPOSITORY_ID, changed).is_err(),
-                "accepted drift at {pointer}"
+                "accepted drift at {key} (asset field: {asset_field})"
             );
         }
         let mut duplicate = value;

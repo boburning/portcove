@@ -3,6 +3,8 @@ import { createReadStream } from "node:fs";
 import { lstat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+export const EVIDENCE_READ_CHUNK_BYTES = 1024 * 1024;
+
 export async function fileIdentity(file, { maxBytes = Infinity, signal } = {}) {
   const absolute = path.resolve(file);
   const stats = await lstat(absolute);
@@ -10,7 +12,10 @@ export async function fileIdentity(file, { maxBytes = Infinity, signal } = {}) {
     throw new Error(`Evidence requires an ordinary file: ${absolute}`);
   const hash = createHash("sha256");
   let bytes = 0;
-  for await (const chunk of createReadStream(absolute, { signal })) {
+  for await (const chunk of createReadStream(absolute, {
+    signal,
+    highWaterMark: EVIDENCE_READ_CHUNK_BYTES,
+  })) {
     bytes += chunk.length;
     if (bytes > maxBytes || bytes > stats.size)
       throw new Error("Evidence input grew while being observed");
@@ -73,6 +78,7 @@ export async function writeEvidence(
     reload_cycles: context.reload_cycles ?? null,
     harness_deadline_ms: context.harness_deadline_ms ?? null,
     source_state: context.source_state ?? { revision, clean: null },
+    ...(context.acceptance_preflight ? { acceptance_preflight: context.acceptance_preflight } : {}),
     phases: context.phases ?? [],
     known_gaps: context.known_gaps ?? [],
     qualification_complete:

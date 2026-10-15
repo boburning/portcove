@@ -1,7 +1,8 @@
+import { fixtureValue } from "../../test-fixtures";
 // @vitest-environment jsdom
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import {
   libraryBrowsingKey,
   libraryBrowsingPreferenceKey,
@@ -374,8 +375,8 @@ it("captures browsing context for its own library and resets transient UI on ano
   await act(async () => browsing.switchLibraryWithContext("E:/second"));
   expect(switchLibrary).toHaveBeenCalledWith("E:/second");
   expect(remember).toHaveBeenCalledTimes(1);
-  expect(remember.mock.calls[0][0]).toBe("E:/first");
-  const saved = remember.mock.calls[0][1];
+  expect(fixtureValue(remember.mock.calls[0], "remember.mock.calls[0]")[0]).toBe("E:/first");
+  const saved = fixtureValue(remember.mock.calls[0], "remember.mock.calls[0]")[1];
   expect(saved.inputs.sections.library).toEqual({
     filter: "all",
     readiness: "ready",
@@ -492,7 +493,10 @@ it("restores membership in its section/library without losing legacy or unsuppor
   };
   stored.version = 1;
   stored.inputs.sections.library = { query: "legacy", filter: "setup" };
-  stored.inputs.sections.catalog.filter = { version: 1, membership: ["future-membership"] };
+  fixtureValue(stored.inputs.sections.catalog, "stored catalog section").filter = {
+    version: 1,
+    membership: ["future-membership"],
+  };
   localStorage.setItem(key, JSON.stringify(stored));
   await remount();
   await act(async () => browsing.ui.setView("catalog"));

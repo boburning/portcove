@@ -44,6 +44,27 @@ function onlyKeys(value: Record<string, unknown>, keys: readonly string[]): bool
   return Object.keys(value).every((key) => keys.includes(key));
 }
 
+function storedSectionValid(
+  inputs: unknown,
+  version: unknown,
+  section: (typeof browsingSections)[number],
+): boolean {
+  if (
+    !object(inputs) ||
+    !onlyKeys(
+      inputs,
+      version === 2 && section === "library"
+        ? ["query", "filter", "readiness"]
+        : ["query", "filter"],
+    ) ||
+    (inputs.readiness !== undefined && typeof inputs.readiness !== "string") ||
+    typeof inputs.query !== "string" ||
+    !(typeof inputs.filter === "string" || object(inputs.filter))
+  )
+    return false;
+  return true;
+}
+
 function storedInputs(value: unknown, root: string): BrowsingInputs | undefined {
   if (
     !object(value) ||
@@ -59,19 +80,7 @@ function storedInputs(value: unknown, root: string): BrowsingInputs | undefined 
   )
     return undefined;
   for (const section of browsingSections) {
-    const inputs = value.inputs.sections[section];
-    if (
-      !object(inputs) ||
-      !onlyKeys(
-        inputs,
-        value.version === 2 && section === "library"
-          ? ["query", "filter", "readiness"]
-          : ["query", "filter"],
-      ) ||
-      (inputs.readiness !== undefined && typeof inputs.readiness !== "string") ||
-      typeof inputs.query !== "string" ||
-      !(typeof inputs.filter === "string" || object(inputs.filter))
-    )
+    if (!storedSectionValid(value.inputs.sections[section], value.version, section))
       return undefined;
   }
   // Query objects and unknown legacy identifiers remain intact. The existing
@@ -124,14 +133,14 @@ export function useLibraryBrowsingContext({
   catalogCount,
 }: {
   root: string | null;
-  initial?: LibraryBrowsingContext;
-  returnToSelection?: "switch" | "reset";
+  initial?: LibraryBrowsingContext | undefined;
+  returnToSelection?: "switch" | "reset" | undefined;
   remember: (root: string, context: LibraryBrowsingContext) => void;
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;
   ready?: boolean;
-  installedCount?: number;
-  catalogCount?: number;
+  installedCount?: number | undefined;
+  catalogCount?: number | undefined;
 }) {
   const [restored] = useState(() => {
     const stored = readBrowsingInputs(root);

@@ -21,7 +21,7 @@ export function ArtworkProvider({
   children,
 }: {
   generation: number;
-  catalog?: CatalogDocument | null;
+  catalog?: CatalogDocument | null | undefined;
   children: ReactNode;
 }) {
   const catalogArtworkKey = JSON.stringify(

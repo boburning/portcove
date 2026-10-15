@@ -87,16 +87,15 @@ export function useSourceHealth(
             throw new Error("The inspection does not match the requested saved file.");
           acceptRead({ status: "current" }, report);
         } catch (value: unknown) {
+          const failure = failurePresentation(value);
+          const code =
+            typeof value === "object" && value && "code" in value && typeof value.code === "string"
+              ? value.code
+              : undefined;
           acceptRead({
             status: isCancellation(value) ? "cancelled" : "failed",
-            failure: failurePresentation(value),
-            code:
-              typeof value === "object" &&
-              value &&
-              "code" in value &&
-              typeof value.code === "string"
-                ? value.code
-                : undefined,
+            ...(failure ? { failure } : {}),
+            ...(code !== undefined ? { code } : {}),
           });
         }
       })

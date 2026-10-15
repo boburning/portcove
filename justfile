@@ -31,7 +31,7 @@ pr-merge-rest *args:
     node scripts/pr-delivery.mjs merge {{args}}
 
 development-tools:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/desktop-build-cache.test.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/windows-helper-checks.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/precommit-check.test.mjs scripts/run-oxlint.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/process-lock.test.mjs scripts/renovate-fast-lane.test.mjs scripts/repository-skills.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
+    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/checked-git.test.mjs scripts/resource-status.test.mjs scripts/report-summary.test.mjs scripts/ci-metrics.test.mjs scripts/checkout-context.test.mjs scripts/github-body.test.mjs scripts/audit.test.mjs scripts/audit-evidence.test.mjs scripts/audit-archive.test.mjs scripts/audit-reuse.test.mjs scripts/desktop-build-cache.test.mjs scripts/desktop-scenarios.test.mjs scripts/desktop-execution-plan.test.mjs scripts/desktop-linux-native-session.test.mjs scripts/desktop-linux-stop.test.mjs scripts/desktop-verify.test.mjs scripts/dev-doctor.test.mjs scripts/development-capabilities.test.mjs scripts/development-cli-help.test.mjs scripts/development-evidence.test.mjs scripts/handoff-evidence.test.mjs scripts/native-confirmation.test.mjs scripts/native-helper-dependencies.test.mjs scripts/frontend-command-preflight.test.mjs scripts/windows-helper-checks.test.mjs scripts/heavy-rust-test-lock.test.mjs scripts/local-validation.test.mjs scripts/precommit-check.test.mjs scripts/run-oxlint.test.mjs scripts/native-session-lock.test.mjs scripts/native-session.test.mjs scripts/process-lock.test.mjs scripts/renovate-fast-lane.test.mjs scripts/repository-skills.test.mjs scripts/run-rust-tests.test.mjs scripts/rust-support-cache.test.mjs scripts/rust-test-impact.test.mjs scripts/rust-test-tree-supervisor.test.mjs scripts/tool-cache.test.mjs
 
 # Complete selected local loop; required hosted CI runs its separately selected plan.
 local-check *args:
@@ -99,7 +99,8 @@ clippy:
 
 rust-test:
     {{storage}} node scripts/run-rust-tests.mjs --locked --workspace
-    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked --workspace --doc
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked --workspace --exclude portcove-desktop --doc
+    {{storage}} node scripts/run-rust-tests.mjs --guard-command cargo test --locked -p portcove-desktop --doc
 
 shear:
     {{storage}} cargo shear --deny-warnings
@@ -177,8 +178,8 @@ aqua-integrity-update:
 
 # Generic repository automation and governance contracts.
 repository-tools:
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
-    {{storage}} node --test --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/qualification-coverage.test.mjs scripts/release-result-gate.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/dependency-release-age.test.mjs scripts/corepack-frontend.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/dev-storage.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs
+    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/upstream-observer.test.mjs
+    {{storage}} node --test --test-concurrency=2 --test-timeout=30000 --test-reporter=./scripts/test-duration-reporter.mjs scripts/ci-workflow.test.mjs scripts/ci-health.test.mjs scripts/workflow-provenance.test.mjs scripts/validation-plan.test.mjs scripts/select-ci-plan.test.mjs scripts/ci-result-gate.test.mjs scripts/ci-baseline.test.mjs scripts/qualification-coverage.test.mjs scripts/release-result-gate.test.mjs scripts/linux-beta-risk-706.test.mjs scripts/desktop-input-observation.test.mjs scripts/test-duration-reporter.test.mjs scripts/ui-test-selection.test.mjs scripts/quality-tools.test.mjs scripts/dependency-automation.test.mjs scripts/pnpm-lock-inventory.test.mjs scripts/corepack-frontend.test.mjs scripts/frontend-build-compare.test.mjs scripts/renovate-engine-probe.test.mjs scripts/repository-settings.test.mjs scripts/pr-conventions.test.mjs scripts/pr-delivery.test.mjs scripts/github-api.test.mjs scripts/cleanup-intel-artifacts.test.mjs scripts/dev-storage.test.mjs scripts/generate-catalog.test.mjs scripts/catalog-proposal-costs.test.mjs scripts/migrate-catalog-schema2.test.mjs
     {{storage}} node scripts/qualification-coverage.mjs
     {{storage}} node scripts/check-retcomm-upstreams.mjs --offline
     {{storage}} node scripts/quality-tools.mjs --validate
@@ -221,7 +222,7 @@ check: check-rust check-ui script-lint repository-tools roadmap-check developmen
 
 # Deeper deterministic and structural audit
 deny:
-    {{storage}} cargo deny check --hide-inclusion-graph -W unmaintained
+    {{storage}} node scripts/linux-beta-risk-706.mjs scan
 
 cycles:
     -{{storage}} cargo modules dependencies -p portcove-core --lib --acyclic

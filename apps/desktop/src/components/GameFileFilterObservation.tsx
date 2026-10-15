@@ -12,7 +12,7 @@ export function GameFileFilterObservation({
   context,
 }: {
   portId: string;
-  context?: GameFileFilterContext;
+  context?: GameFileFilterContext | undefined;
 }) {
   const projection = context?.byPort.get(portId);
   if (!projection || projection.port_id !== portId) return null;

@@ -298,11 +298,11 @@ function Workspace({
   consumeLibrarySelectionReturn,
 }: {
   bootstrap: BootstrapStatus;
-  initialBrowsingContext?: LibraryBrowsingContext;
+  initialBrowsingContext?: LibraryBrowsingContext | undefined;
   rememberBrowsingContext: (root: string, context: LibraryBrowsingContext) => void;
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;
-  returnToSelection?: "switch" | "reset";
+  returnToSelection?: "switch" | "reset" | undefined;
   consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
@@ -541,6 +541,101 @@ function Workspace({
     window.requestAnimationFrame(() => focusRegion("workspace"));
   };
 
+  const renderPageHeader = () =>
+    !model.port && (
+      <PageHeader
+        view={ui.view}
+        query={ui.query}
+        setQuery={ui.setQuery}
+        portCount={data.catalog?.ports.length ?? 0}
+        onOpenCommands={() => commandSurface.setOpen(true)}
+      />
+    );
+  const renderPreferenceFailure = () =>
+    preferenceFailure && (
+      <section className="error-banner" role="alert">
+        <div>
+          <strong>Browsing choices are not saved</strong>
+          <p>
+            {preferenceFailure === "read"
+              ? "Saved browsing choices for this library could not be read. The saved data has been kept. Save your current choices to replace these browsing preferences."
+              : "Your browsing choices work for this session, but could not be saved for a restart."}
+          </p>
+          <Button
+            data-focusable
+            variant="outline"
+            onClick={() => {
+              if (saveBrowsingPreferences())
+                window.requestAnimationFrame(() => focusRegion("workspace"));
+            }}
+          >
+            {preferenceFailure === "read" ? "Save current browsing choices" : "Retry saving"}
+          </Button>
+        </div>
+      </section>
+    );
+  const renderWorkspaceView = () =>
+    model.port ? (
+      <SelectedPortPanel
+        model={model}
+        ui={ui}
+        operations={operations}
+        sourceHealth={sourceHealth}
+        installPlanning={installPlanning}
+        backups={backups}
+        activities={data.activities}
+        libraryGeneration={bootstrap.generation}
+        refreshAfterMutation={() => {
+          void data.refreshAfterMutation();
+        }}
+        openSourceIntake={openSourceIntake}
+        openHostTool={openHostTool}
+        openLibraryStorage={() => {
+          setPrimaryView("settings");
+          window.requestAnimationFrame(() => focusSettingsTarget("library-storage"));
+        }}
+        close={closePortDetails}
+      />
+    ) : (
+      <CurrentView
+        favorites={favorites}
+        data={data}
+        ui={{ ...ui, setView: setPrimaryView }}
+        model={model}
+        operations={operations}
+        github={github}
+        updates={updates}
+        sourceHealth={sourceHealth}
+        appearance={appearance}
+        bootstrap={bootstrap}
+        switchLibrary={switchLibraryWithContext}
+        resetLibrary={resetLibraryWithContext}
+        nativeSourceDrag={nativeSourceDrag}
+        hostToolActions={hostToolActions}
+        applicationUpdateNotice={applicationUpdate.notice}
+        applicationUpdatePreferences={applicationUpdateChoice}
+        openPortDetails={openPortDetails}
+        setupSource={setupSource}
+        setSetupSource={setSetupSource}
+      />
+    );
+  const renderSourceIntake = () =>
+    sourceIntake && (
+      <SourceIntakeDialog
+        request={sourceIntake}
+        close={closeSourceIntake}
+        onAdded={data.refreshAfterMutation}
+        openEvidence={(evidenceId) => {
+          void operations.perform(
+            "open source evidence",
+            () => desktopApi.openSourceEvidence(evidenceId),
+            { refresh: "none", invalidateDiagnostics: false },
+          );
+        }}
+        hostTools={data.doctor?.host_tools}
+        hostToolActions={hostToolActions}
+      />
+    );
   return (
     <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
       <div className="app-shell">
@@ -557,15 +652,7 @@ function Workspace({
           onAdopt={() => ui.setAdoptOpen(true)}
         />
         <main ref={workspace} data-focus-region="workspace" tabIndex={-1}>
-          {!model.port && (
-            <PageHeader
-              view={ui.view}
-              query={ui.query}
-              setQuery={ui.setQuery}
-              portCount={data.catalog?.ports.length ?? 0}
-              onOpenCommands={() => commandSurface.setOpen(true)}
-            />
-          )}
+          {renderPageHeader()}
           <StatusLayer
             error={operations.error}
             clearError={() => operations.setError(undefined)}
@@ -591,72 +678,8 @@ function Workspace({
             retryRecovery={data.retryRecovery}
             subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
           />
-          {preferenceFailure && (
-            <section className="error-banner" role="alert">
-              <div>
-                <strong>Browsing choices are not saved</strong>
-                <p>
-                  {preferenceFailure === "read"
-                    ? "Saved browsing choices for this library could not be read. The saved data has been kept. Save your current choices to replace these browsing preferences."
-                    : "Your browsing choices work for this session, but could not be saved for a restart."}
-                </p>
-                <Button
-                  data-focusable
-                  variant="outline"
-                  onClick={() => {
-                    if (saveBrowsingPreferences())
-                      window.requestAnimationFrame(() => focusRegion("workspace"));
-                  }}
-                >
-                  {preferenceFailure === "read" ? "Save current browsing choices" : "Retry saving"}
-                </Button>
-              </div>
-            </section>
-          )}
-          {model.port ? (
-            <SelectedPortPanel
-              model={model}
-              ui={ui}
-              operations={operations}
-              sourceHealth={sourceHealth}
-              installPlanning={installPlanning}
-              backups={backups}
-              activities={data.activities}
-              libraryGeneration={bootstrap.generation}
-              refreshAfterMutation={() => {
-                void data.refreshAfterMutation();
-              }}
-              openSourceIntake={openSourceIntake}
-              openHostTool={openHostTool}
-              openLibraryStorage={() => {
-                setPrimaryView("settings");
-                window.requestAnimationFrame(() => focusSettingsTarget("library-storage"));
-              }}
-              close={closePortDetails}
-            />
-          ) : (
-            <CurrentView
-              favorites={favorites}
-              data={data}
-              ui={{ ...ui, setView: setPrimaryView }}
-              model={model}
-              operations={operations}
-              github={github}
-              updates={updates}
-              sourceHealth={sourceHealth}
-              appearance={appearance}
-              bootstrap={bootstrap}
-              switchLibrary={switchLibraryWithContext}
-              resetLibrary={resetLibraryWithContext}
-              nativeSourceDrag={nativeSourceDrag}
-              hostToolActions={hostToolActions}
-              applicationUpdateNotice={applicationUpdate.notice}
-              applicationUpdatePreferences={applicationUpdateChoice}
-              openPortDetails={openPortDetails}
-              setupSource={setupSource}
-              setSetupSource={setSetupSource}
-            />
-          )}
+          {renderPreferenceFailure()}
+          {renderWorkspaceView()}
         </main>
         <AdoptionOverlay
           ui={ui}
@@ -669,22 +692,7 @@ function Workspace({
           commands={commandSurface.commands}
           close={() => commandSurface.setOpen(false)}
         />
-        {sourceIntake && (
-          <SourceIntakeDialog
-            request={sourceIntake}
-            close={closeSourceIntake}
-            onAdded={data.refreshAfterMutation}
-            openEvidence={(evidenceId) => {
-              void operations.perform(
-                "open source evidence",
-                () => desktopApi.openSourceEvidence(evidenceId),
-                { refresh: "none", invalidateDiagnostics: false },
-              );
-            }}
-            hostTools={data.doctor?.host_tools}
-            hostToolActions={hostToolActions}
-          />
-        )}
+        {renderSourceIntake()}
       </div>
     </ArtworkProvider>
   );
@@ -895,7 +903,7 @@ function CurrentView({
   applicationUpdateNotice: ReturnType<typeof useApplicationUpdateNotice>["notice"];
   applicationUpdatePreferences: ReturnType<typeof useApplicationUpdateChoice>;
   openPortDetails: (portId: string, originKey?: string) => void;
-  setupSource?: SourceRecord;
+  setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
   if (ui.view === "updates")

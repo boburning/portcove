@@ -317,7 +317,9 @@ export function domainsForPath(input) {
       file,
     ) ||
     file === ".oxfmtrc.json" ||
-    file === ".oxlintrc.json"
+    file === ".oxlintrc.json" ||
+    file === "vite.config.ts" ||
+    ["tsconfig.json", "tsconfig.base.json"].includes(file)
   ) {
     add(domains, "ui");
     if (
@@ -824,7 +826,12 @@ export function executeAudit(plan, options = {}) {
         cwd: options.root ?? projectRoot,
         stdio: "inherit",
         windowsHide: true,
-        env: process.env,
+        env: {
+          ...process.env,
+          ...(stage.id === "dependency-policy" && options.scan706Path
+            ? { PORTCOVE_706_SCAN_RECEIPT: options.scan706Path }
+            : {}),
+        },
       }));
   const clock = options.clock ?? (() => Date.now());
   const results = [];
@@ -893,6 +900,7 @@ export function executeAudit(plan, options = {}) {
     profile: plan.profile ?? "complete",
     head: plan.head,
     success,
+    originalExitCode: success ? 0 : 1,
     completedAt: new Date().toISOString(),
     stages: results,
   };
@@ -961,9 +969,11 @@ function parseArguments(argv) {
   let fresh = false;
   let planOnly = false;
   let profile = "complete";
+  let risk706 = false;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--fresh") fresh = true;
+    else if (argument === "--linux-beta-706") risk706 = true;
     else if (argument === "--plan") planOnly = true;
     else if (argument === "--profile") {
       profile = argv[++index];
@@ -974,13 +984,18 @@ function parseArguments(argv) {
   }
   if (fresh && planOnly) throw new Error("--fresh and --plan cannot be combined");
   if (profile !== "transition") auditStagesForProfile(profile);
-  return { help: false, fresh, planOnly, profile };
+  return { help: false, fresh, planOnly, profile, risk706 };
 }
 
 export async function main(argv = process.argv.slice(2)) {
   const options = parseArguments(argv);
   if (options.help) {
-    console.log("usage: audit.mjs [--plan|--fresh] [--profile complete|release|transition]");
+    console.log(
+      "usage: audit.mjs [--plan|--fresh] [--profile complete|release|transition] [--linux-beta-706]",
+    );
+    console.log(
+      "  --linux-beta-706  retain raw audit failure; evaluate only the explicit owner-approved #706 disposition",
+    );
     console.log("  --plan   report stage execution/reuse without running or writing receipts");
     console.log("  --fresh  ignore receipts and execute every applicable stage");
     console.log("  --profile release  delegate source/platform coverage to qualification");
@@ -1046,7 +1061,23 @@ export async function main(argv = process.argv.slice(2)) {
     plan = planAudit({ stages: selection.stages, profile: selection.profile });
   }
   displayPlan(plan);
-  const result = executeAudit(plan, { captureHosted: process.env.PORTCOVE_AUDIT_CAPTURE === "1" });
+  const scan706Path = path.join(
+    projectRoot,
+    "work",
+    "linux-beta-risk-706",
+    `audit-${Date.now()}.json`,
+  );
+  const result = executeAudit(plan, {
+    captureHosted: process.env.PORTCOVE_AUDIT_CAPTURE === "1",
+    scan706Path,
+  });
+  if (options.risk706) {
+    const { validateScan706 } = await import("./linux-beta-risk-706.mjs");
+    validateScan706(
+      JSON.parse(readFileSync(scan706Path, "utf8")),
+      JSON.parse(readFileSync(path.join(projectRoot, ".github/linux-beta-risk-706.json"), "utf8")),
+    );
+  }
   if (process.env.PORTCOVE_AUDIT_CAPTURE === "1" && process.env.GITHUB_OUTPUT) {
     try {
       appendFileSync(process.env.GITHUB_OUTPUT, `capture_available=${result.captureAvailable}\n`);
@@ -1060,7 +1091,39 @@ export async function main(argv = process.argv.slice(2)) {
     const failed = result.results
       .filter((entry) => entry.status === "failed")
       .map((entry) => entry.id);
+    if (options.risk706 && failed.length === 1 && failed[0] === "dependency-policy") {
+      const { disposition706 } = await import("./linux-beta-risk-706.mjs");
+      const scan = JSON.parse(readFileSync(scan706Path, "utf8"));
+      const decision = disposition706(
+        projectRoot,
+        scan,
+        undefined,
+        options.profile === "release" ? "release" : "qualification",
+      );
+      writeJsonAtomic(`${scan706Path}.decision.json`, decision);
+      writeJsonAtomic(
+        path.join(
+          plan.receiptRoot,
+          "audits",
+          `${plan.head}${plan.profile && plan.profile !== "complete" ? `.${plan.profile}` : ""}.json`,
+        ),
+        receiptEnvelope({ ...result.report, policyDecision: decision }),
+      );
+      console.log(
+        `Audit FAILED; separate #706 ${decision.purpose} decision: ${decision.disposition}. Original scan exit ${scan.exitCode}; ${scan706Path}`,
+      );
+      return;
+    }
     throw new Error(`audit failed after all independent stages completed: ${failed.join(", ")}`);
+  }
+  if (options.risk706 && options.profile === "release") {
+    // A passing direct-only scan is not clearance of an affected indirect GLib.
+    const { candidate706 } = await import("./linux-beta-risk-706.mjs");
+    const candidate = candidate706(projectRoot);
+    if (candidate.native.some((p) => p.id.startsWith("glib@0.18.5:")))
+      throw new Error(
+        "Affected Linux release requires complete all-scope #706 evidence; a green incomplete scan is insufficient",
+      );
   }
   console.log(
     selection.profile === "complete"

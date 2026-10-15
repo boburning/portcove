@@ -158,6 +158,7 @@ test("execution planning preserves the independently reviewed pre-change oracle"
         Object.hasOwn(nativeHelperDependencies, added) ||
           nativeHelperSharedSources.includes(added) ||
           added === "scripts/native-readiness.mjs" ||
+          added === "scripts/acceptance-packet.mjs" ||
           added === nativeHelperRegistryPath,
         added,
       );

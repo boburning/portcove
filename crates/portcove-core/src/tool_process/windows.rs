@@ -313,10 +313,13 @@ pub(super) fn spawn_with_occupied_slots(
     )
 }
 
+#[cfg(test)]
+type LateRootExitObservation = Arc<Mutex<Option<(u32, u32, Identity)>>>;
+
 #[derive(Default, Clone)]
 struct TestOptions {
     #[cfg(test)]
-    late_root_exit: Option<Arc<Mutex<Option<(u32, u32, Identity)>>>>,
+    late_root_exit: Option<LateRootExitObservation>,
     #[cfg(test)]
     panic_tree: Option<Arc<PanicTreeObservation>>,
     #[cfg(test)]
@@ -1239,24 +1242,23 @@ impl Controller {
                 }
                 LOAD_DLL_DEBUG_EVENT => {
                     let info = event.u.LoadDll;
-                    if let Ok(file) = owned(info.hFile) {
-                        if let Some(key) = self.live_debug_members.get(&event.dwProcessId).copied()
+                    if let Ok(file) = owned(info.hFile)
+                        && let Some(key) = self.live_debug_members.get(&event.dwProcessId).copied()
+                    {
+                        if self.members[&key].startup_handled
+                            || self.members[&key].system_module.is_some()
                         {
-                            if self.members[&key].startup_handled
-                                || self.members[&key].system_module.is_some()
-                            {
-                                return DBG_CONTINUE;
+                            return DBG_CONTINUE;
+                        }
+                        match system_module(File::from(file), info.lpBaseOfDll as usize) {
+                            Ok(Some(range)) => {
+                                self.members.get_mut(&key).unwrap().system_module = Some(range)
                             }
-                            match system_module(File::from(file), info.lpBaseOfDll as usize) {
-                                Ok(Some(range)) => {
-                                    self.members.get_mut(&key).unwrap().system_module = Some(range)
-                                }
-                                Ok(None) => {}
-                                Err(error) => self.fail(
-                                    "startup_module_identity",
-                                    error.raw_os_error().map(|code| code as u32),
-                                ),
-                            }
+                            Ok(None) => {}
+                            Err(error) => self.fail(
+                                "startup_module_identity",
+                                error.raw_os_error().map(|code| code as u32),
+                            ),
                         }
                     }
                 }
@@ -1310,10 +1312,10 @@ impl Controller {
                 if unsafe { TerminateJobObject(self.job.as_raw_handle(), 1) } == 0 {
                     self.fail("job_termination", Some(unsafe { GetLastError() }));
                 }
-            } else if let Some(root) = self.root {
-                if unsafe { TerminateProcess(self.members[&root].handle.as_raw_handle(), 1) } == 0 {
-                    self.fail("root_termination", Some(unsafe { GetLastError() }));
-                }
+            } else if let Some(root) = self.root
+                && unsafe { TerminateProcess(self.members[&root].handle.as_raw_handle(), 1) } == 0
+            {
+                self.fail("root_termination", Some(unsafe { GetLastError() }));
             }
         }
     }
@@ -1335,18 +1337,17 @@ impl Controller {
                 #[cfg(test)]
                 if event.dwDebugEventCode == EXIT_PROCESS_DEBUG_EVENT
                     && self.root.is_some_and(|root| root.pid == event.dwProcessId)
+                    && let Some(observation) = &self.options.late_root_exit
                 {
-                    if let Some(observation) = &self.options.late_root_exit {
-                        let root = self.root.expect("root exit has retained identity");
-                        let handle = self.members[&root].handle.as_raw_handle();
-                        let early = unsafe { WaitForSingleObject(handle, 0) };
-                        assert_eq!(
-                            early, WAIT_TIMEOUT,
-                            "root signaled before exit continuation"
-                        );
-                        *observation.lock().unwrap() = Some((early, WAIT_TIMEOUT, root));
-                        defer_root_sample = true;
-                    }
+                    let root = self.root.expect("root exit has retained identity");
+                    let handle = self.members[&root].handle.as_raw_handle();
+                    let early = unsafe { WaitForSingleObject(handle, 0) };
+                    assert_eq!(
+                        early, WAIT_TIMEOUT,
+                        "root signaled before exit continuation"
+                    );
+                    *observation.lock().unwrap() = Some((early, WAIT_TIMEOUT, root));
+                    defer_root_sample = true;
                 }
                 self.terminate_if_requested();
                 if unsafe { ContinueDebugEvent(event.dwProcessId, event.dwThreadId, continuation) }
@@ -1977,11 +1978,12 @@ mod native_control_tests {
                         .count(),
                     1
                 );
+                let expected_created = actual_identity.created.to_string();
                 assert!(
                     identities
                         .iter()
                         .all(|identity| identity["created_filetime"] == "0"
-                            || identity["created_filetime"] == actual_identity.created.to_string())
+                            || identity["created_filetime"] == expected_created.as_str())
                 );
             } else {
                 assert_eq!(retained, 1);
@@ -2454,9 +2456,10 @@ mod native_control_tests {
         let identities: Vec<serde_json::Value> =
             serde_json::from_str(&proof["process_tree_identities"]).unwrap();
         let captured = captured.unwrap();
+        let expected_created = captured.created.to_string();
         assert!(identities.iter().any(|identity| {
             identity["pid"] == captured.pid
-                && identity["created_filetime"] == captured.created.to_string()
+                && identity["created_filetime"] == expected_created.as_str()
         }));
         assert!(!working.path().join("orphan-output").exists());
     }
@@ -2555,7 +2558,7 @@ mod launch_tests {
     fn spec() -> NativeToolLaunchSpec {
         let mut spec = ChildProcessPolicy::native_tool_spec(
             ChildProcessClass::UpstreamSetup,
-            r"E:\owned fixture\probe.exe",
+            std::env::temp_dir().join("owned fixture").join("probe.exe"),
         )
         .unwrap();
         spec.environment.clear();
@@ -2581,15 +2584,19 @@ mod launch_tests {
         }
         let mut spec = spec();
         spec.args(["", "雪 café", "a\"b", "a\\"]);
-        spec.current_dir(r"E:\isolated 雪");
+        let directory = std::env::temp_dir().join("isolated 雪");
+        spec.current_dir(&directory);
         let launch = EncodedLaunch::new(&spec).unwrap();
         assert_eq!(
             String::from_utf16(&launch.command[..launch.command.len() - 1]).unwrap(),
-            "\"E:\\owned fixture\\probe.exe\" \"\" \"雪 café\" \"a\\\"b\" \"a\\\\\""
+            format!(
+                "\"{}\" \"\" \"雪 café\" \"a\\\"b\" \"a\\\\\"",
+                spec.program.display()
+            )
         );
         assert_eq!(
             launch.directory.unwrap(),
-            wide(OsStr::new(r"E:\isolated 雪")).unwrap()
+            wide(directory.as_os_str()).unwrap()
         );
     }
 
@@ -2607,10 +2614,7 @@ mod launch_tests {
             "Alpha=\0PATH=replacement\0zeta=雪=café\0\0"
         );
         assert_eq!(spec.environment.len(), 3);
-        assert_eq!(
-            launch.application,
-            wide(OsStr::new(r"E:\owned fixture\probe.exe")).unwrap()
-        );
+        assert_eq!(launch.application, wide(spec.program.as_os_str()).unwrap());
     }
 
     #[test]

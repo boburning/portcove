@@ -2,6 +2,7 @@ import { readFileSync, appendFileSync, writeFileSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
+import { recordsAcceptedQualification706 } from "./linux-beta-risk-706.mjs";
 
 const sha = /^[a-f0-9]{40}$/;
 const number = /^(?:0|[1-9][0-9]{0,12})$/;
@@ -26,6 +27,8 @@ export function renderDeepAuditSummary(receipt, identity, binding) {
     !outcomes.has(identity.outcome)
   )
     return "## Deep audit evidence\n\nIdentity unavailable or invalid; no audit result claimed.\n";
+  const payload = receipt?.payload;
+  const accepted = recordsAcceptedQualification706(payload, identity.source);
   const lines = [
     "## Deep audit evidence",
     "",
@@ -34,11 +37,12 @@ export function renderDeepAuditSummary(receipt, identity, binding) {
     `Workflow source: ${identity.workflowSha}`,
     `Workflow bytes SHA-256: ${identity.workflowDigest}`,
     `Run: ${identity.run}; attempt: ${identity.attempt}`,
-    `Audit step outcome: ${identity.outcome}`,
+    `${accepted ? "Qualification policy operation" : "Audit step"} outcome: ${identity.outcome}`,
   ];
   const exitValid = number.test(identity.exitCode) && Number(identity.exitCode) <= 255;
-  lines.push(`Recorded audit exit status: ${exitValid ? identity.exitCode : "unavailable"}`);
-  const payload = receipt?.payload;
+  lines.push(
+    `Recorded ${accepted ? "policy operation" : "audit"} exit status: ${exitValid ? identity.exitCode : "unavailable"}`,
+  );
   const valid =
     payload &&
     receipt.integrity === receiptEnvelope(payload).integrity &&
@@ -80,7 +84,8 @@ export function renderDeepAuditSummary(receipt, identity, binding) {
     payload.success === payload.stages.every((stage) => stage.status === "passed") &&
     exitValid &&
     ((payload.success && identity.exitCode === "0" && identity.outcome === "success") ||
-      (!payload.success && identity.exitCode !== "0" && identity.outcome === "failure"));
+      (!payload.success && identity.exitCode !== "0" && identity.outcome === "failure") ||
+      (accepted && identity.exitCode === "0" && identity.outcome === "success"));
   if (!valid)
     lines.push(
       "",
@@ -90,6 +95,11 @@ export function renderDeepAuditSummary(receipt, identity, binding) {
     lines.push(
       "",
       `Complete fresh audit receipt: ${payload.success ? "passed" : "failed"}`,
+      ...(accepted
+        ? [
+            "Original audit exit status: 1; separate owner-approved #706 qualification disposition: accepted risk (not an audit pass).",
+          ]
+        : []),
       "",
       "| Stage | Result | Duration (ms) | Exit status |",
       "| --- | --- | ---: | --- | ",

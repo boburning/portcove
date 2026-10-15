@@ -37,13 +37,13 @@ type Group = keyof typeof catalogQueryOptions;
 export type CatalogQuery = { version: number } & Partial<Record<Group, readonly string[]>>;
 
 export interface CatalogQueryContext {
-  devicePlatform?: PortDefinition["platforms"][number];
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   /** A supplied Core snapshot for this selected library; absent is not empty. */
   library?: { id: string; statuses: ReadonlyMap<string, PortStatus> };
   /** A completely covered, currently accepted Core route snapshot, never a readiness approximation. */
-  gameFiles?: GameFileFilterContext;
+  gameFiles?: GameFileFilterContext | undefined;
   /** Ephemeral Core facts accepted atomically with this library's workspace. */
-  browsing?: CatalogBrowsingSnapshot;
+  browsing?: CatalogBrowsingSnapshot | undefined;
 }
 
 export interface CatalogQueryResult {
@@ -81,6 +81,47 @@ function available(
   return group !== "platforms" || value !== "this-device" || !!context.devicePlatform;
 }
 
+function validAttentionReadiness(
+  readiness: PortStatus["readiness"] | undefined,
+): readiness is NonNullable<PortStatus["readiness"]> {
+  return !(
+    !readiness ||
+    typeof readiness.launchable !== "boolean" ||
+    typeof readiness.pending_setup !== "boolean" ||
+    !Array.isArray(readiness.blockers) ||
+    !readiness.blockers.every((blocker) => typeof blocker === "string")
+  );
+}
+
+function attentionMatches(port: PortDefinition, value: string, context: CatalogQueryContext) {
+  const status = context.library?.statuses.get(port.id);
+  // Core supplies readiness for the accepted installation. Unknown or
+  // inconsistent records do not establish a positive attention reason.
+  if (
+    status?.port_id !== port.id ||
+    (!status.active && !status.external_runtime) ||
+    (status.active && status.active.port_id !== port.id) ||
+    (status.external_runtime && status.external_runtime.port_id !== port.id)
+  )
+    return false;
+  const readiness = status.readiness;
+  if (!validAttentionReadiness(readiness)) return false;
+  switch (value) {
+    case "missing-source":
+      return readiness.blockers.includes("missing_source");
+    case "missing-bios":
+      return readiness.blockers.includes("missing_bios");
+    case "missing-runtime":
+      return readiness.blockers.includes("missing_runtime");
+    case "repair-needed":
+      return readiness.blockers.includes("invalid_installation");
+    case "finish-setup":
+      return readiness.pending_setup || readiness.blockers.includes("preparation_required");
+    default:
+      return false;
+  }
+}
+
 function matches(
   port: PortDefinition,
   group: Group,
@@ -111,41 +152,8 @@ function matches(
         Boolean(status.active?.port_id === port.id || status.external_runtime?.port_id === port.id);
       return value === "in-library" ? member : !member;
     }
-    case "attention": {
-      const status = context.library?.statuses.get(port.id);
-      // Core supplies readiness for the accepted installation. Unknown or
-      // inconsistent records do not establish a positive attention reason.
-      if (
-        status?.port_id !== port.id ||
-        (!status.active && !status.external_runtime) ||
-        (status.active && status.active.port_id !== port.id) ||
-        (status.external_runtime && status.external_runtime.port_id !== port.id)
-      )
-        return false;
-      const readiness = status.readiness;
-      if (
-        !readiness ||
-        typeof readiness.launchable !== "boolean" ||
-        typeof readiness.pending_setup !== "boolean" ||
-        !Array.isArray(readiness.blockers) ||
-        !readiness.blockers.every((blocker) => typeof blocker === "string")
-      )
-        return false;
-      switch (value) {
-        case "missing-source":
-          return readiness.blockers.includes("missing_source");
-        case "missing-bios":
-          return readiness.blockers.includes("missing_bios");
-        case "missing-runtime":
-          return readiness.blockers.includes("missing_runtime");
-        case "repair-needed":
-          return readiness.blockers.includes("invalid_installation");
-        case "finish-setup":
-          return readiness.pending_setup || readiness.blockers.includes("preparation_required");
-        default:
-          return false;
-      }
-    }
+    case "attention":
+      return attentionMatches(port, value, context);
   }
 }
 
@@ -155,6 +163,53 @@ function any(values: Match[]): Match {
 }
 function all(values: Match[]): Match {
   return values.includes(false) ? false : values.includes(undefined) ? undefined : true;
+}
+
+function contextActionMatches(
+  port: PortDefinition,
+  fact: CatalogBrowsingContext,
+  group: Group,
+  value: string,
+  context: CatalogQueryContext,
+) {
+  if (!fact.member_context) return false;
+  const status = context.library?.statuses.get(port.id);
+  const instance =
+    fact.route === "managed_launch"
+      ? status?.active
+      : fact.route === "external_launch"
+        ? status?.external_runtime
+        : undefined;
+  if (!instance || instance.id !== fact.installation_id) return undefined;
+  if (group === "attention" && status?.active && fact.route === "external_launch") return undefined;
+  if (group === "updates" && fact.route !== "managed_launch") return false;
+  return matches(port, group, value, context);
+}
+
+function contextGameFilesMatch(
+  port: PortDefinition,
+  fact: CatalogBrowsingContext,
+  value: string,
+  context: CatalogQueryContext,
+) {
+  const observed = context.gameFiles?.byPort.get(port.id);
+  if (
+    !observed ||
+    !context.browsing ||
+    context.gameFiles?.library.id !== context.browsing.library.id ||
+    context.gameFiles.library.root !== context.browsing.library.root
+  )
+    return undefined;
+  if (observed.route !== fact.route) return false;
+  if (fact.platform === null || fact.channel === null) return undefined;
+  if (observed.platform !== fact.platform || observed.channel !== fact.channel) return false;
+  if (
+    !fact.definition_sha256 ||
+    observed.route_definition_sha256 !== fact.definition_sha256 ||
+    (observed.route_instance_sha256 ?? null) !== fact.instance_sha256
+  )
+    return undefined;
+  return observed.state === value;
 }
 
 function contextMatches(
@@ -176,41 +231,10 @@ function contextMatches(
     case "membership":
       return value === "not-in-library" ? !fact.port_member : fact.member_context;
     case "attention":
-    case "updates": {
-      if (!fact.member_context) return false;
-      const status = context.library?.statuses.get(port.id);
-      const instance =
-        fact.route === "managed_launch"
-          ? status?.active
-          : fact.route === "external_launch"
-            ? status?.external_runtime
-            : undefined;
-      if (!instance || instance.id !== fact.installation_id) return undefined;
-      if (group === "attention" && status?.active && fact.route === "external_launch")
-        return undefined;
-      if (group === "updates" && fact.route !== "managed_launch") return false;
-      return matches(port, group, value, context);
-    }
-    case "gameFiles": {
-      const observed = context.gameFiles?.byPort.get(port.id);
-      if (
-        !observed ||
-        !context.browsing ||
-        context.gameFiles?.library.id !== context.browsing.library.id ||
-        context.gameFiles.library.root !== context.browsing.library.root
-      )
-        return undefined;
-      if (observed.route !== fact.route) return false;
-      if (fact.platform === null || fact.channel === null) return undefined;
-      if (observed.platform !== fact.platform || observed.channel !== fact.channel) return false;
-      if (
-        !fact.definition_sha256 ||
-        observed.route_definition_sha256 !== fact.definition_sha256 ||
-        (observed.route_instance_sha256 ?? null) !== fact.instance_sha256
-      )
-        return undefined;
-      return observed.state === value;
-    }
+    case "updates":
+      return contextActionMatches(port, fact, group, value, context);
+    case "gameFiles":
+      return contextGameFilesMatch(port, fact, value, context);
   }
 }
 

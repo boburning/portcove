@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "./api";
 import { ArtworkCache } from "./artwork-cache";
 import { artworkState } from "./test-fixtures";

@@ -1,4 +1,5 @@
-import { expect, it } from "vitest";
+import { fixtureValue } from "../../test-fixtures";
+import { expect, it } from "vite-plus/test";
 import { portDefinition } from "../../test-fixtures";
 import type { GameFileQuerySnapshot } from "../../types";
 import { evaluateCatalogQuery } from "./catalog-query";
@@ -33,7 +34,7 @@ const snapshot = (): GameFileQuerySnapshot => ({
   expires_at: now + 300,
   routes: request.routes.map((route, index) => ({
     ...route,
-    state: states[index],
+    state: fixtureValue(states[index], "states[index]"),
     reason: [
       "complete_compatible_observation",
       "no_connected_registration",
@@ -66,9 +67,12 @@ it("builds one finite complete-catalog request and refuses empty, duplicate and 
   };
   for (const invalid of [
     [],
-    [ports[0], ports[0]],
-    Array.from({ length: 257 }, (_, index) => ({ ...ports[0], id: `port-${index}` })),
-    [{ ...ports[0], id: "é".repeat(65) }],
+    [fixtureValue(ports[0], "ports[0]"), fixtureValue(ports[0], "ports[0]")],
+    Array.from({ length: 257 }, (_, index) => ({
+      ...fixtureValue(ports[0], "ports[0]"),
+      id: `port-${index}`,
+    })),
+    [{ ...fixtureValue(ports[0], "ports[0]"), id: "é".repeat(65) }],
   ])
     expect(gameFileFilterRequest(invalid, selection)).toBeUndefined();
 });
@@ -77,10 +81,15 @@ it("rejects incomplete, extra, duplicate, stale, foreign-library and route-incon
   expect(gameFileFilterContext(baseline, request, library, "scope", now)).toBeDefined();
   for (const invalid of [
     { ...baseline, routes: baseline.routes.slice(1) },
-    { ...baseline, routes: [...baseline.routes, baseline.routes[0]] },
     {
       ...baseline,
-      routes: baseline.routes.map((route, index) => (index === 1 ? baseline.routes[0] : route)),
+      routes: [...baseline.routes, fixtureValue(baseline.routes[0], "baseline.routes[0]")],
+    },
+    {
+      ...baseline,
+      routes: baseline.routes.map((route, index) =>
+        index === 1 ? fixtureValue(baseline.routes[0], "baseline.routes[0]") : route,
+      ),
     },
     { ...baseline, observed_at: now - 301, expires_at: now - 1 },
     { ...baseline, library: { ...library, id: "different" } },
@@ -94,7 +103,11 @@ it("rejects incomplete, extra, duplicate, stale, foreign-library and route-incon
     expect(gameFileFilterContext(invalid, request, library, "scope", now)).toBeUndefined();
 });
 it("offers every Core state, OR within game files, AND across groups, and distinct exact counts", () => {
-  const all = evaluateCatalogQuery([...ports, ports[0]], { version: 1 }, context());
+  const all = evaluateCatalogQuery(
+    [...ports, fixtureValue(ports[0], "ports[0]")],
+    { version: 1 },
+    context(),
+  );
   expect(all.counts.gameFiles).toEqual(Object.fromEntries(states.map((state) => [state, 1])));
   for (const state of states)
     expect(
@@ -139,7 +152,7 @@ it("retains selected choices as unavailable when context or exact catalog covera
     expect(result.counts.gameFiles.files_available).toBeNull();
   }
   const partial = evaluateCatalogQuery(
-    [...ports, { ...ports[0], id: "unchecked" }],
+    [...ports, { ...fixtureValue(ports[0], "ports[0]"), id: "unchecked" }],
     { version: 1 },
     context(),
   );

@@ -1,8 +1,9 @@
+import { fixtureValue } from "../test-fixtures";
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { CatalogStatus, CatalogUpdatePlan } from "../types";
@@ -34,7 +35,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
   const plan: CatalogUpdatePlan = {
     source: { kind: "file", value: "D:/catalog.json" },
     envelope_sha256: "d".repeat(64),
-    key_id: status.trusted_keys[0].key_id,
+    key_id: fixtureValue(status.trusted_keys[0], "status.trusted_keys[0]").key_id,
     sequence: 1,
     issued_at: 1789620000,
     expires_at: 1789706400,
@@ -203,19 +204,24 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     expect(document.body.textContent).not.toContain("Publisher trust removed.");
     expect(document.body.textContent).not.toContain("Catalog settings saved.");
     await click("Stop trusting");
-    expect(revoke).toHaveBeenLastCalledWith(status.trusted_keys[0].key_id, status.state_sha256);
+    expect(revoke).toHaveBeenLastCalledWith(
+      fixtureValue(status.trusted_keys[0], "status.trusted_keys[0]").key_id,
+      status.state_sha256,
+    );
     expect(document.body.textContent).toContain("Publisher trust removed.");
     const trust = vi.spyOn(desktopApi, "trustCatalogKey").mockResolvedValue(restored);
     const key = document.body.querySelector<HTMLInputElement>("#catalog-public-key")!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
         key,
-        status.trusted_keys[0].public_key,
+        fixtureValue(status.trusted_keys[0], "status.trusted_keys[0]").public_key,
       );
       key.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await click("Trust publisher");
-    expect(trust).toHaveBeenCalledWith(status.trusted_keys[0].public_key);
+    expect(trust).toHaveBeenCalledWith(
+      fixtureValue(status.trusted_keys[0], "status.trusted_keys[0]").public_key,
+    );
     expect(document.body.textContent).toContain("Publisher trusted.");
     await click("Close");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
@@ -256,14 +262,16 @@ it("keeps fallback diagnostics in distinct technical disclosures with safe summa
   host.innerHTML = html;
   const disclosures = [...host.querySelectorAll("details")];
   expect(disclosures).toHaveLength(reasons.length);
-  expect(disclosures[3].parentElement?.querySelector("p")?.textContent).toBe(
+  expect(
+    fixtureValue(disclosures[3], "disclosures[3]").parentElement?.querySelector("p")?.textContent,
+  ).toBe(
     "A saved catalog could not be used. Portcove continued with the available catalog information.",
   );
   for (const [index, reason] of reasons.entries()) {
     expect(html).toContain(
       `aria-label="Technical details for catalog fallback ${index + 1} of ${reasons.length}"`,
     );
-    expect(disclosures[index].textContent).toContain(reason);
+    expect(fixtureValue(disclosures[index], "disclosures[index]").textContent).toContain(reason);
   }
   for (const disclosure of disclosures) disclosure.remove();
   for (const reason of reasons) expect(host.textContent).not.toContain(reason);

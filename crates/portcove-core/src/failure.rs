@@ -529,11 +529,15 @@ mod tests {
                 MutationState::RecoveryRequired,
                 MutationState::Unknown,
             ] {
-                let error = PortcoveError::new(code, "original diagnostic /private/source")
-                    .detail("path", "/private/source")
-                    .during(phase)
-                    .with_mutation_state(state)
-                    .offer_recovery(RecoveryAction::ReviewPreparation);
+                let private_source = std::env::temp_dir().join("private-source");
+                let error = PortcoveError::new(
+                    code,
+                    format!("original diagnostic {}", private_source.display()),
+                )
+                .detail("path", private_source.to_string_lossy())
+                .during(phase)
+                .with_mutation_state(state)
+                .offer_recovery(RecoveryAction::ReviewPreparation);
                 let original = error.report();
                 let report = error.with_preparation_cause(cause).report();
                 assert_eq!(report.code, original.code);

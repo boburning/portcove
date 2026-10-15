@@ -681,7 +681,7 @@ fn inspect_pinned_validator_identity(
             else {
                 continue;
             };
-            if !representation_extensions_match(representation, &identity) {
+            if !representation_extensions_match(representation, identity) {
                 continue;
             }
             let validator = source_catalog

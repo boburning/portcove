@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { applyOperationEvent, mostRecentOperation } from "./operation-state";
 import type { OperationEvent } from "../../types";
 

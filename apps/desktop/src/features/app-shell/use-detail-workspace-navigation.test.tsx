@@ -8,7 +8,7 @@ import {
   type SetStateAction,
 } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { useDetailWorkspaceNavigation } from "./use-detail-workspace-navigation";
 
 let root: Root | undefined;

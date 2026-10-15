@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { LibrarySelectionCard } from "./Chrome";
 import { desktopApi } from "../api";
 import { failureReport } from "../test-fixtures";
@@ -21,7 +21,7 @@ function RemountedWorkspace({
   resetLibrary,
 }: {
   generation: number;
-  trigger?: "switch" | "reset";
+  trigger?: "switch" | "reset" | undefined;
   consume: () => void;
   switchLibrary: (path: string) => Promise<void>;
   resetLibrary: () => Promise<void>;

@@ -1,3 +1,5 @@
+import { assertReviewFieldPresentation } from "./desktop-review-controls.mjs";
+import { ownedFixtureCommand } from "./desktop-scenario-state.mjs";
 // Actual-Tauri proof for the paired one-off intake and explicit-folder source journeys.
 import assert from "node:assert/strict";
 import {
@@ -9,7 +11,6 @@ import { readFileSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
-import { spawnCommand } from "../../../scripts/dev-storage.mjs";
 import {
   assertCompactReview,
   assertPrimaryReviewAction,
@@ -390,35 +391,12 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
     );
     const searchField = await browser.findElement(By.id("source-search-root"));
     const searchLabel = await browser.findElement(By.css('label[for="source-search-root"]'));
-    const fieldPresentation = await browser.executeScript(
-      `const field = arguments[0];
-       const label = arguments[1];
-       const dialog = arguments[2];
-       const fieldStyle = getComputedStyle(field);
-       const labelStyle = getComputedStyle(label);
-       const dialogStyle = getComputedStyle(dialog);
-       return {
-         width: fieldStyle.width,
-         paddingLeft: fieldStyle.paddingLeft,
-         borderStyle: fieldStyle.borderStyle,
-         borderWidth: fieldStyle.borderWidth,
-         backgroundColor: fieldStyle.backgroundColor,
-         dialogBackgroundColor: dialogStyle.backgroundColor,
-         color: fieldStyle.color,
-         labelColor: labelStyle.color,
-         labelFontWeight: labelStyle.fontWeight,
-       };`,
+    const fieldPresentation = await assertReviewFieldPresentation(
+      browser,
       searchField,
       searchLabel,
       await browser.findElement(discoveryDialog),
     );
-    assert.ok(parseFloat(fieldPresentation.width) >= 200, JSON.stringify(fieldPresentation));
-    assert.ok(parseFloat(fieldPresentation.paddingLeft) >= 10, JSON.stringify(fieldPresentation));
-    assert.equal(fieldPresentation.borderStyle, "solid");
-    assert.ok(parseFloat(fieldPresentation.borderWidth) >= 1, JSON.stringify(fieldPresentation));
-    assert.notEqual(fieldPresentation.backgroundColor, "rgba(0, 0, 0, 0)");
-    assert.notEqual(fieldPresentation.backgroundColor, fieldPresentation.dialogBackgroundColor);
-    assert.ok(Number(fieldPresentation.labelFontWeight) >= 700, JSON.stringify(fieldPresentation));
     const selectTrigger = await browser.findElement(
       By.xpath('//button[contains(., "Required files")]'),
     );
@@ -604,26 +582,7 @@ export async function sourceDialogScenario({ browser, scenario, output, artifact
 }
 
 function selectedSetupCommand({ cli, library, output, fixture }) {
-  return (args) => {
-    const result = spawnCommand(
-      cli,
-      ["--library", library, "--json", "--non-interactive", ...args],
-      {
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 15_000,
-        env: {
-          ...process.env,
-          PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
-          PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
-        },
-      },
-    );
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-    const response = JSON.parse(result.stdout);
-    assert.equal(response.ok, true);
-    return response.data;
-  };
+  return ownedFixtureCommand({ cli, library, output, catalogPath: fixture.catalogPath });
 }
 
 // Fixture pre-state only: no native-picker or source-registration claim.

@@ -18,7 +18,7 @@ export function CliContinuity({
 }: {
   generation: number;
   port: PortDefinition;
-  status?: PortStatus;
+  status?: PortStatus | undefined;
   channel: ReleaseChannel;
   sourcePath: string;
   biosPath: string;

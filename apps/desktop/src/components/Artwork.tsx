@@ -231,7 +231,7 @@ function ArtworkSource({
   state,
   renderedSource,
 }: {
-  state?: ArtworkState;
+  state?: ArtworkState | undefined;
   renderedSource: "local_import" | "igdb_cover" | "generated_fallback" | undefined;
 }) {
   if (state?.resolved_source.kind === "igdb_cover") {

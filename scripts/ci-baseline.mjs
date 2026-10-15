@@ -97,6 +97,7 @@ export function baselineFrontendPlan(plan, options) {
       "ui-copy",
       "ui-transport-types",
       "ui-ipc-exposure",
+      "ui-check",
       "ui-build",
       "ui-tests",
       "ui-related-tests",

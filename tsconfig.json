@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "vite.config.ts",
+    "apps/desktop/vite.config.ts",
+    "apps/desktop/i18next.config.ts",
+    "apps/desktop/i18next.invalid.config.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.mts",
+    "apps/desktop/scripts/**/*.ts",
+    "apps/desktop/scripts/**/*.mts"
+  ],
+  "extends": "./tsconfig.base.json"
+}

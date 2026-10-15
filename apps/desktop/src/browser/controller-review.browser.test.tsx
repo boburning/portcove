@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
 import { useGamepadNavigation } from "../gamepad";

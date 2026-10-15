@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { afterEach, beforeEach, describe, test } from "vitest";
+import { afterEach, beforeEach, describe, test } from "vite-plus/test";
 import { prepareReleaseVersion } from "./prepare-release-version.mjs";
 
 const roots = [];

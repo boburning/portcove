@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { CatalogFilters } from "./CatalogFilters";
 import type { CatalogQuery, CatalogQueryContext } from "./catalog-query";
 import { portDefinition, portStatus } from "../../test-fixtures";
@@ -90,7 +90,7 @@ function retainedContext(statuses: ReadonlyMap<string, PortStatus>): CatalogQuer
     devicePlatform: browsing.host_platform,
   };
 }
-function Fixture({ initial = "all" }: { initial?: Filter | CatalogQuery }) {
+function Fixture({ initial = "all" }: { initial?: Filter | CatalogQuery | undefined }) {
   const [filter, setFilter] = useState(initial);
   const [context, contextSetter] = useState<CatalogQueryContext>();
   setContext = contextSetter;

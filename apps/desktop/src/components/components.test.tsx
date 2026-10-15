@@ -1,6 +1,7 @@
+import { fixtureValue } from "../test-fixtures";
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import type {
   ActivityRecord,
   DoctorReport,
@@ -87,9 +88,9 @@ const mortalKombat4Profile = {
 const mortalKombat4Source = {
   profile_id: mortalKombat4Profile.id,
   path: "game.chd",
-  sha256: mortalKombat4Profile.accepted_sha256[0],
+  sha256: fixtureValue(mortalKombat4Profile.accepted_sha256[0], "reviewed MK4 digest"),
   size: 1,
-  storage_sha256: mortalKombat4Profile.accepted_sha256[0],
+  storage_sha256: fixtureValue(mortalKombat4Profile.accepted_sha256[0], "reviewed MK4 digest"),
   storage_size: 1,
   updated_at: 1,
 };
@@ -184,7 +185,10 @@ it.each([
     />,
   );
   const button = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].find(
-    ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim() === "Restore previous version",
+    ([, content]) =>
+      fixtureValue(content, "button HTML capture")
+        .replaceAll(/<[^>]+>/g, "")
+        .trim() === "Restore previous version",
   )?.[0];
   expect(button).toBeDefined();
   expect(button?.includes('disabled=""')).toBe(disabled);
@@ -849,31 +853,67 @@ describe("desktop components", () => {
     };
     const check = status.last_update_check?.check;
     if (!check) throw new Error("Current update fixture is required");
-    if (difference === "newer release") check.release.version = "3.0";
-    if (difference === "different artifact") check.release.asset.sha256 = "e".repeat(64);
-    if (difference === "different asset name") check.release.asset.name = "other.zip";
-    if (difference === "different asset size") check.release.asset.size = 2;
-    if (difference === "different channel") downloaded.channel = "beta";
-    if (difference === "different required runtime") check.required_runtime = runtimeIdentity;
-    if (difference === "different downloaded runtime") downloaded.runtime = runtimeIdentity;
-    if (difference === "different port") downloaded.port_id = "other-port";
-    if (difference === "unverified download") downloaded.verified = false;
-    if (difference === "unknown artifact") {
-      downloaded.artifact = { ...downloaded.artifact, sha256: "" };
-      check.release.asset.sha256 = "";
-    }
-    if (difference === "stale installed version") check.installed_version = "0.9";
-    if (difference === "stale installed artifact")
-      check.installed_artifact = { ...install.artifact, sha256: "e".repeat(64) };
-    if (difference === "stale installed runtime") check.installed_runtime = runtimeIdentity;
-    if (difference === "stale selected channel") status.channel = "beta";
-    if (difference === "stale active port") status.active!.port_id = "other";
-    if (difference === "stale checked port") check.port_id = "other";
-    if (difference === "stale installed name")
-      check.installed_artifact = { ...install.artifact, asset_name: "old.zip" };
-    if (difference === "stale installed size")
-      check.installed_artifact = { ...install.artifact, size: 2 };
-    if (difference === "unspecified asset size") check.release.asset.size = 0;
+    const mutate: Record<string, () => void> = {
+      "newer release": () => {
+        check.release.version = "3.0";
+      },
+      "different artifact": () => {
+        check.release.asset.sha256 = "e".repeat(64);
+      },
+      "different asset name": () => {
+        check.release.asset.name = "other.zip";
+      },
+      "different asset size": () => {
+        check.release.asset.size = 2;
+      },
+      "different channel": () => {
+        downloaded.channel = "beta";
+      },
+      "different required runtime": () => {
+        check.required_runtime = runtimeIdentity;
+      },
+      "different downloaded runtime": () => {
+        downloaded.runtime = runtimeIdentity;
+      },
+      "different port": () => {
+        downloaded.port_id = "other-port";
+      },
+      "unverified download": () => {
+        downloaded.verified = false;
+      },
+      "unknown artifact": () => {
+        downloaded.artifact = { ...downloaded.artifact, sha256: "" };
+        check.release.asset.sha256 = "";
+      },
+      "stale installed version": () => {
+        check.installed_version = "0.9";
+      },
+      "stale installed artifact": () => {
+        check.installed_artifact = { ...install.artifact, sha256: "e".repeat(64) };
+      },
+      "stale installed runtime": () => {
+        check.installed_runtime = runtimeIdentity;
+      },
+      "stale selected channel": () => {
+        status.channel = "beta";
+      },
+      "stale active port": () => {
+        status.active!.port_id = "other";
+      },
+      "stale checked port": () => {
+        check.port_id = "other";
+      },
+      "stale installed name": () => {
+        check.installed_artifact = { ...install.artifact, asset_name: "old.zip" };
+      },
+      "stale installed size": () => {
+        check.installed_artifact = { ...install.artifact, size: 2 };
+      },
+      "unspecified asset size": () => {
+        check.release.asset.size = 0;
+      },
+    };
+    mutate[difference]?.();
     const html = renderToStaticMarkup(
       <PortBrowser
         view={view}
@@ -927,7 +967,7 @@ describe("desktop components", () => {
             launchable: health === "current",
             blockers: [],
             pending_setup: false,
-            source: health,
+            ...(health !== undefined ? { source: health } : {}),
           },
         }}
       />,
@@ -2178,7 +2218,7 @@ describe("desktop components", () => {
               launchable: false,
               blockers: ["missing_source"],
               pending_setup: false,
-              source: health,
+              ...(health !== undefined ? { source: health } : {}),
             },
           }}
         />,
@@ -2303,7 +2343,10 @@ describe("desktop components", () => {
       />,
     );
     const buttonLabels = [...installed.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
-      ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
+      ([, content]) =>
+        fixtureValue(content, "button HTML capture")
+          .replaceAll(/<[^>]+>/g, "")
+          .trim(),
     );
     expect(uninstalled).toContain("Choose game files");
     expect(uninstalled.match(/Game files needed/g)).toHaveLength(1);
@@ -2524,7 +2567,9 @@ describe("desktop components", () => {
       />,
     );
     const buttonLabels = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(([, content]) =>
-      content.replaceAll(/<[^>]+>/g, "").trim(),
+      fixtureValue(content, "button HTML capture")
+        .replaceAll(/<[^>]+>/g, "")
+        .trim(),
     );
     expect(html).toContain("Final Fantasy VII (USA) three-disc set");
     expect(html).toContain("Choose the folder that contains all required game discs");
@@ -2580,7 +2625,9 @@ describe("desktop components", () => {
       />,
     );
     const buttonLabels = [...html.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(([, content]) =>
-      content.replaceAll(/<[^>]+>/g, "").trim(),
+      fixtureValue(content, "button HTML capture")
+        .replaceAll(/<[^>]+>/g, "")
+        .trim(),
     );
     expect(html).toContain("Choose the folder or ZIP file that contains the required game files");
     expect(html).toContain("Portcove checks this location without uploading or changing it.");
@@ -2614,7 +2661,10 @@ describe("desktop components", () => {
     );
     expect(unselected).toContain("Choose BIOS file");
     const unselectedButtons = [...unselected.matchAll(/<button\b[^>]*>(.*?)<\/button>/gs)].map(
-      ([, content]) => content.replaceAll(/<[^>]+>/g, "").trim(),
+      ([, content]) =>
+        fixtureValue(content, "button HTML capture")
+          .replaceAll(/<[^>]+>/g, "")
+          .trim(),
     );
     expect(unselectedButtons.filter((label) => label === "Choose BIOS file")).toHaveLength(2);
     expect(unselected).toContain("Add the required BIOS file before installing");
@@ -2870,8 +2920,15 @@ describe("desktop components", () => {
           presentation: {
             ...port.presentation!,
             source_requirements: [
-              { ...requirements[0], verification: "upstream-validator" },
-              { ...requirements[0], role: "bios", verification: "catalog-rules" },
+              {
+                ...fixtureValue(requirements[0], "configured game-file requirement"),
+                verification: "upstream-validator",
+              },
+              {
+                ...fixtureValue(requirements[0], "configured game-file requirement"),
+                role: "bios",
+                verification: "catalog-rules",
+              },
             ],
           },
         }}

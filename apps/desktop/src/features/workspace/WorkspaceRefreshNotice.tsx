@@ -15,8 +15,8 @@ export function WorkspaceRefreshNotice({
   retryRecovery,
   subscriptionFailure,
 }: {
-  failure?: { error: unknown };
-  recoveryFailure?: { error: unknown };
+  failure?: { error: unknown } | undefined;
+  recoveryFailure?: { error: unknown } | undefined;
   hasSnapshot: boolean;
   refreshing: boolean;
   retry: () => Promise<void>;

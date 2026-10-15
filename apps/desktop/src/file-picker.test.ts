@@ -1,5 +1,5 @@
 import { sourceProfile } from "./test-fixtures";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   pickGameOutputFolder,

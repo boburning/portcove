@@ -27,8 +27,8 @@ export function SourceIdentityPanel({
   openHostTool,
 }: {
   report: SourceInspectionReport;
-  openEvidence?: (evidenceId: string) => void;
-  openHostTool?: (toolId: string) => void;
+  openEvidence?: ((evidenceId: string) => void) | undefined;
+  openHostTool?: ((toolId: string) => void) | undefined;
 }) {
   const inspection = report.inspection;
   const recognized =
@@ -169,8 +169,8 @@ function ApplicationResult({
   selectedRepresentationId,
 }: {
   application: SourceInspectionReport["applications"][number];
-  selectedVariantId?: string;
-  selectedRepresentationId?: string;
+  selectedVariantId?: string | undefined;
+  selectedRepresentationId?: string | undefined;
 }) {
   const result = contractLabel(application.contract_result.state);
   const applicability = applicabilityLabel(

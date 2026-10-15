@@ -81,8 +81,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     get_workspace_snapshot: (args) => {
       requireArgs("get_workspace_snapshot", args, { generation });
       const snapshot = workspace(journey);
-      if (prepared)
-        snapshot.statuses[0].readiness = {
+      const [status] = snapshot.statuses;
+      if (prepared && !status) throw new Error("Prepared scenario has no port status");
+      if (prepared && status)
+        status.readiness = {
           launchable: true,
           pending_setup: false,
           blockers: [],
@@ -238,11 +240,12 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   };
   mockIPC(
     (command, payload) => {
-      if (disposed || !Object.hasOwn(handlers, command)) return unsupported(command);
+      const handler = handlers[command];
+      if (disposed || !Object.hasOwn(handlers, command) || !handler) return unsupported(command);
       if (Array.isArray(payload) || payload instanceof ArrayBuffer || payload instanceof Uint8Array)
         return unsupported(`${command} (unexpected payload)`);
       calls.push(command);
-      return handlers[command](payload);
+      return handler(payload);
     },
     { shouldMockEvents: true },
   );

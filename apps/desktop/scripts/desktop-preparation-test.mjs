@@ -1,3 +1,4 @@
+import { ownedFixtureCommand } from "./desktop-scenario-state.mjs";
 // Optional owned-fixture scenarios; all state stays under desktop-test's new output directory.
 import assert from "node:assert/strict";
 import {
@@ -622,25 +623,7 @@ export async function preparationScenarios({
   closeApplication,
   captureLivePreparation,
 }) {
-  const command = (args, selectedLibrary = library) => {
-    const result = spawnCommand(
-      cli,
-      ["--library", selectedLibrary, "--json", "--non-interactive", ...args],
-      {
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: 15_000,
-        env: {
-          ...process.env,
-          PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
-        },
-      },
-    );
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-    const response = JSON.parse(result.stdout);
-    assert.equal(response.ok, true);
-    return response.data;
-  };
+  const command = ownedFixtureCommand({ cli, library, output });
   const host =
     process.platform === "win32"
       ? "windows-x86-64"

@@ -26,6 +26,26 @@ export async function beginEmbeddedEvidence(method) {
   };
 }
 
+async function probeOwnedListener(port, remaining, probes) {
+  const probe = { started_at: new Date().toISOString() };
+  probes.push(probe);
+  let response;
+  try {
+    response = await fetch(`http://127.0.0.1:${port}/status`, {
+      signal: AbortSignal.timeout(Math.min(1000, remaining)),
+    });
+    probe.status = response.status;
+  } catch (error) {
+    probe.error = String(error);
+    // An owned listening socket can precede its HTTP server readiness.
+    // Keep polling within the original deadline; other failures are fatal.
+    if (!["TimeoutError", "AbortError"].includes(error.name)) throw error;
+  } finally {
+    probe.finished_at = new Date().toISOString();
+  }
+  return response;
+}
+
 export async function startEmbeddedInstalledSession(application, output, launchArguments = []) {
   assert.equal(process.platform, "win32");
   const identity = await hashFile(application);
@@ -140,22 +160,7 @@ export async function startEmbeddedInstalledSession(application, output, launchA
           // Verify listener ownership before contacting or connecting to it.
           const remaining = deadline - Date.now();
           if (remaining <= 0) break;
-          const probe = { started_at: new Date().toISOString() };
-          session.statusProbes.push(probe);
-          let response;
-          try {
-            response = await fetch(`http://127.0.0.1:${port}/status`, {
-              signal: AbortSignal.timeout(Math.min(1000, remaining)),
-            });
-            probe.status = response.status;
-          } catch (error) {
-            probe.error = String(error);
-            // An owned listening socket can precede its HTTP server readiness.
-            // Keep polling within the original deadline; other failures are fatal.
-            if (!["TimeoutError", "AbortError"].includes(error.name)) throw error;
-          } finally {
-            probe.finished_at = new Date().toISOString();
-          }
+          const response = await probeOwnedListener(port, remaining, session.statusProbes);
           if (response?.ok) {
             session.listener = listener;
             const { Builder } = await import("selenium-webdriver");

@@ -70,7 +70,12 @@ export function useFavorites(generation: number) {
             const next = new Set(current.ids);
             if (favorite) next.add(portId);
             else next.delete(portId);
-            return { generation, ids: next, busy: false, failure: current.failure };
+            return {
+              generation,
+              ids: next,
+              busy: false,
+              ...(current.failure === undefined ? {} : { failure: current.failure }),
+            };
           });
           return true;
         }

@@ -9,7 +9,7 @@ import { setTimeout as waitRealTime } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
 import { gunzipSync } from "node:zlib";
-import { test, vi } from "vitest";
+import { afterAll, beforeAll, describe, test, vi } from "vite-plus/test";
 import { JSDOM } from "jsdom";
 import {
   createInstallFixture,
@@ -257,69 +257,84 @@ test("completion fixture refuses missing tool inputs and mixed discovery selecti
   assert.deepEqual(registered, ["native-selected-setup-completion"]);
 });
 
-test.runIf(process.platform === "win32")(
-  "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route",
-  async () => {
-    const output = await mkdtemp(path.join(tmpdir(), "portcove-probe-mode-"));
-    try {
-      const tool = path.join(output, process.platform === "win32" ? "probe.exe" : "probe");
-      const compiled = spawnCommand(
-        "rustc",
-        [
-          "--edition=2024",
-          "--crate-name",
-          "portcove_probe_mode_contract",
-          path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
-          "-o",
-          tool,
-        ],
-        { encoding: "utf8", windowsHide: true, timeout: 30_000 },
-      );
-      assert.equal(compiled.error, undefined);
-      assert.equal(compiled.status, 0, compiled.stderr);
-      for (const [name, args, legacy, succeeds, marker] of [
-        ["explicit", ["--owned-fixture-mode", "success"], null, true, true],
-        ["default", [], null, true, false],
-        ["legacy", [], "success", true, true],
-        ["missing-marker", ["--owned-fixture-mode", "missing-marker"], null, true, false],
-        ["failure", ["--owned-fixture-mode", "failure"], null, false, true],
-        ["missing-mode", ["--owned-fixture-mode"], null, false, false],
-        ["unsupported", ["--owned-fixture-mode", "invented"], null, false, false],
-        [
-          "duplicate",
-          ["--owned-fixture-mode", "success", "--owned-fixture-mode", "success"],
-          null,
-          false,
-          false,
-        ],
-      ]) {
-        const cwd = path.join(output, name);
-        await mkdir(cwd);
-        if (legacy) await writeFile(path.join(cwd, "owned-setup-mode"), legacy);
-        const result = spawnCommand(tool, ["--owned-preparation", ...args], {
-          cwd,
-          env: { ...process.env, SHIP_HOME: cwd },
-          encoding: "utf8",
-          windowsHide: true,
-          timeout: 5_000,
-        });
-        assert.equal(result.error, undefined, name);
-        assert.equal(result.status === 0, succeeds, `${name}: ${result.stderr}`);
-        if (marker)
-          assert.equal(
-            await readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT"), "utf8"),
-            "owned validated output",
-          );
-        else
-          await assert.rejects(readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT")), {
-            code: "ENOENT",
+describe("owned Windows probe fixture", () => {
+  // Compiler preparation has its own existing 30-second child budget; it must
+  // not consume Vitest's five-second per-behavior assertion budget.
+  let probeOutput;
+  let probeTool;
+  beforeAll(async () => {
+    if (process.platform !== "win32") return;
+    probeOutput = await mkdtemp(path.join(tmpdir(), "portcove-probe-compiler-"));
+    probeTool = path.join(probeOutput, "probe.exe");
+    const compiled = spawnCommand(
+      "rustc",
+      [
+        "--edition=2024",
+        "--crate-name",
+        "portcove_probe_mode_contract",
+        path.join(root, "crates/portcove-core/src/testdata/host_tool_probe.rs.txt"),
+        "-o",
+        probeTool,
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 30_000 },
+    );
+    assert.equal(compiled.error, undefined);
+    assert.equal(compiled.status, 0, compiled.stderr);
+  }, 30_000);
+  afterAll(async () => {
+    if (probeOutput) await rm(probeOutput, { recursive: true, force: true });
+  });
+
+  test.runIf(process.platform === "win32")(
+    "Windows owned probe explicit mode works in empty isolated cwd and preserves the legacy mode route",
+    async () => {
+      const output = await mkdtemp(path.join(tmpdir(), "portcove-probe-mode-"));
+      try {
+        const tool = probeTool;
+        for (const [name, args, legacy, succeeds, marker] of [
+          ["explicit", ["--owned-fixture-mode", "success"], null, true, true],
+          ["default", [], null, true, false],
+          ["legacy", [], "success", true, true],
+          ["missing-marker", ["--owned-fixture-mode", "missing-marker"], null, true, false],
+          ["failure", ["--owned-fixture-mode", "failure"], null, false, true],
+          ["missing-mode", ["--owned-fixture-mode"], null, false, false],
+          ["unsupported", ["--owned-fixture-mode", "invented"], null, false, false],
+          [
+            "duplicate",
+            ["--owned-fixture-mode", "success", "--owned-fixture-mode", "success"],
+            null,
+            false,
+            false,
+          ],
+        ]) {
+          const cwd = path.join(output, name);
+          await mkdir(cwd);
+          if (legacy) await writeFile(path.join(cwd, "owned-setup-mode"), legacy);
+          const result = spawnCommand(tool, ["--owned-preparation", ...args], {
+            cwd,
+            env: { ...process.env, SHIP_HOME: cwd },
+            encoding: "utf8",
+            windowsHide: true,
+            timeout: 5_000,
           });
+          assert.equal(result.error, undefined, name);
+          assert.equal(result.status === 0, succeeds, `${name}: ${result.stderr}`);
+          if (marker)
+            assert.equal(
+              await readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT"), "utf8"),
+              "owned validated output",
+            );
+          else
+            await assert.rejects(readFile(path.join(cwd, "data/out/jak1/iso/0COMMON.TXT")), {
+              code: "ENOENT",
+            });
+        }
+      } finally {
+        await rm(output, { recursive: true, force: true });
       }
-    } finally {
-      await rm(output, { recursive: true, force: true });
-    }
-  },
-);
+    },
+  );
+});
 
 test("completion report retains the original error across artifact and fallback-log failures", async () => {
   const original = new Error("original journey failure");

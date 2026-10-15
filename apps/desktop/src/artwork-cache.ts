@@ -5,9 +5,10 @@ import { errorText } from "./view-model";
 
 export interface ArtworkDisplay {
   state?: ArtworkState;
-  image?: string;
-  onImageError?: () => void;
-  error?: string;
+  // Display snapshots explicitly clear these fields while retaining the choice.
+  image?: string | undefined;
+  onImageError?: (() => void) | undefined;
+  error?: string | undefined;
   stale?: boolean;
   loading: boolean;
 }

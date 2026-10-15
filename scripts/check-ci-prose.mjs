@@ -38,7 +38,7 @@ const existing = files.filter((file) => {
   return existsSync(target) && statSync(target).isFile();
 });
 if (existing.length > 0)
-  execFileSync(process.execPath, ["scripts/run-oxfmt.mjs", "--check", ...existing], {
+  execFileSync(process.execPath, ["node_modules/vite-plus/bin/vp", "fmt", "--check", ...existing], {
     cwd: projectRoot,
     stdio: "inherit",
   });

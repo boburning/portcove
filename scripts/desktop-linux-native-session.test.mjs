@@ -8,6 +8,28 @@ import path from "node:path";
 import os from "node:os";
 import { launchLinuxNativeSession } from "../apps/desktop/scripts/desktop-linux-native-session.mjs";
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test(
+  "namespace startup failure retains bounded actual stderr and cannot establish custody",
+  {
+    skip: process.platform !== "linux",
+    timeout: 30_000,
+  },
+  async () => {
+    const launch = await launchLinuxNativeSession("/usr/bin/true", [], {
+      ...process.env,
+      NODE_OPTIONS: "--portcove-no-such-option",
+    });
+    await assert.rejects(
+      launch.ready(),
+      /Native namespace startup was not acknowledged.*portcove-no-such-option/su,
+    );
+    await assert.rejects(launch.stop(), /Launch-bound namespace identity/u);
+    assert.match(launch.receipt.startup_stderr, /portcove-no-such-option/u);
+    assert.ok(launch.receipt.startup_stderr.length <= 4096);
+    assert.notEqual(launch.receipt.exit.code, 0);
+  },
+);
 async function counter(file) {
   try {
     return Number(await readFile(file, "utf8"));

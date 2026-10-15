@@ -16,18 +16,26 @@ import { AUDIT_STAGES, receiptEnvelope } from "./audit.mjs";
 import { renderDeepAuditSummary } from "./deep-audit-summary.mjs";
 
 const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
-test("both existing dependency lanes audit exact changed pnpm artifacts", () => {
+
+test("native frontend harness retains the qualified Linux target and a failing namespace preflight", () => {
+  const block = workflow.split("  frontend_full:")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
+  assert.match(block, /runs-on: ubuntu-22\.04/u);
+  assert.match(
+    block,
+    /unshare --user --map-current-user --mount --pid --fork --mount-proc \/usr\/bin\/true/u,
+  );
+  assert.match(block, /scripts\/desktop-linux-native-session\.test\.mjs/u);
+  assert.doesNotMatch(block, /continue-on-error:|sysctl\s+-|apparmor_parser\s/u);
+});
+test("dependency lanes run actual security review without a custom age audit", () => {
   for (const name of ["fast_dependency_review", "dependency_review_full"]) {
     const block = workflow.split("  " + name + ":")[1].split(/\n  [a-zA-Z][a-zA-Z_-]*:/u)[0];
-    assert.match(block, /fetch-depth: 0/u);
-    assert.match(block, /dependency-release-age\.mjs --base/u);
-    assert.match(
+    assert.match(block, /actions\/dependency-review-action@/u);
+    assert.match(block, /fail-on-severity: high/u);
+    assert.doesNotMatch(
       block,
-      /name: Audit actual changed pnpm artifacts\n\s+if: github\.event_name == 'pull_request'/u,
+      /dependency-release-age|dependency-age|continue-on-error|minimumReleaseAge/u,
     );
-    assert.match(block, /pull_request\.base\.sha/u);
-    assert.match(block, /pull_request\.head\.sha/u);
-    assert.match(block, /--frozen-lockfile --ignore-scripts/u);
   }
 });
 const qualificationWorkflow = await readFile(
@@ -386,7 +394,7 @@ test("every Node test file is included in required CI and the local quality work
 });
 
 test("application release records run after the maintained SemVer dependency is installed", () => {
-  const installation = frontend.indexOf("pnpm install --frozen-lockfile");
+  const installation = frontend.indexOf("args: [--frozen-lockfile]");
   const selection = frontend.indexOf("scripts/select-release-channel.test.mjs");
   const coordinator = frontend.indexOf("scripts/release-coordinator.test.mjs");
   const reconstruction = frontend.indexOf(
@@ -448,7 +456,7 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   );
   assert.match(rustQualityGate, /PORTCOVE_ALWAYS_RESULTS: '\{"provenance"/);
   assert.match(proseChecks, /^ {4}if: needs\.classify\.outputs\.mode == 'prose'$/m);
-  assert.match(proseChecks, /pnpm install --frozen-lockfile/);
+  assert.match(proseChecks, /args: \[--frozen-lockfile\]/);
   assert.match(proseChecks, /scripts\/repository-settings\.test\.mjs/);
   assert.match(proseChecks, /scripts\/repository-skills\.test\.mjs/);
   assert.match(proseChecks, /node scripts\/check-ci-prose\.mjs/);
@@ -468,9 +476,9 @@ test("required CI keeps its cancellation and least-privilege contracts", () => {
   assert.match(fastRust, /runs-on: windows-latest/);
   assert.match(fastRust, /rust-test-impact\.mjs --workspace-run/);
   assert.equal(fastPlatform, "");
-  assert.match(fastRustQuality, /actions\/setup-node@/);
-  assert.match(fastRustQuality, /pnpm install --frozen-lockfile/);
-  assert.match(desktopPackage.scripts["format:oxfmt:check"], /run-oxfmt\.mjs --check/);
+  assert.match(fastRustQuality, /voidzero-dev\/setup-vp@/);
+  assert.match(fastRustQuality, /args: \[--frozen-lockfile\]/);
+  assert.match(desktopPackage.scripts["format:check"], /vp fmt --check/);
   assert.match(fastRustQuality, /format:check/);
   assert.match(fastRust, /key: fast-rust-tests-/);
   assert.doesNotMatch(fastRustQuality, /cargo clippy|rust-cache/);
@@ -1109,7 +1117,7 @@ test("release, rehearsal and deep audit Rust callers preserve repository pin, co
     ["release.yml", "validate", undefined],
     ["linux-package-ownership-rehearsal.yml", "build", "key: linux-package-ownership-rehearsal"],
     ["updater-artifact-rehearsal.yml", "packages", "key: updater-artifact-rehearsal"],
-    ["deep-quality.yml", "audit", "shared-key: deep-quality"],
+    ["deep-quality.yml", "audit", "shared-key: deep-quality-ubuntu-22.04"],
   ]) {
     await t.test(`${file} ${name}`, async () => {
       const source = await readFile(
@@ -1521,7 +1529,8 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
   );
   assert.match(nativeRust, /cargo nextest run --locked --workspace/);
   assert.match(rustQuality, /cargo shear --deny-warnings/);
-  assert.match(rustQuality, /cargo deny check/);
+  assert.match(rustQuality, /node scripts\/linux-beta-risk-706\.mjs check/);
+  assert.match(rustQuality, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(rustQuality, /check-rust-architecture\.mjs/);
   assert.match(rustQuality, /run-rscheck\.mjs/);
   const bootstrap = rustQuality.indexOf("./scripts/bootstrap-quality-tools.sh");
@@ -1546,11 +1555,11 @@ test("Linux Rust quality keeps its platform-specific and policy gates without pn
 
 test("frontend keeps deterministic product gates and delegates vulnerability changes", () => {
   assert.match(frontend, /^ {4}env:\r?\n {6}npm_config_audit: "false"$/m);
-  assert.match(frontend, /pnpm install --frozen-lockfile/);
+  assert.match(frontend, /args: \[--frozen-lockfile\]/);
   assert.match(frontend, /Install pinned recipe runner/);
-  const install = frontend.indexOf("pnpm install --frozen-lockfile");
+  const install = frontend.indexOf("args: [--frozen-lockfile]");
   const formatting = frontend.indexOf("pnpm --dir apps/desktop format:check");
-  const lint = frontend.indexOf("pnpm lint");
+  const lint = frontend.indexOf("pnpm check");
   const build = frontend.indexOf("pnpm build");
   assert.ok(install >= 0 && formatting > install && lint > formatting && build > lint);
   assert.match(frontend, /lint-tools\.integration\.mjs oxfmt oxlint stylelint/);
@@ -1579,189 +1588,14 @@ test("full frontend qualification provisions browser artifacts before compositio
   assert.doesNotMatch(fast, /browser:bootstrap|test:browser/);
 });
 
-test("frontend tooling uses the pinned Oxc contracts without legacy quality layers", async () => {
-  const desktopPackage = JSON.parse(
-    await readFile(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
-  );
-  const repositoryPackage = JSON.parse(
-    await readFile(new URL("../package.json", import.meta.url), "utf8"),
-  );
-  assert.equal(desktopPackage.scripts["format:oxfmt"], "node ../../scripts/run-oxfmt.mjs --write");
-  assert.equal(desktopPackage.scripts["lint:oxlint"], "node ../../scripts/run-oxlint.mjs");
-  assert.equal(repositoryPackage.devDependencies.oxfmt, "0.71.0");
-  assert.equal(repositoryPackage.devDependencies.oxlint, "1.86.0");
-  assert.equal(repositoryPackage.devDependencies["oxlint-tsgolint"], "7.0.2003");
-  assert.equal(desktopPackage.devDependencies["oxc-parser"], "0.151.0");
-  assert.equal(desktopPackage.devDependencies.typescript, "7.0.2");
-  for (const retired of [
-    "@babel/parser",
-    "@eslint/js",
-    "@typescript/native",
-    "eslint",
-    "eslint-plugin-jsx-a11y",
-    "eslint-plugin-react-hooks",
-    "globals",
-    "prettier",
-    "typescript-eslint",
-  ]) {
-    assert.equal(repositoryPackage.devDependencies[retired], undefined);
-    assert.equal(desktopPackage.devDependencies[retired], undefined);
-  }
-
-  const oxlint = JSON.parse(await readFile(new URL("../.oxlintrc.json", import.meta.url), "utf8"));
-  assert.deepEqual(oxlint.plugins, [
-    "eslint",
-    "typescript",
-    "react",
-    "jsx-a11y",
-    "oxc",
-    "import",
-    "vitest",
-  ]);
-  assert.deepEqual(oxlint.options, {
-    reportUnusedDisableDirectives: "error",
-    typeAware: false,
-    typeCheck: false,
-  });
-  assert.equal(oxlint.categories.correctness, "error");
-  assert.equal(oxlint.categories.suspicious, "off");
-  assert.equal(oxlint.rules["react/rules-of-hooks"], "error");
-  assert.equal(oxlint.rules["react/refs"], "error");
-  assert.equal(oxlint.rules["react/set-state-in-effect"], "error");
-  assert.equal(oxlint.rules["vitest/require-mock-type-parameters"], "off");
-  assert.deepEqual(oxlint.rules["vitest/valid-expect"], ["error", { maxArgs: 2 }]);
-  for (const rule of [
-    "alt-text",
-    "anchor-has-content",
-    "anchor-is-valid",
-    "aria-activedescendant-has-tabindex",
-    "aria-props",
-    "aria-proptypes",
-    "aria-role",
-    "aria-unsupported-elements",
-    "autocomplete-valid",
-    "click-events-have-key-events",
-    "heading-has-content",
-    "html-has-lang",
-    "iframe-has-title",
-    "img-redundant-alt",
-    "interactive-supports-focus",
-    "label-has-associated-control",
-    "media-has-caption",
-    "mouse-events-have-key-events",
-    "no-access-key",
-    "no-autofocus",
-    "no-distracting-elements",
-    "no-interactive-element-to-noninteractive-role",
-    "no-noninteractive-element-interactions",
-    "no-noninteractive-element-to-interactive-role",
-    "no-noninteractive-tabindex",
-    "no-redundant-roles",
-    "no-static-element-interactions",
-    "role-has-required-aria-props",
-    "role-supports-aria-props",
-    "scope",
-    "tabindex-no-positive",
-  ]) {
-    assert.equal(oxlint.rules[`jsx-a11y/${rule}`], "error");
-  }
-  assert.equal(oxlint.rules["jsx-a11y/prefer-tag-over-role"], "off");
-  for (const rule of ["no-array-constructor", "no-unused-expressions", "no-unused-vars"]) {
-    assert.equal(oxlint.rules[rule], "error");
-  }
-  for (const rule of [
-    "await-thenable",
-    "ban-ts-comment",
-    "no-array-delete",
-    "no-base-to-string",
-    "no-duplicate-enum-values",
-    "no-duplicate-type-constituents",
-    "no-empty-object-type",
-    "no-explicit-any",
-    "no-extra-non-null-assertion",
-    "no-floating-promises",
-    "no-for-in-array",
-    "no-implied-eval",
-    "no-misused-new",
-    "no-misused-promises",
-    "no-namespace",
-    "no-non-null-asserted-optional-chain",
-    "no-redundant-type-constituents",
-    "no-require-imports",
-    "no-this-alias",
-    "no-unnecessary-type-assertion",
-    "no-unnecessary-type-constraint",
-    "no-unsafe-argument",
-    "no-unsafe-assignment",
-    "no-unsafe-call",
-    "no-unsafe-declaration-merging",
-    "no-unsafe-enum-comparison",
-    "no-unsafe-function-type",
-    "no-unsafe-member-access",
-    "no-unsafe-return",
-    "no-unsafe-unary-minus",
-    "no-wrapper-object-types",
-    "only-throw-error",
-    "prefer-as-const",
-    "prefer-namespace-keyword",
-    "prefer-promise-reject-errors",
-    "require-await",
-    "restrict-plus-operands",
-    "restrict-template-expressions",
-    "triple-slash-reference",
-    "unbound-method",
-  ]) {
-    assert.equal(oxlint.rules[`typescript/${rule}`], "error");
-  }
-  const oxlintRunner = await readFile(new URL("./run-oxlint.mjs", import.meta.url), "utf8");
-  assert.match(oxlintRunner, /sourceRoot/);
-  assert.match(oxlintRunner, /viteConfig/);
-  assert.match(oxlintRunner, /"--type-aware"/);
-  assert.match(oxlintRunner, /report\.number_of_files < 1/);
-  assert.match(oxlintRunner, /report\.number_of_rules < 1/);
-
-  const copyChecker = await readFile(
-    new URL("../apps/desktop/scripts/check-copy.mjs", import.meta.url),
-    "utf8",
-  );
-  assert.match(copyChecker, /import \{ parseSync, visitorKeys \} from "oxc-parser"/);
-  assert.doesNotMatch(copyChecker, /@babel\/parser/);
-
-  const oxfmt = JSON.parse(await readFile(new URL("../.oxfmtrc.json", import.meta.url), "utf8"));
-  assert.equal(oxfmt.printWidth, 100);
-  assert.equal(oxfmt.sortImports, false);
-  assert.equal(oxfmt.sortPackageJson, true);
-  assert.ok(oxfmt.ignorePatterns.includes("**/*.toml"));
-
-  const fallow = JSON.parse(
-    await readFile(new URL("../apps/desktop/.fallowrc.json", import.meta.url), "utf8"),
-  );
-  assert.deepEqual(fallow, {
-    $schema: "../../node_modules/fallow/schema.json",
-    entry: [
-      "i18next.invalid.config.ts",
-      "src/i18next-contract.test-d.ts",
-      "src/i18next.d.ts",
-      "vitest.browser.config.ts",
-    ],
-    boundaries: {
-      zones: [
-        { name: "shared", patterns: ["src/shared/**"] },
-        { name: "features", patterns: ["src/features/**"] },
-      ],
-      rules: [{ from: "shared", allow: ["shared"], allowTypeOnly: [] }],
-    },
-  });
-
-  for (const retired of [
-    "../.prettierignore",
-    "../prettier.config.mjs",
-    "../eslint.config.mjs",
-    "../apps/desktop/eslint.config.mjs",
-    "./run-eslint.mjs",
-  ]) {
-    await assert.rejects(readFile(new URL(retired, import.meta.url)), { code: "ENOENT" });
-  }
+test("frontend tools resolve through the pinned Vite+ bundle", async () => {
+  const manifest = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(manifest.devDependencies["vite-plus"], "catalog:");
+  for (const superseded of ["oxfmt", "oxlint", "oxlint-tsgolint", "husky", "lint-staged"])
+    assert.equal(manifest.devDependencies[superseded], undefined);
+  assert.match(manifest.scripts.check, /browser-package-compatibility.mjs && vp check/);
+  assert.match(manifest.scripts.check, /run lint:style/);
+  assert.equal(manifest.scripts.build, "node apps/desktop/scripts/build-frontend.mjs");
 });
 
 test("ordinary tooling contracts select the workflow contract and full CI retains its inventory", async () => {
@@ -1887,10 +1721,7 @@ test("manual deep workflow preserves fresh default with explicit bounded audit r
   assert.match(deep, /^ {2}audit:\r?$/m);
   assert.match(deep, /just audit --fresh/);
   assert.match(deep, /default: audit\r?\n {8}options: \[audit, audit-reuse, local-check\]/);
-  assert.match(
-    deep,
-    /GH_TOKEN: \$\{\{ inputs.operation == 'audit-reuse' && github.token \|\| '' \}\}/,
-  );
+  assert.match(deep, /GH_TOKEN: \$\{\{ github.token \}\}/);
   assert.match(deep, /if: always\(\) && inputs.operation != 'audit-reuse'/);
   assert.doesNotMatch(deep, /actions: read|actions: write|contents: write/);
   assert.doesNotMatch(deep, /^ {2}(?:hawk|duplicates):/m);
@@ -2488,6 +2319,11 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
     /filter = 'package\(portcove-core\) & test\(adapter::source_conversion_tests::failed_and_cancelled_conversion_retains_logs_and_reaps_owned_processes\)'\r?\nthreads-required = 2/,
   );
   const lifecycleFilter = outputOverrides[0].trim().split(/\r?\n/)[0];
+  const intelRollbackBudget = [
+    "platform = 'x86_64-apple-darwin'",
+    "filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'",
+    'slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }',
+  ].join("\n");
   function assertTimeoutOverrides(source) {
     const [defaults, ...overrides] = source.split("[[profile.default.overrides]]");
     assert.match(
@@ -2495,21 +2331,29 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
       /^slow-timeout = \{ period = "5s", terminate-after = 6, grace-period = "0s" \}$/m,
     );
     const budgets = overrides.filter((override) => /^slow-timeout = /m.test(override));
-    assert.equal(budgets.length, 1);
+    assert.equal(budgets.length, 2);
     assert.equal(budgets[0].trim().split(/\r?\n/)[0], lifecycleFilter);
     assert.match(
       budgets[0],
       /^slow-timeout = \{ period = "5s", terminate-after = 9, grace-period = "0s" \}$/m,
     );
+    assert.equal(budgets[1].trim().split(/\r?\n/).slice(0, 3).join("\n"), intelRollbackBudget);
     for (const override of overrides) {
       assert.doesNotMatch(override, /retries/);
-      if (override !== budgets[0]) assert.doesNotMatch(override, /slow-timeout/);
+      if (!budgets.includes(override)) assert.doesNotMatch(override, /slow-timeout/);
     }
   }
   assertTimeoutOverrides(config);
   for (const changed of [
     config.replace("terminate-after = 9", "terminate-after = 18"),
     config.replace("terminate-after = 6", "terminate-after = 9"),
+    config.replace("platform = 'x86_64-apple-darwin'", "platform = 'aarch64-apple-darwin'"),
+    config.replace("platform = 'x86_64-apple-darwin'\n", ""),
+    config.replace(
+      intelRollbackBudget,
+      intelRollbackBudget.replace("terminate-after = 9", "terminate-after = 18"),
+    ),
+    config.replace(intelRollbackBudget.split("\n")[1], "filter = 'package(portcove-core)'"),
     config.replace(lifecycleFilter, "filter = 'package(portcove-core)'"),
     config.replace(
       'terminate-after = 9, grace-period = "0s"',
@@ -2524,7 +2368,9 @@ test("Rust reports slow tests, terminates hangs and retains documentation covera
   assert.match(rustTests, /cargo nextest run --locked @Arguments/);
   assert.doesNotMatch(rustTests + rustWorkspaceTests, /--test-threads 1/);
   assert.match(config, /^test-threads = 2$/m);
-  assert.match(rustDocs, /cargo test --locked --workspace --doc/);
+  assert.match(rustDocs, /cargo test --locked --workspace --exclude portcove-desktop --doc/);
+  assert.match(rustDocs, /cargo test --locked -p portcove-desktop --doc/);
+  assert.doesNotMatch(rustDocs, /--no-default-features|--no-deps|--exclude (?!portcove-desktop)/);
   for (const platform of ["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"]) {
     assert.ok(rustDocs.includes(`platform: ${platform}`));
   }
@@ -2544,10 +2390,17 @@ test("deep audit evidence retains audit status without privilege changes", async
     new URL("../.github/workflows/deep-quality.yml", import.meta.url),
     "utf8",
   );
+  const auditJob = deep.split("  audit:")[1].split(/\n  [a-z_]+:/u)[0];
+  assert.match(auditJob, /runs-on: ubuntu-22\.04/u);
+  assert.match(auditJob, /^    timeout-minutes: 45$/m);
+  const localJob = deep.split("  local_check:")[1].split(/\n  [a-z_]+:/u)[0];
+  assert.match(localJob, /^    timeout-minutes: 30$/m);
+  assert.match(auditJob, /shared-key: deep-quality-ubuntu-22\.04/u);
+  assert.match(auditJob, /key: quality-rscheck-binaries-v2-ubuntu-22\.04-/u);
   assert.match(deep, /id: fresh-audit/);
   assert.match(
     deep,
-    /if \[\[ "\$AUDIT_OPERATION" == "audit-reuse" \]\]; then\r?\n {12}just audit\r?\n {10}else\r?\n {12}just audit --fresh\r?\n {10}fi\r?\n {10}audit_status=\$\?/,
+    /if \[\[ "\$AUDIT_OPERATION" == "audit-reuse" \]\]; then\r?\n {12}just audit --linux-beta-706\r?\n {10}else\r?\n {12}just audit --fresh --linux-beta-706\r?\n {10}fi\r?\n {10}audit_status=\$\?/,
   );
   assert.match(deep, /exit "\$audit_status"/);
   assert.match(deep, /node scripts\/deep-audit-summary\.mjs --start/);
@@ -2638,6 +2491,40 @@ test("failed full audit retains actual stage failure and exit status", () => {
   assert.match(text, /receipt: failed/);
   assert.match(text, /\| rust \| failed \| 123 \| 2 \|/);
   assert.match(text, /Recorded audit exit status: 1/);
+});
+
+test("accepted #706 qualification remains a failed audit and cannot cover another stage failure", () => {
+  const payload = fixture();
+  payload.success = false;
+  payload.originalExitCode = 1;
+  Object.assign(
+    payload.stages.find((stage) => stage.id === "dependency-policy"),
+    { status: "failed", exitCode: 1 },
+  );
+  payload.policyDecision = {
+    disposition: "accepted-risk",
+    approvalUrl: "https://github.com/boburning/portcove/issues/706#issuecomment-6182222682",
+    candidate: auditSummarySource,
+    purpose: "qualification",
+    scanPassed: false,
+    scanExitCode: 1,
+  };
+  const text = renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload));
+  assert.match(text, /receipt: failed/);
+  assert.match(text, /Original audit exit status: 1/);
+  assert.match(text, /Recorded policy operation exit status: 0/);
+  assert.match(text, /Qualification policy operation outcome: success/);
+  assert.doesNotMatch(text, /Recorded audit exit status: 0/);
+  assert.match(text, /accepted risk \(not an audit pass\)/);
+  assert.doesNotMatch(text, /receipt: passed/);
+  Object.assign(
+    payload.stages.find((stage) => stage.id === "ui"),
+    { status: "failed", exitCode: 1 },
+  );
+  assert.match(
+    renderDeepAuditSummary(receiptEnvelope(payload), identity, binding(payload)),
+    /unavailable or invalid/,
+  );
 });
 for (const [name, mutate] of [
   [

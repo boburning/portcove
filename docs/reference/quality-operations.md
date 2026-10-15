@@ -624,22 +624,26 @@ arrays, enums and discriminated event variants. No TypeScript suppression is
 used for negative fixtures. Request schemas retain accepted defaults separately
 from required serialized response fields.
 
-The ordinary frontend compiler project remains the complete UI authority. Its
-required `typecheck` also runs `tsconfig.orchestration.json`, a bounded stricter
-project for production interaction and state orchestration. That project enables
-`noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` for gamepad navigation,
-global keyboard shortcuts, native source drag-and-drop, operation state,
-concurrency state, subscription lifecycle, and view-model presentation. Keep its
-file inventory explicit and extend it only with real fixes and compatibility
-review; do not add assertions or suppressions to make a broader experiment pass.
+Maintained application TS/TSX, typed tests and fixtures share `tsconfig.base.json`:
+`strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess` are true.
+Browser and Node configuration projects retain distinct libraries/runtime globals.
+The ordinary integrated `corepack pnpm check` enforces the policy; there is no
+narrow orchestration project or second compiler invocation.
 
-The 2026-09-19 baseline experiment reported 180 diagnostics when both options
-were applied to the complete frontend: 95 `TS2375`, 40 `TS2532`, 17 `TS2379`,
-and 28 across five other codes. The selected production project reported 12
-diagnostics across `TS2322`, `TS2345`, `TS2379`, and `TS2532`. Those selected
-ambiguities were resolved with neutral absent-axis values, explicit index guards,
-fallback presentation, and omission of absent optional fields. The unselected
-full-frontend result remains compatibility evidence, not a passing gate.
+Omit absent fields in transport/options and state updates when key presence has
+meaning. UI observations may explicitly accept undefined while loading, and a
+snapshot API may explicitly clear a value; document that distinction at its
+owner. Check missing lookups and empty collections instead of inventing defaults.
+Tests use complete seeds, truthful fixed tuples and checked fixture lookups that
+fail when setup or a captured operation is missing. Do not weaken generated
+transport contracts. TypeScript remains for editor/config typing and the
+transport generator's compiler API tests.
+
+The October 15 expanded trial found 508 diagnostics in 88 files: 186 production,
+321 typed-test and one browser fixture diagnostic. Shared presentation and state
+owners removed cascades before consumer repairs. Earlier experiments and the
+specialized POSIX compiler/tracking failure remain historical; their narrow
+policy and uncached workaround have been removed.
 
 After changing a Rust transport type, run
 `node scripts/check-transport-contract.mjs --write`, followed by

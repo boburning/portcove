@@ -44,6 +44,7 @@ Options:
   --restart-cycles 1..10        Default: 1
   --reload-cycles 0..25         Default: 0; positive values opt profiles into reload
   --require-clean               Refuse a dirty source tree
+  --acceptance-bindings-file ABS Optional finite qualification declarations/review; no new gate
   --plan                        Resolve without building or launching
   --json                        Machine output for --plan or --list-scenarios
   --help`;
@@ -68,6 +69,7 @@ export function parseDesktopVerifyArgs(args) {
       "restart-cycles": { type: "string", default: "1" },
       "reload-cycles": { type: "string", default: "0" },
       "require-clean": { type: "boolean", default: false },
+      "acceptance-bindings-file": { type: "string" },
       plan: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
     },
@@ -91,6 +93,9 @@ export function parseDesktopVerifyArgs(args) {
     restartCycles,
     reloadCycles,
     requireClean: values["require-clean"],
+    ...(values["acceptance-bindings-file"]
+      ? { acceptanceBindingsFile: values["acceptance-bindings-file"] }
+      : {}),
     plan: values.plan,
     json: values.json,
   };
@@ -500,6 +505,14 @@ async function runVerification(options, selection) {
       metadataPath,
       `${JSON.stringify(
         {
+          evidence_input_class: "non-secret-verification-metadata",
+          ...(options.acceptanceBindingsFile
+            ? {
+                acceptance_bindings: JSON.parse(
+                  await readFile(options.acceptanceBindingsFile, "utf8"),
+                ),
+              }
+            : {}),
           profile: selection.profile,
           selected_scenarios: selection.selected_scenarios,
           setup_scenarios: selection.setup_scenarios,

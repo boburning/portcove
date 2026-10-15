@@ -20,10 +20,10 @@ function ReviewCancelButton({ pending, dismiss }: { pending: boolean; dismiss: (
 
 type ExternalRuntimeControlProps = {
   port: PortDefinition;
-  status?: PortStatus;
+  status?: PortStatus | undefined;
   generation: number;
   busy: boolean;
-  onChanged?: () => void;
+  onChanged?: (() => void) | undefined;
 };
 
 export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
@@ -158,7 +158,7 @@ function RegisterExternalDialog({
   path: string;
   generation: number;
   close: () => void;
-  onChanged?: () => void;
+  onChanged?: (() => void) | undefined;
 }) {
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: `${port.id}:${path}:${generation}`,
@@ -239,7 +239,7 @@ function RemoveExternalDialog({
   port: PortDefinition;
   generation: number;
   close: () => void;
-  onChanged?: () => void;
+  onChanged?: (() => void) | undefined;
 }) {
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: `${port.id}:${generation}`,

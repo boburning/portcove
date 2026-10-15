@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, URL } from "node:url";
-import { expect, it } from "vitest";
+import { expect, it } from "vite-plus/test";
 
 const desktop = fileURLToPath(new URL("../", import.meta.url));
 const workspace = fileURLToPath(new URL("../../../", import.meta.url));

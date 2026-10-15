@@ -2,7 +2,7 @@
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { DetailPanel, type DetailActions } from "./components/DetailPanel";
 import { PortBrowser } from "./components/PortBrowser";
 import { desktopApi } from "./api";
@@ -27,7 +27,7 @@ const installed = (readiness?: PortStatus["readiness"]): PortStatus => ({
     selected_executable: "game.exe",
     runtime: null,
   },
-  readiness,
+  ...(readiness !== undefined ? { readiness } : {}),
   last_launched_at: 1,
   successful_launches: 1,
 });

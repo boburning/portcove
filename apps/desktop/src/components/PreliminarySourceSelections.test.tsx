@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vitest";
+import { expect, it, vi } from "vite-plus/test";
 import type { SourceInspectionReport, SourceProfile } from "../types";
 import {
   PreliminarySourceSelections,

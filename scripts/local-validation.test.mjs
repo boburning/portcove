@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
   chmodSync,
+  existsSync,
   lstatSync,
   mkdtempSync,
   readFileSync,
@@ -41,6 +42,19 @@ import { resolveUiSelection } from "./ui-test-selection.mjs";
 
 const allFilesExist = () => true;
 
+test("shared browser trace runtime selects full frontend tests and build", () => {
+  const selection = classifyChanges([{ status: "M", path: "scripts/browser-traces.ts" }], {
+    fileExists: allFilesExist,
+  });
+  assert.equal(selection.ui, true);
+  assert.equal(selection.uiFullTests, true);
+  const plan = buildPlan(selection);
+  assert.ok(plan.some((entry) => entry.id === "ui-build"));
+  const tests = plan.find((entry) => entry.id === "ui-tests");
+  assert.ok(tests.args.includes("test:after-copy"));
+  assert.ok(!tests.args.includes("--related"));
+});
+
 test("source copy fails before expensive stages while preserving valid selected obligations", () => {
   const selection = classifyChanges([{ status: "M", path: "apps/desktop/tsconfig.json" }], {
     fileExists: allFilesExist,
@@ -75,7 +89,7 @@ test("source copy fails before expensive stages while preserving valid selected 
 });
 
 test("hook entrypoints have explicit ownership and executable integration coverage", () => {
-  for (const file of [".husky/pre-commit", "lint-staged.config.mjs", "scripts/hooks-install.mjs"]) {
+  for (const file of [".vite-hooks/pre-commit", "vite.config.ts", ".vite-hooks/pre-commit"]) {
     const selection = classifyChanges([{ status: "A", path: file }], { fileExists: allFilesExist });
     assert.equal(selection.unknown.size, 0);
     assert.ok(selection.nodeTests.has("scripts/precommit-check.test.mjs"));
@@ -766,7 +780,6 @@ test("UI sources build and run import-related units in optional feedback", () =>
   assert.deepEqual(ids(plan), [
     "diff-check",
     "repository-lint",
-    "oxfmt",
     "ui-copy",
     "ui-transport-types",
     "ui-ipc-exposure",
@@ -786,7 +799,7 @@ test("related UI commands preserve validated absolute source paths", () => {
   const plan = buildPlan(selection);
   const related = plan.find((entry) => entry.id === "ui-related-tests");
   assert.ok(related);
-  assert.deepEqual(related.args.slice(4, 4 + files.length), files);
+  assert.deepEqual(related.args.slice(6, 6 + files.length), files);
 });
 
 test("frontend configuration changes use the complete small UI suite", () => {
@@ -806,7 +819,7 @@ test("frontend configuration changes use the complete small UI suite", () => {
   const scripts = JSON.parse(
     readFileSync(new URL("../apps/desktop/package.json", import.meta.url), "utf8"),
   ).scripts;
-  const aggregateCommands = `${scripts.test} && ${scripts["test:after-copy"]}`.split(/\s*&&\s*/u);
+  const aggregateCommands = scripts["check:content"].split(/\s*&&\s*/u);
   assert.ok(aggregateCommands.includes("node scripts/check-theme.mjs"));
   assert.ok(aggregateCommands.includes("node scripts/check-copy.mjs"));
 });
@@ -1154,7 +1167,7 @@ test("every tracked repository path has an explicit local selection owner", () =
   })
     .toString("utf8")
     .split("\0")
-    .filter(Boolean);
+    .filter((file) => file && existsSync(new URL("../" + file, import.meta.url)));
   const selection = classifyChanges(files.map((path) => ({ status: "M", path })));
   assert.deepEqual([...selection.unknown].sort(), []);
 });
@@ -1401,7 +1414,7 @@ test("local receipts reuse proven independent stages while full repository lint 
       id: "repository-lint",
       reason: "lint",
       executable: "corepack",
-      args: ["pnpm", "lint"],
+      args: ["pnpm", "check"],
       cwd: process.cwd(),
       obligation: "repository-lint",
     },
@@ -1568,6 +1581,17 @@ test("containment selector changes retain their dependent audit and hosted contr
   }
 });
 
+test("approved #706 record has an exact protected test owner without admitting another approval", () => {
+  const owned = planFor([".github/linux-beta-risk-706.json"]);
+  assert.equal(owned.selection.unknown.size, 0);
+  assert.ok(owned.selection.nodeTests.has("scripts/linux-beta-risk-706.test.mjs"));
+  assert.ok(owned.selection.nodeTests.has("scripts/validation-plan.test.mjs"));
+  const other = classifyChanges([{ status: "M", path: ".github/linux-beta-risk-999.json" }], {
+    fileExists: allFilesExist,
+  });
+  assert.ok(other.unknown.has(".github/linux-beta-risk-999.json"));
+});
+
 test("reviewed upstream accounting has an exact health-test owner without admitting other configuration", () => {
   const owned = planFor([".github/upstream-health-accounting.json"]);
   assert.equal(owned.selection.unknown.size, 0);
@@ -1600,7 +1624,7 @@ test("optional frontend baseline retains full lint, build and related units with
   assert.ok(p.some((entry) => entry.id === "ui-related-tests"));
   assert.deepEqual(
     p.filter((entry) => entry.id === "repository-lint").map((entry) => entry.args),
-    [["pnpm", "lint"]],
+    [["pnpm", "check"]],
   );
   assert.ok(!p.some((entry) => /browser|fallow|theme/.test(entry.id)));
   assert.equal(p.filter((entry) => entry.id === "ui-copy").length, 1);
@@ -1613,7 +1637,7 @@ test("lint follows source/configuration ownership on both rename sides without f
     { status: "R100", path: "docs/moved.md", previousPath: "scripts/tool.mjs" },
     { status: "M", path: "apps/desktop/src/App.tsx" },
     { status: "M", path: "apps/desktop/src/app.css" },
-    { status: "M", path: ".oxlintrc.json" },
+    { status: "M", path: "vite.config.ts" },
     { status: "M", path: "pnpm-lock.yaml" },
   ]) {
     const { plan } = planFor([change]);

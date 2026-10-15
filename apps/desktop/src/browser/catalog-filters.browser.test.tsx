@@ -2,8 +2,8 @@ import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
 import { PortBrowser } from "../components/PortBrowser";
 import {
   useLibraryBrowsingContext,

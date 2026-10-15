@@ -20,9 +20,9 @@ export function CatalogSettings({
   disabled,
   onChanged,
 }: {
-  provenance?: CatalogProvenance;
+  provenance?: CatalogProvenance | undefined;
   disabled: boolean;
-  onChanged?: () => Promise<unknown>;
+  onChanged?: (() => Promise<unknown>) | undefined;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -49,7 +49,7 @@ export function CatalogSettings({
   );
 }
 
-function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance }) {
+function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance | undefined }) {
   if (!provenance) return <p>Loading catalog information…</p>;
   return (
     <>
@@ -118,7 +118,7 @@ function CatalogUpdatesDialog({
   onChanged,
 }: {
   close: () => void;
-  onChanged?: () => Promise<unknown>;
+  onChanged?: (() => Promise<unknown>) | undefined;
 }) {
   const [status, setStatus] = useState<CatalogStatus>();
   const [busy, setBusy] = useState("Loading catalog settings…");
@@ -348,7 +348,7 @@ function CatalogReview({
   const [location, setLocation] = useState("");
   const [planState, setPlanState] = useState<{
     baseline: string;
-    value?: CatalogUpdatePlan;
+    value: CatalogUpdatePlan | undefined;
   }>();
   const plan = planState?.baseline === status.state_sha256 ? planState.value : undefined;
   const setPlan = (value?: CatalogUpdatePlan) =>

@@ -119,46 +119,174 @@ review; missing command records fail. #1973 still needs a naturally occurring
 hosted proposal/artifact readback, and full lockfile maintenance remains outside
 this scoped transitive-age guarantee.
 
+## Frontend workflow
+
+Vite+ owns the JavaScript toolchain. The root `vite.config.ts` contains format,
+lint, test-project, staged-check and composite-task settings; the desktop config
+owns application plugins, dev-server and production-build behavior. The exact
+release is in the pnpm catalog. Inspect the resolved bundle with `pnpm exec vp
+toolchain`; upgrade the release as a unit using the documented migrator.
+
+With a supported Node runtime and the repository-pinned pnpm, a global `vp` is
+optional. From the repository root:
+
+```sh
+corepack pnpm install --frozen-lockfile
+corepack pnpm dev
+corepack pnpm check
+corepack pnpm test --project unit
+corepack pnpm --dir apps/desktop browser:bootstrap
+corepack pnpm test --project browser
+corepack pnpm build
+```
+
+Package scripts resolve the installed local CLI. `corepack pnpm exec vp <command>`
+is the equivalent explicit route. Contributors who already have the pinned pnpm
+can omit `corepack`. Node is pinned in `.node-version`; Corepack is supplied
+separately on Node distributions that do not include it. The existing bootstrap
+profiles still provision Rust, native drivers and other language tools as needed.
+They are independent of the frontend toolchain.
+
+In controlled environments, use the official Vite+ installer with `VP_VERSION`
+pinned to the catalog release, or the SHA-pinned `setup-vp` action. Keep Node
+signature and archive-integrity verification enabled. Global `vp` delegates
+project commands to the local release; its Node/package-manager environment
+management is optional on contributor machines. Use `vp env current` and
+`vp toolchain --global` to distinguish the managed runtime from the project
+bundle. Installation must not silently replace a contributor's existing manager
+or shell configuration.
+
+`vp dev`, `vp check`, `vp test` and `vp build` are built-ins. `vp run <name>`
+selects a configured task or package script. At the workspace root, the ordinary
+app dev/build commands select `apps/desktop`; `vp -C apps/desktop <command>` is
+explicit. Bare `vp test` runs both the unit and browser projects; browser tests
+need the prefetched Chromium shell. `vp test watch --project unit`, a literal
+file filter, and `--project browser` provide focused feedback. Failed browser
+screenshots and traces remain under `.vitest` and `work/browser-traces`.
+The trace-probe script deliberately fails and preserves diagnostics.
+
+`vp check` integrates formatting, linting and TypeScript checking. `pnpm check`
+first verifies the coordinated installed toolchain and also runs Stylelint. The
+shared compiler policy enables strict, exactOptionalPropertyTypes and
+noUncheckedIndexedAccess across application TS/TSX, typed tests/fixtures and
+runtime-specific configuration projects. There is no narrow strict project or
+duplicate compiler task. Untyped Node
+scripts use Node globals and correctness lint; browser and typed code retain
+their actual execution-environment distinctions. Stylelint, TOML/Rust formatting,
+copy/theme/localization checks and generated transport checks retain their
+specialized responsibilities. `vp run verify:frontend` composes these frontend
+checks with unit tests and a production build. Builds and tests do not silently
+repeat the entire aggregate.
+
+Vite Task caches only named repeatable tasks. Use `pnpm build:cached` and `vp -C apps/desktop run test:cached` for reuse.
+Both build aliases strip signing inputs before starting Vite+; invoke them when
+using a shell with native signing credentials. Raw `vp build`/`vp run` commands
+do not provide that environment boundary. The ordinary
+`vp build` and `vp test` execute directly; `--no-cache` forces task execution.
+A cached test result is prior deterministic feedback, never new native,
+screenshot, benchmark or acceptance evidence. Native and verification tasks
+explicitly disable caching; package scripts are uncached by default. Build
+restoration is bounded to `dist/**`, and cached tests restore no files. Inspect
+`vp run --last-details` for misses. `vp cache clean` removes the task cache only;
+use the existing storage tool for other bounded cleanup. Cross-run hosted task
+caching remains off until measured benefit justifies its transfer/storage cost.
+
+`just` remains the cross-language entrypoint for Rust, qualification, source
+selection and guarded delivery. It delegates frontend work to this toolchain;
+there is no second frontend task graph. Packaged Portcove users need neither
+Node nor Vite+. The Tauri frontend-build task strips signing credentials before
+launching Vite, while native signing retains its own environment.
+
 ## Early commit feedback
 
-After the pinned frozen frontend dependency install, run `pnpm run hooks:install`.
-Windows selective frontend setup also runs this explicit step. On Linux, run the
-same install command after frontend setup. Repeat it in each linked
-worktree and after replacing dependencies or the hook entrypoint. Setup verifies
-the installed Husky/lint-staged versions and actual generated entrypoint, keeps
-hook configuration local to that worktree, and refuses an existing unrelated
-hook manager. It does not overwrite global Git settings. Source archives and
-actual GitHub Actions setup skip installation; `CI=true` alone does not.
+The supported Vite+ dispatcher replaces Husky and the repository's preflight
+launcher. Dependency installation runs a narrow scope adapter for the supported dispatcher;
+run `pnpm hooks:install` to refresh it and `pnpm hooks:status` to inspect it.
+Vite+ 1.2 writes hook preferences to common Git config (`--local`). In a
+repository with `extensions.worktreeConfig`, the adapter asks that exact local
+CLI to generate its dispatcher in an isolated scratch Git directory, then installs
+those generated files and writes only this worktree's preferences. It preserves
+sibling configuration and explicit disable choices. It owns no staged-file policy. The
+project-owned `.vite-hooks/pre-commit` checks staged whitespace and runs
+`vp staged`. Its standard `vp check --fix` workflow formats, lints and stages
+safe fixes while lint-staged's backup and partial-staging isolation remain on.
+Review the resulting diff before committing. Required CI and separate review
+remain independent gates.
 
-`node scripts/precommit-check.mjs` is the non-installing manual command and executes
-the same path as `.husky/pre-commit`. The package alias `precommit:check` is also
-available after setup; pnpm's default dependency verification can install stale
-dependencies before running an alias, so use Node for installation-free feedback.
-It checks the staged diff for whitespace/conflict markers, explicitly selected
-Oxfmt-owned files, JavaScript/Node syntax (not TypeScript checking), and static
-player-facing copy in staged production sources. Tasks are serial and check-only;
-fix formatting with `pnpm run format`, inspect the reported copy/syntax locations,
-and stage changes explicitly. The copy checker still checks all production
-sources with no arguments; `--files <production-source>...` is its strict subset
-interface. Selected validation checks full copy before frontend build/tests;
-standalone `pnpm test` retains its full copy check without duplicate aggregate scans.
+Existing foreign hook managers are preserved by the installer. To replace an
+old Portcove Husky hook, inspect `git config --show-origin --get core.hooksPath`,
+then explicitly enable `pnpm hooks:enable` in that checkout. In a linked
+worktree inspect both common and worktree config scopes: an existing
+worktree-specific Husky value can shadow a new common dispatcher. Only replace
+the verified Portcove-owned value. Use `pnpm hooks:disable` for a persistent checkout
+opt-out; `VP_GIT_HOOKS=0` is a process-scoped opt-out for non-development commits.
 
-Only relevant already-installed tools are required. Missing tools or unstaged
-changes to consumed checkers/configuration fail before lint-staged changes working
-state. Its supported partial-staging isolation, backup and ordinary failure
-restoration remain enabled; staged source symlinks are refused. SIGINT can cancel
-owned check tasks and trigger restoration. Preserve any reported backup stash or
-`.git/lint-staged` recovery files if restoration fails; uncatchable kills or power
-loss cannot guarantee recovery. Untracked work and preexisting stashes are retained.
+The same installed local CLI works in noninteractive editor commits. A failed
+check restores the original staged/unstaged state. Preserve any reported recovery
+stash after an interrupted or failed restoration. No hook can guarantee cleanup
+after power loss or forced termination.
 
-Rust formatting remains with edition/config-aware `cargo fmt`; repository TOML
-formatting and provisioned workflow lint retain their workspace inventories.
-They are outside this file-local hook, alongside compilation, typed/graph lint,
-tests, browsers/native scenarios, builds, catalog bookkeeping and network checks.
-No commit-time installation or automatic full pre-push check is added. A hook
-pass supplies early feedback only; full selected obligations, independent review,
-required exact-head CI and guarded delivery remain separate. Five seconds for a
-small warm commit is a measurement target, not a deadline or skipped-check rule.
+## Coordinated upgrades and rollback
+
+Renovate automatically proposes eligible primary `vite-plus` catalog releases.
+The proposal selects an exact target; a primary-only manifest/lock bump is
+intentionally not merge-ready. Ordinary `pnpm check` compares the selection,
+installed bundle, exact core alias, Vitest, browser provider and catalog-preserving
+overrides. React, Tailwind, Playwright and parser packages retain their independent
+reviewed update paths. Security alerts remain visible and follow the same
+compatibility discipline.
+
+Complete each proposal through the existing Codex issue/PR delivery process:
+
+1. Refresh proposal head, target, owning issue and actual writers. Select the
+   exact supported release from its official notes. Identify and verify the
+   pre-proposal base commit and its manifests, catalog and lockfile. Do not run
+   the migrator against an already bumped proposal or rely on stale node_modules.
+2. Create a clean owned worktree at that verified pre-upgrade commit. Run
+   `corepack pnpm install --frozen-lockfile` there. Preserve input/source identities;
+   keep the proposal and unrelated checkouts intact, without resetting their work.
+3. From that root, run the target migrator before updating project dependencies
+   (replace SELECTED_VERSION with the selected exact release):
+
+   `corepack pnpm --package=vite-plus@SELECTED_VERSION dlx vp migrate --no-interactive --no-agent --no-editor --no-hooks`
+
+   Existing Vite+ projects take the upstream version-only migration, not --full.
+   Inspect every manifest, catalog, alias and override. Match the directly consumed
+   browser provider to the target's bundled Vitest; verify every upgrade even when
+   the migrator updates it automatically.
+
+4. Preserve the 1440-minute/non-strict pnpm policy. Remove migrator-added
+   minimumReleaseAgeExclude entries for the bundle: non-strict resolution already
+   supports an explicit selection. Preserve allowBuilds restrictions and worktree
+   hook/signing adapters. Frozen-install, inspect `pnpm exec vp toolchain`, then
+   run checks, units/browser tests, build, affected cache/portability checks and
+   invalidated native acceptance.
+5. Commit the coherent result in that worktree. Integrate it into the owned
+   proposal branch through normal Git merge and explicit conflict review; retain
+   the verified complete manifest/lock result. Obtain separate non-writing review,
+   complete exact-head CI, guarded merge and remote readback.
+
+Repository postUpgradeTasks are not used: arbitrary commands are blocked by
+Renovate's default hosting policy, and no administrator allowedCommands support
+has been established here. Automatic proposals plus existing Codex delivery need
+no paid host, new monitor or persistent coordinator.
+`node scripts/viteplus-renovate-probe.mjs ENGINE_DIRECTORY` inspects extraction,
+resolved presets and ordinary/security rules with the verified 44.156.3 engine.
+It is local engine evidence, not a future hosted-proposal observation.
+
+The isolated 1.1.0-to-1.2.0 exercise retained pre-upgrade manifest/lock hashes,
+rejected a real primary-only installed proposal, reconstructed a clean workspace
+from those inputs, ran the target migrator, and passed compatibility, frozen
+install and a runner test. It validates this completion path without waiting
+for a release. Consult the [upstream upgrade guide](https://viteplus.dev/guide/upgrade-project)
+when the target migrator changes.
+
+Rollback is a normal reviewed Git revert of the migration commits followed by a
+frozen install of the restored lockfile. Keep unrelated work and failure evidence.
+Do not uninstall machine-wide Node, pnpm, other runtime managers or user data.
+If the clone had Vite+ hooks enabled, use `pnpm hooks:disable` and run the restored
+hook installer after reinstalling. A global Vite+ install may remain: the restored
+project scripts and dependencies own the repository's behavior.
 
 ## CI timing diagnostics
 
@@ -490,11 +618,13 @@ node scripts/dev-storage.mjs run -- corepack pnpm --dir apps/desktop test:browse
 `browser:bootstrap` installs only the reviewed Chromium shell and its companions
 under `work/browser-cache`, then launches it to verify the result. A warm invocation
 rechecks the same artifact. `test:browser` checks the existing binary and never
-downloads one. It runs one Vitest Browser Mode Chromium worker, with ten-second
-test bounds and Playwright traces retained in a per-run directory under
+downloads one. It runs Vitest Browser Mode with a Chromium instance and the
+selected bundle's scheduling and timeout defaults. Playwright traces stay in a per-run directory under
 `work/browser-traces` when a run fails. Successful runs remove only their own raw
-trace directory. Failure screenshots remain in `apps/desktop/.vitest`; both
-locations are ignored by Git and retained for diagnosis. In CI, the fast and full
+trace directory. Failure screenshots share that invocation's namespace; Vitest
+attachments may also remain in `apps/desktop/.vitest`. Both locations are ignored
+by Git and retained for diagnosis. Repeated runs preserve earlier failure files.
+In CI, the fast and full
 frontend lanes run the explicit bootstrap before browser tests and upload failure
 artifacts. The intentional failure probe is
 `corepack pnpm --dir apps/desktop test:browser:trace-probe`; it exits nonzero and
@@ -528,11 +658,79 @@ directory and can be used outside Portcove. Keep a repository skill focused:
 update its trigger and owning references when behavior changes instead of copying
 the same detailed contract into the root instructions.
 
+## Finite acceptance packets
+
+The existing Windows/Linux verification route accepts optional
+`--acceptance-bindings-file ABSOLUTE_JSON` for an owning finite qualification.
+The same declarations can be supplied in retained, explicitly non-secret
+`runner-metadata.json` through the documented low-level route. They name the
+actual author/source review, requirements with required scenarios, acceptance
+criteria with required image filenames, reusable evidence and visible gaps.
+These are execution declarations, not a new universal packet gate.
+
+The harness retains declared inputs before launch. After initial isolated
+application readiness and before selected scenarios, it writes
+`preflight.json` outside the source checkout, alongside the retained prelaunch
+observation. It freezes source/current-target/composed-tree, partial build-input
+fingerprint, product artifact identities, declared harness inputs, runtime,
+initial fixture identities/state, requirements and scenarios. Runtime bindings
+include observed browser/OS/Node versions and the retained public private-X11
+receipt where applicable; authentication bytes remain excluded. Original fixture
+reads remain protected by the existing cooperative ownership and content checks;
+retaining fixture copies does not prove immutable Core consumption. It needs no future
+screenshots. The build inventory's incomplete external native SDK coverage
+continues to require the normal Cargo build in the build-oriented
+`desktop-verify` route; it is not a native cache waiver. The explicit built-product
+`desktop-test` route may rerun a changed harness against an existing executable
+after review establishes unchanged effective product inputs. Preserve that
+product's actual compilation/Cargo-validation revisions and platform-specific
+frontend/build provenance, record the new harness head separately, and keep
+native SDK completeness and automatic native reuse false. This does not require
+restoring another platform's working `dist` or relabeling an older binary as a new build.
+
+After the run, `evidence.json` remains the actual run observation. The existing
+`completeAcceptancePacket` helper writes the same format at stage `completed`
+only after the canonical run binds the exact preflight and its observed build,
+product, harness and execution dependencies, real outcomes, retained artifacts, process-closure evidence,
+image-specific inspection, separate outcome review and final delivery bindings
+are supplied. Never insert placeholders or treat report reading as image
+inspection. Inspect each required PNG itself, rehash it and record reviewer,
+time and findings against those exact bytes. Required visuals also bind to their
+successful settled capture receipts and their criterion's declared scenario.
+Closure uses the existing Windows process inventory/exit receipt or Linux
+positive PID-1 namespace join; an arbitrary artifact and caller flag are insufficient.
+Missing images, failed mandatory setup, required gaps, failed,
+skipped or unsupported outcomes cannot become qualification success. Preserve
+failed evidence and the original preflight; a packet does not confer acceptance,
+merge authority or permission to change its own verifier.
+
+`reusableAcceptanceScenarios` compares effective product, harness, runtime,
+fixture, state, requirements and criteria bindings. Product changes invalidate
+product-dependent observations; harness changes invalidate scenarios using those
+inputs; runtime/display/fixture/criteria changes invalidate their observations.
+The bounded profiles conservatively rerun the selected affected set when a
+shared binding changes. Missing/ambiguous bindings require requalification.
+Documentation-only source changes may retain fully bound evidence while exact
+source-head CI remains required. Reuse references a previous completed packet
+and the unchanged evidence bytes, preserving its original execution source and
+time. Historical version-2 acceptance is not retroactively subjected to this
+format or granted earlier custody by a later copy.
+
+Keep the existing fresh current-target/composed-tree review and trusted guarded
+delivery route. A changed target requires an explicit reviewed qualification
+decision; candidate declarations cannot waive required acceptance or protected
+pre-change qualification. Retain one existing exact-head watcher and compact
+change-driven progress. At finite completion, summarize already-observed build
+reuse, deduplicated bytes, affected reruns and removed duplicate steps without
+creating a benchmark or numerical gate.
+
 ## Bounded native readiness and private Linux execution
 
 `captureSettledVisual` requires a scenario, intended target and caller-specific
 semantic readiness. The connected-folder completion journey uses it for each
-required image. Its bounded operation records viewport/application state before
+required image. Within the same deadline, two consecutive semantic/viewport/target
+observations must match before its single candidate screenshot. This waits for
+layout transitions; a later change still fails capture. It records state before
 and after PNG capture, retains and hashes the exact image, then publishes the
 capture receipt. Loading, offscreen targets, changed state, timeouts and retention
 failures produce diagnostic evidence; they cannot publish an accepted capture.

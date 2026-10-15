@@ -15,14 +15,20 @@ import {
 const inputFiles = [
   ".node-version",
   "package.json",
+  "vite.config.ts",
+  "tsconfig.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "apps/desktop/index.html",
   "apps/desktop/package.json",
   "apps/desktop/tsconfig.json",
-  "apps/desktop/tsconfig.node.json",
-  "apps/desktop/tsconfig.orchestration.json",
+  "tsconfig.base.json",
   "apps/desktop/vite.config.ts",
+  "apps/desktop/scripts/build-frontend.mjs",
+  "scripts/dev-storage.mjs",
+  "scripts/dev-storage.d.mts",
+  "scripts/browser-traces.ts",
+  "scripts/tool-cache.mjs",
 ];
 
 async function fixture() {
@@ -188,6 +194,8 @@ test("assertion-only desktop scripts preserve exact frontend reuse", async (t) =
     "assert.equal(actual, expected);\n",
   );
   const afterAssertionEdit = await identity(state.root);
+  await writeFile(path.join(state.root, "README.md"), "Documentation-only change\n");
+  assert.equal((await identity(state.root)).fingerprint, first.fingerprint);
   assert.equal(afterAssertionEdit.fingerprint, first.fingerprint);
   assert.equal(
     (await checkFrontendBuildReuse({ identity: afterAssertionEdit, ...state })).reused,
@@ -201,6 +209,9 @@ for (const frontendInput of [
   "apps/desktop/index.html",
   "apps/desktop/vite.config.ts",
   "apps/desktop/package.json",
+  "apps/desktop/scripts/build-frontend.mjs",
+  "scripts/dev-storage.mjs",
+  "scripts/tool-cache.mjs",
 ]) {
   test(`changing ${frontendInput} invalidates frontend reuse`, async (t) => {
     const state = await fixture();

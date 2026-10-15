@@ -24,10 +24,10 @@ export function BackupHistory({
   backups: BackupRecord[];
   problems?: BackupProblem[];
   state?: BackupInventory["state"];
-  readState?: BackupReadState;
-  restoreAssessment?: BackupInventory["restore_assessment"];
-  retryRead?: () => Promise<void>;
-  busy?: string;
+  readState?: BackupReadState | undefined;
+  restoreAssessment?: BackupInventory["restore_assessment"] | undefined;
+  retryRead?: (() => Promise<void>) | undefined;
+  busy?: string | undefined;
   generation?: number;
   restore: ApplyBackupAction;
   remove: ApplyBackupAction;
@@ -49,6 +49,156 @@ export function BackupHistory({
     restoreAssessment?.action === "backup_restore" &&
     restoreAssessment.availability === "allowed" &&
     restoreAssessment.reason === "available";
+  const renderReadStatus = () =>
+    readState &&
+    readState.status !== "idle" && (
+      <div className="backup-inventory-notice" role="status">
+        {readState.status === "pending" && (
+          <>
+            <strong>
+              {readState.hasInventory ? "Refreshing backup history" : "Loading backup history"}
+            </strong>
+            <p>
+              {readState.hasInventory
+                ? "Showing the last loaded backup list while the current list is checked."
+                : "The backup list has not been loaded yet."}
+            </p>
+          </>
+        )}
+        {readState.status === "failed" && (
+          <>
+            <strong>Backup history could not be loaded</strong>
+            <p>
+              {readState.hasInventory
+                ? "Showing the last loaded backup list. It may have changed since it was read."
+                : "The backup list is unknown. Retry to read it again."}
+            </p>
+            {readState.failure && (
+              <FailureDetails presentation={readState.failure} showMutationSummary={false} />
+            )}
+          </>
+        )}
+        {retryRead && (
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={readState.status === "pending"}
+            onClick={() => {
+              if (retryPending.current) return;
+              retryPending.current = true;
+              void retryRead().finally(() => {
+                retryPending.current = false;
+              });
+            }}
+          >
+            {readState.status === "failed" ? "Retry backup history" : "Refresh backup history"}
+          </Button>
+        )}
+      </div>
+    );
+  const renderInventoryNotice = () =>
+    (state !== "healthy" || problems.length > 0) && (
+      <div className={`backup-inventory-notice ${state}`} role="status">
+        <strong>
+          {state === "recovery_required"
+            ? "Backup recovery required"
+            : "Some backups need attention"}
+        </strong>
+        <p>
+          {problems.length > 0
+            ? `${problems.length} backup ${problems.length === 1 ? "entry is" : "entries are"} unavailable. `
+            : "The backup inventory could not be fully checked. "}
+          {backups.length
+            ? state === "recovery_required"
+              ? "Verified backups remain listed, but restoring and deleting require recovery to finish."
+              : "Verified backups remain listed and usable."
+            : problems.length > 0
+              ? "No backup is currently available to restore. Review the problems below."
+              : "No backup is currently available to restore."}
+        </p>
+        {problems.length > 0 && (
+          <div className="mt-2">
+            <strong>What to do next</strong>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {problems.map((problem) => (
+                <li key={`${problem.operation_id ?? "entry"}-${problem.path}`}>
+                  {problemLabel(problem.kind)}: {problem.proposed_action}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <details>
+          <summary data-focusable>Technical details</summary>
+          {problems.map((problem) => (
+            <div
+              className="backup-problem"
+              key={`${problem.operation_id ?? "entry"}-${problem.path}`}
+            >
+              <strong>{problemLabel(problem.kind)}</strong>
+              <span>{problem.message}</span>
+              <small>{problem.path}</small>
+            </div>
+          ))}
+        </details>
+      </div>
+    );
+  const renderRestoreAssessment = () =>
+    backups.length > 0 &&
+    !restoreAllowed && (
+      <p role="status" className="backup-restore-assessment">
+        {readState && readState.status !== "current"
+          ? "Restore eligibility is unknown until backup history is read again."
+          : restoreAssessment?.reason === "recovery_required"
+            ? "Restoring requires recovery to finish. Restart Portcove to retry recovery and review doctor output if it remains."
+            : restoreAssessment?.reason === "unsafe_data"
+              ? "Restore is on hold. Review the owned backup and saved-data locations."
+              : restoreAssessment?.reason === "unreadable_data"
+                ? "Restore is on hold because the owned saved-data location could not be read."
+                : restoreAssessment?.reason === "missing_backup"
+                  ? "No usable backup is currently available to restore."
+                  : "Restore eligibility is unknown. Refresh backup history before proceeding."}
+      </p>
+    );
+  const renderReview = () =>
+    selection && (
+      <BackupReviewDialog
+        key={`${selection.backup.id}:${selection.action}:${generation}`}
+        backup={selection.backup}
+        action={selection.action}
+        generation={generation}
+        apply={selection.action === "restore" ? restore : remove}
+        close={() => setSelection(undefined)}
+        finalFocus={(closeType) => {
+          // The primitive calls this during unmount, before React finishes removing rows.
+          // Resolve from the committed DOM in the same microtask stage as return focus.
+          queueMicrotask(() => {
+            const opener =
+              history.current?.isConnected &&
+              selection.opener.isConnected &&
+              !selection.opener.disabled
+                ? selection.opener
+                : undefined;
+            const actions = history.current?.isConnected
+              ? history.current.querySelectorAll<HTMLButtonElement>(
+                  `button[data-backup-action="${selection.action}"]:not(:disabled)`,
+                )
+              : undefined;
+            const target =
+              opener ??
+              actions?.[Math.min(selection.index, actions.length - 1)] ??
+              (heading.current?.isConnected ? heading.current : undefined) ??
+              focusFallback?.();
+            if (target?.isConnected)
+              target.focus({
+                preventScroll: true,
+                ...(closeType === "keyboard" ? { focusVisible: true } : {}),
+              });
+          });
+          return false;
+        }}
+      />
+    );
   return (
     <div ref={history} className="backup-history" data-backup-read-state={readState?.status}>
       <div className="backup-heading">
@@ -58,112 +208,9 @@ export function BackupHistory({
         <small>{backupSummary(backups.length, problems.length, state, readState)}</small>
       </div>
       <p>Backups include saves and settings managed by Portcove.</p>
-      {readState && readState.status !== "idle" && (
-        <div className="backup-inventory-notice" role="status">
-          {readState.status === "pending" && (
-            <>
-              <strong>
-                {readState.hasInventory ? "Refreshing backup history" : "Loading backup history"}
-              </strong>
-              <p>
-                {readState.hasInventory
-                  ? "Showing the last loaded backup list while the current list is checked."
-                  : "The backup list has not been loaded yet."}
-              </p>
-            </>
-          )}
-          {readState.status === "failed" && (
-            <>
-              <strong>Backup history could not be loaded</strong>
-              <p>
-                {readState.hasInventory
-                  ? "Showing the last loaded backup list. It may have changed since it was read."
-                  : "The backup list is unknown. Retry to read it again."}
-              </p>
-              {readState.failure && (
-                <FailureDetails presentation={readState.failure} showMutationSummary={false} />
-              )}
-            </>
-          )}
-          {retryRead && (
-            <Button
-              data-focusable
-              variant="outline"
-              disabled={readState.status === "pending"}
-              onClick={() => {
-                if (retryPending.current) return;
-                retryPending.current = true;
-                void retryRead().finally(() => {
-                  retryPending.current = false;
-                });
-              }}
-            >
-              {readState.status === "failed" ? "Retry backup history" : "Refresh backup history"}
-            </Button>
-          )}
-        </div>
-      )}
-      {(state !== "healthy" || problems.length > 0) && (
-        <div className={`backup-inventory-notice ${state}`} role="status">
-          <strong>
-            {state === "recovery_required"
-              ? "Backup recovery required"
-              : "Some backups need attention"}
-          </strong>
-          <p>
-            {problems.length > 0
-              ? `${problems.length} backup ${problems.length === 1 ? "entry is" : "entries are"} unavailable. `
-              : "The backup inventory could not be fully checked. "}
-            {backups.length
-              ? state === "recovery_required"
-                ? "Verified backups remain listed, but restoring and deleting require recovery to finish."
-                : "Verified backups remain listed and usable."
-              : problems.length > 0
-                ? "No backup is currently available to restore. Review the problems below."
-                : "No backup is currently available to restore."}
-          </p>
-          {problems.length > 0 && (
-            <div className="mt-2">
-              <strong>What to do next</strong>
-              <ul className="mt-1 list-disc space-y-1 pl-5">
-                {problems.map((problem) => (
-                  <li key={`${problem.operation_id ?? "entry"}-${problem.path}`}>
-                    {problemLabel(problem.kind)}: {problem.proposed_action}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <details>
-            <summary data-focusable>Technical details</summary>
-            {problems.map((problem) => (
-              <div
-                className="backup-problem"
-                key={`${problem.operation_id ?? "entry"}-${problem.path}`}
-              >
-                <strong>{problemLabel(problem.kind)}</strong>
-                <span>{problem.message}</span>
-                <small>{problem.path}</small>
-              </div>
-            ))}
-          </details>
-        </div>
-      )}
-      {backups.length > 0 && !restoreAllowed && (
-        <p role="status" className="backup-restore-assessment">
-          {readState && readState.status !== "current"
-            ? "Restore eligibility is unknown until backup history is read again."
-            : restoreAssessment?.reason === "recovery_required"
-              ? "Restoring requires recovery to finish. Restart Portcove to retry recovery and review doctor output if it remains."
-              : restoreAssessment?.reason === "unsafe_data"
-                ? "Restore is on hold. Review the owned backup and saved-data locations."
-                : restoreAssessment?.reason === "unreadable_data"
-                  ? "Restore is on hold because the owned saved-data location could not be read."
-                  : restoreAssessment?.reason === "missing_backup"
-                    ? "No usable backup is currently available to restore."
-                    : "Restore eligibility is unknown. Refresh backup history before proceeding."}
-        </p>
-      )}
+      {renderReadStatus()}
+      {renderInventoryNotice()}
+      {renderRestoreAssessment()}
       {visible.map((backup, index) => {
         const createdLabel = new Date(backup.created_at * 1000).toLocaleString();
         return (
@@ -214,44 +261,7 @@ export function BackupHistory({
           </div>
         );
       })}
-      {selection && (
-        <BackupReviewDialog
-          key={`${selection.backup.id}:${selection.action}:${generation}`}
-          backup={selection.backup}
-          action={selection.action}
-          generation={generation}
-          apply={selection.action === "restore" ? restore : remove}
-          close={() => setSelection(undefined)}
-          finalFocus={(closeType) => {
-            // The primitive calls this during unmount, before React finishes removing rows.
-            // Resolve from the committed DOM in the same microtask stage as return focus.
-            queueMicrotask(() => {
-              const opener =
-                history.current?.isConnected &&
-                selection.opener.isConnected &&
-                !selection.opener.disabled
-                  ? selection.opener
-                  : undefined;
-              const actions = history.current?.isConnected
-                ? history.current.querySelectorAll<HTMLButtonElement>(
-                    `button[data-backup-action="${selection.action}"]:not(:disabled)`,
-                  )
-                : undefined;
-              const target =
-                opener ??
-                actions?.[Math.min(selection.index, actions.length - 1)] ??
-                (heading.current?.isConnected ? heading.current : undefined) ??
-                focusFallback?.();
-              if (target?.isConnected)
-                target.focus({
-                  preventScroll: true,
-                  ...(closeType === "keyboard" ? { focusVisible: true } : {}),
-                });
-            });
-            return false;
-          }}
-        />
-      )}
+      {renderReview()}
       {backups.length > 3 && (
         <Button
           data-focusable

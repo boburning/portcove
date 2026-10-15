@@ -94,7 +94,7 @@ export function Sidebar({
   updateCount: number;
   activities: ActivityRecord[];
   onAdopt: () => void;
-  controller?: string;
+  controller?: string | undefined;
 }) {
   const activityState = navigationActivityState(activities);
   const items = [
@@ -161,7 +161,7 @@ function NavigationStatus({
   activityState,
 }: {
   updateCount: number;
-  activityState?: NavigationActivityState;
+  activityState?: NavigationActivityState | undefined;
 }) {
   const activityLabel =
     activityState === "running"
@@ -283,17 +283,17 @@ export function StatusLayer({
 }: {
   error?: unknown;
   clearError: () => void;
-  operation?: OperationEvent;
-  busy?: string;
-  updateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
+  operation?: OperationEvent | undefined;
+  busy?: string | undefined;
+  updateNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
   updateChoiceRequired?: boolean;
   productionTransitionRequired?: boolean;
   productionTransitionBusy?: boolean;
   reviewUpdate?: (route: ApplicationUpdateRoute) => void;
   dismissUpdate?: () => Promise<void>;
   dismissUpdateChoice?: () => void;
-  useStable?: () => void;
-  keepPreview?: () => void;
+  useStable?: (() => void) | undefined;
+  keepPreview?: (() => void) | undefined;
   dismissProductionTransition?: () => void;
 }) {
   return (
@@ -337,9 +337,9 @@ function ApplicationUpdateProductionTransitionBanner({
   dismiss,
 }: {
   busy: boolean;
-  useStable?: () => void;
-  keepPreview?: () => void;
-  dismiss?: () => void;
+  useStable?: (() => void) | undefined;
+  keepPreview?: (() => void) | undefined;
+  dismiss?: (() => void) | undefined;
 }) {
   return (
     <section
@@ -380,7 +380,7 @@ function ApplicationUpdateChoiceBanner({
   dismiss,
 }: {
   review?: () => void;
-  dismiss?: () => void;
+  dismiss?: (() => void) | undefined;
 }) {
   return (
     <section
@@ -419,7 +419,7 @@ function ApplicationUpdateNoticeBanner({
 }: {
   notice: NonNullable<ApplicationUpdateNoticeSnapshot["notice"]>;
   review?: () => void;
-  dismiss?: () => Promise<void>;
+  dismiss?: (() => Promise<void>) | undefined;
 }) {
   const candidate = notice.result.candidate;
   if (!candidate) return null;
@@ -474,28 +474,31 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
   const code =
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   const cancelled = code === "cancelled";
+  const renderFailureDetails = () => (
+    <div>
+      <strong>
+        {committed
+          ? "Change saved; review the current state"
+          : neutral
+            ? "Operation cancelled"
+            : cancelled
+              ? presentation?.mutation_state === "recovery_required"
+                ? "Cancelled operation needs recovery review"
+                : "Cancellation outcome needs review"
+              : "Portcove couldn’t finish that action"}
+      </strong>
+      {!((neutral || committed || cancelled) && summary === "The operation was cancelled.") && (
+        <p>{summary}</p>
+      )}
+      {presentation && <FailureDetails presentation={presentation} code={code} />}
+    </div>
+  );
   return (
     <section className="error-banner" role={neutral ? "status" : "alert"}>
       <span className="error-icon">
         <Icon glyph={neutral ? CircleMinus : AlertTriangle} />
       </span>
-      <div>
-        <strong>
-          {committed
-            ? "Change saved; review the current state"
-            : neutral
-              ? "Operation cancelled"
-              : cancelled
-                ? presentation?.mutation_state === "recovery_required"
-                  ? "Cancelled operation needs recovery review"
-                  : "Cancellation outcome needs review"
-                : "Portcove couldn’t finish that action"}
-        </strong>
-        {!((neutral || committed || cancelled) && summary === "The operation was cancelled.") && (
-          <p>{summary}</p>
-        )}
-        {presentation && <FailureDetails presentation={presentation} code={code} />}
-      </div>
+      {renderFailureDetails()}
       <div className="error-actions">
         <Button
           data-focusable
@@ -511,7 +514,13 @@ function ErrorNotice({ error, clearError }: { error: unknown; clearError: () => 
   );
 }
 
-function OperationProgress({ operation, busy }: { operation?: OperationEvent; busy: string }) {
+function OperationProgress({
+  operation,
+  busy,
+}: {
+  operation?: OperationEvent | undefined;
+  busy: string;
+}) {
   const { label, detail, range } = progressPresentation(operation, busy);
   return (
     <div className="operation-bar mb-4 grid items-center gap-3 rounded-pc-md border border-pc-info bg-pc-info-subtle px-3 py-2 text-xs text-pc-muted-foreground">
@@ -548,10 +557,10 @@ function OperationProgress({ operation, busy }: { operation?: OperationEvent; bu
 }
 
 export interface GithubSettingsActions {
-  status?: GithubAuthStatus;
+  status?: GithubAuthStatus | undefined;
   token: string;
   setToken: Dispatch<SetStateAction<string>>;
-  deviceLogin?: GithubDeviceLogin;
+  deviceLogin?: GithubDeviceLogin | undefined;
   saveToken: () => Promise<void>;
   logout: () => Promise<void>;
   beginDeviceLogin: () => Promise<void>;
@@ -565,7 +574,7 @@ export interface HostToolActions {
   openOfficial: (toolId: string) => Promise<void>;
 }
 
-function GithubConnection({ status }: { status?: GithubAuthStatus }) {
+function GithubConnection({ status }: { status?: GithubAuthStatus | undefined }) {
   const labels = {
     anonymous: "Anonymous",
     environment: "Environment variable",
@@ -620,7 +629,7 @@ function githubQuota(status?: GithubAuthStatus) {
   return `${status.rate_limit.remaining.toLocaleString()} of ${status.rate_limit.limit.toLocaleString()} GitHub requests remaining`;
 }
 
-function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
+function DeviceLogin({ login }: { login?: GithubDeviceLogin | undefined }) {
   if (!login) return null;
   return (
     <div className="flex items-center gap-3 rounded-pc-md border border-[var(--color-warning-border)] bg-pc-warning-subtle p-3">
@@ -641,7 +650,13 @@ function DeviceLogin({ login }: { login?: GithubDeviceLogin }) {
   );
 }
 
-function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
+function TokenEntry({
+  github,
+  busy,
+}: {
+  github?: GithubSettingsActions | undefined;
+  busy: boolean;
+}) {
   if (!github?.status || github.status.authenticated || github.status.source === "environment")
     return null;
   return (
@@ -676,7 +691,13 @@ function TokenEntry({ github, busy }: { github?: GithubSettingsActions; busy: bo
   );
 }
 
-function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy: boolean }) {
+function GithubActions({
+  github,
+  busy,
+}: {
+  github?: GithubSettingsActions | undefined;
+  busy: boolean;
+}) {
   const status = github?.status;
   return (
     <div className="actions compact">
@@ -723,7 +744,7 @@ function GithubActions({ github, busy }: { github?: GithubSettingsActions; busy:
   );
 }
 
-function GithubNotes({ status }: { status?: GithubAuthStatus }) {
+function GithubNotes({ status }: { status?: GithubAuthStatus | undefined }) {
   const noteClass = "mt-2.5 block text-pc-muted-foreground";
   if (status?.source === "environment")
     return (
@@ -750,7 +771,13 @@ function GithubNotes({ status }: { status?: GithubAuthStatus }) {
   return null;
 }
 
-function GithubSettings({ github, busy }: { github?: GithubSettingsActions; busy?: string }) {
+function GithubSettings({
+  github,
+  busy,
+}: {
+  github?: GithubSettingsActions | undefined;
+  busy?: string | undefined;
+}) {
   return (
     <article className="settings-row col-span-full" data-focus-group>
       <p className="eyebrow">GITHUB</p>
@@ -777,8 +804,8 @@ function SourceRequirements({
   requirements: SourceRequirement[];
   state: SourceRequirementsState;
   installedCount: number;
-  busy?: string;
-  add?: (profile: SourceProfile, archive: boolean) => void;
+  busy?: string | undefined;
+  add?: ((profile: SourceProfile, archive: boolean) => void) | undefined;
 }) {
   if (state === "loading")
     return (
@@ -891,17 +918,17 @@ function SourceHealth({
   ports: PortDefinition[];
   sources: SourceRecord[];
   outcomes: SourceVerificationOutcome[];
-  busy?: string;
-  verify?: () => void;
-  replace?: (source: SourceRecord) => void;
+  busy?: string | undefined;
+  verify?: (() => void) | undefined;
+  replace?: ((source: SourceRecord) => void) | undefined;
   requirements: SourceRequirement[];
   requirementsState: SourceRequirementsState;
   installedCount: number;
-  add?: (profile: SourceProfile, archive: boolean) => void;
+  add?: ((profile: SourceProfile, archive: boolean) => void) | undefined;
   profiles: SourceProfile[];
   inspections: ReadonlyMap<string, SourceInspectionReport> | SourceInspectionReadback;
-  onAdded?: () => Promise<unknown>;
-  openEvidence?: (evidenceId: string) => void;
+  onAdded?: (() => Promise<unknown>) | undefined;
+  openEvidence?: ((evidenceId: string) => void) | undefined;
 }) {
   const inspection =
     "reports" in inspectionInput
@@ -992,18 +1019,18 @@ function SourceHealthRow({
 }: {
   generation: number;
   ports: PortDefinition[];
-  onRemoved?: () => Promise<unknown>;
+  onRemoved?: (() => Promise<unknown>) | undefined;
   source: SourceRecord;
   sourcePosition: number;
   sourceCount: number;
-  profile?: SourceProfile;
-  report?: SourceInspectionReport;
-  inspectionRead?: SourceInspectionReadState;
-  retryInspection?: (profileId: string) => Promise<void>;
-  outcome?: SourceVerificationOutcome;
-  busy?: string;
-  replace?: (source: SourceRecord) => void;
-  openEvidence?: (evidenceId: string) => void;
+  profile?: SourceProfile | undefined;
+  report?: SourceInspectionReport | undefined;
+  inspectionRead?: SourceInspectionReadState | undefined;
+  retryInspection?: ((profileId: string) => Promise<void>) | undefined;
+  outcome?: SourceVerificationOutcome | undefined;
+  busy?: string | undefined;
+  replace?: ((source: SourceRecord) => void) | undefined;
+  openEvidence?: ((evidenceId: string) => void) | undefined;
 }) {
   return (
     <div
@@ -1094,9 +1121,9 @@ function SourceInspectionState({
   read,
   ...props
 }: {
-  read?: SourceInspectionReadState;
-  report?: SourceInspectionReport;
-  outcome?: SourceVerificationOutcome;
+  read?: SourceInspectionReadState | undefined;
+  report?: SourceInspectionReport | undefined;
+  outcome?: SourceVerificationOutcome | undefined;
   profileAvailable: boolean;
 }) {
   if (!props.profileAvailable || !read || read.status === "current")
@@ -1122,12 +1149,12 @@ function SourceInspectionPresentation({
   disabled,
   openEvidence,
 }: {
-  read?: SourceInspectionReadState;
-  report?: SourceInspectionReport;
+  read?: SourceInspectionReadState | undefined;
+  report?: SourceInspectionReport | undefined;
   profileId: string;
-  retry?: (profileId: string) => Promise<void>;
+  retry?: ((profileId: string) => Promise<void>) | undefined;
   disabled: boolean;
-  openEvidence?: (evidenceId: string) => void;
+  openEvidence?: ((evidenceId: string) => void) | undefined;
 }) {
   const currentReport = !read || read.status === "current" ? report : undefined;
   const message =
@@ -1179,8 +1206,8 @@ function SourceState({
   outcome,
   profileAvailable = true,
 }: {
-  report?: SourceInspectionReport;
-  outcome?: SourceVerificationOutcome;
+  report?: SourceInspectionReport | undefined;
+  outcome?: SourceVerificationOutcome | undefined;
   profileAvailable?: boolean;
 }) {
   const base = "source-state inline-flex items-center gap-1 text-xs";
@@ -1239,7 +1266,7 @@ function SourceState({
   );
 }
 
-function AppearanceSettings({ appearance }: { appearance?: ThemeState }) {
+function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefined }) {
   const preference = appearance?.preference ?? "system";
   const resolvedTheme = appearance?.resolvedTheme ?? "dark";
   const options: ThemePreference[] = ["system", "dark", "light"];
@@ -1327,13 +1354,13 @@ function DiagnosticsCard({
   refresh,
   hasSnapshot,
 }: {
-  busy?: string;
-  createSupportBundle?: () => Promise<string | undefined>;
-  refreshing?: boolean;
-  stale?: boolean;
+  busy?: string | undefined;
+  createSupportBundle?: (() => Promise<string | undefined>) | undefined;
+  refreshing?: boolean | undefined;
+  stale?: boolean | undefined;
   failure?: unknown;
-  refresh?: () => Promise<unknown>;
-  hasSnapshot?: boolean;
+  refresh?: (() => Promise<unknown>) | undefined;
+  hasSnapshot?: boolean | undefined;
 }) {
   const [bundlePath, setBundlePath] = useState<string>();
   const create = async () => {
@@ -1407,7 +1434,7 @@ function ThemeOption({
 }: {
   option: ThemePreference;
   selected: boolean;
-  select?: (preference: ThemePreference) => void;
+  select?: ((preference: ThemePreference) => void) | undefined;
 }) {
   return (
     <Button
@@ -1418,7 +1445,7 @@ function ThemeOption({
       aria-pressed={selected}
       onClick={() => select?.(option)}
     >
-      {option[0].toUpperCase() + option.slice(1)}
+      {option.charAt(0).toUpperCase() + option.slice(1)}
     </Button>
   );
 }
@@ -1469,15 +1496,15 @@ export function SettingsView({
   ports?: PortDefinition[];
   statuses?: ReadonlyMap<string, PortStatus>;
   libraryRoot?: string;
-  doctor?: DoctorReport;
-  storage?: StorageSummary;
-  github?: GithubSettingsActions;
-  busy?: string;
+  doctor?: DoctorReport | undefined;
+  storage?: StorageSummary | undefined;
+  github?: GithubSettingsActions | undefined;
+  busy?: string | undefined;
   sources?: SourceRecord[];
   workspaceRefreshFailed?: boolean;
-  librarySelection?: LibrarySelection;
+  librarySelection?: LibrarySelection | undefined;
   chooseLibrary?: (currentPath: string) => Promise<string | null>;
-  switchLibrary?: (path: string) => Promise<void>;
+  switchLibrary?: ((path: string) => Promise<void>) | undefined;
   resetLibrary?: () => Promise<void>;
   sourceNeeds?: SourceRequirement[];
   sourceRequirementsState?: SourceRequirementsState;
@@ -1488,19 +1515,19 @@ export function SettingsView({
   sourceInspections?: ReadonlyMap<string, SourceInspectionReport> | SourceInspectionReadback;
   openSourceEvidence?: (evidenceId: string) => void;
   addSource?: (profile: SourceProfile, archive: boolean) => void;
-  appearance?: ThemeState;
-  createSupportBundle?: () => Promise<string | undefined>;
-  exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
+  appearance?: ThemeState | undefined;
+  createSupportBundle?: (() => Promise<string | undefined>) | undefined;
+  exportMetadata?: (() => Promise<LibraryMetadataFile | undefined>) | undefined;
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;
-  onOpenPort?: (portId: string, originKey: string) => void;
-  setupSource?: SourceRecord;
+  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
+  setupSource?: SourceRecord | undefined;
   setSetupSource?: (source?: SourceRecord) => void;
   onCatalogChanged?: () => Promise<unknown>;
   onOpenGameUpdates?: () => void;
-  hostToolActions?: HostToolActions;
-  applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"];
-  applicationUpdatePreferences?: ApplicationUpdatePreferencesState;
+  hostToolActions?: HostToolActions | undefined;
+  applicationUpdateNotice?: ApplicationUpdateNoticeSnapshot["notice"] | undefined;
+  applicationUpdatePreferences?: ApplicationUpdatePreferencesState | undefined;
   diagnosticsRefreshing?: boolean;
   diagnosticsStale?: boolean;
   diagnosticFailure?: unknown;
@@ -1729,11 +1756,11 @@ export function LibrarySelectionCard({
   switchLibrary,
   reset,
 }: {
-  selection?: LibrarySelection;
-  busy?: string;
-  choose?: (currentPath: string) => Promise<string | null>;
-  switchLibrary?: (path: string) => Promise<void>;
-  reset?: () => Promise<void>;
+  selection?: LibrarySelection | undefined;
+  busy?: string | undefined;
+  choose?: ((currentPath: string) => Promise<string | null>) | undefined;
+  switchLibrary?: ((path: string) => Promise<void>) | undefined;
+  reset?: (() => Promise<void>) | undefined;
 }) {
   const [error, setError] = useState<unknown>();
   const presentation = failurePresentation(error);
@@ -1910,12 +1937,12 @@ function HostReadiness({
   stale,
   failure,
 }: {
-  doctor?: DoctorReport;
-  busy?: string;
-  actions?: HostToolActions;
-  refreshing?: boolean;
-  refresh?: () => Promise<unknown>;
-  stale?: boolean;
+  doctor?: DoctorReport | undefined;
+  busy?: string | undefined;
+  actions?: HostToolActions | undefined;
+  refreshing?: boolean | undefined;
+  refresh?: (() => Promise<unknown>) | undefined;
+  stale?: boolean | undefined;
   failure?: unknown;
 }) {
   return (
@@ -1978,7 +2005,7 @@ export function HostToolRow({
 }: {
   tool: HostToolStatus;
   busy: boolean;
-  actions?: HostToolActions;
+  actions?: HostToolActions | undefined;
   showTechnicalId?: boolean;
 }) {
   const [pending, setPending] = useState<string>();
@@ -2170,9 +2197,9 @@ function StorageCard({
   exportMetadata,
 }: {
   libraryRoot: string;
-  storage?: StorageSummary;
-  busy?: string;
-  exportMetadata?: () => Promise<LibraryMetadataFile | undefined>;
+  storage?: StorageSummary | undefined;
+  busy?: string | undefined;
+  exportMetadata?: (() => Promise<LibraryMetadataFile | undefined>) | undefined;
 }) {
   const [exported, setExported] = useState<LibraryMetadataFile>();
   const total = storage?.volume_total_bytes;

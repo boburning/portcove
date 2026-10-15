@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import process from "node:process";
-import { test, vi } from "vitest";
+import { test, vi } from "vite-plus/test";
 import {
   compareConsumerIdentities,
   compareStatusSnapshots,

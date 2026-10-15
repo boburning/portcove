@@ -43,7 +43,7 @@ export function useGameFileScan() {
     current.disposed = false;
     return () => {
       current.disposed = true;
-      current.active = undefined;
+      delete current.active;
     };
   }, []);
   const start = async (readRoots = desktopApi.gameFileRoots) => {
@@ -68,13 +68,14 @@ export function useGameFileScan() {
         // A corrupt old observation must not prevent Core's explicit fresh-scan recovery.
         const snapshot = await desktopApi.gameFileScanSnapshot().catch(() => null);
         if (!accepts()) return;
-        const continuing =
+        const continuingScan = () =>
           snapshot?.freshness === "inputs_match" &&
           snapshot.coverage?.can_resume &&
           !snapshot.coverage.restart_required &&
           snapshot.limits
             ? snapshot
             : undefined;
+        const continuing = continuingScan();
         const limits = continuing?.limits ?? gameFileScanLimits;
         if (
           Object.entries(gameFileScanLimits).some(
@@ -129,20 +130,25 @@ export function useGameFileScan() {
       else error = errorText(value);
     } finally {
       if (accepts()) {
-        current.active = undefined;
+        delete current.active;
         setState((previous) => ({
           scanning: false,
           candidates: [],
           completion: previous.completion + 1,
-          result,
-          error,
-          notice,
+          ...(result === undefined ? {} : { result }),
+          ...(error === undefined ? {} : { error }),
+          ...(notice === undefined ? {} : { notice }),
         }));
       }
     }
   };
   const clearFeedback = () =>
-    setState((previous) => ({ ...previous, error: undefined, notice: undefined }));
+    setState((previous) => {
+      const next = { ...previous };
+      delete next.error;
+      delete next.notice;
+      return next;
+    });
   return { ...state, start, clearFeedback };
 }
 

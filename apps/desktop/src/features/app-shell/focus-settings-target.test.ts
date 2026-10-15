@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { focusSettingsTarget } from "./focus-settings-target";
 
 afterEach(() => {
