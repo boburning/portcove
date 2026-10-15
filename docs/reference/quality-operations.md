@@ -106,17 +106,18 @@ or any protected authority.
 ## Formatting contract
 
 `just fmt` is the canonical write command and `just fmt-check` is its no-write
-counterpart. Cargo formats Rust, Oxfmt formats active JavaScript, TypeScript,
-CSS, HTML, hand-maintained JSON and YAML, and active Markdown, and Taplo formats
-TOML. Oxfmt uses a configured 100-column width, sorts package manifests, and
+counterpart. Cargo formats Rust; Vite+'s bundled Oxfmt formats active JavaScript,
+TypeScript, CSS, HTML, hand-maintained JSON and YAML, active Markdown and maintained
+TOML, including root manifests, hidden configuration, app and crate files.
+Oxfmt uses a configured 100-column width, sorts package manifests, and
 deliberately leaves import order unchanged. Import order can carry side effects,
 and normalizing the existing tree would add unrelated churn without a product or
-quality benefit. Oxfmt and Taplo are exact development dependencies installed by
-the existing pnpm workflow. Recommended VS Code extensions and format-on-save
-settings use those same repository-local tools. The Oxfmt wrapper rejects an
-empty repository-owned inventory before invoking the formatter; the TOML wrapper
-enumerates repository-owned files before passing their contents to Taplo so
-checks cover the same files on Windows and Unix hosts.
+quality benefit. The formatter version follows the exact coordinated Vite+ bundle.
+Recommended VS Code formatting uses Oxc for these supported formats; the TOML
+extension remains useful for schema completion and validation. The workspace
+`fmt` block owns discovery/exclusions for local, staged and hosted checks.
+Diff selection chooses candidate extensions and lets Oxfmt apply that policy;
+it does not maintain a competing generated/history exclusion list.
 
 Generated files, catalogs, fixtures, dependency lockfiles, archived documents,
 and dated release evidence are outside the bulk-format boundary so a formatter

@@ -84,7 +84,6 @@ export default defineConfig({
       "crates/**/tests/fixtures/**",
       "docs/archive/**",
       "docs/releases/[0-9]*.md",
-      "**/*.toml",
       "Cargo.lock",
     ],
   },

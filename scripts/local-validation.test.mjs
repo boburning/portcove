@@ -36,7 +36,6 @@ import {
   readDoctestPackages,
   main,
 } from "./local-validation.mjs";
-import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { buildValidationPlan } from "./validation-plan.mjs";
 import { resolveUiSelection } from "./ui-test-selection.mjs";
 
@@ -669,20 +668,20 @@ test("documentation targets run the dynamic link contract", () => {
   assert.deepEqual(ids(plan), ["diff-check", "oxfmt", "node-tests"]);
 });
 
-test("archived documents retain documentation checks without an excluded formatter target", () => {
+test("archived documents retain checks while native formatting owns their exclusions", () => {
   for (const status of ["A", "M"]) {
     const { selection, plan } = planFor([{ status, path: "docs/archive/2026-09-25-audit.md" }]);
-    assert.deepEqual([...selection.oxfmtFiles], []);
+    assert.deepEqual([...selection.oxfmtFiles], ["docs/archive/2026-09-25-audit.md"]);
     assert.deepEqual([...selection.nodeTests], ["scripts/repository-skills.test.mjs"]);
     assert.deepEqual(ids(plan), ["diff-check", "node-tests"]);
   }
 });
 
-test("active and archived Markdown changes format only the active document", () => {
+test("format selection delegates exclusions to the formatter configuration", () => {
   const active = "docs/ARCHITECTURE.md";
   assert.deepEqual([...planFor([active]).selection.oxfmtFiles], [active]);
   const { selection, plan } = planFor([active, "docs/archive/2026-09-25-audit.md"]);
-  assert.deepEqual([...selection.oxfmtFiles], [active]);
+  assert.deepEqual([...selection.oxfmtFiles], [active, "docs/archive/2026-09-25-audit.md"]);
   const formatter = plan.find((entry) => entry.id === "oxfmt");
   assert.ok(formatter);
   assert.ok(formatter.args.some((argument) => argument.endsWith("ARCHITECTURE.md")));
@@ -691,19 +690,17 @@ test("active and archived Markdown changes format only the active document", () 
   );
 });
 
-test("formatter exclusions cover numbered release evidence and generated or fixture files", () => {
-  const excluded = [
-    "docs/releases/2026.md",
-    "docs/releases/0.1.0-alpha.2-release-notes.md",
-    "crates/portcove-core/catalog/catalog.json",
-    "crates/portcove-core/tests/fixtures/legacy.json",
-    "scripts/example.generated.json",
+test("root, hidden, app and crate TOML share the ordinary formatter route", () => {
+  const files = [
+    "Cargo.toml",
+    ".config/nextest.toml",
+    "apps/desktop/src-tauri/Cargo.toml",
+    "crates/portcove-core/Cargo.toml",
   ];
-  for (const file of excluded) assert.equal(isExcludedOxfmtPath(file), true, file);
-  const selection = classifyChanges(excluded.map(change), { fileExists: allFilesExist });
-  assert.deepEqual([...selection.oxfmtFiles], []);
-  assert.equal(isExcludedOxfmtPath("docs/ARCHITECTURE.md"), false);
-  assert.equal(isExcludedOxfmtPath("docs/releases/README.md"), false);
+  const { selection, plan } = planFor(files);
+  assert.deepEqual([...selection.oxfmtFiles].sort(), files.sort());
+  assert.ok(ids(plan).includes("oxfmt"));
+  assert.ok(!ids(plan).includes("toml-format"));
 });
 
 test("archive renames and deletions keep active formatter ownership precise", () => {
@@ -714,7 +711,7 @@ test("archive renames and deletions keep active formatter ownership precise", ()
   const toArchive = planFor([
     { status: "R100", previousPath: "docs/old.md", path: "docs/archive/new.md" },
   ]);
-  assert.deepEqual([...toArchive.selection.oxfmtFiles], []);
+  assert.deepEqual([...toArchive.selection.oxfmtFiles], ["docs/archive/new.md"]);
   assert.deepEqual(ids(toArchive.plan), ["diff-check", "node-tests"]);
   const deletion = planFor([{ status: "D", path: "docs/archive/old.md" }]);
   assert.deepEqual([...deletion.selection.oxfmtFiles], []);
@@ -1147,7 +1144,7 @@ test("retired root TOML policy remains owned without a file-specific tombstone",
     fileExists: () => false,
   });
   assert.deepEqual([...selection.unknown], []);
-  assert.equal(selection.toml, true);
+  assert.deepEqual([...selection.oxfmtFiles], []);
   assert.deepEqual([...selection.nodeTests].sort(), [
     "scripts/local-validation.test.mjs",
     "scripts/validation-plan.test.mjs",

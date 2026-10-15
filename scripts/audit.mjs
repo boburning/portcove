@@ -413,7 +413,6 @@ export function domainsForPath(input) {
       ".gitignore",
       ".git-blame-ignore-revs",
       "pyproject.toml",
-      "taplo.toml",
       "LICENSE-APACHE",
       "LICENSE-MIT",
       "SECURITY.md",

@@ -200,7 +200,7 @@ Explicit audits run named independent stages and retain conservative, integrity-
 
 ## Formatting contract
 
-Repository-pinned Oxfmt owns supported JS/TS/config/docs files; Cargo fmt owns Rust and Taplo owns TOML. Formatting stays in ordinary CI. Analyzer baselines and exhaustive scan details are conditional [format/analyzer operations](reference/quality-operations.md#formatting-contract). Fix causes; do not add suppressions to manufacture a pass.
+Repository-pinned Oxfmt owns supported JS/TS/config/docs and maintained TOML files; Cargo fmt owns Rust. The workspace formatter configuration owns exclusions for generated files and historical evidence. Formatting stays in ordinary CI. Analyzer baselines and exhaustive scan details are conditional [format/analyzer operations](reference/quality-operations.md#formatting-contract). Fix causes; do not add suppressions to manufacture a pass.
 
 ## Tool and Rust version authority
 

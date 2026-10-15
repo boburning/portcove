@@ -4,10 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "format": "vp fmt && vp run format:toml",
-    "format:check": "vp fmt --check && vp run format:toml:check",
-    "format:toml": "taplo format --config ../../taplo.toml ../../taplo.toml && node scripts/format-toml.mjs",
-    "format:toml:check": "taplo format --check --config ../../taplo.toml ../../taplo.toml && node scripts/format-toml.mjs --check",
+    "format": "vp -C ../.. fmt",
+    "format:check": "vp -C ../.. fmt --check",
     "release:policy": "node scripts/release-version-policy.mjs",
     "test:release-policy": "vp test scripts/release-version-policy.test.mjs scripts/prepare-release-version.test.mjs",
     "test:build-environment": "vp test scripts/build-frontend.test.mjs",

@@ -1,8 +1,16 @@
 # Vite+ modernization: decisions and evidence
 
-Owner: [#2001](https://github.com/boburning/portcove/issues/2001). Candidate baseline:
+Initial migration: [#2001](https://github.com/boburning/portcove/issues/2001). Candidate baseline:
 `7c45fcf11597967ed657a1ede8ea524d64502e2a`, inspected October 15, 2026.
 This is an implementation record, not a second planning authority.
+
+Further consolidation is owned by [#2004](https://github.com/boburning/portcove/issues/2004),
+starting at `34e433feaf5e5db4817cdc692c13dac1b715d5d4`. Earlier measurements below
+retain their original source and conditions.
+
+| Responsibility             | Supported owner                          | Implementation/removal                                                                                 | Validation                                                                                                                                          | Final disposition                                        |
+| -------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Maintained TOML formatting | Bundled Oxfmt 0.73.0 and workspace `fmt` | Removed Taplo dependency/config/launcher and separate command chains; native formatter owns exclusions | All 11 pre-removal TOML files preserve parsed meaning and idempotence; malformed input rejects. The retired Taplo config leaves 10 maintained files | No separate TOML formatter or competing ownership helper |
 
 ## Selected release and source review
 

@@ -47,7 +47,6 @@ test("the root owns the only pnpm workspace lock and repository tool dependencie
   assert.ok(Object.keys(repositoryPackage.devDependencies).length > 0);
   assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
-    "@taplo/cli",
     "fallow",
     "vite-plus",
     "yaml",

@@ -4,16 +4,8 @@
   "oxc.fmt.configPath": "vite.config.ts",
   "oxc.requireConfig": true,
   "oxc.typeAware": true,
-  "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][html][markdown][yaml]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode",
-    "editor.formatOnSave": true
-  },
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer",
-    "editor.formatOnSave": true
-  },
-  "[toml]": {
-    "editor.defaultFormatter": "tamasfe.even-better-toml",
     "editor.formatOnSave": true
   },
   "oxc.disableNestedConfig": true,
@@ -22,5 +14,9 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.oxc": "explicit"
   },
-  "vitest.vitestCommandLine": "node node_modules/vite-plus/bin/vp test"
+  "vitest.vitestCommandLine": "node node_modules/vite-plus/bin/vp test",
+  "[javascript][javascriptreact][typescript][typescriptreact][json][jsonc][css][html][markdown][yaml][toml]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.formatOnSave": true
+  }
 }

@@ -34,7 +34,6 @@ import {
 import { prepareStorageScope, spawnCommand } from "./dev-storage.mjs";
 import { parseRawDiff } from "./select-ci-plan.mjs";
 import { selectWorkspaceRustImpact } from "./rust-test-impact.mjs";
-import { isExcludedOxfmtPath } from "./oxfmt-ownership.mjs";
 import { collectSelectedPrerequisites, selectedPrerequisites } from "./dev-doctor.mjs";
 import { runCheckedGit } from "./checked-git.mjs";
 import { collectResourceStatus } from "./resource-status.mjs";
@@ -186,6 +185,7 @@ const oxfmtExtensions = new Set([
   ".mjs",
   ".ts",
   ".tsx",
+  ".toml",
   ".yaml",
   ".yml",
 ]);
@@ -382,7 +382,6 @@ const explicitNodeTests = new Map([
     ],
   ],
   [".oxfmtrc.json", ["scripts/local-validation.test.mjs", "scripts/ci-workflow.test.mjs"]],
-  ["taplo.toml", ["scripts/local-validation.test.mjs"]],
 ]);
 
 const workflowTests = new Map([
@@ -508,10 +507,9 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
   )
     selection.browser = true;
 
-  if (includeFileChecks && oxfmtExtensions.has(extension) && !isExcludedOxfmtPath(file)) {
+  if (includeFileChecks && oxfmtExtensions.has(extension)) {
     selection.oxfmtFiles.add(file);
   }
-  if (extension === ".toml") selection.toml = true;
   if (options.isDeletion && extension === ".toml" && !file.includes("/")) {
     selection.scopes.add("repository-config");
     addNodeTest(selection, "scripts/local-validation.test.mjs");
@@ -702,11 +700,7 @@ function classifyOnePath(selection, input, fileExists, options = {}) {
     recognized = true;
   }
 
-  if (
-    file.startsWith(".vite-hooks/") ||
-    file === "vite.config.ts" ||
-    ["scripts/oxfmt-ownership.mjs"].includes(file)
-  ) {
+  if (file.startsWith(".vite-hooks/") || file === "vite.config.ts") {
     selection.scopes.add("tooling");
     addNodeTest(selection, "scripts/precommit-check.test.mjs");
     recognized = true;
@@ -970,16 +964,11 @@ export function buildPlan(selection, context = {}) {
         "node_modules/vite-plus/bin/vp",
         "fmt",
         "--check",
+        ...(broad || files.includes("vite.config.ts") ? [] : ["--no-error-on-unmatched-pattern"]),
         ...(broad || files.includes("vite.config.ts")
           ? []
           : files.map((file) => path.join(projectRoot, file))),
       ]),
-    );
-  if (selection.toml || broad)
-    commands.push(
-      corepackCommand("toml-format", "TOML formatting", ["pnpm", "run", "format:toml:check"], {
-        cwd: desktopRoot,
-      }),
     );
   if (selection.rustfmt || broad)
     commands.push(
@@ -1481,7 +1470,7 @@ function localStageDomains(entry) {
   if (["rust-workspace-tests", "ui-ipc-exposure"].includes(entry.id))
     return ["rust", "ui", "format", "development"];
   if (entry.id === "ui-transport-types") return ["ui", "format"];
-  if (["oxfmt", "toml-format"].includes(entry.id)) return ["format"];
+  if (entry.id === "oxfmt") return ["format"];
   if (entry.id === "rustfmt" || entry.id === "dependency-policy" || entry.id.startsWith("rust-"))
     return ["rust"];
   if (entry.id.startsWith("ui-")) return ["ui"];
