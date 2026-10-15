@@ -26,6 +26,10 @@ test("native frontend harness retains the qualified Linux target and a failing n
   );
   assert.match(block, /scripts\/desktop-linux-native-session\.test\.mjs/u);
   assert.doesNotMatch(block, /continue-on-error:|sysctl\s+-|apparmor_parser\s/u);
+  assert.match(
+    block,
+    /- name: Test native compiler and shell integrations\n\s+working-directory: \.\n\s+run: node scripts\/run-viteplus\.mjs run native:tools/u,
+  );
 });
 test("dependency lanes run actual security review without a custom age audit", () => {
   for (const name of ["fast_dependency_review", "dependency_review_full"]) {

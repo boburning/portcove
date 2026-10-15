@@ -911,6 +911,7 @@ jobs:
         working-directory: .
         run: node scripts/run-fallow.mjs
       - name: Test native compiler and shell integrations
+        working-directory: .
         run: node scripts/run-viteplus.mjs run native:tools
 
   frontend:
